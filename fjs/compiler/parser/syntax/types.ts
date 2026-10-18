@@ -89,7 +89,7 @@ export type BlockStatement = readonly ['const', Const] | readonly ['if', If] | r
  * guard does not. The `let` before it, a {@link Let},
  * declares the variable the block assigns; the fold reads the two
  * statements as one loop and refuses either alone
- * ([spec: loops](../../../../spec/README.md#loops)).
+ * ([spec: loops](../../../../spec/control-flow/loops.md)).
  */
 export type While = {
     readonly start: DjsTokenWithMetadata
@@ -121,7 +121,7 @@ export type Assignment = Statement & {
  * line. The statements after the guard, up to and including the body's own
  * terminator, are what runs when the condition is falsy; the fold makes
  * the two arms of a conditional of them
- * ([spec: functions](../../../../spec/README.md#functions)).
+ * ([spec: functions](../../../../spec/functions/README.md)).
  */
 export type If = {
     readonly start: DjsTokenWithMetadata
@@ -139,7 +139,7 @@ export type Key = DjsTokenWithMetadata | ComputedKey
 /**
  * Any other value in brackets, `a[i]`, and the token it begins with, which
  * its refusal is anchored at: the fold admits the conversion `Number(i)`
- * alone ([spec: property access](../../../../spec/README.md#property-access)).
+ * alone ([spec: property access](../../../../spec/property-access/README.md)).
  */
 export type ComputedKey = readonly ['[]', Node, DjsTokenWithMetadata]
 
@@ -239,7 +239,7 @@ export type ComputedMember = {
  * `}`, or at the end of input — and where the next statement shares its
  * line instead, its first token is the one JavaScript refuses; the fold
  * refuses it there, by that token's `newline`
- * ([spec: module structure](../../../../spec/README.md#module-structure)).
+ * ([spec: module structure](../../../../spec/modules/README.md)).
  */
 export type Statement = {
     readonly start: DjsTokenWithMetadata
@@ -278,7 +278,7 @@ export type Const = Statement & {
  * A loop's `let`, `let x = init;`: the token naming the one variable the
  * loop's block assigns, and its initial value. It begins at its `let`. A
  * name and never a pattern, the loop having one variable
- * ([spec: loops](../../../../spec/README.md#loops)).
+ * ([spec: loops](../../../../spec/control-flow/loops.md)).
  */
 export type Let = Statement & {
     readonly name: DjsTokenWithMetadata
@@ -290,7 +290,7 @@ export type Let = Statement & {
  * a name, by its token; an array pattern, `[t, …]`, by its `[` and its
  * elements; or an object pattern, `{ p, … }`, by its `{` and its
  * properties
- * ([spec: destructuring](../../../../spec/README.md#destructuring)). A
+ * ([spec: destructuring](../../../../spec/bindings/destructuring.md)). A
  * pattern is read by the value rules — one symbol cannot tell a
  * parenthesized parameter list from a group, so the grammar reads a value
  * and the mappings keep this reading of it beside the node, as
@@ -367,19 +367,28 @@ export type ParameterList =
 
 /**
  * The fixed parameters in order, each a binding target — a name, or a
- * pattern, {@link BindingTarget} — and the rest parameter's token, or
- * `null` where the list has none. A rest parameter keeps a plain name
- * ([spec: destructuring](../../../../spec/README.md#destructuring)).
+ * pattern, {@link BindingTarget} — with its default where it has one,
+ * {@link Parameter}, and the rest parameter's token, or `null` where the
+ * list has none. A rest parameter keeps a plain name and takes no default
+ * ([spec: destructuring](../../../../spec/bindings/destructuring.md)).
  */
 export type Parameters = {
-    readonly fixed: readonly BindingTarget[]
+    readonly fixed: readonly Parameter[]
     readonly rest: DjsTokenWithMetadata | null
 }
 
 /**
+ * A fixed parameter as written: its binding target, or the target and its
+ * default, `target = value`, by its `=`, which a refusal of the parameter
+ * is anchored at, and the value as written
+ * ([default parameters](../../../../spec/todo/3125-default-parameters.md)).
+ */
+export type Parameter = BindingTarget | readonly ['=', BindingTarget, DjsTokenWithMetadata, Node]
+
+/**
  * The output alphabet: what the mappings return, each tagged by the rule it
  * came from. A `parameters` symbol is the list after a named list's first
- * parameter, its fixed targets and its rest parameter's token, which the
+ * parameter, its fixed parameters and its rest parameter's token, which the
  * list's reader puts the first before. The input alphabet's metadata is
  * the token itself, which has no `id`, and that is what tells the two
  * apart at a position typed as either.
@@ -401,7 +410,7 @@ export type Parameters = {
 export type Out =
     | { readonly id: 'value', readonly node: Node, readonly first: DjsTokenWithMetadata, readonly target: BindingTarget }
     | { readonly id: 'paren', readonly node: Node, readonly first: DjsTokenWithMetadata }
-    | { readonly id: 'parameters', readonly fixed: List<BindingTarget>, readonly rest: DjsTokenWithMetadata | null }
+    | { readonly id: 'parameters', readonly fixed: List<Parameter>, readonly rest: DjsTokenWithMetadata | null }
     | { readonly id: 'item', readonly item: Item, readonly target: BindingElement }
     | { readonly id: 'values', readonly items: List<Item>, readonly targets: List<BindingElement> }
     | { readonly id: 'member', readonly member: Member, readonly target: BindingProperty }

@@ -14,7 +14,7 @@ below is this directory's own; the specification has no section numbers.
 
 ## Compatibility invariants — P1
 
-The [language principles](../README.md#principles) define source inclusion,
+The [language principles](../principles/README.md) define source inclusion,
 successful-result agreement, purity and indistinguishable execution failures.
 [Preserve JavaScript compatibility](../../todo/fjs-javascript-compatibility.md)
 tracks the current and proposed P1 violations and their root-cause corrections.
@@ -27,7 +27,7 @@ compiler refuses, and why.
 requires every instruction pattern to match already-recognized statements and
 expressions, never raw token sequences. JavaScript-compatible statement
 termination is in the language
-([module structure](../README.md#module-structure)); canonical output and
+([module structure](../modules/README.md)); canonical output and
 DataJS's required-semicolon format did not change.
 
 ### TypeScript boundary
@@ -73,11 +73,11 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 1. [ ] [property-accessor](./2330-property-accessor.md),
 2. [ ] [optional chaining](./2335-optional-chaining.md) — `a?.b`, `a?.[k]`,
    `a?.(…)`; implemented
-   ([optional chaining](../README.md#optional-chaining)), open for linked
+   ([optional chaining](../property-access/optional-chaining.md)), open for linked
    designer approval,
 3. [ ] [operators](./2340-operators.md),
-4. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
-   `Object.hasOwn`; propose a separate `hasEntity` AST pattern,
+4. [x] enumerable presence — prohibit `Object.hasOwn`; [`entry`](../property-access/entries.md)
+   answers an option, `[value]` or `[]`,
 5. [ ] [built-in](./2360-built-in.md),
 6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; each name is reserved no later
@@ -89,51 +89,51 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    (its file says P3, not this list's P2),
 8. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
 9. [x] computed property key from an expression — `{ [name]: 0 }`
-   ([property keys](../README.md#property-keys)).
+   ([property keys](../values/objects.md#property-keys)).
 10. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
    by design; open for designer approval
    (its file says P3, not this list's P2).
 
 ### 2.3. Syntactic Sugar
 
-1. [x] shorthand members, `{ a }` ([objects](../README.md#objects));
+1. [x] shorthand members, `{ a }` ([objects](../values/objects.md));
    whether a reserved word that denotes a value, `NaN`, may stand as one is
    [literal-words-as-references](./2445-literal-words-as-references.md),
    at P5,
 2. [ ] [destructuring](./2450-destructuring.md) — binding patterns in
    `const` and parameters, lowered to property reads and the spread; the
    design is approved and both halves implemented
-   ([destructuring](../README.md#destructuring)); the rest element and
+   ([destructuring](../bindings/destructuring.md)); the rest element and
    the elision are open,
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
 4. [ ] number spellings beyond JSON's — `0o7`, `.5`, `1.`
-   ([numbers](../README.md#numbers)); hexadecimal, binary and numeric separators are implemented;
+   ([numbers](../values/numbers.md)); hexadecimal, binary and numeric separators are implemented;
    [binary design review](./2470-binary-literals.md) remains open for linked
    designer approval, as does the
    [numeric-separator design review](./2471-numeric-separators.md).
    Octal has no use case yet; `.5` lands with
    [`?.` before a digit](../../fjs/js/tokenizer/todo/optional-chain-before-digit.md),
 5. [ ] names beyond ASCII — Unicode identifier characters and `\u` escapes
-   in a name, `const é = 1` ([identifiers](../README.md#identifiers)),
+   in a name, `const é = 1` ([identifiers](../lexical/identifiers.md)),
 6. [ ] the rest of JavaScript's trivia — VT, FF, NBSP and the other `Zs`,
    U+FEFF (a leading BOM too), U+2028/U+2029 outside a string, a leading
    hashbang line — each recognized, or its refusal justified as
    [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-   asks ([whitespace](../README.md#whitespace-and-line-terminators)),
+   asks ([whitespace](../lexical/whitespace.md)),
 7. [ ] import attribute spellings — a string key, `with { "type": "json" }`,
    a trailing comma and an empty `with {}`
-   ([importing](../README.md#importing-other-modules)).
+   ([importing](../modules/imports.md)).
 8. [x] an omitted `;` where ECMAScript's automatic semicolon insertion
-   permits one ([module structure](../README.md#module-structure)).
+   permits one ([module structure](../modules/README.md)).
 9. [x] spread, in an array literal and a call's arguments and in an object
-   literal ([spread](../README.md#spread),
-   [object spread](../README.md#object-spread)).
+   literal ([spread](../values/arrays.md#spread),
+   [object spread](../values/objects.md#object-spread)).
 
 ## 3. Functions
 
 A function cannot be serialized as data without additional run-time
-information — see [serialization](./serialization.md) and
-[functions](../README.md#functions).
+information — see [serialization](../design/serialization.md) and
+[functions](../functions/README.md).
 
 ### 3.1. Required
 
@@ -141,42 +141,42 @@ information — see [serialization](./serialization.md) and
    that is empty, rest-only, fixed named (`a => …`, `(a, b) => …`) or fixed
    plus rest (`(a, b, ...x) => …`), capturing what its body names from the
    scopes around it
-   ([functions](../README.md#functions))
+   ([functions](../functions/README.md))
 2. [ ] [named and rest parameters](./3120-parameters.md) — the syntax, the
    fixed `arg`/`rest` EDAG bindings and the callable factories have landed;
    represented interpreters and compiled native functions now render
    EDAG-derived text ([function text](../../fjs/edag/function-text.md)).
    The design record retains approval and migration-proof work plus the
    separate native/AOT metadata-association follow-up
-   (at most 16 fixed parameters: [functions](../README.md#functions))
+   (at most 16 fixed parameters: [functions](../functions/README.md))
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
-   ([functions](../README.md#functions))
+   ([functions](../functions/README.md))
 4. [ ] [forward-references](./3140-forward-references.md) — a function
-   calling itself landed ([functions](../README.md#functions)); a later
+   calling itself landed ([functions](../functions/README.md)); a later
    `const`, and so mutual recursion, is open
 5. [x] `export const`, named-only and mixed modules
-   ([exports](../README.md#exporting-a-value)).
+   ([exports](../modules/exports.md)).
 
 ### 3.2. Priority 2
 
 1. [x] `if` — the terminating guard, `if (c) { … return v; }` or a `throw`,
    before the body's own terminator; surface syntax over `?:`, no new EDAG
-   node ([functions](../README.md#functions)). The bare consequent, a
+   node ([functions](../functions/README.md)). The bare consequent, a
    non-terminating branch with `else`, and the module-level guard are
    follow-ups.
 2. [x] [let](./3220-let.md) — the one-variable loop, `let x = init;` and
-   its `while`, is in the language ([loops](../README.md#loops)); several
+   its `while`, is in the language ([loops](../control-flow/loops.md)); several
    variables, `break`, `continue`, `for` and a `let` outside a loop are
    open in the record
 3. [x] `while` — with `let` above; `while` over several variables, and
    `break` and `continue` in its block, are open there
 4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
-   ([mutability](./mutability.md)), **not** for I/O: effects keep I/O state in
-   the runner ([io-effects](./io-effects.md)).
+   ([mutability](../design/mutability.md)), **not** for I/O: effects keep I/O state in
+   the runner ([io-effects](../design/io-effects.md)).
 5. [x] `throw` — a panic as a statement, in a function body and at module
-   level ([functions](../README.md#functions),
-   [module structure](../README.md#module-structure)); with `if` it is what
+   level ([functions](../functions/README.md),
+   [module structure](../modules/README.md)); with `if` it is what
    `assert` needs.
 
 ### 3.3. Priority 3
@@ -187,7 +187,7 @@ information — see [serialization](./serialization.md) and
 3. [ ] [type inference](./3370-type-inference.md)
 4. [ ] [promise](./3380-promise.md). Needed for JavaScript interop only —
    I/O is done with effects and requires no promises
-   ([io-effects](./io-effects.md)).
+   ([io-effects](../design/io-effects.md)).
 5. [ ] [class](./3390-class.md)
 6. [ ] [arity and complete arguments](./arity-complete-arguments.md) — an
    alternative for arbitrary length/full-argument construction; not a
@@ -196,14 +196,15 @@ information — see [serialization](./serialization.md) and
 ### 3.4. Syntactic Sugar
 
 1. [ ] [assignments](./3430-assignments.md)
-2. [x] [Untagged template literals](../README.md#template-literals), lowered to
+2. [x] [Untagged template literals](../values/template-literals.md), lowered to
    the existing `String` and binary `+` operations.
 3. [ ] `async`/`await`. Depends on the implementation of promises.
 4. [ ] [default parameters](./3125-default-parameters.md) — `(a = 1) => …`
    and `{ a = 1 }` in a pattern, lowered to an `undefined` test, the
    parameters from the first default on read from the rest array so that
-   `length` is JavaScript's; no new EDAG node; proposed, awaiting designer
-   approval.
+   `length` is JavaScript's; no new EDAG node. Parameter defaults are
+   implemented ([functions](../functions/README.md)); pattern defaults and
+   the designer approval remain open.
 
 ### 3.5. Priority 4
 
@@ -236,21 +237,16 @@ Wish list:
 1. [ ] Utf8 String. Something like `u8"Hello, world"`
    ([blocked](../../todo/blocked/utf8-strings.md)).
 
+## Specification structure
+
+1. [ ] [spec-tree](./spec-tree.md) — split the specification into a tree of small
+   per-feature pages, each owning the examples the compiler demos offer.
+
 ## Design documents
 
-Design decisions and sketches for the unimplemented parts of the system. The
-numbered ones moved here from the main spec README and keep their old section
-numbers:
+Design decisions and sketches for the unimplemented parts of the system live
+in [`spec/design/`](../design/README.md): they are not open work, so they are
+not here. The one design that is still an open task stays:
 
-|Document|Topic|
-|--------|-----|
-|[io-effects](./io-effects.md)|§5 — I/O with effects: `Effect`, operations, runners|
-|[content-addressable-vm](./content-addressable-vm.md)|§6 — content-addressable VM, hashing|
-|[cavm-function-to-string](./cavm-function-to-string.md)|function text in the CAVM: a call forwarding to the function's own hash|
-|[object-identity](./object-identity.md)|§7 — object identity, custom dictionaries, `Map`|
-|[mutability](./mutability.md)|§8 — mutable objects and ownership tracking|
-|[serialization](./serialization.md)|§9 — EDAG as data, CBOR, bytecode as VM-internal|
-|[vm-command-format](./vm-command-format.md)|NPN command format of the VM|
-|[design-principles](./design-principles.md)|design principles of the "ideal" FJS 0.*|
-|[function-frame](./3111-function-frame.md)|NaNVM function objects: frames and captured values, VM-internal|
-|[call-like-instructions](./9100-call-like-instructions.md)|VM-internal bytecode for calls|
+1. [ ] [cavm-function-to-string](./cavm-function-to-string.md) — function
+   text in the CAVM: a call forwarding to the function's own hash.

@@ -44,7 +44,7 @@
  */
 
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { isRawText, isVoidTag, parseElement, rawTextContent } from './module.f.mjs'
+import { isRawText, isVoidTag, parseElement, rawTextContent, scriptRefusal } from './module.f.mjs'
 
 const xhtml = 'http://www.w3.org/1999/xhtml'
 
@@ -193,7 +193,7 @@ const namespaceFor = (rules, tag) =>
  */
 export const fill = (target, element) => {
     const [tag, attributes, children] = parseElement(element)
-    if (tag === 'script') { throw new Error('media/html: a `script` element is refused: built into a page, it would run') }
+    if (tag === 'script') { throw new Error(scriptRefusal) }
     for (const [name, value] of definedEntries(attributes)) { setAttribute(target, name, value) }
     childrenOf(target).replaceChildren(...content(target, tag, children))
     return target
@@ -267,7 +267,7 @@ const textNode = 3
  */
 export const patch = (target, element) => {
     const [tag, attributes, children] = parseElement(element)
-    if (tag === 'script') { throw new Error('media/html: a `script` element is refused: built into a page, it would run') }
+    if (tag === 'script') { throw new Error(scriptRefusal) }
     const wanted = definedEntries(attributes).map(([name, value]) =>
         /** @type {const} */ ([storedName(target, name), value]))
     const names = new Set(wanted.map(([name]) => name))

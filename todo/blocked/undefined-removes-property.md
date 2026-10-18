@@ -14,9 +14,11 @@ It must be explicitly moved out before implementation.
 [Undefined properties](../../spec/todo/1010-undefined-property.md) withdrew
 the unconditional `{ x: undefined } ≡ {}` rule: an entry holding `undefined`
 is observable, so no language-level equivalence holds today. It keeps `in`
-and bare `Object.entries`/`Object.values` out of the language and proposes
-only the filtered enumeration patterns, as projections rather than proof of
-equivalence. This TODO neither revokes nor extends those restrictions. Its
+and bare `Object.values` out of the language and proposes only the filtered
+enumeration patterns, as projections rather than proof of equivalence;
+bare `Object.entries` was admitted since
+([2360](../../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)),
+and observes an `undefined`-valued entry as JavaScript does. This TODO neither revokes nor extends those restrictions. Its
 blocked status applies to this research, not to those specification documents.
 
 [The VM-layer question](../../spec/todo/1015-undefined-property-vm-layer.md)
@@ -40,7 +42,7 @@ JavaScript examples distinguish the same objects after composition:
 
 The spread example is a research counterexample, in a construct the language
 has: object spread is in FunctionalScript
-([spec](../../spec/README.md#object-spread)), copying own properties as
+([spec](../../spec/values/objects.md#object-spread)), copying own properties as
 `CopyDataProperties` does, so the example composes here as it does in
 JavaScript. Equal direct reads do not prove equivalence under every
 composition; this TODO approves no additional rule or restriction.

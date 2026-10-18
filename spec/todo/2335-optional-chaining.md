@@ -1,4 +1,4 @@
-# Optional chaining
+## Optional chaining
 
 **Priority:** P2
 **Status:** open — required linked language-design approval is not recorded
@@ -8,7 +8,7 @@ name/key checks, EDAG lowering and FunctionalScript writer were merged in
 [#2660](https://github.com/functionalscript/functionalscript/pull/2660),
 [commit `5774062e6`](https://github.com/functionalscript/functionalscript/commit/5774062e61f7d4f4bb9b9047a5efa53ca7e6281a).
 That change also added the current rules to the
-[language specification](../README.md#optional-chaining), with proofs in
+[language specification](../property-access/optional-chaining.md), with proofs in
 [`parser`](../../fjs/compiler/parser/proof.f.mjs) (`optional`),
 [`edag`](../../fjs/compiler/edag/proof.f.mjs) (`chains`) and
 [`serializer`](../../fjs/compiler/serializer/proof.f.mjs) (`chains`).
@@ -20,7 +20,7 @@ below preserves the original motivation and design.
 export default (a) => [a?.b, a?.["b"], a?.(1), a?.b.c(2)];
 ```
 
-## Problem and proposal
+### Problem and proposal
 
 When this proposal was written, the compiler refused JavaScript's optional
 chaining, although about twenty `module.f.mjs` modules used it, most as the
@@ -31,7 +31,7 @@ counted it among what held two leaves). The implemented feature follows ECMAScri
 
 - `a?.b` and `a?.[k]` — a property access whose key is what `a.b` and `a[k]`
   take, a name, a constant or the conversion `a?.[Number(i)]`
-  ([property access](../README.md#property-access));
+  ([property access](../property-access/README.md));
 - `a?.(…)` — a call;
 - the steps after one — `.c`, `[k]`, `(…)`, `?.c`, `?.(…)` — read as
   JavaScript reads a chain: when the value before `?.` is `null` or
@@ -52,7 +52,7 @@ that resolves names and judges keys, the lowering, and the FunctionalScript
 writer that spells a graph back as text. Those pieces are now implemented,
 as the proofs and completed tasks record.
 
-## Benefits and drawbacks
+### Benefits and drawbacks
 
 **Benefits.** The construct is JavaScript's, harmless, and in use
 ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)):
@@ -80,7 +80,7 @@ lowering makes it the method call, and a group around it is still nothing.
 it is read as `?.` today, and `a?.5:1` is refused either way until `.5` is a
 number.
 
-## Authorization and approval
+### Authorization and approval
 
 The language designer, `sergey-shandar`, asked in the session that produced
 this proposal: "Let's implement optional chaining. Including `?.`, `?.()`".
@@ -95,7 +95,7 @@ explicitly excluded language-design approval. #2660 merged with the approval
 task still unchecked. This chronology is not claimed compliant with the rule;
 neither the implementation request nor the merge supplies the missing record.
 
-## Tasks
+### Tasks
 
 - [x] The grammar's `access` takes `?.name`, `?.[key]` and `?.(args)`; the
       syntax reader folds a chain's steps into the EDAG's chain shapes and
@@ -110,13 +110,13 @@ neither the implementation request nor the merge supplies the missing record.
       `fjs/compiler/examples/module.f.js`, and the EDAG page draws a chain
       as the one node it is, its region on the edges, `fjs/compiler/edag/demo.f.mjs`.
 - [x] The specification describes the feature
-      ([optional chaining](../README.md#optional-chaining)); the roadmap's
+      ([optional chaining](../property-access/optional-chaining.md)); the roadmap's
       entry and the survey's rows are reread.
 - [ ] Locate and link explicit pre-implementation language-design approval from
       `sergey-shandar`; if no such record exists, obtain and record the
       designer's resolution of this approval-process gap for the merged feature.
 
-## Related
+### Related
 
 - [`fjs/edag/README.md`, Chains](../../fjs/edag/README.md#chains) — the
   nodes, the steps, and why a group is a boundary.

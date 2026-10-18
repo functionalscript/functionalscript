@@ -7,12 +7,13 @@
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
 import { array } from '../array/module.f.mjs'
 import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
 import { call } from '../call/module.f.mjs'
-import { entry, findProperty, read } from './module.f.mjs'
+import { entry, findProperty, functionAt, read } from './module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */
 const expectValue = (receiver, key, expected) => {
@@ -114,18 +115,30 @@ export const proof = {
     // helper itself included, nothing of any other primitive, and a failure
     // for a nullish receiver.
     entry: () => {
-        assertEq(assertOk(entry(record, 'value')), data)
-        assertStructurallySame(assertOk(entry(record, 'length')), ['undefined'])
-        assertEq(assertOk(entry(['{}', [[':', 'length', 3]]], 'length')), 3)
+        /** The one value an option holds, kept by identity. @type {(option: EdagValue) => EdagValue} */
+        const some = option => {
+            assert(isArray(option) && option[0] === '[]' && option[1].length === 1)
+            return option[1][0]
+        }
+        /** @type {(receiver: EdagValue, key: string) => void} */
+        const none = (receiver, key) => assertStructurallySame(assertOk(entry(receiver, key)), ['[]', []])
+        assertEq(some(assertOk(entry(record, 'value'))), data)
+        none(record, 'length')
+        assertEq(some(assertOk(entry(['{}', [[':', 'length', 3]]], 'length'))), 3)
+        // an entry holding `undefined` is an entry, where the read alone
+        // could not tell it from none
+        assertStructurallySame(assertOk(entry(['{}', [[':', 'u', undefinedValue]]], 'u')), ['[]', [['undefined']]])
+        // a fresh option every call
+        assert(assertOk(entry(record, 'value')) !== assertOk(entry(record, 'value')))
         const items = assertOk(array([() => ok(data), () => ok(record)]))
-        assertEq(assertOk(entry(items, '1')), record)
-        for (const key of ['length', '2', '01', '-1']) { assertStructurallySame(assertOk(entry(items, key)), ['undefined']) }
-        assertEq(assertOk(entry('ab', '1')), 'b')
-        for (const key of ['length', '2', '01']) { assertStructurallySame(assertOk(entry('ab', key)), ['undefined']) }
+        assertEq(some(assertOk(entry(items, '1'))), record)
+        for (const key of ['length', '2', '01', '-1']) { none(items, key) }
+        assertEq(some(assertOk(entry('ab', '1'))), 'b')
+        for (const key of ['length', '2', '01']) { none('ab', key) }
         /** @type {readonly EdagValue[]} */
-        const entryless = [functionValue, ['entry'], true, 0, 1n]
+        const entryless = [functionValue, ['entry'], ['Object.entries'], true, 0, 1n]
         for (const receiver of entryless) {
-            for (const key of ['length', '0', 'name']) { assertStructurallySame(assertOk(entry(receiver, key)), ['undefined']) }
+            for (const key of ['length', '0', 'name']) { none(receiver, key) }
         }
         for (const receiver of [null, undefinedValue]) {
             assertStructurallySame(assertError(entry(receiver, 'a')), ['undefined'])
@@ -133,6 +146,37 @@ export const proof = {
         // the helper owns the `length` every function does, read as a property
         expectValue(['entry'], 'length', 2)
         missing(['entry'], '0')
+        // and so does a static function: `Object.entries` its `1`, with no
+        // runtime to ask, and every other the length of the body the
+        // runtime holds at its path, failing by name with no runtime or
+        // none at the path
+        expectValue(['Object.entries'], 'length', 1)
+        missing(['Object.entries'], 'name')
+        /** @type {import('../types.ts').Runtime} */
+        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        assertEq(assertOk(read(ok(['Object.is']), 'length', runtime)), 2)
+        assertStructurallySame(assertOk(read(ok(['Object.is']), 'name', runtime)), ['undefined'])
+        missing(['Object.is'], 'name')
+        assertEq(assertError(read(ok(['Object.is']), 'length')), 'no binding for the static Object.is')
+        assertEq(assertError(read(ok(['Number.isNaN']), 'length', runtime)), 'no binding for the static Number.isNaN')
+        for (const key of ['length', '0', 'name']) { none(['Object.is'], key) }
+    },
+    // The function value at a path into an object: the value at the end
+    // where every step is an object with the key and the end a function;
+    // `undefined` with no object, a step that is none, a key missing or an
+    // end that is no function.
+    functionAt: () => {
+        /** @type {import('../types.ts').Runtime} */
+        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'String', ['{}', [[':', 'x', functionValue], [':', 'y', 1]]]]]]]]]
+        assertEq(functionAt(runtime, ['member', 'String', 'x']), functionValue)
+        assertEq(functionAt(functionValue, []), functionValue)
+        assertEq(functionAt(data, []), undefined)
+        assertEq(functionAt(undefined, ['member']), undefined)
+        assertEq(functionAt(runtime, ['member', 'String', 'y']), undefined)
+        assertEq(functionAt(runtime, ['member', 'String', 'z']), undefined)
+        assertEq(functionAt(runtime, ['member', 'Number', 'x']), undefined)
+        assertEq(functionAt(runtime, ['static', 'Object', 'is']), undefined)
+        assertEq(functionAt(data, ['0']), undefined)
     },
     receiverFailures: () => {
         for (const failure of [error(null), error(undefinedValue), error(data), error(record), error(functionValue), error(NaN)]) {

@@ -102,7 +102,7 @@ type Analysis = {
   arrays. A plain access is pure, because no FunctionalScript value has an
   accessor: the language spells no getter, a JSON module has none, and an
   access reads an own property, never the prototype
-  ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)), so two reads of one property are
+  ([spec: entry](../../../spec/property-access/entries.md)), so two reads of one property are
   one value. Neither is a call, in any spelling: `['()', f, args]`, and an
   access whose continuation calls, `['|()', …]`, `['|?.()', …]` or
   `['|!()', …]`, which is a method call and may mint a fresh result each
@@ -164,10 +164,13 @@ Two consumers then follow, and share amnesia's operations:
   amnesia's `false` is its own and the memo executor's `true` is
   JavaScript's; a proof of such a case pins both answers, not one against
   the other.
-- **The FunctionalScript writer** hoists exactly the identity-minting nodes
+- **The FunctionalScript writer** hoisted exactly the identity-minting nodes
   among the module-level `shared` — a constructor or a call in any spelling —
-  in table order; a merged node it writes in place, since the recompiled
-  occurrences merge again.
+  in table order, and wrote a merged node in place, since the recompiled
+  occurrences merge again. It now writes from `identityAnalysis`, which
+  merges nothing: every node the graph shares is one `const`, whatever its
+  kind, and two equal nodes are two, as
+  [`../sharing`](../sharing/module.f.mjs) counts them.
 - **The value outputs**, `.data.js` and `.json`, read no table. The memo
   executor returns an `EdagValue`; `toData` preserves its sharing as ordinary
   JavaScript identity, `[s, s]` one array. The DataJS serializer hoists by
@@ -177,8 +180,9 @@ Two consumers then follow, and share amnesia's operations:
 
 The table is the one static answer: the route-following that the sharing
 sweep in `fjs/compiler/ast` once did for the value outputs is the merge step
-here, for the FunctionalScript writer alone, since the value outputs now
-read sharing off the value itself.
+here, which was for the FunctionalScript writer alone, since the value
+outputs now read sharing off the value itself — and which the writer, and
+the compiler's evaluation, no longer take (`identityAnalysis`).
 
 ### Tasks
 
@@ -199,7 +203,7 @@ read sharing off the value itself.
       here and `false` in amnesia.
 - [x] The FunctionalScript writer reads the table for its hoisting: `analysis`
       in [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs), which hoists
-      from `shared`. The value outputs running the EDAG through `fjs/edag/memo`
+      from `shared` — now the identity table, `identityAnalysis`. The value outputs running the EDAG through `fjs/edag/memo`
       is the integration task of
       [`interpret-edag.md`](../../compiler/todo/interpret-edag.md), which carries the
       `[cfg.x, cfg.x]` pin.

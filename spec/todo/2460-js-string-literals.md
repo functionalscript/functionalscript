@@ -1,8 +1,8 @@
-# JS String Literals
+## JS String Literals
 
 **Priority:** P5
 **Status:** open — single quotes are in the language
-([strings](../README.md#strings)); the other spellings are deferred
+([strings](../values/strings.md)); the other spellings are deferred
 
 A JSON string literal is double-quoted, with the JSON escapes (`\"` `\\` `\/`
 `\b` `\f` `\n` `\r` `\t` `\uXXXX`) and no literal control characters
@@ -27,14 +27,14 @@ value, each UTF-16 code unit, lone surrogates included, being reachable via
 `\uXXXX`. The first spelling is FunctionalScript's; the other three stay
 deferred.
 
-## Single quotes: the record
+### Single quotes: the record
 
 `sergey-shandar` approved the single-quote scope in
 [#2243](https://github.com/functionalscript/functionalscript/pull/2243#pullrequestreview-5309337958),
 as [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
 requires, and [#2251](https://github.com/functionalscript/functionalscript/pull/2251)
 implemented it. The accepted language, the refusal of `"\'"` and the reason
-for it are the specification's [strings](../README.md#strings) section;
+for it are the specification's [strings](../values/strings.md) section;
 decoding `\'` above the shared escape table is `fjs/js/string_escape`'s
 module documentation. The grammar landed before the lexing issue's widening,
 so it recognises exactly what the language accepts, and the token's `quote`
@@ -44,7 +44,7 @@ to add. DataJS's own grammar, `fjs/ebnf/lib/datajs`, did not change; whether
 it follows is its own decision, which the deferral note below calls
 "DJS-level sugar".
 
-## Deferred: the other spellings
+### Deferred: the other spellings
 
 The extra escapes, raw control characters and line continuations stay deferred
 at the lowest priority. They are alternative spellings of values JSON already
@@ -63,7 +63,7 @@ literal TAB → `\t`, `\v` → `\u000b`, `\x41` → `A`.
 
 **Note**: template literals are not part of this feature — they involve
 expression interpolation, not just lexical syntax. Untagged templates are
-implemented separately ([template literals](../README.md#template-literals));
+implemented separately ([template literals](../values/template-literals.md));
 that specification owns the template deferral of extra escapes, raw controls
 and line continuations. Any future widening of the common escape set must be
 coordinated across quoted strings and templates.
@@ -80,7 +80,7 @@ take the first of those.
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#string_literals>
 
-## Tasks
+### Tasks
 
 - [ ] Admit the other escapes, raw control characters or line continuations
       only when a measured need appears, through the lexing issue's

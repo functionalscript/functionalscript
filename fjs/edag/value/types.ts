@@ -6,11 +6,11 @@
  * @module
  */
 
-import type { Exp, Primitive as EdagPrimitive } from '../types.ts'
+import type { Exp, Primitive as EdagPrimitive, StaticId } from '../types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { Check, Check3 } from '../../rtti/ts/types.ts'
-import type { _value, value, values, array, property, object, func, entryFunction } from './module.f.mjs'
+import type { _value, value, values, array, property, object, func, entryFunction, staticFunction } from './module.f.mjs'
 
 /** Evaluated primitives include EDAG's tagged undefined. */
 export type Primitive = EdagPrimitive | readonly ['undefined']
@@ -28,10 +28,13 @@ export type Object = readonly ['{}', readonly Property[]]
 /** A closure: its length, evaluated captures and unevaluated body. */
 export type Closure = readonly ['=>', number, Values, Exp]
 
-/** The `entry` helper as a value: a function of `length` `2` the executor calls natively, fresh where the node is established. */
+/** The `entry` helper as a value: a function of `length` `2` the executor calls natively, answering the option `[value]` or `[]`, fresh where the node is established. */
 export type EntryFunction = readonly ['entry']
 
-export type Function = Closure | EntryFunction
+/** A static function as a value, the EDAG's node: the built-in by its name, one function however often read, its call and `length` the executor's to answer. */
+export type Static = readonly [StaticId]
+
+export type Function = Closure | EntryFunction | Static
 
 /**
  * The runtime an executor answers member and static functions from: the
@@ -51,5 +54,6 @@ type _Property = Assert<Check<Property, typeof property>>
 type _Object = Assert<Check<Object, typeof object>>
 type _Closure = Assert<Check<Closure, typeof func>>
 type _EntryFunction = Assert<Check<EntryFunction, typeof entryFunction>>
+type _Static = Assert<Check<Static, typeof staticFunction>>
 type _Subset = Assert<Equal<EdagValue extends Exp ? true : false, true>>
 type _ProperSubset = Assert<Equal<Exp extends EdagValue ? true : false, false>>

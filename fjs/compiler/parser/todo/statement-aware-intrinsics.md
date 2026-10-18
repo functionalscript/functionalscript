@@ -93,7 +93,7 @@ such as a newline before `=>` cannot reach matching at all.
 #### JavaScript statement boundaries, not newline splitting
 
 An omitted `;` is read where ECMAScript's rules insert one, never at every
-newline ([spec: module structure](../../../../spec/README.md#module-structure)):
+newline ([spec: module structure](../../../../spec/modules/README.md)):
 the grammar makes the `;` optional, and the reader refuses a next statement
 on the same line by the newline its first token carries. Canonical output and
 DataJS keep their `;`. The **P1 requirement** is that no pattern bypass
@@ -124,9 +124,8 @@ grammar owns the boundary, and nothing reads tokens past it.
 
 ### Related
 
-- [Language principles](../../../../spec/README.md#principles).
+- [Language principles](../../../../spec/principles/README.md).
 - [Compatibility epic](../../../../todo/fjs-javascript-compatibility.md).
-- [The `entry` helper](../../../../spec/README.md#reading-an-entry-at-run-time), in the language under this rule.
-- [Enumerable presence](../../../../spec/todo/2345-has-own-property.md).
+- [The `entry` helper](../../../../spec/property-access/entries.md), in the language under this rule, presence and value as one option.
 - [Named parameters](../../../../spec/todo/3120-parameters.md).
 - [ECMAScript ASI](https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-automatic-semicolon-insertion).

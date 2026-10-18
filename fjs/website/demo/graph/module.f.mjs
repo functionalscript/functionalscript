@@ -7,9 +7,10 @@
  *
  * **Ranks run left to right.** The root is the leftmost column, and each
  * rank is a column of its own to the right of the one before, its nodes
- * stacked top to bottom. A node's ports are rows under its label, one per
- * outgoing edge, so a node reads like a record: a key per row, and the
- * edge for that key leaving from the row's right end. **A tree draws each
+ * stacked top to bottom. A node's ports are rows right of its label, one
+ * per outgoing edge, so a node reads like a record: its name on the left,
+ * a key per row, and the edge for that key leaving from the row's right
+ * end. **A tree draws each
  * parent beside its children** instead, centred on them, so its arrows
  * stay short: see {@link treeTopsOf}.
  *
@@ -26,8 +27,8 @@
  *
  * **No edge crosses a box.** Between two neighbouring ranks an edge runs
  * straight across the gap between their columns, where there are no boxes:
- * it leaves the right end of its port and ends at the left of its target's
- * label. An edge that skips ranks — a shared node reached again from left
+ * it leaves the right end of its port and ends at the middle of its
+ * target's left side, its label. An edge that skips ranks — a shared node reached again from left
  * of an intervening one — is given a **lane** in every column it passes: a
  * narrow slot laid out among that column's nodes as if it were one, which
  * the edge runs straight across. Every piece of every edge is then in a
@@ -46,7 +47,7 @@
  *
  * @import { Corner, Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Walk } from './private.ts'
+ * @import { _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk } from './private.ts'
  * @import { StateScan } from '../../../types/function/operator/types.ts'
  */
 
@@ -91,6 +92,36 @@ export const ranked = (nodes, edges) => {
 const { is } = Object
 
 /**
+ * `walk` with `value` drawn as a new node: its id, and its children to
+ * walk next.
+ *
+ * @template V
+ * @param {_Walk} walk
+ * @param {V} value
+ * @param {Shape<V>} s
+ * @returns {{ readonly id: number, readonly walk: _Walk, readonly children: _Frame<V>['children'] }}
+ */
+const draw = (walk, value, s) => {
+    const id = walk.next
+    const [kind, label, children] = 'inline' in s
+        ? [s.kind ?? 'leaf', s.inline, []]
+        : [s.kind, s.label, s.children]
+    return {
+        id,
+        walk: {
+            refs: [...walk.refs, [value, id]],
+            nodes: [...walk.nodes, { id, kind, label }],
+            edges: walk.edges,
+            next: id + 1,
+        },
+        children,
+    }
+}
+
+/** `walk` with `edge` added. @type {(walk: _Walk, edge: Edge) => _Walk} */
+const withEdge = (walk, edge) => ({ ...walk, edges: [...walk.edges, edge] })
+
+/**
  * `root` as the graph it denotes, each value read by `shape`.
  *
  * **A value whose shape is a node is drawn once**, and found again by
@@ -119,49 +150,50 @@ export const graphOf =
      * @returns {(root: V) => Graph}
      */
     shape => root => {
-        /**
-         * `value`'s node id, and the walk with `value` and everything under
-         * it added — or just the walk, when `value` is already drawn.
-         * `path` is the ids of the nodes the walk is inside, root first.
-         *
-         * @type {(walk: _Walk, path: readonly number[]) => (value: V, s: Shape<V>) => { readonly id: number, readonly walk: _Walk }}
-         */
-        const node = (walk, path) => (value, s) => {
-            const found = walk.refs.find(([r]) => is(r, value))
-            if (found !== undefined) {
-                if (path.includes(found[1])) { throw `graph: a cycle through node ${found[1]}` }
-                return { id: found[1], walk }
-            }
-            const id = walk.next
-            const [kind, label, children] = 'inline' in s
-                ? [s.kind ?? 'leaf', s.inline, []]
-                : [s.kind, s.label, s.children]
-            /** @type {_Walk} */
-            const withNode = {
-                refs: [...walk.refs, [value, id]],
-                nodes: [...walk.nodes, { id, kind, label }],
-                edges: walk.edges,
-                next: id + 1,
-            }
-            const inside = [...path, id]
-            const final = children.reduce(
-                /** @type {(acc: _Walk, child: readonly [string, V, string?]) => _Walk} */
-                (acc, [label, child, kind]) => {
-                    const c = shape(child)
-                    if ('inline' in c) {
-                        return { ...acc, edges: [...acc.edges, { from: id, to: c, label, kind }] }
+        // Depth first, on a stack of its own rather than the call stack: a
+        // graph is as deep as its longest path, and a recursive walk ran
+        // out of stack on a path of a couple of thousand nodes. A node's
+        // edge from its parent is added once everything under it is
+        // drawn, so ids and edges come out in the order recursion gave.
+        const start = draw({ refs: [], nodes: [], edges: [], next: 0 }, root, shape(root))
+        let walk = start.walk
+        /** @type {_Stack<V>} */
+        let stack = [{ id: start.id, path: [start.id], children: start.children, next: 0, label: '', kind: undefined }, undefined]
+        while (stack !== undefined) {
+            /** @type {readonly [_Frame<V>, _Stack<V>]} */
+            const [top, rest] = stack
+            if (top.next === top.children.length) {
+                // everything under `top` is drawn: the edge that reached it closes it
+                walk = rest === undefined ? walk : withEdge(walk, { from: rest[0].id, to: top.id, label: top.label, kind: top.kind })
+                stack = rest
+            } else {
+                const [label, child, kind] = top.children[top.next]
+                /** @type {_Stack<V>} */
+                const advanced = [{ ...top, next: top.next + 1 }, rest]
+                const c = shape(child)
+                if ('inline' in c) {
+                    walk = withEdge(walk, { from: top.id, to: c, label, kind })
+                    stack = advanced
+                } else {
+                    const found = walk.refs.find(([r]) => is(r, child))
+                    if (found === undefined) {
+                        const drawn = draw(walk, child, c)
+                        walk = drawn.walk
+                        stack = [{ id: drawn.id, path: [...top.path, drawn.id], children: drawn.children, next: 0, label, kind }, advanced]
+                    } else {
+                        // a value already drawn is one node however many
+                        // edges reach it, unless the walk is still inside it
+                        if (top.path.includes(found[1])) { throw `graph: a cycle through node ${found[1]}` }
+                        walk = withEdge(walk, { from: top.id, to: found[1], label, kind })
+                        stack = advanced
                     }
-                    const step = node(acc, inside)(child, c)
-                    return { ...step.walk, edges: [...step.walk.edges, { from: id, to: step.id, label, kind }] }
-                },
-                withNode)
-            return { id, walk: final }
+                }
+            }
         }
-        const { walk } = node({ refs: [], nodes: [], edges: [], next: 0 }, [])(root, shape(root))
         return { nodes: ranked(walk.nodes, walk.edges), edges: walk.edges }
     }
 
-const headerHeight = /** @type {const} */ (26)
+const labelHeight = /** @type {const} */ (26)
 const portHeight = /** @type {const} */ (20)
 const rankGap = /** @type {const} */ (40)
 const nodeGap = /** @type {const} */ (14)
@@ -208,14 +240,21 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
 
 /**
  * A node's ports: one row per outgoing edge, in the order the demo gave
- * the edges, stacked under the node's label.
+ * the edges, stacked right of the node's label.
+ *
+ * **The label is a column of its own**, `title` wide and as tall as the
+ * rows, its text centred on them: the label names the whole record, so it
+ * stands beside every row rather than over the first one, and a node is
+ * no taller than its rows. A node without ports is its label alone, and
+ * `title` is then its whole width.
  *
  * **The rows are a table.** Every inline port is its key's cell and its
  * value's, side by side, and the keys line up in one column: `keyWidth` is
  * the widest inline key, and the values take the rest of the node. An
- * edge's port has no value, so its key fills the whole row, as wide as the
- * node — no row carries an empty cell. A node is as wide as the widest of
- * its label, a key beside its value, and an edge's key.
+ * edge's port has no value, so its key fills the whole row — no row
+ * carries an empty cell. A node is as wide as its label column plus the
+ * widest of a key beside its value and an edge's key, and never narrower
+ * than a node of its label alone; the rows take any width left over.
  *
  * **An inline port with an empty key is its value alone**, filling the
  * row, for a demo whose values need no name: a key column holding nothing
@@ -225,34 +264,38 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
  * **An edge with a corner takes no row**: it leaves from that point of the
  * node's right side, and the rows are the other edges'.
  *
- * **An empty label is no row at all** when the node has ports: its rows
- * already say what it is, and an empty header would be a blank band on
- * top of them. An edge into such a node arrives at its middle instead —
- * between a two-key node's keys, not at the first one.
- * A node with neither keeps its header, or it would have no height.
+ * **An empty label is no column at all** when the node has ports: its rows
+ * already say what it is, and an empty column would be a blank band
+ * beside them. A node with neither keeps its label, or it would have no
+ * size.
+ *
+ * **An edge into a node arrives at the middle of its left side**, which is
+ * the middle of its label: between a two-key node's keys, not at the first
+ * one.
  *
  * @type {(label: string) => (out: readonly _Out[]) => _Size}
  */
 const portsOf = label => all => {
     const out = all.filter(({ edge }) => edge.corner === undefined)
-    const header = label === '' && out.length > 0 ? 0 : headerHeight
-    const height = header + out.length * portHeight
     const inlines = out.flatMap(({ edge }) => {
         const inline = inlineOf(edge)
         return inline === null ? [] : [{ keyed: edge.label !== '', key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
     })
     const keyColumn = maxOf(inlines.flatMap(c => c.keyed ? [c.key] : []))
-    const width = max(widthOf(label), max(
+    const rows = max(
         maxOf(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
-        maxOf(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : []))))
+        maxOf(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : [])))
+    const title = out.length === 0 ? widthOf(label) : label === '' ? 0 : cellWidthOf(label)
+    const width = max(widthOf(label), title + rows)
+    const height = out.length === 0 ? labelHeight : out.length * portHeight
     /** @type {Record<Corner, number>} */
     const exitAt = { top: 0, middle: height / 2, bottom: height }
     return {
         width,
         height,
+        title,
         keyWidth: keyColumn,
-        entry: header === 0 ? height / 2 : header / 2,
-        ports: out.map(({ edge, index }, i) => ({ edge, index, y: header + i * portHeight })),
+        ports: out.map(({ edge, index }, i) => ({ edge, index, y: i * portHeight })),
         exits: all.flatMap(({ edge, index }) => edge.corner === undefined ? [] : [{ edge, index, y: exitAt[edge.corner] }]),
     }
 }
@@ -344,7 +387,7 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
  * spans its column's whole width, so the next column starts right of it
  * and right of any node alike.
  *
- * A node is its label and a row per port under it, as {@link portsOf} lays
+ * A node is its label and a row per port right of it, as {@link portsOf} lays
  * them out; a node without ports is the label alone, so a leaf keeps the
  * size it always had. **A node is as wide as its own content**, not as its
  * column: its edges run straight right to the column's edge before they
@@ -438,8 +481,8 @@ const layout = left => nodes => edges => {
 /**
  * Every edge's route but an inline one's: from the right end of its port,
  * straight right to its column's edge where its node is narrower than the
- * column, straight across its lane in each rank it skips, and to the left
- * of its target's label. Nodes and lanes are looked up, not searched for,
+ * column, straight across its lane in each rank it skips, and to the middle
+ * of its target's left side. Nodes and lanes are looked up, not searched for,
  * for the reason {@link layout} gives.
  *
  * **The run to the column's edge is what lets a node keep its own
@@ -473,7 +516,7 @@ const routesOf = placed => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
             }).flat(),
-            [to.x, to.y + to.entry],
+            [to.x, to.y + to.height / 2],
         ]
         return [{ edge: port.edge, points }]
     }))
@@ -518,6 +561,13 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  * other, which reads as one. **A value's parts must spell it**, and an
  * edge from a corner, which has no row, must have no label or value.
  *
+ * **A node's arrows leave from its corners or from its rows, never both.**
+ * The middle of a node with an odd number of rows is its middle row's, so
+ * a `middle` corner and that row's arrow would start at one point, and to
+ * one target they would be one line: two edges drawn as one. No demo mixes
+ * the two — a child of a tree is a corner and a row is a value — so the
+ * graph is refused rather than given room for both.
+ *
  * @type {(g: Graph) => _Placed}
  */
 const placedOf = ({ nodes, edges, entries = [] }) => {
@@ -533,6 +583,9 @@ const placedOf = ({ nodes, edges, entries = [] }) => {
     // An edge leaving from a corner has no row to hold a label or a value.
     const cornered = edges.findIndex(({ corner, to, label }) => corner !== undefined && (typeof to !== 'number' || label !== ''))
     if (cornered !== -1) { throw `graph: edge ${cornered} leaves from a corner, so it must end at a node and have no label` }
+    const fromCorners = new Set(edges.flatMap(({ from, corner }) => corner === undefined ? [] : [from]))
+    const mixed = edges.findIndex(({ from, to, corner }) => corner === undefined && typeof to === 'number' && fromCorners.has(from))
+    if (mixed !== -1) { throw `graph: edge ${mixed} leaves a row of node ${edges[mixed].from}, whose other arrows leave from its corners` }
     return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
 }
 
@@ -575,7 +628,7 @@ const clipIdOf = p => `graph-clip-${p.x}-${p.y}-${p.width}-${p.height}`
  * ranked by longest path from the root, left to right.
  *
  * **Every edge leaves from a port of its own.** A node with outgoing
- * edges draws a row under its label per edge, each holding that edge's
+ * edges draws a row right of its label per edge, each holding that edge's
  * label, and the edge starts at the right end of its row. From a row
  * each, no two edges share a start, a label always sits in the box it
  * names, and two edges to one node — `[a, a]`, or `a && a` — need nothing
@@ -622,7 +675,7 @@ export const graphSvg = g => {
     // would arrive.
     /** @type {readonly Element[]} */
     const entryEls = positioned.flatMap(p => entries.filter(({ to }) => to === p.id).map(({ kind }) => {
-        const y = p.y + p.entry
+        const y = p.y + p.height / 2
         return /** @type {Element} */ (['path', {
             d: `M${p.x - entryLength},${y} L${p.x},${y}`,
             'data-graph-edge': '', 'data-graph-entry': '', 'marker-end': 'url(#graph-arrow)',
@@ -632,10 +685,11 @@ export const graphSvg = g => {
     /**
      * How wide a port's key cell is: the whole row for an edge, nothing for
      * a value with an empty key, and the key column for any other value.
+     * A row starts right of the label's column, `p.title` in.
      *
      * @type {(p: _Positioned) => (port: _Port) => number}
      */
-    const keyWidthOf = p => port => inlineOf(port.edge) === null ? p.width
+    const keyWidthOf = p => port => inlineOf(port.edge) === null ? p.width - p.title
         : port.edge.label === '' ? 0
         : p.keyWidth
     /** @type {readonly Element[]} */
@@ -646,13 +700,13 @@ export const graphSvg = g => {
         }]),
         ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(p)})` },
             ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['rect', {
-                x: String(p.x), y: String(p.y + port.y),
+                x: String(p.x + p.title), y: String(p.y + port.y),
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-port': '',
             }])]),
             ...p.ports.flatMap(port => inlineOf(port.edge) === null ? [] : [/** @type {Element} */ (['rect', {
-                x: String(p.x + keyWidthOf(p)(port)), y: String(p.y + port.y),
-                width: String(p.width - keyWidthOf(p)(port)), height: String(portHeight),
+                x: String(p.x + p.title + keyWidthOf(p)(port)), y: String(p.y + port.y),
+                width: String(p.width - p.title - keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-value': '',
                 // A value with no key is the whole row, so it is left
                 // unfilled: a tint across every row would hide the node's
@@ -677,17 +731,17 @@ export const graphSvg = g => {
     /** @type {readonly Element[]} */
     const labelEls = positioned.map(p => ['g', inKindOf(p),
         ...(p.label === '' ? [] : [/** @type {Element} */ (['text', {
-            x: String(p.x + p.width / 2), y: String(p.y + headerHeight / 2),
+            x: String(p.x + p.title / 2), y: String(p.y + p.height / 2),
             'text-anchor': 'middle', 'data-graph-label': '',
         }, p.label])]),
         ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['text', {
-            x: String(p.x + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
+            x: String(p.x + p.title + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',
         }, port.edge.label])]),
         ...p.ports.flatMap(port => {
             const { to } = port.edge
             return typeof to === 'number' ? [] : [/** @type {Element} */ (['text', {
-                x: String(p.x + (keyWidthOf(p)(port) + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
+                x: String(p.x + (p.title + keyWidthOf(p)(port) + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
                 'text-anchor': 'middle', 'data-graph-value-label': '',
                 ...valueKindOf(port.edge),
             }, ...(to.parts === undefined ? [to.inline]

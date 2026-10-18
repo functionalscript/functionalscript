@@ -191,7 +191,7 @@ const int = (prefix, d) => [set(prefix), d, intTail(d), option('n')]
  * A number: an unsigned integer, then either the bigint suffix or
  * an optional fraction and exponent; or, after a leading `0`, `x` or
  * `X`, hexadecimal digits, or `b` or `B`, binary digits, and an optional bigint suffix
- * ([numbers](../../../../spec/README.md#numbers)). A hexadecimal literal
+ * ([numbers](../../../../spec/values/numbers.md)). A hexadecimal literal
  * has no fraction and no exponent, so an `e` after `0x` is a digit. The
  * sign is an operator token.
  */

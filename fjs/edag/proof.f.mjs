@@ -43,7 +43,7 @@ import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
     exp, fromValue, isStatic, op0Id, op1Id, op12Id, op2Id, op3Id,
-    optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath,
+    noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText,
 } from './module.f.mjs'
 
 /**
@@ -97,7 +97,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'Object.is', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -233,7 +233,9 @@ export const proof = {
     // reader dispatches a static node on is the node of one tag of the
     // list: a tag's own spelling and nothing near it, alone.
     staticIds: () => {
-        assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])
+        assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])
+        assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }'])
+        assertEq(noStatic('Object.is'), 'no binding for the static Object.is')
         for (const id of staticIds) { assert(isStatic([id]), id) }
         for (const node of [['Object'], ['Number.is'], ['Number.isinteger'], ['entry'], ['Object.is', 0], [], [['Object.is']], 'Object.is', undefined]) {
             assert(!isStatic(node), JSON.stringify(node))
@@ -697,23 +699,24 @@ export const proof = {
         // the helper as a value) denotes, the language's own helper run as
         // JavaScript; not a schema check.
         entryJs: () => {
-            /** @type {(a: unknown, k: PropertyKey) => unknown} */
+            /** @type {(a: unknown, k: PropertyKey) => readonly [unknown] | readonly []} */
             const entry = (a, k) => {
                 const x = Object.getOwnPropertyDescriptor(a, k)
-                return x?.enumerable ? x.value : undefined
+                return x?.enumerable ? [x.value] : []
             }
-            const a = { ['__proto__']: 42 }
-            assertEq(entry(a, '__proto__'), 42)
-            assertEq(entry(a, 'x'), undefined)
-            assertEq(entry(a, 'toString'), undefined)
-            assertEq(entry([7], 0), 7)
-            assertEq(entry([7], '0'), 7)
-            assertEq(entry([7], 'length'), undefined)
-            assertEq(entry('ab', 1), 'b')
-            assertEq(entry('ab', 'length'), undefined)
-            assertEq(entry(entry, 'length'), undefined)
-            assertEq(entry(entry, 'name'), undefined)
-            assertEq(entry({ length: 3 }, 'length'), 3)
+            const a = { ['__proto__']: 42, u: undefined }
+            assertStructurallySame(entry(a, '__proto__'), [42])
+            assertStructurallySame(entry(a, 'u'), [undefined])
+            assertStructurallySame(entry(a, 'x'), [])
+            assertStructurallySame(entry(a, 'toString'), [])
+            assertStructurallySame(entry([7], 0), [7])
+            assertStructurallySame(entry([7], '0'), [7])
+            assertStructurallySame(entry([7], 'length'), [])
+            assertStructurallySame(entry('ab', 1), ['b'])
+            assertStructurallySame(entry('ab', 'length'), [])
+            assertStructurallySame(entry(entry, 'length'), [])
+            assertStructurallySame(entry(entry, 'name'), [])
+            assertStructurallySame(entry({ length: 3 }, 'length'), [3])
         },
     },
     op2: {

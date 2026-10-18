@@ -1,9 +1,9 @@
-# Undefined-Valued Properties
+## Undefined-Valued Properties
 
 **Priority:** P1
 **Status:** open
 
-## Compatibility correction
+### Compatibility correction
 
 The former unconditional rule `{ x: undefined } ≡ {}` is withdrawn. It was
 based on direct reads and filtered serialization, which do not establish
@@ -17,11 +17,11 @@ Object.getOwnPropertyDescriptor({ x: undefined }, "x")?.enumerable; // true
 Object.getOwnPropertyDescriptor({}, "x")?.enumerable; // undefined
 ```
 
-The proposed [enumerable-presence pattern](./2345-has-own-property.md) exposes
-that distinction. Prohibiting `Object.hasOwn` or `in` does not remove it, and
+The [`entry` helper's option](../property-access/entries.md), `[undefined]`
+against `[]`, exposes that distinction. Prohibiting `Object.hasOwn` or `in` does not remove it, and
 an internal VM definition cannot change the successful answer to the pattern.
 
-## Explicit filtering
+### Explicit filtering
 
 The existing proposed filtering patterns remain useful projections:
 
@@ -30,12 +30,15 @@ Object.entries(a).filter(([, v]) => v !== undefined)
 Object.values(a).filter(v => v !== undefined)
 ```
 
-This TODO does not expand admission to bare enumeration. The important
-correction is that equal filtered outputs do not make the inputs universally
-equivalent. `JSON.stringify`'s omission of a property is likewise an output
+Bare `Object.entries` is admitted since
+([2360](./2360-built-in.md#objectentries-proposal-and-approval)), and lists
+an `undefined`-valued entry as JavaScript does, so enumeration is one more
+observation any normalization must preserve; `Object.values` is not
+admitted. The important correction is that equal filtered outputs do not
+make the inputs universally equivalent. `JSON.stringify`'s omission of a property is likewise an output
 choice, not permission to erase it before arbitrary computation.
 
-## Construction and composition
+### Construction and composition
 
 ```js
 export default { x: 1, x: undefined }.x; // undefined, not 1
@@ -58,14 +61,14 @@ These are constraints on proposed features, not claims of current spread
 support or a current stripping bug. Preserve overwrites and observable order;
 normalize only where equivalence holds for every admitted observation.
 
-## Tasks
+### Tasks
 
 - [x] Remove the unconditional equivalence and reconcile enumerable presence.
 - [ ] Define and test any permitted normalization at its actual observation
       boundary, together with construction, composition and enumeration.
 - [ ] Recheck that equivalence when adding a new operation or execution path.
 
-## Related
+### Related
 
 - [VM-layer question](./1015-undefined-property-vm-layer.md).
 - [Compatibility epic](../../todo/fjs-javascript-compatibility.md).

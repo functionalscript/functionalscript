@@ -27,7 +27,7 @@
  * read the same module again just for its specifiers. {@link scan} asks
  * both export questions of one read and keeps the specifiers as a byproduct,
  * and {@link readGraph} is seeded with that, so it reads only what a
- * scan of the {@link authored} modules alone could not already have answered
+ * scan of the {@link isAuthored} modules alone could not already have answered
  * — a non-authored dependency, most often.
  *
  * **An empty page is probably a directory that no longer exists.** The
@@ -41,35 +41,41 @@
  *
  * @module
  *
- * @import { Access, All, Env, Mkdir, NodeProgramOptions, ReadFile, ReadWhole, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
+ * @import { Access, All, Catch, Env, Import, Mkdir, Module, NodeProgramOptions, ReadFile, ReadWhole, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel, IoResult } from '../effects/types.ts'
+ * @import { Result } from '../types/result/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
- * @import { Vec } from '../types/bit_vec/types.ts'
- * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
+ * @import { _DemoPaths, _Demos, _Graph, _Imports, _Walked } from './private.ts'
+ * @import { Header } from './issue/types.ts'
  * @import { OrderedMap } from '../types/ordered_map/types.ts'
- * @import { Build, Dir, Proof } from './page/types.ts'
+ * @import { Build, Dir, PageDemo, Proof } from './page/types.ts'
+ * @import { Element } from '../media/html/types.ts'
+ * @import { Demo, DemoEvent } from './demo/types.ts'
  * @import { Funding } from './funding/types.ts'
  */
 
 import { utf8 } from '../text/module.f.mjs'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
-import { foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { basename, concat as pathConcat, parent } from '../path/module.f.mjs'
 import { resolve } from '../path/import/module.f.mjs'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
-import { log } from '../effects/common/module.f.mjs'
+import { catch_, import_, log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
+import { pageRefusal } from '../media/html/module.f.mjs'
+import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
 import { changelogDir, cliDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
-import { isThirdParty } from '../dev/module.f.mjs'
+import { isAuthored, isThirdParty } from '../dev/module.f.mjs'
+import { header, isIssue } from './issue/module.f.mjs'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**
@@ -91,7 +97,7 @@ import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir
  * The repository and the releases are linked from the header every page
  * carries ({@link shell}), not from this page's own frame.
  *
- * @type {(build: Build) => (dir: Dir) => Vec}
+ * @type {(build: Build) => (dir: Dir) => string}
  */
 const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(dir)(testsMain(
     ['h1', 'FunctionalScript'],
@@ -107,15 +113,6 @@ const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(d
         ],
     ]),
 )))
-
-/**
- * Authored FunctionalScript source, `.f.mjs` or `.f.js`
- * ([`fjs/compiler/README.md`](../compiler/README.md) defines both); a proof
- * or a demo lives in nothing else a browser could run.
- *
- * @type {(path: string) => boolean}
- */
-const authored = path => path.endsWith('.f.mjs') || path.endsWith('.f.js')
 
 /**
  * Every directory under `dir`, itself first, with everything each one holds;
@@ -171,7 +168,7 @@ const allFiles = tree => tree.flatMap(walked => walked.files.map(inDir(walked)))
  *
  * @type {(tree: readonly _Walked[]) => readonly string[]}
  */
-const authoredModules = tree => allFiles(tree).filter(authored).toSorted()
+const authoredModules = tree => allFiles(tree).filter(isAuthored).toSorted()
 
 /**
  * The module a specifier in `from` leads to, or `null` where a browser could
@@ -350,7 +347,7 @@ const browserProofOf = tree =>
  * thing seeding skips. A seeded root's own imports would otherwise never
  * reach the frontier at all: `readGraph` sees it is already in the graph,
  * stops there, and a `.mjs` dependency two hops from a proof — outside
- * `scan`'s reach over the {@link authored} modules — is never read, never
+ * `scan`'s reach over the {@link isAuthored} modules — is never read, never
  * refused if it cannot be, and never counted as a blocker either. Widening this to every
  * module `scan` touched, not just the selected roots, would pull in a
  * module that is neither a proof nor a demo nor reachable from one; if
@@ -446,7 +443,7 @@ const generatedName = name =>
  * page to be listed with its blocker, so it is dropped and said on the console
  * instead.
  *
- * @type {(demos: readonly Proof[]) => readonly [_Demos, readonly string[]]}
+ * @type {(demos: readonly Proof[]) => readonly [_DemoPaths, readonly string[]]}
  */
 const resolveDemos = demos => {
     /** @type {OrderedMap<readonly Proof[]>} */
@@ -470,22 +467,73 @@ const resolveDemos = demos => {
             }
             return /** @type {const} */ ([setReplace(dir)(`/${only.name}`)(found), refused])
         },
-        /** @type {readonly [_Demos, readonly string[]]} */ ([emptyMap, []]))
+        /** @type {readonly [_DemoPaths, readonly string[]]} */ ([emptyMap, []]))
 }
 
 /**
- * Whether a name in a `todo/` directory is an issue.
+ * A demo module's first view, `view(init)`, as a thunk for `catch_`: a module
+ * that exports no `demo`, or a `view` that throws, is a throw here.
  *
- * An issue is a markdown file — [`todo/README.md`](../../todo/README.md) says
- * so, one file per issue — and a `todo/` may hold something else: the
- * repository root's holds `proof.f.mjs`, an authored module the suite runs,
- * which the page listed as an issue because it was there rather than because
- * it is one. The list says what it means instead of showing whatever the
- * folder happens to contain.
- *
- * @type {(name: string) => boolean}
+ * @type {(module: Module) => () => unknown}
  */
-const isIssue = name => name.endsWith('.md')
+const firstView = module => () => {
+    const demo = /** @type {Demo<unknown, DemoEvent>} */ (module.demo)
+    return demo.view(demo.init)
+}
+
+/**
+ * A demo with the first view the build rendered for it — `view(init)`, which
+ * the page shows until the runtime has loaded the demo and takes it over.
+ *
+ * **The demo is imported, not read.** Rendering it means running it, and
+ * `import` is the operation that loads a module's exports; the page's own
+ * runtime imports the very same module.
+ *
+ * **A demo that cannot be rendered keeps its page.** One that will not import,
+ * exports no `demo`, whose `view` throws, or whose view a page cannot hold
+ * ({@link pageRefusal}) is said on the console, and its page
+ * gets an empty root, which is what every page had before demos were
+ * rendered: the runtime fills it, or shows why it cannot. The build does not
+ * stop for one demo, and the reason is not lost.
+ *
+ * @type {(path: string) => Effect<Import | Catch | Write, PageDemo, IoChannel>}
+ */
+const prerender = path => {
+    /** @type {(reason: string) => Effect<Write, PageDemo, IoChannel>} */
+    const skip = reason => mapStep(
+        log(`skipped prerendering ${path.slice(1)}: ${reason}`),
+        () => ({ path, view: null }))
+    // Each link answers the view so far, or the reason there is none, so a
+    // failure is carried down the chain rather than branching out of it.
+    /** @type {Effect<Import, Result<Module, string>, IoChannel>} */
+    const loaded = resultStep(import_(path.slice(1)), imported =>
+        pureOk(imported[0] === 'error' ? error(errorMessage(imported[1])) : imported))
+    /** @type {Effect<Import | Catch, Result<Element, string>, IoChannel>} */
+    const viewed = step(loaded, imported => imported[0] === 'error'
+        ? pureOk(imported)
+        : mapStep(catch_(firstView(imported[1])), thrown => thrown[0] === 'error'
+            ? error(String(thrown[1]))
+            // `catch_` is generic, and the generic is lost on the way through
+            // `do_`, so what `view` answers comes back as `unknown`.
+            : ok(/** @type {Element} */ (thrown[1]))))
+    return step(viewed, view => {
+        if (view[0] === 'error') { return skip(view[1]) }
+        // The runtime's builders refuse what a page would read otherwise, or
+        // run; the page's serializer has no such check, so it is made here.
+        const refused = pageRefusal(view[1])
+        return refused === null ? pureOk({ path, view: view[1] }) : skip(refused)
+    })
+}
+
+/**
+ * Every demo, with its first view: {@link prerender}, one directory at a time.
+ *
+ * @type {(paths: _DemoPaths) => Effect<Import | Catch | Write, _Demos, IoChannel>}
+ */
+const prerenderDemos = paths => foldStep(
+    pureOk(entries(paths)),
+    /** @type {_Demos} */ (emptyMap),
+    ([dir, path]) => demos => mapStep(prerender(path), demo => setReplace(dir)(demo)(demos)))
 
 /**
  * Whether a directory's contents belong on its parent's page rather than on
@@ -532,6 +580,26 @@ const crateDirs = tree => crates => tree
     .map(walked => walked.path)
 
 /**
+ * Every issue under a `todo/`, at any depth, with its header, in the walk's
+ * order: a `todo/`'s own issues, then each subfolder's.
+ *
+ * **An issue whose header cannot be read stops the build**, naming the file,
+ * rather than being listed without a status or left out — the same answer
+ * {@link writeChangelog} gives a release file that does not parse.
+ *
+ * @type {(tree: readonly _Walked[]) => Effect<ReadFile, readonly { readonly path: string, readonly header: Header }[], IoChannel>}
+ */
+const readIssues = tree => foldStep(
+    pureOk(tree.filter(walked => isTodoDir(walked.path)).flatMap(walked => walked.files.filter(isIssue).map(inDir(walked)))),
+    /** @type {readonly { readonly path: string, readonly header: Header }[]} */ ([]),
+    path => read => step(readUtf8File(path), text => {
+        const found = header(text)
+        return found[0] === 'error'
+            ? pureError(ioError({ message: `${path}: ${found[1]}` }))
+            : pureOk([...read, { path, header: found[1] }])
+    }))
+
+/**
  * What a page needs about one directory, from what the walk found in it and
  * in its `todo/`.
  *
@@ -547,19 +615,22 @@ const crateDirs = tree => crates => tree
  * all three — so a reader finds the reference from either. `crates` is
  * {@link crateDirs}'s answer.
  *
- * @type {(tree: _Tree) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
+ * **Its issues are every one under its `todo/`**, a subfolder's included, each
+ * named by its path inside the `todo/`: `todo/blocked/` is issues like the
+ * rest, and the folder is part of the name rather than a page of its own.
+ *
+ * @type {(issues: readonly { readonly path: string, readonly header: Header }[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
  */
-const toDir = tree => crates => proofs => demos => walked => {
+const toDir = issues => crates => proofs => demos => walked => {
     const dirs = walked.dirs.filter(name => name !== 'todo')
+    const todo = `${pathConcat(walked.path)('todo')}/`
     return {
         path: walked.path,
         files: walked.files.filter(name => !generatedName(name)),
         dirs,
         demoDirs: dirs.filter(name => holdsDemo(demos)(pathConcat(walked.path)(name))),
-        todo: at(pathConcat(walked.path)('todo'))(tree)
-            ?.files
-            ?.filter(isIssue)
-            ?? [],
+        todo: issues.flatMap(({ path, header }) =>
+            path.startsWith(todo) ? [{ name: path.slice(todo.length), ...header }] : []),
         proofs: subtree(walked.path)(proofs),
         demo: at(walked.path)(demos),
         api: crates.includes(walked.path) ? crateHref(crateOf(walked.path)) : null,
@@ -624,10 +695,10 @@ const writeChangelog = build => tree => {
                     // prints the message and exits 1, as it does for a file
                     // that could not be read.
                     ? pureError(ioError({ message: `changelog/${release.version}.md: ${document[1]}` }))
-                    : writeFile(releasePath(release.version), releasePage(build)(release)(document[1]))
+                    : writeUtf8File(releasePath(release.version), releasePage(build)(release)(document[1]))
             })),
         () => step(
-            writeFile(pagePath(changelogDir), indexPage(build)(versions)),
+            writeUtf8File(pagePath(changelogDir), indexPage(build)(versions)),
             () => log(`releases: ${versions.length}`)))
 }
 
@@ -726,7 +797,7 @@ const writeCargoDoc = build => step(copyRustdoc, crates =>
  * @type {(build: Build) => (crates: readonly string[]) => Effect<Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
  */
 const writeCargoDocIndex = build => crates => {
-    const written = writeFile(pagePath(cargoDocDir), cargoDocPage(build)(crates))
+    const written = writeUtf8File(pagePath(cargoDocDir), cargoDocPage(build)(crates))
     const logged = step(written, () => log(`rust crates: ${crates.length}`))
     return mapStep(logged, () => crates)
 }
@@ -738,21 +809,18 @@ const writeCargoDocIndex = build => crates => {
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(build: Build) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<ReadFile | Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
-const writePages = build => tree => crates => proofs => demos => {
-    const byPath = tree.reduce(
-        (map, walked) => setReplace(walked.path)(walked)(map),
-        /** @type {_Tree} */ (emptyMap))
+const writePages = build => tree => crates => proofs => demos => step(readIssues(tree), issues => {
     const dirs = tree
         .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
-        .map(toDir(byPath)(crateDirs(tree)(crates))(proofs)(demos))
+        .map(toDir(issues)(crateDirs(tree)(crates))(proofs)(demos))
     return step(
-        forEachStep(pureOk(dirs), dir => writeFile(
+        forEachStep(pureOk(dirs), dir => writeUtf8File(
             pagePath(dir.path),
             dir.path === '.' ? rootPage(build)(dir) : page(build)(dir))),
-        () => log(`directory pages: ${dirs.length}`))
-}
+        () => log(`directory pages: ${dirs.length}, issues: ${issues.length}`))
+})
 
 /**
  * The commit this build is of, as the lowercase hex GitHub links it by, or
@@ -857,7 +925,7 @@ export const _readBuild = env => mapStep(readFunding, funding => ({ commit: comm
  * branch — and the funding channels are added once the tree has been read,
  * so every page builder receives one whole {@link Build}.
  *
- * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>}
+ * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>}
  */
 const program = env => note => exitStep(mapStep(
     step(log(note), () => step(walk('.'), tree => step(readFunding, funding => {
@@ -870,21 +938,22 @@ const program = env => note => exitStep(mapStep(
         return step(scanned, ([[foundProofs, foundDemos, graph], crates]) =>
             step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos)(graph),
                 ([proofs, demoProofs]) => {
-                    const [demos, refused] = resolveDemos(demoProofs)
+                    const [demoPaths, refused] = resolveDemos(demoProofs)
                     const reported = step(reportClassification(proofs), () =>
                         forEachStep(pureOk(refused), log))
-                    const pages = step(reported, () => writePages(build)(tree)(crates)(proofs)(demos))
+                    const prerendered = step(reported, () => prerenderDemos(demoPaths))
+                    const pages = step(prerendered, demos => writePages(build)(tree)(crates)(proofs)(demos))
                     const changelog = step(pages, () => writeChangelog(build)(tree))
                     const prDirectory = step(changelog, () => mkdir(prsDir, { recursive: true }))
-                    const prPage = step(prDirectory, () => writeFile(pagePath(prsDir), prsPage(build)))
+                    const prPage = step(prDirectory, () => writeUtf8File(pagePath(prsDir), prsPage(build)))
                     const cliDirectory = step(prPage, () => mkdir(cliDir, { recursive: true }))
-                    const reference = step(cliDirectory, () => writeFile(pagePath(cliDir), cliPage(build)))
+                    const reference = step(cliDirectory, () => writeUtf8File(pagePath(cliDir), cliPage(build)))
                     return step(reference, () => writeUtf8File('_main.css', stylesheet))
                 }))
     }))),
     () => undefined))
 
-/** @type {(options: NodeProgramOptions) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir, 0, number>} */
+/** @type {(options: NodeProgramOptions) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>} */
 export const main = ({ env }) => {
     const commit = commitOf(env)
     return program({ commit, branch: branchOf(env) })(linksNote(env)(commit))

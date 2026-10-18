@@ -8,7 +8,7 @@ pub fn run<A: IStaticFunction>() {
     let string_array: Any<A> = [string_any("0")].to_array().to_any();
     let object: Any<A> = [(string_key("0"), string_any("0"))].to_object().to_any();
     let first: Any<A> = A::static_function(|_self, args| {
-    let rest = args.clone().into_iter().to_array();
+    let rest = args.rest(0);
     Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
 }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
     check::<A>("wideBigintByItself", strict_ne(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])), false.to_any());
@@ -76,17 +76,17 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("functionByItself", strict_ne(first.clone(), first.clone()), false.to_any());
     check::<A>("functionByItselfSwapped", strict_ne(first.clone(), first.clone()), false.to_any());
     check::<A>("functionBySameText", strict_ne(A::static_function(|_self, args| {
-        let rest = args.clone().into_iter().to_array();
+        let rest = args.rest(0);
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
     }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), A::static_function(|_self, args| {
-        let rest = args.clone().into_iter().to_array();
+        let rest = args.rest(0);
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
     }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()), true.to_any());
     check::<A>("functionBySameTextSwapped", strict_ne(A::static_function(|_self, args| {
-        let rest = args.clone().into_iter().to_array();
+        let rest = args.rest(0);
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
     }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), A::static_function(|_self, args| {
-        let rest = args.clone().into_iter().to_array();
+        let rest = args.rest(0);
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
     }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()), true.to_any());
 }

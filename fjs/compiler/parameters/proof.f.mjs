@@ -133,14 +133,19 @@ const forInterpreter = (interpret, invoke) => {
         refusals: () => {
             for (const params of [
                 '(a,a)', '(a,a,b)', '(a,...a)', '(a,...x,)', '(a,...x,b)', '(a,...x,...y)',
-                '(a,,b)', '(a=1)', '([(a)])', '({a:1})', '(a.b)', '((a))', '(a+b)',
+                '(a,,b)', '(...a=1)', '(a=a)', '([(a)])', '({a:1})', '(a.b)', '((a))', '(a+b)',
                 '(a,1)', '(a,(b))', '(a,await)', '(a,undefined)', '(a,return)',
                 '(a)\n', 'a\n', '(a)/*\n*/', '(a,...x)\n',
             ]) { assertEq(parse('bad.f.mjs')(`export default ${params}=>1;`)[0], 'error', params) }
             assertEq(parse('bad.f.mjs')('export default (a,...x)=>{const a=1;return a;};')[0], 'error')
         },
         writerRefusesModuleBinding: () => {
-            assertEq(tryModuleStringify(['{}', [[':', 'f', ['=>', 1, [], ['args']]]]])[0], 'error')
+            // by the rule `bindingError` states, and not by another refusal behind it
+            for (const length of [1, 0]) {
+                assertStructurallySame(
+                    tryModuleStringify(['{}', [[':', 'f', ['=>', length, [], ['args']]]]]),
+                    ['error', 'module args in a function'])
+            }
         },
         invalidLengthMetadata: () => {
             for (const length of [-0,-1,0.5,Infinity,NaN]) {
@@ -160,5 +165,6 @@ export const proof = {
         arg: () => interpret(['=>',1,[],['arg',1]]),
         moduleRest: () => interpret(['rest']),
         functionArgs: () => interpret(['=>',1,[],['args']]),
+        functionArgsZeroArity: () => interpret(['=>',0,[],['args']]),
     },
 }

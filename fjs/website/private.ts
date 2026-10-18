@@ -12,6 +12,7 @@
  */
 
 import type { OrderedMap } from '../types/ordered_map/types.ts'
+import type { PageDemo } from './page/types.ts'
 
 /**
  * What one module's source says about linking it in a browser: the specifiers
@@ -59,14 +60,6 @@ export type _Walked = {
 }
 
 /**
- * Every walked directory by its path, so a directory's `todo/` can be found
- * without walking it twice.
- *
- * @internal
- */
-export type _Tree = OrderedMap<_Walked>
-
-/**
  * Each directory's demo module, by directory path, as the page loads it.
  *
  * A directory whose demo was refused is simply absent: the decision is made
@@ -75,7 +68,15 @@ export type _Tree = OrderedMap<_Walked>
  *
  * @internal
  */
-export type _Demos = OrderedMap<string>
+export type _DemoPaths = OrderedMap<string>
+
+/**
+ * Each directory's demo, by directory path, with the first view the build
+ * rendered for it.
+ *
+ * @internal
+ */
+export type _Demos = OrderedMap<PageDemo>
 
 /**
  * One kind of thing the reader did to a demo's field that a render must not

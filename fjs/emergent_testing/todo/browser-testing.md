@@ -69,9 +69,9 @@ The standing rule lives in [the README](../README.md#scope); this section is
 what it means for the browser suite specifically.
 
 **The browser suite runs authored FunctionalScript, `.f.mjs` and `.f.js`, and
-nothing else.** `website/module.f.mjs`'s `authored` selects on those two
-extensions; a page's proof list holds those and the one browser-realm proof
-the website ships, nothing else. That is the design, not a first iteration to
+nothing else.** `website/module.f.mjs` selects with `isAuthored`
+(`../../dev/module.f.mjs`), on those two extensions; a page's proof list holds
+those and the one browser-realm proof the website ships, nothing else. That is the design, not a first iteration to
 be widened later.
 
 It follows from what the two kinds of module are. Authored FunctionalScript is
@@ -216,4 +216,4 @@ workers, or visual regression testing.
 - [The two runners, and what sharing them cost](../README.md#the-two-runners-and-what-sharing-them-cost)
 - [Explicit browser test controls](browser-test-controls.md)
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
-- [project roadmap](../../../todo/plan/roadmap.md)
+- [project roadmap](../../../doc/plan/roadmap.md)

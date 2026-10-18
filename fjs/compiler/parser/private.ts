@@ -123,7 +123,7 @@ export type _Scope = {
      * the word from a function nested in either is refused unless the
      * function is called where it is written, since JavaScript's closure
      * would see the variable's last value where the function's capture
-     * holds the round's ([spec: loops](../../../spec/README.md#loops)).
+     * holds the round's ([spec: loops](../../../spec/control-flow/loops.md)).
      */
     readonly loop: string | null
     /**
@@ -231,14 +231,45 @@ export type _FunctionFrame = {
 
 /**
  * A parameter list bound: the names the function's body begins with, the
- * function's `length`, and the entries its patterns make — the reads of
- * the fixed arguments a pattern is sugar for, which the body's own entries
- * follow — none for a list of names alone.
+ * function's `length`, the entries its patterns make — the reads of the
+ * fixed arguments a pattern is sugar for, which the body's own entries
+ * follow — none for a list of names alone, and the parameters from the
+ * first default on, {@link _Late}, which land after those entries and
+ * before the body's own.
  */
 export type _Bound = {
     readonly names: _Env
     readonly count: number
     readonly entries: readonly AstConst[]
+    readonly late: readonly _Late[]
+}
+
+/**
+ * A parameter from the first default on, read from the rest array rather
+ * than as an argument so that the function's `length` stops before it, as
+ * JavaScript's does
+ * ([default parameters](../../../spec/todo/3125-default-parameters.md)):
+ * what it binds, checked with the whole list; its default as written, or
+ * `null`; and its source — the read of the rest array at its position, or,
+ * for the rest parameter after such parameters, the slice past them.
+ */
+export type _Late = {
+    readonly plan: _Plan
+    readonly init: Node | null
+    readonly source: AstConst
+}
+
+/**
+ * A function whose late parameters, {@link _Late}, are landing before its
+ * body: `late[index]` is the one whose default is being evaluated, in the
+ * function's own scope; `done` holds the entries before it,
+ * {@link _Counted}, and `entries` how many; and `body` is the function's
+ * body, entered once the last has landed.
+ */
+export type _LateFrame = _Counted<AstConst> & {
+    readonly late: readonly _Late[]
+    readonly entries: number
+    readonly body: Node
 }
 
 /**
@@ -373,6 +404,7 @@ export type _Frame =
     | _BinaryRightFrame
     | _ConditionalFrame
     | _FunctionFrame
+    | _LateFrame
     | _BodyFrame
     | _GuardFrame
     | _LetFrame

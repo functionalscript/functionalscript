@@ -1,7 +1,11 @@
-# Property Accessor
+## Property Accessor
 
-**Status:** the constant-key read is in the language
-([spec: property access](../README.md#property-access)): an own-property
+**Priority:** P2
+**Status:** on-hold — only `a[+i]` remains, and unary `+` is outside the
+language with no plan to admit it
+
+The constant-key read is in the language
+([spec: property access](../property-access/README.md)): an own-property
 read, with every built-in prototype name but `length` a compilation error,
 the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js),
 and an access on a numeric literal read as JavaScript reads it — `-1 .x` is
@@ -10,22 +14,23 @@ computed key, `a[Number(b)]`, the EDAG's `['.', a, ['Number', b]]`, in an
 access, a method call and an optional chain; every other value in brackets
 is refused at its first token, and a negative constant is written as the
 string it names. Method calls follow the
-[current function specification](../README.md#functions).
+[current function specification](../functions/README.md).
 
 The runtime key is `entry`, in the language
-([spec: entry](../README.md#reading-an-entry-at-run-time)): the explicit
+([spec: entry](../property-access/entries.md)): the explicit
 enumerable-entry helper, recognized whole and lowered to the EDAG's
 `['entry']`. It superseded the old descriptor-value-only source pattern and
 the `Object.hasOwn`-based alternative. `Object.hasOwn` and
 `obj.hasOwnProperty(...)` are prohibited source operations, not operations to
-reinterpret. [Enumerable presence](./2345-has-own-property.md) proposes a
-separate `hasEntity` pattern. All such instructions follow
+reinterpret. `entry` answers presence too, as an option, `[value]` or `[]`
+([spec: entry](../property-access/entries.md)). All such instructions follow
 [statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
 What this file still owns is `a[+i]`, beside the numeric index
 `a[Number(i)]` that is in the language, where the program knows no `bigint`
-reaches the index — unary `+` waits on the
-[operators](./2340-operators.md) admitting it. Where a program knows its
+reaches the index — but unary `+` is outside the language:
+[operators](./2340-operators.md) leaves it on the other side of the line, and
+no record plans it ([refused constructs](./refused-constructs.md)). Where a program knows its
 index to be a number, `a[Number(i)]` is the spelling to write, `entry`
 being the read for a key of any type.
 
@@ -75,10 +80,10 @@ compiler reads as the helper and every executor answers alike:
 ```js
 const entry = (object, property) => {
     const descriptor = Object.getOwnPropertyDescriptor(object, property);
-    return descriptor?.enumerable ? descriptor.value : undefined;
+    return descriptor?.enumerable ? [descriptor.value] : [];
 };
 const values = [7];
-export default [values.length, entry(values, "length")]; // [1, undefined]
+export default [values.length, entry(values, "length"), entry(values, 0)]; // [1, [], [7]]
 ```
 
 Its complete parsed function body is recognized after statements, expressions
@@ -89,7 +94,7 @@ helper's calls are ordinary calls, and no internal operation stands beside
 the node ([`fjs/edag`](../../fjs/edag/README.md)). None is a fallback for
 ordinary static access.
 
-## Source-to-EDAG mapping
+### Source-to-EDAG mapping
 
 **P1 reconciliation:** source operations, EDAG nodes and bytecode
 specializations are different layers. The former rule that non-built-in
@@ -103,7 +108,7 @@ select the enumerable-entry operation.
 | `a[0]` | `['.', A, 0]` | Current |
 | `a[Number(i)]` | `['.', A, ['Number', I]]` | Current |
 | `a.foo(x)` | `['.', A, 'foo', ['\|()', Args]]` | Current receiver-preserving lowering, for permitted names |
-| The `entry` helper, recognized whole | `['entry']` | Current ([spec: entry](../README.md#reading-an-entry-at-run-time)) |
+| The `entry` helper, recognized whole | `['entry']` | Current ([spec: entry](../property-access/entries.md)) |
 | `entry(a, key)` | `['()', E, [A, K]]` | Current, an ordinary call of that helper |
 
 `A`, `K` and `E` denote lowered receiver, key and helper expressions;
@@ -121,7 +126,7 @@ went with the helper's arrival: `.` represents ordinary reads, the key a
 constant or a number converted at run time, `a[Number(i)]`, and `['entry']`
 the one read of a key of any type.
 
-## Instance Property
+### Instance Property
 
 ```js
 obj.property
@@ -198,7 +203,7 @@ for the sake of supporting JS legacy in cases when that is FJS-safe.
 |------|-----------|
 |`size`|no         |
 
-## Instance Method Call
+### Instance Method Call
 
 Syntax examples:
 
@@ -339,7 +344,7 @@ f(i) // returns 0 thanks to side effects!
 |`set`    |yes         |mutate|
 |`values` |no          |      |
 
-## At
+### At
 
 ```js
 obj[42]
@@ -348,7 +353,7 @@ obj[Number(index)]
 
 Constant numeric indices use EDAG `.` too, and so does the `Number(...)`
 form, `['.', O, ['Number', I]]`, in the language
-([spec: property access](../README.md#property-access)); `at` is only a
+([spec: property access](../property-access/README.md)); `at` is only a
 possible backend specialization, not a separate EDAG tag or an
 enumerable-entry read.
 
@@ -367,7 +372,7 @@ In `obj[index]`, `index` has to be a `number`. If we don't know what `index` is,
 or a string literal (excluding the prototype names); anything else is refused at its first
 token. FJS may try deeper analyses in the future, and type inference can help a lot.
 
-## Regression requirements
+### Regression requirements
 
 - Preserve static `.` lowering for ordinary and missing fields, numeric
   indices and non-enumerable `length`; reject prohibited names during
@@ -377,7 +382,7 @@ token. FJS may try deeper analyses in the future, and type inference can help a 
   including the `length` distinction above. Keep unmatched descriptor uses
   refused. Backend helper reuse must not merge these semantic contracts.
 
-## Iterators
+### Iterators
 
 Direct access to an object with the [`Iterator` protocol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols)
 is not allowed in FJS.

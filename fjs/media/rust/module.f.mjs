@@ -7,7 +7,7 @@
  * numeric edge cases. This module owns that layer — the syntax of a literal —
  * and nothing above it. The items several generators write over strings — a
  * `const` table, the `@generated` header — are its sibling
- * [`./item`](./item/module.f.mjs)'s; expressions, other items, and whatever
+ * [`./item`](./item/module.f.js)'s; expressions, other items, and whatever
  * API a generator targets stay with the generator.
  *
  * The sibling of `fjs/media/nix`, which does the same for Nix expressions.
@@ -151,7 +151,7 @@ const canonicalNan = 0x7ff8_0000_0000_0000n
  * rather than approximated, a normal number's exponent being
  * {@link exponentOf}'s. Every `NaN` is {@link canonicalNan}, whatever sign
  * or payload an engine holds it with: FunctionalScript has one `NaN`
- * ([spec](../../../spec/README.md#numbers)), a `NaN`'s bits being no
+ * ([spec](../../../spec/values/numbers.md)), a `NaN`'s bits being no
  * observation the language admits, so one spelling is the whole of what
  * the value means.
  *
@@ -216,3 +216,29 @@ export const snakeCase = v => [...v].map(c => {
     const lower = c.toLowerCase()
     return c === lower ? c : `_${lower}`
 }).join('')
+
+/**
+ * The Rust identifier of a built-in's name — `object_is` for `Object.is`,
+ * `string_prototype_starts_with` for `String.prototype.startsWith` — the
+ * one spelling the static runtime's accessors are printed under and
+ * compiled code reads them by. Each part of the name is in snake case,
+ * the parts joined by one underscore. A word starts at a capital after a
+ * lowercase letter, so `toJSON` is `to_json` and `startsWith` is
+ * `starts_with` — except a capital that ends the part after one lowercase
+ * letter that itself follows a capital, the shape of `NaN`, so that
+ * `isNaN` is `is_nan` as Rust spells it, where {@link snakeCase}, a word
+ * at every capital, would make `is_na_n` of it. A capital first, or after
+ * another capital or a digit, starts no word.
+ *
+ * @type {(name: string) => string}
+ */
+export const builtInIdentifier = name => name.split('.').map(part => [...part].map((c, i) => {
+    const lower = c.toLowerCase()
+    const last = i === part.length - 1
+    const nan = last && i >= 2 && !isLower(part[i - 2])
+    const starts = c !== lower && i > 0 && isLower(part[i - 1]) && !nan
+    return starts ? `_${lower}` : lower
+}).join('')).join('_')
+
+/** Whether `c` is a lowercase letter: a digit or a mark is neither case. @type {(c: string) => boolean} */
+const isLower = c => c === c.toLowerCase() && c !== c.toUpperCase()

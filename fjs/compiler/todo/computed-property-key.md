@@ -23,7 +23,7 @@ The refusal is at `a`: the grammar's `member` rule in
 form as `[`, a `string` token, `]`, so `{ ["x"]: 5 }` is accepted as a
 third spelling of the constant key `"x"` and nothing else fits between the
 brackets. The spec records the gap
-([property keys](../../../spec/README.md#property-keys) and the roadmap's
+([property keys](../../../spec/values/objects.md#property-keys) and the roadmap's
 "computed property key from an expression" in
 [`spec/todo`](../../../spec/todo/README.md)), but no `todo/` tracks the
 work.
@@ -33,15 +33,15 @@ The key is immutable data in the language, so the construct is harmless
 `{ [a]: 5 }` is `{ 0: 5 }` whenever `a` is `0`, whichever way it is
 spelled. Refusing it forces the code to spell the key twice — once where
 it is defined and once at every literal that uses it — which is what
-[`website/demo/code`](../../website/demo/code/module.f.mjs)'s
-`{ [codeMarker]: '' }` avoids, and why that leaf stays outside the compiled
-language ([fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md)).
+[`website/demo/code`](../../website/demo/code/module.f.js)'s
+`{ [codeMarker]: '' }` avoids; that leaf compiles now and is an `.f.js`
+([fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point)).
 
 What the key becomes is already decided below the compiler. EDAG's
 `Property` takes any expression as its key
 ([`edag`](../../edag/types.ts)); the interpreter converts the value with
 `ToString`, as the `entry` helper converts the key it reads
-([reading an entry at run time](../../../spec/README.md#reading-an-entry-at-run-time)),
+([reading an entry at run time](../../../spec/property-access/entries.md)),
 and `nanvm-lib`'s `computed_item`
 ([`vm/unstable`](../../../nanvm/lib/src/vm/unstable/mod.rs)) does the same
 through `Any::to_string`. That is JavaScript's `ToPropertyKey` on every
@@ -133,12 +133,12 @@ key folds to the constant spelling.
 
 ### Related
 
-- [spec: property keys](../../../spec/README.md#property-keys) — states the
+- [spec: property keys](../../../spec/values/objects.md#property-keys) — states the
   restriction this issue lifts.
 - [spec roadmap](../../../spec/todo/README.md) — "computed property key
   from an expression" and "property key as number".
 - [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md) — the
-  `website/demo/code` leaf waits on this.
+  `website/demo/code` leaf waited on this, and is converted.
 - [PR 2826](https://github.com/functionalscript/functionalscript/pull/2826)
   — rewrote the leaves' computed reads and noted the object-literal key has
   no spelling the language accepts.

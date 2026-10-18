@@ -17,13 +17,13 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.1\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -62,19 +62,22 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.1\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.0\""
         },
         {
           "run": "test \"$(sh ./gen.nix/run wasmtime --version)\" = \"wasmtime 45.0.2\""
         },
         {
           "run": "test \"$(sh ./gen.nix/run wasmer --version)\" = \"wasmer 7.1.0\""
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run js --version)\" = \"JavaScript-C140.14.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -162,6 +165,12 @@
         },
         {
           "run": "sh ./gen.nix/run node --test"
+        },
+        {
+          "run": "sh ./gen.nix/run npm run sm c"
+        },
+        {
+          "run": "sh ./gen.nix/run npm run sm t"
         }
       ]
     },
@@ -170,7 +179,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.99.0",
+          "uses": "dtolnay/rust-toolchain@1.99.1",
           "with": {
             "components": "rustfmt,clippy"
           }
@@ -178,14 +187,14 @@
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.11.1"
+            "node-version": "26.12.0"
           }
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(node --version)\" = \"v26.11.1\""
+          "run": "test \"$(node --version)\" = \"v26.12.0\""
         },
         {
           "run": "npm ci"
@@ -212,13 +221,13 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.1\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.0\""
         },
         {
           "run": "sh ./gen.nix/run npm ci"
@@ -245,7 +254,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.99.0",
+          "uses": "dtolnay/rust-toolchain@1.99.1",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "i686-pc-windows-msvc"
@@ -254,11 +263,11 @@
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.11.1"
+            "node-version": "26.12.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.55.0"
+          "run": "npm install -g functionalscript@0.56.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -297,7 +306,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.99.0",
+          "uses": "dtolnay/rust-toolchain@1.99.1",
           "with": {
             "components": "rustfmt,clippy"
           }
@@ -305,11 +314,11 @@
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.11.1"
+            "node-version": "26.12.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.55.0"
+          "run": "npm install -g functionalscript@0.56.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -336,7 +345,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -357,7 +366,7 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -378,13 +387,13 @@
       "timeout-minutes": 15,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.1"
+          "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.11.1\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.0\""
         },
         {
           "run": "test \"$(sh ./gen.nix/run tsc --version)\" = \"Version 7.0.2\""
@@ -417,7 +426,7 @@
           "uses": "actions/setup-node@v7.1.0",
           "with": {
             "package-manager-cache": "false",
-            "node-version": "26.11.1"
+            "node-version": "26.12.0"
           }
         },
         {

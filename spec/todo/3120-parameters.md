@@ -16,7 +16,7 @@ That request also authorized the original pre-generated
 
 Parsing, binding, fixed/rest EDAG, source output and Rust output are
 implemented, and the accepted syntax is in the
-[specification](../README.md#functions). A function's `length` is at most 16,
+[specification](../functions/README.md). A function's `length` is at most 16,
 the approved language limit. The old three-element function tuple is a
 breaking format change: recompile source, or migrate zero-arity
 function-owned `args` to `rest`, retaining module import bindings.
@@ -86,7 +86,7 @@ runtime compilation boundary.
 This replaces this TODO's earlier positive-arity/full-`['args']` design and
 its restricted writer boundary. The implementation request and original
 factory-table authorization are recorded above. The language limits
-`length` to 16 ([functions](../README.md#functions)).
+`length` to 16 ([functions](../functions/README.md)).
 
 **Benefits:** familiar JavaScript syntax, preserved arity, and a shared
 argument representation for the compiler, writers and FJS interpreters.
@@ -263,7 +263,7 @@ This removes the earlier arity/complete-argument writer obstruction for the
 new nodes. It does not promise that unrelated unsupported EDAG capabilities
 can be serialized. Preserve captured sharing, scope and the selected identity
 profile. Callable serialization and default function conversion follow the
-existing [function-text contract](./serialization.md#function-text-and-serialization);
+existing [function-text contract](../design/serialization.md#function-text-and-serialization);
 their output contracts are not automatically identical.
 
 ### Default function text: render or refuse
@@ -293,7 +293,7 @@ it is not a missing prerequisite for the compiled text already supplied.
 
 Ordinary JavaScript source execution and ordinary runtime callables created
 by `toUnknown` use the host's function text under the
-[function-source exception](../README.md#function-source-representation-exception).
+[function-source exception](../principles/README.md#function-source-representation-exception).
 The historical host-closure ruling on
 [#2469](https://github.com/functionalscript/functionalscript/pull/2469) does
 not exempt the represented EDAG interpreters from their current canonical
@@ -304,13 +304,13 @@ Function creation, calls, returns, exports, arity and captured identity
 retain their existing contracts in each profile. A data output may refuse
 a selected callable, but rendering is not a reason to ban callable exports.
 Broader callable interchange serialization and conditional streaming frame
-production remain in the [serialization design](./serialization.md#open-questions);
+production remain in the [serialization design](../design/serialization.md#open-questions);
 they do not reopen the implemented code-only default representation.
 
 ### Length limit and migration
 
 A function has at most 16 fixed parameters
-([functions](../README.md#functions)), approved as a language limit
+([functions](../functions/README.md)), approved as a language limit
 ([approval](https://github.com/functionalscript/functionalscript/pull/2295#issuecomment-5831266299)) so
 that every valid function is materializable, with the right `length`, by every
 backend. A 17th fixed name is a compile error, and `checked` refuses an
@@ -332,7 +332,7 @@ Reconcile pending design documents in this proposal, before implementation:
 [stage-1 subjects 2 and 7](../../todo/edag-stage1-discussion.md#2-arguments-reference),
 the [native callable plan](../../nanvm/lib/todo/callable-function-objects.md),
 which also covers captured frames in Rust,
-and the [function-frame plan](./3111-function-frame.md) follow this
+and the [function-frame plan](../design/3111-function-frame.md) follow this
 `length` / `arg` / `rest` contract, not a count-only extension of complete
 `['args']`. This addresses the
 [argument-model review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094709899)
@@ -423,7 +423,7 @@ source rest binding in that future case or silently admit initializers now.
 
 ### Related
 
-- [Current functions](../README.md#functions) — accepted syntax today.
+- [Current functions](../functions/README.md) — accepted syntax today.
 - [Arity-cap review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094327220)
   — distinguish executor capacity from language validity; superseded by the
   language's limit on `length`.
@@ -436,7 +436,7 @@ source rest binding in that future case or silently admit initializers now.
 - [Statement-aware compilation](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
   — preserve JavaScript syntax and bindings before EDAG admission/lowering.
 - [Destructuring](./2450-destructuring.md) — separate binding-pattern work.
-- [Function frame](./3111-function-frame.md) — capture semantics.
+- [Function frame](../design/3111-function-frame.md) — capture semantics.
 - [ECMAScript arrow functions](https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#sec-arrow-function-definitions)
   — parameter syntax, early errors and function creation.
 - [ECMAScript parameter binding](https://tc39.es/ecma262/multipage/syntax-directed-operations.html#sec-runtime-semantics-iteratorbindinginitialization)

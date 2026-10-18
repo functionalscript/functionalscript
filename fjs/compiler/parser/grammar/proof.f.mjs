@@ -245,7 +245,19 @@ export const proof = {
         assertStructurallySame(read('export default (a, 1) => 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (a, b.c) => 1;'), ['error', '.'])
         assertStructurallySame(read('export default (a, ...b) => 1;'), ['ok'])
-        assertStructurallySame(read('export default (a = 1) => 1;'), ['error', '='])
+        // a default, `= value`, after any fixed parameter, the first
+        // included, a pattern too, and a fixed parameter or the rest after
+        // it; `(a = 1)` is no group, so its `)` wants the `=>`, and the
+        // rest parameter takes no default
+        assertStructurallySame(read('export default (a = 1) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a, b = a => a, c) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a = 1, ...b) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a = 1, b = 2,) => 1;'), ['ok'])
+        assertStructurallySame(read('export default ([a] = [], { b } = {}) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a = 1);'), ['error', ';'])
+        assertStructurallySame(read('export default (a = 1).b;'), ['error', '.'])
+        assertStructurallySame(read('export default (a, ...b = 1) => 1;'), ['error', '='])
+        assertStructurallySame(read('export default (a = ) => 1;'), ['error', ')'])
         assertStructurallySame(read('export default (a, b) 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (a, b);'), ['error', ';'])
         // the grammar admits a value at the head of the list, one symbol

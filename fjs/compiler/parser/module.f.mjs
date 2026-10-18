@@ -65,13 +65,13 @@
  * inlines, {@link bodyRound} — and the guard is the conditional of the
  * two, `c ? (() => { …block… })() : (() => { …rest… })()`, so a `const` of
  * either arm is the arm's alone and the graph is the one that spelling
- * has ([spec: functions](../../../spec/README.md#functions)). No node is
+ * has ([spec: functions](../../../spec/functions/README.md)). No node is
  * added to the AST for it. A loop, `let r = init; while (c) block`, is
  * the fold's the same way: the two statements are one entry, the call of
  * the function `r => c ? (() => { …block…; return self(next); })() : r`
  * with `init`, the block the body of a parameterless function as a
  * guard's arm is, {@link loopRound}, and the variable names the call from
- * the loop on ([spec: loops](../../../spec/README.md#loops)).
+ * the loop on ([spec: loops](../../../spec/control-flow/loops.md)).
  *
  * The resolution walks a value over an explicit stack of frames, so
  * nesting depth stays the input's.
@@ -88,7 +88,7 @@
  * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
+ * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -111,7 +111,7 @@ import { staticIds, staticPath } from '../../edag/module.f.mjs'
  * property, so FunctionalScript rejects them and accepts only the computed
  * spelling `{ ["__proto__"]: v }` and the shorthand `{ __proto__ }`, which
  * denote an ordinary property, as they do in JavaScript.
- * See [spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key).
+ * See [spec: the `__proto__` key](../../../spec/values/objects.md#the-__proto__-key).
  */
 const protoKey = '__proto__'
 
@@ -130,7 +130,7 @@ const duplicateId = foldError('duplicate id')
 /**
  * A `let` the statement after it is not a `while`, at the `let`: the two
  * are one loop, and the language has no `let` on its own
- * ([spec: loops](../../../spec/README.md#loops)).
+ * ([spec: loops](../../../spec/control-flow/loops.md)).
  */
 const letWithoutWhile = foldError('let without while')
 
@@ -231,7 +231,7 @@ const reservedWord = foldError('reserved word')
  * The call of `Number` or `String` with more than one argument, or a spread,
  * at the word: `Number(a, b)` and `Number(...a)`, JavaScript's and not recognized
  * yet, for want of a representation
- * ([spec: number conversion](../../../spec/README.md#number-conversion)):
+ * ([spec: number conversion](../../../spec/conversions/number.md)):
  * `Number(a, b)` is the comma's `(a, b, Number(a))`, which the
  * FunctionalScript writer cannot spell until the comma operator lands, and
  * `Number(...a)` converts the first value a spread yields, which no node
@@ -249,10 +249,10 @@ const conversionArity = name => foldError(`${name} takes one argument`)
  * without its `;` — the error the grammar reported there when the `;` was
  * required, and the one JavaScript reports, which inserts a `;` before a
  * token only where a newline does
- * ([spec: module structure](../../../spec/README.md#module-structure)) —
+ * ([spec: module structure](../../../spec/modules/README.md)) —
  * and the tokens JavaScript forbids a newline before, an `=>` and the
  * value after `return` or `throw`
- * ([spec: line terminators](../../../spec/README.md#whitespace-and-line-terminators)).
+ * ([spec: line terminators](../../../spec/lexical/whitespace.md)).
  */
 const unexpectedToken = foldError('unexpected token')
 
@@ -260,7 +260,7 @@ const unexpectedToken = foldError('unexpected token')
  * A module that neither throws nor exports a name, at its last `export`:
  * every exported `const` was a pattern binding no name, `export const {} = o;`,
  * and no `export default` followed. A module that does not throw exports at
- * least one name ([spec: exports](../../../spec/README.md#exporting-a-value)),
+ * least one name ([spec: exports](../../../spec/modules/exports.md)),
  * which the grammar asked of the `export` keyword while a `const` always
  * bound one.
  */
@@ -269,7 +269,7 @@ const noExport = foldError('module exports nothing')
 /**
  * The entry a `throw` statement makes of its value: a body's last, in a
  * function or the module, in place of what it would return
- * ([spec: functions](../../../spec/README.md#functions)).
+ * ([spec: functions](../../../spec/functions/README.md)).
  *
  * @type {(value: AstConst) => AstThrow}
  */
@@ -443,7 +443,7 @@ const accessClosed = (key, method, base) => mapOk(
  * A key computed at run time that is no conversion, at the token it begins
  * with: `a[i]`, `a[-1]`, `a[NaN]`. An index is a constant — a string or a
  * number literal — or `Number(i)`, the conversion
- * ([spec: property access](../../../spec/README.md#property-access)); a key
+ * ([spec: property access](../../../spec/property-access/README.md)); a key
  * of any type is read by the `entry` helper, and a negative or a special
  * number is written as the string it names, `a["-1"]`.
  */
@@ -506,7 +506,7 @@ const pushed = (stack, item) => ({ top: item, rest: stack })
  * its source, its `length`, the one name every kind of value may own —
  * the read that fails on `null` and `undefined` as `RequireObjectCoercible`
  * fails, and whose value is no observation
- * ([spec: destructuring](../../../spec/README.md#destructuring)).
+ * ([spec: destructuring](../../../spec/bindings/destructuring.md)).
  *
  * One walk over an explicit stack of what is pending, {@link _Pending}, in
  * document order — an element or a property is judged where it is read,
@@ -522,10 +522,11 @@ const pushed = (stack, item) => ({ top: item, rest: stack })
  * and each of its properties reads the member its key names, the static
  * function itself, {@link staticMember}, as the access `Object.is` does —
  * so `const { is } = Object` makes the one entry `const is = Object.is`
- * makes, and a key the namespace does not admit is refused at the word,
- * as `Object.keys` is — once {@link checkedKey} has passed it, so a key
- * that is a prototype name, `keys` or `toString`, is refused first, at
- * the key, as in any pattern.
+ * makes, and `const { entries } = Object` reads `Object.entries`, though
+ * `entries` is a prototype name, {@link propertySource}. A key the
+ * namespace does not admit is refused as in any pattern where it is a
+ * prototype name, `keys` or `toString`, at the key, and at the word
+ * otherwise, as `Object.keys` is.
  *
  * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
@@ -550,9 +551,7 @@ const planned = check => (target, namespace) => {
             if (property instanceof Array) { return error(restTarget(property[1])) }
             const { key, target: element } = property
             if (key instanceof Array) { return error(computedPatternKey(key[2])) }
-            const [tag, named] = checkedKey(key, false)
-            if (tag === 'error') { return error(named) }
-            const [found, source] = propertySource(parent, named)
+            const [found, source] = propertySource(parent, key)
             if (found === 'error') { return error(source) }
             pending = pushed(pending, { target: element, source })
         } else if ('element' in item) {
@@ -602,17 +601,23 @@ const planned = check => (target, namespace) => {
 }
 
 /**
- * Where a property of an object pattern reads from: the key of the entry
- * its pattern's source is, or, over a namespace, the member the key names,
- * {@link staticMember} — a key the namespace does not admit refused at the
- * word, as `Object.keys` is.
+ * Where a property of an object pattern reads from, or its refusal: the key
+ * of the entry its pattern's source is, checked as an access's key is,
+ * {@link checkedKey}; or, over a namespace, the member the key names,
+ * {@link staticMember}, which the namespace's own list admits before any
+ * key rule, as the access `Object.entries` is read — so `entries`, a
+ * prototype name, reads its static — and a key it does not admit is
+ * refused as the access refuses it: a prototype name at the key, and any
+ * other at the word, as `Object.keys` is.
  *
- * @type {(parent: number | DjsTokenWithMetadata, named: string | number) => Result<_Source, ParseError>}
+ * @type {(parent: number | DjsTokenWithMetadata, key: DjsTokenWithMetadata) => Result<_Source, ParseError>}
  */
-const propertySource = (parent, named) => {
-    if (typeof parent === 'number') { return ok([parent, named]) }
-    const member = staticMember(nameOf(parent), named)
-    return member === null ? error(reservedWord(parent)) : ok(member)
+const propertySource = (parent, key) => {
+    const member = typeof parent === 'number' ? null : staticMember(nameOf(parent), keyNamed(key))
+    if (member !== null) { return ok(member) }
+    const [tag, named] = checkedKey(key, false)
+    if (tag === 'error') { return error(named) }
+    return typeof parent === 'number' ? ok([parent, named]) : error(reservedWord(parent))
 }
 
 /**
@@ -631,7 +636,7 @@ const properties = (pending, list, parent) => list.reduceRight(
  * The entries a checked pattern makes of its source, numbered from `base`
  * — the position the first takes in the body being built — and the words
  * it binds, each to the entry holding its value, in the order written
- * ([spec: destructuring](../../../spec/README.md#destructuring)): one
+ * ([spec: destructuring](../../../spec/bindings/destructuring.md)): one
  * entry per read of the plan, one binding per name, linear in both.
  *
  * A name's one entry is the source itself, which is what a `const` of a
@@ -1068,10 +1073,22 @@ const captured = (body, word, [outer, ref]) => {
  * {@link planned} and {@link lowered}, its source the argument, so that
  * its reads are the first entries of the body and each name it binds is
  * bound to the entry holding its value
- * ([spec: destructuring](../../../spec/README.md#destructuring)). Nothing
+ * ([spec: destructuring](../../../spec/bindings/destructuring.md)). Nothing
  * else is the body's own; a name bound outside is a capture,
  * {@link resolve}. The `length` is what JavaScript gives the function, the
  * fixed parameters counted, a pattern as one, the rest parameter not.
+ *
+ * A default ends that count, as it ends JavaScript's: a fixed parameter
+ * from the first with a default on, `= value`, is *late*, {@link _Late}
+ * — read from the rest array at its position past the count, and the rest
+ * parameter after it the slice of that array past them — and binds
+ * nothing here. Each lands in the function's own scope once the defaults
+ * before it have been resolved there, {@link lateRound}, so a default
+ * reads the scopes around the function and the parameters before it, and
+ * never a later one or the body
+ * ([default parameters](../../../spec/todo/3125-default-parameters.md)).
+ * Every name of the list is checked here all the same, the late ones'
+ * included, so one bound twice is the list's to refuse.
  *
  * An empty parameter list binds nothing, so a body under it starts from no
  * names of its own: the arguments are unreachable, having no name, and
@@ -1094,20 +1111,35 @@ const captured = (body, word, [outer, ref]) => {
 const functionScope = list => {
     if ('invalid' in list) { return error(malformedParameters(list.invalid)) }
     if ('arrow' in list) { return error(unexpectedToken(list.arrow)) }
+    const defaulted = list.fixed.findIndex(parameter => parameter[0] === '=')
+    const count = defaulted === -1 ? list.fixed.length : defaulted
     /** @type {_Bound} */
-    let bound = { names: empty, count: list.fixed.length, entries: [] }
-    for (const [i, target] of list.fixed.entries()) {
+    let bound = { names: empty, count, entries: [], late: [] }
+    // every word the list binds, a late parameter's included, each to a
+    // reference no read sees: what a name is checked against
+    /** @type {_Env} */
+    let seen = empty
+    for (const [i, parameter] of list.fixed.entries()) {
+        const target = parameter[0] === '=' ? parameter[1] : parameter
         if (i === maxLength) { return error(tooManyParameters(target[1])) }
+        const [tag, plan] = planned(bindable(seen))(target, null)
+        if (tag === 'error') { return error(plan) }
+        seen = plan.names.reduce(
+            /** @type {(env: _Env, name: readonly [DjsTokenWithMetadata, number]) => _Env} */
+            ((env, [name]) => extended(env)(nameOf(name), restBinding)),
+            seen)
+        if (i >= count) {
+            /** @type {AstAccess} */
+            const source = ['.', restBinding, i - count]
+            bound = { ...bound, late: [...bound.late, { plan, init: parameter[0] === '=' ? parameter[3] : null, source }] }
+            continue
+        }
         /** @type {_Parameter} */
         const arg = ['arg', i]
         if (target[0] === 'name') {
-            const [tag, word] = bindable(bound.names)(target[1])
-            if (tag === 'error') { return error(word) }
-            bound = { ...bound, names: extended(bound.names)(word, arg) }
+            bound = { ...bound, names: extended(bound.names)(nameOf(target[1]), arg) }
             continue
         }
-        const [tag, plan] = planned(bindable(bound.names))(target, null)
-        if (tag === 'error') { return error(plan) }
         const { entries, bound: names } = lowered(plan, arg, bound.entries.length)
         bound = {
             ...bound,
@@ -1116,8 +1148,12 @@ const functionScope = list => {
         }
     }
     if (list.rest === null) { return ok(bound) }
-    const [tag, word] = bindable(bound.names)(list.rest)
-    return tag === 'error' ? error(word) : ok({ ...bound, names: extended(bound.names)(word, restBinding) })
+    const [tag, plan] = planned(bindable(seen))(['name', list.rest], null)
+    if (tag === 'error') { return error(plan) }
+    if (bound.late.length === 0) { return ok({ ...bound, names: extended(bound.names)(nameOf(list.rest), restBinding) }) }
+    /** @type {AstCall} */
+    const slice = ['()', ['.', restBinding, 'slice'], [bound.late.length]]
+    return ok({ ...bound, late: [...bound.late, { plan, init: null, source: slice }] })
 }
 
 /**
@@ -1277,7 +1313,7 @@ const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === n
  * The static function the key `named` names in the namespace `global`, as
  * the AST holds it, `['Number.isInteger']`, or `null` where the language
  * admits none: `is` of `Object` and the four predicates of `Number`
- * ([spec: built-in static functions](../../../spec/README.md#built-in-static-functions)),
+ * ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)),
  * each a tag of the EDAG's `staticIds`, where a later name is a row of
  * its own decision.
  *
@@ -1371,28 +1407,29 @@ const isDescriptorOf = (node, a, b) => {
 }
 
 /**
- * Whether a node is `x?.enumerable ? x.value : undefined`, the helper's
- * entry, `x` the word its `const` binds: a guarded access and a plain one,
- * each ending its chain there.
+ * Whether a node is `x?.enumerable ? [x.value] : []`, the helper's option,
+ * `x` the word its `const` binds: a guarded access ending its chain there,
+ * an array of the one plain access, and the empty array.
  *
  * @type {(node: Node, x: string) => boolean}
  */
 const isEntryOf = (node, x) => {
     if (node[0] !== '?:') { return false }
     const [, condition, then, otherwise] = node
+    if (then[0] !== 'array' || then[1].length !== 1 || otherwise[0] !== 'array' || otherwise[1].length !== 0) { return false }
+    const [value] = then[1]
     return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && isKeyNamed(condition[2], 'enumerable')
-        && then[0] === '.' && then.length === 3 && isRef(then[1], x) && isKeyNamed(then[2], 'value')
-        && otherwise[0] === 'primitive' && otherwise[1] === undefined
+        && value[0] === '.' && value.length === 3 && isRef(value[1], x) && isKeyNamed(value[2], 'value')
 }
 
 /**
  * The `entry` helper, recognized whole
- * ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)):
+ * ([spec: entry](../../../spec/property-access/entries.md)):
  *
  * ```js
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable ? x.value : undefined;
+ *     return x?.enumerable ? [x.value] : [];
  * }
  * ```
  *
@@ -1463,13 +1500,54 @@ const entered = (stack, scope, node, self) => {
     if (entry !== null) { return [stack, scope, entry] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
-    const { names, count, entries } = bound
+    const { names, count, entries, late } = bound
     /** @type {_Scope} */
     const inner = { names, count, captures: [], enclosing: null, outer: scope, self, loop: null, loopReads: [] }
-    const body = node[2]
-    return body[0] === 'block'
-        ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, plan: null, entries: entries.length, done: entries })
-        : [{ top: { function: entries }, rest: stack }, inner, ['enter', body]]
+    return lateRound(stack, inner, { late, index: 0, entries: entries.length, done: entries, body: node[2] })
+}
+
+/**
+ * The next late parameter of a function, {@link _Late}, in the function's
+ * own scope: its default entered there, where it has one — never as the
+ * parameter's `self`, which a function written as a default is not, the
+ * parameter being whatever the caller passed — or its source landed
+ * outright, {@link lateLanded}. Once the last has landed, the body: a
+ * block body's statements count from after every entry the parameters
+ * made, and an expression body's value follows them as the last entry.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _LateFrame) => _State}
+ */
+const lateRound = (stack, scope, frame) => {
+    const { late, index, body } = frame
+    if (index === late.length) {
+        return body[0] === 'block'
+            ? bodyRound(stack, scope, { statements: body[1], first: 0, index: 0, plan: null, entries: frame.entries, done: frame.done })
+            : [{ top: { function: toArray(frame.done) }, rest: stack }, scope, ['enter', body]]
+    }
+    const { init, source } = late[index]
+    return init === null ? lateLanded(stack, scope, frame, source) : [{ top: frame, rest: stack }, scope, ['enter', init]]
+}
+
+/**
+ * A late parameter's value landed, as a body `const`'s is: its entries
+ * after the ones before it, and its names bound to them for what follows.
+ * A name a default before it read from outside — unbound then, bound now
+ * only by the capture that read took — is refused, `capture shadowed`: in
+ * JavaScript that read named this parameter, before it was initialized,
+ * which throws, where this compiler would have read the capture
+ * ([default parameters](../../../spec/todo/3125-default-parameters.md)).
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _LateFrame, value: AstConst) => _State}
+ */
+const lateLanded = (stack, scope, frame, value) => {
+    const { plan } = frame.late[frame.index]
+    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+    const { entries, bound } = lowered(plan, value, frame.entries)
+    return lateRound(
+        stack,
+        { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
+        { ...advanced(frame, entries), entries: frame.entries + entries.length })
 }
 
 /**
@@ -1604,8 +1682,16 @@ const returned = (stack, scope, frame, value) => {
         const conditional = ['?:', frame.condition, frame.then, call]
         return closed(stack, scope, [...toArray(frame.body.done), conditional])
     }
+    if ('late' in frame) {
+        // a default resolved: the value where the argument read is
+        // `undefined`, in the arm alone, and the argument where it is not
+        const { source } = frame.late[frame.index]
+        /** @type {AstConditional} */
+        const defaulted = ['?:', ['===', source, undefined], value, source]
+        return lateLanded(stack, scope, frame, defaulted)
+    }
     // an expression body: its value is the last entry, after the ones the
-    // function's parameter patterns made
+    // function's parameters made
     return closed(stack, scope, [...frame.function, value])
 }
 
@@ -1636,7 +1722,7 @@ const arm = (stack, scope, frame, statements, first, enclosing) =>
  * of the function the loop lowers to — its one parameter the variable,
  * bound to the first argument, the function itself under {@link loopSelf},
  * and the variable marked, {@link capturedLoopVariable}
- * ([spec: loops](../../../spec/README.md#loops)). A `let` whose initializer
+ * ([spec: loops](../../../spec/control-flow/loops.md)). A `let` whose initializer
  * read the word from outside is refused as a `const`'s is.
  *
  * @type {(stack: _Stack, scope: _Scope, frame: Extract<_Frame, { readonly let: unknown }>, init: AstConst) => _State}
@@ -1947,7 +2033,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
  *
  * This is the only language the parser reads. A JSON document is data, not a
  * module, and `fjs/media/json` is its reader
- * ([spec: JSON input](../../../spec/README.md#json-input)).
+ * ([spec: JSON input](../../../spec/command-line/json-input.md)).
  *
  * The grammar it accepts is written down in `./grammar`, read by
  * `./syntax`, and what the grammar accepts and this refuses is the fold's:

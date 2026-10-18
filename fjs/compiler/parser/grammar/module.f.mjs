@@ -41,8 +41,9 @@
  * loopStatement ::= const | id '=' value end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
+ *              | '=' value [ ',' [ names ] ] ')' '=>' body
  * arrowOrRest ::= '=>' body | access* powTail tail
- * names  ::= '...' id | id [ ',' [ names ] ]
+ * names  ::= '...' id | target [ '=' value ] [ ',' [ names ] ]
  * group  ::= value ')' access* powTail
  * groupOperand ::= value ')' access*
  * powTail ::= [ '**' unary ]
@@ -328,7 +329,7 @@ export const items = item => {
  * holds any value, so that a key computed at run time, `a[Number(i)]`, is
  * read as JavaScript reads it, and what a key may be — a string or a
  * number literal, or the conversion
- * ([spec: property access](../../../../spec/README.md#property-access)) —
+ * ([spec: property access](../../../../spec/property-access/README.md)) —
  * is the fold's to check, as the name after `.` is. The rule itself, and
  * no thunk over it: a second rule over the same branches would be a second
  * copy of the whole value grammar in every parser that reaches an index.
@@ -469,16 +470,19 @@ export const parameters = option([sym('...'), identifierName])
 /**
  * The parameters after the first and its comma: `b, c` in `(a, b, c)`,
  * none in `(a,)`. Each fixed one is a binding target, a name or a pattern,
- * {@link bindingTarget}, a trailing comma allowed as {@link items} allows
- * one everywhere; the rest parameter, `...r`, keeps a plain name and ends
+ * {@link bindingTarget}, with its default, `= value`, where it has one,
+ * and a trailing comma allowed as {@link items} allows one everywhere; the
+ * rest parameter, `...r`, keeps a plain name, takes no default, and ends
  * the list. The first parameter is not this rule's: it is read as a value,
- * and {@link afterValue} has why.
+ * and {@link afterValue} has why. `=` follows a target nowhere else, so one
+ * symbol decides the default
+ * ([spec: default parameters](../../../../spec/todo/3125-default-parameters.md)).
  *
  * @type {ParameterNames}
  */
 export const parameterNames = () => ['const', {
     rest: [sym('...'), identifierName],
-    fixed: [bindingTarget, option([sym(','), option(parameterNames)])],
+    fixed: [bindingTarget, option([sym('='), value]), option([sym(','), option(parameterNames)])],
 }]
 
 /**
@@ -803,7 +807,11 @@ export const arrowOrRest = {
  * What follows the value a `(` opened: `,` — the value is the first of a
  * named parameter list, and the names after it, the `)`, `=>` on the same
  * line and the body follow — or `)`, after which {@link arrowOrRest} tells
- * the one-parameter function `(a) => 1` from the group `(a)`.
+ * the one-parameter function `(a) => 1` from the group `(a)` — or `=`,
+ * the value being the first parameter and what follows the `=` its
+ * default, after which only a list goes on: the names after a `,`, if
+ * any, the `)`, `=>` and the body. `(a = 1)` is no group, an assignment
+ * being no value of the language, so the `)` there is followed by `=>`.
  *
  * The first parameter is read as a value because one symbol cannot tell it
  * from a group's: `(a) => 1` and `(a).b` agree up to the `)`, and
@@ -820,6 +828,7 @@ export const arrowOrRest = {
 export const afterValue = {
     list: [sym(','), option(parameterNames), sym(')'), sym('=>'), body],
     closed: [sym(')'), arrowOrRest],
+    default: [sym('='), value, option([sym(','), option(parameterNames)]), sym(')'), sym('=>'), body],
 }
 
 /**
@@ -971,7 +980,7 @@ export const end = option([sym(';')])
  * binding pattern — an array or an object, {@link array} and
  * {@link object}, the value rules' own, since a pattern spells the literal
  * the same text would and JavaScript reads the two apart by position alone
- * ([spec: destructuring](../../../../spec/README.md#destructuring)). A
+ * ([spec: destructuring](../../../../spec/bindings/destructuring.md)). A
  * name's word, `[` and `{` begin nothing else in either position, so one
  * symbol decides. What the literal reads that no pattern may hold — a
  * value in a binding position, a spread, a computed key — is the reader's
@@ -1001,7 +1010,7 @@ export const constStatement = [sym('const'), bindingTarget, sym('='), value, end
 /**
  * The statement a block ends with, {@link terminator}: `return value`, or
  * `throw value` — the function fails with the value, the language's one way
- * to fail on purpose ([spec: functions](../../../../spec/README.md#functions)).
+ * to fail on purpose ([spec: functions](../../../../spec/functions/README.md)).
  * Each is followed by its own {@link end}. JavaScript has
  * `throw [no LineTerminator here] Expression` exactly as it has `return`'s,
  * so the reader refuses a value beginning a line after either the same way
@@ -1019,7 +1028,7 @@ export const terminator = /** @type {const} */ ({
  * `const`, or a guard, `if (condition) block` — its block this same
  * {@link block}, so the branch always ends in `return` or `throw`, and the
  * statements after the guard are what runs when the condition is falsy
- * ([spec: functions](../../../../spec/README.md#functions)). No {@link end}
+ * ([spec: functions](../../../../spec/functions/README.md)). No {@link end}
  * follows the guard's `}`: a block statement takes no `;` in JavaScript,
  * and one written there is the empty statement the language refuses, as
  * `;;` is. `const` and `if` decide the two in one symbol. A thunk, since
@@ -1027,11 +1036,11 @@ export const terminator = /** @type {const} */ ({
  *
  * The bare consequent, `if (c) return v;`, and `else` are not read: the
  * guard admits one form, and the others are follow-ups
- * ([spec: functions](../../../../spec/README.md#functions)).
+ * ([spec: functions](../../../../spec/functions/README.md)).
  *
  * A loop is two statements, `let name = value;` and `while (condition)
  * loopBlock`, the second right after the first — one form, read by the
- * fold as one ([spec: loops](../../../../spec/README.md#loops)); the
+ * fold as one ([spec: loops](../../../../spec/control-flow/loops.md)); the
  * grammar reads each as a statement of its own, since one symbol decides
  * each, and leaves their adjacency to the fold, as it leaves the guard's
  * block's ending to it. No {@link end} follows the loop's `}`, as none
@@ -1058,7 +1067,7 @@ export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from
 /**
  * The assignment to a loop's variable, `name = value`, with its
  * {@link end}: the one statement that rebinds a name, and it stands in a
- * loop's block alone ([spec: loops](../../../../spec/README.md#loops)).
+ * loop's block alone ([spec: loops](../../../../spec/control-flow/loops.md)).
  */
 export const assignment = /** @type {const} */ ([assignable, sym('='), value, end])
 
@@ -1091,7 +1100,7 @@ export const loopBlock = /** @type {const} */ ([
  * A function's block body: `{ const x = 1; return value; }` — any number of
  * {@link statement}s, `const`s and guards, and then the one
  * {@link terminator}, a `return` or a `throw`
- * ([spec: functions](../../../../spec/README.md#functions)).
+ * ([spec: functions](../../../../spec/functions/README.md)).
  *
  * The `const` is {@link constStatement}, the module's own rule: the body
  * binds names the way a module does, and the fold is what says the two
@@ -1168,7 +1177,7 @@ export const importStatement = /** @type {const} */ ([
  * and optionally the rest of this rule again — or a `throw`, which stands
  * where `export default` would and ends the module as it ends a block: a
  * module is a function ([spec: a module is a
- * function](../../../../spec/README.md#a-module-is-a-function)), so its
+ * function](../../../../spec/modules/README.md#a-module-is-a-function)), so its
  * body may end in the terminator a function's may, in place of what it
  * would return. `export` and `throw` decide the two in one symbol.
  *

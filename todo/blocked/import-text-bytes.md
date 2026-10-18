@@ -13,7 +13,7 @@ export default { license, icon };
 
 A file that is not a module is imported with an attribute naming its type.
 `"json"` is in the language
-([spec: importing](../../spec/README.md#importing-other-modules)): the one
+([spec: importing](../../spec/modules/imports.md)): the one
 type ECMAScript defines, required of a JSON import and refused where it
 disagrees with the extension. `"text"` and `"bytes"` are the other end of the
 same clause, and neither is standard:
@@ -58,7 +58,7 @@ the type without a flag. Either type may land alone.
 
 ### Related
 
-- [spec: importing](../../spec/README.md#importing-other-modules) — the
+- [spec: importing](../../spec/modules/imports.md) — the
   `"json"` attribute as the language has it.
 - [namespace-import](../../spec/todo/2220-namespace-import.md) — `import type`
   is a separate clause on the same statement and is unaffected.

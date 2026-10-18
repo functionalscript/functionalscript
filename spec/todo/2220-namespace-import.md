@@ -1,9 +1,9 @@
-# Namespace Import
+## Namespace Import
 
 **Priority:** P1
 **Status:** open
 
-## Runtime namespaces
+### Runtime namespaces
 
 Implement JavaScript namespace imports for runtime exports:
 
@@ -16,10 +16,10 @@ This is planned syntax, not a claim that the current compiler supports it.
 Preserve JavaScript's module-namespace and dependency semantics; a namespace
 is not a substitute for a type-only import or an arbitrary plain object.
 
-## Types are tooling, not runtime imports
+### Types are tooling, not runtime imports
 
 The former plan to accept and erase `import type` and `export type` is
-withdrawn. It violates the [original-source compatibility rule](../README.md#principles).
+withdrawn. It violates the [original-source compatibility rule](../principles/README.md).
 FunctionalScript has no TypeScript source dialect or type-stripping mode;
 the [language roadmap](./README.md#typescript-boundary) records this boundary
 for all constructs, not just imports.
@@ -48,7 +48,7 @@ TypeScript grammar.
 Do not erase a real JavaScript import because its binding is mentioned only in
 an annotation: the import still has JavaScript dependency semantics.
 
-## Tasks
+### Tasks
 
 - [x] **P1:** withdraw TypeScript-only import/export syntax and the erasure path;
       keep ordinary namespace imports separate from comment-only type references.
@@ -61,10 +61,10 @@ an annotation: the import still has JavaScript dependency semantics.
       `types.ts` companion without a `types.js` file; incorrect values must
       fail checking, while the JavaScript runs without the companion.
 
-## Related
+### Related
 
-- [Import](../README.md#importing-other-modules).
-- [Named imports](../README.md#importing-other-modules) — implemented selection of
+- [Import](../modules/imports.md).
+- [Named imports](../modules/imports.md) — implemented selection of
   exported bindings; namespace imports are not its prerequisite.
 - [Standard type annotations](../../todo/blocked/js-extension-type-annotations.md)
   — blocked until ECMAScript standardizes the syntax and declared runtimes support it.

@@ -99,14 +99,17 @@ from represented values, preserving stored field and element identities.
 Arrays, strings and functions expose their lengths; string indices read
 UTF-16 code units. Missing properties return tagged undefined and nullish
 receivers fail. Its `entry` is what a call of the `entry` helper reads,
-over a key already converted: the enumerable own property, so an array's
-or a string's elements and never a `length`, and nothing of a function.
+over a key already converted: the option of the enumerable own property,
+`[value]` or `[]`, so an array's or a string's elements and never a
+`length`, and nothing of a function.
 Callers own operand evaluation order, key resolution and source-name
 admission. Memo connects these reads to chains and to the helper's calls;
 [`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
 represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
 [`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
-objects, arrays and functions, using the shared function-text renderer in both interpreters.
+objects, arrays and functions, using the shared function-text renderer in both
+interpreters; a static function, the built-in and not its body, answers the
+NativeFunction text of its name.
 [`compiler/transpiler.interpret`](../compiler/transpiler/module.f.mjs) uses memo
 to evaluate each module with represented dependency exports. The AST value
 evaluator is retired; both FJS EDAG VMs and compiler initialization use this
@@ -246,7 +249,11 @@ memo with represented dependency exports.
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
-structure keyed by node identity. It returns `Result<Analysis, string>`:
+structure keyed by node identity. `analysis` merges two equal nodes of one
+scope into one entry; `identityAnalysis` keeps every node its own, its
+shared entries the ones [`sharing`](sharing/module.f.mjs) counts by node
+identity, which is the table the FunctionalScript writer writes from and
+the compiler evaluates by. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a
 noncanonical function length, return a diagnostic. Complete executable
 graphs compose the result with `checked` to check their invocation bindings.
@@ -307,8 +314,8 @@ vocabularies.
 | `['arg', N]` | fixed parameter `N` of the owning function |
 | `['rest']` | the invocation's rest array, after the fixed prefix |
 | `['self']` | the owning function itself, as a value, the same every read: recursion is `['()', ['self'], args]`, and a nested function captures its parent's `self` as a slot |
-| `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a` |
-| `['Object.is']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the function the runtime's `static` section holds at the path [`fjs/js/static`](../js/static/module.f.js) admits it under, `['Object', 'is']`, capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`. One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same value. An executor with no binding for it fails rather than answer |
+| `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a` as an option, a fresh `[value]` or `[]` |
+| `['Object.is']`, `['Object.entries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` section holds at the path [`fjs/js/static`](../js/static/module.f.js) admits it under, `['Object', 'is']` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.mjs)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |
@@ -417,7 +424,8 @@ number. Widening those positions to a bare `exp` was weighed and rejected:
 an `op1`, so it would buy a second spelling of every computed key and no new
 expressive power. A property named at run time is read by no binary id
 but by a call of `['entry']`, the language's `entry` helper as a value,
-which reads the enumerable own property a key names once converted,
+which reads the enumerable own property a key names once converted, as
+the option `[value]` or `[]`,
 bypassing the prototype chain (including `__proto__`) and reading no
 `length` of an array, a string or a function — the helper is the one
 source spelling of the node (see the `entryJs` proof); calling a function

@@ -5,6 +5,28 @@
  */
 
 import type { Funding } from '../funding/types.ts'
+import type { Issue } from '../issue/types.ts'
+import type { Element } from '../../media/html/types.ts'
+
+/**
+ * A directory's demo, as its page writes it.
+ */
+export type PageDemo = {
+    /**
+     * The demo module, as the root-relative path the page loads it by.
+     *
+     * Root-relative because the runtime is one module at a fixed depth, and a
+     * relative specifier in its `import()` would resolve against it rather
+     * than against the page.
+     */
+    readonly path: string
+    /**
+     * The demo's first view, `view(init)`, rendered by the build so the page
+     * shows the demo before the runtime has loaded it; `null` where the build
+     * could not render it, and the runtime alone does.
+     */
+    readonly view: Element | null
+}
 
 /**
  * One directory of the repository, as the website's walk sees it.
@@ -33,8 +55,11 @@ export type Dir = {
      * subdirectory's own or one further down. A subset of `dirs`.
      */
     readonly demoDirs: readonly string[]
-    /** The issues in this directory's `todo/`, by file name. */
-    readonly todo: readonly string[]
+    /**
+     * The issues under this directory's `todo/`, a subfolder's included,
+     * each with its header.
+     */
+    readonly todo: readonly Issue[]
     /**
      * Every proof module in this directory's subtree, named as this page
      * loads it: `./proof.f.mjs` on the directory that holds it, and
@@ -43,15 +68,8 @@ export type Dir = {
      * however it is reached.
      */
     readonly proofs: readonly Proof[]
-    /**
-     * The demo module of this directory, as the root-relative path the page
-     * loads it by, or `null` where there is none.
-     *
-     * Root-relative because the runtime is one module at a fixed depth, and a
-     * relative specifier in its `import()` would resolve against it rather
-     * than against the page.
-     */
-    readonly demo: string | null
+    /** The demo of this directory, or `null` where there is none. */
+    readonly demo: PageDemo | null
     /**
      * The root-relative link to the API reference of the crate this
      * directory holds, or `null` where it holds none, or its reference was

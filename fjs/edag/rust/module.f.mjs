@@ -9,7 +9,10 @@
  * same literal rendering, the same operator tables, and the same binding
  * mechanism — a `let` per node, one line, one expression, each referenced by
  * name where it is used ({@link printer}) — so that mechanism lives here
- * once rather than drifting between two copies.
+ * once rather than drifting between two copies. Which nodes are shared it
+ * counts by node identity, with the walk of
+ * [`../sharing/module.f.mjs`](../sharing/module.f.mjs), the one the
+ * FunctionalScript writer counts by too.
  *
  * What stays with each caller: the corpus's own names for the nodes it
  * shares, via `data.shared`, and everything about *why* a printer is invoked
@@ -45,10 +48,11 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
-import { indent } from '../../media/rust/item/module.f.mjs'
+import { builtInIdentifier, f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
+import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { isStatic, lazyOp2Id, staticPath } from '../module.f.mjs'
+import { isStatic } from '../module.f.mjs'
+import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, visit } from '../sharing/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
@@ -211,47 +215,6 @@ export const op3Rust = {
 }
 
 /**
- * The operations that establish every operand after the first only
- * conditionally: `&&`, `||` and `??` establish the right operand only if the
- * left decides nothing, and `?:` establishes the one arm its condition
- * selects — the EDAG's positional laziness, as `op2Id` and `op3Id` in
- * [`../module.f.mjs`](../module.f.mjs) state it. The binary three are
- * `lazyOp2Id` from there rather than a copy, so the printer cannot thunk a
- * different set from the one the executor defers. In each the deciding
- * operand comes first and every later one is lazy, which is the rule the
- * printer prints by: a lazy operand is a thunk — `|| Ok(…)` around a value,
- * or an operation's own `Result` bare — the `impl FnOnce() ->
- * Result<Any<A>, Any<A>>` the four `nanvm-lib` methods take. The
- * signature is the guard: an operand printed as a value where a thunk is
- * due does not compile, so a printer that establishes one eagerly is caught
- * by `rustc` rather than trusted.
- *
- * The chain nodes have lazy positions of their own, {@link lazyOperandsOf}:
- * a `?.` or `?.()` node's key or arguments and its continuation's operands
- * are inside the region the node opens, and a `.` node's continuation is a
- * call whose arguments a throw at the access leaves untouched. They are
- * not in this list because their eager positions are not the first operand
- * alone — a `.` node's receiver *and* key are eager — so
- * {@link eagerOperandsOf} states each tag's rule.
- *
- * @type {readonly string[]}
- */
-const lazy = [...lazyOp2Id, '?:']
-
-/**
- * `true` for the tag of a node that opens a chain: `.`, `?.` and `?.()`,
- * the three whose last operand may be a continuation (`fjs/edag/README.md`,
- * Chains). Each prints as its `nanvm-lib` entry point — `Any::dot`,
- * `Any::option_dot`, `Any::option_call` — followed by one method per step
- * and closed by `.end()` or `.end_call(…)`: one expression, a method chain,
- * which binds tighter than any infix operator and so is atomic as an
- * operand.
- *
- * @type {(id: unknown) => boolean}
- */
-const isChain = id => id === '.' || id === '?.' || id === '?.()'
-
-/**
  * What a key names in this printer, or the refusal: a key with no entry is a
  * gap here, not a case to print a plausible wrong statement for — a `Result`
  * rather than a thrown value, since a gap in what `nanvm-lib` implements is
@@ -341,12 +304,13 @@ const stringCall = name => v => {
 
 /**
  * Fixed argument `k` of the function being called, read from the `args`
- * parameter of the closure {@link closure} prints: `undefined` past the end
- * of a short call, as JavaScript binds a missing argument.
+ * parameter of the closure {@link closure} prints: `nanvm-lib`'s
+ * `Array::argument`, `undefined` past the end of a short call, as
+ * JavaScript binds a missing argument — one bounds check and one clone.
  *
  * @type {(k: number) => Printed<string>}
  */
-const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(${num(`${k}`)})`}.unwrap_or_else(|| `, undefinedAny, ')'])
+const argRead = k => cat(['args.argument(', num(`${k}`), ')'])
 
 /**
  * Slot `i` of the frame the function was built with, read through the
@@ -358,6 +322,26 @@ const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(
  * @type {(i: number) => Result<Printed<string>, readonly unknown[]>}
  */
 const frameRead = i => plain(`A::frame(self_)[${num(`${i}`)}].clone()`)
+
+/**
+ * The function itself, as a value: the closure's `self_` parameter wrapped
+ * as the `Function` it is, an `Rc`-cheap clone of the one value every read
+ * of `self` is — the identity JavaScript gives a function for its lifetime,
+ * which `nanvm/lib/todo/callable-function-objects.md` asks for by
+ * threading that handle rather than rebuilding one.
+ *
+ * @type {() => Result<Printed<string>, readonly unknown[]>}
+ */
+const selfRead = () => ok(cat([vm('Function'), '::new(self_.clone())', toAny]))
+
+/**
+ * An atom as a value: `undefined`, or a primitive's literal. What a frame
+ * slot resolved at compile time prints as, in the static runtime
+ * (`fjs/compiler/rust/runtime`).
+ *
+ * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
+ */
+export const atomExpr = e => e instanceof Array ? ok(undefinedAny) : primitiveExpr(e)
 
 /**
  * The `mut` of a loop's variable, and none where the next value is the
@@ -497,25 +481,6 @@ const atomic = e => {
         || (id === '=>' && a === 0 && isSmallestLambda(b, c))
 }
 
-/**
- * `true` for a member of a literal rather than a value: a property,
- * `[':', key, value]`, or a spread, `['...', exp]`.
- *
- * @type {(e: unknown) => boolean}
- */
-const isMember = e => e instanceof Array && [':', '...'].includes(e[0])
-
-/**
- * An item list read as the operands it holds: each member's own, in its
- * place — a spread's operand, a property's key and value — and every other
- * item as itself. A member is no node: one pair object may stand in a
- * list twice, `[s, s]`, and its operand is then reached twice, so a walk
- * counts it per occurrence, as the printer prints it.
- *
- * @type {(list: readonly unknown[]) => readonly unknown[]}
- */
-const members = list => list.flatMap(x => isMember(x) ? /** @type {readonly unknown[]} */ (x).slice(1) : [x])
-
 /** @type {(e: Exp) => boolean} */
 const isComma = e => e instanceof Array && e[0] === ','
 
@@ -541,11 +506,12 @@ const hasSpread = items => items.some(x => x instanceof Array && x[0] === '...')
  * `true` for a node that prints through an operation's `nanvm-lib` call,
  * answering a `Result`: a `.` read, a call, an operator node, or an array
  * holding a spread — every node but the value shapes, which construct an
- * `Any` directly.
+ * `Any` directly, and a static function, a built-in the runtime holds,
+ * whose read cannot fail.
  *
  * @type {(e: Exp) => boolean}
  */
-const isOperation = e => e instanceof Array
+const isOperation = e => e instanceof Array && !isStatic(e)
     && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', 'entry', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
         || (e[0] === '[]' && hasSpread(/** @type {readonly unknown[]} */ (e[1]))))
 
@@ -561,11 +527,13 @@ const last = e => {
 
 /**
  * The line binding a function's rest parameters, the arguments after its
- * `length` fixed ones, as the `Array<A>` a `['rest']` read clones.
+ * `length` fixed ones, as the `Array<A>` a `['rest']` read clones:
+ * `nanvm-lib`'s `Array::rest`, the arguments themselves after no fixed
+ * ones, a new array of the ones past `length` otherwise.
  *
  * @type {(length: number) => Printed<string>}
  */
-const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${num(`${length}`)})`}`, toArray, ';'])
+export const restLine = length => cat([`${kw('let')} rest = args.rest(`, num(`${length}`), ');'])
 
 /**
  * The printer for the EDAG under `root`, or the refusal of a shape this
@@ -640,14 +608,16 @@ const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${l
  * holds one by another name: a loop's state, the variable of a `loop`
  * ({@link loopLines}); `frame` a slot's read, {@link frameRead} unless
  * the scope around holds the slot by a name of its own, a loop in place
- * ({@link loopInPlace}); and `base` is the number the first temporary
+ * ({@link loopInPlace}); `base` is the number the first temporary
  * takes, `c0` for a scope of its own and the next free number for a
  * loop's round, a block inside the scope around it, whose names a round
- * must not shadow.
+ * must not shadow; and `self_` prints a read of the function itself,
+ * {@link selfRead} unless the scope holds the function by a name of its
+ * own, a static runtime's item ({@link statementsWith}).
  *
- * @type {(nested: boolean, arg?: (k: number) => Printed<string>, frame?: (i: number) => Result<Printed<string>, readonly unknown[]>, base?: number) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
+ * @type {(nested: boolean, arg?: (k: number) => Printed<string>, frame?: (i: number) => Result<Printed<string>, readonly unknown[]>, base?: number, self_?: () => Result<Printed<string>, readonly unknown[]>) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
  */
-const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared => root => {
+const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = selfRead) => shared => root => {
     /** @type {(e: Exp) => boolean} */
     const isBound = e => shared.some(([n]) => n === e)
     /**
@@ -893,6 +863,17 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
     const node = e => {
         const [id, a, b, c] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return ok(undefinedAny) }
+        // A static function as a value: the built-in's accessor,
+        // `object_is::<A>()` for `Object.is`, its descriptor wrapped as the
+        // `Function` it is — a static function of the compiled runtime,
+        // one function by its name however often it is read, which is the
+        // identity JavaScript gives a built-in (`fjs/js/runtime/README.md`,
+        // "How NaNVM finds it"). A value, not an operation: the parser
+        // admitted the name and the runtime defines it, so a module naming
+        // a static the runtime lacks does not compile, where nothing fails
+        // when it runs. The accessor is an item of `nanvm_lib::vm`, spelled
+        // by `builtInIdentifier`.
+        if (isStatic(e)) { return ok(cat([vm('Function'), '::from(', vm(builtInIdentifier(id)), '::<A>())', toAny])) }
         // The arguments a function was called with: the `args` parameter of
         // the closure {@link closure} prints, an `Array<A>` — as a value, an
         // `Rc`-cheap clone of it. An indexed read, `a[0]` or `a.length`, is
@@ -913,12 +894,10 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
         // Slot `i` of the frame the function was built with, `frame`:
         // {@link frameRead} unless the scope is a loop in place's round.
         if (id === 'frame') { return frame(a) }
-        // The function itself, as a value: the closure's `self_` parameter
-        // wrapped as the `Function` it is, an `Rc`-cheap clone of the one
-        // value every read of `self` is — the identity JavaScript gives a
-        // function for its lifetime, which `nanvm/lib/todo/callable-function-objects.md`
-        // asks for by threading that handle rather than rebuilding one.
-        if (id === 'self') { return ok(cat([vm('Function'), '::new(self_.clone())', toAny])) }
+        // The function itself, as a value: {@link selfRead}, unless the
+        // scope holds the function by a name of its own, a static runtime's
+        // item.
+        if (id === 'self') { return self_() }
         if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }
         if (id === '{}') {
             // The corpus's bare expression has no Result-returning scope
@@ -1103,13 +1082,6 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      */
     const bare = e => {
         const [id, a, b, c] = e
-        // A static function as a value: `nanvm-lib`'s `static_binding`,
-        // the VM's binding for its path — `IVm::runtime_static`, the
-        // compiled runtime's body — or the failure naming it, a `Result`
-        // as every operation's is, here where a block answers it as well
-        // as where a `let` reads it. A path's keys are identifiers, so
-        // each is its own `&str` literal.
-        if (isStatic(e)) { return ok(cat([vm('static_binding'), `::<A>(&[${staticPath(e[0]).map(key => `"${key}"`).join(', ')}])`])) }
         // A chain: the node's entry point, then its continuation's steps,
         // then the exit — `Any::dot(a, key).end()` for a bare `a.b`, one
         // spelling whether or not a continuation follows. What the read
@@ -1141,7 +1113,13 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
             return flat(map1((/** @type {string} */ x) => cat([`Any::instanceof_(${x}, `, vm('Constructor'), `::${b})`]))(operand(a)))
         }
         // The first operand is established in every operation; the ones
-        // after it are what a lazy operation establishes conditionally.
+        // after it are what a lazy operation establishes conditionally, each
+        // a thunk — `|| Ok(…)` around a value, or an operation's own
+        // `Result` bare — the `impl FnOnce() -> Result<Any<A>, Any<A>>` the
+        // four `nanvm-lib` methods take. The signature is the guard: an
+        // operand printed as a value where a thunk is due does not compile,
+        // so a printer that establishes one eagerly is caught by `rustc`
+        // rather than trusted.
         const rest = lazy.includes(id) ? lazyOperand : operand
         return flat(e.length === 2 ? map2((fn, x) => fn(x))(op1(id), operand(a))
             : e.length === 3 ? map3((fn, x, y) => fn(x, y))(op2(id), operand(a), rest(b))
@@ -1274,7 +1252,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      *
      * @type {(n: Exp) => (s: string) => string}
      */
-    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' || isStatic(n) ? `${s}?` : `(${s})?`
+    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`
     /**
      * The `Result` an argument list's thunk answers: the array it builds,
      * `Ok(…)`, or `spread_array`'s own, which may throw, where it holds a
@@ -1406,42 +1384,6 @@ const loopParts = fn => {
 }
 
 /**
- * `visited` with `root`'s subgraph folded in: every distinct node it reaches
- * — root included — paired with how many places have reached it, visiting a
- * node's own children only the first time that node is met, so a heavily
- * shared graph costs its node count and not the exponential a naive walk
- * would pay; a node met again only has its count bumped. The result lists a
- * node's dependencies before the node itself — full post-order — since a
- * node is only ever appended after the fold over its children returns,
- * which is exactly the order a `let`-binding printer needs: a shared node's
- * own initializer may reference an earlier shared node, and it must already
- * be bound by then.
- *
- * No step here mutates `visited` or anything reached from it — a lookup is
- * `Array#findIndex` and a bump rebuilds the list with `Array#map`, both
- * ordinary expressions over immutable arrays, the same idiom
- * {@link expExpr}'s own `shared.find` already reads by.
- *
- * `operands` says which of a node's items the walk descends into: a
- * scope's own, {@link operandsOf}, or every function body's too,
- * {@link withBodies}. Every question asked of a graph is asked of this
- * one walk — sharing, an `args` read, a function held — since any other
- * walk over a shared graph pays that exponential.
- *
- * @type {(operands: (node: readonly unknown[]) => readonly unknown[]) => (visited: readonly (readonly [node: Exp, count: number])[]) => (root: unknown) => readonly (readonly [node: Exp, count: number])[]}
- */
-const visit = operands => visited => root => {
-    if (!(root instanceof Array)) { return visited }
-    const self = /** @type {unknown} */ (root)
-    const i = visited.findIndex(([n]) => n === self)
-    if (i !== -1) {
-        return visited.map((v, j) => j === i ? /** @type {readonly [Exp, number]} */ ([v[0], v[1] + 1]) : v)
-    }
-    const withChildren = operands(root).reduce((/** @type {readonly (readonly [Exp, number])[]} */ v, child) => visit(operands)(v)(child), visited)
-    return [...withChildren, /** @type {readonly [Exp, number]} */ ([/** @type {Exp} */ (self), 1])]
-}
-
-/**
  * Whether a scope reads its own arguments: an `['args']` node among the
  * distinct nodes {@link visit} reaches through {@link operandsOf}, which
  * stops at a nested function's body — that one's `args` is its own. A
@@ -1468,6 +1410,35 @@ export const readsFrame = root => reads('frame')(root)
  * @type {(root: Exp) => boolean}
  */
 export const readsSelf = root => reads('self')(root)
+
+/**
+ * The same, for `['rest']`: whether a scope reads the arguments past its
+ * fixed ones, which {@link restLine} binds.
+ *
+ * @type {(root: Exp) => boolean}
+ */
+export const readsRest = root => reads('rest')(root)
+
+/**
+ * Whether a scope reads its arguments beyond the first: the list,
+ * `['args']`, the rest, `['rest']`, or a fixed argument past the first,
+ * `['arg', k]` with `k > 0` — what a function of one argument, a member
+ * body of the static runtime over its receiver, has no spelling for.
+ *
+ * @type {(root: Exp) => boolean}
+ */
+export const readsBeyondFirst = root => reads('args')(root) || reads('rest')(root)
+    || visit(operandsOf)([])(root).some(([node]) => tagOf(node) === 'arg' && /** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[1] !== 0)
+
+/**
+ * The read of fixed argument `k` of a scope holding its first argument by
+ * a name of its own, `self_` for a member body of the static runtime,
+ * {@link statementsWith}: the name's clone for `k === 0`, and
+ * {@link argRead} otherwise.
+ *
+ * @type {(name: string) => (k: number) => Printed<string>}
+ */
+export const argNamed = name => k => k === 0 ? code(`${name}.clone()`) : argRead(k)
 
 /**
  * The indices a scope reads of its frame, one per distinct `['frame', i]`
@@ -1512,75 +1483,6 @@ const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : o
 export const holdsFunction = root => visit(withBodies)([])(root)
     .some(([node]) => tagOf(node) === '=>' || tagOf(node) === 'entry')
 
-/**
- * The operands a walk descends into, read from a node's shape rather than
- * from every array it holds: an array, object, or comma node holds its
- * operands in a list, whose first item may be a string that spells a tag —
- * `['&&', c, c]` is three array items where `['&&', c, c]` a node is an
- * operation — so the list is read as a list, and every other node's
- * operands follow its tag. A spread and a property are members of a
- * list, not nodes, so a list is read through them, {@link members}.
- *
- * A `=>` node's slots are its operands, its body is not: the body is a
- * scope of its own, established when the function is called and not when
- * it is made, and shares no node with the scope around it — so a walk over
- * one scope stops at the function boundary, and {@link scope} walks the
- * body afresh as its own root.
- *
- * @type {(node: readonly unknown[]) => readonly unknown[]}
- */
-const operandsOf = node => {
-    const [id] = node
-    return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
-        : id === 'arg' || id === 'entry' ? []
-        // the constructor name is metadata, not a string-literal operand
-        : id === 'instanceof' ? [node[1]]
-        : id === ',' ? /** @type {readonly unknown[]} */ (node[1])
-        : id === '[]' || id === '{}' ? members(/** @type {readonly unknown[]} */ (node[1]))
-        : id === '()' ? [node[1], ...members(/** @type {readonly unknown[]} */ (node[2]))]
-        : isChain(id) ? [...eagerOperandsOf(node), ...chainLazy(one, items)(node)]
-        : node.slice(1)
-}
-
-/**
- * What a continuation `k` holds, the step's own key or arguments, then its
- * continuation's, and nothing where there is none: `key` reads a `|.`
- * step's key and `args` a call step's item list. A continuation is not a
- * node: it is a lambda over the chain's current value
- * (`fjs/edag/README.md`, Chains), so a walk never lists it, only what it
- * holds, every item of which is inside the chain and so lazy.
- *
- * @type {(key: (x: unknown) => readonly unknown[], args: (x: unknown) => readonly unknown[]) => (k: unknown) => readonly unknown[]}
- */
-const stepOperands = (key, args) => k => {
-    if (k === undefined) { return [] }
-    const [step, x, next] = /** @type {readonly any[]} */ (k)
-    return [...(step === '|.' ? key(x) : args(x)), ...stepOperands(key, args)(next)]
-}
-
-/**
- * What a chain node holds in its lazy positions, {@link lazyOperandsOf},
- * each key read by `key` and each argument list by `args`: a `?.` or `?.()`
- * node's key or arguments, inside the region its guard opens, and its
- * continuation's, {@link stepOperands}; a `.` node's continuation's, after
- * an access that may throw with them untouched; none for any other node.
- *
- * @type {(key: (x: unknown) => readonly unknown[], args: (x: unknown) => readonly unknown[]) => (node: readonly unknown[]) => readonly unknown[]}
- */
-const chainLazy = (key, args) => node => {
-    const [id, , b, k] = node
-    return id === '.' ? stepOperands(key, args)(k)
-        : id === '?.' ? [...key(b), ...stepOperands(key, args)(k)]
-        : id === '?.()' ? [...args(b), ...stepOperands(key, args)(k)]
-        : []
-}
-
-/** A position read as one operand. @type {(x: unknown) => readonly unknown[]} */
-const one = x => [x]
-
-/** An item list read as its items, an argument list's walk. @type {(x: unknown) => readonly unknown[]} */
-const items = x => members(/** @type {readonly unknown[]} */ (x))
-
 /** A position left out. @type {(x: unknown) => readonly unknown[]} */
 const none = () => []
 
@@ -1593,40 +1495,6 @@ const none = () => []
  * @type {(node: readonly unknown[]) => readonly unknown[]}
  */
 const argListsOf = chainLazy(none, one)
-
-/**
- * The operands a node establishes unconditionally: a lazy operation's
- * first, a `.` node's receiver and key, a `?.` or `?.()` node's receiver
- * or callee alone — the guard decides whether anything after it runs — and
- * every operand of any other node.
- *
- * @type {(node: readonly unknown[]) => readonly unknown[]}
- */
-const eagerOperandsOf = node => {
-    const [id] = node
-    return lazy.includes(/** @type {string} */ (id)) ? [node[1]]
-        : id === '.' ? [node[1], node[2]]
-        : id === '?.' || id === '?.()' ? [node[1]]
-        : operandsOf(node)
-}
-
-/**
- * The distinct nodes an EDAG reaches from more than one place, in dependency
- * order — the generalization of a corpus's explicit, named `data.shared` to
- * a linked EDAG, where sharing is implicit: two references to one `const`
- * are the same `Exp` object by identity (see `fjs/compiler/edag/module.f.mjs`'s
- * `lower`), never restated as data.
- *
- * `root` itself is never "shared" by this count — nothing outside the graph
- * points at it, and the graph is acyclic, so it cannot reach itself — which
- * is why it never needs a binding of its own; a caller prints it as the
- * function's final, unbound expression.
- *
- * @type {(root: Exp) => readonly Exp[]}
- */
-export const sharedNodesOf = root => visit(operandsOf)([])(root)
-    .filter(([, count]) => count >= 2)
-    .map(([node]) => node)
 
 /**
  * `seen` with every node `root` establishes unconditionally folded in: the
@@ -1661,9 +1529,8 @@ const lazyOperandsOf = n => {
 
 /**
  * The nodes an EDAG establishes unconditionally — reached from `root`
- * through eager positions alone — in walk order, `root` first. A node
- * {@link sharedNodesOf} lists that is not among these is reached only
- * through lazy operands, and a `let` binding for it before the root would
+ * through eager positions alone — in walk order, `root` first. A shared
+ * node that is not among these is reached only through lazy operands, and a `let` binding for it before the root would
  * establish what the program may not: it binds in the block of the one
  * thunk that owns it, or the shape is refused, an {@link atomic} node
  * excepted, whose binding establishes nothing ({@link printer}).
@@ -1679,6 +1546,22 @@ export const eagerNodesOf = root => reach([], root)
  * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
 const blockOf = shared => root => okThen(p => p.block(root))(printer(false)(shared)(root))
+
+/**
+ * The statements of a function's body whose frame and self the scope
+ * around it resolves: `frame` prints slot `i`, and `self_` the function
+ * itself, where a closure would read `A::frame(self_)[i]` and wrap
+ * `self_`. The static runtime's items (`fjs/compiler/rust/runtime`), whose
+ * slots are module-level values resolved at compile time and whose self is
+ * the item by name; `arg` prints a fixed argument's read, {@link argRead}
+ * unless the scope holds the first by a name of its own, a member body's
+ * receiver ({@link argNamed}). Tagged lines with the names they spell, as
+ * {@link scopeTagged}'s.
+ *
+ * @type {(frame: (i: number) => Result<Printed<string>, readonly unknown[]>, self_: () => Result<Printed<string>, readonly unknown[]>, arg?: (k: number) => Printed<string>) => (root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ */
+export const statementsWith = (frame, self_, arg = argRead) => root => mapOk((/** @type {Printed<readonly string[]>} */ [s, uses]) =>
+    /** @type {Printed<readonly string[]>} */ ([lines(s), uses]))(okThen(p => p.block(root))(printer(false, arg, frame, 0, self_)([])(root)))
 
 /**
  * The statements of one scope over the caller's own bindings — a corpus

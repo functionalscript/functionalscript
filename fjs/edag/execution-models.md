@@ -7,9 +7,9 @@ Amnesia, global memoization and CAVM use the distinct models below. None grants
 an unspecified exception merely because an executor is not content-addressable.
 
 The table describes **identity compatibility**. The
-[language principles](../../spec/README.md#principles) separately define
+[language principles](../../spec/principles/README.md) separately define
 indistinguishable failures and the adopted
-[function-text exception](../../spec/README.md#function-source-representation-exception).
+[function-text exception](../../spec/principles/README.md#function-source-representation-exception).
 Within the same declared identity and rendering contract, successful observations
 must agree. Resource limits may differ; A2's interruption freedom in the stage-1
 discussion does not authorize a different successful answer.
@@ -58,11 +58,11 @@ unless an FJS runtime implements the VM rendering contract. This does not change
 `.length`, allocation identity, or non-function string conversion.
 
 Broader callable interchange serialization and
-[lazy frame rendering](../../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
+[lazy frame rendering](../../spec/design/serialization.md#conditional-requirement-lazy-frame-rendering)
 remain future work. The lazy requirement applies only to a future serializer
 that represents captured values; code-only default text never instantiates a
 frame. These follow-ups do not reopen the implemented default-text contract
-([serialization](../../spec/todo/serialization.md#function-text-and-serialization)).
+([serialization](../../spec/design/serialization.md#function-text-and-serialization)).
 
 ### 2.1 Memoize every node
 
@@ -78,7 +78,9 @@ computed directly.
 
 This preserves the behavior of §2.1 while reducing runtime memory and memo-table
 work. The traversal is [`analysis`](./analysis/module.f.mjs): one table per
-program, the shared entries by index, each cached within its scope; the
+program — by node identity, `identityAnalysis`, where the compiler
+evaluates a module and wherever a body is invoked — the shared entries by
+index, each cached within its scope; the
 executor over it is [`memo`](./memo/module.f.mjs), returning represented
 `EdagValue` results. Its immutable invocation cache gains a shared entry on
 first demand. Calls interpret retained function bodies with fresh cache state.
@@ -185,7 +187,7 @@ content identity cheaply. Emulating canonical content-addressed values on top of
 a normal JavaScript engine requires hashing, lookup tables, canonicalization,
 and extra retained metadata, which can be complex, slow, and memory-intensive.
 A specialized CAVM can instead make content identity part of its native value
-representation. See [the CAVM design TODO](../../spec/todo/content-addressable-vm.md).
+representation. See [the CAVM design TODO](../../spec/design/content-addressable-vm.md).
 
 ## Boundary
 
@@ -211,11 +213,15 @@ requirements say what a transformation may change.
    times under the JS-compatible model as in the original program, unless a
    function or an expression throws; then only the throw is promised, not
    which of two failing computations fails first. This is why the writer
-   spells a shared identity-minting node as one `const` and never
+   spells a shared node as one `const`, whatever it is, and never
    duplicates a call. A pure node — an access, an operator, `is` — mints
    nothing and no program can count it, so the analysis may merge two into
-   one and the writer may spell one at each use
-   ([`todo/analysis.md`](./todo/analysis.md)).
+   one ([`todo/analysis.md`](./todo/analysis.md)); the writer does not, so
+   that a round trip keeps the graph's sharing too: one node read twice
+   and two equal nodes stay apart, by node identity
+   ([`sharing`](./sharing/module.f.mjs)), but for a pure node two lazy
+   operands reach with no eager path, a loop's condition and block among
+   them, which no one block holds and which is written in each.
 
 2. **A CAVM-optimized EDAG need not be expressible in `.f.js`.** A CAVM may
    reduce many calls of one content to a few in the EDAG. `.f.js` shares a

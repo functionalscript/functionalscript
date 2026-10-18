@@ -34,6 +34,15 @@ export const proof = {
         assertEq(assertOk(toNumber(['[]', [7]], skipped)), 7)
         assertEq(assertOk(toString(['[]', []], skipped)), '')
     },
+    // A static function is the built-in, not its body: it answers the
+    // text ECMAScript requires of one, its name's, which no conversion
+    // reads as a number.
+    statics: () => {
+        assertEq(assertOk(toString(['Object.entries'], skipped)), 'function entries() { [native code] }')
+        assertEq(assertOk(toString(['Object.is'], skipped)), 'function is() { [native code] }')
+        assertEq(assertOk(toString(['Number.isNaN'], skipped)), 'function isNaN() { [native code] }')
+        assertEq(Object.is(assertOk(toNumber(['Object.entries'], skipped)), NaN), true)
+    },
     objects: () => {
         const own = /** @type {const} */ (['{}', [[':', 'toString', fn], [':', 'valueOf', fn]]])
         assertEq(assertOk(toString(['{}', []], skipped)), '[object Object]')

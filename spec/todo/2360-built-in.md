@@ -1,4 +1,7 @@
-# Built-in Objects and Functions
+## Built-in Objects and Functions
+
+**Priority:** P2
+**Status:** open
 
 The built-in objects are special. We can call a permitted function, but cannot
 use its global namespace as an ordinary value. Some operations are permitted
@@ -8,7 +11,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
 Some of the JS built-in objects and functions are "not allowed" in FJS. It means, an FJS compiler rejects code that contains "not allowed" objects and functions.
 
-## Global Scope
+### Global Scope
 
 Global objects can't be assigned to a variable (`const r = Object`). They can only be used as namespaces (`Object.entries()`).
 
@@ -20,27 +23,27 @@ no later than this file admits any of it, a name at a time
 
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
-([numbers](../README.md#numbers)), `Number` and `String`, as the
+([numbers](../values/numbers.md)), `Number` and `String`, as the
 conversions `Number(exp)` and `String(exp)` — `String`'s alone — their
-words reserved ([number conversion](../README.md#number-conversion),
-[string conversion](../README.md#string-conversion)), and `Array`, as the
-right operand of [`instanceof`](../README.md#instanceof), and `Object` and
+words reserved ([number conversion](../conversions/number.md),
+[string conversion](../conversions/string.md)), and `Array`, as the
+right operand of [`instanceof`](../operators/instanceof.md), and `Object` and
 `Number`, as the namespaces of the static functions `Object.is` and the
 four `Number` predicates, each a value
-([built-in static functions](../README.md#built-in-static-functions)). Other global uses need
+([built-in static functions](../built-ins/static-functions.md)). Other global uses need
 a complete recognized pattern; an unrecognized global is refused as an
 unbound name (`const not found`), so
 `export default isFinite(1);` does not compile yet. An unticked box is a
 name not yet decided, or, where it says so, never admitted.
 
-### Value Properties
+#### Value Properties
 
 - [x] `Infinity`
 - [x] `NaN`
 - [x] `undefined` — a literal global like the two above it
 - [ ] `globalThis` — never, not not-yet: it is the global object itself
 
-### Function Properties
+#### Function Properties
 
 - [ ] `eval` — never, not not-yet: it runs source at run time. Binding the
       word is refused already, and by JavaScript rather than by us
@@ -53,26 +56,118 @@ name not yet decided, or, where it says so, never admitted.
 - [ ] `decodeURI()`
 - [ ] `decodeURIComponent()`
 
-### Fundamental Objects
+#### Fundamental Objects
 
 - [x] `Object` — `Object.is` is implemented, the first static function: a
       value, read in every spelling of the access and through
       `const { is } = Object`, its body in the runtime, the word reserved
-      ([built-in static functions](../README.md#built-in-static-functions),
+      ([built-in static functions](../built-ins/static-functions.md),
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
-      its own
+      its own. `Object.entries` is admitted too, native in every executor
+      (the record below)
 - [ ] `Function`
 - [ ] `Boolean`
 - [ ] `Symbol`
 
-### Number and Math
+##### `Object.entries` proposal and approval
+
+**Problem.** The language enumerates no keys. The
+[`entry` helper](../property-access/entries.md) reads a key a program
+already holds, never the keys it does not, so a module that walks an
+object — `structurallySame`, `definedEntries`, every `.f.mjs` that writes
+`const { entries } = Object` — cannot be written in the language, and an
+`.f.mjs` that does so cannot be renamed `.f.js`.
+
+**Proposal.** Admit `Object.entries` as a static function beside
+`Object.is`: a value in every spelling of the read, `Object.entries`,
+`Object["entries"]` and the guarded forms, and through
+`const { entries } = Object`; the EDAG node `['Object.entries']`; `length`
+`1`; one function however often it is read. Its answer is JavaScript's: a
+fresh array of fresh `[key, value]` pairs, one per enumerable own
+string-keyed property, in JavaScript's own-key order — array-index keys
+ascending, then every other key in insertion order — an array's elements
+and a string's code units under their index strings, nothing for a number,
+a boolean, a `bigint` or a function, and a failure on `null` and
+`undefined`, as `ToObject` fails. An entry holding `undefined` is listed,
+as JavaScript lists it.
+
+**No body: every executor binds it natively.** The runtime's `static`
+section holds bodies written in FunctionalScript, and no body can write
+this one: enumerating keys is exactly what the language lacks, so
+`Object.entries` is a primitive, as `String.fromCharCode` is
+([runtime-static](../../fjs/js/todo/runtime-static.md)). The runtime
+holds nothing at its path, and each executor answers the node itself: the
+represented interpreter with a function value of its own,
+`['Object.entries']`, called natively as `['entry']` is; NaNVM with a
+built-in written in `vm/runtime.rs`, `vm::object_entries`, a static
+function identified by its name, so every read is a handle to one
+function and nothing is created or held.
+
+**Destructuring.** `entries` is a prototype name, `Array.prototype`'s,
+which every pattern refuses at the key. Over a namespace the namespace's
+own list decides first, so `const { entries } = Object` is
+`const entries = Object.entries`, destructuring being sugar; a key the
+namespace does not admit is refused as before, a prototype name at the
+key and any other name at the word.
+
+**Text.** `String(Object.entries)` has no EDAG to render, so every
+executor answers `function entries() { [native code] }`: what ECMA-262
+requires of a built-in function
+([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
+a string with the syntax of a NativeFunction whose name is the built-in's
+[[InitialName]], `entries`. The grammar admits parameters; the text has
+none, as most engines print it, V8's text exactly. The interpreter spells
+it, `staticText` in `fjs/edag`, from the static node, and NaNVM forms the
+same text from the built-in's name, `Function::text`. A text keeps
+every conversion that never reads it, `Number` and the relational
+operators, answering alike in the represented interpreter, which renders a
+text before it converts, and NaNVM, which answers those without one, so
+refusing it, as NaNVM refuses a native function with no text, was not
+taken. `a => Object.entries(a)` was considered: a working implementation,
+which `eval` or the `Function` constructor makes a function of, where a
+NativeFunction does not parse, and its parameter shows the `length`; but
+ECMAScript requires the NativeFunction of a built-in, and
+**sergey-shandar** chose the standard's text in the session. JavaScript run
+directly answers its own host's text, a NativeFunction too, which an engine
+may spell otherwise, as JavaScriptCore breaks the line. Every other
+runtime function answers the same, `function is() { [native code] }`, in
+place of its body's EDAG text: a runtime function is the built-in, not
+its body ([runtime-static](../../fjs/js/todo/runtime-static.md)).
+
+**Benefits.** The JavaScript spelling for what modules already do on the
+host, and the one enumeration from which the rest — keys, values, a
+filtered copy — are FunctionalScript over arrays. Modules that enumerate
+an object compile as written.
+
+**Drawbacks.** The first static with no body: one more function value in
+the represented interpreter and one more binding in NaNVM, kept in
+agreement by the harness rather than by one body. Enumeration observes an
+`undefined`-valued entry and key order in one more place
+([undefined properties](./1010-undefined-property.md)), which object
+spread already observes. A namespace key in a pattern may now be a
+prototype name.
+
+**Language-design approval.** **sergey-shandar** directed "Implement
+`Object.entries` in FJS. Note, it can't be a runtime function." in
+[the LLM working session](https://claude.ai/code/session_01R1c6kasjVwXAdm69VAd5oU),
+before implementation began. The destructuring and text decisions above
+are that session's reading of the direction, open to the owner's review.
+
+**Implemented** as proposed: `fjs/js/static`'s `natives` lists the path,
+the represented interpreter answers it from `fjs/edag/value/entries`, and
+NaNVM with `vm::object_entries`, a built-in identified by its name, which
+`runtime_static` answers from the compiled table as it answers a body;
+`nanvm/harness/fixtures/object-entries.mjs` and
+`object-entries-throws.mjs` hold the executors to Node.
+
+#### Number and Math
 
 - [x] `Number` — the call `Number(exp)`, the conversion
-      ([number conversion](../README.md#number-conversion)), and the four
+      ([number conversion](../conversions/number.md)), and the four
       predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
       and `Number.isFinite`, static functions
-      ([built-in static functions](../README.md#built-in-static-functions),
+      ([built-in static functions](../built-ins/static-functions.md),
       the record below); the namespace's other members, its value
       properties `Number.MAX_SAFE_INTEGER` among them, stay unticked, each
       an admission of its own. A module reading one of the four, through
@@ -86,7 +181,7 @@ name not yet decided, or, where it says so, never admitted.
 - [ ] `Math`
 - [ ] `Date`
 
-#### Number predicates proposal and approval
+##### Number predicates proposal and approval
 
 **Problem.** Four `Number` members are pure predicates a module reaches for
 by name — `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and
@@ -96,7 +191,7 @@ module imports a helper in its place
 reads the member cannot be renamed `.f.js` as written.
 
 **Proposal.** Admit the four as static functions, as `Object.is` is
-([built-in static functions](../README.md#built-in-static-functions)): each
+([built-in static functions](../built-ins/static-functions.md)): each
 a value in every spelling of the read, `Number.isInteger`,
 `Number["isInteger"]` and the guarded forms, and through
 `const { isInteger } = Number`; each the EDAG node of its name,
@@ -131,16 +226,16 @@ spelling of one function, so modules call the built-in, and the runtime's
 proof checks each body against the host's. **sergey-shandar** proposed
 the move in the same session, after the admission.
 
-### Text Processing
+#### Text Processing
 
 - [x] `String` — implemented as `String(exp)`, the string conversion,
       and `String()`, the empty-string literal; the word is reserved
-      ([string conversion](../README.md#string-conversion)). Namespace
+      ([string conversion](../conversions/string.md)). Namespace
       members, spreads, multiple arguments and guarded global calls remain
       unrecognized
 - [ ] `RegExp`
 
-#### String conversion proposal and approval
+##### String conversion proposal and approval
 
 **Problem.** The compiler refused `String(x)` even though the EDAG already
 represented string conversion, so authored `.f.js` modules could not use the
@@ -151,7 +246,7 @@ familiar JavaScript spelling for that operation.
 it, as [global-names](./2365-global-names.md) requires. Namespace members and
 other call shapes remain separate admissions; computed property keys retain
 their existing `Number(...)` requirement. The implemented semantics are in
-[String Conversion](../README.md#string-conversion).
+[String Conversion](../conversions/string.md).
 
 **Benefits.** This preserves familiar JavaScript syntax and conversion behavior
 for supported values, makes the existing operation available to source modules,
@@ -178,7 +273,7 @@ during PR review. That ordering deviated from the
 Implementation followed the language designer's explicit instruction above;
 the chronology and the prior approval are retained here for review.
 
-### Indexed Collections
+#### Indexed Collections
 
 - [x] `Array`
 - [ ] `Int8Array`
@@ -193,14 +288,14 @@ the chronology and the prior approval are retained here for review.
 - [ ] `BigInt64Array`
 - [ ] `BigUint64Array`
 
-### Keyed Collections
+#### Keyed Collections
 
 - [ ] `Map`
 - [ ] `Set`
 - [ ] `WeakMap`
 - [ ] `WeakSet`
 
-### Structured Data
+#### Structured Data
 
 - [ ] `ArrayBuffer`
 - [ ] `SharedArrayBuffer`
@@ -208,7 +303,7 @@ the chronology and the prior approval are retained here for review.
 - [ ] `DataView`
 - [x] `JSON`
 
-### Control Abstraction Objects
+#### Control Abstraction Objects
 
 - [ ] `Promise`
 
@@ -218,16 +313,16 @@ the chronology and the prior approval are retained here for review.
 mean inventing a global JavaScript does not have. `AsyncIterator` and
 `AsyncGenerator` are the same case.
 
-### Reflection
+#### Reflection
 
 - [ ] `Reflect`
 - [ ] `Proxy`
 
-### Internalization
+#### Internalization
 
 - [ ] `Intl`
 
-### WebAssembly
+#### WebAssembly
 
 - [ ] `WebAssembly`
 - [ ] `WebAssembly.Module`
@@ -238,11 +333,11 @@ mean inventing a global JavaScript does not have. `AsyncIterator` and
 - [ ] `WebAssembly.LinkError`
 - [ ] `WebAssembly.RuntimeError`
 
-## Object
+### Object
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 
-### Reflection boundary
+#### Reflection boundary
 
 `Object.hasOwn`, `Object.getOwnPropertyNames` and
 `Object.getOwnPropertyDescriptors` are prohibited in FJS source. They keep
@@ -250,9 +345,8 @@ their JavaScript meanings; do not redefine them over enumerable properties.
 `obj.hasOwnProperty(...)` is not a replacement source spelling.
 
 Use explicit enumerable-entry patterns instead:
-[`entry`](../README.md#reading-an-entry-at-run-time) reads a data value, and
-[enumerable presence](./2345-has-own-property.md) proposes a separate
-`hasEntity` pattern. `Object.getOwnPropertyDescriptor` is permitted only as
+[`entry`](../property-access/entries.md) reads a data value and answers
+presence with it, as an option, `[value]` or `[]`. `Object.getOwnPropertyDescriptor` is permitted only as
 part of a complete approved AST pattern, never as an exposed descriptor API.
 
 [Statement-aware recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
@@ -290,7 +384,7 @@ the reflection restrictions nor changes host-side implementation helpers.
 |setPrototypeOf           |mutate                     |
 |values                   |no                         |
 
-## Array
+### Array
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
 
@@ -301,14 +395,14 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 |isArray                  |no         |
 |of                       |no         |
 
-## BigInt
+### BigInt
 
 |Function                 |side-effect|
 |-------------------------|-----------|
 |asIntN                   |no         |
 |asUintN                  |no         |
 
-## JSON
+### JSON
 
 |Function    |side-effect|
 |------------|-----------|
@@ -317,7 +411,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 |`rawJSON`   |no         |
 |`stringify` |no         |
 
-## Others
+### Others
 
 |Function                 |side-effect|
 |-------------------------|-----------|
@@ -336,7 +430,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 |`Infinity`  |no         |
 |`NaN`       |no         |
 
-## Prohibited Properties
+### Prohibited Properties
 
 The two lists that decide this today — every prototype name refused as a
 property read, `length` excepted, and the member functions refused as a
@@ -345,7 +439,7 @@ call — are [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js)'s
 in [its README](../../fjs/js/prototype/README.md). The notes below predate
 them and are kept as the record of the reasoning.
 
-### Object
+#### Object
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 
@@ -356,7 +450,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 - [ ] deprecated `__lookupGetter__`
 - [ ] deprecated `__lookupSetter__`
 
-### Array
+#### Array
 
 These instance methods mutate an array:
 

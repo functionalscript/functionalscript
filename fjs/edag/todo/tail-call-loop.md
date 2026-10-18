@@ -3,7 +3,12 @@
 **Priority:** P2
 **Status:** wip — the recognizer, the function text, the Rust output and
 the source spelling with its grammar are implemented, the grammar's
-proposal approved
+proposal approved; common FAST migration remains
+
+The implemented writer behavior below records the current contracts. The
+[FAST migration](#fast-migration) supersedes its writer ownership, including
+permission for writer-specific recursion decisions; it does not change the
+current implementation in this documentation-only proposal.
 
 ### Problem
 
@@ -31,7 +36,7 @@ the callee ([values.md](../values.md#operations-and-failures)). The template
 below is the writers' concern, since their outputs run on hosts that
 implement no tail calls.
 
-### Proposal
+### Implemented design
 
 **One template.** The first implementation recognizes one shape of function,
 the loop over one state value whose condition continues it:
@@ -110,7 +115,7 @@ for the same shapes, which no loop written as `let`/`while` produces:
   recursion in Rust, as in every writer;
 - a read of the rest array: each round of the recursion is a call of one
   argument, so from the second round on the array is empty
-  ([spec: parameters](../../../spec/README.md#parameters)), and a loop
+  ([spec: parameters](../../../spec/functions/parameters.md)), and a loop
   that kept the first call's array would answer differently where that
   array had members;
 - a spread or a second argument as the next value. A next value that
@@ -174,7 +179,7 @@ of it survives:
 That text is program-visible: `String(f)`, `f.toString()` and every
 conversion that reaches the default function representation answer with
 it, in the EDAG interpreters and in the Rust VM alike
-([spec: function source](../../../spec/README.md#function-source-representation-exception)).
+([spec: function source](../../../spec/principles/README.md#function-source-representation-exception)).
 Today the same function answers with a named function expression, which
 the specification and the function-text contract promise for a body
 reading its `self`. The loop changes that answer for every function of the
@@ -232,6 +237,53 @@ call stands in, or the number of exits. Widening to it changes no spelling
 written for the template, so it is a later step, taken with the grammar for
 `break` that the swapped arm needs.
 
+### FAST migration
+
+The [compiler modularization proposal](../../todo/compiler-vocabulary-and-modularization.md)
+assigns this transformation to `fjs/edag/to_fast`. Reuse `loopOf` and
+`keepsRecursion` there; serializers no longer inspect EDAG or decide whether
+a function becomes a loop. The common conversion produces FAST containing
+either recursion, a function with a loop body, or a loop replacing an eligible
+immediate call. It owns eliminating that call and function boundary, including
+establishing the initial argument and captures once in the enclosing scope.
+A function used as a value retains its function boundary and arity.
+
+FAST includes core `let`/`while`/assignment forms, and the common conversion
+makes their bindings and evaluation regions explicit. The JS and Rust
+serializers render these same decisions using their target syntax. The
+writer-specific fallbacks in the implemented design above are constraints
+to resolve in this common conversion, not exceptions allowing backend graph
+walks or separate loop policies:
+
+- Preserve each invocation's values when a loop replaces recursive calls.
+  For `r => typeof r === 'number' ? self(() => r) : r`, the returned closure
+  must retain the value of the round that created it: `loop(1)()` is `1`.
+  A closure over mutable loop state is wrong. Establish fresh immutable
+  per-iteration capture bindings in FAST (conceptually `const snapshot = r`
+  before creating `() => snapshot`) or an equivalent common value-capture
+  representation. This normalization belongs before target serialization.
+- Recreate condition-local shared bindings on each test and body-local
+  bindings on each executed round, with lazy computations still conditional.
+  Function-text memo cells also have per-invocation lifetimes; they must not
+  become one cache shared by all iterations. Reuse the current shared-value
+  and capture cases to prove the common placement.
+- Retain `keepsRecursion`'s restrictions for root assertions, rest reads and
+  identity-bearing values shared by condition and body. The migration does
+  not broaden the recognized template. If a candidate cannot be represented
+  safely, the recursion decision belongs in the common conversion and applies
+  to every target, never in a serializer.
+
+Preserve the existing stack-safe cases, including loops used as values in
+Rust and function text. Falling back to recursion everywhere merely because
+the old source writer did so is not an acceptable migration: complete the
+shared capture/region representation before retiring an affected path.
+Likewise, the observable [function-text contract](../function-text.md) remains
+an explicit migration requirement; any intended text change must be recorded
+in that contract and its proofs, rather than arriving as an incidental
+formatting change. Preserve the admitted
+[loop grammar](../../../spec/control-flow/loops.md) and its existing
+source → EDAG → source → same EDAG round-trip cases.
+
 ### Tasks
 
 - [x] `fjs/edag/loop`: recognize the template, with the refusals proven:
@@ -241,7 +293,7 @@ written for the template, so it is a later step, taken with the grammar for
       runs a million rounds, which the named function expression could not,
       and the shapes above keep the recursion.
 - [x] `fjs/edag/function-text.md` and the function-source paragraph of
-      `spec/README.md`: a body reading its `self` renders as a named
+      `spec/principles/README.md`: a body reading its `self` renders as a named
       function expression unless it is a loop, which renders as the loop.
 - [x] `fjs/edag/rust`: the loop form as the closure's body, and a
       `cargo test` over a generated module running a million rounds
@@ -254,16 +306,26 @@ written for the template, so it is a later step, taken with the grammar for
       the graph again.
 - [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, with the grammar
-      ([spec: loops](../../../spec/README.md#loops)), its proposal
+      ([spec: loops](../../../spec/control-flow/loops.md)), its proposal
       approved, proven by the round trip.
+- [ ] Move the implemented loop decisions and eligible call elimination to
+      common EDAG-to-FAST conversion, with the capture and region rules above.
+      Migrate all emitters and retire their graph-aware loop paths together;
+      update their JSDoc and specification ownership descriptions with them.
+- [ ] Carry over the million-round, source-round-trip, closure-capture,
+      shared-condition, lazy-failure, rest-read and root-assert cases. Verify
+      the common FAST decision across JS and Rust, function text's invocation
+      lifetimes, and the existing stack-safe cases before removing old paths.
 
 ### Related
 
+- [Compiler vocabulary and modularization](../../todo/compiler-vocabulary-and-modularization.md)
+  — the common conversion owns loop lowering in the MVP.
 - [stage 1 discussion §11](../../../todo/edag-stage1-discussion.md#11-let-loops-and-tail-calls)
   — why a loop is a tail call and not a node.
 - [spec: let](../../../spec/todo/3220-let.md) — the grammar half, a
   language proposal of its own.
-- [spec: function source](../../../spec/README.md#function-source-representation-exception)
+- [spec: function source](../../../spec/principles/README.md#function-source-representation-exception)
   — the contract the function text changes under.
 - [`function-text.md`](../function-text.md) — the text contract the
   JavaScript form lives under.

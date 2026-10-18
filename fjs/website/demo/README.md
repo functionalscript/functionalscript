@@ -149,7 +149,12 @@ sharing. Use [`examples`](./examples/module.f.js), through
   rtti demo's parse and validate answers are (`answerView` in
   [`rtti/demo.f.mjs`](../../rtti/demo.f.mjs)). A result that is simply what
   the module computed — a digest, an AST, a generated module — stays
-  neutral: green there would claim a check nobody made.
+  neutral: green there would claim a check nobody made. **A verdict box that
+  holds code** is marked `data-code` as well: it keeps the tint and border,
+  gains an edge in the verdict's colour, and its text takes the text colour,
+  so the token colours read as code and green is not both "accepted" and
+  "string". Its caption's verdict word is marked `data-verdict` and carries
+  the colour, as the rtti demo's answers do.
 - **Generated code is coloured by what its producer wrote.** A result the
   repository's own writers produce — JSON, DataJS, the EDAG, a FunctionalScript
   module, Rust — is marked text, and the demo draws it with

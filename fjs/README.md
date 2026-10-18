@@ -77,7 +77,7 @@ directory is compiled the same way and nothing is written, so an authored
 held to that promise. Each refused file is reported as a compile of it would
 report it, then a count: `.f.js: 3 checked, 2 refused` and exit `1`, or
 `.f.js: 3 checked` and exit `0`. CI runs it once per revision
-([spec: checking every `.f.js`](../spec/README.md#checking-every-fjs)).
+([spec: checking every `.f.js`](../spec/command-line/checking.md)).
 
 ## `fjs ci` — generating the standard workflows
 

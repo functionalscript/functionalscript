@@ -146,9 +146,7 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
         // https://tc39.es/ecma262/#sec-function.prototype.tostring: the
         // stock `valueOf` answers the function itself, so every hint ends at
         // the function's text, and one without a text is refused.
-        f.text()
-            .map(|text| Primitive::String(text.into()))
-            .ok_or_else(error::function_text)
+        f.text().map(Primitive::String)
     }
 }
 
@@ -163,7 +161,7 @@ mod tests {
     use crate::{
         naive::Naive,
         vm::{
-            Any, BigInt, IStaticFunction, Nullish, Number, ToAny, ToArray, ToObject, error,
+            Any, BigInt, IVm, Nullish, Number, ToAny, ToArray, ToObject, error,
             primitive::Primitive,
         },
     };
@@ -809,7 +807,13 @@ mod tests {
         assert_eq!(o().typeof_(), Ok(s("object")));
         assert_eq!(o().logical_and(|| Ok(1.0.to_any())), Ok(1.0.to_any()));
         assert!(o().logical_or(|| Ok(1.0.to_any())).is_ok());
-        assert_eq!(o().entry(s("a")), Ok(Any::undefined()));
+        // an absent entry is the empty option, an array built for the answer
+        let crate::vm::Unpacked::Array(none) =
+            crate::vm::Unpacked::from(o().entry(s("a")).unwrap())
+        else {
+            panic!("not an array")
+        };
+        assert_eq!(none.length(), 0);
         // `===` compares by identity.
         let x = o();
         assert!(x == x.clone());

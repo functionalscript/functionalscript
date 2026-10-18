@@ -11,7 +11,6 @@ import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'
 
@@ -158,9 +157,12 @@ const render = {
         `<li>x (<a href="${pull('1421')}">#1421</a>)</li>`)),
     release: {
         page: () => {
-            const html = utf8ToString(releasePage(local)(alone('0.41.0'))([[['code', 'a']]]))
+            const html = releasePage(local)(alone('0.41.0'))([[['code', 'a']]])
             assert(html.includes('<title>0.41.0 · FunctionalScript</title>'), html)
-            assert(html.includes('<h1>0.41.0</h1>'), html)
+            assert(html.includes(
+                '<nav aria-label="Breadcrumb"><h1><a href="/index.html">root</a>'
+                + ' / <a href="/changelog/index.html">changelog</a>'
+                + ' / <span aria-current="page">0.41.0</span></h1></nav>'), html)
             assert(html.includes('<li><code>a</code></li>'), html)
             // Every page of the site carries the same language, stylesheet
             // and icons.
@@ -172,7 +174,7 @@ const render = {
         // `changelog/README.md`: "A `<version>.md` file that is empty records
         // a release that shipped no notable change." `0.1.608` is one.
         empty: () => {
-            const html = utf8ToString(releasePage(local)(alone('0.1.608'))([]))
+            const html = releasePage(local)(alone('0.1.608'))([])
             assert(html.includes('shipped no notable change'), html)
             assert(!html.includes('<ul>'), html)
         },
@@ -199,10 +201,10 @@ const render = {
     /** The links sit under the heading, above the entries. */
     navigation: {
         both: () => {
-            const html = utf8ToString(releasePage(local)(
-                { version: '0.47.0', previous: '0.46.0', next: '0.48.0' })([[['text', 'x']]]))
+            const html = releasePage(local)(
+                { version: '0.47.0', previous: '0.46.0', next: '0.48.0' })([[['text', 'x']]])
             assert(html.includes(
-                '<h1>0.47.0</h1><nav aria-label="Releases">'
+                '<span aria-current="page">0.47.0</span></h1></nav><nav aria-label="Releases">'
                 + '<a href="/changelog/_0.46.0.html" rel="prev"><span aria-hidden="true">← </span>Previous: 0.46.0</a>'
                 + ' · '
                 + '<a href="/changelog/_0.48.0.html" rel="next">Next: 0.48.0<span aria-hidden="true"> →</span></a>'
@@ -210,7 +212,7 @@ const render = {
         },
         // The oldest release has nothing before it, and says only what is.
         oldest: () => {
-            const html = utf8ToString(releasePage(local)({ version: '0.1.0', previous: null, next: '0.1.1' })([]))
+            const html = releasePage(local)({ version: '0.1.0', previous: null, next: '0.1.1' })([])
             // The whole nav, so a missing separator is checked in the nav
             // alone: the title carries a ` · ` of its own.
             assert(html.includes(
@@ -220,37 +222,40 @@ const render = {
             assert(!html.includes('Previous:'), html)
         },
         newest: () => {
-            const html = utf8ToString(releasePage(local)({ version: '0.48.0', previous: '0.47.0', next: null })([]))
+            const html = releasePage(local)({ version: '0.48.0', previous: '0.47.0', next: null })([])
             assert(html.includes('Previous: 0.47.0'), html)
             assert(!html.includes('Next:'), html)
         },
         // A lone release has no neighbours, and an empty landmark would be
         // one a screen reader announces with nothing in it.
         alone: () => {
-            const html = utf8ToString(releasePage(local)(alone('0.1.0'))([]))
+            const html = releasePage(local)(alone('0.1.0'))([])
             assert(!html.includes('aria-label="Releases"'), html)
         },
     },
     index: {
         newestFirst: () => {
-            const html = utf8ToString(indexPage(local)(['0.11.2', '0.11.10']))
+            const html = indexPage(local)(['0.11.2', '0.11.10'])
             assert(html.indexOf('_0.11.10.html') < html.indexOf('_0.11.2.html'), html)
         },
         title: () => {
-            const html = utf8ToString(indexPage(local)([]))
+            const html = indexPage(local)([])
             assert(html.includes('<title>Releases · FunctionalScript</title>'), html)
+            // The changelog is the page itself, so it is the breadcrumb's text.
+            assert(html.includes(
+                '<h1><a href="/index.html">root</a> / <span aria-current="page">changelog</span></h1>'), html)
         },
         // The header says which build a preview is on every page, the
         // release index included.
         preview: () => {
-            const html = utf8ToString(indexPage({ commit: null, branch: 'x', funding: [] })([]))
+            const html = indexPage({ commit: null, branch: 'x', funding: [] })([])
             assert(html.includes(`Preview: <a href="${repository}/tree/x">x</a>`), html)
         },
         linksEvery: () => assertEq(
-            utf8ToString(indexPage(local)(['0.1.0', '0.2.0', '0.3.0'])).split('changelog/_').length - 1, 3),
+            indexPage(local)(['0.1.0', '0.2.0', '0.3.0']).split('changelog/_').length - 1, 3),
         // One link per line, so the stylesheet's tap-target rule reaches it.
         linkList: () => {
-            const html = utf8ToString(indexPage(local)(['0.1.0']))
+            const html = indexPage(local)(['0.1.0'])
             assert(html.includes('<ul data-links=""><li><a href="/changelog/_0.1.0.html">'), html)
         },
     },

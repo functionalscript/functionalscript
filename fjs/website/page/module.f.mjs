@@ -28,15 +28,16 @@
  * @module
  *
  * @import { Element, Node } from '../../media/html/types.ts'
- * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Build, Dir, Kind, Proof } from './types.ts'
+ * @import { Build, Dir, Kind, PageDemo, Proof } from './types.ts'
  * @import { Funding } from '../funding/types.ts'
+ * @import { Issue } from '../issue/types.ts'
  */
 
-import { htmlUtf8 } from '../../media/html/module.f.mjs'
+import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
+import { priorities, statuses } from '../issue/module.f.mjs'
 
 /**
  * The repository the site is built from, which is where a file is read when
@@ -197,18 +198,57 @@ const proofItem = proof => proof.blockers.length === 0
 const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
 
 /**
+ * A demo's first view with every action control disabled: each `button`, and
+ * each `input` of type `button`, which the runtime hears a click on, and each
+ * element marked `data-demo-click` or `data-demo-drag`, which it hears a click
+ * or a drag on.
+ *
+ * **Until the runtime has loaded, an action on one goes nowhere.** A field's
+ * edit can be read back when the runtime arrives; a click or a drag leaves
+ * nothing behind, so it would be lost without a word. Disabled, the control
+ * says it is not ready. The runtime's first render after `start` patches the
+ * attributes to the demo's own view, which enables them.
+ *
+ * **An SVG control has no `disabled`**, so it is marked `aria-disabled`, which
+ * says so to assistive technology, and the stylesheet stops it taking a
+ * pointer while it is.
+ *
+ * A tag and a type are read ignoring ASCII case, as the browser reads them.
+ *
+ * @type {(view: Element) => Element}
+ */
+const inactive = view => {
+    const [tag, attributes, children] = parseElement(view)
+    const name = tag.toLowerCase()
+    const action = name === 'button' || (name === 'input' && attributes.type?.toLowerCase() === 'button')
+    const pointed = attributes['data-demo-click'] !== undefined || attributes['data-demo-drag'] !== undefined
+    return [tag,
+        action ? { ...attributes, disabled: '' } : pointed ? { ...attributes, 'aria-disabled': 'true' } : attributes,
+        ...children.map(child => typeof child === 'string' ? child : inactive(child))]
+}
+
+/**
  * The demo section: what this module *does*, if it says.
  *
- * Two elements and nothing else. The section is the demo's own root, so the
- * runtime replaces its contents wholesale on every state; the script is the
- * page's half of the wiring, naming the module in `demoMarker` so the runtime
- * never guesses a filename.
+ * Two elements and nothing else. The section is the demo's own root, which the
+ * runtime renders every state into; the script is the page's half of the
+ * wiring, naming the module in `demoMarker` so the runtime never guesses a
+ * filename.
  *
- * @type {(path: string) => readonly Node[]}
+ * **The root already holds the demo's first view**, rendered by the build, so
+ * the demo shows with the page rather than after the runtime and the demo's
+ * whole module graph have loaded — a chain of imports twenty-six deep for
+ * `fjs/compiler`'s. It is readable, selectable and editable at once; the
+ * runtime takes it over as it finds it, with whatever the reader typed in the
+ * meantime. Its action controls are disabled until then ({@link inactive}). A
+ * demo the build could not render keeps an empty root, which the runtime
+ * fills as before.
+ *
+ * @type {(demo: PageDemo) => readonly Node[]}
  */
-export const demoSection = path => [['details', { 'data-section': '', open: '' },
+export const demoSection = ({ path, view }) => [['details', { 'data-section': '', open: '' },
     summary('Demo')(),
-    ['div', { [demoMarker]: path }],
+    ['div', { [demoMarker]: path }, ...(view === null ? [] : [inactive(view)])],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
 
@@ -360,6 +400,46 @@ export const fileHref = commit => path => name => {
 const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, text]]
 
 /**
+ * An issue's entry: its priority as a badge, then the link with its status
+ * as the icon and its name — `P1 ◐ name`.
+ *
+ * **The status is on the link**, as the kind is (see {@link item}), so its
+ * icon's text alternative — "wip issue" — is part of the link's name.
+ * `data-issue-status` and not `data-status`, which the test runner's report
+ * already gives `passed` and `failed`: one attribute naming two unrelated
+ * things is a collision waiting for a value they share.
+ *
+ * **The badge comes first, outside the link.** The list is ordered by
+ * priority (see {@link issueOrder}), so the badges make its left column and a
+ * reader sees where each priority starts. Outside the link, the badge is read
+ * as a word of its own — "P1", then the link "wip issue a.md" — and the link's
+ * name and underline are the name's alone.
+ *
+ * @type {(href: string) => (issue: Issue) => Element}
+ */
+export const issueItem = href => ({ name, status, priority }) => ['li',
+    ['span', { 'data-priority': priority }, priority],
+    ' ',
+    ['a', { href, 'data-kind': 'issue', 'data-issue-status': status }, name]]
+
+/**
+ * The order a directory lists its issues in: by priority, most urgent first,
+ * then by status in {@link statuses}' order — work in progress, then work not
+ * started, then work waiting or deferred, then the record, then what will not
+ * be done — then by name. The P1s, the issues that block everything else,
+ * lead the list, and within one priority the issues group by icon.
+ *
+ * @type {(a: Issue, b: Issue) => number}
+ */
+export const issueOrder = (a, b) => {
+    const priority = priorities.indexOf(a.priority) - priorities.indexOf(b.priority)
+    if (priority !== 0) { return priority }
+    const status = statuses.indexOf(a.status) - statuses.indexOf(b.status)
+    if (status !== 0) { return status }
+    return a.name < b.name ? -1 : 1
+}
+
+/**
  * A subdirectory's entry, marked when a demo is somewhere under it.
  *
  * **Under it, not in it.** Every demo lives several levels down, so a mark
@@ -407,8 +487,9 @@ const section = heading => items =>
  * **Issues are a list of their own, open by default.** An issue is about
  * the directory rather than in it. Showing its open work beside Contents
  * makes both lists available immediately; a reader can fold either away.
- * Its entries keep the issue icon, so an entry looks the same wherever it
- * is listed.
+ * Each entry's icon is its status and a badge its priority, and the list is
+ * in {@link issueOrder}: by priority, the P1s first, and by status within
+ * each priority, rather than wherever their names sort.
  *
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
@@ -422,8 +503,8 @@ export const sections = commit => dir => [
         ...dir.dirs.map(dirItem(dir)),
         ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
     ]),
-    ...section('Issues')(dir.todo.map(name =>
-        item('issue')(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
+    ...section('Issues')(dir.todo.toSorted(issueOrder).map(issue =>
+        issueItem(fileHref(commit)(dir.path)(`todo/${issue.name}`))(issue))),
 ]
 
 /**
@@ -449,6 +530,24 @@ const breadcrumbs = path => [
     /** @type {const} */ (['.', 'root']),
     ...ancestors(path).map(a => /** @type {const} */ ([a, basename(a)])),
 ]
+
+/**
+ * The page's heading: a link to each ancestor of `path`, root first, then
+ * `name`, the page itself, as text.
+ *
+ * **The breadcrumb is the heading.** A breadcrumb above a heading repeated
+ * the page's path twice; one line now says where the reader is, and it is
+ * still the `h1` that a screen reader's heading list and a search engine
+ * take the page's topic from.
+ *
+ * @type {(path: string) => (name: string) => Element}
+ */
+export const breadcrumb = path => name => ['nav', { 'aria-label': 'Breadcrumb' }, ['h1',
+    ...toArray(intersperse(/** @type {Node} */ (' / '))([
+        ...breadcrumbs(path).map(([href, text]) => /** @type {Node} */ (['a', { href: pageHref(href) }, text])),
+        /** @type {Node} */ (['span', { 'aria-current': 'page' }, name]),
+    ])),
+]]
 
 /**
  * The branch the published site is built from. Every other branch's build is
@@ -551,9 +650,9 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * purpose: one that runs a suite marks it for the runtime — see
  * {@link testsMain} — and a changelog page does not.
  *
- * @type {(build: Build) => (title: string) => (content: Element) => Vec}
+ * @type {(build: Build) => (title: string) => (content: Element) => string}
  */
-export const shell = build => title => content => htmlUtf8(lang)(
+export const shell = build => title => content => htmlDocument(lang)(
     ['title', title],
     // OAuth callback parameters must not become subresource referrers.
     ['meta', { name: 'referrer', content: 'no-referrer' }],
@@ -578,12 +677,10 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  * The whole page for a directory below the root: where it sits, what it
  * holds, and what is open against it.
  *
- * @type {(build: Build) => (dir: Dir) => Vec}
+ * @type {(build: Build) => (dir: Dir) => string}
  */
 export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryLayout(build)(dir)(testsMain(
-    ['nav', ...toArray(intersperse(' / ')(breadcrumbs(dir.path).map(([path, name]) =>
-        /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
-    ['h1', dir.path],
+    breadcrumb(dir.path)(basename(dir.path)),
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
     ...(dir.demo === null ? [] : demoSection(dir.demo)),

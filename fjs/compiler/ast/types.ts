@@ -37,18 +37,19 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGu
 
 /**
  * The `entry` helper, which the parser recognizes whole
- * ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)):
+ * ([spec: entry](../../../spec/property-access/entries.md)):
  *
  * ```js
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable ? x.value : undefined;
+ *     return x?.enumerable ? [x.value] : [];
  * }
  * ```
  *
  * under any names — the one function that reads a property named at run
  * time, the enumerable own property the key names once converted as
- * `Object.getOwnPropertyDescriptor` converts it. It is a function like
+ * `Object.getOwnPropertyDescriptor` converts it, as an option: `[value]`,
+ * or `[]` where there is none. It is a function like
  * any other: a value, of `length` `2`, capturing nothing, and a fresh
  * identity wherever it is written, as every arrow is. The lowering spells
  * it as the EDAG's own node for it, `['entry']`, which the source spells
@@ -75,7 +76,7 @@ export type AstStatic = readonly [StaticId]
  * module's, may end with in place of its `return` or its exports — the
  * EDAG's `['throw', exp]`, an operation that establishes its operand and
  * fails with it as the thrown value
- * ([spec: functions](../../../spec/README.md#functions)). The parser writes
+ * ([spec: functions](../../../spec/functions/README.md)). The parser writes
  * it as the last entry of a body and nowhere else; lowering preserves the
  * operation so interpretation fails with the represented thrown value.
  */
@@ -202,10 +203,10 @@ export type AstObject = readonly ['object', readonly AstEntry[]]
 /**
  * An access's key, the EDAG's `index`: the constant written, a string or a
  * number from `[0]`, or the conversion of a key computed at run time,
- * `a[Number(i)]` ([spec: property access](../../../spec/README.md#property-access)).
+ * `a[Number(i)]` ([spec: property access](../../../spec/property-access/README.md)).
  * A constant is the key as it is; the conversion is an operand, evaluated
  * wherever the access is, in no promised order against its base
- * ([spec: failure is one outcome](../../../spec/README.md#failure-is-one-outcome)).
+ * ([spec: failure is one outcome](../../../spec/principles/README.md#failure-is-one-outcome)).
  */
 export type AstKey = string | number | AstNumber
 
@@ -287,7 +288,7 @@ export type AstGuardedCallStep =
  * parameterless function written at the call, `isInlinedCall`, is its body
  * where the call stands. The parser writes that call for a guard's two
  * arms, `if (c) { … }` being sugar for `c ? (() => { … })() : (() => …rest…)()`
- * ([spec: functions](../../../spec/README.md#functions)).
+ * ([spec: functions](../../../spec/functions/README.md)).
  */
 export type AstCall = readonly ['()', AstConst, readonly AstItem[]]
 
@@ -345,7 +346,7 @@ export type AstInstanceOf = readonly ['instanceof', AstConst, ConstructorId]
  * The conversion `Number(v)`: the EDAG's `['Number', exp]`, `op1Id` — the
  * number JavaScript's `Number` answers when called, a `bigint` converted
  * where unary `+` throws
- * ([spec: number conversion](../../../spec/README.md#number-conversion)).
+ * ([spec: number conversion](../../../spec/conversions/number.md)).
  * The parser writes it for the call of the reserved word `Number` with one
  * argument, and for nothing else the word spells; like {@link AstTypeof}
  * it folds nothing, since what a value converts to is the interpreter's

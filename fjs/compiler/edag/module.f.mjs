@@ -5,7 +5,7 @@
  *
  * @module
  *
- * @import { Exp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
+ * @import { Exp, ExpOp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
  * @import { AstAccess, AstBinary, AstInstanceOf, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstSpread, AstStep, AstThrow, AstUnary, UnaryTag } from '../ast/types.ts'
  * @import { _Load } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
@@ -18,12 +18,11 @@
  */
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
-import { analysis } from '../../edag/analysis/module.f.mjs'
 import { fromValue, isStatic } from '../../edag/module.f.mjs'
 import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
 import { mapStep, step } from '../../effects/module.f.mjs'
 import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
-import { ok, unwrap } from '../../types/result/module.f.js'
+import { ok } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])
 
@@ -153,7 +152,7 @@ const lazyItem = nodes => item => {
  * floats floating with it, as an eager operand's does: the key of a plain
  * access is evaluated wherever the access is, and what it floats may be
  * established ahead of the base, an order failure equivalence leaves free
- * ([spec](../../../spec/README.md#failure-is-one-outcome)).
+ * ([spec](../../../spec/principles/README.md#failure-is-one-outcome)).
  *
  * @type {(nodes: _Nodes) => (key: AstKey) => _LoweredOver<Index>}
  */
@@ -252,8 +251,12 @@ const lowerEntry = nodes => entry => {
  *
  * The frame holds each distinct node among them once, in the order the body
  * first names them — two bindings reaching one node, a `const` and its
- * alias, are one value and so one slot, and so are two nodes the EDAG
- * analysis merges, `o[0]` read by two `const`s ({@link slotKeys}) — and a
+ * alias, are one value and so one slot, where two nodes spelled alike,
+ * `o[0]` read by two `const`s, are two, as a writer and an executor see
+ * them: sharing is node identity
+ * ([`fjs/edag/sharing`](../../edag/sharing/module.f.mjs)). A read of a
+ * binding is the exception, {@link oneSlot}: a parameter and a const alias
+ * of it are one slot — and a
  * capture whose node is a
  * primitive is no slot at all: the primitive is written into the body where
  * the capture is read, as it is wherever a `const` holding one is read,
@@ -272,34 +275,31 @@ const lowerEntry = nodes => entry => {
 const fn = nodes => (length, body, captures) => {
     const read = readCaptures(['=>', length, body, captures])
     const outer = captures.map(c => lower(nodes)(c).exp)
-    const candidates = outer.filter((n, i) => n instanceof Array && read.includes(i))
-    const keys = slotKeys(candidates)
-    /** Each candidate's first twin: the candidate whose slot it reads. */
-    const firsts = keys.map(k => keys.indexOf(k))
-    const slots = candidates.filter((_, i) => firsts[i] === i)
+    const candidates = outer.flatMap((n, i) => n instanceof Array && read.includes(i) ? [n] : [])
+    const slots = candidates.filter((n, i) => candidates.findIndex(m => oneSlot(m, n)) === i)
     /** @type {readonly Exp[]} */
     const reads = slots.map((_, i) => ['frame', i])
-    /** @type {(n: typeof candidates[number]) => Exp} */
-    const slotRead = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
-    const inner = outer.map(n => candidates.includes(n) ? slotRead(n) : n)
+    const inner = outer.map(n => {
+        const k = candidates.findIndex(m => m === n)
+        return k === -1 ? n : reads[slots.findIndex(m => oneSlot(m, candidates[k]))]
+    })
     return ['=>', length, slots, scope(body, inner)]
 }
 
 /**
- * Which of `nodes` are one value: the entry the EDAG analysis gives each —
- * one entry for one node reached twice, and for two nodes it merges, a
- * read spelled the same over the same inputs — so that a frame holds no two
- * slots a writer or an executor would see as one. The analysis owns that
- * rule, so it is asked rather than restated; a lone node is its own.
+ * Whether two captures are one slot: one node, or two reads of one binding
+ * — a parameter, the rest array, a frame slot, the function itself. The
+ * lowering builds a parameter's and the function's read afresh where each
+ * is named, so a parameter and a `const` alias of it are two nodes, which
+ * are one value wherever they are read, and which a writer reads by one
+ * name.
  *
- * @type {(nodes: readonly Exp[]) => readonly unknown[]}
+ * @type {(m: ExpOp, n: ExpOp) => boolean}
  */
-const slotKeys = nodes => {
-    if (nodes.length < 2) { return nodes }
-    const { root, nodes: table } = unwrap(analysis(['[]', /** @type {readonly Exp[]} */ (nodes)]))
-    const items = /** @type {readonly (readonly [string, number])[]} */ (table[/** @type {readonly [string, number]} */ (root)[1]][1])
-    return items.map(([, i]) => i)
-}
+const oneSlot = (m, n) => m === n || (bindingReads.includes(m[0]) && m.length === n.length && m.every((x, k) => x === n[k]))
+
+/** The reads of a binding: `['arg', i]`, `['rest']`, `['frame', i]` and `['self']`. @type {readonly string[]} */
+const bindingReads = ['arg', 'rest', 'frame', 'self']
 
 /**
  * One entry's EDAG, its own operator/negation/bitwise-not chain excepted —
@@ -584,7 +584,7 @@ export const unresolved = module => over(module[0])(lowered(module[0].map(parame
 /**
  * Whether a module's computation ends in a `throw`, past its evaluation
  * sequence: a module whose body ends in the statement in place of its
- * exports ([spec: module structure](../../../spec/README.md#module-structure)).
+ * exports ([spec: module structure](../../../spec/modules/README.md)).
  * Such a module fails at every load and exports nothing.
  *
  * @type {(module: Exp) => boolean}

@@ -25,16 +25,27 @@
  * edges are the sum over its occurrences, and its operands keep every edge
  * each occurrence gave them.
  *
- * **Shared is written more than once.** An entry that mints identity is
- * written once — hoisted, where more than one place reaches it — and an
- * entry that merges is written at every place that reaches it, as
- * `[cfg.a, cfg.a]` is. So an entry's count is the sum, over the edges into
- * it, of the places its parent is written: one for a parent that mints
- * identity, the parent's own count for one that merges. That keeps the
- * table the same whether a plain read was one node reached twice or two
- * nodes merged, which is what the writer's round trip needs: `[r, r]` over
- * one access node `r` of `a` and `[a.x, a.x]` over two both give `a` two
- * places, and `a` is hoisted in both, so that it stays one array.
+ * **Shared, where twins merge, is written more than once.** An entry that
+ * mints identity is written once — hoisted, where more than one place
+ * reaches it — and an entry that merges is written at every place that
+ * reaches it, as `[cfg.a, cfg.a]` is. So an entry's count is the sum, over
+ * the edges into it, of the places its parent is written: one for a parent
+ * that mints identity, the parent's own count for one that merges. That
+ * keeps the table the same whether a plain read was one node reached twice
+ * or two nodes merged: `[r, r]` over one access node `r` of `a` and
+ * `[a.x, a.x]` over two both give `a` two places.
+ *
+ * **Or by identity alone.** {@link identityAnalysis} merges nothing: every
+ * node is its own entry, two nodes spelled alike are two entries, and the
+ * shared entries are the nodes reached from more than one place — what
+ * [`../sharing`](../sharing/module.f.mjs) counts for both writers, read here
+ * through the table. That is the FunctionalScript writer's table, which
+ * writes a shared node as one `const` and every other node where it
+ * stands, so that the text keeps the sharing the graph has and adds none
+ * (but for a pure node no one block holds, which it writes in each block);
+ * and the one the compiler evaluates a module and every invoked body by
+ * ([`../memo`](../memo/module.f.mjs)), so that a function value holds its
+ * body as the graph has it, and its text is the writer's.
  *
  * **Sharing decides how many times, never when.** An edge from a lazy
  * position — the right operand of `&&`, `||`, `??`, an arm of `?:` — counts
@@ -65,9 +76,10 @@ import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { isStatic } from '../module.f.mjs'
+import { sharedNodesOf } from '../sharing/module.f.mjs'
 
-/** @type {_State} */
-const start = { visited: new Map(), entries: [], problem: null }
+/** A walk that has added nothing, and merges twins where `merges` says. @type {(merges: boolean) => _State} */
+const start = merges => ({ visited: new Map(), entries: [], problem: null, merges })
 
 /** @type {(i: number) => Ref} */
 const ref = i => ['#', i]
@@ -85,8 +97,8 @@ const same = (a, b) => a instanceof Array
 /**
  * Whether an entry may merge with a twin: its result identity is decided by
  * its inputs. A constructor mints identity and a call may; a chain that
- * continues may call. The FunctionalScript writer hoists exactly the shared
- * entries that do not, since only a `const` keeps one value in text.
+ * continues may call. Written twice, a node that does not is two values,
+ * and one that does is one value computed twice.
  *
  * @type {(node: Node) => boolean}
  */
@@ -102,13 +114,14 @@ export const mergeable = node => {
 const twin = (scope, node) => entry => entry.scope === scope && same(entry.node, node)
 
 /**
- * The node's entry: its twin's, where it has one, or a new one after every
- * entry so far — after its operands, which the walk added first.
+ * The node's entry: its twin's, where the walk merges and it has one, or a
+ * new one after every entry so far — after its operands, which the walk
+ * added first.
  *
- * @type {(scope: _Scope, node: Node) => (entries: readonly _Entry[]) => readonly [readonly _Entry[], number]}
+ * @type {(merges: boolean, scope: _Scope, node: Node) => (entries: readonly _Entry[]) => readonly [readonly _Entry[], number]}
  */
-const entry = (scope, node) => entries => {
-    const found = mergeable(node) ? entries.findIndex(twin(scope, node)) : -1
+const entry = (merges, scope, node) => entries => {
+    const found = merges && mergeable(node) ? entries.findIndex(twin(scope, node)) : -1
     return found === -1 ? [[...entries, { scope, node }], entries.length] : [entries, found]
 }
 
@@ -147,7 +160,7 @@ const walk = scope => (state, e) => {
     const known = state.visited.get(e)
     if (known === undefined) {
         const [walked, n] = handlers[e[0]](scope)(state, e)
-        const [entries, i] = entry(scope, n)(walked.entries)
+        const [entries, i] = entry(walked.merges, scope, n)(walked.entries)
         return [{ ...walked, entries, visited: mapSet(walked.visited, e, i) }, ref(i)]
     }
     const checked = state.entries[known].scope === scope ? state : {
@@ -258,6 +271,7 @@ const handlers = {
     // the static functions, a row each, so a new one is a `tsc` error here
     // until it has its row
     'Object.is': o0,
+    'Object.entries': o0,
     'Number.isInteger': o0,
     'Number.isSafeInteger': o0,
     'Number.isNaN': o0,
@@ -426,6 +440,39 @@ const places = (root, nodes) => nodes.reduceRight(
 )
 
 /**
+ * The entries reached from more than one place, by node identity: every
+ * node `sharedNodesOf` lists in a scope — the module's, and each function
+ * body's, since a walk over one scope stops at a body — by the entry it is,
+ * in index order, which is the order the walk added them in. Only a walk
+ * that merges nothing has an entry per node to give.
+ *
+ * @type {(e: Exp, visited: _State['visited']) => readonly number[]}
+ */
+const sharedByIdentity = (e, visited) => {
+    const shared = [e, ...[...visited.keys()].flatMap(n => n[0] === '=>' ? [n[3]] : [])].flatMap(sharedNodesOf)
+    return [...visited].flatMap(([n, i]) => shared.includes(n) ? [i] : [])
+}
+
+/**
+ * The table of `e`, its twins merged where `merges` says, and its shared
+ * entries counted as the table writes them: by places, where twins merge,
+ * and by identity, where nothing does.
+ *
+ * @type {(merges: boolean) => (e: Exp) => Result<Analysis, string>}
+ */
+const table = merges => e => {
+    const [{ visited, entries, problem }, root] = walk(null)(start(merges), e)
+    if (problem !== null) { return error(problem) }
+    const nodes = entries.map(x => x.node)
+    return ok({
+        root,
+        nodes,
+        scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(visited.get(x.scope))),
+        shared: merges ? places(root, nodes).flatMap((n, i) => n > 1 ? [i] : []) : sharedByIdentity(e, visited),
+    })
+}
+
+/**
  * The table of a program: its root, its operation nodes in walk order with
  * their scopes, and the shared ones — written at more than one place.
  * `export default 1;` is an empty table with the root `1`.
@@ -436,17 +483,19 @@ const places = (root, nodes) => nodes.reduceRight(
  *
  * @type {(e: Exp) => Result<Analysis, string>}
  */
-export const analysis = e => {
-    const [{ visited, entries, problem }, root] = walk(null)(start, e)
-    if (problem !== null) { return error(problem) }
-    const nodes = entries.map(x => x.node)
-    return ok({
-        root,
-        nodes,
-        scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(visited.get(x.scope))),
-        shared: places(root, nodes).flatMap((n, i) => n > 1 ? [i] : []),
-    })
-}
+export const analysis = table(true)
+
+/**
+ * The same table by node identity: no twin merged, every node its own
+ * entry, and `shared` the nodes reached from more than one place, as
+ * `../sharing`'s `sharedNodesOf` counts them in each scope. Two programs
+ * that differ only in whether an equal node is one or two — `x + x` over
+ * one `const x = a + a`, or `(a + a) + (a + a)` — are two tables here,
+ * where {@link analysis} gives both one.
+ *
+ * @type {(e: Exp) => Result<Analysis, string>}
+ */
+export const identityAnalysis = table(false)
 
 /**
  * Whether the function that is entry `i` holds a node of `kind` in its own

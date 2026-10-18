@@ -13,7 +13,7 @@
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { inputField, caption, refusal, radios } from '../../website/demo/module.f.mjs'
-import { codeBlock } from '../../website/demo/code/module.f.mjs'
+import { codeBlock } from '../../website/demo/code/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.mjs'
 
 /** @type {(name: string, label: string, options: readonly string[], value: string) => Element} */

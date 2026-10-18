@@ -25,7 +25,7 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.55.0'
+export const functionalscript = /** @type {const} */ '0.56.0'
 
 // The one runtime a generated flake takes from outside the pinned snapshot.
 // Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
@@ -85,7 +85,7 @@ export const deno = '2.8.3'
 // engine, package-lock.json's root engine and .node-version synchronized with
 // this exact pin; an accepted update replaces the supported Node version.
 // https://nodejs.org/en/download
-export const node = /** @type {const} */ ('26.11.1')
+export const node = /** @type {const} */ ('26.12.0')
 
 // The TypeScript this repository type-checks with, and the one the
 // packed-package check installs from npm to check the declarations the packed
@@ -120,7 +120,7 @@ export const typescript = /** @type {const} */({
 // `dtolnay/rust-toolchain` installs; the two are the same constant so they
 // cannot drift.
 // https://rust-lang.org/
-export const rust = '1.99.0'
+export const rust = '1.99.1'
 
 // How long, in minutes, a job may run once a runner has picked it up. GitHub's
 // default is six hours, and a job that hangs holds its runner for all of them:
@@ -149,7 +149,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixpkgs-26.05-darwin',
-    commit: '240fddad86d7a0520319f21d8be1b43db426b18d',
+    commit: '7529d323f8f9926b38df356da2483c2a4e759d00',
 })
 
 // `rust-overlay`, the second input of the shared flake. Nixpkgs builds
@@ -163,7 +163,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '404b7a5537f0adc6e5c558a1b94612e683dec504',
+    commit: 'ec07af44be2e0ce4e1a17e00a97d44232607c1ec',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to
@@ -182,6 +182,16 @@ export const wasmtime = '45.0.2'
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.1.0'
 
+// The SpiderMonkey shell the pinned Nixpkgs snapshot provides. The attribute
+// names only the major version, so the `ubuntu-arm` job asserts the whole of
+// `version` from inside its shell, as it does the WASM runtimes. Bump the
+// snapshot first and copy what it offers; a new major is a new attribute.
+// https://spidermonkey.dev/
+export const spidermonkey = /** @type {const} */ ({
+    version: '140.14.0',
+    attribute: 'spidermonkey_140',
+})
+
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
 // `` `${name}@${actions[name]}` ``.
@@ -195,7 +205,7 @@ export const actions = /** @type {const} */({
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/install-nix
     // Enables the `nix-command` and `flakes` experimental features by default.
-    'cachix/install-nix-action': 'v31.11.1',
+    'cachix/install-nix-action': 'v31.11.2',
     // https://rust-lang.org/ - value is Rust version, not action version
     'dtolnay/rust-toolchain': rust,
 })

@@ -12,6 +12,15 @@ runtime data conversion on Node 24/26, Bun and Deno. This preserves the former d
 baseline; it does not make these walks iterative or promise unbounded depth.
 The measurements below describe the earlier implementation, before that change.
 
+The corpus's `array-nested-deep` vector has since been cut to 500 levels, so
+that SpiderMonkey can parse it: SpiderMonkey 140's module parser refuses a
+literal nested deeper than about 870 levels
+([the vectors' depth rule](../../../spec/datajs/vectors/README.md#what-a-vector-may-not-do)).
+The thousand-level figures below measure the vector as it was. The same shell
+also reaches about 40% fewer nested calls than Node 26 with default stacks —
+5,998 against 9,627 for a one-line recursive arrow function — so any margin
+measured on Node is smaller there.
+
 How much of the stack that corpus leaves, measured after `9789544` on x64
 Node 26.10 with the default stack, each depth in a fresh process: the path
 `subsetLaw` in [`../../compiler/proof.f.mjs`](../../compiler/proof.f.mjs)
@@ -57,9 +66,9 @@ and `item` or `property` — so at `0802ecda` a plain nested array,
 `export default [[[…1…]]];`, compiles to `.js` and `.rs` at six hundred
 levels and overflows at six hundred and fifty, and a nested object,
 `{"a":{"a":…}}`, at the same depths. The repository's own DataJS
-vectors cross that line: `spec/datajs/vectors/accept/data.f.js`, whose
-`array-nested-deep` graph is a thousand levels deep, compiles to
-`.edag.data.js` and `.data.js`, which never reach this walk, and fails
+vectors crossed that line: `spec/datajs/vectors/accept/data.f.js`, whose
+`array-nested-deep` graph was a thousand levels deep then, compiled to
+`.edag.data.js` and `.data.js`, which never reach this walk, and failed
 with this `RangeError` to `.js` and `.rs`. Its `object-nested-deep`
 graph is three hundred levels deep and compiles to every output; a
 thousand-level object would fail the same way. No proof sends that
@@ -91,7 +100,7 @@ Confirmed reachable through the Rust backend (`fjs/compiler/rust/module.f.mjs`'s
 find every operator node *before* it could report the clean refusal Stage
 A's PR description promised, so a chain of a few thousand terms crashed
 there rather than reaching that refusal. That refusal is gone — every operator prints
-now — and the backend's remaining walk, `fjs/edag/rust`'s `sharedNodesOf`,
+now — and the backend's remaining walk, `fjs/edag/sharing`'s `visit`,
 recurses the same way. Raised again,
 independently, as a Stage A PR review finding
 ([functionalscript/functionalscript#2106, discussion_r4053431594](https://github.com/functionalscript/functionalscript/pull/2106#discussion_r4053431594))
@@ -138,8 +147,8 @@ the way to a graph output: past it, the FunctionalScript writer —
 `operand`, `entry` and, since the writer spells every operator, `binary`
 and its operand helpers in
 [`../../compiler/serializer/module.f.mjs`](../../compiler/serializer/module.f.mjs),
-one frame set per level of a chain or a container — `fjs/edag/rust`'s
-`sharedNodesOf` and the Rust printer each descend the same depth, and a
+one frame set per level of a chain or a container — `fjs/edag/sharing`'s
+`visit` and the Rust printer each descend the same depth, and a
 walk made iterative here only moves the overflow to the next one. The
 investigation lists every walk between the front end and the `.js` and
 `.rs` outputs, says for each whether an explicit stack or the trampoline

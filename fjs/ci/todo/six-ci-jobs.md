@@ -34,8 +34,8 @@ have already been removed. All Nix steps use the shared shell.
 1. **`ubuntu-arm`, the primary job** — runs on every pull-request commit and
    in the merge queue, and runs everything that can run on `aarch64-linux`:
    `tsc` and `npm start compile`, the selected Node with coverage,
-   Deno, Bun, Rust native and every WASM target with both WASM runtimes, the
-   generated-file drift check, and the packed-package check.
+   Deno, Bun, SpiderMonkey, Rust native and every WASM target with both WASM
+   runtimes, the generated-file drift check, and the packed-package check.
 2. **Five cross-platform jobs** — `ubuntu-intel`, `macos-intel`, `macos-arm`,
    `windows-intel`, `windows-arm` — check that FunctionalScript works on each
    platform: the suite, which exercises host adapters such as `fjs/effects/node`
@@ -212,3 +212,6 @@ prediction for the current four-job alternative.
   per job.
 - [change-aware-ci](./change-aware-ci.md) — runs only the primary's steps a
   change affects, which is what brings its serial time back down.
+- [`../spidermonkey/module.f.mjs`](../spidermonkey/module.f.mjs) — already
+  puts SpiderMonkey's steps in `ubuntu-arm` rather than a job of its own, for
+  the reason this issue gives.

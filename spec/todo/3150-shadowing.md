@@ -1,14 +1,14 @@
-# No Shadowing
+## No Shadowing
 
 **Priority:** P4
 **Status:** open — a warning or an error, undecided
 
-## Problem
+### Problem
 
 JavaScript lets a nested function bind a name an enclosing scope already
 binds, and the inner binding hides the outer one in the body. The parser
 accepts it today: a parameter may shadow a module name, as the specification
-says ([functions](../README.md#functions)), and a nested function may shadow
+says ([functions](../functions/README.md)), and a nested function may shadow
 the parameter of the function around it.
 
 ```js
@@ -19,14 +19,14 @@ export default (...a) => (...a) => a;   // three `a`s, the innermost read
 A duplicate in one scope, `const a = 1; const a = 2;`, is already refused
 (`duplicate id`). Across scopes nothing is, and the reader has to count
 arrows to know which `a` a body reads. The cost grows with the language:
-now that a function can capture ([function-frame](./3111-function-frame.md)), a
+now that a function can capture ([function-frame](../design/3111-function-frame.md)), a
 name in a body may read its own parameter, an enclosing function's, or a
 module constant, and only the absence of shadowing makes the answer the
 nearest binding *and* the only binding of that name. A refactoring that
 moves an expression out of a body, or into one, changes its meaning exactly
 when a name is shadowed, and silently.
 
-## Proposal
+### Proposal
 
 A module is a function: its imports are its parameters, its constants are
 its body constants, and `export default` is its `return` — which is how the
@@ -35,7 +35,7 @@ linking being application. So there is one rule, for a module and a nested
 function alike: a binding must not reuse a name bound in an enclosing
 function. A parameter must not repeat an import, a constant, or an
 enclosing function's parameter, and neither must a body constant
-([functions](../README.md#functions)), which the language has and which may
+([functions](../functions/README.md)), which the language has and which may
 take a module's name today — one of the spellings this issue would
 refuse. A body that reads the name from outside before its `const` binds it
 is refused for now (`capture shadowed`), since JavaScript would read the
@@ -65,7 +65,7 @@ Whether the rule is a warning or an error is open:
 The choice waits on whether any other rule wants a warning. Until then the
 error is the default to implement, since it needs nothing new.
 
-## Tasks
+### Tasks
 
 - [ ] Decide warning or error, per the above.
 - [ ] The parser refuses (or reports) a parameter that repeats a module name
@@ -76,11 +76,11 @@ error is the default to implement, since it needs nothing new.
       replaced by the rule.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
-## Related
+### Related
 
-- [function-frame](./3111-function-frame.md) — captures, which make the
+- [function-frame](../design/3111-function-frame.md) — captures, which make the
   binding a name reads a question of scope.
-- [functions](../README.md#functions) — the body constant, the second kind
+- [functions](../functions/README.md) — the body constant, the second kind
   of binding a body has.
 - [parameters](./3120-parameters.md) — named parameters, more names to
   shadow with.

@@ -1,11 +1,11 @@
-# Refused Constructs
+## Refused Constructs
 
 **Priority:** P2
 **Status:** open
 
 The language is a whitelist: a JavaScript construct is accepted only as part of
 a recognized pattern, and every other is a compilation error
-([principles](../README.md#principles)). So what the compiler refuses is part
+([principles](../principles/README.md)). So what the compiler refuses is part
 of the language as much as what it accepts, and a refusal is held to the same
 standard as an accepted form: a proof pins it, with where and why it fails, so
 that admitting a construct by accident, or moving its error, fails a proof.
@@ -15,7 +15,7 @@ the place to look when a program is refused and the question is whether that
 was meant, and the worklist for pinning each refusal in a proof
 ([pin-refused-constructs](../../fjs/compiler/todo/pin-refused-constructs.md)).
 
-## Reading the register
+### Reading the register
 
 **Scope.** A row is a construct that is valid in an ECMAScript module, in the
 syntax and in the early errors, and that FunctionalScript refuses. JavaScript's
@@ -55,64 +55,64 @@ describes:
 - A pull request that makes a **planned** or **open** refusal permanent sets
   its **Why** to **design** and links the record.
 
-## Source text
+### Source text
 
 | ID | Construct | Why |
 |---|---|---|
-| `lex.trivia` | VT, FF, U+FEFF (a leading byte order mark included), NBSP and the other space separators such as U+3000; U+2028 or U+2029 outside a string | open (the [roadmap](./README.md) asks that each be recognized or its refusal justified; [whitespace](../README.md#whitespace-and-line-terminators)) |
+| `lex.trivia` | VT, FF, U+FEFF (a leading byte order mark included), NBSP and the other space separators such as U+3000; U+2028 or U+2029 outside a string | open (the [roadmap](./README.md) asks that each be recognized or its refusal justified; [whitespace](../lexical/whitespace.md)) |
 | `lex.hashbang` | `#!` at the start of the file | planned ([hash comments](../../fjs/compiler/todo/083-compiler-hash-comments.md)) |
-| `lex.unicode-name` | `const é = 1`, `{ π: 1 }`, `o.é`, U+200C or U+200D in a name, `const \u0061 = 1` | planned ([roadmap](./README.md), names beyond ASCII; [identifiers](../README.md#identifiers)) |
+| `lex.unicode-name` | `const é = 1`, `{ π: 1 }`, `o.é`, U+200C or U+200D in a name, `const \u0061 = 1` | planned ([roadmap](./README.md), names beyond ASCII; [identifiers](../lexical/identifiers.md)) |
 
-## Operators and expressions
+### Operators and expressions
 
 | ID | Construct | Why |
 |---|---|---|
 | `op.loose-equality` | `a == b`, `a != b` | design ([operators](./2340-operators.md)) |
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md)) |
-| `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../README.md#instanceof)) |
+| `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof.md)) |
 | `op.comma` | `(1, 2)` | planned ([operators](./2340-operators.md)) |
 | `op.assignment` | `a = 1` outside a loop's block | planned ([let](./3220-let.md), "Later": a `let` outside a loop is a rebinding) |
 | `op.compound-assignment` | `a += 1`, `a **= 2`, `a &&= 2` | planned ([assignments](./3430-assignments.md)) |
 | `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) |
 | `op.delete` | `delete a.b` | open |
 | `op.void` | `void 0` | open |
-| `op.new` | `new Map()` | planned ([mutability](./mutability.md), [object identity](./object-identity.md)) |
-| `op.this` | `this` | design ([design principles](./design-principles.md)) |
+| `op.new` | `new Map()` | planned ([mutability](../design/mutability.md), [object identity](../design/object-identity.md)) |
+| `op.this` | `this` | design ([design principles](../design/design-principles.md)) |
 | `op.arguments` | `arguments` | open |
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) |
 | `op.number-spread` | `Number(...a)`, `Number(1, 2)` | planned ([number-spread](./2363-number-spread.md), roadmap) |
 | `op.string-call-shape` | `String(1, 2)`, `String(...[1])`, `String(...[])` | open (the specification leaves them unrecognized; no record plans them) |
-| `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | open ([number](../README.md#number-conversion) and [string](../README.md#string-conversion) conversion refuse the guard at the word; no record plans reading it away) |
+| `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | open ([number](../conversions/number.md) and [string](../conversions/string.md) conversion refuse the guard at the word; no record plans reading it away) |
 | `op.unary-plus` | `+1`, `+a` | open ([operators](./2340-operators.md) leaves unary `+` on the other side of the line; no record plans it) |
 | `op.import-call` | `import("m")` | open |
 | `op.import-meta` | `import.meta` | open |
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) |
 | `op.tagged-template` | ``tag`x` `` | open |
 
-## Property access and names
+### Property access and names
 
 | ID | Construct | Why |
 |---|---|---|
 | `acc.runtime-key` | `a[i]` | design ([property accessor](./2330-property-accessor.md)) |
 | `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) |
-| `acc.mutating-call` | `a.push(0)` | planned ([mutability](./mutability.md), "Local mutability") |
+| `acc.mutating-call` | `a.push(0)` | planned ([mutability](../design/mutability.md), "Local mutability") |
 | `acc.prototype-call` | `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) |
-| `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../README.md#the-__proto__-key)) |
-| `acc.property-assignment` | `a.b = 1` | open (related: [mutability](./mutability.md)) |
+| `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects.md#the-__proto__-key)) |
+| `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) |
 | `name.intrinsic` | `const String = 1`, `export default String`, `export default Object` | design ([built-ins](./2360-built-in.md); [global names](./2365-global-names.md) reserves `Array`, `Number`, `Object` and `String` with no standalone value) |
 | `name.unbound` | `zzz`, `Math`, `JSON`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | open ([forward references](./3140-forward-references.md) resolves only the object grouping and keeps refusing a later `const`) |
 | `name.body-forward-reference` | `() => { const y = x; const x = 2; return y; }` with an outer `x` | planned ([body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)) |
-| `name.reserved-export` | `export const then = 1` | design ([exporting a value](../README.md#exporting-a-value)) |
+| `name.reserved-export` | `export const then = 1` | design ([exporting a value](../modules/exports.md)) |
 
-## Statements
+### Statements
 
 | ID | Construct | Why |
 |---|---|---|
 | `st.let-while` | a `let` or `while` outside the one-variable loop, or its block holding a statement that is no `const` and no assignment to the loop variable | planned ([let](./3220-let.md)) |
-| `st.guard` | `else`, an unbraced `if`, a guard block that does not end in `return` or `throw`, a guard at module level | planned ([functions](../README.md#functions): follow-ups, each additive) |
+| `st.guard` | `else`, an unbraced `if`, a guard block that does not end in `return` or `throw`, a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
 | `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
 | `st.do-while` | `do { } while (c)` | open |
@@ -121,13 +121,13 @@ describes:
 | `st.try` | `try`, `catch`, `finally` | open |
 | `st.debugger` | `debugger` | open |
 | `st.label` | `x: while (c) { }` | open |
-| `st.var` | `var a = 1` | design ([constants](../README.md#shared-values-constants): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) |
-| `st.empty` | `;;`, a stray `;` | design ([module structure](../README.md#module-structure)) |
-| `st.expression` | an expression statement (a body statement that is no `const`, `if`, `throw`, `return` or admitted `let`/`while` loop) | design ([functions](../README.md#functions)) |
-| `st.body-end` | a body that does not end in `return` or `throw`, `{}` | design ([functions](../README.md#functions)) |
-| `st.unreachable` | a statement after `return` or `throw` | design ([functions](../README.md#functions)) |
+| `st.var` | `var a = 1` | design ([constants](../bindings/constants.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) |
+| `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md)) |
+| `st.expression` | an expression statement (a body statement that is no `const`, `if`, `throw`, `return` or admitted `let`/`while` loop) | design ([functions](../functions/README.md)) |
+| `st.body-end` | a body that does not end in `return` or `throw`, `{}` | design ([functions](../functions/README.md)) |
+| `st.unreachable` | a statement after `return` or `throw` | design ([functions](../functions/README.md)) |
 
-## Declarations and members
+### Declarations and members
 
 | ID | Construct | Why |
 |---|---|---|
@@ -137,23 +137,22 @@ describes:
 | `decl.generator` | `function* g() {}` | open |
 | `decl.accessor` | `{ get a() { return 1 } }`, `{ set a(v) {} }` | open |
 | `decl.method` | `{ f() { return 1 } }` | open |
-| `decl.parameter-default` | `(a = 1) => a` | planned ([default parameters](./3125-default-parameters.md)) |
 | `decl.pattern-array-rest` | `[a, ...r]` in a pattern or a parameter | planned ([destructuring](./2450-destructuring.md), the next task) |
 | `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) |
 | `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | planned ([default parameters](./3125-default-parameters.md)) |
 | `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) |
 | `decl.pattern-elision` | `[, b]`, `[a, , b]` | planned ([destructuring](./2450-destructuring.md), the next task, with the array rest) |
-| `decl.parameter-limit` | 17 fixed parameters | design ([functions](../README.md#functions)) |
+| `decl.parameter-limit` | 17 fixed parameters | design ([functions](../functions/README.md)) |
 
-## Module structure
+### Module structure
 
 | ID | Construct | Why |
 |---|---|---|
-| `mod.no-export` | an empty module, `const a = 1;` alone | design ([module structure](../README.md#module-structure)) |
-| `mod.empty-pattern-export` | `export const {} = {};` | design ([module structure](../README.md#module-structure): at least one export, and a pattern exports each name it binds) |
-| `mod.export-after-default` | `export default 1; export const a = 2;` | design ([module structure](../README.md#module-structure)) |
-| `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../README.md#module-structure)) |
-| `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../README.md#module-structure)) |
+| `mod.no-export` | an empty module, `const a = 1;` alone | design ([module structure](../modules/README.md)) |
+| `mod.empty-pattern-export` | `export const {} = {};` | design ([module structure](../modules/README.md): at least one export, and a pattern exports each name it binds) |
+| `mod.export-after-default` | `export default 1; export const a = 2;` | design ([module structure](../modules/README.md)) |
+| `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../modules/README.md)) |
+| `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../modules/README.md)) |
 | `mod.export-list` | `const a = 1; export { a };` | open (investigated in [export lists](./export-lists.md)) |
 | `mod.export-let` | `export let a = 1;` | design (`let` only opens a loop, [let](./3220-let.md)) |
 | `mod.reexport` | `export { a } from "m"`, `export * from "m"` | open (whether it belongs is a question in [export lists](./export-lists.md)) |
@@ -163,20 +162,20 @@ describes:
 | `mod.namespace-import` | `import * as ns from "m"` | planned ([namespace import](./2220-namespace-import.md)) |
 | `mod.top-level-await` | `await 1;` | open (related: [promise](./3380-promise.md)) |
 
-## Literals
+### Literals
 
 | ID | Construct | Why |
 |---|---|---|
-| `lit.octal` | `0o7` | open ([numbers](../README.md#numbers) leaves it out; the [roadmap](./README.md) records no use case yet) |
+| `lit.octal` | `0o7` | open ([numbers](../values/numbers.md) leaves it out; the [roadmap](./README.md) records no use case yet) |
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) |
 | `lit.trailing-dot` | `5.` | open |
 | `lit.array-hole` | `[,]`, `[1,,2]` | open |
-| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../README.md#strings): a double-quoted string stays a JSON string) |
+| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings.md): a double-quoted string stays a JSON string) |
 | `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | open ([string literals](./2460-js-string-literals.md) defers them until a measured need appears) |
 | `lit.string-continuation` | a `\` before a line terminator in a string | open ([string literals](./2460-js-string-literals.md) defers it until a measured need appears) |
-| `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../README.md#template-literals) calls them deferred; no roadmap item admits them) |
+| `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../values/template-literals.md) calls them deferred; no roadmap item admits them) |
 
-## Not on this register
+### Not on this register
 
 - JavaScript's own errors, which the compiler also diagnoses. They are
   refusals of broken JavaScript and not of FunctionalScript: a duplicate
@@ -190,7 +189,7 @@ describes:
 - Refusals of the other outputs, such as the `.json` output refusing
   `undefined` or the Rust output refusing a function it cannot name. They
   refuse a value the language accepts, and are specified with the outputs
-  ([command line](../README.md#command-line)).
+  ([command line](../command-line/README.md)).
 - Limits the compiler enforces by size rather than by construct, other than
   the 16 fixed parameters above.
 - The `.f.js` extension's own checks, which are about files, not syntax.

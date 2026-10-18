@@ -10,5 +10,5 @@ Currently, FJS has no way to store references (objects/functions) in a container
 
 ### Related
 
-- [Object identity](../spec/todo/object-identity.md) — the same question in the
+- [Object identity](../spec/design/object-identity.md) — the same question in the
   spec roadmap: functions as keys, and `Map` behind ownership tracking.

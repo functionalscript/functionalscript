@@ -18,7 +18,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Function, IStaticFunction, Nullish, ToAny, ToArray, error, unstable::f64_any},
+        vm::{Any, Function, IVm, Nullish, ToAny, ToArray, error, unstable::f64_any},
     };
 
     type A = Naive;

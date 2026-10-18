@@ -49,7 +49,7 @@ import {
 import { entry } from '../../types/object/entry/module.f.js'
 import { statics } from '../../js/static/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
-import { constSlice, generatedHeader } from '../../media/rust/item/module.f.mjs'
+import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { mapOk, okList, unwrap } from '../../types/result/module.f.js'
 
 /**
@@ -101,7 +101,7 @@ export const rows = p => {
     /** @type {readonly string[]} */
     const prohibited = prohibitedCalls
     /** @type {(type: string, name: string) => boolean} */
-    const isPending = (type, name) => (entry(p, type) ?? []).includes(name)
+    const isPending = (type, name) => entry(p, type).some(names => names.includes(name))
     /** @type {(name: string) => boolean} */
     const isCall = name => allowed.includes(name) || prohibited.includes(name)
     /** @type {(keep: (type: string, name: string) => boolean) => readonly (readonly[string, string])[]} */

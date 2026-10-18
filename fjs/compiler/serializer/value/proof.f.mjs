@@ -44,11 +44,21 @@ export const proof = {
     // The `entry` helper is a value as any function is, in its one text,
     // under names of its own after the value's.
     entry: () => {
-        const text = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?$3.value:undefined;}'
+        const text = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?[$3.value]:[];}'
         assertEq(stringify(['entry']), `const $0=${text};export default $0;`)
         assertEq(factoryStringify(['entry']), `export default()=>{const $0=${text};return $0;};`)
         const helper = /** @type {const} */ (['entry'])
         assertEq(stringify(['[]', [helper, helper]]), `const $0=${text};const $4=[$0,$0];export default $4;`)
+    },
+    // A static function is the built-in, not its body, so there is none
+    // to write: the module reads the host's own, one function however
+    // often the value holds it.
+    statics: () => {
+        assertEq(stringify(['Object.entries']), 'const $0=Object.entries;export default $0;')
+        assertEq(stringify(['Object.is']), 'const $0=Object.is;export default $0;')
+        assertEq(stringify(['Number.isNaN']), 'const $0=Number.isNaN;export default $0;')
+        assertEq(stringify(['[]', [['Object.entries'], ['Object.entries']]]), 'const $0=Object.entries;const $1=[$0,$0];export default $1;')
+        assertEq(factoryStringify(['[]', [['Object.is'], ['Number.isFinite']]]), 'export default()=>{const $0=Object.is;const $1=Number.isFinite;const $2=[$0,$1];return $2;};')
     },
     functions: () => {
         assertEq(stringify(['=>', 0, [], 1]), 'const $0=()=>(1);export default $0;')

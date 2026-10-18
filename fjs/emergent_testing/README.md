@@ -300,7 +300,7 @@ surprising.
 As a consequence, **exporting a function named `then` from a proof module is
 forbidden**: the module namespace object would become a thenable, corrupting
 dynamic `import()` resolution. See
-[spec/README.md#exporting-a-value](../../spec/README.md#exporting-a-value).
+[spec/modules/exports.md](../../spec/modules/exports.md).
 
 ## The two runners, and what sharing them cost
 
@@ -340,7 +340,7 @@ the discipline `fjs/effects` applies to a live HTTP server, which pure code
 holds as a content-hashed handle while the interpreter keeps the object. The
 browser now works the same way — `browser/module.f.mjs` is the logic,
 `browser/module.mjs` the host — and `instanceof Promise` lives only in
-interpreters. See [`todo/plan/capl.md`](../../todo/plan/capl.md) for the general
+interpreters. See [`doc/plan/capl.md`](../../doc/plan/capl.md) for the general
 form, and
 [`todo/imports-promises-realms.md`](./todo/imports-promises-realms.md) for what
 a promise from another realm would cost, which is a non-goal.

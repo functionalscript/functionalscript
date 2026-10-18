@@ -17,7 +17,8 @@ export type _Out = {
 
 /**
  * One row of a node's ports: the edge that leaves from it, and where the
- * row sits, `y` measured from the node's own top edge.
+ * row sits, `y` measured from the node's own top edge. A row starts right
+ * of the node's label column.
  */
 export type _Port = _Out & {
     readonly y: number
@@ -34,7 +35,8 @@ export type _Exit = _Out & {
 
 /**
  * A {@link Ranked} node, placed — its own box, and a port per outgoing
- * edge. `keyWidth` is the width of the key column its inline ports share,
+ * edge. `title` is the width of its label's column, left of the rows.
+ * `keyWidth` is the width of the key column its inline ports share,
  * the rest of the node being their values'. It is read for inline ports
  * alone — an edge's key fills its row — so a node without one has `0`.
  */
@@ -43,8 +45,8 @@ export type _Positioned = Ranked & {
     readonly y: number
     readonly width: number
     readonly height: number
+    readonly title: number
     readonly keyWidth: number
-    readonly entry: number
     readonly ports: readonly _Port[]
     readonly exits: readonly _Exit[]
 }
@@ -63,16 +65,14 @@ export type _Slot = {
 }
 
 /**
- * A node's size and its ports, as `portsOf` lays them out under its label.
- * `entry` is where an edge into the node arrives, measured from its top:
- * the middle of its label's row, or of the whole node when it has no
- * label row.
+ * A node's size and its ports, as `portsOf` lays them out right of its
+ * label, whose column is `title` wide.
  */
 export type _Size = {
     readonly width: number
     readonly height: number
+    readonly title: number
     readonly keyWidth: number
-    readonly entry: number
     readonly ports: readonly _Port[]
     readonly exits: readonly _Exit[]
 }
@@ -140,3 +140,22 @@ export type _Walk = {
     readonly edges: readonly Edge[]
     readonly next: number
 }
+
+/**
+ * A node `graphOf` is inside: its id, the ids of the nodes it is inside,
+ * root first and its own last, its children and the next of them to walk,
+ * and the label and kind of the edge that reached it — added from the
+ * frame below once everything under this one is drawn. The root's are
+ * never read.
+ */
+export type _Frame<V> = {
+    readonly id: number
+    readonly path: readonly number[]
+    readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
+    readonly next: number
+    readonly label: string
+    readonly kind: string | undefined
+}
+
+/** The frames `graphOf` is inside, innermost first: its own stack in place of recursion. */
+export type _Stack<V> = readonly [_Frame<V>, _Stack<V>] | undefined

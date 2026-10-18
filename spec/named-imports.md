@@ -5,7 +5,7 @@ on top of [#2245](https://github.com/functionalscript/functionalscript/pull/2245
 
 This completed proposal was originally `spec/todo/named-imports.md`. It is
 retained here with its authorization record; the supported language contract
-lives in [Importing Other Modules](./README.md#importing-other-modules).
+lives in [Importing Other Modules](modules/imports.md).
 
 ## Language-design authorization
 
@@ -90,7 +90,7 @@ linking. No new EDAG operation or function-parameter representation is needed.
 
 ## Related
 
-- [Exports](./README.md#exporting-a-value) — existing export-object contract.
+- [Exports](modules/exports.md) — existing export-object contract.
 - [Module compilation](../fjs/compiler/todo/compile-modules-to-edag.md) — module
   parameters are dependency export objects.
 - [Module resolution](../fjs/compiler/todo/module-resolution-compatibility.md)

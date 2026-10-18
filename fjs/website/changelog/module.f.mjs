@@ -23,12 +23,11 @@
  *
  * @import { Document, Entry, Inline } from '../../media/markdown/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
- * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Release } from './types.ts'
  * @import { Build } from '../page/types.ts'
  */
 
-import { changelogDir, pageHref, pageTitle, repository, shell } from '../page/module.f.mjs'
+import { breadcrumb, changelogDir, pageTitle, repository, shell } from '../page/module.f.mjs'
 import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
 import { intersperse, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
 
@@ -245,14 +244,6 @@ export const releasePath = version => `${changelogDir}/_${version}.html`
 /** @type {(version: string) => string} */
 export const releaseHref = version => `/${releasePath(version)}`
 
-/** The breadcrumb every changelog page carries. @type {(tail: readonly Node[]) => Element} */
-const nav = tail => ['nav',
-    ['a', { href: pageHref('.') }, 'root'],
-    ' / ',
-    ['a', { href: pageHref(changelogDir) }, 'changelog'],
-    ...tail,
-]
-
 /**
  * One neighbour as a link, its arrow hidden from a screen reader, which would
  * otherwise read "leftwards arrow" before every link.
@@ -295,11 +286,10 @@ const neighbours = ({ previous, next }) => {
  * says so — and says that rather than showing an empty list, which would
  * read as a page that failed to load.
  *
- * @type {(build: Build) => (release: Release) => (document: Document) => Vec}
+ * @type {(build: Build) => (release: Release) => (document: Document) => string}
  */
 export const releasePage = build => release => document => shell(build)(pageTitle(release.version))(['main',
-    nav([' / ', release.version]),
-    ['h1', release.version],
+    breadcrumb(`${changelogDir}/${release.version}`)(release.version),
     ...neighbours(release),
     ...(document.length === 0
         ? [/** @type {Element} */(['p', 'This release shipped no notable change.'])]
@@ -314,11 +304,10 @@ export const releasePage = build => release => document => shell(build)(pageTitl
  * releases, not the file names they are stored under, and the files are one
  * click away on GitHub where every other file of the repository is.
  *
- * @type {(build: Build) => (versions: readonly string[]) => Vec}
+ * @type {(build: Build) => (versions: readonly string[]) => string}
  */
 export const indexPage = build => versions => shell(build)(pageTitle('Releases'))(['main',
-    nav([]),
-    ['h1', 'Releases'],
+    breadcrumb(changelogDir)(changelogDir),
     // One link per line, so marked for the stylesheet's tap-target rule.
     ['ul', { 'data-links': '' }, ...descending(versions).map(version =>
         /** @type {Element} */(['li', ['a', { href: releaseHref(version) }, version]]))],

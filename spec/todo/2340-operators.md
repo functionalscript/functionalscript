@@ -1,4 +1,7 @@
-# Operators
+## Operators
+
+**Priority:** P2
+**Status:** open
 
 |Type       |Operator |Priority   |
 |-----------|---------|-----------|
@@ -31,11 +34,11 @@
 |Conditional|`?:`     |**done**   |
 |Comma      |`,`      |1          |
 |Type       |`typeof` |**done**   |
-|           |`instanceof`|**done** — `Array` on the right only ([specification](../README.md#operators))|
+|           |`instanceof`|**done** — `Array` on the right only ([specification](../operators/README.md))|
 |           |`in`     |not allowed — by design ([decision](./2346-in-operator.md))|
 
 **Stages A and B are in the language** — every row marked **done** — and
-the [specification](../README.md#operators) is the one place their syntax,
+the [specification](../operators/README.md) is the one place their syntax,
 precedence and associativity, the `-`/`~`-before-`**` refusal, the
 function-operand rule and each output's handling of an operator are stated.
 The lazy operators and the conditional are the EDAG's own nodes — `op2` for
@@ -55,7 +58,7 @@ Fold what is exact; leave what needs an assumption to the readers that want
 a value.
 
 An index is a constant string or unsigned numeric literal, or the implemented
-`Number(...)` conversion ([property access](../README.md#property-access)).
+`Number(...)` conversion ([property access](../property-access/README.md)).
 A negative constant key is written as the string it names, `a["-1"]`;
 general computed indices remain unsupported.
 
@@ -65,10 +68,10 @@ The [comma operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Ref
 const f = a => (assert(a >= 0), a + 2)
 ```
 
-Each operand but the last is evaluated for its throw-potential and its value discarded; the value of the expression is the last operand. The equivalent statement spellings — a bare `assert(...)` statement, or a `const` whose value is unused — denote the same function, and all of them lower to the EDAG's `","` operation ([edag-stage1-discussion](../../todo/edag-stage1-discussion.md), subject 8, for the graph representation). The [failure contract](../README.md#failure-is-one-outcome) governs execution: each required operand's success must be established before the result is revealed, without requiring a fixed evaluation order or computation count.
+Each operand but the last is evaluated for its throw-potential and its value discarded; the value of the expression is the last operand. The equivalent statement spellings — a bare `assert(...)` statement, or a `const` whose value is unused — denote the same function, and all of them lower to the EDAG's `","` operation ([edag-stage1-discussion](../../todo/edag-stage1-discussion.md), subject 8, for the graph representation). The [failure contract](../principles/README.md#failure-is-one-outcome) governs execution: each required operand's success must be established before the result is revealed, without requiring a fixed evaluation order or computation count.
 
 `Number(a, b)` lands with the comma, as the `(a, b, Number(a))` it is
-([number conversion](../README.md#number-conversion)).
+([number conversion](../conversions/number.md)).
 
 A written comma lowers under the rule the compiler already applies to an unused `const` ([`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs)): the `","` anchors exactly the code the graph would not otherwise hold, so an operand whose node the result or another operand reaches is dropped, and a comma left with its result alone is the result. `const a = []; const b = a; export default (b, a.length);` is `['.', A, 'length']` with no comma, since `b` is `a`'s node and the access reaches it, where `const b = a.x; export default (b, a.length);` keeps `[',', [['.', A, 'x'], ['.', A, 'length']]]`, `b` being a node of its own that the result does not reach.
 
@@ -85,7 +88,7 @@ export default [b, a];
 The redundant anchors for `a` and `b` can be removed because the result graph
 reaches both computations; the failing computations themselves are not deleted.
 A graph traversal may encounter `b`'s failure first, where source JavaScript
-encounters `a`'s. Under the [specification](../README.md#failure-is-one-outcome),
+encounters `a`'s. Under the [specification](../principles/README.md#failure-is-one-outcome),
 both are the same failure outcome. Source-order execution remains legal, but
 no source-order barrier is required merely to preserve the first failure.
 
@@ -99,7 +102,7 @@ Asserts express **internal contract breaches**, not input validation: untrusted 
 
 This does not weaken the position on mutation: [let](./3220-let.md) remains the only case where an object can be mutated, and keeping its life-time tracking simple is unaffected by a comma operator whose operands are pure.
 
-Depends on [export default](../README.md#exporting-a-value) and [undefined](../README.md#supported-value-types).
+Depends on [export default](../modules/exports.md) and [undefined](../values/README.md).
 
 `typeof` is in the language: the EDAG operation (`op1Id` in
 [`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)) the parser now
@@ -107,8 +110,8 @@ spells, a keyword with a symbol of its own in the grammar and, since it
 opens a value, the one such keyword a reference may not be — a key or a
 property name still. The EDAG admits every pure operation and the language
 spells a subset of them; unary `+` remains on the other side of the line,
-while the [`Number`](../README.md#number-conversion) and
-[`String`](../README.md#string-conversion) conversions are source syntax.
+while the [`Number`](../conversions/number.md) and
+[`String`](../conversions/string.md) conversions are source syntax.
 
 For mutating operators, see [assignments](./3430-assignments.md).
 

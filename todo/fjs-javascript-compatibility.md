@@ -18,9 +18,9 @@ unimplemented feature's incompatible design does not require completing it.
 
 #### One authoritative contract
 
-[Language principles](../spec/README.md#principles) define source inclusion,
+[Language principles](../spec/principles/README.md) define source inclusion,
 successful-result agreement and purity. The same section defines
-[failure equivalence](../spec/README.md#failure-is-one-outcome): throws and
+[failure equivalence](../spec/principles/README.md#failure-is-one-outcome): throws and
 memory/time failures are indistinguishable. This is an approved decision,
 not a refinement awaiting a later specification edit.
 
@@ -106,19 +106,19 @@ logical/nullish operators and parameter syntax, which have since landed. The
 and expressions have already been recognized correctly.**
 
 The former `entry` design, since landed as
-[the helper](../spec/README.md#reading-an-entry-at-run-time), proposed a fixed token
+[the helper](../spec/property-access/entries.md), proposed a fixed token
 shape that could bypass syntactic support for the constructs inside it.
 Ignoring whitespace before statement recognition is the root problem, not a
 missing newline exception in one intrinsic. This whitespace-only change to the
-helper returns `undefined` in JavaScript, not `7`:
+helper returns `undefined` in JavaScript, not `[7]`:
 
 ```js
 const entry = (a, b) => {const x = Object.getOwnPropertyDescriptor(a, b);return
-x?.enumerable ? x.value : undefined}
+x?.enumerable ? [x.value] : []}
 export default entry({ answer: 7 }, "answer");
 ```
 
-There is no extra semicolon after the final `undefined`: only the space after
+There is no extra semicolon after the final `[]`: only the space after
 `return` changed to a newline. Separately, this arrow is invalid JavaScript:
 
 ```js
@@ -145,7 +145,7 @@ an ordinary FJS value.
 
 [Statement-aware intrinsics](../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 owns this boundary. JavaScript statement termination is in the language
-([module structure](../spec/README.md#module-structure)): the grammar makes
+([module structure](../spec/modules/README.md)): the grammar makes
 the `;` optional, and the fold refuses a next statement on the same line by
 the newline its first token carries. Optional semicolons are a syntax
 expansion, not a substitute for AST matching.
@@ -156,7 +156,7 @@ expansion, not a substitute for AST matching.
 their earlier open-question direction is superseded. Broader callable
 interchange and future execution profiles remain open.
 
-The owner adopted the [function-source representation exception](../spec/README.md#function-source-representation-exception).
+The owner adopted the [function-source representation exception](../spec/principles/README.md#function-source-representation-exception).
 FJS VMs reconstruct default function text from associated EDAG instead of
 retaining authored spelling. Direct and indirect conversions, including
 function-derived keys and source-text observations through exports, are covered.
@@ -176,7 +176,7 @@ consumer of that output sees different text, as adopted. Function-name
 observations about rewritten output are addressed below; they are not
 source-program compatibility results.
 
-[Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization)
+[Function text and serialization](../spec/design/serialization.md#function-text-and-serialization)
 records the current API answers. Memo and Amnesia use the shared total renderer
 for code-only function text: captured values appear as generated slot names,
 and `self` renders as a finite named function expression. They retain represented
@@ -199,21 +199,20 @@ are not unfinished prerequisites for the current represented renderer.
 
 A compatibility issue exists only where the same program returns different
 serializable data on an FJS VM and a JavaScript engine
-([principles](../spec/README.md#principles)). What a JavaScript engine
+([principles](../spec/principles/README.md)). What a JavaScript engine
 reports about the compiler's *written* output is the writer's spelling, not a
 result of the program, so the `.js` writer's names — a hoisted function
 bound as `$0`, an inlined one taking the name of the position it is written
 in — are no compatibility question, and neither is the function text the
 exception above covers. No FJS program reads a function's name at all:
-[`entry`](../spec/README.md#reading-an-entry-at-run-time) replaced the own-property read with
+[`entry`](../spec/property-access/entries.md) replaced the own-property read with
 the enumerable-entry helper so that it cannot — `person.name` is enumerable
 where `f.name` and `f.length` are not — and retired the proposals that would
 have exposed it, `own-access.md` and `function-name.md`, in `4f4da828`;
-`f.name` is refused at the key, `entry(f, 'name')` is `undefined`, and
-[the language](../spec/README.md#functions) carries no name in the graph.
-The property-access and presence plans,
-[2330](../spec/todo/2330-property-accessor.md) and
-[2345](../spec/todo/2345-has-own-property.md), hold the same boundary from
+`f.name` is refused at the key, `entry(f, 'name')` is `[]`, and
+[the language](../spec/functions/README.md) carries no name in the graph.
+The property-access plan,
+[2330](../spec/todo/2330-property-accessor.md), holds the same boundary from
 the source side. The corpus gate below compares the serializable data each
 execution returns, never the written text or what an engine reports about
 it.
@@ -221,23 +220,25 @@ it.
 #### Property reflection — incompatible alternatives withdrawn
 
 **Decision:** prohibit `Object.hasOwn` in FJS source rather than redefine it
-as an enumerability test. Use a separate, explicitly spelled
-[enumerable-presence pattern](../spec/todo/2345-has-own-property.md), with
-`hasEntity` as its working name:
+as an enumerability test. Presence is the
+[`entry` helper](../spec/property-access/entries.md)'s to answer, as an
+option:
 
 ```js
-const hasEntity = (a, b) =>
-    Object.getOwnPropertyDescriptor(a, b)?.enumerable;
+const entry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable ? [x.value] : [];
+};
 ```
 
-This exact expression returns `true`, `false` or `undefined`. A boolean-only
-version must spell `=== true` explicitly; it is not an equivalent replacement.
-The TODO records that API choice rather than silently deciding it.
+This exact function returns `[value]` for an enumerable own property, an
+entry holding `undefined` included, and `[]` for anything else. The TODO
+records that API choice rather than silently deciding it.
 
 The old `hasOwn` proposal already required extending or refusing unsupported
 receivers rather than returning a fabricated boolean. Its enumerability
 redefinition came with the `entry` helper
-([spec: entry](../spec/README.md#reading-an-entry-at-run-time)), not from
+([spec: entry](../spec/property-access/entries.md)), not from
 that receiver rule. The new
 direction retires standard-call recognition and its unresolved undefined-value
 answer instead of requiring an implementation of it.
@@ -270,9 +271,9 @@ export default Object.values({ ...a, y: 1, x: 2 })
     .filter(value => value !== undefined); // [2, 1], not [1, 2]
 ```
 
-The proposed descriptor-enumerability pattern also reads `true` for an
-ordinary `{ x: undefined }` entry and `undefined` for a missing one. Equality
-of direct value reads or filtered output does not establish substitutability.
+The `entry` helper's option also reads `[undefined]` for an ordinary
+`{ x: undefined }` entry and `[]` for a missing one. Equality of direct value
+reads or filtered output does not establish substitutability.
 
 **Root-cause correction:** define equivalence over all admitted observation
 contexts and recheck it when adding an operation. Normalize only where that
@@ -370,7 +371,7 @@ hardening every resource limit before making progress.
 
 ### Related
 
-- [Language principles](../spec/README.md#principles) — authoritative contract.
+- [Language principles](../spec/principles/README.md) — authoritative contract.
 - [Execution models](../fjs/edag/execution-models.md) — explicit profiles.
 - [Compile modules to EDAG](../fjs/compiler/todo/compile-modules-to-edag.md) —
   lowering and linking, subject to the gates at every stage.
