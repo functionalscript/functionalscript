@@ -65,6 +65,16 @@ of the arguments, which the VM then calls, or `undefined` — then the
 `a.startsWith?.(x)`, asks the same three before it evaluates `x`, the
 body's first step among them; a body is pure, so a guard and a call ask
 it twice at no cost but the call.
+
+The order is written once, as the runtime's `dot`: the own property, read
+by `entry` as an option so that an own `undefined` is found, else the
+body's answer, else `undefined`, with no native in between — the natives
+are what a VM answers while a name has no body. The interpreter asks
+`dot` first and its natives after; NaNVM's call step stays native until
+the static-runtime printer compiles the table `dot` reads, which
+[`../todo/runtime-members.md`](../todo/runtime-members.md) tracks, and
+the printer leaves `dot` out until then, refusing a `dot` that is no
+function.
 A native implementation may stand beside a body where the VM measures the
 gain; the body is the reference, and the corpus in
 [`../../nanvm/member`](../../nanvm/member/module.f.js) checks the native

@@ -151,6 +151,10 @@ pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1
         assert(tail.includes('fn object_tail_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {\n    let rest = args.rest(1);\n    Ok(rest.clone().to_any())\n}'))
         const none = assertOk(generateRuntime(module([])))
         assert(none.includes('Accessor<A>); 1]') && none.includes('MemberCode<A>); 0]'))
+        // the `dot` dispatcher is not printed, and must be a function
+        assertEq(assertOk(generateRuntime(module([['dot', fn(2, [], ['undefined'])]]))), none)
+        assertEq(refusal(module([['dot', 'x']])), 'a `dot` section that is no function: x')
+        assertEq(refusal(module([['dot', object([])]])), 'a `dot` section that is no function: {},')
         const lazy = assertOk(generateRuntime(module([['static', object([['Number', object([['f', fn(1, [], ['&&', ['arg', 0], ['+', ['arg', 0], 1]])]])]])]])))
         assert(lazy.includes('    let c0 = || args.argument(0) + f64_any(0x3ff0000000000000);\n    Any::logical_and(args.argument(0), c0)\n'))
     },

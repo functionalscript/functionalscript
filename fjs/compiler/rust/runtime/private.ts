@@ -37,3 +37,9 @@ export type _Item = {
     readonly ident: string
     readonly kind: 'static' | 'member' | 'helper'
 }
+
+/** The sections of a runtime module: its built-ins, and its `dot` dispatcher's node, which is not printed, or `undefined` for none. */
+export type _Table = {
+    readonly builtIns: readonly _BuiltIn[]
+    readonly dot: unknown
+}

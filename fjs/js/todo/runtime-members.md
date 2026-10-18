@@ -169,10 +169,11 @@ export const runtime = {
       `static_function` on `IVm`.
 - [x] The inventory: `fjs/js/members`, every type's admitted names,
       `todo` where no body is written, its keys pinned.
-- [ ] `dot` in the runtime, as the proposal shows, with its proof on the
-      host; the interpreter asking it before its natives, `member` and
-      `left` in `value/method` going; the printer accepting the `dot`
-      section and leaving it out, named, until it compiles it.
+- [x] `dot` in the runtime, as the proposal shows, with its proof on the
+      host; the interpreter asking it before its natives, `member` in
+      `value/method` going (`left`, the names the natives lack, stays as
+      what the guard asks without running a native); the printer accepting
+      the `dot` section and leaving it out, named, until it compiles it.
 - [ ] The printer compiling `dot`: an object literal of functions read
       through `entry` by a key as a `match` on the name, `instanceof` and
       `typeof` tests as `Unpacked` matches; `Member::call` over the

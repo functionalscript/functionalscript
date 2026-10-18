@@ -43,12 +43,12 @@ const samples = [
 ]
 
 export const proof = {
-    // `member` and `static` are the two sections; every key `member` holds
+    // `member` and `static` are the two sections and `dot` the dispatcher; every key `member` holds
     // is a name `allowedCalls` admits — the same claim `./types.ts` makes at
     // the type level — and every entry is a body of the receiver alone,
     // answering `undefined` or a function.
     keys: () => {
-        assertEq(Object.keys(runtime).toSorted().join(), 'member,static')
+        assertEq(Object.keys(runtime).toSorted().join(), 'dot,member,static')
         for (const [name, entry] of entries(members)) {
             assert(allowed.includes(name), name)
             assertEq(entry.length, 1)
@@ -160,6 +160,29 @@ export const proof = {
             }
         }
     },
+    // The dispatcher, on the host: an own enumerable property first,
+    // whatever it holds — a field, an element, a character, an own
+    // `undefined` — then the member body's answer for the receiver, then
+    // `undefined`; a `length`, a function's properties and every inherited
+    // name are no entry.
+    dot: () => {
+        const { dot } = runtime
+        const f = () => 1
+        assertEq(dot({ startsWith: f }, 'startsWith'), f)
+        assertEq(dot({ x: 0 }, 'x'), 0)
+        assertEq(dot({ x: undefined }, 'x'), undefined)
+        assertEq(dot([f], '0'), f)
+        assertEq(dot('abc', '1'), 'b')
+        assertEq(dot([1], 'length'), undefined)
+        assertEq(dot(f, 'length'), undefined)
+        assertEq(dot({}, 'toString'), undefined)
+        assertEq(dot({}, 'constructor'), undefined)
+        assertEq(dot(members, 'constructor'), undefined)
+        assertEq(typeof dot('abc', 'startsWith'), 'function')
+        assertEq(/** @type {(search: unknown) => boolean} */ (dot('abc', 'startsWith'))('ab'), true)
+        for (const self of samples.filter(v => typeof v !== 'string' && v !== null && v !== undefined)) { assertEq(dot(self, 'startsWith'), undefined, self) }
+        assertEq(dot('abc', 'slice'), undefined)
+    },
     throw: {
         // The detached call `host` makes is a real one: a built-in that
         // builds with `this` as its constructor, which no static may be,
@@ -174,5 +197,7 @@ export const proof = {
         // is the call's; which of two throws wins is pinned where the
         // executors run the body, in `nanvm/corpus` and `vm/runtime.rs`.
         searchConversion: () => { runtime.member.startsWith('abc')?.({ toString: () => { throw 'A' } }, 0) },
+        // a nullish receiver is the executor's throw, before `dot` is asked
+        nullishReceiver: () => { runtime.dot(null, 'x') },
     },
 }
