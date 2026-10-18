@@ -862,7 +862,7 @@ level.
       constant `arg` indices, preserve the declared length, supply missing
       fixed values as `undefined` and bind rest once per invocation. The
       `parameters` harness fixture and Rust module proofs cover this path.
-- [x] Stage 6 follow-through: complete migration and regression coverage
+- [ ] Stage 6 follow-through: complete migration and regression coverage
       beyond the implemented cases above. Compare with native
       JavaScript and the evaluator for omitted, explicit `undefined` and
       extra arguments, unused fixed parameters, returning/forwarding rest,
@@ -886,10 +886,15 @@ level.
       a function-owned `['args']` at every arity, and the memo executor,
       the Rust printer and the source writer refuse it through it, at
       arity 0 and above (`fjs/compiler/parameters/proof.f.mjs`,
-      `fjs/compiler/rust/proof.f.mjs`). A zero-arity graph migrates by
-      scope: its complete list is `['rest']`, which a module scope
-      refuses. The amnesia executor trusts the graph it is given, as its
-      dispatcher does.
+      `fjs/compiler/rust/proof.f.mjs`). A zero-arity graph's complete
+      list is `['rest']`, which a module scope refuses. The amnesia
+      executor trusts the graph it is given, as its dispatcher does.
+      **What stays open** is the migration of old zero-arity graphs and
+      the scoped linking cases, which
+      [`3120-parameters.md`](../../../spec/todo/3120-parameters.md) lists
+      as its own unchecked item: the proofs above refuse a function-owned
+      `['args']` in the new format, and do not migrate an old graph. The
+      box is checked when those are proven.
       The [interpreted-value native proofs](../../harness/tests/values.rs)
       additionally pin evaluated and nested captures. Shared direct-AOT
       comparison with reference expectations is implemented in Stage 8 step 2.

@@ -140,8 +140,12 @@ const forInterpreter = (interpret, invoke) => {
             assertEq(parse('bad.f.mjs')('export default (a,...x)=>{const a=1;return a;};')[0], 'error')
         },
         writerRefusesModuleBinding: () => {
-            assertEq(tryModuleStringify(['{}', [[':', 'f', ['=>', 1, [], ['args']]]]])[0], 'error')
-            assertEq(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['args']]]]])[0], 'error')
+            // by the rule `bindingError` states, and not by another refusal behind it
+            for (const length of [1, 0]) {
+                assertStructurallySame(
+                    tryModuleStringify(['{}', [[':', 'f', ['=>', length, [], ['args']]]]]),
+                    ['error', 'module args in a function'])
+            }
         },
         invalidLengthMetadata: () => {
             for (const length of [-0,-1,0.5,Infinity,NaN]) {
