@@ -1003,6 +1003,33 @@ export const proof = {
         assertEq(refusal(r).code, packEntryCode)
         assertEq(refusal(r).message, `${packPath}:12 inflates to 1 bytes, not the ${over} its header declares`)
     },
+    // The windows of an entry are not counted up front: the index says how far an
+    // entry reaches, and a pack file can be as long as a disk. Over a pack that
+    // claims 2 ** 50 bytes (its ends are real, the middle is a hole every read
+    // fails in), the first window is read, and the second, which the hole fails,
+    // is the channel's refusal; a list of 2 ** 33 offsets built first would not
+    // be an array at all.
+    windowsAreLazy: () => {
+        const bytes = packOfEntries([[...entryHeader(3, 1), ...storedBytes([1])]])
+        const files = pair(idxOf([[firstId, 12]]), bytes)
+        const size = 2 ** 50
+        const base = hostOf(listing, files)
+        const host = {
+            ...base,
+            stat: (/** @type {string} */ path) => (/** @type {readonly string[]} */ log) =>
+                path === packPath
+                    ? /** @type {const} */ ([[...log, `stat ${path}`], ok({ size, isFile: true, isDirectory: false })])
+                    : base.stat(path)(log),
+            readBytes: (/** @type {string} */ path, /** @type {number} */ at, /** @type {number} */ n) => (/** @type {readonly string[]} */ log) =>
+                path !== packPath || at < bytes.length
+                    ? base.readBytes(path, at, n)(log)
+                    : at === size - 20
+                        ? /** @type {const} */ ([[...log, `readBytes ${path} ${at} ${n}`], ok(u8ListToVecMsb(bytes.slice(-20)))])
+                        : /** @type {const} */ ([[...log, `readBytes ${path} ${at} ${n}`], error(ioError({ code: 'EIO', message: 'a hole' }))]),
+        }
+        const [, r] = readBy(host, firstId)
+        assertEq(refusal(r).code, 'EIO')
+    },
     // A header whose size varint runs past the first window is refused, and said
     // to be: the zero groups are legal to the parser, but no encoder writes them.
     headerPastTheWindow: () => {

@@ -438,11 +438,13 @@ const advance = (idx, path, at, chain, e, data) => {
 const windowBytes = Number(maxLengthBytes)
 
 /**
- * The offsets of the windows that read `from` up to `end`, one read each.
+ * The offsets of the windows that read `from` up to `end`, one read each. Lazy:
+ * a pack file can be as long as a disk, and the index decides how far an entry
+ * reaches, so no array of the offsets is built before the first read.
  *
  * @type {(from: number, end: number) => List<number>}
  */
-const windowsOf = (from, end) => Array.from({ length: Math.ceil((end - from) / windowBytes) }, (_, i) => from + i * windowBytes)
+const windowsOf = (from, end) => () => from >= end ? null : { first: from, tail: windowsOf(from + windowBytes, end) }
 
 /**
  * The refusal of a stream that does not inflate, with what the inflater says: the
