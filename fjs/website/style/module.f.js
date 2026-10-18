@@ -612,6 +612,13 @@ a:hover > ${railroadBox('nonTerminal')} { fill: var(--pass-bg) }
 ${railroadLabel('terminal')} { fill: var(--value) }
 ${railroadLabel('category')} { fill: var(--text); font-style: italic }
 ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
+/* A demo's radio group: a few choices that all stay visible, inline under a
+   bold legend, each as tall as a touch target. */
+[data-radios] { border: 0; margin: 1rem 0; padding: 0; min-width: 0 }
+[data-radios] legend { font-weight: bold; padding: 0 }
+[data-radios] > div { display: flex; flex-wrap: wrap; gap: 1rem }
+[data-radios] label { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; cursor: pointer }
+[data-radios] input { width: auto; margin: 0; accent-color: var(--link) }
 /* A codec's bit groups: a box per group, its bits over the character the
    codec wrote for it, shaded. The borders are what pair a character with its
    bits — in one monospace face the two are otherwise the same kind of text —
@@ -645,6 +652,28 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-stand-in] { color: var(--muted) }
 [data-bit="fill"] { color: var(--muted); text-decoration: underline dotted }
 [data-bit="stop"] { color: var(--value); font-weight: 700 }
+/* SUL's literal levels as stripes: each unit — a character, eight typed
+   bits, the padding — is a column of its label, its bits, and a row of
+   pixels for each level, one pixel a bit wide. The units touch, so a word
+   that spans two of them is one unbroken stripe; a unit's label is boxed,
+   as a byte's is, to show where one ends. A level's pixels take one of two
+   colours, switching where a word ends. The padding's pixels are faded, as
+   they carry no data. A label never widens its unit, which would open a gap
+   in the stripes: it is as wide as the unit's bits, and a longer one, such
+   as the padding's over a single bit, runs past its box. Typed bits have no
+   label, and no box. The rows' names are the first unit, on the first line
+   only. */
+[data-sul-units] { display: flex; flex-wrap: wrap; margin-block: .5rem; row-gap: .75rem }
+[data-sul-unit] { display: flex; flex-direction: column; gap: 2px }
+[data-sul-names] { color: var(--muted); padding-right: .5rem }
+[data-sul-label] { border: 1px solid var(--border); box-sizing: border-box; margin-left: -1px; min-height: 1.5em; min-width: calc(100% + 1px); text-align: center; white-space: nowrap; width: 0 }
+[data-sul-label]:empty { border-color: transparent }
+[data-sul-label]:not([data-stand-in], :empty) { background: color-mix(in srgb, var(--border) 45%, var(--bg)); font-weight: 700 }
+[data-sul-row] { display: flex; height: 1.2em; line-height: 1.2em }
+[data-sul-bit], [data-sul-px] { text-align: center; width: 1ch }
+[data-sul-px="a"] { background: var(--value) }
+[data-sul-px="b"] { background: var(--syntax-name) }
+[data-sul-pad] [data-sul-px] { opacity: .35 }
 /* A code block — a demo's source, such as the rtti demo's schema — is a
    shaded, bordered box, so code reads apart from the prose around it. A
    reader's answer in the rtti demo is the same box, tinted green for a
@@ -754,11 +783,6 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-secp-finite-negation] { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 2 4; stroke-linecap: round; fill: none }
 [data-secp-reflection] { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 5 4 }
 [data-demo-drag] { cursor: ew-resize; touch-action: none }
-[data-secp-radios] { border: 0; margin: 1rem 0; padding: 0; min-width: 0 }
-[data-secp-radios] legend { font-weight: bold; padding: 0 }
-[data-secp-radios] > div { display: flex; flex-wrap: wrap; gap: 1rem }
-[data-secp-radios] label { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; cursor: pointer }
-[data-secp-radios] input { width: auto; margin: 0; accent-color: var(--link) }
 [data-secp-playground] select { max-width: 100%; min-height: 44px }
 [data-secp-playground] input[type="range"] { width: 100%; min-height: 44px }
 [data-secp-playground] pre { white-space: pre-wrap; overflow-wrap: anywhere }
