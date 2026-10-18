@@ -27,7 +27,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c11: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
     let c12: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
     let c13: Any<A> = (strict_eq(c11, c12))?;
-    let c14: Any<A> = A::static_function(|_self, args| Any::entry(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
+    let c14: Any<A> = A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
     let c15: Any<A> = [(string_key("x"), f64_any(0x3ff0000000000000)), (string_key("length"), f64_any(0x4008000000000000))].to_object().to_any();
     let c16: Any<A> = Any::call(c14.clone(), [c15.clone(), string_any("x")].to_array().to_any())?;
     let c17: Any<A> = Any::call(c14.clone(), [c15.clone(), string_any("length")].to_array().to_any())?;
