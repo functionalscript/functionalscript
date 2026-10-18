@@ -4,8 +4,8 @@
 **Status:** done — kept as the record; cited by `nanvm/lib/src/vm/lambda/mod.rs`
 and `method.rs` (the dispatch algorithm), `fjs/nanvm/methods/module.f.mjs`,
 `nanvm/lib/README.md`, `spec/built-ins/member-functions.md`,
-`spec/todo/{cavm-function-to-string,serialization}.md`, `spread-operations.md`
-and `fjs/nanvm/todo/corpus-improvements.md`
+`spec/todo/cavm-function-to-string.md`, `spec/design/serialization.md`,
+`spread-operations.md` and `fjs/nanvm/todo/corpus-improvements.md`
 
 ### Problem
 
@@ -97,11 +97,11 @@ its text, the FunctionalScript writer's rendering of its EDAG
 function answers it, so `f.toString()`, `String(f)`, `+`, an array joined
 and a string method's argument all reach the one text. A function without
 text — a host or hand-written one — is refused (`error::function_text`), never
-answered with a placeholder. What remains is the property key, which no
-module can compute but through the
-[`entry`](../../../spec/property-access/entries.md) helper, whose
-key conversion reaches a function's text. And the host evaluator's own rendering, which the
-corpus's `host` marker skips until it has one.
+answered with a placeholder. The property key, which no module can compute
+but through the [`entry`](../../../spec/property-access/entries.md) helper,
+reaches the same text, and the `function-text` fixture proves it. What remains
+is the host evaluator's own rendering, which the corpus's `host` marker skips
+until it has one.
 
 `Number`'s and `BigInt`'s `toString` take a radix, `2` to `36`: an integer
 and every bigint convert exactly, and a fraction with a radix other than ten
