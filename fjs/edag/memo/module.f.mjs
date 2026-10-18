@@ -27,7 +27,7 @@ import { isArray } from '../../types/array/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { checked, identityAnalysis } from '../analysis/module.f.mjs'
 import { isStatic } from '../module.f.mjs'
-import { entryCall, operation, staticCall } from '../operations/module.f.mjs'
+import { entryCall, hasEntryCall, operation, staticCall } from '../operations/module.f.mjs'
 import { invoker, settle } from '../value/call/module.f.mjs'
 
 /** Restore one operand from the already restored prefix of the analysis. @type {(code: readonly ExpOp[], operand: Operand) => Exp} */
@@ -151,6 +151,7 @@ export const invokeWith = runtime => {
     }
     /** @type {Body} */
     const body = (fn, fixed, rest) => fn[0] === 'entry' ? entryCall(fixed, invoke)
+        : fn[0] === 'hasEntry' ? hasEntryCall(fixed, invoke)
         : isStatic(fn) ? staticCall(runtime, fn, rest, run)
         : run(fn, fixed, rest, fn)
     const invoke = invoker(body)

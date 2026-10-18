@@ -29,6 +29,7 @@ export const proof = {
         // an index is metadata, and the entry helper holds nothing
         assertStructurallySame(operandsOf(['arg', 0]), [])
         assertStructurallySame(operandsOf(['entry']), [])
+        assertStructurallySame(operandsOf(['hasEntry']), [])
         // the constructor's name is no operand
         assertStructurallySame(operandsOf(['instanceof', c, 'Array']), [c])
         // a list is read as a list, whatever its first item spells

@@ -1,5 +1,5 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { entry } from './module.f.js'
+import { entry, hasEntry } from './module.f.js'
 
 /** @type {(a: unknown, b: any) => unknown} */
 const noValue = (a, b) => entry(a, b)
@@ -66,6 +66,28 @@ export const proof = {
         some({ '[object Object]': 42 }, {}, 42)
         some({ k: 42 }, { toString: () => 'k' }, 42)
     },
+    // `hasEntry` is the option's presence as a boolean: `true` for an
+    // entry holding `undefined`, `false` for none, a `length`, anything
+    // of a function or of another primitive, and an inherited name; the
+    // key converted as `entry` converts it.
+    hasEntry: () => {
+        const o = { a: 1, u: undefined, length: 3 }
+        assertEq(hasEntry(o, 'a'), true)
+        assertEq(hasEntry(o, 'u'), true)
+        assertEq(hasEntry(o, 'length'), true)
+        assertEq(hasEntry(o, 'b'), false)
+        assertEq(hasEntry(o, 'toString'), false)
+        assertEq(hasEntry([7, 8], 1), true)
+        assertEq(hasEntry([7, 8], '1'), true)
+        assertEq(hasEntry([7, 8], '01'), false)
+        assertEq(hasEntry([7, 8], 'length'), false)
+        assertEq(hasEntry('ab', 1), true)
+        assertEq(hasEntry('ab', 'length'), false)
+        assertEq(hasEntry(hasEntry, 'length'), false)
+        assertEq(hasEntry(5, 'a'), false)
+        assertEq(hasEntry({ 1: 42 }, 1), true)
+        assertEq(hasEntry({ k: 42 }, { toString: () => 'k' }), true)
+    },
     // The option is an array, fresh on every call, and composes with
     // arrays: read, destructured, defaulted and flattened.
     option: () => {
@@ -87,6 +109,7 @@ export const proof = {
         assertStructurallySame([1, 2].map(entry), [[], []])
     },
     throw: {
+        hasEntryNullish: () => { hasEntry(null, 'a') },
         nullReceiver: () => { entry(null, 'a') },
         undefinedReceiver: () => { entry(undefined, 'a') },
         keyConversion: () => { entry({}, { toString: () => { throw 'key' } }) },

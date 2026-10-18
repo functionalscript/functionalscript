@@ -9,6 +9,13 @@ export const entry = (a, b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
     return x?.enumerable ? [x.value] : [];
 };
+// The `hasEntry` helper beside it, compiled as `['hasEntry']` and run by
+// `Any::has_entry`: the presence the option tells, as a boolean.
+/** @type {(a: unknown, b: any) => boolean} */
+export const hasEntry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable === true;
+};
 const o = { x: 1, length: 3, u: undefined };
 export default [
     entry(o, "x"),
@@ -30,4 +37,16 @@ export default [
     [10, 20].map(entry),
     [...entry(o, "y"), 0][0],
     ["x", "y", "length"].flatMap(k => entry(o, k)),
+    hasEntry(o, "x"),
+    hasEntry(o, "u"),
+    hasEntry(o, "y"),
+    hasEntry([7, 8], 1),
+    hasEntry([7, 8], "length"),
+    hasEntry("ab", "1"),
+    hasEntry(hasEntry, "length"),
+    hasEntry.length,
+    typeof hasEntry,
+    hasEntry({ "1": 9 }, 1),
+    hasEntry(5, "x"),
+    [hasEntry(o, "z") ? 1 : 2, entry(o, "x")[0]],
 ];

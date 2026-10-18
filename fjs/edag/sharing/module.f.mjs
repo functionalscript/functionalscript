@@ -134,7 +134,7 @@ export const visit = operands => visited => root => {
 export const operandsOf = node => {
     const [id] = node
     return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
-        : id === 'arg' || id === 'entry' ? []
+        : id === 'arg' || id === 'entry' || id === 'hasEntry' ? []
         // the constructor name is metadata, not a string-literal operand
         : id === 'instanceof' ? [node[1]]
         : id === ',' ? /** @type {readonly unknown[]} */ (node[1])

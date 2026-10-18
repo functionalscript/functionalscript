@@ -136,7 +136,7 @@ export const proof = {
         assertEq(some(assertOk(entry('ab', '1'))), 'b')
         for (const key of ['length', '2', '01']) { none('ab', key) }
         /** @type {readonly EdagValue[]} */
-        const entryless = [functionValue, ['entry'], ['Object.entries'], true, 0, 1n]
+        const entryless = [functionValue, ['entry'], ['hasEntry'], ['Object.entries'], true, 0, 1n]
         for (const receiver of entryless) {
             for (const key of ['length', '0', 'name']) { none(receiver, key) }
         }
@@ -146,6 +146,8 @@ export const proof = {
         // the helper owns the `length` every function does, read as a property
         expectValue(['entry'], 'length', 2)
         missing(['entry'], '0')
+        expectValue(['hasEntry'], 'length', 2)
+        missing(['hasEntry'], '0')
         // and so does a static function: `Object.entries` its `1`, with no
         // runtime to ask, and every other the length of the body the
         // runtime holds at its path, failing by name with no runtime or

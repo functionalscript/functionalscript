@@ -20,7 +20,7 @@
  */
 
 import { isArray } from '../../types/array/module.f.mjs'
-import { error, ok, okThen } from '../../types/result/module.f.js'
+import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { array } from '../value/array/module.f.mjs'
 import { object } from '../value/object/module.f.mjs'
 import { func } from '../value/function/module.f.mjs'
@@ -65,6 +65,16 @@ const nullish = value => value === null || typeOf(value) === 'undefined'
  */
 export const entryCall = ([receiver, key], invoke) =>
     nullish(receiver) ? error(['undefined']) : okThen(name => entry(receiver, name))(toString(key, invoke))
+
+/**
+ * The `hasEntry` helper called, `['hasEntry']`'s body: whether the entry
+ * is there, the one bit the option carries, the receiver and the key
+ * treated as `entryCall` treats them.
+ *
+ * @type {(fixed: Values, invoke: Invoke) => ValueResult}
+ */
+export const hasEntryCall = ([receiver, key], invoke) =>
+    nullish(receiver) ? error(['undefined']) : okThen(name => mapOk((/** @type {EdagValue} */ option) => isArray(option) && option[0] === '[]' && option[1].length === 1)(entry(receiver, name)))(toString(key, invoke))
 
 /**
  * A static function called, for the executors that invoke one, its
@@ -212,6 +222,7 @@ export const operation = evaluator => {
             case 'self': { return [state, self === undefined ? error(['undefined']) : ok(self)] }
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
+            case 'hasEntry': { return [state, ok(['hasEntry'])] }
             // a static function as a value: the node, the built-in by its
             // name, one function however often it is read, whose call and
             // `length` the body the runtime's `static` section holds at

@@ -294,6 +294,15 @@ export const proof = {
         same(entry(['entry'], 'length'), [])
         eq(['.', ['entry'], 'length'], 2)
         eq(['typeof', ['entry']], 'function')
+        // `hasEntry`, the presence the option tells, through its own node
+        const has = /** @type {(a: Exp, b: Exp) => Exp} */ ((a, b) => ['()', ['hasEntry'], [a, b]])
+        eq(has(['{}', [[':', 'a', ['undefined']]]], 'a'), true)
+        eq(has(['{}', []], 'toString'), false)
+        eq(has(['[]', [5, 6]], 'length'), false)
+        eq(has('ab', 1), true)
+        eq(has(['{}', [[':', '1', 42]]], 1), true)
+        eq(['.', ['hasEntry'], 'length'], 2)
+        eq(['typeof', ['hasEntry']], 'function')
         // and nullish receivers fail before the key is read at all
         fails(entry(null, 'a'))
         fails(entry(['undefined'], boom))
@@ -781,6 +790,8 @@ export const proof = {
         // throws whatever the key is, and a key whose conversion throws
         // does so under a receiver that is not nullish.
         entryNullReceiver: () => fails(['()', ['entry'], [null, 'a']]),
+        hasEntryNullReceiver: () => fails(['()', ['hasEntry'], [null, 'a']]),
+        hasEntryKeyConversion: () => fails(['()', ['hasEntry'], [['{}', []], ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]]]], 'key'),
         entryKeyConversion: () => fails(['()', ['entry'], [['{}', []], ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]]]], 'key'),
         // A non-function returns an implicit represented failure.
         callNonFunction: () => fails(['()', 1, noArgs]),

@@ -88,6 +88,16 @@ be a number, the spelling is `a[Number(i)]`
 it, is [property-accessor](../todo/2330-property-accessor.md)'s still, and
 `entry` is the read for a key of any type.
 
+## `hasEntry`
+
+Beside the option, the presence alone, as a boolean, is the **`hasEntry`
+helper**: the same function but for its `return`, `x?.enumerable === true`,
+recognized whole the same way as the EDAG's `['hasEntry']` and answered
+natively, with nothing built, `true` for an entry holding `undefined`. It
+is the first step of [has-entry](../todo/2345-has-entry.md), which decides
+that `entry` returns to answering the value or `undefined` and the pair
+replaces the option; until that step the option stays as described above.
+
 ## Examples
 
 The compiler demo offers the programs `entries` in [`module.f.js`](./module.f.js), each with its real output.

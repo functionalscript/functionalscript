@@ -101,7 +101,7 @@ export const read = (receiver, key, runtime) => {
         case '{}': { return field(value, key) }
         case '=>': { return ok(key === 'length' ? value[1] : ['undefined']) }
         // the `entry` helper owns the `length` every function does, `2`
-        case 'entry': { return ok(key === 'length' ? 2 : ['undefined']) }
+        case 'entry': case 'hasEntry': { return ok(key === 'length' ? 2 : ['undefined']) }
         default: { return error(['undefined']) }
     }
 }
