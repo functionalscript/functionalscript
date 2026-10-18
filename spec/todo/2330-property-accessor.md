@@ -22,8 +22,8 @@ enumerable-entry helper, recognized whole and lowered to the EDAG's
 `['entry']`. It superseded the old descriptor-value-only source pattern and
 the `Object.hasOwn`-based alternative. `Object.hasOwn` and
 `obj.hasOwnProperty(...)` are prohibited source operations, not operations to
-reinterpret. [Enumerable presence](./2345-has-own-property.md) makes `entry`
-answer presence too, as an option, `[value]` or `[]`. All such instructions follow
+reinterpret. `entry` answers presence too, as an option, `[value]` or `[]`
+([spec: entry](../property-access/entries.md)). All such instructions follow
 [statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
 What this file still owns is `a[+i]`, beside the numeric index

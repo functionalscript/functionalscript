@@ -13,13 +13,11 @@ asks a refusal to say which of the two it is). The same word in `for (k in o)`
 is a different grammar, a statement the language does not have yet (see the
 [roadmap](./README.md)), and this record does not decide it.
 
-[Enumerable property presence](./2345-has-own-property.md) already holds this
-boundary for `Object.hasOwn`; this record gives `in` the reasons it stated only
-in passing. The way to ask whether an object has an entry is the
-[`entry` helper](../property-access/entries.md), not a spelling of `in`:
-once 2345's tasks land it answers an option, `[value]` or `[]`, so
-`entry(o, k).length === 1` is the question; today it answers the value, and
-`undefined` for an absent key.
+[Reading an entry](../property-access/entries.md) holds this boundary for
+`Object.hasOwn`; this record gives `in` the reasons it stated only in
+passing. The way to ask whether an object has an entry is the `entry`
+helper, not a spelling of `in`: it answers an option, `[value]` or `[]`, so
+`entry(o, k).length === 1` is the question.
 
 ### What `in` answers in JavaScript
 
@@ -97,7 +95,7 @@ whitelist of *complete semantic patterns*, not of operations in isolation
 "does this object hold an enumerable data entry under this key?", and that has
 a pattern: the `entry` helper, spelled with JavaScript's own names, whose
 option answers it, `[value]` or `[]`
-([2345](./2345-has-own-property.md)). `in` asks something wider and different
+([reading an entry](../property-access/entries.md)). `in` asks something wider and different
 (the chain, non-enumerable names, anything `Object.prototype` defines), so no
 pattern lowers to it without changing what it means.
 
@@ -142,10 +140,8 @@ question two spellings with different answers.
   is not a pending task.
 - Migration is case by case, because `in` has no single replacement. Where
   the code meant "this object has an enumerable entry `k`", which is how
-  most uses read, the replacement is `entry(o, k).length === 1` once the
-  option lands, and `entry(o, k) !== undefined` now. They differ: the option
-  is `[undefined]` for an entry holding `undefined`, where the current read
-  answers `undefined` for it as for an absent key. Where the code relied on
+  most uses read, the replacement is `entry(o, k).length === 1`, which is
+  `true` for an entry holding `undefined` as `in` is. Where the code relied on
   inherited or non-enumerable names (`"toString" in o`, `"length" in a`),
   neither replacement is equivalent, and it needs a rewrite that states what
   it really wants to know.
@@ -172,7 +168,6 @@ questions it adds.
 
 ### Related
 
-- [Enumerable property presence](./2345-has-own-property.md) — the `entry` helper's option.
 - [Undefined-valued properties](./1010-undefined-property.md).
 - [Reading an entry at run time](../property-access/entries.md).
 - [Operators](./2340-operators.md).

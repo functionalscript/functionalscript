@@ -110,15 +110,15 @@ The former `entry` design, since landed as
 shape that could bypass syntactic support for the constructs inside it.
 Ignoring whitespace before statement recognition is the root problem, not a
 missing newline exception in one intrinsic. This whitespace-only change to the
-helper returns `undefined` in JavaScript, not `7`:
+helper returns `undefined` in JavaScript, not `[7]`:
 
 ```js
 const entry = (a, b) => {const x = Object.getOwnPropertyDescriptor(a, b);return
-x?.enumerable ? x.value : undefined}
+x?.enumerable ? [x.value] : []}
 export default entry({ answer: 7 }, "answer");
 ```
 
-There is no extra semicolon after the final `undefined`: only the space after
+There is no extra semicolon after the final `[]`: only the space after
 `return` changed to a newline. Separately, this arrow is invalid JavaScript:
 
 ```js
@@ -209,11 +209,10 @@ exception above covers. No FJS program reads a function's name at all:
 the enumerable-entry helper so that it cannot — `person.name` is enumerable
 where `f.name` and `f.length` are not — and retired the proposals that would
 have exposed it, `own-access.md` and `function-name.md`, in `4f4da828`;
-`f.name` is refused at the key, `entry(f, 'name')` is `undefined`, and
+`f.name` is refused at the key, `entry(f, 'name')` is `[]`, and
 [the language](../spec/functions/README.md) carries no name in the graph.
-The property-access and presence plans,
-[2330](../spec/todo/2330-property-accessor.md) and
-[2345](../spec/todo/2345-has-own-property.md), hold the same boundary from
+The property-access plan,
+[2330](../spec/todo/2330-property-accessor.md), holds the same boundary from
 the source side. The corpus gate below compares the serializable data each
 execution returns, never the written text or what an engine reports about
 it.
@@ -222,7 +221,7 @@ it.
 
 **Decision:** prohibit `Object.hasOwn` in FJS source rather than redefine it
 as an enumerability test. Presence is the
-[`entry` helper](../spec/todo/2345-has-own-property.md)'s to answer, as an
+[`entry` helper](../spec/property-access/entries.md)'s to answer, as an
 option:
 
 ```js

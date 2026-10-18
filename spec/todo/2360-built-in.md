@@ -345,9 +345,8 @@ their JavaScript meanings; do not redefine them over enumerable properties.
 `obj.hasOwnProperty(...)` is not a replacement source spelling.
 
 Use explicit enumerable-entry patterns instead:
-[`entry`](../property-access/entries.md) reads a data value, and
-[enumerable presence](./2345-has-own-property.md) makes it answer presence
-too, as an option, `[value]` or `[]`. `Object.getOwnPropertyDescriptor` is permitted only as
+[`entry`](../property-access/entries.md) reads a data value and answers
+presence with it, as an option, `[value]` or `[]`. `Object.getOwnPropertyDescriptor` is permitted only as
 part of a complete approved AST pattern, never as an exposed descriptor API.
 
 [Statement-aware recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
