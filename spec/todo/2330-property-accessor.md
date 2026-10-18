@@ -80,10 +80,10 @@ compiler reads as the helper and every executor answers alike:
 ```js
 const entry = (object, property) => {
     const descriptor = Object.getOwnPropertyDescriptor(object, property);
-    return descriptor?.enumerable ? descriptor.value : undefined;
+    return descriptor?.enumerable ? [descriptor.value] : [];
 };
 const values = [7];
-export default [values.length, entry(values, "length")]; // [1, undefined]
+export default [values.length, entry(values, "length"), entry(values, 0)]; // [1, [], [7]]
 ```
 
 Its complete parsed function body is recognized after statements, expressions
