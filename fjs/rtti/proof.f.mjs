@@ -467,6 +467,8 @@ const demoProof = /** @type {const} */ ({
         unkeyed: () => {
             const html = svg(record(array(or(number, [string]))))
             for (const key of ['>value<', '>item<', '>|<']) { assert(!html.includes(key), html) }
+            // A tuple's brackets touch, as a struct's do.
+            assert(html.includes('data-graph-label="">[]<'), html)
         },
     },
 })
