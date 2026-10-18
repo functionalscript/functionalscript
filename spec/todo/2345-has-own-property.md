@@ -98,23 +98,24 @@ current helper has; only the result is wrapped.
       enumerability reinterpretation; record the source prohibition.
 - [x] Decide the helper: `entry` returns `Option<T>`, no separate presence
       helper; correct every `todo/` that described `hasEntity`.
-- [ ] Compiler: recognize the new body and refuse the old; the AST and EDAG
+- [x] Compiler: recognize the new body and refuse the old; the AST and EDAG
       documentation of `['entry']`; the parser, EDAG and compiler proofs.
-- [ ] Executors and writers: `fjs/edag/value/property`'s `entry` returns the
+- [x] Executors and writers: `fjs/edag/value/property`'s `entry` returns the
       option; the function text in `fjs/compiler/serializer/function_text`
       and the FunctionalScript output; the Rust printer's text.
-- [ ] NaNVM: `Any::entry` returns an `Array`; the harness fixtures
+- [x] NaNVM: `Any::entry` returns an `Array`; the harness fixtures
       (`entry.mjs`, `parity.mjs`) and the corpus; `npm run gen`.
-- [ ] The helper module `fjs/types/object/entry`, its `types.ts` and proof;
+- [x] The helper module `fjs/types/object/entry`, its `types.ts` and proof;
       rewrite every importer; delete `fjs/js/entry`.
-- [ ] Specification: [reading an entry](../property-access/entries.md) and
+- [x] Specification: [reading an entry](../property-access/entries.md) and
       its demo program, [`in`](../operators/in.md),
       [CONVERTING.md](../../doc/CONVERTING.md), `fjs/edag/README.md`,
-      `nanvm/lib/README.md`; tick the related `todo/`s and delete this file.
+      `nanvm/lib/README.md`.
+- [ ] Tick the related `todo/`s and delete this file.
 
 ### Related
 
-- [Reading an entry at run time](../property-access/entries.md) — the helper as it is today.
+- [Reading an entry at run time](../property-access/entries.md) — the helper, as implemented.
 - [The `in` decision](./2346-in-operator.md).
 - [Undefined-valued properties](./1010-undefined-property.md) and
   [their representation](./1015-undefined-property-vm-layer.md) — the

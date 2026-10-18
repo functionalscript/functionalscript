@@ -121,11 +121,11 @@ export const proof = {
     reads: () => {
         const object = /** @type {const} */ (['{}', [[':', 'a', 7]]])
         eq(['.', object, 'a'], 7)
-        eq(['()', ['entry'], [object, 'a']], 7)
+        eq(['()', ['entry'], [object, 'a']], ['[]', [7]])
         eq(['?.', null, 'a'], ['undefined'])
         eq(['?.', object, 'a'], 7)
         eq(['?.', ['{}', [[':', 'a', object]]], 'a', ['|.', 'a']], 7)
-        eq(['()', ['entry'], [object, 1]], ['undefined'])
+        eq(['()', ['entry'], [object, 1]], ['[]', []])
         failure(['()', ['entry'], [null, 'a']])
         failure(['.', null, 'a', ['|()', []]])
     },

@@ -85,7 +85,7 @@ constants are the exceptions. A name a built-in prototype gives a value —
 aside — is refused as a constant key in either spelling
 (`prohibited property name`), even where the object owns the property:
 `const o = { toString: 1 }` followed by `o.toString` does not compile. Where
-the module reads an own property of such a name, `entry(o, "toString")`,
+the module reads an own property of such a name, `entry(o, "toString")[0]`,
 below, reads it. And a numeric literal that overflows, `a[1e400]`, passes
 the check but names a key the FunctionalScript output refuses to write
 (`a number key no literal reads back`); write the string it is,
@@ -120,37 +120,40 @@ Its implementation is
 authored `.f.js` the compiler accepts, and the import below is the whole of
 what a module writes for it. The specification spells the function out
 because the compiler recognizes it by its shape; a module does not restate
-it. [`fjs/js/entry`](../fjs/js/entry/module.f.js) is a compatibility
-re-export of the same function, not a second one to choose from.
+it.
 
 ```js
 const escapes = { n: '\n', t: '\t' }
-const escape = c => escapes[c]          // refused
+const escape = c => escapes[c]             // refused
 ```
 
 ```js
 import { entry } from '../types/object/entry/module.f.js'
 
 const escapes = { n: '\n', t: '\t' }
-const escape = c => entry(escapes, c)   // accepted
+const escape = c => entry(escapes, c)[0]   // accepted
 ```
 
-`entry(a, k)` is the **enumerable own property** `k` names of `a`, and
-`undefined` where there is none, which is what `a[k]` reads on a plain object
-whose keys are its own. It differs from `a[k]` where JavaScript would reach
-past the own properties, and a conversion checks that the module never did:
+`entry(a, k)` is the **option** of the enumerable own property `k` names of
+`a`: `[value]` where there is one, an entry holding `undefined` included,
+and `[]` where there is none. `entry(a, k)[0]` is what `a[k]` reads on a
+plain object whose keys are its own, `entry(a, k).length === 1` is what
+`k in a` asks of such an object, and `[...entry(a, k), d][0]` is `a[k]`
+with a default for an absent key, which `a[k] ?? d` is not where the entry
+holds `undefined`. It differs from `a[k]` where JavaScript would reach past
+the own properties, and a conversion checks that the module never did:
 
-- `entry(a, "length")` is `undefined` on an array, a string or a function,
-  whose `length` is own but not enumerable: a `length` is no entry. A
-  module reads an entry with `entry(a, k)` and a length with `a.length`,
-  and a read that could be either is two reads the module has run together,
-  to be told apart in the conversion, not guarded around.
-- `entry(a, "toString")` is `undefined`, where JavaScript finds the
-  prototype's function. The language has no prototype chains, so a module
-  that relied on one was never FunctionalScript; such a read is a change,
-  not a rewrite.
-- `entry(f, "name")` is `undefined` on a function, whose `name` JavaScript
-  gives and the language keeps unobservable
+- `entry(a, "length")` is `[]` on an array, a string or a function, whose
+  `length` is own but not enumerable: a `length` is no entry. A module
+  reads an entry with `entry(a, k)` and a length with `a.length`, and a
+  read that could be either is two reads the module has run together, to
+  be told apart in the conversion, not guarded around.
+- `entry(a, "toString")` is `[]`, where JavaScript finds the prototype's
+  function. The language has no prototype chains, so a module that relied
+  on one was never FunctionalScript; such a read is a change, not a
+  rewrite.
+- `entry(f, "name")` is `[]` on a function, whose `name` JavaScript gives
+  and the language keeps unobservable
   ([functions](../spec/functions/README.md)); `f.name` is refused outright.
   A module that read a function's name was never FunctionalScript either,
   and has no rewrite.
@@ -173,7 +176,7 @@ is an error there, so the rewrite keeps the test the `?.` made:
 
 ```js
 const read = (a, k) => a?.[k]                                              // refused
-const read = (a, k) => a === null || a === undefined ? undefined : entry(a, k)  // accepted
+const read = (a, k) => a === null || a === undefined ? undefined : entry(a, k)[0]  // accepted
 ```
 
 JavaScript also leaves `k` unevaluated where `a` is nullish; a pure
@@ -188,7 +191,7 @@ the chain applies to the conditional's result:
 
 ```js
 const read = (a, k) => a?.[k].x ?? 0                                                   // refused
-const read = (a, k) => (a === null || a === undefined ? undefined : entry(a, k).x) ?? 0  // accepted
+const read = (a, k) => (a === null || a === undefined ? undefined : entry(a, k)[0].x) ?? 0  // accepted
 ```
 
 Written as `(… ? undefined : entry(a, k)).x`, the rewrite would read `x`
