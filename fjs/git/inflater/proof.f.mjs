@@ -46,6 +46,16 @@ export const proof = {
         // and one that is empty gives the stream as it was
         assertStructurallySame(feedWithin(0)(u8ListToVecMsb([]))(start), start)
     },
+    // The split into pieces bounds the read of `inflateWithin` too: the limit is asked
+    // with the output of the first piece of a chunk, 1 KiB of input and so 1 017 bytes
+    // here, and not of the whole chunk. Asked with its own length it answers that, so
+    // the pieces after the first go over it; asked at the end of the chunk, it would
+    // allow every byte.
+    withinSplitsChunks: () => {
+        const stream = storedBytes(Array.from({ length: 5_000 }, (_, i) => i & 0xff))
+        const r = inflateWithin(32, output => toArray(output).length)([u8ListToVecMsb(stream)])
+        assertStructurallySame(r, ['ok', null])
+    },
     // The stream is read while its output is within the limit the first bytes give,
     // and not past it: a chunk after the one that goes over is not looked at.
     within: () => {
