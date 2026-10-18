@@ -1,5 +1,5 @@
 /**
- * @import { Dirent, Inflate, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { IoChannel, IoErrorInfo } from '../../effects/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
@@ -12,14 +12,16 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
-import { partialRun, run } from '../../effects/mock/module.f.mjs'
-import { nodeCommands, notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
+import { run } from '../../effects/mock/module.f.mjs'
+import { inflateTrailingCode, inflateTrailingMessage, notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { sameItems, toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
+import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
 import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
+import { maxDeltaBytes } from '../pack/module.f.mjs'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'
 import { max } from '../../types/number/max/module.f.js'
 
@@ -92,6 +94,73 @@ const idxOf = named => {
     return [...bytes, ...idBytes(digestOf(width)(bytes))]
 }
 
+/** The six objects of {@link packMixed}, each with the id it has and the offset its entry begins at. */
+const objects = /** @type {readonly (readonly [string, number])[]} */ ([
+    ['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 470],
+    ['b00a3b66a7a094e6165bfcd39e0b8524042140db', 508],
+    ['bee6ca282c8d029b0e9f827d21433aa1c1c679c9', 12],
+    ['bf53712eef030d4401e03fbcf0f5a190a8026d97', 525],
+    ['e83defc90b8bb9314cc0933b04446ec93e205485', 545],
+    ['f21ff1cae7f0e9897eef760f163b1c86a822bcb1', 372],
+])
+
+/**
+ * {@link packMixed} with some of its streams replaced, and where each entry
+ * begins afterwards: a swap is the offset the old stream begins at, the offset
+ * it ends at, and the stream that takes its place. The entries after a longer
+ * or shorter stream move by the difference, which is what `moved` answers, so a
+ * case can rebuild an index over the new pack.
+ *
+ * The streams are real, stored ones, because the inflater that reads them is
+ * real: a case that wants a delta that does not apply, or a delta of a length it
+ * chooses, spells those bytes and stores them.
+ *
+ * @type {(swaps: readonly (readonly [number, number, readonly number[]])[]) => { readonly pack: readonly number[], readonly moved: (offset: number) => number }}
+ */
+const swapped = swaps => ({
+    pack: [
+        ...swaps.flatMap(([from, , stream], i) => [...packMixed.slice(i === 0 ? 0 : swaps[i - 1][1], from), ...stream]),
+        ...packMixed.slice(swaps[swaps.length - 1][1]),
+    ],
+    moved: offset => offset + swaps.filter(([, to]) => to <= offset).reduce((n, [from, to, stream]) => n + stream.length - (to - from), 0),
+})
+
+/** The pack's header object count replaced. @type {(pack: readonly number[], count: number) => readonly number[]} */
+const counting = (pack, count) => [...pack.slice(0, 8), ...u32(count), ...pack.slice(12)]
+
+/** An index over the six objects, at the offsets {@link swapped} says they have moved to. @type {(moved: (offset: number) => number) => readonly number[]} */
+const movedIdx = moved => idxOf(objects.map(([h, o]) => [h, moved(o)]))
+
+/** A host over the pack directory with these two files. @type {(idx: readonly number[], pack: readonly number[]) => (path: string) => Nullable<readonly number[]>} */
+const pair = (idx, pack) => path => path === idxPath ? idx : path === packPath ? pack : null
+
+/** What checking a pack of this length costs. @type {(length: number) => readonly string[]} */
+const framingOfLength = length => [`stat ${packPath}`, `readBytes ${packPath} 0 12`, `readBytes ${packPath} ${length - 20} 20`]
+
+// Entries and packs written by hand, for the objects the fixture has none like:
+// longer than a `Vec`, and deltas of a length the case chooses.
+
+/** A size as a delta spells it: seven bits at a time, the low ones first. @type {(n: number) => readonly number[]} */
+const groups = n => n < 0x80 ? [n] : [0x80 | n % 0x80, ...groups(Math.floor(n / 0x80))]
+
+/** The header of an entry: its type code, and the length its stream inflates to. @type {(code: number, size: number) => readonly number[]} */
+const entryHeader = (code, size) => size < 0x10
+    ? [code * 0x10 + size]
+    : [0x80 | code * 0x10 | size % 0x10, ...groups(Math.floor(size / 0x10))]
+
+/** The groups of a distance but its last, each with a continuation bit and one less than the number before it. @type {(m: number) => readonly number[]} */
+const leading = m => m < 0x80 ? [0x80 | m] : [...leading(Math.floor(m / 0x80) - 1), 0x80 | m % 0x80]
+
+/** The distance back to an `ofsDelta`'s base, most significant group first. @type {(n: number) => readonly number[]} */
+const backDistance = n => n < 0x80 ? [n] : [...leading(Math.floor(n / 0x80) - 1), n % 0x80]
+
+/** A pack of these entries, closed by the checksum the built indexes name. @type {(entries: readonly (readonly number[])[]) => readonly number[]} */
+const packOfEntries = entries => [...latin1('PACK'), ...u32(2), ...u32(entries.length), ...entries.flat(), ...idBytes(id(packName))]
+
+/** The first of the objects here, a blob, and the second, which is a delta against it. */
+const firstId = 'b00a3b66a7a094e6165bfcd39e0b8524042140db'
+const secondId = 'bf53712eef030d4401e03fbcf0f5a190a8026d97'
+
 /**
  * {@link packMixed} with the object count in its header replaced.
  *
@@ -150,41 +219,11 @@ const tree = hexBytes([
     '20692e74787400b00a3b66a7a094e6165bfcd39e0b8524042140db',
 ].join(''))
 
-/**
- * What the host inflates each stream of {@link packMixed} to, keyed by the bytes
- * of the stream itself.
- *
- * The keys are slices of the fixture at the offsets Git put its entries at, so a
- * read whose window is even one byte off asks this host for a stream it does not
- * have and is refused — which is what pins the window as exact, and is the
- * refusal the real `inflate` gives bytes after the end of a stream. The commit at
- * offset 12 is absent because no case reads it, and an entry nothing reads is
- * never inflated.
- *
- * @type {readonly (readonly [readonly number[], readonly number[]])[]}
- */
-const streams = [
-    [streamAt(374, 470), tree],
-    [streamAt(491, 508), hexBytes('ca01ca0190c802420a')],
-    [streamAt(510, 525), yd],
-    [streamAt(527, 545), hexBytes('ae02ae02b02c0102430a')],
-    [streamAt(547, 561), xa],
-]
-
-/** @type {(table: readonly (readonly [readonly number[], readonly number[]])[]) => (input: readonly number[]) => Nullable<readonly number[]>} */
-const inflatedBy = table => input => {
-    const hit = table.find(([c]) => sameItems(c)(input))
-    return hit === undefined ? null : hit[1]
-}
-
 const notFound = /** @type {(path: string) => IoChannel} */ (
     path => ioError({ code: 'ENOENT', message: `no such file: ${path}` }))
 
-const notZlib = ioError({ code: 'Z_DATA_ERROR', message: 'incorrect header check' })
-
 /**
- * A host over one pack directory: a listing, the files it holds, and the streams
- * it can inflate. Every command is logged, so a case can see which files were
+ * A host over one pack directory: a listing and the files it holds. Every command is logged, so a case can see which files were
  * opened, in what order, and which pack was never touched.
  *
  * `readBytes` answers the slice asked for and no more, as the real one does at
@@ -194,10 +233,9 @@ const notZlib = ioError({ code: 'Z_DATA_ERROR', message: 'incorrect header check
  * @type {(
  *     dir: Nullable<readonly Dirent[]>,
  *     files: (path: string) => Nullable<readonly number[]>,
- *     inflate: (input: readonly number[]) => Nullable<readonly number[]>,
- * ) => MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>}
+ * ) => MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, readonly string[]>}
  */
-const hostOf = (dir, files, inflate) => ({
+const hostOf = (dir, files) => ({
     readdir: path => log => [
         [...log, `readdir ${path}`],
         dir === null ? error(notFound(path)) : ok(dir),
@@ -229,10 +267,6 @@ const hostOf = (dir, files, inflate) => ({
             b === null ? error(notFound(path)) : ok(chunked(b)),
         ]
     },
-    inflate: v => log => {
-        const b = inflate(toArray(u8ListMsb(v)))
-        return [[...log, 'inflate'], b === null ? error(notZlib) : ok(u8ListToVecMsb(b))]
-    },
 })
 
 /** The two files of the repository the fixture came from. */
@@ -253,7 +287,7 @@ const withIdx = (idx, count) => path =>
 
 const read = tryRead(objectsPath, width)
 
-/** @type {(host: MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>, hex: string) => readonly [readonly string[], Result<Nullable<Held>, IoChannel>]} */
+/** @type {(host: MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, readonly string[]>, hex: string) => readonly [readonly string[], Result<Nullable<Held>, IoChannel>]} */
 const readBy = (host, hex) => run(host)([])(read(id(hex)))
 
 /**
@@ -334,7 +368,7 @@ const packFraming = /** @type {readonly string[]} */ ([
 ])
 
 /** The host every case over the untouched fixture uses. */
-const host = hostOf(listing, files, inflatedBy(streams))
+const host = hostOf(listing, files)
 
 export const proof = {
     // The exported path builder, asked directly rather than reached through a
@@ -357,13 +391,13 @@ export const proof = {
     // another id — it is the caller that hashes, and this is the caller's only
     // way to know which of a directory's packs answered.
     heldBy: () => {
-        const [, r] = readBy(hostOf(listing, files, inflatedBy(streams)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        const [, r] = readBy(hostOf(listing, files), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertEq(held(r).path, packPath)
         assertEq(hashed(held(r).envelope), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
     },
     // An object stored whole, at the offset the index names: the blob at 508.
     // Four commands and no more — the directory, the index, the pack's length,
-    // the one window — and then the host's inflate.
+    // the one window — and nothing for the inflating, which is the reader's own.
     whole: () => {
         const [log, r] = readBy(host, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         const e = envelope(r)
@@ -375,7 +409,6 @@ export const proof = {
             ...idxRead,
             ...packFraming,
             `readBytes ${packPath} 508 17`,
-            'inflate',
         ])
     },
     // A tree, to show the type is the entry's and not the caller's.
@@ -399,9 +432,7 @@ export const proof = {
             ...idxRead,
             ...packFraming,
             `readBytes ${packPath} 525 20`,
-            'inflate',
             `readBytes ${packPath} 508 17`,
-            'inflate',
         ])
     },
     // A `refDelta` whose base is *after* it, at 545, which is where
@@ -418,9 +449,7 @@ export const proof = {
             ...idxRead,
             ...packFraming,
             `readBytes ${packPath} 470 38`,
-            'inflate',
             `readBytes ${packPath} 545 16`,
-            'inflate',
         ])
     },
     // An id no pack holds is `null` and not a failure, and the pack itself is
@@ -434,7 +463,7 @@ export const proof = {
     // repository whose objects are all loose.
     noPackDir: () => {
         const [log, r] = readBy(
-            hostOf(null, files, inflatedBy(streams)),
+            hostOf(null, files),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(r, ok(null))
         assertStructurallySame(log, [`readdir ${dirPath}`])
@@ -449,7 +478,7 @@ export const proof = {
             dirent(`${name}.rev`, true),
         ])
         const [log, r] = readBy(
-            hostOf(only, files, inflatedBy(streams)),
+            hostOf(only, files),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(r, ok(null))
         assertStructurallySame(log, [`readdir ${dirPath}`])
@@ -463,15 +492,15 @@ export const proof = {
             dirent('pack-second.idx', true),
         ])
         const [log, r] = readBy(
-            hostOf(two, files, inflatedBy(streams)),
+            hostOf(two, files),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertEq(hashed(envelope(r)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assert(!log.includes(`readFile ${dirPath}/pack-second.idx`))
     },
     // A stream that does not inflate is refused with the pack and the offset, and
-    // the host's own diagnosis carried on — not the bare channel error, which
-    // names neither file nor entry and so tells a reader scanning several packs
-    // nothing about which one is damaged.
+    // the inflater's diagnosis carried on — not a bare error, which names neither
+    // file nor entry and so tells a reader scanning several packs nothing about
+    // which one is damaged.
     //
     // Git keeps both halves too. Measured on Git 2.43.0 with a byte flipped
     // inside a pack entry's zlib stream, `git cat-file -p` prints `error:
@@ -480,43 +509,38 @@ export const proof = {
     // from …pack` — and ends `fatal: packed object … (stored in …pack) is
     // corrupt`. The inflater's words and the file's, never one without the
     // other.
+    //
+    // Three ways a stream fails, each by the code the host's `inflate` gave: a
+    // byte flipped in its header, an entry that ends before its stream does,
+    // and an entry that runs on after it.
     entryNotZlib: () => {
-        const [, r] = readBy(
-            hostOf(listing, files, () => null),
-            'b00a3b66a7a094e6165bfcd39e0b8524042140db')
-        const e = refusal(r)
-        assertEq(e.code, packEntryCode)
+        const id508 = 'b00a3b66a7a094e6165bfcd39e0b8524042140db'
+        const flipped = [...packMixed.slice(0, 510), packMixed[510] ^ 1, ...packMixed.slice(511)]
+        const [, bad] = readBy(hostOf(listing, pair(packMixedIdx, flipped)), id508)
+        assertEq(refusal(bad).code, packEntryCode)
         assertEq(
-            e.message,
-            `${packPath}:508 does not inflate: Z_DATA_ERROR incorrect header check`)
-        // a host whose refusal carries no code says only what it says
-        const whole = hostOf(listing, files, () => null)
-        const bare = {
-            ...whole,
-            inflate: /** @type {typeof whole.inflate} */ (
-                () => log => [[...log, 'inflate'], error(ioError({ message: 'no idea' }))]),
-        }
+            refusal(bad).message,
+            `${packPath}:508 does not inflate: Z_DATA_ERROR invalid zlib stream`)
+        // an index that says the next entry begins in the middle of the stream
+        const cut = idxOf([[objects[0][0], 470], [id508, 508], ['e83defc90b8bb9314cc0933b04446ec93e205485', 520]])
+        const [, short] = readBy(hostOf(listing, pair(cut, counting(packMixed, 3))), id508)
         assertEq(
-            refusal(readBy(bare, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')[1]).message,
-            `${packPath}:508 does not inflate: no idea`)
-        // and a host with no `inflate` at all is the other channel, which names
-        // itself and the operation it is missing rather than an error — the
-        // repair there is a handler, not a file, which is the whole reason the
-        // host's own diagnosis is carried on rather than replaced. `inflate` is
-        // the half that says *which* handler, so the channel's own name is not
-        // enough on its own.
-        const { inflate: _, ...none } = whole
-        const [, missing] = partialRun(nodeCommands)(none)([])(
-            read(id('b00a3b66a7a094e6165bfcd39e0b8524042140db')))
+            refusal(short).message,
+            `${packPath}:508 does not inflate: Z_BUF_ERROR unexpected end of file`)
+        // and one that says it begins after the next entry has: the bytes between
+        // are the 20 of the entry at 525, which are not the stream's
+        const long = idxOf([[objects[0][0], 470], [id508, 508], ['e83defc90b8bb9314cc0933b04446ec93e205485', 545]])
+        const [, trailing] = readBy(hostOf(listing, pair(long, counting(packMixed, 3))), id508)
+        assertEq(refusal(trailing).code, packEntryCode)
         assertEq(
-            refusal(missing).message,
-            `${packPath}:508 does not inflate: notImplemented inflate`)
+            refusal(trailing).message,
+            `${packPath}:508 does not inflate: ${inflateTrailingCode} ${inflateTrailingMessage(20)}`)
     },
     // An `.idx` that is not one Git would read is a failure and not a miss: it
     // names the objects of the pack beside it, so nothing there is reachable.
     notAnIdx: () => {
         const [, r] = readBy(
-            hostOf(listing, withIdx(latin1('junk'), 6), inflatedBy(streams)),
+            hostOf(listing, withIdx(latin1('junk'), 6)),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         const e = refusal(r)
         assertEq(e.code, packIdxCode)
@@ -527,7 +551,7 @@ export const proof = {
     noRoomForAnEntry: () => {
         const one = idxOf([['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 561]])
         const [log, r] = readBy(
-            hostOf(listing, withIdx(one, 1), inflatedBy(streams)),
+            hostOf(listing, withIdx(one, 1)),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
@@ -541,35 +565,34 @@ export const proof = {
     notAnEntry: () => {
         const one = idxOf([['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 4]])
         const [log, r] = readBy(
-            hostOf(listing, withIdx(one, 1), inflatedBy(streams)),
+            hostOf(listing, withIdx(one, 1)),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
         assertEq(e.message, `${packPath}:4 is no pack entry`)
-        // refused by the framing, and so never inflated
-        assert(!log.includes('inflate'))
+        // refused by the framing: the one window into it is all that is read
+        assertEq(log.filter(c => c.startsWith(`readBytes ${packPath} 4 `)).length, 1)
     },
     // A stream inflating to another length than its entry declares is refused
-    // rather than answered as the object at that offset.
+    // rather than answered as the object at that offset. The header of the entry
+    // at 508 says 302 bytes, in two bytes, `be 12`; this one says 318.
     sizeDisagrees: () => {
-        const short = inflatedBy([[streamAt(510, 525), latin1('short')]])
+        const larger = [...packMixed.slice(0, 509), 0x13, ...packMixed.slice(510)]
         const [, r] = readBy(
-            hostOf(listing, files, short),
+            hostOf(listing, pair(packMixedIdx, larger)),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
-        assertEq(e.message, `${packPath}:508 inflates to 5 bytes, not the 302 its header declares`)
+        assertEq(e.message, `${packPath}:508 inflates to 302 bytes, not the 318 its header declares`)
     },
     // A delta its base does not fit is refused. The bytes here are the length
     // the entry declares and no delta at all, which is the shape a flipped byte
-    // in a delta stream takes.
+    // in a delta stream takes: the delta at 525 stores ten bytes of 255 where Git
+    // stored the ten that copy and insert.
     deltaRefused: () => {
-        const bogus = inflatedBy([
-            [streamAt(527, 545), Array.from({ length: 10 }, () => 255)],
-            [streamAt(510, 525), yd],
-        ])
+        const { pack, moved } = swapped([[527, 545, storedBytes(Array.from({ length: 10 }, () => 255))]])
         const [, r] = readBy(
-            hostOf(listing, files, bogus),
+            hostOf(listing, pair(movedIdx(moved), pack)),
             'bf53712eef030d4401e03fbcf0f5a190a8026d97')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
@@ -599,7 +622,7 @@ export const proof = {
             ['b00a3b66a7a094e6165bfcd39e0b8524042140db', 508],
         ])
         const [, r] = readBy(
-            hostOf(listing, withIdx(two, 2), inflatedBy(streams)),
+            hostOf(listing, withIdx(two, 2)),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
@@ -616,16 +639,13 @@ export const proof = {
     baseBeforeTheFirstEntry: () => {
         const made = [
             ...latin1('PACK'), ...u32(2), ...u32(1),
-            0x63, 8, 1, 2, 3,
+            0x63, 8, ...storedBytes([4, 5, 6]),
             // the checksum the built index names, which the reader compares
             ...idBytes(id(packName)),
         ]
         const one = idxOf([['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 12]])
         const [, r] = readBy(
-            hostOf(
-                listing,
-                path => path === idxPath ? one : path === packPath ? made : null,
-                inflatedBy([[[1, 2, 3], [4, 5, 6]]])),
+            hostOf(listing, pair(one, made)),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
@@ -650,29 +670,28 @@ export const proof = {
     // asks. The pack below is built: an entry at 12, an `ofsDelta` at 17 naming
     // four back, and 13 is one byte inside the entry at 12.
     baseInsideAnEntry: () => {
+        const stream = storedBytes([1, 2, 3])
+        // the second entry begins after the first: a header byte and the stream
+        const second = 12 + 1 + stream.length
         const made = [
             ...latin1('PACK'), ...u32(2), ...u32(2),
             // 12: an object of three bytes
-            0x33, 1, 2, 3,
-            // 17 would be the next entry if the one above were five bytes; it is
-            // four, so the delta sits at 16 and names 12 back for offset 4 —
-            // rebuilt below to land at 13 instead
-            0x63, 3, 1, 2, 3,
+            0x33, ...stream,
+            // an `ofsDelta` of three bytes, naming a base one byte into the entry
+            // above: 13 is one byte inside the entry at 12
+            0x63, second - 13, ...stream,
             ...idBytes(id(packName)),
         ]
         const two = idxOf([
             ['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 12],
-            ['b00a3b66a7a094e6165bfcd39e0b8524042140db', 16],
+            ['b00a3b66a7a094e6165bfcd39e0b8524042140db', second],
         ])
         const [, r] = readBy(
-            hostOf(
-                listing,
-                path => path === idxPath ? two : path === packPath ? made : null,
-                inflatedBy([[[1, 2, 3], [4, 5, 6]]])),
+            hostOf(listing, pair(two, made)),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
-        assertEq(e.message, `${packPath}:16 names a base at 13 where no entry begins`)
+        assertEq(e.message, `${packPath}:${second} names a base at 13 where no entry begins`)
     },
     // An index that is a symlink is read, which is Git's. A listing cannot say
     // what a link is — node's `Dirent` does not follow one — so a filter on
@@ -685,7 +704,7 @@ export const proof = {
     // follows the link without opening what it finds.
     linkedIdx: () => {
         const [log, r] = readBy(
-            hostOf(linkedListing, files, inflatedBy(streams)),
+            hostOf(linkedListing, files),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertEq(hashed(envelope(r)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(log.slice(0, 2), [`readdir ${dirPath}`, `stat ${idxPath}`])
@@ -695,7 +714,7 @@ export const proof = {
     // dropped in silence is every object in it missing.
     linkedIdxLeadsNowhere: () => {
         const [, gone] = readBy(
-            hostOf(linkedListing, () => null, inflatedBy(streams)),
+            hostOf(linkedListing, () => null),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(gone, ok(null))
         // A link to something that is no file — a directory, a FIFO — is not a
@@ -707,7 +726,7 @@ export const proof = {
         // mmap failed: No such device` at exit 128, a FIFO never returns at all,
         // and a link to `/dev/null` gives `error: index file … is too small`.
         // Only the row above, the link leading nowhere, is skipped.
-        const whole = hostOf(linkedListing, files, inflatedBy(streams))
+        const whole = hostOf(linkedListing, files)
         const aDirectory = {
             ...whole,
             stat: /** @type {typeof whole.stat} */ (
@@ -735,7 +754,7 @@ export const proof = {
     idxIsADirectory: () => {
         const asDir = /** @type {readonly Dirent[]} */ ([dirent(`${name}.idx`, false)])
         const [log, r] = readBy(
-            hostOf(asDir, files, inflatedBy(streams)),
+            hostOf(asDir, files),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         const e = refusal(r)
         assertEq(e.code, notAFileCode)
@@ -753,7 +772,7 @@ export const proof = {
             ['e83defc90b8bb9314cc0933b04446ec93e205485', 470],
         ])
         const [log, r] = readBy(
-            hostOf(listing, withIdx(cyclic, 3), inflatedBy(streams)),
+            hostOf(listing, withIdx(cyclic, 3)),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
@@ -774,15 +793,14 @@ export const proof = {
     // the delta served for 470 is the nine bytes its entry declares, against a
     // source of the 302 the middle delta builds.
     chainOfTwo: () => {
-        const twoDeep = idxOf(chainedIdx)
         // 302 in, 5 out: three copies from the front of the base
         const top = /** @type {readonly number[]} */ ([0xAE, 2, 5, 0x90, 2, 0x90, 2, 0x90, 1])
+        // the top delta's stream is the stored one, six bytes longer than the one
+        // Git wrote, so everything after it moves by six
+        const { pack, moved } = swapped([[491, 508, storedBytes(top)]])
+        const twoDeep = idxOf(chainedIdx.map(([h, o]) => [h, moved(o)]))
         const [log, r] = readBy(
-            hostOf(listing, withIdx(twoDeep, 4), inflatedBy([
-                [streamAt(491, 508), top],
-                [streamAt(527, 545), hexBytes('ae02ae02b02c0102430a')],
-                [streamAt(510, 525), yd],
-            ])),
+            hostOf(listing, pair(twoDeep, counting(pack, 4))),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = envelope(r)
         assertEq(e.type, 'blob')
@@ -790,13 +808,10 @@ export const proof = {
         assertStructurallySame(log, [
             `readdir ${dirPath}`,
             ...idxRead,
-            ...packFraming,
-            `readBytes ${packPath} 470 38`,
-            'inflate',
-            `readBytes ${packPath} 525 20`,
-            'inflate',
-            `readBytes ${packPath} 508 17`,
-            'inflate',
+            ...framingOfLength(pack.length),
+            `readBytes ${packPath} 470 ${moved(508) - 470}`,
+            `readBytes ${packPath} ${moved(525)} 20`,
+            `readBytes ${packPath} ${moved(508)} 17`,
         ])
     },
     // The same chain with the middle delta replaced by bytes that are no delta:
@@ -804,26 +819,26 @@ export const proof = {
     // nothing. What comes back names the entry the base was read at, which is
     // where the chain was applied.
     chainRefusedMidway: () => {
-        const twoDeep = idxOf(chainedIdx)
+        const { pack, moved } = swapped([
+            [491, 508, storedBytes(hexBytes('ae0205909029001001'))],
+            [527, 545, storedBytes(Array.from({ length: 10 }, () => 255))],
+        ])
+        const twoDeep = idxOf(chainedIdx.map(([h, o]) => [h, moved(o)]))
         const [, r] = readBy(
-            hostOf(listing, withIdx(twoDeep, 4), inflatedBy([
-                [streamAt(491, 508), hexBytes('ae0205909029001001')],
-                [streamAt(527, 545), Array.from({ length: 10 }, () => 255)],
-                [streamAt(510, 525), yd],
-            ])),
+            hostOf(listing, pair(twoDeep, counting(pack, 4))),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
-        assertEq(e.message, `${packPath}:508 holds a delta that does not apply to its base`)
+        assertEq(e.message, `${packPath}:${moved(508)} holds a delta that does not apply to its base`)
     },
     // A pack directory that cannot be listed for a reason other than not being
     // there is the channel's: a repository whose packs cannot be read is not a
     // repository with no packs.
     dirRefused: () => {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
-        /** @type {MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>} */
+        /** @type {MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, readonly string[]>} */
         const host = {
-            ...hostOf(listing, files, inflatedBy(streams)),
+            ...hostOf(listing, files),
             readdir: path => log => [[...log, `readdir ${path}`], error(denied)],
         }
         const [, r] = readBy(host, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
@@ -849,10 +864,7 @@ export const proof = {
         /** @type {(bytes: readonly number[]) => string} */
         const refusedFor = bytes => {
             const [, r] = readBy(
-                hostOf(
-                    listing,
-                    path => path === idxPath ? packMixedIdx : path === packPath ? bytes : null,
-                    inflatedBy(streams)),
+                hostOf(listing, pair(packMixedIdx, bytes)),
                 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
             const e = refusal(r)
             assertEq(e.code, packFileCode)
@@ -900,16 +912,88 @@ export const proof = {
         // the host hands it back in two, which is what a join has to survive
         assertEq(chunked(many).length, 2)
         const [log, r] = readBy(
-            hostOf(listing, withIdx(many, 5_000), inflatedBy(streams)),
+            hostOf(listing, withIdx(many, 5_000)),
             `00000000${'0'.repeat(32)}`)
         assertEq(hashed(envelope(r)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(log.slice(0, 2), [`readdir ${dirPath}`, `readWhole ${idxPath}`])
+    },
+    // An entry longer than a `Vec`: a blob of 300 000 bytes stored whole, which is
+    // 300 035 bytes of pack, read in three windows of what a `Vec` holds and
+    // inflated to as many chunks, and answered as the list over them. The host's
+    // `inflate` refused it, and so did the loose path, for the same reason.
+    bigWhole: () => {
+        const blob = Array.from({ length: 300_000 }, (_, i) => i * 31 + 7 & 0xff)
+        const pack = packOfEntries([[...entryHeader(3, blob.length), ...storedBytes(blob)]])
+        const [log, r] = readBy(hostOf(listing, pair(idxOf([[firstId, 12]]), pack)), firstId)
+        const e = envelope(r)
+        assertEq(e.type, 'blob')
+        assertStructurallySame(toArray(e.payload), blob)
+        const windows = log.filter(c => c.startsWith(`readBytes ${packPath} `)).slice(2)
+        assertStructurallySame(windows, [
+            `readBytes ${packPath} 12 131072`,
+            `readBytes ${packPath} 131084 131072`,
+            `readBytes ${packPath} 262156 ${pack.length - 20 - 262_156}`,
+        ])
+    },
+    // A delta that builds an object longer than the 128 KiB the ceiling was: 200 000
+    // bytes of base, a copy of all of them and an insert of three. The base is
+    // read, inflated and held dense, and the delta applied to it.
+    bigDelta: () => {
+        const base = Array.from({ length: 200_000 }, (_, i) => i * 17 + 3 & 0xff)
+        const entry = [...entryHeader(3, base.length), ...storedBytes(base)]
+        const delta = [
+            ...groups(base.length), ...groups(base.length + 3),
+            // a copy from the start, with the three bytes of its size, and an insert of 'abc'
+            0xF0, base.length % 0x100, Math.floor(base.length / 0x100) % 0x100, Math.floor(base.length / 0x1_0000),
+            3, 0x61, 0x62, 0x63,
+        ]
+        const second = 12 + entry.length
+        const pack = packOfEntries([
+            entry,
+            [...entryHeader(6, delta.length), ...backDistance(entry.length), ...storedBytes(delta)],
+        ])
+        const [, r] = readBy(hostOf(listing, pair(idxOf([[firstId, 12], [secondId, second]]), pack)), secondId)
+        const e = envelope(r)
+        assertEq(e.type, 'blob')
+        assertStructurallySame(toArray(e.payload), [...base, 0x61, 0x62, 0x63])
+    },
+    // A delta, and a base it is applied to, are held to the ceiling by the size
+    // their entries declare, before anything is inflated: the entry asked for
+    // here, and the base two entries behind it.
+    deltaCeiling: () => {
+        const stream = storedBytes([1])
+        const over = maxDeltaBytes + 1
+        const delta = [...entryHeader(6, over), ...backDistance(8), ...stream]
+        const [, deltaRefused] = readBy(hostOf(listing, pair(idxOf([[firstId, 12]]), packOfEntries([delta]))), firstId)
+        assertEq(refusal(deltaRefused).code, packEntryCode)
+        assertEq(
+            refusal(deltaRefused).message,
+            `${packPath}:12 declares ${over} bytes, more than the ${maxDeltaBytes} a delta chain is built from`)
+        // a base that declares too much, reached through a delta of its own
+        const base = [...entryHeader(3, over), ...stream]
+        const small = storedBytes([4, 4, 0, 0])
+        const second = 12 + base.length
+        const pack = packOfEntries([base, [...entryHeader(6, 4), ...backDistance(base.length), ...small]])
+        const [, baseRefused] = readBy(hostOf(listing, pair(idxOf([[firstId, 12], [secondId, second]]), pack)), secondId)
+        assertEq(
+            refusal(baseRefused).message,
+            `${packPath}:12 declares ${over} bytes, more than the ${maxDeltaBytes} a delta chain is built from`)
+    },
+    // A stream is not read on once it has made more than its header declares: this
+    // one is 300 000 zeros under a header that says five, and the first window of
+    // it is the last that is read.
+    inflatesToMore: () => {
+        const pack = packOfEntries([[...entryHeader(3, 5), ...hex(streams.zeros)]])
+        const [log, r] = readBy(hostOf(listing, pair(idxOf([[firstId, 12]]), pack)), firstId)
+        assertEq(refusal(r).code, packEntryCode)
+        assertEq(refusal(r).message, `${packPath}:12 inflates to more than the 5 its header declares`)
+        assertEq(log.filter(c => c.startsWith(`readBytes ${packPath} `)).length, 3)
     },
     // An index with no pack beside it is the channel's, at the `stat` that asks
     // the pack for its length.
     packMissing: () => {
         const [log, r] = readBy(
-            hostOf(listing, path => path === idxPath ? packMixedIdx : null, inflatedBy(streams)),
+            hostOf(listing, path => path === idxPath ? packMixedIdx : null),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertEq(refusal(r).code, 'ENOENT')
         assertStructurallySame(log, [

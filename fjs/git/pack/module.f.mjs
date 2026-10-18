@@ -45,7 +45,7 @@
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { maxLengthBytes, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, flat, toArray } from '../../types/list/module.f.mjs'
 import { startsWith, u32be } from '../bytes/module.f.js'
 
@@ -276,7 +276,7 @@ const selected = (b, at, mask, count, k, value) => {
  * header declares — a number the delta itself states, not one invented here. A
  * cap on the instruction count would be such an invention, and Git has none.
  * The one bound this module does add is on the declared target itself, the
- * `Vec` ceiling at {@link maxTargetBytes}, and it is applied before the loop
+ * ceiling at {@link maxDeltaBytes}, and it is applied before the loop
  * begins rather than inside it.
  *
  * **The declared target size is a bound and not a tally.** It is checked as the
@@ -396,13 +396,22 @@ const deltaPieces = (d, src, at, want) => {
 const minDeltaBytes = /** @type {const} */ (4)
 
 /**
- * The longest object a delta may build: what a `Vec` holds, 128 KiB.
+ * The longest object a delta may build, and the longest base or delta that is
+ * held as dense bytes to build one: 8 MiB.
  *
- * Not a number of this module's choosing — it is the bound the host effects
- * around it already impose on every other object, and the one
- * [`todo/inflate.md`](../../../todo/inflate.md) lifts.
+ * A delta is applied over arrays of numbers, which cost about eight bytes of
+ * heap a byte, so this is about 64 MiB of heap for the target, as much again
+ * for the base, and the delta beside them. It is the one ceiling left on an
+ * object in this layer: an object stored whole, loose or packed, is a list over
+ * the chunks it inflated to, about a byte a byte, and has none. A
+ * representation of a delta's base and target that is not a number a byte lifts
+ * this one too; it is the rest of
+ * [`todo/inflate.md`](../../../todo/inflate.md).
+ *
+ * Not a number the format gives: Git has no such limit. It is what this layer
+ * can hold without asking a hostile pack for gigabytes.
  */
-const maxTargetBytes = Number(maxLengthBytes)
+export const maxDeltaBytes = 0x80_0000
 
 /**
  * The object a delta builds from its base, or `null` where the delta does not
@@ -422,7 +431,7 @@ const maxTargetBytes = Number(maxLengthBytes)
  * id collides or a pack is stitched together — and the target size is the only
  * statement of what the result should be.
  *
- * **A target past {@link maxTargetBytes} is refused before anything is built.**
+ * **A target past {@link maxDeltaBytes} is refused before anything is built.**
  * The instruction bound added earlier stops a delta from building *more* than it
  * declared; it does nothing about one that declares the amplification honestly.
  * A hundred bytes of copy instructions against a 64 KiB base can name 6.5 MB and
@@ -434,13 +443,12 @@ const maxTargetBytes = Number(maxLengthBytes)
  * against 747, and dies at exactly the same size — under a 256 MiB heap both
  * build 6.5 MB and neither builds 25.
  *
- * So the answer is a ceiling rather than a cleverer join, and the ceiling is the
- * one the rest of this layer already has: `inflate` and `readFile` each answer a
- * `Vec`, so a loose object over 128 KiB is refused, and so is a packed one
- * stored whole. Only a delta could exceed it, which made this the one path that
- * could build an object the reader beside it could not have read. Lifting the
- * bound is [`todo/inflate.md`](../../../todo/inflate.md), and it lifts all three
- * together.
+ *  * So the answer is a ceiling rather than a cleverer join. It was 128 KiB while
+ * every other object here was bounded by the same `Vec`, so that a delta could
+ * not build an object the reader beside it could not have read. Those bounds are
+ * gone, and a delta's is now {@link maxDeltaBytes}: a delta can build an object
+ * much longer than the old ceiling, and an object stored whole is not held to
+ * one at all.
  *
  * @throws If either input is not a list of bytes.
  *
@@ -457,6 +465,6 @@ export const tryApplyDelta = (base, delta) => {
     const targetSize = littleVarint(d, afterSource, 0, 1)
     if (targetSize === null) { return null }
     const [want, start] = targetSize
-    if (want > maxTargetBytes) { return null }
+    if (want > maxDeltaBytes) { return null }
     return deltaPieces(d, src, start, want)
 }
