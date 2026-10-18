@@ -460,7 +460,7 @@ export const sections = commit => dir => [
         ...dir.dirs.map(dirItem(dir)),
         ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
     ]),
-    ...section('Issues')(dir.todo.map(name =>
+    ...section('Issues')(dir.todo.map(({ name }) =>
         item('issue')(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
 ]
 

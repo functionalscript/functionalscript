@@ -3,7 +3,7 @@
 // field, an array's or a string's element by the key once converted, nothing
 // of a function, and a function like any other to read and to pass.
 /** @type {(a: unknown, b: any) => unknown} */
-const entry = (a, b) => {
+export const entry = (a, b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
     return x?.enumerable ? x.value : undefined;
 };
