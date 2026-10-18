@@ -98,6 +98,10 @@ fn header(input: &mut Input) -> Result<(), Fail> {
         return Err(Fail::Data("invalid window size"));
     }
     if flg & 0x20 != 0 {
+        // The dictionary id is read before it is reported missing.
+        for _ in 0..4 {
+            input.byte()?;
+        }
         return Err(Fail::NeedDict);
     }
     Ok(())
@@ -636,6 +640,13 @@ mod test {
             refused(&[0x78, 0xbb, 0, 0, 0, 0]),
             ("Z_NEED_DICT".into(), "Missing dictionary".into())
         );
+        // Until all four bytes of the dictionary id are there, the input is short.
+        for n in 2..6 {
+            assert_eq!(
+                refused(&[0x78, 0xbb, 0, 0, 0][..n]),
+                ("Z_BUF_ERROR".into(), "unexpected end of file".into())
+            );
+        }
     }
 
     #[test]
