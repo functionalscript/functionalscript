@@ -534,9 +534,11 @@ li:has(> [data-kind]) { list-style: none }
 [data-kind="issue"][data-issue-status="irrelevant"]::before { content: "" / "irrelevant issue" }
 [data-kind="issue"][data-issue-status="won't fix"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5'/%3E%3C/svg%3E") }
 [data-kind="issue"][data-issue-status="won't fix"]::before { content: "" / "won't fix issue" }
-/* An issue's priority is a badge after its link. P1 and P2 take the value
-   colour, so the urgent issues stand out of a list; P3 to P5 are outlined. */
-[data-priority] { border: 1px solid var(--border); border-radius: 3px; color: var(--muted); font-size: .75em; padding: 0 .35em; white-space: nowrap }
+/* An issue's priority is a badge between its icon and its name. P1 and P2
+   take the value colour, so the urgent issues stand out of a list; P3 to P5
+   are outlined. Inline-block, so the link's underline stops at the badge
+   rather than running through it. */
+[data-priority] { border: 1px solid var(--border); border-radius: 3px; color: var(--muted); display: inline-block; font-size: .75em; line-height: 1.3; padding: 0 .35em; white-space: nowrap }
 [data-priority="P1"], [data-priority="P2"] { background-color: var(--value-bg); border-color: transparent; color: var(--value) }
 /* A directory with a demo anywhere under it carries a play mark after its
    name, so the marks are a trail from any page down to every demo below it.

@@ -400,8 +400,8 @@ export const fileHref = commit => path => name => {
 const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, text]]
 
 /**
- * An issue's entry: the issue link, its status as its icon, and its
- * priority as a badge after it.
+ * An issue's entry: its status as the icon, its priority as a badge right
+ * after the icon, then its name — `◐ P1 name`.
  *
  * **The status is on the link**, as the kind is (see {@link item}), so its
  * icon's text alternative — "wip issue" — is part of the link's name.
@@ -409,29 +409,32 @@ const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, t
  * already gives `passed` and `failed`: one attribute naming two unrelated
  * things is a collision waiting for a value they share.
  *
- * **The priority is text after the link**, not inside it: a badge a reader
- * sees and a screen reader reads, without changing the name the link is
- * announced by.
+ * **The badge is inside the link, after the icon**, because the icon is the
+ * link's own: a badge between the two can only be the link's content. The
+ * link is then named "wip issue P1 a.md", which says all three.
  *
  * @type {(href: string) => (issue: Issue) => Element}
  */
-const issueItem = href => ({ name, status, priority }) => ['li',
-    ['a', { href, 'data-kind': 'issue', 'data-issue-status': status }, name],
-    ' ',
-    ['span', { 'data-priority': priority }, priority]]
+export const issueItem = href => ({ name, status, priority }) => ['li',
+    ['a', { href, 'data-kind': 'issue', 'data-issue-status': status },
+        ['span', { 'data-priority': priority }, priority],
+        ' ',
+        name]]
 
 /**
- * The order a directory lists its issues in: by priority, most urgent first,
- * then by status in {@link statuses}' order — work in progress before work not
- * started, waiting work after both — then by name.
+ * The order a directory lists its issues in: by status in {@link statuses}'
+ * order — work in progress, then work not started, then work waiting or
+ * deferred, then the record, then what will not be done — then by priority,
+ * most urgent first, then by name. The list falls into groups of one icon,
+ * and the records sink to the bottom whatever their priority.
  *
  * @type {(a: Issue, b: Issue) => number}
  */
-const issueOrder = (a, b) => {
-    const priority = priorities.indexOf(a.priority) - priorities.indexOf(b.priority)
-    if (priority !== 0) { return priority }
+export const issueOrder = (a, b) => {
     const status = statuses.indexOf(a.status) - statuses.indexOf(b.status)
     if (status !== 0) { return status }
+    const priority = priorities.indexOf(a.priority) - priorities.indexOf(b.priority)
+    if (priority !== 0) { return priority }
     return a.name < b.name ? -1 : 1
 }
 
@@ -484,8 +487,8 @@ const section = heading => items =>
  * the directory rather than in it. Showing its open work beside Contents
  * makes both lists available immediately; a reader can fold either away.
  * Each entry's icon is its status and a badge its priority, and the list is
- * in {@link issueOrder}: the P1s, the issues that block everything else, come
- * first rather than wherever their names sort.
+ * in {@link issueOrder}: grouped by status, work in progress first, and by
+ * priority within each group, rather than wherever their names sort.
  *
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
