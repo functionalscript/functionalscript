@@ -58,6 +58,49 @@ today; a receiver or a conversion not yet supported is refused, not answered
 with an invented value. Each call returns a fresh array, as the JavaScript
 body does.
 
+### Why the option
+
+Pluses:
+
+- **One lookup for every question.** Value, presence, and value-or-default
+  are each one call: `entry(o, k)[0]`, `entry(o, k).length === 1`,
+  `[...entry(o, k), d][0]`. With a separate `hasEntry`, a default that
+  respects a stored `undefined` is `hasEntry(o, k) ? entry(o, k) : d`, two
+  lookups where one is enough — and a lookup is a linear scan of the
+  property list in NaNVM and in the EDAG executors, which nothing recovers:
+  calls are never merged as shared nodes. A cost built into an API outlives
+  every optimization; this one is never paid.
+- **No lie.** `[undefined]` is an entry holding `undefined` and `[]` is no
+  entry, where a value read answered `undefined` for both.
+- **A type that already exists, in a shape that composes.** `Option<T>` is
+  an array, so `flatMap`, spread, destructuring and `.length` work on it
+  with no vocabulary of their own.
+- **The smallest change.** One recognized body, one EDAG node, one VM
+  method, one function text, each differing from today's by the wrapping
+  alone; nothing receiver-dependent is exposed, as the descriptor would.
+
+Minuses:
+
+- **The common read carries a tail.** Most code wants the value and writes
+  `entry(o, k)[0]`, which also discards the distinction the option keeps —
+  so most readers pay a tail for information they drop. The tail is a
+  constant-key read of a one-element array, the cheapest read there is, and
+  a library reader can smooth it if it grates; a second primitive cannot
+  be smoothed away later.
+- **A fresh array per read.** One small allocation in NaNVM; on a
+  JavaScript host the former body already allocated a descriptor per read,
+  so nothing is added there.
+- **Presence reads as a length.** `.length === 1` is less direct than a
+  boolean.
+- **Breaking.** Every importer is rewritten, and the former body is no
+  longer the helper.
+
+Selected because the pluses are semantics and cost fixed by the API, which
+no later work can change, while the minuses are syntax and a constant
+allocation, which later work can. One primitive that is never a trap is the
+simpler API ([§1](../../doc/DESIGN.md#1-simplicity-first)), and the API is
+what quality is measured by.
+
 ### Alternatives rejected
 
 | Alternative | Why not |
