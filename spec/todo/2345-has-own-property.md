@@ -73,6 +73,20 @@ Pluses:
   nothing recovers the second: calls are never merged as shared nodes. A
   cost built into an API outlives every optimization; this one is never
   paid.
+- **The primitive the others derive from.** A value read and a presence
+  test are each one lookup over the option, and ordinary functions a module
+  can write today:
+
+  ```js
+  const entryValue = (a, b) => entry(a, b)[0]
+  const hasEntry = (a, b) => entry(a, b).length === 1
+  ```
+
+  Either can become a recognized pattern later, as `entry` is one, so that
+  a VM answers it natively with no array built — an extension that costs
+  the language nothing now. The reverse does not hold: `entry` written over
+  `entryValue` and `hasEntry` is two scans, and no later recognition
+  recovers the second.
 - **No lie.** `[undefined]` is an entry holding `undefined` and `[]` is no
   entry, where a value read answered `undefined` for both.
 - **A type that already exists, in a shape that composes.** `Option<T>` is
