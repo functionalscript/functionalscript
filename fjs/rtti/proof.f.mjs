@@ -431,7 +431,7 @@ const demoProof = /** @type {const} */ ({
         // reference by name, drawn inline, so the graph has no cycle.
         recursive: () => {
             const html = svg(exampleNamed('Recursion').schemas[0].schema)
-            assert(html.includes('>tree { }<'), html)
+            assert(html.includes('>tree {}<'), html)
             assert(html.includes('data-graph-value-kind="ref">tree<'), html)
         },
         // A named thunk that is not a const is labelled with its name too.
@@ -458,6 +458,12 @@ const demoProof = /** @type {const} */ ({
             assert(html.includes('>never<'), html)
         },
         record: () => assert(svg(record(array(number))).includes('>record<'), 'record'),
+        // An `array`, a `record` and an `or` name no port: the label says
+        // what each member is.
+        unkeyed: () => {
+            const html = svg(record(array(or(number, [string]))))
+            for (const key of ['>value<', '>item<', '>|<']) { assert(!html.includes(key), html) }
+        },
     },
 })
 
