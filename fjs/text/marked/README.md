@@ -68,6 +68,12 @@ no type for (TextMate and Tree-sitter keep that distinction too).
 | `operator` | an operator | none | none | none |
 | `identifier` | a name, whatever it names | the name of a shared node's `const`, `$0` | every name: a parameter or binding, `$0`, a property after `.` (even `x.true`), a global such as `Array` | every other word: crate, module, type, function and method names, `Ok`, `c0` |
 
+The TypeScript printer (`fjs/rtti/ts`) marks `type`, `readonly`, `in` and the
+primitive type names — `string`, `number`, `bigint`, `boolean`, `unknown`,
+`never`, `undefined` — `keyword`, as TypeScript spells them; `null`, `true` and
+`false` types `literal`; string and number literal types `string` and `number`;
+alias names `identifier`.
+
 Everything not in the table is plain text: punctuation, operators and
 parentheses. Plain is the default, and a producer marks a piece only when it is
 certain what it is. `operator` exists in the type for a producer that wants it;
@@ -190,6 +196,7 @@ text is an addition beside it. The `_`-prefixed functions are linkage, not API.
 | extended JSON codec (`fjs/media/json/extended`) | `serialize`, `stringify` | — | its leaves are marked, and its `Codec` has `marked`, which the module does not export yet |
 | `.js` writer (`fjs/compiler/serializer`) | `tryStringify`, `tryModuleStringify`, `trySerialize`, `tryModuleSerialize` | `tryMarked`, `tryModuleMarked` | `_trySerialize`, `_tryModuleSerialize` |
 | Rust (`fjs/compiler/rust`) | `toRust`, `generate` | `toRustMarked` | `scopeTagged`, `useLinesTagged` in `fjs/edag/rust` |
+| TypeScript types (`fjs/rtti/ts`) | `dataToTs`, `printer` | `dataToTsMarked` | `_taggedPrinter`, `_taggedPrimitive`, `_taggedUnion` in `fjs/types/ts` |
 | The compiler (`fjs/compiler`) | the file `compileFile(load)` writes | `_outputMarked(load)(input, output)`, `_compileMarked(load)(input, output)` | — |
 
 `_outputMarked` is `compile` without its tail, creating the output's
@@ -229,10 +236,8 @@ oracle, so it establishes agreement modulo that boundary, not identical rendered
 spans. The highlighter's `signedLeaves` proof pins both renderings explicitly.
 
 The compiler (side-by-side), parser, serializer, Rust and rtti demos render
-their producers' runs; the rtti demo leaves its TypeScript block plain until
-the printer marks it
-([`rtti/ts/todo/marked-output.md`](../../rtti/ts/todo/marked-output.md)),
-and its comparison block, which is a summary rather than code. How a demo's code blocks look is
+their producers' runs; the rtti demo leaves its comparison block plain, which
+is a summary rather than code. How a demo's code blocks look is
 [`website/demo/README.md`](../../website/demo/README.md#output).
 
 ## 7. The fallback for text with no producer

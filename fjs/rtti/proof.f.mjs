@@ -265,7 +265,7 @@ const demoProof = /** @type {const} */ ({
         // folded canonical form, then the comparison, then the value.
         outputs: () => {
             const html = page('Dictionary')
-            assert(html.includes('<p data-caption="">TypeScript:</p><pre data-code="">{readonly[k in string]?:number}</pre>'), html)
+            assert(html.includes('<p data-caption="">TypeScript:</p><pre data-code="">{<span data-token="keyword">readonly</span>[<span data-token="identifier">k</span> <span data-token="keyword">in</span> <span data-token="keyword">string</span>]?:<span data-token="keyword">number</span>}</pre>'), html)
             assert(html.includes(`<p data-caption="">JSON Schema:</p><pre data-code="">{${tok('string', '&quot;type&quot;')}:${tok('string', '&quot;object&quot;')},${tok('string', '&quot;additionalProperties&quot;')}:{${tok('string', '&quot;type&quot;')}:${tok('string', '&quot;number&quot;')}}}</pre>`), html)
             assert(html.includes(`<details><summary>Canonical form (toData)</summary><pre data-code="">${tok('keyword', 'export')} ${tok('keyword', 'default')} [`), html)
             const at = (/** @type {string} */ needle) => html.indexOf(needle)
@@ -354,14 +354,14 @@ const demoProof = /** @type {const} */ ({
             for (const e of examples) {
                 for (const x of e.schemas) {
                     const o = _outputsOf(x.schema)
-                    assert(o.ts !== '' && toText(o.jsonSchema) !== '' && toText(o.data) !== '', e.name)
+                    assert(toText(o.ts) !== '' && toText(o.jsonSchema) !== '' && toText(o.data) !== '', e.name)
                 }
             }
         },
         // A recursive schema prints its definition as a `type` alias first.
         recursive: () => {
             const o = _outputsOf(exampleNamed('Recursion').schemas[0].schema)
-            assertEq(o.ts, 'type tree = {readonly"children":readonly(tree)[],readonly"value":number}\ntree')
+            assertEq(toText(o.ts), 'type tree = {readonly"children":readonly(tree)[],readonly"value":number}\ntree')
             assert(toText(o.jsonSchema).includes('"$defs":{"tree":'), JSON.stringify(o.jsonSchema))
         },
     },
