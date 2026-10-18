@@ -138,21 +138,21 @@ const found = (self, s, start) => {
 
 /** The member section: a name, then the body. */
 const member = {
-        /**
-         * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith),
-         * a string's and no other type's: whether `ToString(search)` occurs
-         * at `position`, clamped into the string. The search string is
-         * converted before the position, as the algorithm orders them, and
-         * either conversion can throw — a search whose own `toString`
-         * throws, a bigint position — so the order is observable. The two
-         * are a call's arguments, which every executor evaluates left to
-         * right; two `const`s would be evaluated as the result demands
-         * them, the position first.
-         *
-         * @type {(self: unknown) => undefined | ((search: unknown, at: unknown) => boolean)}
-         */
-        startsWith: self => typeof self !== 'string' ? undefined
-            : (search, at) => found(self, String(search), position(at, self.length)),
+    /**
+     * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith),
+     * a string's and no other type's: whether `ToString(search)` occurs
+     * at `position`, clamped into the string. The search string is
+     * converted before the position, as the algorithm orders them, and
+     * either conversion can throw — a search whose own `toString`
+     * throws, a bigint position — so the order is observable. The two
+     * are a call's arguments, which every executor evaluates left to
+     * right; two `const`s would be evaluated as the result demands
+     * them, the position first.
+     *
+     * @type {(self: unknown) => undefined | ((search: unknown, at: unknown) => boolean)}
+     */
+    startsWith: self => typeof self !== 'string' ? undefined
+        : (search, at) => found(self, String(search), position(at, self.length)),
 }
 
 /**
