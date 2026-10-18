@@ -47,7 +47,11 @@ where the pair needs `hasEntry(a, b) ? entry(a, b) : d`, two scans that no
 executor merges. The price is the tail the common read carries,
 `entry(a, b)[0]` — a second read, but a random access at offset `0`,
 constant time whatever the object — and a fresh array per call: syntax and
-a constant, where a second scan is a cost the API would fix for good.
+a constant, where a second scan is a cost the API would fix for good. The
+option is also the primitive the other two derive from in one lookup each,
+`(a, b) => entry(a, b)[0]` and `(a, b) => entry(a, b).length === 1`,
+ordinary functions today and candidates for recognition later, as `entry`
+is recognized; written the other way round, `entry` would scan twice.
 
 The helper is exactly what it spells. The compiler recognizes the function
 whole — its two parameters, the `const` the descriptor binds and the
