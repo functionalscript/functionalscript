@@ -443,7 +443,7 @@ export const maxDeltaBytes = 0x80_0000
  * against 747, and dies at exactly the same size — under a 256 MiB heap both
  * build 6.5 MB and neither builds 25.
  *
- *  * So the answer is a ceiling rather than a cleverer join. It was 128 KiB while
+ * So the answer is a ceiling rather than a cleverer join. It was 128 KiB while
  * every other object here was bounded by the same `Vec`, so that a delta could
  * not build an object the reader beside it could not have read. Those bounds are
  * gone, and a delta's is now {@link maxDeltaBytes}: a delta can build an object

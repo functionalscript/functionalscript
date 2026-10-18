@@ -979,6 +979,17 @@ export const proof = {
             refusal(baseRefused).message,
             `${packPath}:12 declares ${over} bytes, more than the ${maxDeltaBytes} a delta chain is built from`)
     },
+    // The ceiling is a delta chain's and not an object's: an object stored whole
+    // that declares more than `maxDeltaBytes` is not refused for it, and is read
+    // like any other — here its stream holds one byte, so it is refused for
+    // disagreeing with its header, which is the next check and a different one.
+    wholeAboveTheCeiling: () => {
+        const over = maxDeltaBytes + 1
+        const pack = packOfEntries([[...entryHeader(3, over), ...storedBytes([1])]])
+        const [, r] = readBy(hostOf(listing, pair(idxOf([[firstId, 12]]), pack)), firstId)
+        assertEq(refusal(r).code, packEntryCode)
+        assertEq(refusal(r).message, `${packPath}:12 inflates to 1 bytes, not the ${over} its header declares`)
+    },
     // A stream is not read on once it has made more than its header declares: this
     // one is 300 000 zeros under a header that says five, and the first window of
     // it is the last that is read.
