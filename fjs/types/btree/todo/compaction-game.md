@@ -39,10 +39,8 @@ from every shape reached (breadth-first, with a shape compared by its keys):
   enough for its par to be computed exhaustively.
 - **Depth 4, 80 keys.** The start is depth 6 with 78 nodes. The shapes are
   too many to enumerate, and two million random moves that kept any move
-  not making the tree worse reached depth 5 with 44 nodes at best. That
-  proves nothing either way: **whether the perfect tree is reachable is
-  open**, and the level needs a known solution, or a proof that one exists,
-  before it ships.
+  not making the tree worse reached depth 5 with 44 nodes at best, so the
+  level starts from another insertion order.
 
 About half of all moves give back the same shape — a key in a leaf with room
 goes back where it was. A move that changes nothing should say so, as the
@@ -50,9 +48,6 @@ demo's remove of a missing key does, rather than look like a move that failed.
 
 ### Open questions
 
-- **Depth 4.** Is the perfect tree reachable from the in-order start, or from
-  any start? If not by this move, is another start (another insertion order)
-  enough, or does the level go?
 - **Progress between goals.** Depth alone barely moves — no move on 10 or 14
   keys changes it — so the board should also show the node count: fewer nodes
   means fuller nodes, which is how the depth drops.
