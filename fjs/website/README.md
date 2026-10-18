@@ -230,6 +230,17 @@ The one exclusion is a `todo/` subtree, by path segment: its issues are its
 parent's open work, so a page of its own would hold nothing else. It is neither
 generated nor linked, so nothing points at a page that was never written.
 
+**Issues are every `.md` under the `todo/` but `README.md`, at any depth**, as
+[`todo/README.md`](../../todo/README.md#issue-format) defines them: a
+subfolder's are listed with the rest, named by their path inside the `todo/` —
+`blocked/later.md` — and a `README.md` documents its directory rather than
+being one. Each is read for its header by [`issue`](./issue/module.f.mjs), and
+**one whose status or priority cannot be read stops the build**, naming the
+file, rather than being listed with a guess — the answer a release file that
+does not parse already gets. Reading them costs the build about two seconds
+for the few hundred issues the tree holds (at `6d511a0`, 366 issues: 17 s
+against 15 s).
+
 ## A page runs the proofs under it
 
 A page is the browser test runner with a shorter list, never a second runner.
