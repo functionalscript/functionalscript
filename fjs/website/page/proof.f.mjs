@@ -1,5 +1,6 @@
 /**
  * @import { Build, Dir } from './types.ts'
+ * @import { Issue } from '../issue/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -40,6 +41,14 @@ const contents = items => '<body><details data-section="" open=""><summary><h2>C
  */
 const issues = items => '<body><details data-section="" open=""><summary><h2>Issues</h2></summary>'
     + `<ul data-links="">${items}</ul></details></body>`
+
+/**
+ * An open P3 issue named `name`: what the header is does not change how a
+ * page links it.
+ *
+ * @type {(name: string) => Issue}
+ */
+const issue = name => ({ name, status: 'open', priority: 'P3' })
 
 /** @type {Dir} */
 const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], demo: null, api: null, apiIndex: null }
@@ -155,7 +164,7 @@ export const proof = {
          * lists are available without opening a disclosure control.
          */
         issuesSeparateAndOpen: () => {
-            const html = sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], files: ['module.f.mjs'] })
+            const html = sectionsHtml({ ...empty, path: 'fjs', todo: [issue('a.md')], files: ['module.f.mjs'] })
             assertEq(html,
                 '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
                 + '<ul data-links=""><li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li></ul></details>'
@@ -178,10 +187,10 @@ export const proof = {
         // An issue is linked inside the `todo/` it was filed in, which has no
         // page of its own.
         todo: () => assertEq(
-            sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'] }),
+            sectionsHtml({ ...empty, path: 'fjs', todo: [issue('a.md')] }),
             issues('<li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li>')),
         todoAtRoot: () => assertEq(
-            sectionsHtml({ ...empty, todo: ['a.md'] }),
+            sectionsHtml({ ...empty, todo: [issue('a.md')] }),
             issues('<li><a href="/todo/a.md" data-kind="issue">a.md</a></li>')),
         /**
          * **A file name that is not already a URL is encoded**, on this site
@@ -193,7 +202,7 @@ export const proof = {
                 sectionsHtml({ ...empty, path: 'fjs/x y', files: ['a b#c?100%.md'] }),
                 contents('<li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md" data-kind="file">a b#c?100%.md</a></li>')),
             todo: () => assertEq(
-                sectionsHtml({ ...empty, path: 'fjs', todo: ['open issue.md'] }),
+                sectionsHtml({ ...empty, path: 'fjs', todo: [issue('open issue.md')] }),
                 issues('<li><a href="/fjs/todo/open%20issue.md" data-kind="issue">open issue.md</a></li>')),
             dirs: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', dirs: ['x y'] }),
@@ -215,7 +224,7 @@ export const proof = {
                 sectionsAtCommit({ ...empty, files: ['README.md'] }),
                 contents(`<li><a href="${repository}/blob/${commit}/README.md" data-kind="file">README.md</a></li>`)),
             todo: () => assertEq(
-                sectionsAtCommit({ ...empty, path: 'fjs', todo: ['a.md'] }),
+                sectionsAtCommit({ ...empty, path: 'fjs', todo: [issue('a.md')] }),
                 issues(`<li><a href="${repository}/blob/${commit}/fjs/todo/a.md" data-kind="issue">a.md</a></li>`)),
             // A directory is one of this site's pages, which GitHub does not
             // have, so its link does not move.
@@ -381,7 +390,7 @@ export const proof = {
     },
     directoryLayout: {
         catalogueBesideMain: () => {
-            const dir = { ...empty, path: 'fjs', files: ['module.f.mjs'], todo: ['a.md'] }
+            const dir = { ...empty, path: 'fjs', files: ['module.f.mjs'], todo: [issue('a.md')] }
             const html = concat(element(directoryLayout({ ...local, commit })(dir)(['main', ['h1', 'fjs']])))
             const asideEnd = html.indexOf('</aside>')
             assert(html.startsWith('<div data-directory-layout=""><aside data-catalogue="" aria-label="Directory catalogue">'), html)
@@ -396,21 +405,21 @@ export const proof = {
     },
     page: {
         /**
-         * The breadcrumb names every ancestor and stops before the directory
-         * itself: a page does not link to the page it is.
+         * The breadcrumb is the page's heading: every ancestor as a link, then
+         * the directory itself as text, since a page does not link to the page
+         * it is.
          */
         breadcrumb: () => {
             const html = pageHtml({ ...empty, path: 'fjs/types/list' })
             assert(html.includes(
-                '<nav><a href="/index.html">root</a> / <a href="/fjs/index.html">fjs</a>'
-                + ' / <a href="/fjs/types/index.html">types</a></nav>'), html)
-            assert(html.includes('<h1>fjs/types/list</h1>'), html)
+                '<nav aria-label="Breadcrumb"><h1><a href="/index.html">root</a> / <a href="/fjs/index.html">fjs</a>'
+                + ' / <a href="/fjs/types/index.html">types</a> / <span aria-current="page">list</span></h1></nav>'), html)
             assert(!html.includes('list/index.html'), html)
         },
         // One directory below the root has the root as its only ancestor.
         breadcrumbOneDeep: () => {
             const html = pageHtml({ ...empty, path: 'fjs' })
-            assert(html.includes('<nav><a href="/index.html">root</a></nav>'), html)
+            assert(html.includes('<h1><a href="/index.html">root</a> / <span aria-current="page">fjs</span></h1>'), html)
         },
         // The header comes first, outside the page's own `main`.
         header: () => {
@@ -442,13 +451,13 @@ export const proof = {
         // directory without one says nothing about it.
         linksItsApi: () => {
             const html = pageHtml({ ...empty, path: 'nanvm-lib', api: '/cargo.doc/nanvm_lib/index.html' })
-            assert(html.includes('<h1>nanvm-lib</h1><p><a href="/cargo.doc/nanvm_lib/index.html">API documentation</a></p>'), html)
+            assert(html.includes('<span aria-current="page">nanvm-lib</span></h1></nav><p><a href="/cargo.doc/nanvm_lib/index.html">API documentation</a></p>'), html)
             assert(!pageHtml({ ...empty, path: 'a' }).includes('API documentation'), 'no link without a reference')
         },
         // The directory above the crates links the reference's index.
         linksTheApiIndex: () => {
             const html = pageHtml({ ...empty, path: 'nanvm', apiIndex: '/cargo.doc/index.html' })
-            assert(html.includes('<h1>nanvm</h1><p><a href="/cargo.doc/index.html">Rust API documentation</a></p>'), html)
+            assert(html.includes('<span aria-current="page">nanvm</span></h1></nav><p><a href="/cargo.doc/index.html">Rust API documentation</a></p>'), html)
         },
         // The catalogue is the same one the root page carries.
         carriesSections: () => {
