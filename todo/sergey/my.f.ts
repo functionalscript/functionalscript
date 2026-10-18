@@ -11,7 +11,33 @@ const members: StringMap<Member> = {
     at: self => (...args) => {}
 }
 
-export const dot = (self: any, key: string) => {
-    const f = entry(self, key)
-    return f.length === 1 ? f[0] : entry(members, key)[0]?.(self)
+export const dot = (self: any, index: string) => {
+    const f = entry(self, index)
+    return f.length === 1 ? f[0] : entry(members, index)[0]?.(self)
 }
+
+type PropertyLambda = {
+    readonly end: () => unknown
+    // `|?()`
+    readonly call: (...args: readonly unknown[]) => unknown
+    // `|?.()`
+    readonly optionCall: (...args: readonly unknown[]) => unknown
+}
+
+type OptionLambda = {
+    readonly end: () => unknown
+    // `|()`
+    readonly call: (...args: readonly unknown[]) => OptionLambda
+    // `|.`
+    readonly dot: (index: string) => OptionPropertyLambda
+}
+
+type OptionPropertyLambda = {
+    readonly end: () => unknown
+    // `?.()`
+    readonly optionCall: (...args: readonly unknown[]) => unknown
+    // `|!()`
+    readonly endCall: (...args: readonly[]) => unknown
+}
+
+type Dot = (self: any, index: string) => PropertyLambda
