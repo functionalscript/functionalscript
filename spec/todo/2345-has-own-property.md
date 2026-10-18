@@ -90,9 +90,11 @@ Minuses:
   second read, but a constant-time one, index `0` of a one-element array,
   and a library reader can smooth it if it grates; a second scan cannot be
   smoothed away later.
-- **A fresh array per read.** One small allocation in NaNVM; on a
-  JavaScript host the former body already allocated a descriptor per read,
-  so nothing is added there.
+- **A fresh array per read.** One small allocation added on every host.
+  On a JavaScript host it comes on top of the descriptor
+  `Object.getOwnPropertyDescriptor` builds, which the former body built
+  too, so a read allocates two objects where it allocated one; NaNVM builds
+  no descriptor, so there the array is the read's one allocation.
 - **Presence reads as a length.** `.length === 1` is less direct than a
   boolean.
 - **Breaking.** Every importer is rewritten, and the former body is no
