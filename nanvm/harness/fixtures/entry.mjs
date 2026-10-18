@@ -5,7 +5,7 @@
 // a `length` or anything of a function — and a function like any other to
 // read and to pass.
 /** @type {(a: unknown, b: any) => readonly [unknown] | readonly []} */
-const entry = (a, b) => {
+export const entry = (a, b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
     return x?.enumerable ? [x.value] : [];
 };

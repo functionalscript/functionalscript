@@ -45,5 +45,5 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     };
     let c34: Any<A> = Any::dot(c31, string_any("flatMap")).end_call(c32)?;
     let c35: Any<A> = [c2, c3, c4, c6, c8, c10, c12, c14, c15, c16, c17, c18, c19, c21, c23, c24, c27, c30, c34].to_array().to_any();
-    Ok([(string_key("default"), c35)].to_object().to_any())
+    Ok([(string_key("default"), c35), (string_key("entry"), c0.clone())].to_object().to_any())
 }

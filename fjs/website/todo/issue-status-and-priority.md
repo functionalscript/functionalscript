@@ -1,7 +1,7 @@
 ## Show issue status and priority
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -58,12 +58,12 @@ Epics and issue titles are left for later.
 
 ### Tasks
 
-- [ ] A FunctionalScript reader from an issue's text to its status and
+- [x] A FunctionalScript reader from an issue's text to its status and
       priority, or a refusal, with a proof at 100% coverage.
-- [ ] Read every issue in the build; `Dir.todo` carries name, status and
+- [x] Read every issue in the build; `Dir.todo` carries name, status and
       priority.
-- [ ] Stop listing `README.md` as an issue (`isIssue` in `module.f.mjs`).
-- [ ] List the issues in a `todo/`'s subfolders with the rest of it (`toDir`
+- [x] Stop listing `README.md` as an issue (`isIssue` in `module.f.mjs`).
+- [x] List the issues in a `todo/`'s subfolders with the rest of it (`toDir`
       reads only the top level).
 - [ ] `data-status`, `data-priority`, the badge and the order in
       `page/module.f.mjs`; the six new icons in `style/module.f.js`.

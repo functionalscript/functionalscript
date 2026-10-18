@@ -5,6 +5,7 @@
  */
 
 import type { Funding } from '../funding/types.ts'
+import type { Issue } from '../issue/types.ts'
 import type { Element } from '../../media/html/types.ts'
 
 /**
@@ -54,8 +55,11 @@ export type Dir = {
      * subdirectory's own or one further down. A subset of `dirs`.
      */
     readonly demoDirs: readonly string[]
-    /** The issues in this directory's `todo/`, by file name. */
-    readonly todo: readonly string[]
+    /**
+     * The issues under this directory's `todo/`, a subfolder's included,
+     * each with its header.
+     */
+    readonly todo: readonly Issue[]
     /**
      * Every proof module in this directory's subtree, named as this page
      * loads it: `./proof.f.mjs` on the directory that holds it, and
