@@ -682,7 +682,7 @@ export const proof = {
             assert(rootPage.includes('>root.md</a>'), rootPage)
             assert(!rootPage.includes('nested.md'), rootPage)
             const aPage = pageAt(root, ['a'])
-            assert(aPage.includes('<a href="/a/todo/nested.md" data-kind="issue">nested.md</a>'), aPage)
+            assert(aPage.includes('<a href="/a/todo/nested.md" data-kind="issue" data-issue-status="open">nested.md</a> <span data-priority="P3">P3</span>'), aPage)
             assert(!aPage.includes('root.md'), aPage)
         },
         /**
