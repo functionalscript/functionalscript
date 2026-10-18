@@ -86,6 +86,12 @@ const values = [7];
 export default [values.length, entry(values, "length")]; // [1, undefined]
 ```
 
+That is the body as implemented today. [Enumerable
+presence](./2345-has-own-property.md) changes it to answer an option,
+`descriptor?.enumerable ? [descriptor.value] : []`, so that the example
+reads `[1, []]` and `entry(values, 0)` reads `[7]`; once that lands, the
+former body is an ordinary function, refused at `Object`.
+
 Its complete parsed function body is recognized after statements, expressions
 and binding relationships are known. The matcher does not read newlines or
 repair statement boundaries. Descriptor use is permitted only inside the
