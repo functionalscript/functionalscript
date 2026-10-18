@@ -8,20 +8,24 @@ import type { Edge, Node, Ranked } from './types.ts'
 
 /**
  * An outgoing edge and its `index`, its position in the graph's list of
- * edges — what tells two listings of one `Edge` object apart.
+ * edges — what tells two listings of one `Edge` object apart — and
+ * `target`, the label of the node it ends at, empty for an inline value.
  */
 export type _Out = {
     readonly edge: Edge
     readonly index: number
+    readonly target: string
 }
 
 /**
  * One row of a node's ports: the edge that leaves from it, and where the
  * row sits, `y` measured from the node's own top edge. A row starts right
- * of the node's label column.
+ * of the node's label column. `ref` is the target's label, when the row
+ * draws it in place of a key: see `portsOf` (`./module.f.mjs`).
  */
 export type _Port = _Out & {
     readonly y: number
+    readonly ref: string | null
 }
 
 /**

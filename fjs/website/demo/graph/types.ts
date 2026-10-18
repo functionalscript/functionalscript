@@ -41,6 +41,11 @@ export type Ranked = Node & { readonly rank: number }
  * **An edge ends at a node, or at an {@link Inline} value** drawn in its
  * port, right of the label, rather than as a node of its own.
  *
+ * **An empty label is a row with no key.** Beside rows holding values, it
+ * shows the label of the node it leads to, marked `data-graph-value-ref`
+ * so the stylesheet draws it as part of the edge; in a node whose rows are
+ * all such edges, no row is drawn at all.
+ *
  * **An edge's kind is about the edge, not about what it points at.** The
  * EDAG demo marks an operand a node may never evaluate — `&&`'s right, an
  * arm of `?:` — and the same node reached from an eager position elsewhere

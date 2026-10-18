@@ -592,6 +592,7 @@ svg text { font: inherit }
 [data-graph-part="prior"] { fill: var(--muted) }
 [data-graph-part="current"] { font-weight: bold }
 [data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
+[data-graph-value-label][data-graph-value-ref] { fill: var(--muted); font-style: italic }
 [data-graph-value][data-graph-value-kind="terminal"] { fill: var(--border) }
 [data-graph-value-label][data-graph-value-kind="terminal"] { fill: var(--text) }
 [data-graph-edge-label] { dominant-baseline: middle; fill: var(--muted); font-size: .7rem }

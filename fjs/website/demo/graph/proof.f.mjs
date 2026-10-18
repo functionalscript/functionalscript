@@ -251,6 +251,20 @@ export const proof = {
             assertEq(html.split('data-graph-port=""').length - 1, 1)
             assert(html.includes('<rect x="34" y="30" width="26" height="20" data-graph-value="">'), html)
         },
+        // An edge with an empty key beside a value draws its target's label
+        // in the value's place, marked as a reference; a keyed edge beside
+        // them keeps its key. A target with no label of its own leaves the
+        // row as it was.
+        refRow: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'or', rank: 0 }, { id: 1, kind: 'a', label: '{}', rank: 1 }, { id: 2, kind: 'a', label: 'x', rank: 1 }, { id: 3, kind: 'a', label: '', rank: 1 }],
+                edges: [{ from: 0, to: { inline: '5' }, label: '' }, { from: 0, to: 1, label: '' }, { from: 0, to: 2, label: 'k' }, { from: 0, to: 3, label: '' }],
+            }))
+            assert(html.includes('data-graph-value-alone="" data-graph-value-ref="">'), html)
+            assert(html.includes('data-graph-value-label="" data-graph-value-ref="">{}<'), html)
+            assert(html.includes('data-graph-edge-label="">k<'), html)
+            assertEq(html.split('data-graph-value-ref=""').length - 1, 2)
+        },
         // Rows that are all edges with empty keys draw nothing: the node is
         // its 50px label alone, two rows tall, and each edge leaves from the
         // middle of its own row.
