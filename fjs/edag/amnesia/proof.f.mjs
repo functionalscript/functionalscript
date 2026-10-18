@@ -275,21 +275,23 @@ export const proof = {
         // three name a property the same way.
         eq(['.', ['[]', [1, 2, 3]], ['Number', '1']], 2)
         eq(['.', ['{}', []], 'toString'], undefined)
-        // The `entry` helper, called: an own data property, and nothing
-        // else — not a stock method, which no object here owns; not a
-        // `length`, which an array owns without enumerating it.
+        // The `entry` helper, called: the option of an own data property,
+        // and nothing else — not a stock method, which no object here owns;
+        // not a `length`, which an array owns without enumerating it.
         const entry = /** @type {(a: Exp, b: Exp) => Exp} */ ((a, b) => ['()', ['entry'], [a, b]])
-        eq(entry(['{}', [[':', 'a', 7]]], 'a'), 7)
-        // Absent: no descriptor, so `?.enumerable` is `undefined` rather
-        // than a read of `undefined.enumerable`.
-        eq(entry(['{}', []], 'a'), undefined)
-        eq(entry(['{}', []], 'toString'), undefined)
+        same(entry(['{}', [[':', 'a', 7]]], 'a'), [7])
+        // An entry holding `undefined` is one; absent is none: no
+        // descriptor, so `?.enumerable` is `undefined` rather than a read
+        // of `undefined.enumerable`.
+        same(entry(['{}', [[':', 'a', ['undefined']]]], 'a'), [undefined])
+        same(entry(['{}', []], 'a'), [])
+        same(entry(['{}', []], 'toString'), [])
         // The key converts as a property key does: `1` reads `'1'`.
-        eq(entry(['{}', [[':', '1', 42]]], 1), 42)
-        eq(entry(['[]', [5, 6]], 1), 6)
-        eq(entry(['[]', [5, 6]], 'length'), undefined)
-        eq(entry('ab', 1), 'b')
-        eq(entry(['entry'], 'length'), undefined)
+        same(entry(['{}', [[':', '1', 42]]], 1), [42])
+        same(entry(['[]', [5, 6]], 1), [6])
+        same(entry(['[]', [5, 6]], 'length'), [])
+        same(entry('ab', 1), ['b'])
+        same(entry(['entry'], 'length'), [])
         eq(['.', ['entry'], 'length'], 2)
         eq(['typeof', ['entry']], 'function')
         // and nullish receivers fail before the key is read at all

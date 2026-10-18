@@ -621,8 +621,8 @@ export const proof = {
      * the writer gives the helper.
      */
     entry: () => {
-        assertEq(printed(['entry']), 'A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any()')
-        assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')
+        assertEq(printed(['entry']), 'A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}")).to_any()')
+        assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')
     },
     /**
      * A static function as a value — `Object.is` — is its accessor's,

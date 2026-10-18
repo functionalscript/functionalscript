@@ -7,8 +7,8 @@
  * slot, a nested function, and an exported function, which the test reads
  * as a value and converts. The text is no part of identity: `one` is itself,
  * and two calls of `add(1)` make two functions with one text. As a property
- * key a function is its text too, read by the `entry` helper: the field the
- * text names, and nothing where no field has it.
+ * key a function is its text too, read by the `entry` helper: the option of
+ * the field the text names, `[7]`, and `[]` where no field has it.
  */
 import { entry } from "./entry.mjs";
 /** @type {(...a: readonly number[]) => (...b: readonly number[]) => number} */
@@ -25,6 +25,6 @@ export default [
     add(1) === add(1),
     entry({ "()=>1": 7 }, one),
     entry({ "(...$0)=>(...$1)=>$0[0]+$1[0]": 8 }, add),
-    entry({ "()=>2": 9 }, one) === undefined,
-    entry([5], one) === undefined,
+    entry({ "()=>2": 9 }, one),
+    entry([5], one),
 ];
