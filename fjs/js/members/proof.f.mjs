@@ -3,8 +3,6 @@
  * each with exactly the admitted names of its prototype, every entry a
  * function, and an entry not yet written throws `not implemented`.
  *
- * @module
- *
  * @import { Members } from './types.ts'
  */
 
