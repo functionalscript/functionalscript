@@ -123,6 +123,37 @@ export const runtime = {
   throw, the index keys an array, a string or a function owns, and `dot`;
   the two-step guard, `runtime_method` by name and the interpreter's
   `hasMethod` go with it, since `dot` answers the guard's question too.
+- The whole chain moves into the runtime after `dot`, under
+  [DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution):
+  the three continuations of the README's chains section, in
+  FunctionalScript, as the source of truth —
+
+  ```ts
+  type PropertyLambda = { end, call, optionCall }        // after `.`
+  type OptionLambda = { end, call, dot }                 // after `?.()`, or a step inside a region
+  type OptionPropertyLambda = { end, optionCall, endCall } // after `?.` or `|.`
+  export const dot: (self, index) => PropertyLambda
+  export const optionDot: (self, index: Lazy<Index>) => OptionPropertyLambda
+  export const optionCall: (self, args: Lazy<Args>) => OptionLambda
+  ```
+
+  — the index and the arguments lazy where a guard decides before them,
+  a skipped region a closure answering `undefined` to `end` and passing
+  through every step, and a throw propagating on its own, so the Rust
+  `Region::Thrown` has no counterpart. The reasons are portability — a
+  backend for another language provides the primitive surface and
+  generates the rest — and a reference every optimization is diffed
+  against. On NaNVM the naive emission allocates an object and its
+  closures per step; `vm/lambda`'s stack-allocated types are the
+  substitution for the chain nodes, which the EDAG already spells as
+  `.`, `?.`, `|()`, `|?.()` and `|!()`, one printer case per node, and
+  the harness runs the fixtures both ways. The interpreter runs the
+  source directly, which deletes its chain handling in `operations` and
+  its dispatcher in `value/method`. The core — `dot`, `optionDot`,
+  `optionCall` and the resolution — uses the primitive surface and plain
+  calls of function values alone, no member call and no `?.`, and the
+  printer refuses a chain node inside it: the `?.()` in `dot`'s sketch
+  becomes a conditional on `entry`'s answer.
 
 ### Tasks
 
@@ -142,6 +173,13 @@ export const runtime = {
       `typeof` tests as `Unpacked` matches; `Member::call` over the
       compiled `dot`, the native scan, `runtime_method` and the two-step
       guard going.
+- [ ] The chain in the runtime: `dot` answering a `PropertyLambda`,
+      `optionDot` and `optionCall`, with their proof on the host and the
+      corpus's chain cases as the oracle; the interpreter running them,
+      its chain handling and dispatcher going; the primitive surface a
+      backend provides listed in the runtime's README; the Rust printer
+      emitting the naive form under a flag and the harness diffing it
+      against `vm/lambda`'s.
 - [ ] The natives, one body at a time: each a typed implementation in
       `fjs/js/members` and a branch of its per-name body, the native
       table and the interpreter's dispatcher shrinking as they move, with
