@@ -110,15 +110,15 @@ The former `entry` design, since landed as
 shape that could bypass syntactic support for the constructs inside it.
 Ignoring whitespace before statement recognition is the root problem, not a
 missing newline exception in one intrinsic. This whitespace-only change to the
-helper returns `undefined` in JavaScript, not `[7]`:
+helper returns `undefined` in JavaScript, not `7`:
 
 ```js
 const entry = (a, b) => {const x = Object.getOwnPropertyDescriptor(a, b);return
-x?.enumerable ? [x.value] : []}
+x?.enumerable ? x.value : undefined}
 export default entry({ answer: 7 }, "answer");
 ```
 
-There is no extra semicolon after the final `[]`: only the space after
+There is no extra semicolon after the final `undefined`: only the space after
 `return` changed to a newline. Separately, this arrow is invalid JavaScript:
 
 ```js
@@ -221,18 +221,18 @@ it.
 
 **Decision:** prohibit `Object.hasOwn` in FJS source rather than redefine it
 as an enumerability test. Presence is the
-[`entry` helper](../spec/property-access/entries.md)'s to answer, as an
-option:
+[`hasEntry` helper](../spec/property-access/entries.md)'s to answer, beside
+`entry`, which reads the value:
 
 ```js
-const entry = (a, b) => {
+const hasEntry = (a, b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
-    return x?.enumerable ? [x.value] : [];
+    return x?.enumerable === true;
 };
 ```
 
-This exact function returns `[value]` for an enumerable own property, an
-entry holding `undefined` included, and `[]` for anything else. The TODO
+This exact function returns `true` for an enumerable own property, an
+entry holding `undefined` included, and `false` for anything else. The TODO
 records that API choice rather than silently deciding it.
 
 The old `hasOwn` proposal already required extending or refusing unsupported
@@ -271,8 +271,9 @@ export default Object.values({ ...a, y: 1, x: 2 })
     .filter(value => value !== undefined); // [2, 1], not [1, 2]
 ```
 
-The `entry` helper's option also reads `[undefined]` for an ordinary
-`{ x: undefined }` entry and `[]` for a missing one. Equality of direct value
+The `hasEntry` helper also answers `true` for an ordinary
+`{ x: undefined }` entry and `false` for a missing one, where `entry` reads
+`undefined` for both. Equality of direct value
 reads or filtered output does not establish substitutability.
 
 **Root-cause correction:** define equivalence over all admitted observation

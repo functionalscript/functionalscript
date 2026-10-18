@@ -39,7 +39,7 @@ const selfName = path => name(`${path}/self`)
  * and the descriptor `const`.
  *
  * ```js
- * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}
+ * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}
  * ```
  *
  * @type {(path: string) => string}
@@ -61,7 +61,9 @@ export const _entryChunks = path => {
         keyword('const'),
         ` ${binding(x)}=Object.getOwnPropertyDescriptor(${a},${b});`,
         keyword('return'),
-        ` ${x}?.enumerable?[${x}.value]:[];}`,
+        ` ${x}?.enumerable?${x}.value:`,
+        literal('undefined'),
+        ';}',
     ]
 }
 

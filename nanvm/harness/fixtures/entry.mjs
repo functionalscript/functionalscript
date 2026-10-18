@@ -1,16 +1,15 @@
 // The `entry` helper, the one read of a property named at run time, compiled
-// as the EDAG's `['entry']` and run natively by `Any::entry`: an option — a
-// one-element array holding an object's field, an array's or a string's
-// element by the key once converted, and an empty array for anything else,
-// a `length` or anything of a function — and a function like any other to
-// read and to pass.
-/** @type {(a: unknown, b: any) => readonly [unknown] | readonly []} */
+// as the EDAG's `['entry']` and run natively by `Any::entry`: the value of
+// an object's field, an array's or a string's element by the key once
+// converted, and `undefined` for anything else, a `length` or anything of a
+// function — and a function like any other to read and to pass. `hasEntry`
+// beside it, `['hasEntry']` run by `Any::has_entry`, is the presence, which
+// tells an entry holding `undefined` from none.
+/** @type {(a: unknown, b: any) => unknown} */
 export const entry = (a, b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
-    return x?.enumerable ? [x.value] : [];
+    return x?.enumerable ? x.value : undefined;
 };
-// The `hasEntry` helper beside it, compiled as `['hasEntry']` and run by
-// `Any::has_entry`: the presence the option tells, as a boolean.
 /** @type {(a: unknown, b: any) => boolean} */
 export const hasEntry = (a, b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
@@ -21,7 +20,7 @@ export default [
     entry(o, "x"),
     entry(o, "length"),
     entry(o, "y"),
-    entry(o, "u").length,
+    entry(o, "u"),
     entry([7, 8], 1),
     entry([7, 8], "1"),
     entry([7, 8], "01"),
@@ -35,8 +34,8 @@ export default [
     entry({ "[object Object]": 5 }, {}),
     entry(5, "x"),
     [10, 20].map(entry),
-    [...entry(o, "y"), 0][0],
-    ["x", "y", "length"].flatMap(k => entry(o, k)),
+    entry(o, "y") ?? 0,
+    ["x", "y", "length"].map(k => entry(o, k)),
     hasEntry(o, "x"),
     hasEntry(o, "u"),
     hasEntry(o, "y"),
@@ -48,5 +47,5 @@ export default [
     typeof hasEntry,
     hasEntry({ "1": 9 }, 1),
     hasEntry(5, "x"),
-    [hasEntry(o, "z") ? 1 : 2, entry(o, "x")[0]],
+    [hasEntry(o, "z") ? 1 : 2, entry(o, "x")],
 ];

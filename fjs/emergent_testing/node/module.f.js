@@ -58,7 +58,7 @@ const pass = event =>
  * @type {(event: Log) => Log}
  */
 const log = ({ type, data }) =>
-    ({ type, data: { ...data, message: `${entry(data, 'name')[0]}: ${data.message}` } })
+    ({ type, data: { ...data, message: `${entry(data, 'name')}: ${data.message}` } })
 
 /**
  * A file's path relative to the working directory, where the file is under

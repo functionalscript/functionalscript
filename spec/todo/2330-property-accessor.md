@@ -22,7 +22,7 @@ enumerable-entry helper, recognized whole and lowered to the EDAG's
 `['entry']`. It superseded the old descriptor-value-only source pattern and
 the `Object.hasOwn`-based alternative. `Object.hasOwn` and
 `obj.hasOwnProperty(...)` are prohibited source operations, not operations to
-reinterpret. `entry` answers presence too, as an option, `[value]` or `[]`
+reinterpret. `hasEntry` answers presence beside it
 ([spec: entry](../property-access/entries.md)). All such instructions follow
 [statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
@@ -80,10 +80,10 @@ compiler reads as the helper and every executor answers alike:
 ```js
 const entry = (object, property) => {
     const descriptor = Object.getOwnPropertyDescriptor(object, property);
-    return descriptor?.enumerable ? [descriptor.value] : [];
+    return descriptor?.enumerable ? descriptor.value : undefined;
 };
 const values = [7];
-export default [values.length, entry(values, "length"), entry(values, 0)]; // [1, [], [7]]
+export default [values.length, entry(values, "length"), entry(values, 0)]; // [1, undefined, 7]
 ```
 
 Its complete parsed function body is recognized after statements, expressions

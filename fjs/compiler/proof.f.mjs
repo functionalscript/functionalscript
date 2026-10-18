@@ -1333,7 +1333,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Static functions': 'ooooo',
                 'Object.entries': 'ooooo',
                 'Optional chaining': 'xoooo',
-                'The entry helper': 'ooooo',
+                'The entry helper': 'xoooo',
                 'Named exports': 'ooooo',
                 'A failure at run time': 'xxooo',
                 'An import': 'xxxxx',

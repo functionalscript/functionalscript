@@ -99,9 +99,10 @@ from represented values, preserving stored field and element identities.
 Arrays, strings and functions expose their lengths; string indices read
 UTF-16 code units. Missing properties return tagged undefined and nullish
 receivers fail. Its `entry` is what a call of the `entry` helper reads,
-over a key already converted: the option of the enumerable own property,
-`[value]` or `[]`, so an array's or a string's elements and never a
-`length`, and nothing of a function.
+over a key already converted: the value of the enumerable own property,
+or `undefined`, so an array's or a string's elements and never a
+`length`, and nothing of a function; its `hasEntry` is the presence a
+call of the `hasEntry` helper answers.
 Callers own operand evaluation order, key resolution and source-name
 admission. Memo connects these reads to chains and to the helper's calls;
 [`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
@@ -314,8 +315,8 @@ vocabularies.
 | `['arg', N]` | fixed parameter `N` of the owning function |
 | `['rest']` | the invocation's rest array, after the fixed prefix |
 | `['self']` | the owning function itself, as a value, the same every read: recursion is `['()', ['self'], args]`, and a nested function captures its parent's `self` as a slot |
-| `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a` as an option, a fresh `[value]` or `[]` |
-| `['hasEntry']` | the `hasEntry` helper beside it, the same function but for its answer: `['()', ['hasEntry'], [a, b]]` is whether the enumerable own property is there, `true` for one holding `undefined` ([spec: has-entry](../../spec/todo/2345-has-entry.md)) |
+| `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a`: its value, or `undefined` where there is none |
+| `['hasEntry']` | the `hasEntry` helper beside it, the same function but for its answer: `['()', ['hasEntry'], [a, b]]` is whether the enumerable own property is there, `true` for one holding `undefined` ([spec: entry](../../spec/property-access/entries.md)) |
 | `['Object.is']`, `['Object.entries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` section holds at the path [`fjs/js/static`](../js/static/module.f.js) admits it under, `['Object', 'is']` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.mjs)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
@@ -425,8 +426,9 @@ number. Widening those positions to a bare `exp` was weighed and rejected:
 an `op1`, so it would buy a second spelling of every computed key and no new
 expressive power. A property named at run time is read by no binary id
 but by a call of `['entry']`, the language's `entry` helper as a value,
-which reads the enumerable own property a key names once converted, as
-the option `[value]` or `[]`,
+which reads the enumerable own property a key names once converted, its
+value or `undefined`, with `['hasEntry']` beside it answering whether
+there is one, both
 bypassing the prototype chain (including `__proto__`) and reading no
 `length` of an array, a string or a function — the helper is the one
 source spelling of the node (see the `entryJs` proof); calling a function

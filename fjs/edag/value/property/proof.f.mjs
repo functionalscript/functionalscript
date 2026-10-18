@@ -13,7 +13,7 @@ import { array } from '../array/module.f.mjs'
 import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
 import { call } from '../call/module.f.mjs'
-import { entry, findProperty, functionAt, read } from './module.f.mjs'
+import { entry, hasEntry, findProperty, functionAt, read } from './module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */
 const expectValue = (receiver, key, expected) => {
@@ -115,25 +115,26 @@ export const proof = {
     // helper itself included, nothing of any other primitive, and a failure
     // for a nullish receiver.
     entry: () => {
-        /** The one value an option holds, kept by identity. @type {(option: EdagValue) => EdagValue} */
-        const some = option => {
-            assert(isArray(option) && option[0] === '[]' && option[1].length === 1)
-            return option[1][0]
+        /** The value an entry holds, kept by identity, and its presence. @type {(receiver: EdagValue, key: string) => EdagValue} */
+        const some = (receiver, key) => {
+            assertEq(assertOk(hasEntry(receiver, key)), true)
+            return assertOk(entry(receiver, key))
         }
         /** @type {(receiver: EdagValue, key: string) => void} */
-        const none = (receiver, key) => assertStructurallySame(assertOk(entry(receiver, key)), ['[]', []])
-        assertEq(some(assertOk(entry(record, 'value'))), data)
+        const none = (receiver, key) => {
+            assertEq(assertOk(hasEntry(receiver, key)), false)
+            assertStructurallySame(assertOk(entry(receiver, key)), undefinedValue)
+        }
+        assertEq(some(record, 'value'), data)
         none(record, 'length')
-        assertEq(some(assertOk(entry(['{}', [[':', 'length', 3]]], 'length'))), 3)
-        // an entry holding `undefined` is an entry, where the read alone
-        // could not tell it from none
-        assertStructurallySame(assertOk(entry(['{}', [[':', 'u', undefinedValue]]], 'u')), ['[]', [['undefined']]])
-        // a fresh option every call
-        assert(assertOk(entry(record, 'value')) !== assertOk(entry(record, 'value')))
+        assertEq(some(['{}', [[':', 'length', 3]]], 'length'), 3)
+        // an entry holding `undefined` reads as none, and `hasEntry` tells
+        // it from none
+        assertStructurallySame(some(['{}', [[':', 'u', undefinedValue]]], 'u'), undefinedValue)
         const items = assertOk(array([() => ok(data), () => ok(record)]))
-        assertEq(some(assertOk(entry(items, '1'))), record)
+        assertEq(some(items, '1'), record)
         for (const key of ['length', '2', '01', '-1']) { none(items, key) }
-        assertEq(some(assertOk(entry('ab', '1'))), 'b')
+        assertEq(some('ab', '1'), 'b')
         for (const key of ['length', '2', '01']) { none('ab', key) }
         /** @type {readonly EdagValue[]} */
         const entryless = [functionValue, ['entry'], ['hasEntry'], ['Object.entries'], true, 0, 1n]
@@ -142,6 +143,7 @@ export const proof = {
         }
         for (const receiver of [null, undefinedValue]) {
             assertStructurallySame(assertError(entry(receiver, 'a')), ['undefined'])
+            assertStructurallySame(assertError(hasEntry(receiver, 'a')), ['undefined'])
         }
         // the helper owns the `length` every function does, read as a property
         expectValue(['entry'], 'length', 2)

@@ -43,7 +43,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         Ok([(string_key("command"), A::frame(self_)[0].clone()), (string_key("payload"), A::frame(self_)[1].clone()), (string_key("continuation"), c0)].to_object().to_any())
     }, 1, [A::frame(self_)[0].clone(), A::frame(self_)[1].clone(), args.argument(0), A::frame(self_)[2].clone(), A::frame(self_)[3].clone()].to_array(), Some("($5)=>{return {\"command\":$0,\"payload\":$1,\"continuation\":($6)=>$2([...$5,$3($4,$6)])};}")).to_any()) }, 1, [args.argument(0), args.argument(1), A::frame(self_)[0].clone(), args.argument(2)].to_array(), Some("($4)=>($5)=>{return {\"command\":$0,\"payload\":$1,\"continuation\":($6)=>$4([...$5,$2($3,$6)])};}")).to_any()) }, 3, [c0].to_array(), Some("($1,$2,$3)=>($4)=>($5)=>{return {\"command\":$1,\"payload\":$2,\"continuation\":($6)=>$4([...$5,$0($3,$6)])};}")).to_any();
     let c2: Any<A> = A::static_function(|_self, _args| { Ok(Nullish::Null.to_any()) }, 1, Array::default(), Some("($0)=>null")).to_any();
-    let c3: Any<A> = A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}")).to_any();
+    let c3: Any<A> = A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
     let c4: Any<A> = A::static_function(|_self, args| Any::has_entry(args.argument(0), args.argument(1)).map(|b| b.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any();
     let c5: Any<A> = [(string_key("entry"), c3), (string_key("hasEntry"), c4)].to_object().to_any();
     let c6: Any<A> = Any::dot(c5, string_any("entry")).end()?;
@@ -69,15 +69,12 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             let c0: Any<A> = A::frame(self_)[0].clone();
             let c1: Any<A> = Any::dot(args.argument(0), f64_any(0x0000000000000000)).end()?;
             let c2: Any<A> = Any::call(c0.clone(), [c1, string_any("name")].to_array().to_any())?;
-            let c3: Any<A> = Any::dot(c2, f64_any(0x0000000000000000)).end()?;
-            let c4: Any<A> = Any::dot(args.argument(0), f64_any(0x3ff0000000000000)).end()?;
-            let c5: Any<A> = Any::call(c0.clone(), [c4, string_any("name")].to_array().to_any())?;
-            let c6: Any<A> = Any::dot(c5, f64_any(0x0000000000000000)).end()?;
-            let c7: Any<A> = Any::dot(args.argument(0), f64_any(0x4000000000000000)).end()?;
-            let c8: Any<A> = Any::call(c0.clone(), [c7, string_any("name")].to_array().to_any())?;
-            let c9: Any<A> = Any::dot(c8, f64_any(0x0000000000000000)).end()?;
-            Ok([c3, c6, c9].to_array().to_any())
-        }, 1, [c15.clone()].to_array(), Some("($1)=>[$0($1[0],\"name\")[0],$0($1[1],\"name\")[0],$0($1[2],\"name\")[0]]")).to_any();
+            let c3: Any<A> = Any::dot(args.argument(0), f64_any(0x3ff0000000000000)).end()?;
+            let c4: Any<A> = Any::call(c0.clone(), [c3, string_any("name")].to_array().to_any())?;
+            let c5: Any<A> = Any::dot(args.argument(0), f64_any(0x4000000000000000)).end()?;
+            let c6: Any<A> = Any::call(c0.clone(), [c5, string_any("name")].to_array().to_any())?;
+            Ok([c2, c4, c6].to_array().to_any())
+        }, 1, [c15.clone()].to_array(), Some("($1)=>[$0($1[0],\"name\"),$0($1[1],\"name\"),$0($1[2],\"name\")]")).to_any();
         let c17: Any<A> = Any::call(c0.clone(), [string_any("readdir"), c14, c16].to_array().to_any())?;
         let c18: Any<A> = [(string_key("recursive"), true.to_any())].to_object().to_any();
         let c19: Any<A> = [args.argument(0), c18].to_array().to_any();
@@ -85,18 +82,14 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             let c0: Any<A> = A::frame(self_)[0].clone();
             let c1: Any<A> = Any::dot(args.argument(0), f64_any(0x0000000000000000)).end()?;
             let c2: Any<A> = Any::call(c0.clone(), [c1, string_any("name")].to_array().to_any())?;
-            let c3: Any<A> = Any::dot(c2, f64_any(0x0000000000000000)).end()?;
-            let c4: Any<A> = Any::dot(args.argument(0), f64_any(0x3ff0000000000000)).end()?;
-            let c5: Any<A> = Any::call(c0.clone(), [c4, string_any("name")].to_array().to_any())?;
-            let c6: Any<A> = Any::dot(c5, f64_any(0x0000000000000000)).end()?;
-            let c7: Any<A> = Any::dot(args.argument(0), f64_any(0x4000000000000000)).end()?;
+            let c3: Any<A> = Any::dot(args.argument(0), f64_any(0x3ff0000000000000)).end()?;
+            let c4: Any<A> = Any::call(c0.clone(), [c3, string_any("name")].to_array().to_any())?;
+            let c5: Any<A> = Any::dot(args.argument(0), f64_any(0x4000000000000000)).end()?;
+            let c6: Any<A> = Any::call(c0.clone(), [c5, string_any("name")].to_array().to_any())?;
+            let c7: Any<A> = Any::dot(args.argument(0), f64_any(0x4008000000000000)).end()?;
             let c8: Any<A> = Any::call(c0.clone(), [c7, string_any("name")].to_array().to_any())?;
-            let c9: Any<A> = Any::dot(c8, f64_any(0x0000000000000000)).end()?;
-            let c10: Any<A> = Any::dot(args.argument(0), f64_any(0x4008000000000000)).end()?;
-            let c11: Any<A> = Any::call(c0.clone(), [c10, string_any("name")].to_array().to_any())?;
-            let c12: Any<A> = Any::dot(c11, f64_any(0x0000000000000000)).end()?;
-            Ok([c3, c6, c9, c12].to_array().to_any())
-        }, 1, [c15.clone()].to_array(), Some("($1)=>[$0($1[0],\"name\")[0],$0($1[1],\"name\")[0],$0($1[2],\"name\")[0],$0($1[3],\"name\")[0]]")).to_any();
+            Ok([c2, c4, c6, c8].to_array().to_any())
+        }, 1, [c15.clone()].to_array(), Some("($1)=>[$0($1[0],\"name\"),$0($1[1],\"name\"),$0($1[2],\"name\"),$0($1[3],\"name\")]")).to_any();
         let c21: Any<A> = Any::call(c0.clone(), [string_any("readdir"), c19, c20].to_array().to_any())?;
         let c22: Any<A> = (args.argument(0) + string_any("/none"))?;
         let c23: Any<A> = [c22, Object::default().to_any()].to_array().to_any();
@@ -109,7 +102,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c30: Any<A> = Any::call(c7, [c29].to_array().to_any())?;
         let c31: Any<A> = Any::call(c4, [c30].to_array().to_any())?;
         Any::call(c31, [Array::default().to_any()].to_array().to_any())
-    }, 1, [c1.clone(), c2.clone(), c6, c7.clone()].to_array(), Some("($4)=>$0(\"mkdir\",[$4+\"/b\",undefined],$1)($0(\"mkdir\",[$4+\"/a\",undefined],$1)($0(\"writeFile\",[$4+\"/z\",-59497n],$1)($0(\"writeFile\",[$4+\"/a/f\",-59497n],$1)($0(\"readdir\",[$4,{}],($5)=>[$2($5[0],\"name\")[0],$2($5[1],\"name\")[0],$2($5[2],\"name\")[0]])($0(\"readdir\",[$4,{\"recursive\":true}],($6)=>[$2($6[0],\"name\")[0],$2($6[1],\"name\")[0],$2($6[2],\"name\")[0],$2($6[3],\"name\")[0]])($0(\"readdir\",[$4+\"/none\",{}],$1)($3)))))))([])")).to_any();
+    }, 1, [c1.clone(), c2.clone(), c6, c7.clone()].to_array(), Some("($4)=>$0(\"mkdir\",[$4+\"/b\",undefined],$1)($0(\"mkdir\",[$4+\"/a\",undefined],$1)($0(\"writeFile\",[$4+\"/z\",-59497n],$1)($0(\"writeFile\",[$4+\"/a/f\",-59497n],$1)($0(\"readdir\",[$4,{}],($5)=>[$2($5[0],\"name\"),$2($5[1],\"name\"),$2($5[2],\"name\")])($0(\"readdir\",[$4,{\"recursive\":true}],($6)=>[$2($6[0],\"name\"),$2($6[1],\"name\"),$2($6[2],\"name\"),$2($6[3],\"name\")])($0(\"readdir\",[$4+\"/none\",{}],$1)($3)))))))([])")).to_any();
     let c9: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
     let c10: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
     let c11: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();

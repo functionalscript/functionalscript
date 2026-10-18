@@ -47,9 +47,9 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGu
  * ```
  *
  * under any names — the one function that reads a property named at run
- * time, the enumerable own property the key names once converted as
- * `Object.getOwnPropertyDescriptor` converts it, as an option: `[value]`,
- * or `[]` where there is none. It is a function like
+ * time, the value of the enumerable own property the key names once
+ * converted as `Object.getOwnPropertyDescriptor` converts it, or
+ * `undefined` where there is none. It is a function like
  * any other: a value, of `length` `2`, capturing nothing, and a fresh
  * identity wherever it is written, as every arrow is. The lowering spells
  * it as the EDAG's own node for it, `['entry']`, which the source spells

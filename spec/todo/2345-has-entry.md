@@ -26,7 +26,7 @@ const hasEntry = (a, b) => {
 is one, `true` for an entry holding `undefined`. Both convert the key as
 `Object.getOwnPropertyDescriptor` converts it, both fail on a nullish `a`,
 and both are recognized whole, under any three distinct names, as the
-option helper is today, each an EDAG node of its own, `['entry']` and
+option helper was, each an EDAG node of its own, `['entry']` and
 `['hasEntry']`, that every executor answers natively with nothing built.
 Which values own what stays as [entries](../property-access/entries.md)
 says: an object's field, an array's or a string's element, and nothing a
@@ -101,12 +101,12 @@ The price the pair pays:
 
 ### Tasks
 
-- [ ] `hasEntry` beside the option: the body recognized whole in the
+- [x] `hasEntry` beside the option: the body recognized whole in the
       parser, the AST's and the EDAG's `['hasEntry']`, the interpreter's
       operation, the JavaScript output writing the helper back, the Rust
       printer and `Any::has_entry` in `nanvm-lib`, the corpus cases, and
       [entries](../property-access/entries.md) updated. Nothing breaks.
-- [ ] `entry` back to the value: the value-answering body recognized as
+- [x] `entry` back to the value: the value-answering body recognized as
       the helper, the option body an ordinary function again, the
       interpreter's and NaNVM's `entry` answering the value, every
       importer of the option moved to the pair, the spec and the

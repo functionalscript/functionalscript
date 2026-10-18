@@ -1407,19 +1407,18 @@ const isDescriptorOf = (node, a, b) => {
 }
 
 /**
- * Whether a node is `x?.enumerable ? [x.value] : []`, the helper's option,
- * `x` the word its `const` binds: a guarded access ending its chain there,
- * an array of the one plain access, and the empty array.
+ * Whether a node is `x?.enumerable ? x.value : undefined`, the helper's
+ * value, `x` the word its `const` binds: a guarded access ending its
+ * chain there, the one plain access, and the literal `undefined`.
  *
  * @type {(node: Node, x: string) => boolean}
  */
 const isEntryOf = (node, x) => {
     if (node[0] !== '?:') { return false }
-    const [, condition, then, otherwise] = node
-    if (then[0] !== 'array' || then[1].length !== 1 || otherwise[0] !== 'array' || otherwise[1].length !== 0) { return false }
-    const [value] = then[1]
+    const [, condition, value, otherwise] = node
     return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && isKeyNamed(condition[2], 'enumerable')
         && value[0] === '.' && value.length === 3 && isRef(value[1], x) && isKeyNamed(value[2], 'value')
+        && otherwise[0] === 'primitive' && otherwise[1] === undefined
 }
 
 /**
@@ -1445,7 +1444,7 @@ const isHasEntryOf = (node, x) => {
  * ```js
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable ? [x.value] : [];
+ *     return x?.enumerable ? x.value : undefined;
  * }
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);

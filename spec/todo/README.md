@@ -77,7 +77,7 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    designer approval,
 3. [ ] [operators](./2340-operators.md),
 4. [x] enumerable presence — prohibit `Object.hasOwn`; [`entry`](../property-access/entries.md)
-   answers an option, `[value]` or `[]`,
+   reads the value and `hasEntry` beside it answers the presence,
 5. [ ] [built-in](./2360-built-in.md),
 6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; each name is reserved no later

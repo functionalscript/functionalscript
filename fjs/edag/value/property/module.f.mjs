@@ -126,19 +126,29 @@ const entryOf = (receiver, key) => {
 }
 
 /**
- * The entry `key` names, as an option: what a call of the `entry` helper
- * reads, over a key already converted to a string — the enumerable own
- * property, as the helper reads it, `Object.getOwnPropertyDescriptor`
- * followed by `x?.enumerable ? [x.value] : []`. A one-element array
- * holding the property's value, {@link entryOf}, an entry holding
- * `undefined` included, and an empty one where there is none; a fresh
- * array every call, as the helper's body builds one. A nullish receiver
- * fails, as `Object.getOwnPropertyDescriptor` throws on one.
+ * The entry `key` names: what a call of the `entry` helper reads, over a
+ * key already converted to a string — the enumerable own property, as
+ * the helper reads it, `Object.getOwnPropertyDescriptor` followed by
+ * `x?.enumerable ? x.value : undefined`: the property's value,
+ * {@link entryOf}, and `undefined` where there is none. A nullish
+ * receiver fails, as `Object.getOwnPropertyDescriptor` throws on one.
  *
  * @type {(receiver: EdagValue, key: string) => ValueResult}
  */
 export const entry = (receiver, key) => {
     if (receiver === null || (isArray(receiver) && receiver[0] === 'undefined')) { return error(['undefined']) }
     const found = entryOf(receiver, key)
-    return ok(['[]', found === undefined ? [] : [found]])
+    return ok(found === undefined ? ['undefined'] : found)
+}
+
+/**
+ * Whether the entry `key` names is there: what a call of the `hasEntry`
+ * helper reads, `true` for an entry holding `undefined`, the receiver
+ * treated as {@link entry} treats it.
+ *
+ * @type {(receiver: EdagValue, key: string) => ValueResult}
+ */
+export const hasEntry = (receiver, key) => {
+    if (receiver === null || (isArray(receiver) && receiver[0] === 'undefined')) { return error(['undefined']) }
+    return ok(entryOf(receiver, key) !== undefined)
 }
