@@ -41,8 +41,8 @@ export type Ranked = Node & { readonly rank: number }
  * **An edge ends at a node, or at an {@link Inline} value** drawn in its
  * port, right of the label, rather than as a node of its own.
  *
- * **Beside values, in a {@link Graph} with `targets`, an edge's row
- * shows the label of the node it leads to** in the value's place, its key in the key column, marked
+ * **Beside values, an edge's row shows the label of the node it leads
+ * to** in the value's place, its key in the key column, marked
  * `data-graph-value-ref` so the stylesheet draws it as part of the edge.
  * So does a row with an empty label beside other edges. In a node whose
  * rows are all edges with empty labels, no row is drawn at all.
@@ -108,18 +108,12 @@ export type Entry = {
 /**
  * A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every
  * edge named, and the {@link Entry} arrows into it, if it has any.
- *
- * `targets` names, in an edge's row, the node the edge leads to, where
- * the row would otherwise differ from its neighbours: see {@link Edge}.
- * It is the demo's choice, and off by default: a demo whose lesson is that
- * one node is reached by many edges would only blur it by writing that
- * node's label at every one of them.
+
  */
 export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
     readonly entries?: readonly Entry[] | undefined
-    readonly targets?: boolean | undefined
 }
 
 /**

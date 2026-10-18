@@ -287,8 +287,7 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
  * inline reference by name would. So does an edge with an empty key
  * beside other edges, which would otherwise be a blank row. Its own
  * attribute lets the stylesheet draw it as part of the edge, not as a
- * value. A target with no label leaves the row as it was, and so does
- * every edge of a graph that does not ask for `targets`.
+ * value. A target with no label leaves the row as it was.
  *
  * **Rows that are all empty edge ports draw nothing**: a row holding no key
  * and no value says nothing, so such a node is its label alone, as wide as
@@ -456,9 +455,9 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
  *
  * The first column starts at `left`.
  *
- * @type {(left: number) => (targets: boolean) => (nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
+ * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
  */
-const layout = left => targets => nodes => edges => {
+const layout = left => nodes => edges => {
     // **An edge must name nodes the graph has, or the graph is refused.**
     // An edge is drawn from a port of its source, so one whose source is
     // missing would have nowhere to leave from and would simply vanish,
@@ -474,7 +473,7 @@ const layout = left => targets => nodes => edges => {
     const labels = new Map(nodes.map(n => [n.id, n.label]))
     const outgoing = new Map(nodes.map(n => [n.id,
         edges.flatMap((edge, index) => edge.from === n.id
-            ? [{ edge, index, target: targets && typeof edge.to === 'number' ? /** @type {string} */ (labels.get(edge.to)) : '' }]
+            ? [{ edge, index, target: typeof edge.to === 'number' ? /** @type {string} */ (labels.get(edge.to)) : '' }]
             : [])]))
     const outgoingOf = /** @type {(id: number) => readonly _Out[]} */ (id => /** @type {readonly _Out[]} */ (outgoing.get(id)))
     const ranks = new Map(nodes.map(n => [n.id, n.rank]))
@@ -611,7 +610,7 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  *
  * @type {(g: Graph) => _Placed}
  */
-const placedOf = ({ nodes, edges, entries = [], targets = false }) => {
+const placedOf = ({ nodes, edges, entries = [] }) => {
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
@@ -627,7 +626,7 @@ const placedOf = ({ nodes, edges, entries = [], targets = false }) => {
     const fromCorners = new Set(edges.flatMap(({ from, corner }) => corner === undefined ? [] : [from]))
     const mixed = edges.findIndex(({ from, to, corner }) => corner === undefined && typeof to === 'number' && fromCorners.has(from))
     if (mixed !== -1) { throw `graph: edge ${mixed} leaves a row of node ${edges[mixed].from}, whose other arrows leave from its corners` }
-    return layout(margin + (entries.length === 0 ? 0 : entryLength))(targets)(nodes)(edges)
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
 }
 
 /**
