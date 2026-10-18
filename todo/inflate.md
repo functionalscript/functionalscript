@@ -82,6 +82,10 @@ blocks, which is a framing and not a compression.
 
 ### Related
 
+- The native runner, `nanvm-effects-node`, answers `inflate` itself, with a
+  decoder of its own and no dependency
+  ([`inflate.rs`](../nanvm/effects-node/src/inflate.rs)). It is the operation
+  this issue keeps "for a host that would rather spend the native decoder".
 - [`fjs/git/README.md`](../fjs/git/README.md), the design this serves,
   and its note on what a grammar does not do.
 - `fjs/git/loose` and `fjs/git/packstore`, the two modules that would
