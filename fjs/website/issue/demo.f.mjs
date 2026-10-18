@@ -1,6 +1,6 @@
 /**
  * An issue's header, read as the site reads it and drawn as a directory's
- * page lists it: the status as the icon, the priority as a badge after it.
+ * page lists it: the priority as a badge, then the status as the icon.
  *
  * **The output is the page's own entry**, `issueItem` in
  * [`../page`](../page/module.f.mjs), drawn by the site's stylesheet, so what
@@ -61,7 +61,7 @@ export const shown = text => {
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = textDemo({
-    intro: 'Reads the status and the priority from an issue\'s header and shows the issue as a directory\'s page lists it: the status as the icon, the priority as a badge after it. A note after " — " is not read; any other value is refused, as the site build refuses it.',
+    intro: 'Reads the status and the priority from an issue\'s header and shows the issue as a directory\'s page lists it: the priority as a badge, then the status as the icon. A note after " — " is not read; any other value is refused, as the site build refuses it.',
     name: 'issue',
     label: 'Issue',
     rows: 6,

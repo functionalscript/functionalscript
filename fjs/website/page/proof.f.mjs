@@ -169,7 +169,7 @@ export const proof = {
                 '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
                 + '<ul data-links=""><li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li></ul></details>'
                 + '<details data-section="" open=""><summary><h2>Issues</h2></summary>'
-                + '<ul data-links=""><li><a href="/fjs/todo/a.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>a.md</span></a></li></ul></details></body>')
+                + '<ul data-links=""><li><span data-priority="P3">P3</span> <a href="/fjs/todo/a.md" data-kind="issue" data-issue-status="open">a.md</a></li></ul></details></body>')
         },
         // A subdirectory link points at a page, and every such page exists —
         // which is what the "every directory gets one" rule buys.
@@ -188,20 +188,21 @@ export const proof = {
         // page of its own.
         todo: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', todo: [issue('a.md')] }),
-            issues('<li><a href="/fjs/todo/a.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>a.md</span></a></li>')),
+            issues('<li><span data-priority="P3">P3</span> <a href="/fjs/todo/a.md" data-kind="issue" data-issue-status="open">a.md</a></li>')),
         todoAtRoot: () => assertEq(
             sectionsHtml({ ...empty, todo: [issue('a.md')] }),
-            issues('<li><a href="/todo/a.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>a.md</span></a></li>')),
+            issues('<li><span data-priority="P3">P3</span> <a href="/todo/a.md" data-kind="issue" data-issue-status="open">a.md</a></li>')),
         /**
-         * **Issues are listed by status, then priority, then name**, each
-         * with its status as the icon and its priority as a badge after it:
-         * work in progress first, the records last whatever their priority,
-         * and the most urgent first within each status.
+         * **Issues are listed by priority, then status, then name**, each
+         * with its priority as a badge before it and its status as the icon:
+         * the P1s first rather than wherever their names sort, and within one
+         * priority work in progress before work not started, the records
+         * after both.
          */
         todoOrder: () => {
             /** @type {(name: string, status: Issue['status'], priority: Issue['priority']) => string} */
             const entry = (name, status, priority) =>
-                `<li><a href="/todo/${name}" data-kind="issue" data-issue-status="${status}"><span data-priority="${priority}">${priority}</span> <span>${name}</span></a></li>`
+                `<li><span data-priority="${priority}">${priority}</span> <a href="/todo/${name}" data-kind="issue" data-issue-status="${status}">${name}</a></li>`
             assertEq(
                 sectionsHtml({ ...empty, todo: [
                     { name: 'z.md', status: "won't fix", priority: 'P5' },
@@ -213,12 +214,12 @@ export const proof = {
                     { name: 'y.md', status: 'wip', priority: 'P4' },
                 ] }),
                 issues([
-                    entry('y.md', 'wip', 'P4'),
                     entry('x.md', 'open', 'P1'),
-                    entry('a.md', 'open', 'P2'),
-                    entry('c.md', 'open', 'P2'),
                     entry('b.md', 'blocked', 'P1'),
                     entry('d.md', 'done', 'P1'),
+                    entry('a.md', 'open', 'P2'),
+                    entry('c.md', 'open', 'P2'),
+                    entry('y.md', 'wip', 'P4'),
                     entry('z.md', "won't fix", 'P5'),
                 ].join('')))
         },
@@ -233,7 +234,7 @@ export const proof = {
                 contents('<li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md" data-kind="file">a b#c?100%.md</a></li>')),
             todo: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', todo: [issue('open issue.md')] }),
-                issues('<li><a href="/fjs/todo/open%20issue.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>open issue.md</span></a></li>')),
+                issues('<li><span data-priority="P3">P3</span> <a href="/fjs/todo/open%20issue.md" data-kind="issue" data-issue-status="open">open issue.md</a></li>')),
             dirs: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', dirs: ['x y'] }),
                 contents('<li><a href="/fjs/x%20y/index.html" data-kind="dir">x y</a></li>')),
@@ -255,7 +256,7 @@ export const proof = {
                 contents(`<li><a href="${repository}/blob/${commit}/README.md" data-kind="file">README.md</a></li>`)),
             todo: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs', todo: [issue('a.md')] }),
-                issues(`<li><a href="${repository}/blob/${commit}/fjs/todo/a.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>a.md</span></a></li>`)),
+                issues(`<li><span data-priority="P3">P3</span> <a href="${repository}/blob/${commit}/fjs/todo/a.md" data-kind="issue" data-issue-status="open">a.md</a></li>`)),
             // A directory is one of this site's pages, which GitHub does not
             // have, so its link does not move.
             dirsStayHere: () => assertEq(

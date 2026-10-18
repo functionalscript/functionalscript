@@ -400,8 +400,8 @@ export const fileHref = commit => path => name => {
 const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, text]]
 
 /**
- * An issue's entry: its status as the icon, its priority as a badge right
- * after the icon, then its name — `◐ P1 name`.
+ * An issue's entry: its priority as a badge, then the link with its status
+ * as the icon and its name — `P1 ◐ name`.
  *
  * **The status is on the link**, as the kind is (see {@link item}), so its
  * icon's text alternative — "wip issue" — is part of the link's name.
@@ -409,35 +409,33 @@ const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, t
  * already gives `passed` and `failed`: one attribute naming two unrelated
  * things is a collision waiting for a value they share.
  *
- * **The badge is inside the link, after the icon**, because the icon is the
- * link's own: a badge between the two can only be the link's content. The
- * link is then named "wip issue P1 a.md", which says all three.
- *
- * **The name is a `span` of its own**, the link's last child, so the
- * stylesheet underlines the name alone rather than the space before it.
+ * **The badge comes first, outside the link.** The list is ordered by
+ * priority (see {@link issueOrder}), so the badges make its left column and a
+ * reader sees where each priority starts. Outside the link, the badge is read
+ * as a word of its own — "P1", then the link "wip issue a.md" — and the link's
+ * name and underline are the name's alone.
  *
  * @type {(href: string) => (issue: Issue) => Element}
  */
 export const issueItem = href => ({ name, status, priority }) => ['li',
-    ['a', { href, 'data-kind': 'issue', 'data-issue-status': status },
-        ['span', { 'data-priority': priority }, priority],
-        ' ',
-        ['span', name]]]
+    ['span', { 'data-priority': priority }, priority],
+    ' ',
+    ['a', { href, 'data-kind': 'issue', 'data-issue-status': status }, name]]
 
 /**
- * The order a directory lists its issues in: by status in {@link statuses}'
- * order — work in progress, then work not started, then work waiting or
- * deferred, then the record, then what will not be done — then by priority,
- * most urgent first, then by name. The list falls into groups of one icon,
- * and the records sink to the bottom whatever their priority.
+ * The order a directory lists its issues in: by priority, most urgent first,
+ * then by status in {@link statuses}' order — work in progress, then work not
+ * started, then work waiting or deferred, then the record, then what will not
+ * be done — then by name. The P1s, the issues that block everything else,
+ * lead the list, and within one priority the issues group by icon.
  *
  * @type {(a: Issue, b: Issue) => number}
  */
 export const issueOrder = (a, b) => {
-    const status = statuses.indexOf(a.status) - statuses.indexOf(b.status)
-    if (status !== 0) { return status }
     const priority = priorities.indexOf(a.priority) - priorities.indexOf(b.priority)
     if (priority !== 0) { return priority }
+    const status = statuses.indexOf(a.status) - statuses.indexOf(b.status)
+    if (status !== 0) { return status }
     return a.name < b.name ? -1 : 1
 }
 
@@ -490,8 +488,8 @@ const section = heading => items =>
  * the directory rather than in it. Showing its open work beside Contents
  * makes both lists available immediately; a reader can fold either away.
  * Each entry's icon is its status and a badge its priority, and the list is
- * in {@link issueOrder}: grouped by status, work in progress first, and by
- * priority within each group, rather than wherever their names sort.
+ * in {@link issueOrder}: by priority, the P1s first, and by status within
+ * each priority, rather than wherever their names sort.
  *
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.

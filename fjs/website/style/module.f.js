@@ -534,16 +534,11 @@ li:has(> [data-kind]) { list-style: none }
 [data-kind="issue"][data-issue-status="irrelevant"]::before { content: "" / "irrelevant issue" }
 [data-kind="issue"][data-issue-status="won't fix"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z'/%3E%3Cpath fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5'/%3E%3C/svg%3E") }
 [data-kind="issue"][data-issue-status="won't fix"]::before { content: "" / "won't fix issue" }
-/* An issue's priority is a badge between its icon and its name, and its
-   emphasis falls with the priority rather than changing hue: P1 is filled in
-   the failure colour, the conventional one for blocking; P2 in the value
-   colour; P3 outlined; P4 plain muted text; P5 the same, fainter. A hue per
-   level would say nothing about order and compete with the status icons.
-   Only the name is underlined: the link holds the badge and a space before
-   the name, and underlining the link would draw a stub under that space. The
-   space stays, so the badge and the name are read as two words. */
-[data-kind="issue"][data-issue-status] { text-decoration: none }
-[data-kind="issue"][data-issue-status] > :last-child { text-decoration: underline }
+/* An issue's priority is a badge before its link, the list's left column,
+   and its emphasis falls with the priority rather than changing hue: P1 is
+   filled in the failure colour, the conventional one for blocking; P2 in the
+   value colour; P3 outlined; P4 plain muted text; P5 the same, fainter. A hue
+   per level would say nothing about order and compete with the status icons. */
 [data-priority] { border: 1px solid transparent; border-radius: 3px; color: var(--muted); display: inline-block; font-size: .75em; line-height: 1.3; padding: 0 .35em; white-space: nowrap }
 [data-priority="P1"] { background-color: var(--fail-bg); color: var(--fail) }
 [data-priority="P2"] { background-color: var(--value-bg); color: var(--value) }
