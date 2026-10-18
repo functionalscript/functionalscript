@@ -183,19 +183,23 @@ export const proof = {
         assertEq(/** @type {(search: unknown) => boolean} */ (dot('abc', 'startsWith'))('ab'), true)
         for (const self of samples.filter(v => typeof v !== 'string' && v !== null && v !== undefined)) { assertEq(dot(self, 'startsWith'), undefined, self) }
         assertEq(dot('abc', 'slice'), undefined)
-        // the core rule of DESIGN.md §13, on the compiled EDAG: `dot` holds
-        // no chain step — no member call, no optional chain — since an
-        // executor runs it to answer those; a property read and a `()` of
-        // a function value are what it uses
+        // the core rule of DESIGN.md §13, on the compiled EDAG: the body of
+        // `dot` holds no chain step — no member call, no optional chain —
+        // since an executor runs it to answer those; a property read and a
+        // `()` of a function value are what it uses. Its slots, the
+        // `member` table and the bodies in it, are not the core.
         /** @type {(node: unknown) => readonly unknown[]} */
         const steps = node => node instanceof Array
             ? [...(['|()', '|?.()', '|!()', '|.', '?.', '?.()'].includes(/** @type {string} */ (node[0])) ? [node[0]] : []), ...node.flatMap(steps)]
             : []
-        const sections = /** @type {readonly (readonly [string, string, unknown])[]} */ (/** @type {readonly any[]} */ (edag)[1][0][2][1])
+        const sections = /** @type {readonly (readonly [string, string, readonly unknown[]])[]} */ (/** @type {readonly any[]} */ (edag)[1][0][2][1])
         const compiled = sections.find(([, name]) => name === 'dot')
         assert(compiled !== undefined)
-        assertEq(steps(compiled).join(), '')
-        assertEq(JSON.stringify(compiled).includes('["()"'), true)
+        const [tag, length, , body] = compiled[2]
+        assertEq(`${tag}/${length}`, '=>/2')
+        assertEq(steps(body).join(), '')
+        assertEq(JSON.stringify(body).includes('["()"'), true)
+        assertEq(steps(sections.find(([, name]) => name === 'member')).length > 0, true)
     },
     throw: {
         // The detached call `host` makes is a real one: a built-in that
