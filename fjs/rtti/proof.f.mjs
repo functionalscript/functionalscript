@@ -426,6 +426,8 @@ const demoProof = /** @type {const} */ ({
             const html = svg(exampleNamed('Shared parts').schemas[0].schema)
             assertEq(occurrences(html, 'data-graph-kind="struct"'), 3)
             assertEq(occurrences(html, 'data-graph-edge=""'), 5)
+            // Beside `id`'s value, each edge's row names its target.
+            assert(html.includes('data-graph-value-label="" data-graph-value-ref="">{}<'), html)
         },
         // A named root is expanded under its name; its use of itself is a
         // reference by name, drawn inline, so the graph has no cycle.

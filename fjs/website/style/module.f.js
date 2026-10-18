@@ -586,7 +586,13 @@ svg text { font: inherit }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
-[data-graph-value-alone] { fill: none }
+/* The versions demos draw a node's kind as its fill, so a value filling a
+   row of one is left unfilled, or the tint would hide it. */
+[data-graph-in-kind="new"] [data-graph-value-alone],
+[data-graph-in-kind="shared"] [data-graph-value-alone] { fill: none }
+/* A row showing the node an edge leads to is part of the edge, not a
+   value. */
+[data-graph-value][data-graph-value-ref] { fill: none }
 /* A value drawn in parts: a prefix's inherited bits muted, its own bits
    strong. */
 [data-graph-part="prior"] { fill: var(--muted) }

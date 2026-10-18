@@ -418,10 +418,10 @@ const shapeOf = t => typeof t !== 'function' ? constShape(t)
  * @type {(schema: Type) => Graph}
  */
 export const _graphOf = schema => {
-    if (typeof schema !== 'function' || schema.name === '') { return graphOf(shapeOf)(schema) }
+    if (typeof schema !== 'function' || schema.name === '') { return { ...graphOf(shapeOf)(schema), targets: true } }
     const info = schema()
     const root = infoShape(schema.name)(info)
-    return graphOf(/** @type {(t: Type) => Shape<Type>} */ (t => t === info ? root : shapeOf(t)))(info)
+    return { ...graphOf(/** @type {(t: Type) => Shape<Type>} */ (t => t === info ? root : shapeOf(t)))(info), targets: true }
 }
 
 // ── readers ──────────────────────────────────────────────────────────────────

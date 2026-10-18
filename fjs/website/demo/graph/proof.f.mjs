@@ -251,19 +251,23 @@ export const proof = {
             assertEq(html.split('data-graph-port=""').length - 1, 1)
             assert(html.includes('<rect x="34" y="30" width="26" height="20" data-graph-value="">'), html)
         },
-        // An edge with an empty key beside a value draws its target's label
-        // in the value's place, marked as a reference; a keyed edge beside
-        // them keeps its key. A target with no label of its own leaves the
-        // row as it was.
+        // With `targets`, an edge beside a value draws its target's label
+        // in the value's place, marked as a reference, and a keyed one its
+        // key in the key column; a lazy one's kind stays on its line. A
+        // target with no label of its own leaves the row as it was.
         refRow: () => {
             const html = htmlToString(graphSvg({
+                targets: true,
                 nodes: [{ id: 0, kind: 'a', label: 'or', rank: 0 }, { id: 1, kind: 'a', label: '{}', rank: 1 }, { id: 2, kind: 'a', label: 'x', rank: 1 }, { id: 3, kind: 'a', label: '', rank: 1 }],
-                edges: [{ from: 0, to: { inline: '5' }, label: '' }, { from: 0, to: 1, label: '' }, { from: 0, to: 2, label: 'k' }, { from: 0, to: 3, label: '' }],
+                edges: [{ from: 0, to: { inline: '5' }, label: '' }, { from: 0, to: 1, label: '' }, { from: 0, to: 2, label: 'k', kind: 'lazy' }, { from: 0, to: 3, label: '' }],
             }))
             assert(html.includes('data-graph-value-alone="" data-graph-value-ref="">'), html)
             assert(html.includes('data-graph-value-label="" data-graph-value-ref="">{}<'), html)
+            assert(html.includes('<rect x="36" y="63" width="24" height="20" data-graph-port="">'), html)
             assert(html.includes('data-graph-edge-label="">k<'), html)
-            assertEq(html.split('data-graph-value-ref=""').length - 1, 2)
+            assert(html.includes('data-graph-value-label="" data-graph-value-ref="">x<'), html)
+            assertEq(html.split('data-graph-value-ref=""').length - 1, 4)
+            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 1)
         },
         // Rows that are all edges with empty keys draw nothing: the node is
         // its 50px label alone, two rows tall, and each edge leaves from the
@@ -666,6 +670,11 @@ export const proof = {
             assert(html.includes('d="M202,40 L242,23"'), html)
             assert(html.includes('d="M192,74 L202,74 L242,23"'), html)
             assertEq(_crossings(g), 0)
+            // With `targets`, the edge's key sits in the key column and
+            // its target's label in the value's.
+            const targeted = htmlToString(graphSvg({ ...g, targets: true }))
+            assert(targeted.includes('<rect x="154" y="30" width="24" height="20" data-graph-port="">'), targeted)
+            assert(targeted.includes('<rect x="178" y="30" width="24" height="20" data-graph-value="" data-graph-value-ref="">'), targeted)
         },
         /**
          * **A node's cells round with its corners.** Square cells over a
