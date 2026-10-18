@@ -233,6 +233,11 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
  * **An edge with a corner takes no row**: it leaves from that point of the
  * node's right side, and the rows are the other edges'.
  *
+ * **Rows that are all empty edge ports draw nothing**: a row holding no key
+ * and no value says nothing, so such a node is its label alone, as wide as
+ * a node without ports. It keeps a row's height per edge, so each edge
+ * still leaves from a point of its own on the node's right side.
+ *
  * **An empty label is no column at all** when the node has ports: its rows
  * already say what it is, and an empty column would be a blank band
  * beside them. A node with neither keeps its label, or it would have no
@@ -254,8 +259,9 @@ const portsOf = label => all => {
     const rows = max(
         maxOf(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
         maxOf(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : [])))
-    const title = out.length === 0 ? widthOf(label) : label === '' ? 0 : cellWidthOf(label)
-    const width = max(widthOf(label), title + rows)
+    const blank = out.every(({ edge }) => inlineOf(edge) === null && edge.label === '')
+    const title = blank ? widthOf(label) : label === '' ? 0 : cellWidthOf(label)
+    const width = blank ? title : max(widthOf(label), title + rows)
     const height = out.length === 0 ? labelHeight : out.length * portHeight
     /** @type {Record<Corner, number>} */
     const exitAt = { top: 0, middle: height / 2, bottom: height }
@@ -654,7 +660,9 @@ export const graphSvg = g => {
     /**
      * How wide a port's key cell is: the whole row for an edge, nothing for
      * a value with an empty key, and the key column for any other value.
-     * A row starts right of the label's column, `p.title` in.
+     * A row starts right of the label's column, `p.title` in, so a node
+     * whose rows are all empty edge ports, its label as wide as the node,
+     * has no row to draw.
      *
      * @type {(p: _Positioned) => (port: _Port) => number}
      */

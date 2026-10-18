@@ -251,6 +251,20 @@ export const proof = {
             assertEq(html.split('data-graph-port=""').length - 1, 1)
             assert(html.includes('<rect x="34" y="30" width="26" height="20" data-graph-value="">'), html)
         },
+        // Rows that are all edges with empty keys draw nothing: the node is
+        // its 50px label alone, two rows tall, and each edge leaves from the
+        // middle of its own row.
+        blankPorts: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'or', rank: 0 }, { id: 1, kind: 'a', label: 'x', rank: 1 }, { id: 2, kind: 'a', label: 'y', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: '' }, { from: 0, to: 2, label: '' }],
+            }))
+            assert(html.includes('<rect x="10" y="23" width="50" height="40" rx="4" data-graph-node=""'), html)
+            assert(!html.includes('data-graph-port=""'), html)
+            assert(!html.includes('data-graph-edge-label=""'), html)
+            assert(html.includes('<text x="35" y="43" text-anchor="middle" data-graph-label="">or<'), html)
+            assertEq(routes(html).map(d => d.split(' ')[0]).join(' '), 'M60,33 M60,53')
+        },
         /**
          * **An edge's label sits in a port of its own node**, not on the
          * line: the node is its label beside a row per outgoing edge, and
