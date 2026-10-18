@@ -1,8 +1,8 @@
 ## Name edge targets in the demo's rows
 
 **Priority:** P3
-**Status:** blocked on the chain and key drawing
-([pull request 3021](https://github.com/functionalscript/functionalscript/pull/3021))
+**Status:** blocked — on the chain and key drawing of
+[pull request 3021](https://github.com/functionalscript/functionalscript/pull/3021)
 
 ### Problem
 
