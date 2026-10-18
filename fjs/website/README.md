@@ -256,8 +256,14 @@ icon's text alternative — "blocked issue" — is part of the link's name; not
 `data-status`, which the test runner's report already gives `passed` and
 `failed`. The badge, `data-priority`, sits between the icon and the name, so
 it is inside the link — the icon is the link's own — and the link reads
-"blocked issue P1 a.md". P1 and P2 take the value colour and the rest are
-outlined. [`issue`'s demo](./issue/demo.f.mjs) draws every status and every
+"blocked issue P1 a.md". The badge's emphasis falls with the priority rather
+than changing hue: P1 is filled in the failure colour, the conventional one for
+blocking; P2 in the value colour; P3 outlined; P4 plain muted text; P5 the
+same, fainter. A hue per level would say nothing about order, and would
+compete with the status icons the list is scanned by. Only the name is
+underlined — it is the link's last `span` — so no underline runs under the
+space between the badge and the name; the space stays, so the two are read as
+two words. [`issue`'s demo](./issue/demo.f.mjs) draws every status and every
 priority, the one page that shows the whole set.
 
 ## A page runs the proofs under it

@@ -413,13 +413,16 @@ const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, t
  * link's own: a badge between the two can only be the link's content. The
  * link is then named "wip issue P1 a.md", which says all three.
  *
+ * **The name is a `span` of its own**, the link's last child, so the
+ * stylesheet underlines the name alone rather than the space before it.
+ *
  * @type {(href: string) => (issue: Issue) => Element}
  */
 export const issueItem = href => ({ name, status, priority }) => ['li',
     ['a', { href, 'data-kind': 'issue', 'data-issue-status': status },
         ['span', { 'data-priority': priority }, priority],
         ' ',
-        name]]
+        ['span', name]]]
 
 /**
  * The order a directory lists its issues in: by status in {@link statuses}'

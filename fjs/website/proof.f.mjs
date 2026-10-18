@@ -264,7 +264,7 @@ export const proof = {
                 { WORKERS_CI_COMMIT_SHA: sha })
             const page = pageAt(root, ['a'])
             assert(page.includes(`<a href="${repository}/blob/${lower}/a/x.md" data-kind="file">x.md</a>`), page)
-            assert(page.includes(`<a href="${repository}/blob/${lower}/a/todo/open.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> open.md</a>`), page)
+            assert(page.includes(`<a href="${repository}/blob/${lower}/a/todo/open.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>open.md</span></a>`), page)
             assert(output.includes(`file links: GitHub at ${lower}`), output)
         },
         /**
@@ -606,7 +606,7 @@ export const proof = {
             })
             const dir = /** @type {Dir} */ (generated.root['a'])
             const page = textOf(dir['index.html'], 'the page')
-            assert(page.includes('<a href="/a/todo/open.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> open.md</a>'), page)
+            assert(page.includes('<a href="/a/todo/open.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>open.md</span></a>'), page)
             assert(!page.includes('>todo/</a>'), page)
             assert(!('index.html' in /** @type {Dir} */ (dir['todo'])), 'expected no page for todo/')
         },
@@ -623,7 +623,7 @@ export const proof = {
                 },
             })
             const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
-            assert(page.includes('</span> open.md</a>'), page)
+            assert(page.includes('</span> <span>open.md</span></a>'), page)
             assert(!page.includes('>proof.f.mjs</a>'), page)
         },
         /**
@@ -661,9 +661,9 @@ export const proof = {
                 },
             })
             const page = pageAt(root, [])
-            assert(page.includes('<a href="/todo/open.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> open.md</a>'), page)
-            assert(page.includes('<a href="/todo/blocked/later.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> blocked/later.md</a>'), page)
-            assert(page.includes('<a href="/todo/blocked/deep/x.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> blocked/deep/x.md</a>'), page)
+            assert(page.includes('<a href="/todo/open.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>open.md</span></a>'), page)
+            assert(page.includes('<a href="/todo/blocked/later.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>blocked/later.md</span></a>'), page)
+            assert(page.includes('<a href="/todo/blocked/deep/x.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>blocked/deep/x.md</span></a>'), page)
             assert(output.includes('issues: 3'), output)
         },
         /**
@@ -679,10 +679,10 @@ export const proof = {
                 a: { todo: { 'nested.md': issue('nested') } },
             })
             const rootPage = pageAt(root, [])
-            assert(rootPage.includes('</span> root.md</a>'), rootPage)
+            assert(rootPage.includes('</span> <span>root.md</span></a>'), rootPage)
             assert(!rootPage.includes('nested.md'), rootPage)
             const aPage = pageAt(root, ['a'])
-            assert(aPage.includes('<a href="/a/todo/nested.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> nested.md</a>'), aPage)
+            assert(aPage.includes('<a href="/a/todo/nested.md" data-kind="issue" data-issue-status="open"><span data-priority="P3">P3</span> <span>nested.md</span></a>'), aPage)
             assert(!aPage.includes('root.md'), aPage)
         },
         /**
@@ -698,7 +698,7 @@ export const proof = {
                 },
             })
             const page = pageAt(root, [])
-            assert(page.includes('</span> open.md</a>'), page)
+            assert(page.includes('</span> <span>open.md</span></a>'), page)
             assert(!page.includes('README.md</a>'), page)
         },
         /**

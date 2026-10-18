@@ -81,7 +81,7 @@ export const proof = {
         shown: () => {
             assertEq(
                 htmlToString(shown(issue('P1', 'blocked'))),
-                '<!DOCTYPE html><ul data-links=""><li><a href="#" data-kind="issue" data-issue-status="blocked"><span data-priority="P1">P1</span> issue.md</a></li></ul>')
+                '<!DOCTYPE html><ul data-links=""><li><a href="#" data-kind="issue" data-issue-status="blocked"><span data-priority="P1">P1</span> <span>issue.md</span></a></li></ul>')
             const refused = htmlToString(shown(issue('P3', 'opne')))
             assert(refused.includes('Refused:'), refused)
             assert(refused.includes('unknown status `opne`'), refused)
@@ -99,7 +99,7 @@ export const proof = {
         view: () => {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('name="issue"'), html)
-            assert(html.includes('data-issue-status="wip"><span data-priority="P3">P3</span> issue.md'), html)
+            assert(html.includes('data-issue-status="wip"><span data-priority="P3">P3</span> <span>issue.md</span>'), html)
         },
     },
 }
