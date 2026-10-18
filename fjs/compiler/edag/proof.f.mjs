@@ -1459,6 +1459,14 @@ export const proof = {
                     assertEq(shape.label, '|()')
                     assertStructurallySame(shape.children, [['callee', ['?.', ['a'], 'b', ['|()', [['x']]]]], ['0', ['y'], 'lazy']])
                 },
+                // `a?.b?.(x)`: a guarded call after a `?.` is still in its
+                // region, so it is marked — the `|` is what tells it from
+                // `a.b?.(x)`, a guarded call outside any region.
+                guardedCallStep: () => {
+                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|?.()', [['x']]]], 'expected a shape')
+                    assertEq(shape.label, '|?.()')
+                    assertStructurallySame(shape.children, [['callee', ['?.', ['a'], 'b']], ['0', ['x'], 'lazy']])
+                },
                 // A computed key in a step is lazy inside the region.
                 computedStep: () => {
                     const shape = nodeShapeOf(['?.', ['a'], 'b', ['|.', ['Number', ['c']]]], 'expected a shape')
