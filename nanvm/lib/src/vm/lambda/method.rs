@@ -1,10 +1,8 @@
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, Function, IVm, Number, RuntimeCode, String, ToAny, ToArray, Unpacked,
-        array::callback::callback,
-        error,
-        runtime::{runtime_method, type_name},
+        Any, Array, Function, IVm, Number, String, ToAny, Unpacked, array::callback::callback,
+        error, runtime::runtime_method,
     },
 };
 
@@ -37,13 +35,22 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
     }
 }
 
-/// The runtime's code for the receiver's type and the key,
-/// [`runtime_method`](crate::vm::runtime_method): what a call step calls
-/// after the native table has no entry, with the receiver as the code's
-/// first argument. `None` for a nullish receiver, which has no type the
-/// runtime keys.
-pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<RuntimeCode<A>> {
-    type_name(receiver).and_then(|name| runtime_method::<A>(name, key))
+/// The runtime's member function under the key, asked for the receiver:
+/// the function of the arguments the body answers for a receiver the name
+/// is a member of, `None` for one it is not or for a name the runtime has
+/// no body for, and the body's throw where its first step throws
+/// ([`runtime_method`](crate::vm::runtime_method)). What a call step calls
+/// after the native table has no entry, and what the guard of `?.()` asks
+/// before any argument exists; the body is pure, so asking twice costs and
+/// changes nothing.
+pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Result<Option<Any<A>>, Any<A>> {
+    match runtime_method::<A>(key) {
+        None => Ok(None),
+        Some(code) => {
+            let f = code(receiver.clone())?;
+            Ok(if f.is_nullish() { None } else { Some(f) })
+        }
+    }
 }
 
 /// The entry of `table` whose name is `key`.
@@ -86,29 +93,12 @@ fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
     ]
 }
 
-/// The `i`-th argument, or `undefined` past the end, as a built-in reads
-/// a parameter the call left out.
-pub(super) fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
-    if i < args.length() {
-        args[i].clone()
-    } else {
-        Any::undefined()
-    }
-}
-
 /// The `i`-th argument if the call passed one, `undefined` included, and
 /// `None` if it did not: for the few built-ins whose answer depends on
 /// whether an argument is there, not only on its value — `lastIndexOf(x)`
 /// searches from the end, `lastIndexOf(x, undefined)` from `0`.
 pub(super) fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
     (i < args.length()).then(|| args[i].clone())
-}
-
-/// The arguments from the `i`-th on, as a rest parameter reads them.
-pub(super) fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
-    (i..args.length().max(i))
-        .map(|k| args[k].clone())
-        .to_array()
 }
 
 /// A search's position as JavaScript answers it: the index, or `-1`.
@@ -142,7 +132,7 @@ where
 /// arguments, as JavaScript's does.
 fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let radix = match Unpacked::from(receiver.clone()) {
-        Unpacked::Number(_) | Unpacked::BigInt(_) => radix(argument(&args, 0))?,
+        Unpacked::Number(_) | Unpacked::BigInt(_) => radix(args.argument(0))?,
         _ => 10,
     };
     if radix == 10 {
@@ -172,19 +162,19 @@ fn radix<A: IVm>(radix: Any<A>) -> Result<u32, Any<A>> {
 
 /// `Array.prototype.at`, `vm/array/at.rs`.
 fn array_at<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    Array::try_from(receiver)?.at(argument(&args, 0))
+    Array::try_from(receiver)?.at(args.argument(0))
 }
 
 /// `Array.prototype.includes`, `vm/array/includes.rs`.
 fn array_includes<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .includes(&argument(&args, 0), argument(&args, 1))
+        .includes(&args.argument(0), args.argument(1))
         .to_any_result()
 }
 
 /// `Array.prototype.indexOf`, `vm/array/index_of.rs`.
 fn array_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = Array::try_from(receiver)?.index_of(&argument(&args, 0), argument(&args, 1))?;
+    let found = Array::try_from(receiver)?.index_of(&args.argument(0), args.argument(1))?;
     Ok(index_or_minus_one(found))
 }
 
@@ -196,7 +186,7 @@ fn array_concat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<
 /// `Array.prototype.slice`, `vm/array/slice.rs`.
 fn array_slice<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .slice(argument(&args, 0), argument(&args, 1))
+        .slice(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
@@ -210,14 +200,14 @@ fn array_to_reversed<A: IVm>(receiver: Any<A>, _: Array<A>) -> Result<Any<A>, An
 /// as present or not.
 fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .to_spliced(present(&args, 0), present(&args, 1), rest(&args, 2))
+        .to_spliced(present(&args, 0), present(&args, 1), args.rest(2))
         .to_any_result()
 }
 
 /// `Array.prototype.with`, `vm/array/with.rs`.
 fn array_with<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .with(argument(&args, 0), argument(&args, 1))
+        .with(args.argument(0), args.argument(1))
         .to_any_result()
 }
 
@@ -228,7 +218,7 @@ fn with_callback<A: IVm>(
     receiver: Any<A>,
     args: &Array<A>,
 ) -> Result<(Array<A>, Function<A>), Any<A>> {
-    Ok((Array::try_from(receiver)?, callback(argument(args, 0))?))
+    Ok((Array::try_from(receiver)?, callback(args.argument(0))?))
 }
 
 /// `Array.prototype.every`, `vm/array/every.rs`.
@@ -298,7 +288,8 @@ fn array_reduce_right<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>
 /// included.
 fn array_flat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Array::try_from(receiver)?;
-    let depth = argument(&args, 0)
+    let depth = args
+        .argument(0)
         .defined()
         .map_or(Ok(1.0), Any::to_integer_or_infinity)?;
     a.flat(depth).to_any_result()
@@ -314,7 +305,8 @@ fn array_flat_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, An
 /// `undefined`, passed or not, or a function, and anything else — `null`
 /// included — the `TypeError` JavaScript throws before any element is read.
 fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let compare = argument(&args, 0)
+    let compare = args
+        .argument(0)
         .defined()
         .map(|c| match Unpacked::from(c) {
             Unpacked::Function(f) => Ok(f),
@@ -331,7 +323,7 @@ fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, A
 /// with `"null"`.
 fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Array::try_from(receiver)?;
-    let separator = match argument(&args, 0).defined() {
+    let separator = match args.argument(0).defined() {
         None => ",".into(),
         // Fewer than two elements never place the separator, so it is
         // converted for its throws alone.
@@ -349,7 +341,7 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
 /// `Array.prototype.lastIndexOf`, `vm/array/last_index_of.rs`: the one of
 /// the three whose position is read only when passed.
 fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = Array::try_from(receiver)?.last_index_of(&argument(&args, 0), present(&args, 1))?;
+    let found = Array::try_from(receiver)?.last_index_of(&args.argument(0), present(&args, 1))?;
     Ok(index_or_minus_one(found))
 }
 
@@ -357,7 +349,7 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IStaticFunction, ToAny, ToArray, ToObject, error},
+        vm::{Any, BigInt, IVm, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
@@ -589,7 +581,8 @@ mod tests {
         let has = |(type_, name): &(&str, &str)| {
             let r = receiver(type_);
             let key: Any<A> = (*name).into();
-            super::method::<A>(&r, &key).is_some() || super::runtime::<A>(&r, &key).is_some()
+            super::method::<A>(&r, &key).is_some()
+                || super::runtime::<A>(&r, &key).unwrap().is_some()
         };
         for pair in ANSWERED {
             assert!(has(pair), "{pair:?} is answered but has no entry");
@@ -612,15 +605,34 @@ mod tests {
     }
 
     /// The runtime answers `startsWith` on a string and nothing on a
-    /// nullish receiver, and a call step reaches the body: through the
-    /// native table first, which has no entry, then the runtime, with the
-    /// receiver first; and `?.()` sees the body as a callee.
+    /// receiver that is no string, the body deciding, and a call step
+    /// reaches the body: through the native table first, which has no
+    /// entry, then the runtime, the receiver alone first and then the
+    /// arguments; `?.()` sees the body's function as a callee on a string
+    /// and nothing on a number.
     #[test]
     fn runtime_starts_with() {
         let key: Any<A> = "startsWith".into();
         assert!(super::method::<A>(&"abc".into(), &key).is_none());
-        assert!(super::runtime::<A>(&"abc".into(), &key).is_some());
-        assert!(super::runtime::<A>(&Any::undefined(), &key).is_none());
+        assert!(super::runtime::<A>(&"abc".into(), &key).unwrap().is_some());
+        assert!(super::runtime::<A>(&1.0.to_any(), &key).unwrap().is_none());
+        assert!(
+            super::runtime::<A>(&Any::undefined(), &key)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            super::runtime::<A>(&"abc".into(), &"slice".into())
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            1.0.to_any()
+                .dot(key.clone())
+                .option_call(|| panic!("the arguments of a skipped call"))
+                .end(),
+            Ok(Any::undefined())
+        );
         let abc: Any<A> = "abc".into();
         let args = || Ok(["ab".into()].to_array().to_any());
         assert_eq!(

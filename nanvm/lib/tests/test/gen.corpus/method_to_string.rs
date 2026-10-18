@@ -34,7 +34,7 @@ pub fn run<A: IStaticFunction>() {
     check_throws::<A>("undefined", Any::dot(Nullish::Undefined.to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())));
     check::<A>("function", Any::dot(function_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("()=>undefined"));
     check::<A>("callback", Any::dot(A::static_function(|_self, args| {
-        let rest = args.clone().into_iter().to_array();
+        let rest = args.rest(0);
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
     }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("(...$0)=>$0[0]"));
 }

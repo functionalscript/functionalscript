@@ -51,7 +51,7 @@ leaf needs IEEE 754 arithmetic Rust already has.
 ## EDAG
 
 The EDAG is VM-agnostic and is the stable, serializable representation of functions
-(see [`spec/todo/serialization.md`](../../../../spec/todo/serialization.md)).
+(see [`spec/design/serialization.md`](../../../../spec/design/serialization.md)).
 A VM implementation may transform it into internal bytecode on loading, or use the EDAG itself
 as its byte code, interpreting it directly.
 

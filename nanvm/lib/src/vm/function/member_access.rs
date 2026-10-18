@@ -18,7 +18,7 @@ impl<A: IVm> Function<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Function, IStaticFunction, ToAny, ToArray},
+        vm::{Any, Function, IVm, ToAny, ToArray},
     };
 
     type A = Naive;

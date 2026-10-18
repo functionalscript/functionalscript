@@ -75,7 +75,7 @@ mod tests {
     use super::callback;
     use crate::{
         naive::Naive,
-        vm::{Any, Array, Function, IStaticFunction, ToAny, ToArray, error},
+        vm::{Any, Array, Function, IVm, ToAny, ToArray, error},
     };
 
     type A = Naive;

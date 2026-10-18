@@ -249,9 +249,9 @@ it does not claim lazy strings or frame serialization are implemented today.
   function values. Cover large shared dependency graphs, prefix-only use and
   full consumption; compare produced code units and admitted string operations
   with a fully materialized reference, independently of caches and chunking.
-- [ ] Complete remaining native conversion corpus cases, including a
-  function used as a property key, as tracked in
-  [member-functions](../../nanvm/lib/todo/member-functions.md). Native semantic
+- [x] Complete remaining native conversion corpus cases, including a
+  function used as a property key, which the `function-text` fixture proves, as
+  tracked in [member-functions](../../nanvm/lib/todo/member-functions.md). Native semantic
   EDAG association remains [separate](../../fjs/compiler/todo/associate-edag-with-functions.md)
   from the compiled function text already supplied.
 

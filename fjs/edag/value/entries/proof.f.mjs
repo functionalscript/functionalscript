@@ -1,18 +1,12 @@
 /** @import { EdagValue, Array as ValueArray } from '../types.ts' */
 
 import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { entriesText, objectEntries, ownEntries } from './module.f.mjs'
+import { ownEntries } from './module.f.mjs'
 
 /** @type {(receiver: EdagValue, expected: EdagValue) => void} */
 const eq = (receiver, expected) => { assertStructurallySame(ownEntries(receiver), ['ok', expected]) }
 
 export const proof = {
-    // The function as a value, its tag, and its text, ECMAScript's for a
-    // built-in.
-    value: () => {
-        assertStructurallySame(objectEntries, ['Object.entries'])
-        assertEq(entriesText, 'function entries() { [native code] }')
-    },
     // An object's fields in the order it holds them, which construction
     // makes JavaScript's own-key order, an `undefined` one listed.
     object: () => {

@@ -51,7 +51,7 @@ mod tests {
     use crate::{
         naive::Naive,
         vm::{
-            Any, IStaticFunction, Nullish, String, ToAny, ToArray, ToObject, ToString,
+            Any, IVm, Nullish, String, ToAny, ToArray, ToObject, ToString,
             unstable::{bigint_any, f64_any},
         },
     };

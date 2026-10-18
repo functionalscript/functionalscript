@@ -32,10 +32,10 @@ pub use instanceof_::Constructor;
 pub use to_json::JsonError;
 
 use crate::vm::{
-    IVm, Number, String, ToAny, Unpacked,
+    IVm, Number, String, ToAny, ToArray, Unpacked,
     boolean_coercion::BooleanCoercion,
     dispatch::Dispatch,
-    member_access::{non_nullish_receiver, undefined_if_absent},
+    member_access::non_nullish_receiver,
     nullish::Nullish,
     number_coercion::NumberCoercion,
     numeric::Numeric,
@@ -152,14 +152,16 @@ impl<A: IVm> Any<A> {
     /// ```js
     /// (a, b) => {
     ///     const x = Object.getOwnPropertyDescriptor(a, b);
-    ///     return x?.enumerable ? x.value : undefined;
+    ///     return x?.enumerable ? [x.value] : [];
     /// }
     /// ```
     ///
-    /// The enumerable own property `key` names: an `Object`'s field
+    /// The option of the enumerable own property `key` names: a fresh
+    /// one-element `Array` holding an `Object`'s field
     /// (`Object::own_property`), an `Array`'s element or a `String`'s code
     /// unit by its canonical index string (`Array::entry`, `String::entry`),
-    /// and nothing a value owns without enumerating it — never a `length`,
+    /// an entry holding `undefined` included, and an empty `Array` for
+    /// nothing a value owns without enumerating it — never a `length`,
     /// and nothing of a function. No getter invocation and no prototype
     /// chain (`nanvm-lib` objects have no `__proto__` to walk in the first
     /// place). Not a `core::ops` trait — no Rust operator fits a keyed
@@ -173,18 +175,19 @@ impl<A: IVm> Any<A> {
     /// `ToPropertyKey` converts it, which is `to_string` here, the language
     /// having no symbols: `0` and `"0"` name one entry, and an object
     /// converts through its own `toString`. A `Number`,
-    /// `Boolean` or `BigInt` receiver owns no entry and answers
-    /// `undefined`, as every absent key does
-    /// (`member_access::undefined_if_absent`).
+    /// `Boolean` or `BigInt` receiver owns no entry and answers the empty
+    /// option, as every absent key does. An `Option<Any>` is the one- or
+    /// zero-element sequence the array is built from.
     pub fn entry(self, key: Self) -> Result<Self, Self> {
         let unpacked = non_nullish_receiver(self)?;
         let key = key.to_string()?;
-        Ok(undefined_if_absent(match unpacked {
+        let found = match unpacked {
             Unpacked::Object(o) => o.own_property(&key),
             Unpacked::Array(a) => a.entry(&key),
             Unpacked::String(s) => s.entry(&key),
             _ => None,
-        }))
+        };
+        Ok(found.to_array().to_any())
     }
 
     /// Same as `Number.isNaN` in ECMAScript.
@@ -250,11 +253,25 @@ impl<A: IVm> Any<A> {
 #[cfg(test)]
 mod tests {
     use crate::{
+        common::sized_index::SizedIndex,
         naive::Naive,
         vm::{Any, Nullish, ToAny, ToArray, ToObject, Unpacked, error},
     };
 
     type A = Naive;
+
+    /// What an `entry` answer holds: the one element of a one-element
+    /// array, or nothing of an empty one.
+    fn option(answer: Result<Any<A>, Any<A>>) -> Option<Any<A>> {
+        let Unpacked::Array(a) = Unpacked::from(answer.unwrap()) else {
+            panic!("not an array")
+        };
+        match a.length() {
+            0 => None,
+            1 => Some(a[0].clone()),
+            _ => panic!("not an option"),
+        }
+    }
 
     /// The receiver is checked before the key is converted (see `entry`'s
     /// own doc comment), so a nullish receiver throws the nullish
@@ -275,11 +292,21 @@ mod tests {
     #[test]
     fn entry_converts_the_key() {
         let o = [("1".into(), 42.0.to_any())].to_object().to_any::<A>();
-        assert_eq!(o.clone().entry("1".into()), Ok(42.0.to_any()));
-        assert_eq!(o.clone().entry(1.0.to_any()), Ok(42.0.to_any()));
-        assert_eq!(o.entry("01".into()), Ok(Any::undefined()));
+        assert_eq!(option(o.clone().entry("1".into())), Some(42.0.to_any()));
+        assert_eq!(option(o.clone().entry(1.0.to_any())), Some(42.0.to_any()));
+        assert_eq!(option(o.entry("01".into())), None);
         let z = [("0".into(), 7.0.to_any())].to_object().to_any::<A>();
-        assert_eq!(z.entry((-0.0f64).to_any()), Ok(7.0.to_any()));
+        assert_eq!(option(z.entry((-0.0f64).to_any())), Some(7.0.to_any()));
+    }
+
+    /// An entry holding `undefined` is an entry, which the option tells
+    /// from none; and the option is a fresh array every call.
+    #[test]
+    fn entry_holds_undefined() {
+        let o = [("u".into(), Any::undefined())].to_object().to_any::<A>();
+        assert_eq!(option(o.clone().entry("u".into())), Some(Any::undefined()));
+        assert_eq!(option(o.clone().entry("v".into())), None);
+        assert_ne!(o.clone().entry("u".into()), o.entry("u".into()));
     }
 
     /// An array's and a string's elements are entries and their `length`
@@ -287,15 +314,15 @@ mod tests {
     #[test]
     fn entry_reads_elements_and_no_length() {
         let a = [7.0.to_any(), 8.0.to_any()].to_array().to_any::<A>();
-        assert_eq!(a.clone().entry(1.0.to_any()), Ok(8.0.to_any()));
-        assert_eq!(a.clone().entry("1".into()), Ok(8.0.to_any()));
-        assert_eq!(a.clone().entry("2".into()), Ok(Any::undefined()));
-        assert_eq!(a.entry("length".into()), Ok(Any::undefined()));
+        assert_eq!(option(a.clone().entry(1.0.to_any())), Some(8.0.to_any()));
+        assert_eq!(option(a.clone().entry("1".into())), Some(8.0.to_any()));
+        assert_eq!(option(a.clone().entry("2".into())), None);
+        assert_eq!(option(a.entry("length".into())), None);
         let s: Any<A> = "ab".into();
-        assert_eq!(s.clone().entry(1.0.to_any()), Ok("b".into()));
-        assert_eq!(s.entry("length".into()), Ok(Any::undefined()));
-        assert_eq!(true.to_any::<A>().entry("0".into()), Ok(Any::undefined()));
-        assert_eq!(5.0.to_any::<A>().entry("0".into()), Ok(Any::undefined()));
+        assert_eq!(option(s.clone().entry(1.0.to_any())), Some("b".into()));
+        assert_eq!(option(s.entry("length".into())), None);
+        assert_eq!(option(true.to_any::<A>().entry("0".into())), None);
+        assert_eq!(option(5.0.to_any::<A>().entry("0".into())), None);
     }
 
     /// `undefined` and `null` are nullish, and nothing else is: not the

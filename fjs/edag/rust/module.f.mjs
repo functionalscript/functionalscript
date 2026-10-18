@@ -304,12 +304,13 @@ const stringCall = name => v => {
 
 /**
  * Fixed argument `k` of the function being called, read from the `args`
- * parameter of the closure {@link closure} prints: `undefined` past the end
- * of a short call, as JavaScript binds a missing argument.
+ * parameter of the closure {@link closure} prints: `nanvm-lib`'s
+ * `Array::argument`, `undefined` past the end of a short call, as
+ * JavaScript binds a missing argument — one bounds check and one clone.
  *
  * @type {(k: number) => Printed<string>}
  */
-const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(${num(`${k}`)})`}.unwrap_or_else(|| `, undefinedAny, ')'])
+const argRead = k => cat(['args.argument(', num(`${k}`), ')'])
 
 /**
  * Slot `i` of the frame the function was built with, read through the
@@ -526,11 +527,13 @@ const last = e => {
 
 /**
  * The line binding a function's rest parameters, the arguments after its
- * `length` fixed ones, as the `Array<A>` a `['rest']` read clones.
+ * `length` fixed ones, as the `Array<A>` a `['rest']` read clones:
+ * `nanvm-lib`'s `Array::rest`, the arguments themselves after no fixed
+ * ones, a new array of the ones past `length` otherwise.
  *
  * @type {(length: number) => Printed<string>}
  */
-export const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${num(`${length}`)})`}`, toArray, ';'])
+export const restLine = length => cat([`${kw('let')} rest = args.rest(`, num(`${length}`), ');'])
 
 /**
  * The printer for the EDAG under `root`, or the refusal of a shape this
@@ -1417,6 +1420,27 @@ export const readsSelf = root => reads('self')(root)
 export const readsRest = root => reads('rest')(root)
 
 /**
+ * Whether a scope reads its arguments beyond the first: the list,
+ * `['args']`, the rest, `['rest']`, or a fixed argument past the first,
+ * `['arg', k]` with `k > 0` — what a function of one argument, a member
+ * body of the static runtime over its receiver, has no spelling for.
+ *
+ * @type {(root: Exp) => boolean}
+ */
+export const readsBeyondFirst = root => reads('args')(root) || reads('rest')(root)
+    || visit(operandsOf)([])(root).some(([node]) => tagOf(node) === 'arg' && /** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[1] !== 0)
+
+/**
+ * The read of fixed argument `k` of a scope holding its first argument by
+ * a name of its own, `self_` for a member body of the static runtime,
+ * {@link statementsWith}: the name's clone for `k === 0`, and
+ * {@link argRead} otherwise.
+ *
+ * @type {(name: string) => (k: number) => Printed<string>}
+ */
+export const argNamed = name => k => k === 0 ? code(`${name}.clone()`) : argRead(k)
+
+/**
  * The indices a scope reads of its frame, one per distinct `['frame', i]`
  * node, a nested function's body left out as in {@link readsFrame}.
  *
@@ -1529,13 +1553,15 @@ const blockOf = shared => root => okThen(p => p.block(root))(printer(false)(shar
  * itself, where a closure would read `A::frame(self_)[i]` and wrap
  * `self_`. The static runtime's items (`fjs/compiler/rust/runtime`), whose
  * slots are module-level values resolved at compile time and whose self is
- * the item by name. Tagged lines with the names they spell, as
+ * the item by name; `arg` prints a fixed argument's read, {@link argRead}
+ * unless the scope holds the first by a name of its own, a member body's
+ * receiver ({@link argNamed}). Tagged lines with the names they spell, as
  * {@link scopeTagged}'s.
  *
- * @type {(frame: (i: number) => Result<Printed<string>, readonly unknown[]>, self_: () => Result<Printed<string>, readonly unknown[]>) => (root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ * @type {(frame: (i: number) => Result<Printed<string>, readonly unknown[]>, self_: () => Result<Printed<string>, readonly unknown[]>, arg?: (k: number) => Printed<string>) => (root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
-export const statementsWith = (frame, self_) => root => mapOk((/** @type {Printed<readonly string[]>} */ [s, uses]) =>
-    /** @type {Printed<readonly string[]>} */ ([lines(s), uses]))(okThen(p => p.block(root))(printer(false, argRead, frame, 0, self_)([])(root)))
+export const statementsWith = (frame, self_, arg = argRead) => root => mapOk((/** @type {Printed<readonly string[]>} */ [s, uses]) =>
+    /** @type {Printed<readonly string[]>} */ ([lines(s), uses]))(okThen(p => p.block(root))(printer(false, arg, frame, 0, self_)([])(root)))
 
 /**
  * The statements of one scope over the caller's own bindings — a corpus

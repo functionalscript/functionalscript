@@ -16,7 +16,7 @@
  * @import { Analysis, Node, Operand, Step } from '../analysis/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Body, Invoke, Outcome } from '../value/call/types.ts'
- * @import { Runtime } from '../value/types.ts'
+ * @import { Closure, Function as ValueFunction, Runtime, Values, Array as ValueArray } from '../value/types.ts'
  * @import { Invocation } from './types.ts'
  * @import { Context, Evaluation, Tail } from '../operations/types.ts'
  * @import { _Cache } from './private.ts'
@@ -26,7 +26,8 @@ import { assertOk } from '../../asserts/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { checked, identityAnalysis } from '../analysis/module.f.mjs'
-import { nativeCall, operation } from '../operations/module.f.mjs'
+import { isStatic } from '../module.f.mjs'
+import { entryCall, operation, staticCall } from '../operations/module.f.mjs'
 import { invoker, settle } from '../value/call/module.f.mjs'
 
 /** Restore one operand from the already restored prefix of the analysis. @type {(code: readonly ExpOp[], operand: Operand) => Exp} */
@@ -133,21 +134,25 @@ const evaluate = (a, context, root) => {
 /**
  * The invoker of an executor given `runtime`: a represented function
  * invoked — its body evaluated with fresh state and retained captures
- * under the same runtime, or a function with no body, the `entry` helper
- * or `Object.entries`, answered in place — and every call the body leaves
+ * under the same runtime; a static function's body found in the runtime
+ * and evaluated with the static as its `self`; or the `entry` helper,
+ * which has no body, answered in place — and every call the body leaves
  * in tail position, made in its place.
  *
  * @type {(runtime: Runtime | undefined) => Invoke}
  */
 export const invokeWith = runtime => {
-    /** @type {Body} */
-    const body = (fn, fixed, rest) => {
-        if (fn[0] !== '=>') { return nativeCall(fn, fixed, invoke) }
+    /** @type {(fn: Closure, fixed: Values, rest: ValueArray, self: ValueFunction) => Outcome} */
+    const run = (fn, fixed, rest, self) => {
         const a = assertOk(identityAnalysis(fn))
         const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
         const [, , , root] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
-        return evaluate(a, { frame: fn[2], args: [], fixed, rest, self: fn, runtime }, root)
+        return evaluate(a, { frame: fn[2], args: [], fixed, rest, self, runtime }, root)
     }
+    /** @type {Body} */
+    const body = (fn, fixed, rest) => fn[0] === 'entry' ? entryCall(fixed, invoke)
+        : isStatic(fn) ? staticCall(runtime, fn, rest, run)
+        : run(fn, fixed, rest, fn)
     const invoke = invoker(body)
     return invoke
 }

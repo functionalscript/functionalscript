@@ -216,4 +216,4 @@ workers, or visual regression testing.
 - [The two runners, and what sharing them cost](../README.md#the-two-runners-and-what-sharing-them-cost)
 - [Explicit browser test controls](browser-test-controls.md)
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
-- [project roadmap](../../../todo/plan/roadmap.md)
+- [project roadmap](../../../doc/plan/roadmap.md)

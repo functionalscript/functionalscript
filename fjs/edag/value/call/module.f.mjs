@@ -7,9 +7,10 @@
  * Missing fixed arguments bind to tagged undefined; supplied values retain
  * their identities. Each successful call receives a fresh rest array after
  * the fixed prefix. The invoker receives the original function, including
- * its captures and body — or the `entry` helper or `Object.entries`,
- * whose body is the invoker's own to perform — and its result returns
- * unchanged.
+ * its captures and body — or the `entry` helper or a static function,
+ * whose body is the invoker's own to find or perform, so a static's
+ * arguments reach it unbound, all of them rest, and the invoker binds
+ * them to the body it finds, `bind` — and its result returns unchanged.
  *
  * A call in tail position is prepared and left for the executor, which
  * makes it in the invocation's place: `invoker` turns a body evaluator into
@@ -23,7 +24,7 @@
  *
  * @module
  * @import { ItemsOver } from '../../types.ts'
- * @import { Values } from '../types.ts'
+ * @import { Values, Array as ValueArray } from '../types.ts'
  * @import { ValueResult, ValueThunk } from '../control/types.ts'
  * @import { Body, Invoke, Outcome } from './types.ts'
  */
@@ -31,6 +32,22 @@
 import { error } from '../../../types/result/module.f.js'
 import { array } from '../array/module.f.mjs'
 import { isFunction } from '../semantics/module.f.mjs'
+
+/**
+ * The bindings of a call of a function of `length` to `values`: the fixed
+ * arguments, the first `length`, padded with tagged undefined, and the
+ * rest after them in a fresh array.
+ *
+ * @type {(length: number, values: Values) => readonly [Values, ValueArray]}
+ */
+export const bind = (length, values) => {
+    /** @type {Values} */
+    let fixed = []
+    for (let i = 0; i < length; i += 1) {
+        fixed = [...fixed, i < values.length ? values[i] : ['undefined']]
+    }
+    return [fixed, ['[]', values.slice(length)]]
+}
 
 /** Bind arguments to a bare call without making it. @type {(callee: ValueResult, args: ItemsOver<ValueThunk>) => Outcome} */
 export const prepare = (callee, args) => {
@@ -40,16 +57,11 @@ export const prepare = (callee, args) => {
     const [argumentKind, argumentsArray] = argumentsResult
     if (argumentKind === 'error') { return argumentsResult }
     if (!isFunction(fn)) { return error(['undefined']) }
-    // the `entry` helper takes its two and `Object.entries` its one, as
-    // each one's `length` says
-    const length = fn[0] === 'entry' ? 2 : fn[0] === 'Object.entries' ? 1 : fn[1]
-    const [, values] = argumentsArray
-    /** @type {Values} */
-    let fixed = []
-    for (let i = 0; i < length; i += 1) {
-        fixed = [...fixed, i < values.length ? values[i] : ['undefined']]
-    }
-    return ['call', fn, fixed, ['[]', values.slice(length)]]
+    // the `entry` helper takes its two, as its `length` says; a static
+    // function's are bound where its body is found, so none is here
+    const length = fn[0] === '=>' ? fn[1] : fn[0] === 'entry' ? 2 : 0
+    const [fixed, rest] = bind(length, argumentsArray[1])
+    return ['call', fn, fixed, rest]
 }
 
 /** Make the call an outcome leaves, if one, where its value is needed now. @type {(invoke: Invoke) => (outcome: Outcome) => ValueResult} */

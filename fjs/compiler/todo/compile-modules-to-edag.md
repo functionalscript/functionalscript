@@ -57,9 +57,9 @@ method-access safety is owned by
 [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md), source
 functions are in the language
 ([functions](../../../spec/functions/README.md)) and capture semantics are tracked by
-[`3111-function-frame.md`](../../../spec/todo/3111-function-frame.md), and VM-internal
+[`3111-function-frame.md`](../../../spec/design/3111-function-frame.md), and VM-internal
 call lowering belongs to
-[`9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md).
+[`9100-call-like-instructions.md`](../../../spec/design/9100-call-like-instructions.md).
 This task should reuse and cross-reference those decisions rather than duplicate them.
 The source AST/admission boundary belongs to
 [statement-aware compilation](../parser/todo/statement-aware-intrinsics.md).
@@ -342,7 +342,7 @@ not share an enclosing operation node directly into the body's scope. Capture
 lowering and its proofs are in [`../edag`](../edag/module.f.mjs) and
 [`../edag/proof.f.mjs`](../edag/proof.f.mjs) (`captures`), with fixed/rest captures in
 [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs). Frame semantics remain owned by
-[`3111-function-frame.md`](../../../spec/todo/3111-function-frame.md).
+[`3111-function-frame.md`](../../../spec/design/3111-function-frame.md).
 
 A call's arguments are an item list, the one `[]` holds, read by position
 ([Nodes](../../edag/README.md#nodes)); `args` below stands for such a list:
@@ -369,7 +369,7 @@ rejected. This is the EDAG form of the method-call distinction and safety rules 
 described by
 [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md). The
 VM-specific lowering of these call forms is separate work in
-[`9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md).
+[`9100-call-like-instructions.md`](../../../spec/design/9100-call-like-instructions.md).
 
 This stage is intentionally after Stage 1: property access is the minimum operation
 needed for unresolved-module parameter access, while function creation and calls extend
@@ -791,10 +791,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   — property/method-access safety rules reused by `.` and the property chain steps.
 - [`spec/README.md`](../../../spec/functions/README.md) — source-level
   function support, which is in the language.
-- [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md) —
+- [`spec/design/3111-function-frame.md`](../../../spec/design/3111-function-frame.md) —
   captured-frame semantics; the original non-capturing Stage 2 restriction is historical.
 - [`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md) —
   implemented fixed/rest bindings and shared code-only default text; remaining
   approval, migration and native semantic EDAG association tasks.
-- [`spec/todo/9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md)
+- [`spec/design/9100-call-like-instructions.md`](../../../spec/design/9100-call-like-instructions.md)
   — VM-internal call lowering, separate from stable EDAG call syntax.

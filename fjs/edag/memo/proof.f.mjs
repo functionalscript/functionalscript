@@ -59,7 +59,7 @@ export const proof = {
     // every function it calls, as `amnesia`'s does.
     runtime: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'String', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
         /** @type {Exp} */
         const nested = ['()', ['=>', 0, [], ['.', 'abc', 'startsWith', ['|()', ['b']]]], []]
         const run = memo(assertOk(analysis(nested)))
@@ -81,6 +81,9 @@ export const proof = {
         const f = ['=>', 0, [], ['Object.is']]
         const twice = memo(assertOk(analysis(['===', ['()', f, []], ['()', f, []]])))
         assertEq(assertOk(twice({ args: [], runtime })), true)
+        // the built-in, not its body: its name's text, the body's length
+        const text = memo(assertOk(analysis(['[]', [['String', ['Object.is']], ['.', ['Object.is'], 'length']]])))
+        assertStructurallySame(assertOk(toData(assertOk(text({ args: [], runtime })))), ['function is() { [native code] }', 2])
     },
     // `self` under memoization: the invoked function, the one node reused
     // across a body's shared reads, agreeing with the amnesia oracle
@@ -254,19 +257,19 @@ export const proof = {
         eq(['.', ['{}', [[':', 'toString', ['=>', 0, [], 'own']]]], 'toString', ['|()', []]], 'own')
         // the `entry` helper: a function, called as one and read as one,
         // and a fresh one wherever the node is established
-        eq(['()', ['entry'], [['{}', [[':', 'k', 9]]], 'k']], 9)
-        eq(['()', ['entry'], [['[]', [7, 8]], 1]], 8)
-        eq(['()', ['entry'], [['[]', [7, 8]], 'length']], undefined)
-        eq(['()', ['entry'], [['{}', [[':', '1', 42]]], ['{}', [[':', 'toString', ['=>', 0, [], '1']]]]]], 42)
+        assertStructurallySame(run(['()', ['entry'], [['{}', [[':', 'k', 9]]], 'k']]), [9])
+        assertStructurallySame(run(['()', ['entry'], [['[]', [7, 8]], 1]]), [8])
+        assertStructurallySame(run(['()', ['entry'], [['[]', [7, 8]], 'length']]), [])
+        assertStructurallySame(run(['()', ['entry'], [['{}', [[':', '1', 42]]], ['{}', [[':', 'toString', ['=>', 0, [], '1']]]]]]), [42])
         eq(['.', ['entry'], 'length'], 2)
         eq(['typeof', ['entry']], 'function')
-        eq(['()', ['entry'], [['entry'], 'length']], undefined)
+        assertStructurallySame(run(['()', ['entry'], [['entry'], 'length']]), [])
         eq(['===', ['entry'], ['entry']], false)
         eq(['()', ['=>', 0, [], ['===', ['entry'], ['entry']]], []], false)
         const helper = /** @type {Exp} */ (['entry'])
         eq(['===', helper, helper], true)
-        assertStructurallySame(run(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [undefined, undefined])
-        eq(['String', ['entry']], '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
+        assertStructurallySame(run(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [[], []])
+        eq(['String', ['entry']], '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}')
         fails(['.', ['{}', [[':', 'toString', 0]]], 'toString', ['|()', []]])
         eq(['.', ['[]', [2, 3]], 'at', ['|()', [1]]], 3)
         // `Object.entries`: a function no body defines, called and read as

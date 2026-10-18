@@ -1,9 +1,9 @@
-# Literal words as references
+## Literal words as references
 
 **Priority:** P5
 **Status:** open
 
-## Problem
+### Problem
 
 FunctionalScript reserves `undefined`, `NaN` and `Infinity`: a module may
 not bind or shadow them, so each denotes its value wherever a value stands
@@ -31,7 +31,7 @@ question: JavaScript lets strict code reference them, but FunctionalScript
 has no free names, so `{ eval }` is refused under either rule, and only the
 message would differ.
 
-## Related
+### Related
 
 - [shorthand](./2440-shorthand.md) — the one place the difference shows.
 - [global-names](./2365-global-names.md) — reserves every global, the

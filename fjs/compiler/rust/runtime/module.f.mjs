@@ -9,24 +9,27 @@
  * items. Every module-level function is a static `fn` of its arguments
  * alone. A static built-in, `Object.is`, and a helper a body reads as a
  * value get an accessor answering a descriptor, a
- * `&'static RuntimeFunction<A>` holding the built-in's name, code, length
- * and text, since a read of one is a `Function`; a member built-in,
- * `String.prototype.startsWith`, is the `fn` alone, the receiver its first
- * argument, since the language never reads a member as a value and a call
- * step calls the code. A frame slot is resolved here, to a function's
- * accessor or an inlined literal; and the `runtime` export object is read
- * as the table of built-ins, its `static` section naming each `Object.is`,
- * its `member` section `String.prototype.startsWith`, and printed nowhere.
- * A built-in's identity is its name, so a read of one costs nothing and
- * holds nothing: no evaluation, no holder, no `thread_local!`.
+ * `&'static RuntimeFunction<A>` holding the built-in's name, code and
+ * length, since a read of one is a `Function`; a member built-in,
+ * `startsWith`, is the `fn` alone, of the receiver, answering `undefined`
+ * or the function of the arguments, since the language never reads a
+ * member as a value and a call step asks the code in those two steps. A
+ * frame slot is resolved here, to a function's accessor or an inlined
+ * literal; and the `runtime` export object is read as the table of
+ * built-ins, its `static` section naming each `Object.is`, its `member`
+ * section `startsWith`, and printed nowhere. A built-in's identity is its
+ * name, so a read of one costs nothing and holds nothing: no evaluation,
+ * no holder, no `thread_local!`.
  *
  * What the runtime's module scope may hold is **functions and literals**,
  * and an import's read of its export object, `{ f }.f`, which the lowering
  * spells an import as and which folds to `f`. Anything else a body would
  * capture — an object, an array, an operation — is refused, naming the
- * node, as is a function a body makes at call time, which would need the
- * VM's `IStaticFunction` where every item is bound on `IVm` alone, and as
- * is a module exporting anything beside `runtime`, whose initializer the
+ * node, as is a function a static's body makes at call time, which would
+ * need the VM's `IStaticFunction` where a static is bound on `IVm` alone;
+ * a member is bound on `IStaticFunction`, since its answer is the function
+ * of the arguments, a closure over the receiver. Refused too is a module
+ * exporting anything beside `runtime`, whose initializer the
  * lifting would drop, a function no built-in reaches, which a property
  * written twice leaves behind, a function two built-ins name, which
  * JavaScript keeps apart, a member read as a value, which has no
@@ -43,11 +46,10 @@
  * @import { _BuiltIn, _Item, _Resolved } from './private.ts'
  */
 
-import { error, mapOk, ok, okList, okThen, unwrap } from '../../../types/result/module.f.js'
-import { atomExpr, holdsFunction, readsArgs, readsRest, restLine, statementsWith, useLinesTagged } from '../../../edag/rust/module.f.mjs'
+import { error, mapOk, ok, okList, okThen } from '../../../types/result/module.f.js'
+import { argNamed, atomExpr, holdsFunction, readsArgs, readsBeyondFirst, readsRest, restLine, statementsWith, useLinesTagged } from '../../../edag/rust/module.f.mjs'
 import { operandsOf, visit } from '../../../edag/sharing/module.f.mjs'
-import { tryFunctionText } from '../../serializer/module.f.mjs'
-import { builtInIdentifier, stringLiteral } from '../../../media/rust/module.f.mjs'
+import { builtInIdentifier } from '../../../media/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { isNative, natives } from '../../../js/static/module.f.js'
@@ -55,8 +57,14 @@ import { isNative, natives } from '../../../js/static/module.f.js'
 const kw = tagged('keyword')
 const lit = tagged('literal')
 
-/** The bound of every item: a built-in needs no capability of the VM. */
-const bound = 'IVm'
+/**
+ * The bound of an item: a static or a helper needs no capability of the
+ * VM; a member makes the function of the arguments, a closure over its
+ * receiver, which is the VM's `IStaticFunction`.
+ *
+ * @type {(kind: _Item['kind']) => string}
+ */
+const bound = kind => kind === 'member' ? 'IStaticFunction' : 'IVm'
 
 /**
  * A module-level node resolved at compile time: a function, which becomes
@@ -100,32 +108,43 @@ const literalProperties = node => {
 }
 
 /**
- * The built-ins of one section, `static` or `member`: an object of
- * namespaces, each an object of functions, each resolving to a function
- * node; `name` spells a built-in's name from its namespace and key.
+ * The built-ins an object of the table holds, each resolving to a function
+ * node, named by `name` from its key, `member` for the `member` section's;
+ * or the refusal of a value that is no object literal, as `refused` says,
+ * or of an entry that is no function.
  *
- * @type {(name: (namespace: string, key: string) => string, member: boolean) => (section: unknown) => Result<readonly _BuiltIn[], readonly unknown[]>}
+ * @type {(name: (key: string) => string, member: boolean) => (functions: unknown, refused: readonly unknown[]) => Result<readonly _BuiltIn[], readonly unknown[]>}
  */
-const builtIns = (name, member) => section => {
+const builtIns = (name, member) => (functions, refused) => {
+    const properties = literalProperties(functions)
+    if (properties === null) { return error(refused) }
+    return okList(properties.map(([, key, node]) => okThen(
+        /** @type {(resolved: _Resolved) => Result<_BuiltIn, readonly unknown[]>} */
+        (resolved) => resolved[0] === 'function'
+            ? ok({ name: name(key), node: resolved[1], member })
+            : error(['a built-in that is no function', name(key)]))(resolve(node))))
+}
+
+/**
+ * The `static` section's built-ins: an object of namespaces, each an
+ * object of functions, named `Object.is`.
+ *
+ * @type {(section: unknown) => Result<readonly _BuiltIn[], readonly unknown[]>}
+ */
+const statics = section => {
     const namespaces = literalProperties(section)
     if (namespaces === null) { return error(['a section of the runtime that is no object', section]) }
-    return okList(namespaces.flatMap(([, namespace, functions]) => {
-        const properties = literalProperties(functions)
-        if (properties === null) { return [error(['a namespace of the runtime that is no object', namespace])] }
-        return properties.map(([, key, node]) => okThen(
-            /** @type {(resolved: _Resolved) => Result<_BuiltIn, readonly unknown[]>} */
-            (resolved) => resolved[0] === 'function'
-                ? ok({ name: name(namespace, key), node: resolved[1], member: member ? /** @type {const} */ ([namespace, key]) : null })
-                : error(['a built-in that is no function', name(namespace, key)]))(resolve(node)))
-    }))
+    return mapOk((/** @type {readonly (readonly _BuiltIn[])[]} */ lists) => lists.flatMap(list => list))(okList(namespaces.map(([, namespace, functions]) =>
+        builtIns(key => `${namespace}.${key}`, false)(functions, ['a namespace of the runtime that is no object', namespace]))))
 }
 
 /**
  * Every built-in the module's `runtime` export names, the `static` section's
- * then the `member` section's, either section absent for none; or the
- * refusal of a module without the export or with another beside it, whose
- * initializer the lifting would drop, of a section that is not objects
- * of functions, or of a body under a path `nanvm-lib` binds natively,
+ * then the `member` section's — an object of functions by name, `startsWith`
+ * — either section absent for none; or the refusal of a module without the
+ * export or with another beside it, whose initializer the lifting would
+ * drop, of a section that is not objects of functions, or of a body under
+ * a path `nanvm-lib` binds natively,
  * `Object.entries`: the represented executors answer such a path
  * natively before they ask the runtime, so a body there would be NaNVM's
  * alone, and the two would answer apart.
@@ -142,19 +161,19 @@ const table = root => {
     if (sections === null) { return error(['no `runtime` export of objects', root]) }
     /** @type {(name: string) => unknown} */
     const section = name => sections.find(p => p[1] === name)?.[2] ?? ['{}', []]
-    return okThen((/** @type {readonly _BuiltIn[]} */ statics) => {
-        const native = statics.find(b => isNative(b.name.split('.')))
+    return okThen((/** @type {readonly _BuiltIn[]} */ bodies) => {
+        const native = bodies.find(b => isNative(b.name.split('.')))
         if (native !== undefined) { return error(['a body for a static every executor binds natively', native.name]) }
-        return mapOk((/** @type {readonly _BuiltIn[]} */ members) => [...statics, ...members])(
-            builtIns((type, key) => `${type}.prototype.${key}`, true)(section('member')))
-    })(builtIns((namespace, key) => `${namespace}.${key}`, false)(section('static')))
+        return mapOk((/** @type {readonly _BuiltIn[]} */ members) => [...bodies, ...members])(
+            builtIns(key => key, true)(section('member'), ['a section of the runtime that is no object', section('member')]))
+    })(statics(section('static')))
 }
 
 /**
  * The items of a module: every module-level function, the walk of one scope
  * stopping at each function's body, a static or a member named by the
- * table where a built-in resolves to it — a member's identifier its type
- * and key, `string_starts_with` — and a helper, `f` with its index among
+ * table where a built-in resolves to it — a member's identifier its name,
+ * `starts_with` — and a helper, `f` with its index among
  * them, otherwise, the module's own. Refused: a module-level node that is
  * no function, no object, no import's read and no `undefined` — an
  * operation the lifting would drop unevaluated; an import's read that
@@ -184,9 +203,7 @@ const items = (root, builtIns) => {
         const all = functions.map(node => {
             const named = builtIns.find(b => b.node === node)
             if (named === undefined) { return item(node, `f${helpers.indexOf(node)}`, `f${helpers.indexOf(node)}`, 'helper') }
-            return named.member === null
-                ? item(node, named.name, named.name, 'static')
-                : item(node, named.name, named.member.join('.'), 'member')
+            return item(node, named.name, named.name, named.member ? 'member' : 'static')
         })
         const names = all.flatMap(i => printedNames(i).map(n => /** @type {const} */ ([n, i])))
         const clash = names.find(([n], index) => names.findIndex(([m]) => m === n) !== index)
@@ -239,19 +256,24 @@ const reference = ident => [`Function::from(${ident}::<A>()).to_any()`, [['vm', 
  * `fn` of the arguments alone whose body is the function's scope with its
  * frame slots resolved — a function's accessor, or a literal inlined — and
  * its `self` the item itself; and, for a static or a helper, the accessor
- * after it, {@link accessorLines}. A member is its code alone, named by its
- * identifier, since a call step calls the code and nothing reads a member
- * as a value. Refused: a function a body makes at call time, since an item
- * is bound on `IVm` alone; a member read as a value, which has no
- * descriptor to read; and a slot that resolves to nothing an item may hold.
- * A slot that resolves to a function names an item, since every
- * module-level function is one.
+ * after it, {@link accessorLines}. A member is its code alone, a `fn` of
+ * its receiver, named by its identifier and bound on `IStaticFunction`,
+ * since a call step asks the code for the function of the arguments, a
+ * closure over the receiver, and nothing reads a member as a value.
+ * Refused: a member body reading past its receiver — the arguments as a
+ * list, the rest, or a second fixed argument — which a function of the
+ * receiver alone has no spelling for; a function a static's or a
+ * helper's body makes at call time, since those are bound on `IVm` alone;
+ * a member read as a value, which has no descriptor to read; and a slot
+ * that resolves to nothing an item may hold. A slot that resolves to a
+ * function names an item, since every module-level function is one.
  *
  * @type {(all: readonly _Item[]) => (item: _Item) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
 const itemLines = all => ({ node, name, ident, kind }) => {
     const [, length, slots, body] = /** @type {readonly any[]} */ (node)
-    if (holdsFunction(body)) { return error(['no static Rust for a function a body makes at call time', name]) }
+    if (kind !== 'member' && holdsFunction(body)) { return error(['no static Rust for a function a body makes at call time', name]) }
+    if (kind === 'member' && readsBeyondFirst(body)) { return error(['a member body reading past its receiver; a member is a function of its receiver alone', name]) }
     /** @type {(fn: readonly unknown[]) => Result<Printed<string>, readonly unknown[]>} */
     const itemReference = fn => {
         const read = all.filter(i => i.node === fn)[0]
@@ -266,41 +288,44 @@ const itemLines = all => ({ node, name, ident, kind }) => {
         const code = [
             tagged('comment')(`/// \`${name}\``),
             '#[rustfmt::skip]',
-            `${kw('fn')} ${kind === 'member' ? ident : `${ident}_code`}<A: ${bound}>(${readsArgs(body) ? 'args' : '_args'}: Array<A>) -> Result<Any<A>, Any<A>> {`,
+            `${kw('fn')} ${kind === 'member' ? ident : `${ident}_code`}<A: ${bound(kind)}>(${parameter(kind, body)}) -> Result<Any<A>, Any<A>> {`,
             ...[...rest.map(([line]) => line), ...statements].map(line => `${indent}${line}`),
             '}',
         ]
         /** @type {readonly Use[]} */
-        const codeUses = [...uses, ...rest.flatMap(([, u]) => u), ['vm', 'Array']]
-        return kind === 'member'
-            ? ok(/** @type {Printed<readonly string[]>} */ ([code, codeUses]))
-            : mapOk((/** @type {readonly string[]} */ accessor) =>
-                /** @type {Printed<readonly string[]>} */ ([[...code, '', ...accessor], [...codeUses, ['vm', 'RuntimeFunction']]]))(
-                accessorLines(node, name, ident, kind === 'static'))
-    })(statementsWith(frame, () => itemReference(node))(body))
+        const codeUses = [...uses, ...rest.flatMap(([, u]) => u), ['vm', bound(kind)]]
+        return ok(/** @type {Printed<readonly string[]>} */ (kind === 'member'
+            ? [code, codeUses]
+            : [[...code, '', ...accessorLines(name, ident, length, kind === 'static')], [...codeUses, ['vm', 'Array'], ['vm', 'RuntimeFunction']]]))
+    })(statementsWith(frame, () => itemReference(node), kind === 'member' ? argNamed('self_') : undefined)(body))
 }
+
+/**
+ * The parameter of an item's function: a member takes its receiver,
+ * `self_: Any<A>`, the one argument a body of the receiver has, and a
+ * static or a helper the arguments of the call, `args: Array<A>`; either
+ * underscored where the body never reads it.
+ *
+ * @type {(kind: _Item['kind'], body: Exp) => string}
+ */
+const parameter = (kind, body) => kind === 'member'
+    ? `${readsArgs(body) ? 'self_' : '_self'}: Any<A>`
+    : `${readsArgs(body) ? 'args' : '_args'}: Array<A>`
 
 /**
  * The accessor of an item a body may read as a value, a static or a
  * helper: `fn` answering the descriptor as a promoted constant, `pub` for
- * a static, since compiled code reads it. Refused: a body the text writer
- * has no spelling for, since a built-in carries its text.
+ * a static, since compiled code reads it. A built-in's text is formed
+ * from its name where it is read, so the descriptor carries none.
  *
- * @type {(node: readonly unknown[], name: string, ident: string, exported: boolean) => Result<readonly string[], readonly unknown[]>}
+ * @type {(name: string, ident: string, length: number, exported: boolean) => readonly string[]}
  */
-const accessorLines = (node, name, ident, exported) => {
-    const text = tryFunctionText(/** @type {Exp} */ (node))
-    if (text[0] === 'error') { return error(['no text for a built-in', name, text[1]]) }
-    // always a `&str`: the writer escapes a lone surrogate, as `textExpr`
-    // in `fjs/edag/rust` relies on too
-    const literal = unwrap(stringLiteral(text[1]))
-    return ok([
-        '#[rustfmt::skip]',
-        `${exported ? `${kw('pub')} ` : ''}${kw('fn')} ${ident}<A: ${bound}>() -> &'static RuntimeFunction<A> {`,
-        `${indent}&RuntimeFunction { name: ${lit(stringText(name))}, code: ${ident}_code::<A>, length: ${lit(`${node[1]}`)}, text: ${lit(literal)} }`,
-        '}',
-    ])
-}
+const accessorLines = (name, ident, length, exported) => [
+    '#[rustfmt::skip]',
+    `${exported ? `${kw('pub')} ` : ''}${kw('fn')} ${ident}<A: ${bound('static')}>() -> &'static RuntimeFunction<A> {`,
+    `${indent}&RuntimeFunction { name: ${lit(stringText(name))}, code: ${ident}_code::<A>, length: ${lit(`${length}`)} }`,
+    '}',
+]
 
 /**
  * A name as a Rust string literal: identifiers and dots, which the literal
@@ -314,9 +339,11 @@ const stringText = name => `"${name}"`
  * The two tables, tagged: `statics`, every static built-in by its name —
  * the sections' and, from [`fjs/js/static`](../../../js/static/module.f.js),
  * the natives `nanvm-lib` writes by hand, `Object.entries` — each row an
- * accessor, and `members`, every member built-in by its receiver type and
- * key, each row the code itself; the arrays `nanvm-lib`'s lookups search,
- * and the crate's own, where the accessors are every compiled module's.
+ * accessor, and `members`, every member built-in by its name, each row
+ * the code itself, a `MemberCode` bound on `IStaticFunction` as the code
+ * is; the arrays
+ * `nanvm-lib`'s lookups search, and the crate's own, where the accessors
+ * are every compiled module's.
  *
  * @type {(builtIns: readonly _BuiltIn[], all: readonly _Item[]) => Printed<readonly string[]>}
  */
@@ -324,19 +351,19 @@ const tables = (builtIns, all) => {
     /** @type {(b: _BuiltIn) => string} */
     const ident = b => all.filter(i => i.node === b.node)[0].ident
     const statics = [
-        ...builtIns.filter(b => b.member === null).map(b => `(${lit(stringText(b.name))}, ${ident(b)})`),
+        ...builtIns.filter(b => !b.member).map(b => `(${lit(stringText(b.name))}, ${ident(b)})`),
         ...natives.map(path => `(${lit(stringText(path.join('.')))}, ${builtInIdentifier(path.join('.'))})`),
     ]
-    const members = builtIns.flatMap(b => b.member === null ? [] : [`(${lit(stringText(b.member[0]))}, ${lit(stringText(b.member[1]))}, ${ident(b)})`])
-    /** @type {(name: string, row: string, rows: readonly string[]) => readonly string[]} */
-    const fn = (name, row, rows) => [
+    const members = builtIns.filter(b => b.member).map(b => `(${lit(stringText(b.name))}, ${ident(b)})`)
+    /** @type {(name: string, kind: _Item['kind'], row: string, rows: readonly string[]) => readonly string[]} */
+    const fn = (name, kind, row, rows) => [
         '#[rustfmt::skip]',
-        `${kw('pub')}(${kw('crate')}) ${kw('fn')} ${name}<A: ${bound}>() -> [(${row}); ${lit(`${rows.length}`)}] {`,
+        `${kw('pub')}(${kw('crate')}) ${kw('fn')} ${name}<A: ${bound(kind)}>() -> [(${row}); ${lit(`${rows.length}`)}] {`,
         ...(rows.length === 0 ? [`${indent}[]`] : [`${indent}[`, ...rows.map(r => `${indent}${indent}${r},`), `${indent}]`]),
         '}',
     ]
     return [
-        [...fn('statics', "&'static str, Accessor<A>", statics), '', ...fn('members', "&'static str, &'static str, RuntimeCode<A>", members)],
+        [...fn('statics', 'static', "&'static str, Accessor<A>", statics), '', ...fn('members', 'member', "&'static str, MemberCode<A>", members)],
         natives.map(path => /** @type {Use} */ (['vm', builtInIdentifier(path.join('.'))])),
     ]
 }
@@ -355,7 +382,7 @@ export const generateRuntimeTagged = root => okThen((/** @type {readonly _BuiltI
         return [
             tagged('comment')(generatedHeader('`npm run gen` from `fjs/js/runtime/module.f.js`', 'change the runtime and regenerate')),
             '',
-            ...useLinesTagged({ vm: names(uses)('vm'), unstable: names(uses)('unstable') }, bound),
+            ...useLinesTagged({ vm: names(uses)('vm'), unstable: names(uses)('unstable') }, bound('static')),
             '',
             ...printed.flatMap(([lines]) => [...lines, '']),
             ...tableLines,
@@ -363,8 +390,8 @@ export const generateRuntimeTagged = root => okThen((/** @type {readonly _BuiltI
         ].join('\n')
     })(okList(all.map(itemLines(all)))))(items(root, builtIns)))(table(root))
 
-/** The names the two tables' rows spell. @type {readonly Use[]} */
-const skeletonUses = [['vm', 'Accessor'], ['vm', 'RuntimeCode']]
+/** The names the two tables spell: their rows' types and the members' bound. @type {readonly Use[]} */
+const skeletonUses = [['vm', 'Accessor'], ['vm', 'MemberCode'], ['vm', bound('member')]]
 
 /**
  * The names spelled from `module`, each once, sorted.

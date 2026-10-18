@@ -1,7 +1,7 @@
 ## to-primitive. Converting an object or a function: stock behavior, refusal, then own methods
 
 **Priority:** P1
-**Status:** open — conversion through Stage 3 is implemented; D1's formal approval and the remaining native function-key corpus coverage are tracked below
+**Status:** open — conversion through Stage 3 is implemented, the native function-key case included; D1's formal approval is tracked below
 
 ### Problem
 
@@ -76,7 +76,7 @@ an explicit call: `{ toString: f }.toString()` calls `f` (`Member`). Stage 2
 also calls it during implicit conversion, in the order the hint selects.
 
 A function's text uses the stock method and the shared EDAG default rendering in
-[`spec/todo/serialization.md`](../../../spec/todo/serialization.md#function-text-and-serialization)
+[`spec/design/serialization.md`](../../../spec/design/serialization.md#function-text-and-serialization)
 and
 [`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse),
 and `member-functions.md` tracks its remaining corpus coverage. Native
@@ -287,7 +287,7 @@ The Rust printer passes it to the function value as an `Option<&'static str>`:
 - The template belongs to the code, not to each function value. It is
   static data in the binary, shared by every value from that code, without
   a per-value text allocation. This does not implement or require the
-  [lazy frame rendering](../../../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
+  [lazy frame rendering](../../../spec/design/serialization.md#conditional-requirement-lazy-frame-rendering)
   requirement, which applies if a future profile renders captured values.
 - **An empty frame:** the template is the text.
 - **A non-empty frame:** a slot is its generated name, and `make(0)` and
@@ -383,8 +383,8 @@ is still tracked below; its proposed spelling is already implemented.
    those changes. The corpus's `host` marker stays for the independent
    JavaScript reference, whose host callables have host-defined text; the
    same exception applies after runtime compilation erases EDAG reflection.
-   The property-key conversion is implemented in `entry`, with native
-   function-key corpus coverage remaining below. A `const` only a lazy
+   The property-key conversion is implemented in `entry`, and proven natively
+   by the `function-text` fixture. A `const` only a lazy
    operand reaches, which the writer refused at first, is now the operand's
    own block, an IIFE the front end inlines. The corpus's
    `() => undefined` is now the node a compiled one is (a function's slots
@@ -405,9 +405,8 @@ contract; it is not the general conversion boundary. `entry` checks for a
 nullish receiver before converting its key with `ToString` (FunctionalScript
 has no symbols), then reads an enumerable own entry. An object key invokes
 its own conversion methods. A function key uses associated canonical text,
-or refuses if text is needed and absent. Native function-key corpus proofs
-remain tracked by [member-functions](./member-functions.md); the conversion
-itself is implemented. Direct
+or refuses if text is needed and absent. The native function-key proof is the
+`function-text` fixture (see [member-functions](./member-functions.md)). Direct
 [property access](../../../spec/property-access/README.md) has its own restricted
 key syntax.
 
@@ -435,5 +434,5 @@ key syntax.
       represented conversion and the separate host-callable exception.
 - [x] Place the property-key conversion: it is
       [`entry`](../../../spec/property-access/entries.md)'s key conversion.
-- [ ] Finish native function-key corpus coverage in
+- [x] Finish native function-key corpus coverage in
       [member-functions](./member-functions.md)'s `Function` checklist.

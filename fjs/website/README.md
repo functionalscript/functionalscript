@@ -230,6 +230,40 @@ The one exclusion is a `todo/` subtree, by path segment: its issues are its
 parent's open work, so a page of its own would hold nothing else. It is neither
 generated nor linked, so nothing points at a page that was never written.
 
+**Issues are every `.md` under the `todo/` but `README.md`, at any depth**, as
+[`todo/README.md`](../../todo/README.md#issue-format) defines them: a
+subfolder's are listed with the rest, named by their path inside the `todo/` —
+`blocked/later.md` — and a `README.md` documents its directory rather than
+being one. Each is read for its header by [`issue`](./issue/module.f.mjs), and
+**one whose status or priority cannot be read stops the build**, naming the
+file, rather than being listed with a guess — the answer a release file that
+does not parse already gets. Reading them costs the build about two seconds
+for the few hundred issues the tree holds (at `6d511a0`, 366 issues: 17 s
+against 15 s).
+
+**An issue shows its priority as a badge and its status as its icon** —
+`P1 ◐ name` — and the list is ordered by priority, then status, then name. The
+P1s, the issues that block everything else, lead the list rather than sitting
+wherever their names sort, and the badges are its left column, so a reader sees
+where each priority starts. Within one priority, status is ordered as
+[`issue`](./issue/module.f.mjs)'s `statuses` lists it: work in progress, then
+work not started, then work waiting or deferred, then the record, then what
+will not be done. Status first was the other order: it grouped the list by
+icon and sank the records to the bottom, but put every work in progress, a P5
+included, above an open P1.
+
+The status is `data-issue-status` on the link, beside `data-kind`, so its
+icon's text alternative — "blocked issue" — is part of the link's name; not
+`data-status`, which the test runner's report already gives `passed` and
+`failed`. The badge, `data-priority`, is outside the link, before it: it is
+read as a word of its own, and the link's name and underline are the issue's
+alone. Its emphasis falls with the priority rather than changing hue: P1 is
+filled in the failure colour, the conventional one for blocking; P2 in the
+value colour; P3 outlined; P4 plain muted text; P5 the same, fainter. A hue per
+level would say nothing about order, and would compete with the status icons.
+[`issue`'s demo](./issue/demo.f.mjs) draws every status and every priority,
+the one page that shows the whole set.
+
 ## A page runs the proofs under it
 
 A page is the browser test runner with a shorter list, never a second runner.
@@ -716,6 +750,29 @@ and no other page had either.
   `WORKERS_CI_BRANCH`, which Cloudflare's Workers Builds sets beside
   `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
   build names no branch, so neither shows the strip.
+
+## The breadcrumb is the page's heading
+
+A directory's page, a release's page and the release index open with one
+line, `root / fjs / rtti`: each ancestor a link, the page itself as text
+marked `aria-current="page"`. It is `breadcrumb` in
+[`page/module.f.mjs`](./page/module.f.mjs), a `nav` holding the page's `h1`.
+
+- **One line, not two.** The page used to carry a breadcrumb, `root / fjs`,
+  and under it an `h1`, `fjs/rtti` — the same path twice, the second time
+  without its root.
+- **It is still the `h1`.** Only the duplicate is gone, not the heading: a
+  screen reader's list of headings, a search engine and a reader mode take the
+  page's topic from it, and a page with none would give them nothing. An `h1`
+  may sit in a `nav`, not the other way round, so the `nav` is outside.
+  Browsers that still apply the old rule shrinking an `h1` inside a `nav`
+  show it smaller; current ones no longer do, so the stylesheet does not set
+  its size.
+- **Every part is heading-sized.** A variant setting the ancestors at body
+  size, so the page's own name stood out, was rendered beside it, and the
+  plain heading won.
+- **A page with no ancestors keeps a plain `h1`**: the root page, the pull
+  requests and the CLI reference have no path to show.
 
 ## Every page closes with the funding links
 

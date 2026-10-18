@@ -61,5 +61,5 @@ Nothing beyond that is decided. Open design points:
 - [fjs/media/README.md](../README.md)
   — the `fjs/media/` membership and cycle rules placing this module, and the
   dialect naming convention
-- `todo/plan/vision.md` — the multi-device / multi-user merge model a CRDT
+- `doc/plan/vision.md` — the multi-device / multi-user merge model a CRDT
   change log would serve

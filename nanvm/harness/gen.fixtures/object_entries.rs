@@ -15,7 +15,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c4: Any<A> = [c0, c2, string_any("a😀"), string_any(""), f64_any(0x3ff0000000000000), true.to_any(), bigint_any(1), c3, Object::default().to_any()].to_array().to_any();
     let c5: Any<A> = Function::from(object_entries::<A>()).to_any();
     let c6 = || {
-        let c7: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any()) }, 1, [c5.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
+        let c7: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [args.argument(0)].to_array().to_any()) }, 1, [c5.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
         Ok([c7].to_array().to_any())
     };
     let c8: Any<A> = Any::dot(c4.clone(), string_any("map")).end_call(c6)?;

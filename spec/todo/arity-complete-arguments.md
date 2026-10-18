@@ -53,7 +53,7 @@ limits `length` to 16.
   parameters, which retired the `withLength` pattern's unrestricted `length`.
 - [Review finding](https://github.com/functionalscript/functionalscript/pull/2133#discussion_r4054015547)
   — the complete-list writer obstruction that motivated the earlier task.
-- [Serialization](./serialization.md#function-text-and-serialization) —
+- [Serialization](../design/serialization.md#function-text-and-serialization) —
   code-only default function text is implemented; broader callable serialization
   and future execution profiles remain separate design work.
 - [Statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md),

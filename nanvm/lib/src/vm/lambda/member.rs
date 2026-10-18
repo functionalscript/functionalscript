@@ -1,6 +1,6 @@
 use super::method::{method, runtime};
 use crate::vm::{
-    Any, Array, IVm, ToArray, Unpacked,
+    Any, Array, IVm, Unpacked,
     member_access::{non_nullish_receiver, undefined_if_absent},
 };
 
@@ -69,37 +69,33 @@ impl<A: IVm> Member<A> {
 
     /// The guard of `|?.()`: whether the callee the call would find is
     /// nullish — an own property that is, or nothing at all, no own
-    /// property and no built-in of the name, native or the runtime's.
+    /// property and no built-in of the name, native or the runtime's, which
+    /// the runtime's body decides for the receiver, and may throw deciding.
     /// `({}).at?.()` skips; `({}).toString?.()` calls.
-    pub(crate) fn is_nullish(&self) -> bool {
+    pub(crate) fn is_nullish(&self) -> Result<bool, Any<A>> {
         match self.own() {
-            Some(v) => v.is_nullish(),
-            None => {
-                method(&self.receiver, &self.key).is_none()
-                    && runtime(&self.receiver, &self.key).is_none()
-            }
+            Some(v) => Ok(v.is_nullish()),
+            None => Ok(method(&self.receiver, &self.key).is_none()
+                && runtime(&self.receiver, &self.key)?.is_none()),
         }
     }
 
     /// The call, its arguments already evaluated: the own property or
     /// element if there is one — `Any::call` throwing for a value that is
     /// no function — else the receiver type's native built-in of the name
-    /// with the receiver, else the runtime's code with the receiver as its
-    /// first argument, else the `TypeError` for calling `undefined`, as
-    /// JavaScript throws on a type without the method. The arguments are
-    /// the array a call spreads, and a value that is no array throws on
-    /// every path, through `Array::try_from` as `Any::call` throws, before
-    /// a built-in sees them.
+    /// with the receiver, else the function the runtime's body answers for
+    /// the receiver, called with the arguments, else the `TypeError` for
+    /// calling `undefined`, as JavaScript throws on a type without the
+    /// method. The arguments are the array a call spreads, and a value that
+    /// is no array throws on every path, through `Array::try_from` as
+    /// `Any::call` throws, before a built-in sees them.
     pub(crate) fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
         match self.own() {
             Some(callee) => callee.call(args),
             None => match method(&self.receiver, &self.key) {
                 Some(f) => f(self.receiver, Array::try_from(args)?),
-                None => match runtime(&self.receiver, &self.key) {
-                    Some(code) => {
-                        let args = Array::try_from(args)?;
-                        code([self.receiver].into_iter().chain(args).to_array())
-                    }
+                None => match runtime(&self.receiver, &self.key)? {
+                    Some(f) => f.call(args),
                     None => Any::undefined().call(args),
                 },
             },
@@ -111,7 +107,7 @@ impl<A: IVm> Member<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject, error},
+        vm::{Any, IVm, Nullish, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;

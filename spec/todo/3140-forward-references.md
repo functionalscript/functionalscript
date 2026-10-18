@@ -64,5 +64,5 @@ proposals, with no approval recorded.
 
 - [`body-const-forward-reference.md`](../../fjs/compiler/parser/todo/body-const-forward-reference.md)
   — the same gap inside a function body.
-- [function-frame](./3111-function-frame.md) — mutually recursive functions
+- [function-frame](../design/3111-function-frame.md) — mutually recursive functions
   and their frames.

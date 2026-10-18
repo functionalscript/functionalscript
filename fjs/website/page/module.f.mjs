@@ -30,12 +30,14 @@
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Build, Dir, Kind, PageDemo, Proof } from './types.ts'
  * @import { Funding } from '../funding/types.ts'
+ * @import { Issue } from '../issue/types.ts'
  */
 
 import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
+import { priorities, statuses } from '../issue/module.f.mjs'
 
 /**
  * The repository the site is built from, which is where a file is read when
@@ -398,6 +400,46 @@ export const fileHref = commit => path => name => {
 const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, text]]
 
 /**
+ * An issue's entry: its priority as a badge, then the link with its status
+ * as the icon and its name — `P1 ◐ name`.
+ *
+ * **The status is on the link**, as the kind is (see {@link item}), so its
+ * icon's text alternative — "wip issue" — is part of the link's name.
+ * `data-issue-status` and not `data-status`, which the test runner's report
+ * already gives `passed` and `failed`: one attribute naming two unrelated
+ * things is a collision waiting for a value they share.
+ *
+ * **The badge comes first, outside the link.** The list is ordered by
+ * priority (see {@link issueOrder}), so the badges make its left column and a
+ * reader sees where each priority starts. Outside the link, the badge is read
+ * as a word of its own — "P1", then the link "wip issue a.md" — and the link's
+ * name and underline are the name's alone.
+ *
+ * @type {(href: string) => (issue: Issue) => Element}
+ */
+export const issueItem = href => ({ name, status, priority }) => ['li',
+    ['span', { 'data-priority': priority }, priority],
+    ' ',
+    ['a', { href, 'data-kind': 'issue', 'data-issue-status': status }, name]]
+
+/**
+ * The order a directory lists its issues in: by priority, most urgent first,
+ * then by status in {@link statuses}' order — work in progress, then work not
+ * started, then work waiting or deferred, then the record, then what will not
+ * be done — then by name. The P1s, the issues that block everything else,
+ * lead the list, and within one priority the issues group by icon.
+ *
+ * @type {(a: Issue, b: Issue) => number}
+ */
+export const issueOrder = (a, b) => {
+    const priority = priorities.indexOf(a.priority) - priorities.indexOf(b.priority)
+    if (priority !== 0) { return priority }
+    const status = statuses.indexOf(a.status) - statuses.indexOf(b.status)
+    if (status !== 0) { return status }
+    return a.name < b.name ? -1 : 1
+}
+
+/**
  * A subdirectory's entry, marked when a demo is somewhere under it.
  *
  * **Under it, not in it.** Every demo lives several levels down, so a mark
@@ -445,8 +487,9 @@ const section = heading => items =>
  * **Issues are a list of their own, open by default.** An issue is about
  * the directory rather than in it. Showing its open work beside Contents
  * makes both lists available immediately; a reader can fold either away.
- * Its entries keep the issue icon, so an entry looks the same wherever it
- * is listed.
+ * Each entry's icon is its status and a badge its priority, and the list is
+ * in {@link issueOrder}: by priority, the P1s first, and by status within
+ * each priority, rather than wherever their names sort.
  *
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
@@ -460,8 +503,8 @@ export const sections = commit => dir => [
         ...dir.dirs.map(dirItem(dir)),
         ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
     ]),
-    ...section('Issues')(dir.todo.map(name =>
-        item('issue')(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
+    ...section('Issues')(dir.todo.toSorted(issueOrder).map(issue =>
+        issueItem(fileHref(commit)(dir.path)(`todo/${issue.name}`))(issue))),
 ]
 
 /**
@@ -487,6 +530,24 @@ const breadcrumbs = path => [
     /** @type {const} */ (['.', 'root']),
     ...ancestors(path).map(a => /** @type {const} */ ([a, basename(a)])),
 ]
+
+/**
+ * The page's heading: a link to each ancestor of `path`, root first, then
+ * `name`, the page itself, as text.
+ *
+ * **The breadcrumb is the heading.** A breadcrumb above a heading repeated
+ * the page's path twice; one line now says where the reader is, and it is
+ * still the `h1` that a screen reader's heading list and a search engine
+ * take the page's topic from.
+ *
+ * @type {(path: string) => (name: string) => Element}
+ */
+export const breadcrumb = path => name => ['nav', { 'aria-label': 'Breadcrumb' }, ['h1',
+    ...toArray(intersperse(/** @type {Node} */ (' / '))([
+        ...breadcrumbs(path).map(([href, text]) => /** @type {Node} */ (['a', { href: pageHref(href) }, text])),
+        /** @type {Node} */ (['span', { 'aria-current': 'page' }, name]),
+    ])),
+]]
 
 /**
  * The branch the published site is built from. Every other branch's build is
@@ -619,9 +680,7 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  * @type {(build: Build) => (dir: Dir) => string}
  */
 export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryLayout(build)(dir)(testsMain(
-    ['nav', ...toArray(intersperse(' / ')(breadcrumbs(dir.path).map(([path, name]) =>
-        /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
-    ['h1', dir.path],
+    breadcrumb(dir.path)(basename(dir.path)),
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
     ...(dir.demo === null ? [] : demoSection(dir.demo)),

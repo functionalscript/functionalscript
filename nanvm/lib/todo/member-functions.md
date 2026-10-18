@@ -1,10 +1,11 @@
 ## Member functions of the built-in types
 
 **Priority:** P2
-**Status:** open — every call [`fjs/js/prototype`](../../../fjs/js/prototype/module.f.js)
-allows is answered (`vm/lambda/gen.methods.rs` has no pending pair) and has
-a corpus case; the property-key conversion of a function remains, as the
-unchecked box below
+**Status:** done — kept as the record; cited by `nanvm/lib/src/vm/lambda/mod.rs`
+and `method.rs` (the dispatch algorithm), `fjs/nanvm/methods/module.f.mjs`,
+`nanvm/lib/README.md`, `spec/built-ins/member-functions.md`,
+`spec/todo/cavm-function-to-string.md`, `spec/design/serialization.md`,
+`spread-operations.md` and `fjs/nanvm/todo/corpus-improvements.md`
 
 ### Problem
 
@@ -43,12 +44,14 @@ with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
    native table ([`vm/lambda/method.rs`](../src/vm/lambda/method.rs)),
    the specification's algorithm over the receiver and the arguments.
 3. **The runtime's body**: the function the generated runtime holds under
-   the receiver's type and the name, which
+   the name, which
    [`fjs/js/runtime`](../../../fjs/js/runtime/README.md) writes once in
    FunctionalScript and `npm run gen` compiles to
    [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs). The call step asks
-   `runtime_method(type_name, key)` in `vm/runtime.rs` for its code and
-   calls it with the receiver as its first argument, `[receiver, ...args]`.
+   `runtime_method(key)` in `vm/runtime.rs` for its code, asks the code
+   for the receiver — the function of the arguments, or `undefined` for a
+   receiver the name is no member of — and calls that function with the
+   arguments.
 4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 
@@ -94,11 +97,11 @@ its text, the FunctionalScript writer's rendering of its EDAG
 function answers it, so `f.toString()`, `String(f)`, `+`, an array joined
 and a string method's argument all reach the one text. A function without
 text — a host or hand-written one — is refused (`error::function_text`), never
-answered with a placeholder. What remains is the property key, which no
-module can compute but through the
-[`entry`](../../../spec/property-access/entries.md) helper, whose
-key conversion reaches a function's text. And the host evaluator's own rendering, which the
-corpus's `host` marker skips until it has one.
+answered with a placeholder. The property key, which no module can compute
+but through the [`entry`](../../../spec/property-access/entries.md) helper,
+reaches the same text, and the `function-text` fixture proves it. What remains
+is the host evaluator's own rendering, which the corpus's `host` marker skips
+until it has one.
 
 `Number`'s and `BigInt`'s `toString` take a radix, `2` to `36`: an integer
 and every bigint convert exactly, and a fraction with a radix other than ten
@@ -231,17 +234,18 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 
 - [x] `toString` — the function's text, the writer's rendering of its
       EDAG (`nanvm/lib/todo/to-primitive.md`, Stage 3).
-- [ ] Prove direct and indirect default conversions. Done: `f.toString()`,
+- [x] Prove direct and indirect default conversions. Done: `f.toString()`,
       `String(f)`, `+`, function elements in arrays (`join` / `toString`),
       a string method's argument, returned, exported and nested functions,
       and identity, which the text leaves unchanged (the corpus's `host` and
       `===` cases and `nanvm/harness/fixtures/function-text.mjs`). A
-      call-only export consumer is the harness's `Action::Call`. Left:
-      property keys.
+      call-only export consumer is the harness's `Action::Call`; and a
+      property key, read by the `entry` helper in
+      `nanvm/harness/fixtures/function-text.mjs`.
 
 ### Related
 
-- [Default function text](../../../spec/todo/serialization.md#function-text-and-serialization)
+- [Default function text](../../../spec/design/serialization.md#function-text-and-serialization)
   — adopted rendering contract and the remaining rendering choices.
 - [Named/rest rendering requirements](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)
   — shared rendering without regressing supported calls, returns or exports.

@@ -24,6 +24,7 @@
 
 import { assertOk } from '../../../asserts/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
+import { isStatic } from '../../../edag/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { _entryText, _renderSymbolic } from '../function_text/module.f.mjs'
@@ -38,13 +39,14 @@ const operand = v => v instanceof Array ? name(v[1]) : chunksText(leafSerialize(
 
 /** Construct one outer node; no function-body entry reaches this writer. @type {(a: Analysis, i: number, n: _ValueNode) => string} */
 const entry = (a, i, n) => {
+    // a static function is the built-in, not its body, so there is none
+    // to write: the module reads the host's own, which the tag spells
+    if (isStatic(n)) { return n[0] }
     switch (n[0]) {
         case 'undefined': { return 'undefined' }
         case '[]': { return `[${n[1].map(operand).join(',')}]` }
         case '{}': { return `{${n[1].map(([, key, value]) => `[${operand(key)}]:${operand(value)}`).join(',')}}` }
         case 'entry': { return _entryText(`value${i}/function`) }
-        // no body to write: the host's own built-in
-        case 'Object.entries': { return 'Object.entries' }
         default: {
             const slots = n[2]
             const frame = slots.map((_, k) => symbol(`value${i}/frame${k}`))
