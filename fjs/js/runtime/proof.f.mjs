@@ -2,6 +2,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, isStatic, statics } from '../static/module.f.js'
 import { runtime } from './module.f.js'
+import edag from './gen.edag.data.mjs'
 
 const { entries, values } = Object
 
@@ -182,6 +183,19 @@ export const proof = {
         assertEq(/** @type {(search: unknown) => boolean} */ (dot('abc', 'startsWith'))('ab'), true)
         for (const self of samples.filter(v => typeof v !== 'string' && v !== null && v !== undefined)) { assertEq(dot(self, 'startsWith'), undefined, self) }
         assertEq(dot('abc', 'slice'), undefined)
+        // the core rule of DESIGN.md §13, on the compiled EDAG: `dot` holds
+        // no chain step — no member call, no optional chain — since an
+        // executor runs it to answer those; a property read and a `()` of
+        // a function value are what it uses
+        /** @type {(node: unknown) => readonly unknown[]} */
+        const steps = node => node instanceof Array
+            ? [...(['|()', '|?.()', '|!()', '|.', '?.', '?.()'].includes(/** @type {string} */ (node[0])) ? [node[0]] : []), ...node.flatMap(steps)]
+            : []
+        const sections = /** @type {readonly (readonly [string, string, unknown])[]} */ (/** @type {readonly any[]} */ (edag)[1][0][2][1])
+        const compiled = sections.find(([, name]) => name === 'dot')
+        assert(compiled !== undefined)
+        assertEq(steps(compiled).join(), '')
+        assertEq(JSON.stringify(compiled).includes('["()"'), true)
     },
     throw: {
         // The detached call `host` makes is a real one: a built-in that

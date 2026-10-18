@@ -177,9 +177,12 @@ export const runtime = {
      * element. `entry(member, key)` reads the table as the object literal
      * it is, so no inherited name answers. A body's throw is the call's,
      * or the guard's. The core rule of DESIGN.md §13 holds here: no
-     * member call and no optional chain, only `entry`, a conditional and a
-     * plain call of a function value, since an executor runs this to
-     * answer those.
+     * member call and no optional chain, only `entry`, a conditional, a
+     * property read and a plain call of a function value, since an
+     * executor runs this to answer a member call — which is why the body
+     * is bound to `f` before it is called: `body[0](self)` would be a
+     * member call, `['.', body, 0, ['|()', …]]`, where `f(self)` is a
+     * `()` of a value. The runtime's proof pins the shape on the EDAG.
      *
      * @type {(self: unknown, key: string) => unknown}
      */
@@ -187,6 +190,8 @@ export const runtime = {
         const own = entry(self, key)
         if (own.length === 1) { return own[0] }
         const body = entry(member, key)
-        return body.length === 1 ? /** @type {(self: unknown) => unknown} */ (body[0])(self) : undefined
+        if (body.length !== 1) { return undefined }
+        const f = /** @type {(self: unknown) => unknown} */ (body[0])
+        return f(self)
     },
 }
