@@ -140,8 +140,8 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` `Number(...)`; `○` `String(...)`; `◌` [number spread](./2363-number-spread.md)
 8. **Property access**
    - `●` Own-property read; `●` [optional chaining](./2335-optional-chaining.md)
-   - `●` Reading an entry at run time (the `entry` helper)
-   - `◌` [`hasOwnProperty`](./2345-has-own-property.md); `◌` prototype reads (refused)
+   - `●` Reading an entry at run time (the `entry` helper, presence included)
+   - `◌` prototype reads (refused)
 9. **Functions**
    - `●` Arrow functions, parameters, rest; `◌` [default parameters](./3125-default-parameters.md)
    - `●` Captures, closures, self recursion

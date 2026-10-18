@@ -28,7 +28,7 @@ export type Object = readonly ['{}', readonly Property[]]
 /** A closure: its length, evaluated captures and unevaluated body. */
 export type Closure = readonly ['=>', number, Values, Exp]
 
-/** The `entry` helper as a value: a function of `length` `2` the executor calls natively, fresh where the node is established. */
+/** The `entry` helper as a value: a function of `length` `2` the executor calls natively, answering the option `[value]` or `[]`, fresh where the node is established. */
 export type EntryFunction = readonly ['entry']
 
 /** A static function as a value, the EDAG's node: the built-in by its name, one function however often read, its call and `length` the executor's to answer. */

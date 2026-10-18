@@ -51,8 +51,8 @@ export const func = /** @type {const} */ (['=>', number, values, exp])
 /**
  * The `entry` helper as a value, the EDAG's `['entry']` established: a
  * function of `length` `2` with no captures and no body to interpret —
- * the executor answers its call itself — fresh wherever the node is
- * established, as a closure is.
+ * the executor answers its call itself, with the option `[value]` or `[]`
+ * — fresh wherever the node is established, as a closure is.
  */
 export const entryFunction = /** @type {const} */ (['entry'])
 

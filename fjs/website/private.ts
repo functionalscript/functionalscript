@@ -60,14 +60,6 @@ export type _Walked = {
 }
 
 /**
- * Every walked directory by its path, so a directory's `todo/` can be found
- * without walking it twice.
- *
- * @internal
- */
-export type _Tree = OrderedMap<_Walked>
-
-/**
  * Each directory's demo module, by directory path, as the page loads it.
  *
  * A directory whose demo was refused is simply absent: the decision is made

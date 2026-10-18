@@ -252,6 +252,9 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             for (const e of /** @type {readonly Exp[]} */ ([
                 ['arg', 0], ['rest'], ['=>', 0, [], ['arg', 0]],
                 ['=>', 1, [], ['args']],
+                // The retired complete list is refused at arity 0 too, where
+                // `['rest']` is the complete supplied array.
+                ['=>', 0, [], ['args']],
                 ['=>', 1, [], ['?:', true, 0, ['arg', 1]]],
                 // A nested body's index belongs to that function, not its parent.
                 ['=>', 2, [], ['=>', 0, [], ['arg', 1]]],

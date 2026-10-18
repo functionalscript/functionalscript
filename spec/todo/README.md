@@ -76,8 +76,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    ([optional chaining](../property-access/optional-chaining.md)), open for linked
    designer approval,
 3. [ ] [operators](./2340-operators.md),
-4. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
-   `Object.hasOwn`; propose a separate `hasEntity` AST pattern,
+4. [x] enumerable presence — prohibit `Object.hasOwn`; [`entry`](../property-access/entries.md)
+   answers an option, `[value]` or `[]`,
 5. [ ] [built-in](./2360-built-in.md),
 6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; each name is reserved no later

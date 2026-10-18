@@ -53,8 +53,8 @@ const nullish = value => value === null || typeOf(value) === 'undefined'
 
 /**
  * The `entry` helper called, `['entry']`'s body for the executors that
- * invoke it: the entry its second argument names among the first's
- * enumerable own properties, the key converted as
+ * invoke it: the option of the entry its second argument names among the
+ * first's enumerable own properties, `[value]` or `[]`, the key converted as
  * `Object.getOwnPropertyDescriptor` converts one — through its own
  * `toString`, under `invoke`, where it is an object — after a nullish
  * receiver has failed, as `ToObject` fails before the key is read. The

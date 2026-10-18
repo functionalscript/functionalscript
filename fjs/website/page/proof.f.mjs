@@ -1,5 +1,6 @@
 /**
  * @import { Build, Dir } from './types.ts'
+ * @import { Issue } from '../issue/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -40,6 +41,14 @@ const contents = items => '<body><details data-section="" open=""><summary><h2>C
  */
 const issues = items => '<body><details data-section="" open=""><summary><h2>Issues</h2></summary>'
     + `<ul data-links="">${items}</ul></details></body>`
+
+/**
+ * An open P3 issue named `name`: what the header is does not change how a
+ * page links it.
+ *
+ * @type {(name: string) => Issue}
+ */
+const issue = name => ({ name, status: 'open', priority: 'P3' })
 
 /** @type {Dir} */
 const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], demo: null, api: null, apiIndex: null }
@@ -155,12 +164,12 @@ export const proof = {
          * lists are available without opening a disclosure control.
          */
         issuesSeparateAndOpen: () => {
-            const html = sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], files: ['module.f.mjs'] })
+            const html = sectionsHtml({ ...empty, path: 'fjs', todo: [issue('a.md')], files: ['module.f.mjs'] })
             assertEq(html,
                 '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
                 + '<ul data-links=""><li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li></ul></details>'
                 + '<details data-section="" open=""><summary><h2>Issues</h2></summary>'
-                + '<ul data-links=""><li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li></ul></details></body>')
+                + '<ul data-links=""><li><span data-priority="P3">P3</span> <a href="/fjs/todo/a.md" data-kind="issue" data-issue-status="open">a.md</a></li></ul></details></body>')
         },
         // A subdirectory link points at a page, and every such page exists —
         // which is what the "every directory gets one" rule buys.
@@ -178,11 +187,42 @@ export const proof = {
         // An issue is linked inside the `todo/` it was filed in, which has no
         // page of its own.
         todo: () => assertEq(
-            sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'] }),
-            issues('<li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li>')),
+            sectionsHtml({ ...empty, path: 'fjs', todo: [issue('a.md')] }),
+            issues('<li><span data-priority="P3">P3</span> <a href="/fjs/todo/a.md" data-kind="issue" data-issue-status="open">a.md</a></li>')),
         todoAtRoot: () => assertEq(
-            sectionsHtml({ ...empty, todo: ['a.md'] }),
-            issues('<li><a href="/todo/a.md" data-kind="issue">a.md</a></li>')),
+            sectionsHtml({ ...empty, todo: [issue('a.md')] }),
+            issues('<li><span data-priority="P3">P3</span> <a href="/todo/a.md" data-kind="issue" data-issue-status="open">a.md</a></li>')),
+        /**
+         * **Issues are listed by priority, then status, then name**, each
+         * with its priority as a badge before it and its status as the icon:
+         * the P1s first rather than wherever their names sort, and within one
+         * priority work in progress before work not started, the records
+         * after both.
+         */
+        todoOrder: () => {
+            /** @type {(name: string, status: Issue['status'], priority: Issue['priority']) => string} */
+            const entry = (name, status, priority) =>
+                `<li><span data-priority="${priority}">${priority}</span> <a href="/todo/${name}" data-kind="issue" data-issue-status="${status}">${name}</a></li>`
+            assertEq(
+                sectionsHtml({ ...empty, todo: [
+                    { name: 'z.md', status: "won't fix", priority: 'P5' },
+                    { name: 'c.md', status: 'open', priority: 'P2' },
+                    { name: 'd.md', status: 'done', priority: 'P1' },
+                    { name: 'b.md', status: 'blocked', priority: 'P1' },
+                    { name: 'a.md', status: 'open', priority: 'P2' },
+                    { name: 'x.md', status: 'open', priority: 'P1' },
+                    { name: 'y.md', status: 'wip', priority: 'P4' },
+                ] }),
+                issues([
+                    entry('x.md', 'open', 'P1'),
+                    entry('b.md', 'blocked', 'P1'),
+                    entry('d.md', 'done', 'P1'),
+                    entry('a.md', 'open', 'P2'),
+                    entry('c.md', 'open', 'P2'),
+                    entry('y.md', 'wip', 'P4'),
+                    entry('z.md', "won't fix", 'P5'),
+                ].join('')))
+        },
         /**
          * **A file name that is not already a URL is encoded**, on this site
          * and on GitHub alike. `%` is in it on purpose: an encoder that
@@ -193,8 +233,8 @@ export const proof = {
                 sectionsHtml({ ...empty, path: 'fjs/x y', files: ['a b#c?100%.md'] }),
                 contents('<li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md" data-kind="file">a b#c?100%.md</a></li>')),
             todo: () => assertEq(
-                sectionsHtml({ ...empty, path: 'fjs', todo: ['open issue.md'] }),
-                issues('<li><a href="/fjs/todo/open%20issue.md" data-kind="issue">open issue.md</a></li>')),
+                sectionsHtml({ ...empty, path: 'fjs', todo: [issue('open issue.md')] }),
+                issues('<li><span data-priority="P3">P3</span> <a href="/fjs/todo/open%20issue.md" data-kind="issue" data-issue-status="open">open issue.md</a></li>')),
             dirs: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', dirs: ['x y'] }),
                 contents('<li><a href="/fjs/x%20y/index.html" data-kind="dir">x y</a></li>')),
@@ -215,8 +255,8 @@ export const proof = {
                 sectionsAtCommit({ ...empty, files: ['README.md'] }),
                 contents(`<li><a href="${repository}/blob/${commit}/README.md" data-kind="file">README.md</a></li>`)),
             todo: () => assertEq(
-                sectionsAtCommit({ ...empty, path: 'fjs', todo: ['a.md'] }),
-                issues(`<li><a href="${repository}/blob/${commit}/fjs/todo/a.md" data-kind="issue">a.md</a></li>`)),
+                sectionsAtCommit({ ...empty, path: 'fjs', todo: [issue('a.md')] }),
+                issues(`<li><span data-priority="P3">P3</span> <a href="${repository}/blob/${commit}/fjs/todo/a.md" data-kind="issue" data-issue-status="open">a.md</a></li>`)),
             // A directory is one of this site's pages, which GitHub does not
             // have, so its link does not move.
             dirsStayHere: () => assertEq(
@@ -381,7 +421,7 @@ export const proof = {
     },
     directoryLayout: {
         catalogueBesideMain: () => {
-            const dir = { ...empty, path: 'fjs', files: ['module.f.mjs'], todo: ['a.md'] }
+            const dir = { ...empty, path: 'fjs', files: ['module.f.mjs'], todo: [issue('a.md')] }
             const html = concat(element(directoryLayout({ ...local, commit })(dir)(['main', ['h1', 'fjs']])))
             const asideEnd = html.indexOf('</aside>')
             assert(html.startsWith('<div data-directory-layout=""><aside data-catalogue="" aria-label="Directory catalogue">'), html)

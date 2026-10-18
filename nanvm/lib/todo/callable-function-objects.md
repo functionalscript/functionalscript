@@ -1,7 +1,7 @@
 ## Callable function objects (Rust-generated bodies)
 
 **Priority:** P2
-**Status:** open — callable bodies, fixed/rest lowering, default-text
+**Status:** wip — callable bodies, fixed/rest lowering, default-text
 integration and the Node/interpreter/direct-AOT corpus comparisons are
 implemented; semantic EDAG association and remaining migration/coverage
 work are unfinished, and native interpreter corpus execution is blocked.
@@ -880,10 +880,21 @@ level.
       a fixed-only function, a fixed parameter nothing reads, zero arity
       called with arguments, and a rest array returned, forwarded and
       spread, which is a new array and not the spread source. Native
-      JavaScript, the evaluator and the generated Rust agree on it. What
-      stays open is the refusal of the legacy positive-arity/full-list
-      graphs, a check of EDAG validation and not of calls, and the
-      migration of zero-arity graphs by scope.
+      JavaScript, the evaluator and the generated Rust agree on it. The
+      refusal of the legacy positive-arity/full-list graphs is EDAG
+      validation and not a call: `checked` (`fjs/edag/analysis`) refuses
+      a function-owned `['args']` at every arity, and the memo executor,
+      the Rust printer and the source writer refuse it through it, at
+      arity 0 and above (`fjs/compiler/parameters/proof.f.mjs`,
+      `fjs/compiler/rust/proof.f.mjs`). A zero-arity graph's complete
+      list is `['rest']`, which a module scope refuses. The amnesia
+      executor trusts the graph it is given, as its dispatcher does.
+      **What stays open** is the migration of old zero-arity graphs and
+      the scoped linking cases, which
+      [`3120-parameters.md`](../../../spec/todo/3120-parameters.md) lists
+      as its own unchecked item: the proofs above refuse a function-owned
+      `['args']` in the new format, and do not migrate an old graph. The
+      box is checked when those are proven.
       The [interpreted-value native proofs](../../harness/tests/values.rs)
       additionally pin evaluated and nested captures. Shared direct-AOT
       comparison with reference expectations is implemented in Stage 8 step 2.
@@ -891,7 +902,7 @@ level.
       EDAG renderer, retain it with native callable templates and refuse
       conversions requiring text where none is associated. The `function-text`
       fixture covers direct/indirect conversions and exported callables.
-- [ ] Complete the remaining default-text corpus coverage, including native
+- [x] Complete the remaining default-text corpus coverage, including native
       property-key conversion of a function, tracked in
       [member-functions](./member-functions.md). This is coverage work,
       separate from the implemented renderer and Stage 7 association.

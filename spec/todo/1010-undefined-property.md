@@ -17,8 +17,8 @@ Object.getOwnPropertyDescriptor({ x: undefined }, "x")?.enumerable; // true
 Object.getOwnPropertyDescriptor({}, "x")?.enumerable; // undefined
 ```
 
-The proposed [enumerable-presence pattern](./2345-has-own-property.md) exposes
-that distinction. Prohibiting `Object.hasOwn` or `in` does not remove it, and
+The [`entry` helper's option](../property-access/entries.md), `[undefined]`
+against `[]`, exposes that distinction. Prohibiting `Object.hasOwn` or `in` does not remove it, and
 an internal VM definition cannot change the successful answer to the pattern.
 
 ### Explicit filtering

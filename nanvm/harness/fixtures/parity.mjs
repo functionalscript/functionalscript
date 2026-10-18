@@ -23,7 +23,7 @@
  * and the native one refuses with `ERR_OUT_OF_RANGE`.
  */
 
-import { entry } from '../../../fjs/js/entry/module.f.js';
+import { entry } from '../../../fjs/types/object/entry/module.f.js';
 
 /**
  * `['ok', view(value)]`, or `['error', code]`.
@@ -217,8 +217,8 @@ export const directory = {
         step('mkdir', [root + '/a', undefined], none)(
             step('writeFile', [root + '/z', hi], none)(
                 step('writeFile', [root + '/a/f', hi], none)(
-                    step('readdir', [root, {}], (/** @type {any} */ v) => [entry(v[0], 'name'), entry(v[1], 'name'), entry(v[2], 'name')])(
-                        step('readdir', [root, { recursive: true }], (/** @type {any} */ v) => [entry(v[0], 'name'), entry(v[1], 'name'), entry(v[2], 'name'), entry(v[3], 'name')])(
+                    step('readdir', [root, {}], (/** @type {any} */ v) => [entry(v[0], 'name')[0], entry(v[1], 'name')[0], entry(v[2], 'name')[0]])(
+                        step('readdir', [root, { recursive: true }], (/** @type {any} */ v) => [entry(v[0], 'name')[0], entry(v[1], 'name')[0], entry(v[2], 'name')[0], entry(v[3], 'name')[0]])(
                             step('readdir', [root + '/none', {}], none)(end)))))))([]),
     expected: [['ok', null], ['ok', null], ['ok', null], ['ok', null], ['ok', ['a', 'b', 'z']], ['ok', ['a', 'b', 'z', 'f']], ['error', 'ENOENT']],
 };
