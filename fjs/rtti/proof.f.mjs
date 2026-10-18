@@ -363,6 +363,8 @@ const demoProof = /** @type {const} */ ({
             const o = _outputsOf(exampleNamed('Recursion').schemas[0].schema)
             assertEq(toText(o.ts), 'type tree = {readonly"children":readonly(tree)[],readonly"value":number}\ntree')
             assert(toText(o.jsonSchema).includes('"$defs":{"tree":'), JSON.stringify(o.jsonSchema))
+            // the alias is marked: `type` a keyword, its name an identifier
+            assertEq(JSON.stringify(o.ts.slice(0, 3)), JSON.stringify([['type', 'keyword'], [' '], ['tree', 'identifier']]))
         },
     },
     // The comparison's five verdicts.
