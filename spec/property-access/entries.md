@@ -40,6 +40,14 @@ order. Presence has no other spelling: `in` is refused
 `a.hasOwnProperty(b)` are not in the language, each asking a different
 question — a non-enumerable own property, or the prototype chain.
 
+The option is one helper where a value read beside a presence test would be
+two, and that is why it is the one: value, presence, and a default that
+respects an entry holding `undefined` are each one lookup, where the pair
+needs `hasEntry(a, b) ? entry(a, b) : d`, two scans of the property list
+that no executor merges. The price is the tail the common read carries,
+`entry(a, b)[0]`, and a fresh array per call — syntax and a constant, where
+a second lookup is a cost the API would fix for good.
+
 The helper is exactly what it spells. The compiler recognizes the function
 whole — its two parameters, the `const` the descriptor binds and the
 `return`, under any three distinct names a module may bind, so no keyword
