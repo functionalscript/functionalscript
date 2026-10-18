@@ -563,6 +563,34 @@ mod test {
         assert_eq!(refused(&stream).0, "ERR_BUFFER_TOO_LARGE");
     }
 
+    /// The bound reached by a literal: `n` zero bytes in stored blocks, then a
+    /// last block of fixed codes holding one literal and the end of the block.
+    /// The stored blocks and the copies each guard their own bound, so only this
+    /// pins the literal's: with `>` in place of `>=` the stream of `cap` bytes
+    /// answers `cap + 1`, where Node refuses it.
+    #[test]
+    fn bound_at_a_literal() {
+        let stream = |n: usize| {
+            let mut data = vec![0x78, 0x01];
+            let mut left = n;
+            while left > 0 {
+                let len = left.min(0xffff);
+                left -= len;
+                data.push(0);
+                data.extend_from_slice(&(len as u16).to_le_bytes());
+                data.extend_from_slice(&(!(len as u16)).to_le_bytes());
+                data.resize(data.len() + len, 0);
+            }
+            // BFINAL, fixed, the literal 0 (00110000), the end of the block (0000000)
+            data.extend_from_slice(&[0x63, 0x00, 0x00]);
+            data.extend_from_slice(&adler32(&vec![0; n + 1]).to_be_bytes());
+            data
+        };
+        let cap = MAX_FILE_SIZE_BYTES as usize;
+        assert_eq!(inflate(&stream(cap - 1)), Ok(vec![0; cap]));
+        assert_eq!(refused(&stream(cap)).0, "ERR_BUFFER_TOO_LARGE");
+    }
+
     #[test]
     fn trailing_bytes() {
         let mut data = bytes("7801cb48cdc9c957c8402701680308b1");
