@@ -51,7 +51,7 @@ const issues = items => '<body><details data-section="" open=""><summary><h2>Iss
 const issue = name => ({ name, status: 'open', priority: 'P3' })
 
 /** @type {Dir} */
-const empty ={ path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], demo: null, api: null, apiIndex: null }
+const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], demo: null, api: null, apiIndex: null }
 
 export const proof = {
     /**

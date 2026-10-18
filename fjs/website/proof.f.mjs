@@ -667,6 +667,25 @@ export const proof = {
             assert(output.includes('issues: 3'), output)
         },
         /**
+         * **An issue is listed by the directory that owns its `todo/`, and
+         * by no other.** The root's `todo/` is `todo/`, and another
+         * directory's `todo/` holds that string too: matched anywhere in the
+         * path rather than at its start, the root would list every issue in
+         * the tree, each name cut at the wrong place.
+         */
+        issuesStayWithTheirDirectory: () => {
+            const { root } = generate({
+                todo: { 'root.md': issue('root') },
+                a: { todo: { 'nested.md': issue('nested') } },
+            })
+            const rootPage = pageAt(root, [])
+            assert(rootPage.includes('>root.md</a>'), rootPage)
+            assert(!rootPage.includes('nested.md'), rootPage)
+            const aPage = pageAt(root, ['a'])
+            assert(aPage.includes('<a href="/a/todo/nested.md" data-kind="issue">nested.md</a>'), aPage)
+            assert(!aPage.includes('root.md'), aPage)
+        },
+        /**
          * **A `README.md` documents its directory**, at any depth, and is
          * not listed as an issue — nor read as one, so it needs no header.
          */
