@@ -9,7 +9,8 @@
  *
  * This is the lookup kernel for admitted property reads, `read`, and for
  * a call of the `entry` helper, `entry`: the same lookup less what a value
- * owns without enumerating it, a `length` and whatever a function has.
+ * owns without enumerating it, a `length` and whatever a function has,
+ * answered as an option.
  * The caller owns operand evaluation order, key conversion to a string and
  * source-name admission. Reads do not traverse prototypes or expose storage
  * tuple fields; findProperty supplies stored object-property presence to
@@ -35,10 +36,16 @@ import { isFunction } from '../semantics/module.f.mjs'
  */
 export const findProperty = (value, key) => value[1].find(([, name]) => name === key)
 
-/** The element `key` names, an array's or a string's: by its canonical index, within the length. @type {(values: Values | string, key: string) => ValueResult} */
-const element = (values, key) => {
+/** The element `key` names, an array's or a string's, by its canonical index within the length, or `undefined` where there is none. @type {(values: Values | string, key: string) => EdagValue | undefined} */
+const elementOf = (values, key) => {
     const index = arrayIndex(key)
-    return ok(index === null || index >= values.length ? ['undefined'] : values[index])
+    return index === null || index >= values.length ? undefined : values[index]
+}
+
+/** The element `key` names, or tagged undefined. @type {(values: Values | string, key: string) => ValueResult} */
+const element = (values, key) => {
+    const found = elementOf(values, key)
+    return ok(found === undefined ? ['undefined'] : found)
 }
 
 /** An element, or the `length` an array and a string own beside their elements. @type {(values: Values | string, key: string) => ValueResult} */
@@ -100,25 +107,38 @@ export const read = (receiver, key, runtime) => {
 }
 
 /**
- * The entry `key` names: what a call of the `entry` helper reads, over a
- * key already converted to a string — the enumerable own property, as
- * the helper reads it, `Object.getOwnPropertyDescriptor` followed by
- * `x?.enumerable ? x.value : undefined`. An object's stored field, an
- * array's element or a string's code unit by its canonical index, and
- * nothing else: a `length` is own but enumerates nowhere, a function has
- * no entry at all, and neither has any other primitive. A nullish receiver
+ * The enumerable own property `key` names, or `undefined` where there is
+ * none: an object's stored field, an array's element or a string's code
+ * unit by its canonical index, and nothing else — a `length` is own but
+ * enumerates nowhere, a function has no entry at all, and neither has any
+ * other primitive. The receiver is not nullish.
+ *
+ * @type {(receiver: EdagValue, key: string) => EdagValue | undefined}
+ */
+const entryOf = (receiver, key) => {
+    if (typeof receiver === 'string') { return elementOf(receiver, key) }
+    if (!isArray(receiver) || isStatic(receiver)) { return undefined }
+    switch (receiver[0]) {
+        case '[]': { return elementOf(receiver[1], key) }
+        case '{}': { return findProperty(receiver, key)?.[2] }
+        default: { return undefined }
+    }
+}
+
+/**
+ * The entry `key` names, as an option: what a call of the `entry` helper
+ * reads, over a key already converted to a string — the enumerable own
+ * property, as the helper reads it, `Object.getOwnPropertyDescriptor`
+ * followed by `x?.enumerable ? [x.value] : []`. A one-element array
+ * holding the property's value, {@link entryOf}, an entry holding
+ * `undefined` included, and an empty one where there is none; a fresh
+ * array every call, as the helper's body builds one. A nullish receiver
  * fails, as `Object.getOwnPropertyDescriptor` throws on one.
  *
  * @type {(receiver: EdagValue, key: string) => ValueResult}
  */
 export const entry = (receiver, key) => {
-    if (receiver === null) { return error(['undefined']) }
-    if (typeof receiver === 'string') { return element(receiver, key) }
-    if (!isArray(receiver) || isStatic(receiver)) { return ok(['undefined']) }
-    switch (receiver[0]) {
-        case '[]': { return element(receiver[1], key) }
-        case '{}': { return field(receiver, key) }
-        case '=>': case 'entry': { return ok(['undefined']) }
-        default: { return error(['undefined']) }
-    }
+    if (receiver === null || (isArray(receiver) && receiver[0] === 'undefined')) { return error(['undefined']) }
+    const found = entryOf(receiver, key)
+    return ok(['[]', found === undefined ? [] : [found]])
 }

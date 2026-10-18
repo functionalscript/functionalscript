@@ -289,13 +289,15 @@ mod tests {
 
     /// A function's text is the FunctionalScript writer's: converted where
     /// it is made, returned from a call with its capture named by its slot,
-    /// and exported, read as a value and converted by the host. Two functions
-    /// with one text stay two identities.
+    /// and exported, read as a value and converted by the host, and as a
+    /// property key, which names the field its text does — the `entry`
+    /// helper's option, `[7]`, and `[]` where no field has it. Two
+    /// functions with one text stay two identities.
     #[test]
     fn function_texts() {
         assert_eq!(
             read_default(function_text::module),
-            Ok(r#"["()=>1","()=>1!","()=>1|2","(...$1)=>$0[0]+$1[0]","(...$0)=>(...$1)=>$0[0]+$1[0]",true,false]"#.into())
+            Ok(r#"["()=>1","()=>1!","()=>1|2","(...$1)=>$0[0]+$1[0]","(...$0)=>(...$1)=>$0[0]+$1[0]",true,false,[7],[8],[],[]]"#.into())
         );
         let exports: Object<Naive> = function_text::module::<Naive>()
             .unwrap()

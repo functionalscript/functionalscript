@@ -699,23 +699,24 @@ export const proof = {
         // the helper as a value) denotes, the language's own helper run as
         // JavaScript; not a schema check.
         entryJs: () => {
-            /** @type {(a: unknown, k: PropertyKey) => unknown} */
+            /** @type {(a: unknown, k: PropertyKey) => readonly [unknown] | readonly []} */
             const entry = (a, k) => {
                 const x = Object.getOwnPropertyDescriptor(a, k)
-                return x?.enumerable ? x.value : undefined
+                return x?.enumerable ? [x.value] : []
             }
-            const a = { ['__proto__']: 42 }
-            assertEq(entry(a, '__proto__'), 42)
-            assertEq(entry(a, 'x'), undefined)
-            assertEq(entry(a, 'toString'), undefined)
-            assertEq(entry([7], 0), 7)
-            assertEq(entry([7], '0'), 7)
-            assertEq(entry([7], 'length'), undefined)
-            assertEq(entry('ab', 1), 'b')
-            assertEq(entry('ab', 'length'), undefined)
-            assertEq(entry(entry, 'length'), undefined)
-            assertEq(entry(entry, 'name'), undefined)
-            assertEq(entry({ length: 3 }, 'length'), 3)
+            const a = { ['__proto__']: 42, u: undefined }
+            assertStructurallySame(entry(a, '__proto__'), [42])
+            assertStructurallySame(entry(a, 'u'), [undefined])
+            assertStructurallySame(entry(a, 'x'), [])
+            assertStructurallySame(entry(a, 'toString'), [])
+            assertStructurallySame(entry([7], 0), [7])
+            assertStructurallySame(entry([7], '0'), [7])
+            assertStructurallySame(entry([7], 'length'), [])
+            assertStructurallySame(entry('ab', 1), ['b'])
+            assertStructurallySame(entry('ab', 'length'), [])
+            assertStructurallySame(entry(entry, 'length'), [])
+            assertStructurallySame(entry(entry, 'name'), [])
+            assertStructurallySame(entry({ length: 3 }, 'length'), [3])
         },
     },
     op2: {

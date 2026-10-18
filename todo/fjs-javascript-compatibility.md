@@ -110,15 +110,15 @@ The former `entry` design, since landed as
 shape that could bypass syntactic support for the constructs inside it.
 Ignoring whitespace before statement recognition is the root problem, not a
 missing newline exception in one intrinsic. This whitespace-only change to the
-helper returns `undefined` in JavaScript, not `7`:
+helper returns `undefined` in JavaScript, not `[7]`:
 
 ```js
 const entry = (a, b) => {const x = Object.getOwnPropertyDescriptor(a, b);return
-x?.enumerable ? x.value : undefined}
+x?.enumerable ? [x.value] : []}
 export default entry({ answer: 7 }, "answer");
 ```
 
-There is no extra semicolon after the final `undefined`: only the space after
+There is no extra semicolon after the final `[]`: only the space after
 `return` changed to a newline. Separately, this arrow is invalid JavaScript:
 
 ```js
@@ -209,11 +209,10 @@ exception above covers. No FJS program reads a function's name at all:
 the enumerable-entry helper so that it cannot — `person.name` is enumerable
 where `f.name` and `f.length` are not — and retired the proposals that would
 have exposed it, `own-access.md` and `function-name.md`, in `4f4da828`;
-`f.name` is refused at the key, `entry(f, 'name')` is `undefined`, and
+`f.name` is refused at the key, `entry(f, 'name')` is `[]`, and
 [the language](../spec/functions/README.md) carries no name in the graph.
-The property-access and presence plans,
-[2330](../spec/todo/2330-property-accessor.md) and
-[2345](../spec/todo/2345-has-own-property.md), hold the same boundary from
+The property-access plan,
+[2330](../spec/todo/2330-property-accessor.md), holds the same boundary from
 the source side. The corpus gate below compares the serializable data each
 execution returns, never the written text or what an engine reports about
 it.
@@ -221,18 +220,20 @@ it.
 #### Property reflection — incompatible alternatives withdrawn
 
 **Decision:** prohibit `Object.hasOwn` in FJS source rather than redefine it
-as an enumerability test. Use a separate, explicitly spelled
-[enumerable-presence pattern](../spec/todo/2345-has-own-property.md), with
-`hasEntity` as its working name:
+as an enumerability test. Presence is the
+[`entry` helper](../spec/property-access/entries.md)'s to answer, as an
+option:
 
 ```js
-const hasEntity = (a, b) =>
-    Object.getOwnPropertyDescriptor(a, b)?.enumerable;
+const entry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable ? [x.value] : [];
+};
 ```
 
-This exact expression returns `true`, `false` or `undefined`. A boolean-only
-version must spell `=== true` explicitly; it is not an equivalent replacement.
-The TODO records that API choice rather than silently deciding it.
+This exact function returns `[value]` for an enumerable own property, an
+entry holding `undefined` included, and `[]` for anything else. The TODO
+records that API choice rather than silently deciding it.
 
 The old `hasOwn` proposal already required extending or refusing unsupported
 receivers rather than returning a fabricated boolean. Its enumerability
@@ -270,9 +271,9 @@ export default Object.values({ ...a, y: 1, x: 2 })
     .filter(value => value !== undefined); // [2, 1], not [1, 2]
 ```
 
-The proposed descriptor-enumerability pattern also reads `true` for an
-ordinary `{ x: undefined }` entry and `undefined` for a missing one. Equality
-of direct value reads or filtered output does not establish substitutability.
+The `entry` helper's option also reads `[undefined]` for an ordinary
+`{ x: undefined }` entry and `[]` for a missing one. Equality of direct value
+reads or filtered output does not establish substitutability.
 
 **Root-cause correction:** define equivalence over all admitted observation
 contexts and recheck it when adding an operation. Normalize only where that

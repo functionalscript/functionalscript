@@ -8,12 +8,11 @@ asks whether a property exists anywhere on the prototype chain, so
 prototype chain to consult, and answering for own entries only would give
 accepted text a different successful result than JavaScript gives it. Neither
 is acceptable, so the operator is refused rather than approximated. To read an
-entry, use [`entry`](../property-access/entries.md), which answers `undefined`
-for an absent key. An explicit presence pattern,
-`Object.getOwnPropertyDescriptor(a, b)?.enumerable`, is only proposed
-([2345](../todo/2345-has-own-property.md)): the compiler does not recognize it
-yet. The reasons, the alternatives
-rejected and what a migration does are in
+entry, or to ask whether there is one, use
+[`entry`](../property-access/entries.md), which answers an option: `[value]`
+for an enumerable own entry and `[]` for an absent key, so
+`entry(o, k).length === 1` is the presence test. The reasons, the
+alternatives rejected and what a migration does are in
 [the `in` decision](../todo/2346-in-operator.md).
 
 ## Examples
