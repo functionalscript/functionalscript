@@ -9,10 +9,10 @@ prototype chain to consult, and answering for own entries only would give
 accepted text a different successful result than JavaScript gives it. Neither
 is acceptable, so the operator is refused rather than approximated. To read an
 entry, use [`entry`](../property-access/entries.md), which answers `undefined`
-for an absent key. An explicit presence pattern,
-`Object.getOwnPropertyDescriptor(a, b)?.enumerable`, is only proposed
-([2345](../todo/2345-has-own-property.md)): the compiler does not recognize it
-yet. The reasons, the alternatives
+for an absent key. A presence test is
+[2345](../todo/2345-has-own-property.md)'s: `entry` answering an option,
+`[value]` or `[]`, which the compiler does not recognize yet. The reasons,
+the alternatives
 rejected and what a migration does are in
 [the `in` decision](../todo/2346-in-operator.md).
 

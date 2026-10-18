@@ -221,18 +221,20 @@ it.
 #### Property reflection — incompatible alternatives withdrawn
 
 **Decision:** prohibit `Object.hasOwn` in FJS source rather than redefine it
-as an enumerability test. Use a separate, explicitly spelled
-[enumerable-presence pattern](../spec/todo/2345-has-own-property.md), with
-`hasEntity` as its working name:
+as an enumerability test. Presence is the
+[`entry` helper](../spec/todo/2345-has-own-property.md)'s to answer, as an
+option:
 
 ```js
-const hasEntity = (a, b) =>
-    Object.getOwnPropertyDescriptor(a, b)?.enumerable;
+const entry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable ? [x.value] : [];
+};
 ```
 
-This exact expression returns `true`, `false` or `undefined`. A boolean-only
-version must spell `=== true` explicitly; it is not an equivalent replacement.
-The TODO records that API choice rather than silently deciding it.
+This exact function returns `[value]` for an enumerable own property, an
+entry holding `undefined` included, and `[]` for anything else. The TODO
+records that API choice rather than silently deciding it.
 
 The old `hasOwn` proposal already required extending or refusing unsupported
 receivers rather than returning a fabricated boolean. Its enumerability
@@ -270,9 +272,9 @@ export default Object.values({ ...a, y: 1, x: 2 })
     .filter(value => value !== undefined); // [2, 1], not [1, 2]
 ```
 
-The proposed descriptor-enumerability pattern also reads `true` for an
-ordinary `{ x: undefined }` entry and `undefined` for a missing one. Equality
-of direct value reads or filtered output does not establish substitutability.
+The `entry` helper's option also reads `[undefined]` for an ordinary
+`{ x: undefined }` entry and `[]` for a missing one. Equality of direct value
+reads or filtered output does not establish substitutability.
 
 **Root-cause correction:** define equivalence over all admitted observation
 contexts and recheck it when adding an operation. Normalize only where that
