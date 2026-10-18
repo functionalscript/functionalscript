@@ -148,12 +148,18 @@ becomes `entry(a, b).length === 1` — which also tells an entry holding
 
 ### Recognition and execution
 
-As today
-([statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)):
-the function is matched whole on the syntax tree with its names resolved,
-`Object` the reserved global no scope binds, and a parsed descriptor outside
-the pattern stays refused. Receiver and key conversion are the ones the
-current helper has; only the result is wrapped.
+The body is recognized where the `entry` helper is recognized today,
+`entryFunction` in [`fjs/compiler/parser`](../../fjs/compiler/parser/module.f.mjs):
+on the parsed syntax tree, with its names resolved by the rules every body
+follows, `Object` the reserved global no scope binds, and a parsed
+descriptor outside the pattern refused. This task changes the body that
+matcher accepts, not the matcher or where it runs. The open tasks of
+[statement-aware recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
+on that boundary stay open and stay that record's: nothing here claims them
+done, and nothing here waits on them, since the helper this replaces is
+already in the language at the same place, and a change to the matcher's
+place would move the two bodies alike. Receiver and key conversion are the
+ones the current helper has; only the result is wrapped.
 
 ### Tasks
 
