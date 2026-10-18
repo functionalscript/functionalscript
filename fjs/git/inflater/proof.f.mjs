@@ -48,4 +48,11 @@ export const proof = {
         assertStructurallySame(read(chunks([...stream, 7, 8, 9], 5)), ['error', inflateTrailingCode, inflateTrailingMessage(3)])
         assertEq(finish(start)[0], 'error')
     },
+    // More trailing bytes than a `Vec` holds are still refused, not thrown at.
+    trailingPastAVec: () => {
+        const after = 0x3_0000
+        assertStructurallySame(
+            read(chunks([...stream, ...Array.from({ length: after }, () => 7)], 0xffff)),
+            ['error', inflateTrailingCode, inflateTrailingMessage(after)])
+    },
 }

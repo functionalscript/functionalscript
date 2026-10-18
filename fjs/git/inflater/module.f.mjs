@@ -56,12 +56,11 @@ const truncated = { code: 'Z_BUF_ERROR', message: 'unexpected end of file' }
  * @type {(progress: Progress) => Result<List<Vec>, Refusal>}
  */
 export const finish = ({ state, made }) => {
-    const rest = end(state)
-    if (rest === null) { return error(truncated) }
-    const after = bytesIn(length(rest))
-    return after === 0n
+    const after = end(state)
+    if (after === null) { return error(truncated) }
+    return after === 0
         ? ok(reverse(made))
-        : error({ code: inflateTrailingCode, message: inflateTrailingMessage(Number(after)) })
+        : error({ code: inflateTrailingCode, message: inflateTrailingMessage(after) })
 }
 
 /**

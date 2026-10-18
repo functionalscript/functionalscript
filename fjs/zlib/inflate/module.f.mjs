@@ -261,11 +261,10 @@ export const append = v => state => {
 }
 
 /**
- * What follows the stream, once it has closed; `null` while it has not.
+ * How many bytes follow the stream, once it has closed; `null` while it has not.
+ * A count, not the bytes: a reader that keeps feeding a stream that has ended
+ * can bring any number of them, more than a `Vec` holds.
  *
- * @throws On more bytes than a `Vec` holds, which only a reader that keeps
- * feeding a stream that has ended brings on itself.
- *
- * @type {(state: State) => Nullable<Vec>}
+ * @type {(state: State) => Nullable<number>}
  */
-export const end = state => state.phase === 'done' ? u8ListToVecMsb(state.input) : null
+export const end = state => state.phase === 'done' ? state.input.length : null
