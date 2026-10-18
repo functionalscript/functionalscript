@@ -990,6 +990,14 @@ export const proof = {
         assertEq(refusal(r).code, packEntryCode)
         assertEq(refusal(r).message, `${packPath}:12 inflates to 1 bytes, not the ${over} its header declares`)
     },
+    // A header whose size varint runs past the first window is refused, and said
+    // to be: the zero groups are legal to the parser, but no encoder writes them.
+    headerPastTheWindow: () => {
+        const entry = [0xb0, ...Array.from({ length: 0x2_0000 }, () => 0x80), 0, ...storedBytes([1])]
+        const [, r] = readBy(hostOf(listing, pair(idxOf([[firstId, 12]]), packOfEntries([entry]))), firstId)
+        assertEq(refusal(r).code, packEntryCode)
+        assertEq(refusal(r).message, `${packPath}:12 has no entry header in its first ${0x2_0000} bytes`)
+    },
     // A stream is not read on once it has made more than its header declares: this
     // one is 300 000 zeros under a header that says five, and the first window of
     // it is the last that is read.

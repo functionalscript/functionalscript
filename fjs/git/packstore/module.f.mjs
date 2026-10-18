@@ -480,7 +480,12 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
     const refusal = inflateRefusal(path, at)
     return step(first, window => {
         const e = tryEntry(oidBytes)(window)
-        if (e === null) { return entryRefusal(path, at)('is no pack entry') }
+        if (e === null) {
+            // An entry's header is read from its first window. Git's own reader
+            // refuses a size that runs past 64 bits, so no entry it wrote has a
+            // header near a window; one that does is refused, and said to be.
+            return entryRefusal(path, at)(firstBytes < end - at ? `has no entry header in its first ${firstBytes} bytes` : 'is no pack entry')
+        }
         // A delta, and a base it is applied to, are held as dense arrays, so the
         // size an entry declares decides before a byte of it is inflated.
         if ((e.kind !== 'object' || chain.deltas !== null) && e.size > maxDeltaBytes) {

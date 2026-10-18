@@ -26,6 +26,8 @@ export type State = {
     readonly phase: Phase
     /** The bytes given and not yet used, the first partly used. */
     readonly input: readonly number[]
+    /** How many bytes came after the stream closed, in the phase `done`: counted, not kept. */
+    readonly after: number
     /** How many bits of `input[0]` are used, 0 to 7: DEFLATE reads each byte from its least significant bit. */
     readonly bit: number
     /** Whether the block being read is the last one. */

@@ -26,7 +26,7 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { isWholeBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { bytesIn, isWholeBytes, length, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { reverse, toArray } from '../../types/list/module.f.mjs'
 import { appendBytes as adler, init as adlerInit } from '../adler32/module.f.mjs'
 import { more, read } from '../bits/module.f.mjs'
@@ -37,6 +37,7 @@ import { copy, empty as emptyWindow, last as lastOf, push, pushAll } from '../wi
 export const init = /** @type {State} */ ({
     phase: 'header',
     input: [],
+    after: 0,
     bit: 0,
     last: false,
     left: 0,
@@ -227,7 +228,7 @@ const step = state => {
             if (rest.length < 4) { return more }
             // the checksum of the output, most significant byte first
             return word32(rest) === state.adler
-                ? taken({ ...state, phase: 'done', input: rest.slice(4), bit: 0, window: emptyWindow })
+                ? taken({ ...state, phase: 'done', input: [], after: rest.length - 4, bit: 0, window: emptyWindow })
                 : null
         }
         case 'done': { return more }
@@ -237,7 +238,7 @@ const step = state => {
 /**
  * Reads a chunk of the stream: the state after it and the output it made, or
  * `null` for a stream that is malformed. Bytes that arrive after the stream has
- * closed are kept for {@link end}.
+ * closed are counted for {@link end}.
  *
  * @throws On a `v` that is not whole bytes.
  *
@@ -245,6 +246,10 @@ const step = state => {
  */
 export const append = v => state => {
     assert(isWholeBytes(v), 'a zlib stream is bytes')
+    // what comes after the stream is counted and not looked at
+    if (state.phase === 'done') {
+        return { state: { ...state, after: state.after + Number(bytesIn(length(v))) }, output: [] }
+    }
     /** @type {State} */
     let current = { ...state, input: [...state.input, ...toArray(u8ListMsb(v))] }
     // the chunks made, newest first: a list is how an accumulator that does not
@@ -267,4 +272,4 @@ export const append = v => state => {
  *
  * @type {(state: State) => Nullable<number>}
  */
-export const end = state => state.phase === 'done' ? state.input.length : null
+export const end = state => state.phase === 'done' ? state.after : null
