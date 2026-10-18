@@ -160,13 +160,13 @@ fn stored(input: &mut Input, out: &mut Vec<u8>) -> Result<(), Fail> {
         return Err(Fail::Data("invalid stored block lengths"));
     }
     let len = usize::from(len);
-    if out.len() + len > MAX_FILE_SIZE_BYTES as usize {
-        return Err(Fail::TooLarge);
-    }
     let bytes = input
         .data
         .get(input.pos..input.pos + len)
         .ok_or(Fail::Short)?;
+    if out.len() + len > MAX_FILE_SIZE_BYTES as usize {
+        return Err(Fail::TooLarge);
+    }
     out.extend_from_slice(bytes);
     input.pos += len;
     Ok(())
@@ -589,6 +589,29 @@ mod test {
         let cap = MAX_FILE_SIZE_BYTES as usize;
         assert_eq!(inflate(&stream(cap - 1)), Ok(vec![0; cap]));
         assert_eq!(refused(&stream(cap)).0, "ERR_BUFFER_TOO_LARGE");
+    }
+
+    /// A stored block that declares a byte it does not carry is a short input,
+    /// even where that byte would pass the bound: zlib reads before it counts.
+    #[test]
+    fn short_stored_block_at_the_bound() {
+        let mut data = vec![0x78, 0x01];
+        let cap = MAX_FILE_SIZE_BYTES as usize;
+        let mut left = cap;
+        while left > 0 {
+            let len = left.min(0xffff);
+            left -= len;
+            data.push(0);
+            data.extend_from_slice(&(len as u16).to_le_bytes());
+            data.extend_from_slice(&(!(len as u16)).to_le_bytes());
+            data.resize(data.len() + len, 0);
+        }
+        // BFINAL stored, LEN 1, its complement, and no byte.
+        data.extend_from_slice(&[1, 1, 0, 0xfe, 0xff]);
+        assert_eq!(
+            refused(&data),
+            ("Z_BUF_ERROR".into(), "unexpected end of file".into())
+        );
     }
 
     #[test]
