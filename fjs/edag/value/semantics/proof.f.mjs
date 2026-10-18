@@ -23,6 +23,9 @@ const classifications = [
     [['[]', []], true, 'object'],
     [['{}', []], true, 'object'],
     [['=>', 0, [], 0], true, 'function'],
+    [['entry'], true, 'function'],
+    [['Object.entries'], true, 'function'],
+    [['Object.is'], true, 'function'],
 ]
 
 /** @type {(a: EdagValue, b: EdagValue, equal: boolean, same: boolean) => void} */
@@ -99,6 +102,12 @@ export const proof = {
         const otherFunc = /** @type {const} */ (['=>', 0, [data], ['frame', 0]])
         compare(func, func, true, true)
         compare(func, otherFunc, false, false)
+        // A static function is identified by its name: two reads are one
+        // function, two names two, and a closure is never a static.
+        compare(['Object.is'], ['Object.is'], true, true)
+        compare(['Object.is'], ['Object.entries'], false, false)
+        compare(['Object.is'], func, false, false)
+        compare(['Object.is'], ['entry'], false, false)
     },
     mixedTypes: () => {
         /** @type {readonly EdagValue[]} */

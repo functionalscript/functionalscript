@@ -549,7 +549,7 @@ SHA-256 demo found that case.
 40-character SHA-1 digest and a warning that its collision resistance is broken.
 Both demos preserve multiline text with the shared textarea helpers and use
 [`website/demo/hash`](./demo/hash/module.f.mjs) for padded digests and
-OpenSSL output. [`website/demo/code`](./demo/code/module.f.mjs) owns the copyable
+OpenSSL output. [`website/demo/code`](./demo/code/module.f.js) owns the copyable
 code blocks and literal shell arguments. A POSIX shell argument cannot contain
 NUL (U+0000), so that input still gets a digest but a visible refusal replaces
 the command; this is a permanent shell limitation.
@@ -716,6 +716,29 @@ and no other page had either.
   `WORKERS_CI_BRANCH`, which Cloudflare's Workers Builds sets beside
   `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
   build names no branch, so neither shows the strip.
+
+## The breadcrumb is the page's heading
+
+A directory's page, a release's page and the release index open with one
+line, `root / fjs / rtti`: each ancestor a link, the page itself as text
+marked `aria-current="page"`. It is `breadcrumb` in
+[`page/module.f.mjs`](./page/module.f.mjs), a `nav` holding the page's `h1`.
+
+- **One line, not two.** The page used to carry a breadcrumb, `root / fjs`,
+  and under it an `h1`, `fjs/rtti` — the same path twice, the second time
+  without its root.
+- **It is still the `h1`.** Only the duplicate is gone, not the heading: a
+  screen reader's list of headings, a search engine and a reader mode take the
+  page's topic from it, and a page with none would give them nothing. An `h1`
+  may sit in a `nav`, not the other way round, so the `nav` is outside.
+  Browsers that still apply the old rule shrinking an `h1` inside a `nav`
+  show it smaller; current ones no longer do, so the stylesheet does not set
+  its size.
+- **Every part is heading-sized.** A variant setting the ancestors at body
+  size, so the page's own name stood out, was rendered beside it, and the
+  plain heading won.
+- **A page with no ancestors keeps a plain `h1`**: the root page, the pull
+  requests and the CLI reference have no path to show.
 
 ## Every page closes with the funding links
 

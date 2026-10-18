@@ -24,6 +24,7 @@
 
 import { assertOk } from '../../../asserts/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
+import { isStatic } from '../../../edag/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { _entryText, _renderSymbolic } from '../function_text/module.f.mjs'
@@ -38,6 +39,9 @@ const operand = v => v instanceof Array ? name(v[1]) : chunksText(leafSerialize(
 
 /** Construct one outer node; no function-body entry reaches this writer. @type {(a: Analysis, i: number, n: _ValueNode) => string} */
 const entry = (a, i, n) => {
+    // a static function is the built-in, not its body, so there is none
+    // to write: the module reads the host's own, which the tag spells
+    if (isStatic(n)) { return n[0] }
     switch (n[0]) {
         case 'undefined': { return 'undefined' }
         case '[]': { return `[${n[1].map(operand).join(',')}]` }

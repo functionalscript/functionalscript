@@ -1,5 +1,5 @@
 /**
- * Copyable code blocks and literal POSIX shell arguments for website demos.
+ * Copyable code blocks for website demos; shell arguments are `../../../text/shell`'s.
  * @module
  * @import { Element, Node } from '../../../media/html/types.ts'
  */
@@ -22,9 +22,3 @@ export const codeBlock = (text, label, content = [text]) => ['div', { [codeMarke
         ['span', { 'data-copy-status': '', 'aria-live': 'polite' }],
     ],
 ]
-
-/** A literal POSIX shell argument, or null for NUL, which shell arguments cannot contain.
- * This is a permanent shell limitation; the caller must explain the refusal.
- * @type {(text: string) => string | null}
- */
-export const tryShellQuote = text => text.includes('\u0000') ? null : `'${text.replaceAll("'", "'\\''")}'`

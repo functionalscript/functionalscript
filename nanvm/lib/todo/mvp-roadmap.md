@@ -49,7 +49,7 @@ canonical representation:
 Bytecode is an advanced, performance-oriented representation that may vary
 across architectures, VM implementations, and versions, while the EDAG is the
 stable representation. See
-[`spec/todo/serialization.md`](../../../spec/todo/serialization.md).
+[`spec/design/serialization.md`](../../../spec/design/serialization.md).
 
 The exact shape of the code-describing `Any` is specified by the RTTI schema
 in [`fjs/edag`](../../../fjs/edag/README.md), shared by producers and executors.
@@ -271,7 +271,7 @@ tracked in [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#tasks)
       [`nanvm/lib/README.md`](../README.md) has the record.
 - [x] **Nested functions** (function frame) (Rust).
       See [functions](../../../spec/functions/README.md),
-      [function-frame](../../../spec/todo/3111-function-frame.md). The staged
+      [function-frame](../../../spec/design/3111-function-frame.md). The staged
       plan for making generated Rust function bodies callable — arguments,
       captured-frame, and self-reference representation — is
       [callable-function-objects](./callable-function-objects.md): a
@@ -352,7 +352,7 @@ coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
 ### Related
 
 - [`spec/README.md`](../../../spec/README.md) — the language spec;
-  [`spec/todo/serialization.md`](../../../spec/todo/serialization.md) records the
+  [`spec/design/serialization.md`](../../../spec/design/serialization.md) records the
   EDAG-as-data decision and the two execution paths.
 - [`fjs/compiler/README.md`](../../../fjs/compiler/README.md) — source extension contract
   and incremental repository migration.

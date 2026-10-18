@@ -14,13 +14,14 @@
  * @import { EdagValue, Values, Runtime, Function as ValueFunction } from '../types.ts'
  * @import { Invoke } from '../call/types.ts'
  * @import { ValueResult } from '../control/types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  */
 
 import { isArray } from '../../../types/array/module.f.mjs'
-import { ok, error } from '../../../types/result/module.f.js'
+import { ok, error, mapOk, okThen } from '../../../types/result/module.f.js'
 import { allowedCalls, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype, objectPrototype } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.mjs'
-import { findProperty } from '../property/module.f.mjs'
+import { functionAt } from '../property/module.f.mjs'
 import { isFunction, typeOf } from '../semantics/module.f.mjs'
 import { toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
@@ -47,54 +48,59 @@ const typeName = receiver => typeof receiver === 'string' ? 'String'
     : 'Object'
 
 /**
- * The function value at a path of keys into an object, or `undefined`
- * where a key is missing, a step is no object, or the end is no function:
- * how an executor reads its runtime, `['member', type, key]` for a member
- * function's body and `['static', 'Object', 'is']` for `Object.is`'s.
+ * The runtime's member function under `key`, asked for the receiver: the
+ * function of the arguments the body answers for a receiver the name is a
+ * member of, `undefined` for one it is not — or for a name the runtime has
+ * no body for, an entry that is no function, or no runtime at all — and the
+ * body's throw where its first step throws. The body is pure, so asking it
+ * for the guard of an optional call and again for the call costs and
+ * changes nothing. The runtime's shape is `fjs/js/runtime`'s, which its
+ * `types.ts` pins.
  *
- * @type {(object: EdagValue | undefined, path: readonly string[]) => ValueFunction | undefined}
+ * @type {(runtime: Runtime | undefined, key: string, receiver: EdagValue, invoke: Invoke) => Result<EdagValue | undefined, EdagValue>}
  */
-export const functionAt = (object, path) => {
-    if (object === undefined) { return undefined }
-    if (path.length === 0) { return isFunction(object) ? /** @type {ValueFunction} */ (object) : undefined }
-    if (!isArray(object) || object[0] !== '{}') { return undefined }
-    const entry = findProperty(/** @type {Runtime} */ (object), path[0])
-    return entry === undefined ? undefined : functionAt(entry[2], path.slice(1))
+const member = (runtime, key, receiver, invoke) => {
+    const body = functionAt(runtime, ['member', key])
+    if (body === undefined) { return ok(undefined) }
+    const stage = call(ok(body), [() => ok(receiver)], invoke)
+    return stage[0] === 'error' ? stage : ok(absent(stage[1]) ? undefined : stage[1])
 }
 
 /**
- * The runtime's body for a receiver type and a name: the function value
- * at `member[type][key]`, or `undefined` — a name or a type the runtime
- * lacks, an entry that is no function, or no runtime at all. The
- * runtime's shape is `fjs/js/runtime`'s, which its `types.ts` pins.
- *
- * @type {(runtime: Runtime | undefined, type: string, key: string) => ValueFunction | undefined}
+ * The admitted names this dispatcher has no native implementation of:
+ * each is answered by the runtime's body, and by nothing without one. The
+ * list is what `native` below leaves out, named once so the guard of an
+ * optional call can ask it.
  */
-const body = (runtime, type, key) => functionAt(runtime, ['member', type, key])
+const left = ['startsWith']
 
 /**
- * The admitted names this dispatcher has no native implementation of, by
- * type: each is answered by the runtime's body, and by nothing without
- * one. The list is what `native` below leaves out, named once so the
- * guard of an optional call can ask it.
+ * Whether `key` is a name a call may make on the receiver: a non-nullish
+ * receiver whose type's prototype has the name, and the name one
+ * `allowedCalls` admits. What decides that a call goes to this dispatcher
+ * rather than to whatever the receiver holds under the key.
+ *
+ * @type {(receiver: EdagValue, key: string) => boolean}
  */
-const left = { String: ['startsWith'] }
+export const admits = (receiver, key) => {
+    if (receiver === null || typeOf(receiver) === 'undefined') { return false }
+    return prototypes[typeName(receiver)].some(name => name === key) && allowedCalls.some(name => name === key)
+}
 
 /**
  * Whether a call of `key` on the receiver has an implementation bound, the
  * guard of an optional call asks before it evaluates arguments: the name
  * is admitted on the receiver's type, and either this dispatcher answers
- * it natively or the runtime holds its body — the same question NaNVM's
- * `Member::is_nullish` asks of its table and its runtime.
+ * it natively or the runtime's body answers a function for the receiver —
+ * the same question NaNVM's `Member::is_nullish` asks of its table and its
+ * runtime, and a throw where the body's first step throws.
  *
- * @type {(receiver: EdagValue, key: string, runtime: Runtime | undefined) => boolean}
+ * @type {(receiver: EdagValue, key: string, runtime: Runtime | undefined, invoke: Invoke) => Result<boolean, EdagValue>}
  */
-export const hasMethod = (receiver, key, runtime) => {
-    if (receiver === null || typeOf(receiver) === 'undefined') { return false }
-    const type = typeName(receiver)
-    const admitted = prototypes[type].some(name => name === key) && allowedCalls.some(name => name === key)
-    const native = !(type === 'String' && left.String.some(name => name === key))
-    return admitted && (native || body(runtime, type, key) !== undefined)
+export const hasMethod = (receiver, key, runtime, invoke) => {
+    if (!admits(receiver, key)) { return ok(false) }
+    if (!left.some(name => name === key)) { return ok(true) }
+    return mapOk(f => f !== undefined)(member(runtime, key, receiver, invoke))
 }
 
 /** @type {(args: Values, index: number) => EdagValue} */
@@ -257,15 +263,18 @@ const native = (receiver, key, args, invoke) => {
 
 /**
  * Call an admitted built-in after operands have been evaluated: natively
- * where this dispatcher implements the name, else the runtime's body with
- * the receiver first, else — no implementation bound, which
- * {@link hasMethod} has said — the `TypeError` of a VM that binds nothing.
+ * where this dispatcher implements the name, else the function the
+ * runtime's body answers for the receiver, with the arguments, else — no
+ * implementation bound, the name not admitted on the receiver's type or
+ * the body answering `undefined` for it — the `TypeError` of a VM that
+ * binds nothing.
  *
  * @type {(receiver: EdagValue, key: string, args: Values, invoke: Invoke, runtime: Runtime | undefined) => ValueResult}
  */
 export const method = (receiver, key, args, invoke, runtime) => {
-    if (!hasMethod(receiver, key, runtime)) { return error(['undefined']) }
+    if (!admits(receiver, key)) { return error(['undefined']) }
     const answer = native(receiver, key, args, invoke)
-    return answer !== undefined ? answer
-        : call(ok(/** @type {ValueFunction} */ (body(runtime, typeName(receiver), key))), [receiver, ...args].map(v => () => ok(v)), invoke)
+    if (answer !== undefined) { return answer }
+    return okThen((/** @type {EdagValue | undefined} */ f) => f === undefined ? error(['undefined']) : call(ok(f), args.map(v => () => ok(v)), invoke))(
+        member(runtime, key, receiver, invoke))
 }

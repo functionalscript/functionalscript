@@ -1679,19 +1679,20 @@ export const proof = {
         sharing: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('>+<').length - 1, 1) // one `+` node, however many edges reach it
-            // Every edge ends at its target's left side, level with its
-            // label, so the lines that end at the `+` box's left edge and
-            // the `+` label's height are the ones that reach it: `a.x`'s
-            // `obj`, `0`, `1`, `a * 3`'s and `a < 4`'s `left`, and
+            // Every edge ends at the middle of its target's left side, level
+            // with its label, so the lines that end at the `+` box's left
+            // edge and the `+` label's height are the ones that reach it:
+            // `a.x`'s `obj`, `0`, `1`, `a * 3`'s and `a < 4`'s `left`, and
             // `a < 4 && a`'s `right`, each from a port of its own. The box
-            // is the one whose centre is the label's and whose top is 13px
-            // above it, half the 26px header.
+            // is the one whose left starts the label's column and whose
+            // middle is the label's height: the `+` box has ports, so its
+            // label is a 24px column, 12px left of the label's centre.
             const [before] = html.split('" text-anchor="middle" data-graph-label="">+<')
             const at = before.slice(before.lastIndexOf('<text x="') + '<text x="'.length)
             const [x, y] = at.split('" y="').map(Number)
             const box = html.split('<rect x="').slice(1)
                 .map(r => r.split('"'))
-                .find(([rx, , ry, , w]) => Number(ry) === y - 13 && Number(rx) + Number(w) / 2 === x)
+                .find(([rx, , ry, , , , h]) => Number(ry) + Number(h) / 2 === y && Number(rx) + 12 === x)
             const left = assertNotNullish(box, html)[0]
             assertEq(html.split(`L${left},${y}" data-graph-edge=""`).length - 1, 6)
         },

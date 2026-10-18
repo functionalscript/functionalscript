@@ -6,7 +6,7 @@ use crate::harness::*;
 pub fn run<A: IStaticFunction>() {
     check::<A>("first", Any::dot([[(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any(), [(string_key("x"), f64_any(0x3ff0000000000000)), (string_key("n"), f64_any(0x3ff0000000000000))].to_object().to_any(), [(string_key("x"), f64_any(0x3ff0000000000000)), (string_key("n"), f64_any(0x4000000000000000))].to_object().to_any()].to_array().to_any(), string_any("find")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
         }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
@@ -14,21 +14,21 @@ pub fn run<A: IStaticFunction>() {
     }), [(string_key("x"), f64_any(0x3ff0000000000000)), (string_key("n"), f64_any(0x3ff0000000000000))].to_object().to_any());
     check::<A>("none", Any::dot([f64_any(0x0000000000000000), string_any("")].to_array().to_any(), string_any("find")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
         }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
         Ok([c0].to_array().to_any())
     }), Nullish::Undefined.to_any());
     check::<A>("empty", Any::dot(Array::default().to_any(), string_any("find")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
         }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
         Ok([c0].to_array().to_any())
     }), Nullish::Undefined.to_any());
     check::<A>("stops", Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("find")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
         }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
@@ -39,7 +39,7 @@ pub fn run<A: IStaticFunction>() {
     check_throws::<A>("findNoCallback", Any::dot(Array::default().to_any(), string_any("find")).end_call(|| Ok(Array::default().to_any())));
     check::<A>("findThisArg", Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), string_any("find")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
         }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
@@ -48,7 +48,7 @@ pub fn run<A: IStaticFunction>() {
     }), [(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any());
     check_throws::<A>("findObject", Any::dot(Object::default().to_any(), string_any("find")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
         }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();

@@ -89,7 +89,7 @@ remaining native callable work must use the same contract.
   `['self']`, the function itself. Nothing reaches outward across a `=>` boundary.
   Argument indices are validated
   in their owning function; captures go through its frame.
-- [function-frame](../../../spec/todo/3111-function-frame.md) already decided,
+- [function-frame](../../../spec/design/3111-function-frame.md) already decided,
   for the *bytecode* backend, to start with the simple scheme: captured
   values are **copied** into a devoted memory block at function-object
   creation time, not addressed by walking a live caller-frame chain — the
@@ -159,7 +159,7 @@ bounds ([`vm/array/index.rs`](../src/vm/array/index.rs)), while
 `Array::member_access` already does its own length and canonical-index
 check internally and answers `None` (which `Any::dot` turns into
 `undefined`) for an out-of-range or otherwise non-canonical key, matching
-[call-like-instructions §6.2](../../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
+[call-like-instructions §6.2](../../../spec/design/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
 "a missing argument reads as `undefined`, never panics" with no separate
 bounds check to write:
 
@@ -202,7 +202,7 @@ referenced from two positions evaluates once) is realized exactly as it
 already is for shared data literals today — one `let`, several uses,
 `.clone()` at each use site — because `Any<A>` clones are cheap (a refcount
 bump through `IContainer`, not a deep copy), matching a closure body's needs.
-[function-frame](../../../spec/todo/3111-function-frame.md)'s slot-planning,
+[function-frame](../../../spec/design/3111-function-frame.md)'s slot-planning,
 frame-size accounting, and slot-reuse optimizations are a bytecode-backend
 concern with no counterpart here: this backend's "frame allocation" is
 rustc's own native call frame, and its "liveness analysis" is the borrow
@@ -212,7 +212,7 @@ checker's. Nothing in this document proposes an explicit locals array.
 
 An owned `Array<A>`, built once, in the *enclosing* Rust function, at the
 moment the closure value is created — the copy scheme
-[function-frame](../../../spec/todo/3111-function-frame.md) already chose, and
+[function-frame](../../../spec/design/3111-function-frame.md) already chose, and
 reusing the very type Arguments uses above, rather than inventing a second
 "indexed sequence of `Any<A>`" container: a captured frame and an arguments
 list are the same *shape*, so they should be the same *type*. It is read
@@ -305,7 +305,7 @@ requires. The compiler supplies code-only text with generated static
 functions; a native function without text is explicitly refused when a
 conversion needs it. Native placeholders and host wrapper text are not
 substitutes. Retaining semantic EDAG for hashing or retrieval remains
-separate work ([object-identity](../../../spec/todo/object-identity.md), Stage 7
+separate work ([object-identity](../../../spec/design/object-identity.md), Stage 7
 below); stored text is not a retrievable code graph.
 Equality is settled with the representation: `PartialEq for Function<A>`
 is identity, `ptr_eq` on `naive`'s `Rc`, so two closures built from
@@ -333,7 +333,7 @@ precisely.
    `["self"]` into a nested closure's frame, and the nested closure calls
    back out through it — `const f = x => { … const b = y => { … f(y) … };
    … b(…) … }`, under its `["frame", i]`-and-closed-scope-model discussion
-   (not [function-frame](../../../spec/todo/3111-function-frame.md)'s own
+   (not [function-frame](../../../spec/design/3111-function-frame.md)'s own
    `a`/`b` — that one is two independent *top-level* consts with no
    enclosing function and no `["self"]`, exactly the out-of-scope mutual
    recursion case below, not this one). Here a real `Function<A>`
@@ -415,7 +415,7 @@ The nested body reads slot `i` of `A::frame(self_)` exactly as it reads
 `args[i]`. Proof surface: a two-level
 closure fixture over an ordinary (non-`self`) captured value — e.g.
 `a => b => a + b`, the outer parameter captured into the inner function's
-frame — the general shape [function-frame](../../../spec/todo/3111-function-frame.md)
+frame — the general shape [function-frame](../../../spec/design/3111-function-frame.md)
 and edag-stage1-discussion's `["frame", i]` design are built around, though
 neither document spells this particular example.
 
@@ -475,7 +475,7 @@ pins failure during frame creation before the returned closure is called.
 Both have generated native fixtures and participate in the Node/interpreter
 comparison in Stage 8 step 1.
 The remaining migration and regression work stays open in the checklist.
-The older [call-like-instructions §6](../../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
+The older [call-like-instructions §6](../../../spec/design/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
 notes describe call transport, not permission to restore the retired EDAG
 binding. Dynamic calls remain arbitrary-arity; no matching-arity assumption
 is permitted. Migrate zero-arity graphs by scope and refuse incompatible
@@ -909,11 +909,11 @@ level.
   plan implements one half of; "Nested functions (function frame) (Rust)"
   and the "Rust code generation" tasks are what this document expands into
   stages.
-- [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md)
+- [`spec/design/3111-function-frame.md`](../../../spec/design/3111-function-frame.md)
   — the bytecode-interpreter frame design; source of the copy-scheme
   decision this plan reuses, and of the worked recursive-helper example used
   as a Stage 5 fixture.
-- [`spec/todo/9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md)
+- [`spec/design/9100-call-like-instructions.md`](../../../spec/design/9100-call-like-instructions.md)
   — static/dynamic call-site semantics and the arity rules Stage 6 checks
   against.
 - [Named and rest parameters](../../../spec/todo/3120-parameters.md) — owns the
@@ -930,7 +930,7 @@ level.
 - [`fjs/compiler/todo/associate-edag-with-functions.md`](../../../fjs/compiler/todo/associate-edag-with-functions.md)
   — flags nested-closure EDAG association as unsolved; Stage 7 is where this
   plan closes that for the AOT backend specifically.
-- [`spec/todo/object-identity.md`](../../../spec/todo/object-identity.md) —
+- [`spec/design/object-identity.md`](../../../spec/design/object-identity.md) —
   the general identity/equality question for values; the code-pointer
   section above works out the one place this plan's own choices bear on it
   for functions specifically (the `self` case).

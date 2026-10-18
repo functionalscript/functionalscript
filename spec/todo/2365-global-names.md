@@ -1,11 +1,11 @@
-# Global Names
+## Global Names
 
 A name ECMAScript defines globally is a reserved word.
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 FunctionalScript has no free names, so a global denotes nothing today and a
 module may take the word for itself:
@@ -25,7 +25,7 @@ itself refuses to bind `eval` in strict code, and `undefined`, `NaN` and
 `Infinity` are words FunctionalScript keeps so that each denotes its value
 wherever a value stands.
 
-## Proposal
+### Proposal
 
 A global name is a reserved word: never bound, never a value, and an
 ordinary property key like every other reserved word — `{ Object: 1 }` and
@@ -46,7 +46,7 @@ Read them when the list is written. `'Uint8Array' in globalThis` is the
 test that tells a name from a typo, and only the head of a path is a name —
 `WebAssembly.Module` is a property of one.
 
-## What it costs
+### What it costs
 
 It is a breaking change: `const Object = 1;` compiles today, so the pull
 request that lands the rule explains the API change and updates affected
@@ -59,7 +59,7 @@ against it, `Number.isFinite` not being the global `isFinite`. They are
 FunctionalScript ([`spec/README.md`](../README.md), File Types), so they are
 renamed by the same pull request.
 
-## Landing a name at a time
+### Landing a name at a time
 
 The order this rule sets with [`2360-built-in.md`](./2360-built-in.md) is a
 name's, not the list's. What it protects is that a name 2360 admits is one
@@ -72,11 +72,12 @@ second, reserved together with the one right operand of `instanceof` it
 admits ([`instanceof`](../operators/instanceof.md)).
 `String` is the third, reserved with its conversion
 ([string conversion](../conversions/string.md)).
-`Object` is the fourth, reserved with `Object.is`, the one member of it
-admitted ([built-in static functions](../built-ins/static-functions.md)).
+`Object` is the fourth, reserved with `Object.is`, the first member of it
+admitted, `Object.entries` the second
+([built-in static functions](../built-ins/static-functions.md)).
 Every other name joins that list before 2360 admits any of it.
 
-## Open questions
+### Open questions
 
 1. The list ages as ECMAScript grows. Pin it to an edition, or re-read §19
    each time?
@@ -87,7 +88,7 @@ Every other name joins that list before 2360 admits any of it.
    a global name must stay an `id` token there, so the globals want a list
    of their own that the fold consults beside it.
 
-## Tasks
+### Tasks
 
 - [ ] The list, from the sources above.
 - [ ] The refusal, in the fold, where `identifierOf` already answers
@@ -100,7 +101,7 @@ Every other name joins that list before 2360 admits any of it.
 - [ ] `spec/README.md`: the rule it states for `NaN` and `Infinity`, one
       list longer.
 
-## Related
+### Related
 
 - [Number conversion](../conversions/number.md) — `Number`, the
   first name reserved under this rule, in

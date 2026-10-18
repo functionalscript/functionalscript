@@ -49,7 +49,7 @@ import {
 import { entry } from '../../types/object/entry/module.f.js'
 import { statics } from '../../js/static/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
-import { constSlice, generatedHeader } from '../../media/rust/item/module.f.mjs'
+import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { mapOk, okList, unwrap } from '../../types/result/module.f.js'
 
 /**

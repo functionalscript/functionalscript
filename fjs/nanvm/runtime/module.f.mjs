@@ -20,8 +20,11 @@
  */
 
 import { ioError, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
+import { writeFiles } from '../../effects/node/module.f.mjs'
 import { compileFile, noRuntime, runtimeSource } from '../../compiler/module.f.mjs'
 import { runtimeAt } from '../../compiler/transpiler/module.f.mjs'
+import { resolve } from '../../compiler/edag/module.f.mjs'
+import { generateRuntime } from '../../compiler/rust/runtime/module.f.mjs'
 
 /** Where the runtime is authored, from the repository root the generators run from. */
 export const source = runtimeSource('.')
@@ -42,7 +45,21 @@ export const rustPath = 'nanvm/lib/src/vm/gen.runtime.rs'
 export const edagPath = 'fjs/js/runtime/gen.edag.data.mjs'
 
 /** Compiles the runtime to Rust, then to EDAG. @type {() => Effect<_CompileOp, void, IoChannel>} */
-export const generate = () => step(compileFile(noRuntime)(source, rustPath), () => compileFile(noRuntime)(source, edagPath))
+export const generate = () => step(compileRust(), () => compileFile(noRuntime)(source, edagPath))
+
+/**
+ * The runtime linked into one graph and printed as the static runtime,
+ * `fjs/compiler/rust/runtime`, written to `rustPath`; a source the linker
+ * refuses or a module the printer refuses is the failure, with its reason.
+ *
+ * @type {() => Effect<_CompileOp, void, IoChannel>}
+ */
+const compileRust = () => resultStep(resolve(source), result => {
+    const [kind, value] = result
+    if (kind === 'error') { return pureError(ioError({ message: `${source}: ${value.message}` })) }
+    const [tag, rust] = generateRuntime(value)
+    return tag === 'error' ? pureError(ioError({ message: `${rustPath}: ${rust}` })) : writeFiles([[rustPath, rust]])
+})
 
 /**
  * The runtime interpreted from its source: its `runtime` export, as an

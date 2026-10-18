@@ -58,11 +58,11 @@ unless an FJS runtime implements the VM rendering contract. This does not change
 `.length`, allocation identity, or non-function string conversion.
 
 Broader callable interchange serialization and
-[lazy frame rendering](../../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
+[lazy frame rendering](../../spec/design/serialization.md#conditional-requirement-lazy-frame-rendering)
 remain future work. The lazy requirement applies only to a future serializer
 that represents captured values; code-only default text never instantiates a
 frame. These follow-ups do not reopen the implemented default-text contract
-([serialization](../../spec/todo/serialization.md#function-text-and-serialization)).
+([serialization](../../spec/design/serialization.md#function-text-and-serialization)).
 
 ### 2.1 Memoize every node
 
@@ -187,7 +187,7 @@ content identity cheaply. Emulating canonical content-addressed values on top of
 a normal JavaScript engine requires hashing, lookup tables, canonicalization,
 and extra retained metadata, which can be complex, slow, and memory-intensive.
 A specialized CAVM can instead make content identity part of its native value
-representation. See [the CAVM design TODO](../../spec/todo/content-addressable-vm.md).
+representation. See [the CAVM design TODO](../../spec/design/content-addressable-vm.md).
 
 ## Boundary
 

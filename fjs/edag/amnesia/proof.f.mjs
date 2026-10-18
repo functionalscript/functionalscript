@@ -106,7 +106,7 @@ export const proof = {
     // depths; without a runtime the same call throws.
     runtime: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'String', ['{}', [[':', 'startsWith', ['=>', 1, [], ['arg', 0]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
         /** @type {Exp} */
         const direct = ['.', 'abc', 'startsWith', ['|()', ['b']]]
         /** @type {Exp} */
@@ -114,12 +114,18 @@ export const proof = {
         assertEq(assertOk(vm({ frame: [], args: [], runtime })(direct)), 'abc')
         assertEq(assertOk(vm({ frame: [], args: [], runtime })(nested)), 'abc')
         assertStructurallySame(assertError(vm({ frame: [], args: [] })(nested)), ['undefined'])
-        // an optional call sees the body as a callee only where one is
-        // bound: without a runtime it skips, its argument never evaluated
+        // an optional call sees the body's function as a callee only where
+        // the body answers one for the receiver: without a runtime, and
+        // under a body answering `undefined`, it skips, its argument never
+        // evaluated, where a plain call is the `TypeError`
         /** @type {Exp} */
         const optional = ['.', 'abc', 'startsWith', ['|?.()', [['throw', 'evaluated']]]]
         assertStructurallySame(assertOk(vm({ frame: [], args: [] })(optional)), ['undefined'])
         assertStructurallySame(assertError(vm({ frame: [], args: [], runtime })(optional)), 'evaluated')
+        /** @type {import('../value/types.ts').Runtime} */
+        const none = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['undefined']]]]]]]]
+        assertStructurallySame(assertOk(vm({ frame: [], args: [], runtime: none })(optional)), ['undefined'])
+        assertStructurallySame(assertError(vm({ frame: [], args: [], runtime: none })(direct)), ['undefined'])
     },
     // `Object.is` answers from the runtime's `static` section, in the
     // expression and in a function it calls, and as a value passed and
@@ -138,6 +144,13 @@ export const proof = {
         assertEq(assertOk(ev(['()', ['=>', 1, [], ['()', ['arg', 0], ['a', 'b']]], [['Object.is']]])), false)
         assertEq(assertOk(ev(['===', ['Object.is'], ['Object.is']])), true)
         assertEq(assertOk(ev(['===', read, read])), true)
+        // the built-in, not its body: its name's text, the body's length,
+        // and the body's `self` the built-in
+        assertEq(assertOk(ev(['String', ['Object.is']])), 'function is() { [native code] }')
+        assertEq(assertOk(ev(['.', ['Object.is'], 'length'])), 2)
+        /** @type {import('../value/types.ts').Runtime} */
+        const selfRuntime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 0, [], ['===', ['self'], ['Object.is']]]]]]]]]]]]
+        assertEq(assertOk(vm({ frame: [], args: [], runtime: selfRuntime })(['()', ['Object.is'], []])), true)
         const missing = 'no binding for the static Object.is'
         assertEq(assertError(vm({ frame: [], args: [] })(direct)), missing)
         assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['{}', []]]]] })(['Object.is'])), missing)
@@ -282,6 +295,17 @@ export const proof = {
         // and nullish receivers fail before the key is read at all
         fails(entry(null, 'a'))
         fails(entry(['undefined'], boom))
+        // `Object.entries`, called: every enumerable own property, in
+        // order, a `length` and a stock method never among them; one
+        // function every read; a nullish receiver failing
+        const entries = /** @type {(a: Exp) => Exp} */ (a => ['()', ['Object.entries'], [a]])
+        same(entries(['{}', [[':', 'b', 1], [':', '1', 2]]]), [['1', 2], ['b', 1]])
+        same(entries(['[]', [5]]), [['0', 5]])
+        same(entries('a'), [['0', 'a']])
+        same(entries(true), [])
+        eq(['.', ['Object.entries'], 'length'], 1)
+        eq(['===', ['Object.entries'], ['Object.entries']], true)
+        fails(entries(null))
     },
     // `o2lazy` — the right operand is a thunk, so these three short-circuit
     // — and `?:`, which establishes its condition and then one arm. Each

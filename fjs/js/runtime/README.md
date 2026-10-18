@@ -1,11 +1,13 @@
 # The runtime
 
 The built-in functions, defined once. [`module.f.js`](./module.f.js)
-exports `runtime`, in two sections keyed by the name of a global. Its
-`member` section holds, for a receiver's type — `String`, `Array`,
-`Number` — the names whose **body** is written, each a FunctionalScript
-function of the receiver and then the arguments as the call passed them,
-`undefined` past the end. Its `static` section holds the static
+exports `runtime`, in two sections. Its `member` section holds, by name,
+the member functions whose **body** is written, `startsWith`: each a
+FunctionalScript function of the receiver alone, answering `undefined`
+for a receiver the name is no member of, or the function of the arguments
+as the call passed them, `undefined` past the end — the body dispatches on
+its receiver's type itself, and an executor asks it in two steps, the
+first before any argument exists. Its `static` section holds the static
 functions at the path [`../static`](../static/module.f.js) admits each
 under — `Object.is` at `static.Object.is` — each a function of the
 arguments alone, written here and exported nowhere else: a module calls
@@ -23,15 +25,14 @@ table. The proposal and the steps still to take are
 Which names a module may call stays
 [`../prototype`](../prototype/module.f.js)'s: the prototype name lists and
 `prohibitedCalls` for the parser, `allowedCalls` for every executor.
-[`types.ts`](./types.ts) pins every key here to that set — `member` is
-the one section, each type it keys is a receiver type by its global's
-name, each key under it an allowed name on that type's prototype — so a
-body for a name the language does not admit, or
-on the wrong type, fails `tsc`, and [`proof.f.mjs`](./proof.f.mjs) checks
-the same at run time. The keys are not the admitted set and need not be:
-nothing in a `.f.js` enumerates an object's keys, so a list could not be
-derived from them, and a table keying every admitted name with a marker
-in place of a body would only duplicate the parser's list.
+[`types.ts`](./types.ts) pins every key of `member` to that set, and
+every entry to a body of the receiver alone, so a body for a name the
+language does not admit fails `tsc`, and [`proof.f.mjs`](./proof.f.mjs)
+checks the same at run time. Which types a name is a member of is the
+body's own first step, `typeof self === 'string'`, not a key of the
+table: one function per name, for every receiver. The keys are not the
+admitted set and need not be: a table keying every admitted name with a
+marker in place of a body would only duplicate the parser's list.
 
 ## The names without a body
 
@@ -39,8 +40,11 @@ Two kinds, and both are each VM's to bind natively:
 
 - the **primitives**, which no body can define in terms of the rest — for
   a string, the code-unit read `charCodeAt` and the substring `slice`;
-  `length` is a property each value owns and is on no list, and an array
-  element is read by a runtime number index, which the language has;
+  among the static functions, `Object.entries`, since enumerating keys is
+  what no body can do otherwise, which [`../static`](../static/module.f.js)
+  lists as `natives`; `length` is a property each value owns and is on no
+  list, and an array element is read by a runtime number index, which the
+  language has;
 - the names whose body **waits on a primitive the language has not
   admitted** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, `String.fromCharCode`, over which the Unicode case tables are
@@ -55,7 +59,12 @@ the string and array names are the next batches.
 
 A VM answers a call on a receiver it does not own in this order: the
 receiver's own property, then its **native** implementation of the name,
-then the **runtime's body**, then the `TypeError` for calling `undefined`.
+then the **runtime's body**, asked for the receiver alone — the function
+of the arguments, which the VM then calls, or `undefined` — then the
+`TypeError` for calling `undefined`. The guard of an optional call,
+`a.startsWith?.(x)`, asks the same three before it evaluates `x`, the
+body's first step among them; a body is pure, so a guard and a call ask
+it twice at no cost but the call.
 A native implementation may stand beside a body where the VM measures the
 gain; the body is the reference, and the corpus in
 [`../../nanvm/member`](../../nanvm/member/module.f.js) checks the native
@@ -81,11 +90,13 @@ body, and no other pair is.
   executor given no runtime answers a body's name with the `TypeError` of a
   VM that binds nothing, never with a host built-in.
 - **NaNVM** — `npm run gen` compiles this module to
-  `nanvm/lib/src/vm/gen.runtime.rs` through the Rust backend, the compiler
-  being the generator, and `nanvm-lib`'s `IVm::runtime_method` is the hook
-  a VM binds it through: `naive` answers it by reading the compiled
-  object's entry for the receiver's type and the key, and a VM without
-  static functions, which cannot run a body, binds nothing. The native
+  `nanvm/lib/src/vm/gen.runtime.rs` through the compiler's static-runtime
+  printer, the compiler being the generator: every body a static Rust
+  function, a static built-in's with an accessor answering its descriptor
+  and a member's the code alone, bound on `IStaticFunction` since its
+  answer is a closure over the receiver, and two tables by name, which
+  `nanvm-lib`'s `runtime_method` and `runtime_static` search for every
+  VM. Nothing is evaluated and no VM holds a runtime. The native
   tables in `vm/lambda` keep every name without a body.
 
 The generator also writes the module's EDAG as
@@ -112,7 +123,7 @@ flowchart LR
     corpus["corpus proofs<br/>evaluate once, pass as the context's runtime"]
     harness["harness<br/>interpret(pureOk(runtime)), compiled live"]
     interpreter["EDAG interpreter<br/>amnesia and memo"]
-    naive["naive<br/>IVm::runtime_method"]
+    naive["nanvm-lib<br/>runtime_method, runtime_static"]
     step["a call step<br/>own property, native, body, TypeError"]
     src -->|import| host --> proof
     src --> compiler
@@ -135,8 +146,8 @@ implementation, the runtime's body, the `TypeError`.
 ## How NaNVM finds it
 
 A compiled module never names the runtime. It names `nanvm-lib`'s API and
-the VM type parameter `A`, and those two are where the runtime is found.
-For `[1].map(() => 5)`, the output is
+the VM type parameter `A`, and the runtime is static code in `nanvm-lib`
+itself, which every VM reaches. For `[1].map(() => 5)`, the output is
 `Any::dot(c0, string_any("map")).end_call(c1)`, and the library takes it
 from there:
 
@@ -145,78 +156,90 @@ sequenceDiagram
     participant M as compiled module
     participant L as nanvm-lib call step
     participant T as native table
-    participant A as A::runtime_method
     participant R as gen.runtime.rs
     M->>L: Any::dot([1], "map").end_call(args)
     L->>L: own property? none on an array
     L->>T: method(receiver, "map")
     T-->>L: None, once map has a body
-    L->>A: runtime_method("Array", "map")
-    A->>R: module::<A>(), on the thread's first lookup
-    R-->>A: the export's runtime object, held from then on
-    A-->>L: the closure under runtime.member.Array.map
-    L->>L: body.call([receiver, ...args])
+    L->>R: members(): ("map", code)
+    R-->>L: the body, a static function
+    L->>R: code(receiver)
+    R-->>L: the function of the arguments, or undefined
+    L->>L: f.call(args), or the TypeError
     L-->>M: the answer, or Err(thrown)
 ```
 
 `Member::call` in `vm/lambda/member.rs` resolves in that order — the
 receiver's own property, the native table in `vm/lambda/method.rs`, the
-runtime, the `TypeError` for calling `undefined` — and the `?.()` guard
-asks the same lookup to decide whether a callee exists.
+runtime's body through `runtime_method`, asked for the receiver and then
+called, the `TypeError` for calling `undefined` — and the `?.()` guard
+asks the same lookups, the body's first step included, to decide whether
+a callee exists, before any argument is evaluated. A member's body is a
+Rust function of the receiver answering a function value or `undefined`,
+and nothing more: the language never reads a member as a value, so none
+has a descriptor, a `length` or a text, and a call step asks the code the
+table holds.
 
 **A static function is a value with no receiver.** The EDAG spells
 `Object.is` as the value `['Object.is']`, and `Number.isInteger` as
-`['Number.isInteger']`, and the Rust backend prints each as the binding
-of its path, `static_binding::<A>(&["Object", "is"])?`: `nanvm-lib` asks
-`IVm::runtime_static` for the path, which `naive` answers by reading the
-compiled object's `static` section, and fails naming the path where
-nothing is bound. The parser admitted the name, so a missing binding is
-the VM's failure, never `undefined`; the represented interpreter fails
-with the same message, reading its context's runtime through
-`functionAt`. Every read answers one function, as in JavaScript, since
-`naive` holds the runtime object, below: `Object.is === Object.is`, in
-one invocation or two, which `nanvm/harness/fixtures/object-is.mjs`
-checks on NaNVM against the interpreter, and
-`nanvm/harness/fixtures/number-predicates.mjs` for the `Number`
-predicates over every kind of value. NaNVM keeps no native static
-table, and its completeness test checks every path
-[`../static`](../static/module.f.js) admits is bound.
+`['Number.isInteger']`, and the Rust backend prints each as its accessor's
+value, `Function::from(object_is::<A>()).to_any()`, an item of
+`nanvm_lib::vm` the compiled runtime defines: no lookup, no `Result`, and
+a module naming a static the runtime lacks does not compile. The parser
+admits a static only from [`../static`](../static/module.f.js), and the
+represented interpreter, reading its context's runtime through
+`functionAt`, fails naming the path where a runtime lacks it, never
+answering `undefined`. Every read answers one function, as in JavaScript:
+a built-in is a static function identified by its name, so two reads are
+two handles to one function and `===` compares the names — not the
+handles, since a descriptor is a promoted constant, which Rust compiles
+once per crate that instantiates it and once per codegen unit where it is
+inlined, so two handles to one built-in may be two addresses, and a pointer
+comparison would hold in a debug build, which shares instantiations across
+crates, and fail in a release build, which does not —
+which `nanvm/harness/fixtures/object-is.mjs` checks on NaNVM against the
+interpreter, and `nanvm/harness/fixtures/number-predicates.mjs` for the
+`Number` predicates over every kind of value. `Object.entries` has no
+body: the represented interpreter answers it with a function value of its
+own, `edag/value/entries`, and NaNVM's is a built-in written in
+`vm/runtime.rs`, `vm::object_entries`, listed in the `statics` table
+beside the bodies (`nanvm/harness/fixtures/object-entries.mjs`). The
+completeness test checks every path [`../static`](../static/module.f.js)
+admits is bound.
 
-**The VM type binds the runtime.** `IVm::runtime_method` is a method on
-the type, with no instance and no argument carrying a runtime, so which
-runtime a VM has is decided by its `impl`: `naive` answers with
-`vm/runtime.rs`, whose `runtime_object` evaluates `gen.runtime.rs` —
-included into the crate by `#[path]`, which is why the generated file says
-`use nanvm_lib::…` and the crate declares `extern crate self as nanvm_lib`
-— and whose lookups read the entry for the type and the key from that
-object; a VM that leaves the default binds nothing, and answers a body's
-name with the `TypeError` a VM that binds nothing should. Linked in at
-build time, then, but not a Rust `static`: a value is an `Rc`, which no
-`static` can hold, so `naive` evaluates the object on a thread's first
-lookup and holds it in a `thread_local` from then on. Holding it is what
-makes a body one function, however often it is read — `Object.is` is a
-value a module compares — and it costs one evaluation per thread, where
-evaluating per lookup cost one per call. An index from type and key to the
-closures would change nothing generated and nothing in the trait.
+**The runtime is static code, not a value.** The static-runtime printer,
+[`fjs/compiler/rust/runtime`](../../compiler/rust/runtime/module.f.mjs),
+reads this module at compile time rather than printing a scope that
+evaluates it: every module-level function becomes a static `fn` of its
+arguments alone — a static built-in and a helper a body reads as a value
+with an accessor answering its descriptor, the built-in's name, code,
+length and text, as a promoted constant; a member the `fn` alone, bound
+on `IStaticFunction` since its answer is the function of the arguments, a
+closure over the receiver, which a body may not read as a value — a frame
+slot resolves to another function's accessor or to an inlined literal; an
+import's read of its export object, `{ isNegativeZero }.isNegativeZero`,
+folds to the function it holds; and the `runtime` export object is read as
+the table of built-ins, a static one named `Object.is` and a member one
+`startsWith`, and printed nowhere. So this module's scope
+holds **functions and literals**: an object or an array a body would
+capture is refused, naming the node, and so is a function a static's body
+makes at call time, since a static is bound on `IVm` alone. A body may call
+another body, through a member call or by reading it as a value — `is`
+reads `isNaN_` — and both resolve to static functions. `gen.runtime.rs`
+is included into the crate by `#[path]`, which is why it says
+`use nanvm_lib::…` and the crate declares `extern crate self as nanvm_lib`.
+A built-in's text, `String(f)`, is the NativeFunction text ECMA-262
+requires of one, `function is() { [native code] }`, never its body's: a
+runtime function is the built-in, not its body. NaNVM forms it from the
+descriptor's name, `Function::text`, so no descriptor carries a text, and
+the represented interpreter from the static node, `staticText` in
+`fjs/edag`; `nanvm/harness/fixtures/object-is.mjs` and
+`number-predicates.mjs` hold the two to one text.
 
-Three places the binding could have lived, and why this one:
-
-- **On the type**, as now. Generated code already carries `A` everywhere
-  and nothing else, so the runtime reaches a call step with no change to
-  the compiler's output or to the chain API. One VM type means one
-  runtime, chosen when the VM is built, which is the trade.
-- **In a context passed at call time**, as the interpreter does with its
-  `runtime` field. In Rust every `Any::dot(..).end_call(..)` would take a
-  runtime handle, so every generated call step and every hand-written
-  test would thread one through. The interpreter can afford it because
-  its executor already has a context; the Rust output has none.
-- **In a static table of function pointers.** Not possible: a body with a
-  helper, as `startsWith` has `position`, is a closure with a frame, and
-  a frame is a VM array, an allocated value.
-
-The decision is in one `impl`, a few lines in `naive`, and a VM that
-wants a different runtime, one held another way, or a native
-implementation of a name that has a body, changes only that.
+Nothing is held, so nothing is initialized and no VM binds anything: a
+VM is a value representation, and the runtime reaches it as library code
+does. A VM that wants a native implementation of a name that has a body
+adds it to the native table, which a call step asks first.
 
 ## Two invariants
 
@@ -243,14 +266,17 @@ cycle:
   be interpreted from nothing. Loading it from source relies on exactly
   that: `runtimeAt` interprets it under `noRuntime`, so a member call or a
   static read in any initializer of the closure fails the load rather than
-  passing unnoticed. `naive` relies on it too: the object it holds is
-  evaluated inside its own first lookup, which a lookup during the
-  evaluation would re-enter.
+  passing unnoticed. NaNVM holds it as a stronger rule: the static-runtime
+  printer lifts the module at compile time, so its scope holds functions
+  and literals, and an initializer that computes anything cannot be lifted
+  and is refused.
 
 ## Giving a name its body
 
-1. Write the body here, with its proof case by case, and `npm start
-   compile` accepting the module.
+1. Write the body here — a function of the receiver, `undefined` for a
+   receiver the name is no member of and the function of the arguments
+   otherwise — with its proof case by case, and `npm start compile`
+   accepting the module.
 2. Remove the interpreter's native case in `edag/value/method`, so the
    body is what answers it there.
 3. Remove NaNVM's entry in `vm/lambda` and the typed method under it, or

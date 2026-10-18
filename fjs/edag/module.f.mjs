@@ -538,7 +538,7 @@ export const comma = /** @type {const} */ ([',', exps])
  * joined by `.`, which `./types.ts` pins to that list — `Object.is` for
  * `['Object', 'is']`, `Number.isInteger` for `['Number', 'isInteger']`.
  */
-export const staticIds = /** @type {const} */ (['Object.is', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+export const staticIds = /** @type {const} */ (['Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /**
  * A static function as a value, `['Object.is']`: the function the
@@ -576,6 +576,30 @@ export const isStatic = node => node instanceof Array && node.length === 1 && st
  * @type {(id: StaticId) => readonly string[]}
  */
 export const staticPath = id => id.split('.')
+
+/**
+ * A static function's text, `String(Object.is)`: what ECMA-262 requires
+ * of a built-in function
+ * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
+ * NativeFunction syntax naming its [[InitialName]] — the last key of its
+ * path, `is` — with no parameters, as most engines print it. A runtime
+ * function is the built-in, not its body, so every executor answers this
+ * text and never the body's: the represented ones from here, NaNVM from
+ * the built-in's name.
+ *
+ * @type {(id: StaticId) => string}
+ */
+export const staticText = id => `function ${staticPath(id).at(-1)}() { [native code] }`
+
+/**
+ * The failure of a static function no binding answers, by its name: the
+ * parser admitted it, so the binding is the executor's to supply, and an
+ * executor without it fails naming the static, never answering `undefined`
+ * or a plausible value.
+ *
+ * @type {(name: string) => string}
+ */
+export const noStatic = name => `no binding for the static ${name}`
 
 
 /**

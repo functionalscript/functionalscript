@@ -69,5 +69,5 @@ current scope; none is a requirement for MVP.
   self-hosting through AOT-compiled FJS.
 - [FJS interpreter](../fjs/compiler/todo/interpret-edag.md) — the existing executor.
 - [function association](../fjs/compiler/todo/associate-edag-with-functions.md) and
-  [function serialization](../spec/todo/serialization.md) — metadata and text
+  [function serialization](../spec/design/serialization.md) — metadata and text
   contracts, independent of a Rust EDAG executor.

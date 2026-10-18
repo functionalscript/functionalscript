@@ -3,14 +3,23 @@
 **Status:** implemented
 
 ```js
-const { is } = Object;
+const { is, entries } = Object;
 const { isInteger } = Number;
-export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1")];
+export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The language admits five static functions. `Object.is` is JavaScript's
+The language admits six static functions. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
-`===` says the opposite of both. The four `Number` predicates are
+`===` says the opposite of both. `Object.entries` is JavaScript's too: a
+fresh array of fresh `[key, value]` pairs, one per enumerable own
+string-keyed property in JavaScript's own-key order — array-index keys
+ascending, then every other key in insertion order, so the example's last
+element is `[["0", 2], ["b", 1]]` — an array's elements and a string's
+UTF-16 code units under their index strings, nothing for a number, a
+boolean, a `bigint` or a function, and a failure on `null` and
+`undefined`. An entry holding `undefined` is listed, as JavaScript lists
+it ([undefined-valued properties](../todo/1010-undefined-property.md)).
+The four `Number` predicates are
 JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isSafeInteger` — an integer within `2^53 - 1` of `0` —
 `Number.isNaN` and `Number.isFinite`, so `Number.isFinite("1")` is `false`
@@ -25,7 +34,9 @@ they would after the plain one. Destructuring is sugar
 ([destructuring](../bindings/destructuring.md)): `const { is } = Object;` is
 `const is = Object.is;`, and an object pattern over a namespace reads each
 of its keys as that access does, a nested pattern reading through the
-function as through any value. The sugar holds because no admitted static
+function as through any value — `const { entries } = Object;` too, the
+namespace admitting `entries` before the rule that refuses a prototype
+name, `Array.prototype`'s, as a key. The sugar holds because no admitted static
 reads `this`: JavaScript runs `const { is } = Object; is(a, b)` with
 `this` undefined, and each admitted function answers alike detached and on
 its namespace, which the runtime's proof checks on every engine the suite
@@ -55,10 +66,17 @@ body is written once, in the `static` section of
 [`fjs/js/runtime`](../../fjs/js/runtime/README.md), a VM's and no module's —
 a module calls the built-in — and checked there against the host's own;
 every executor answers the node from it, and an executor with no binding
-for it fails, naming it, rather than answer. The graph outputs write the
-node back: the FunctionalScript one as its name, `Object.is`,
-the Rust one as the binding the VM answers, which NaNVM reads from the one
-runtime object it holds, so every read there is one function too.
+for it fails, naming it, rather than answer. `Object.entries` alone has no
+body, since enumerating keys is what no body can do otherwise: every
+executor binds it natively, and its text, `String(Object.entries)`, is
+`function entries() { [native code] }`, the NativeFunction syntax
+ECMAScript requires of a built-in, there being no EDAG to render
+([function source](../principles/README.md#function-source-representation-exception)).
+The graph outputs write the node back: the FunctionalScript one as its
+name, `Object.is`, the Rust one as the binding the VM answers — a body
+from the one runtime NaNVM holds, `Object.entries` as a built-in
+identified by its name, which nothing creates or holds — so every read
+there is one function too.
 
 ## Examples
 
@@ -66,5 +84,5 @@ The compiler demo offers the programs `staticFunctions` in [`module.f.js`](./mod
 
 ## Reference
 
-- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
-- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is>
+- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
+- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries>

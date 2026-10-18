@@ -1,4 +1,4 @@
-## let-bindings-owner. `nanvm/rust` spells the `let` line `edag/rust` claims to own
+## Unify Rust binding emission through FAST
 
 **Priority:** P4
 **Status:** open
@@ -10,7 +10,7 @@
 is used" — "lives here once rather than drifting between two copies". It
 owns the temporaries a scope binds, `letLine` in `printer`, and imports
 the `indent` both callers use from
-[`fjs/media/rust/item`](../../../media/rust/item/module.f.mjs); the line
+[`fjs/media/rust/item`](../../../media/rust/item/module.f.js); the line
 that spells a *caller's* binding —
 the corpus's named shared value, whose initializer is printed against the
 bindings before it — is still written by `fjs/nanvm/rust`:
@@ -25,29 +25,37 @@ bindings before it — is still written by `fjs/nanvm/rust`:
 Both callers also emit `'#[rustfmt::skip]'` immediately before a
 `fn …<A: IVm>` line and document at length why, and both open with the
 `generatedHeader` of
-[`fjs/media/rust/item`](../../../media/rust/item/module.f.mjs).
-`fjs/media/rust` deliberately stops at literals. The binding mechanism
-takes an `Exp` and belongs here; string-only item wrappers and headers
-belong in that EDAG-free item module.
+[`fjs/media/rust/item`](../../../media/rust/item/module.f.js).
+`fjs/media/rust` deliberately stops at literals. The current binding printer
+takes an `Exp` and lives in `edag/rust`; string-only item wrappers and headers
+belong in the EDAG-free item module.
 
 ### Proposal
 
-One export beside `expExpr`:
+The [compiler modularization proposal](../../../todo/compiler-vocabulary-and-modularization.md)
+sets the MVP path for every target: EDAG → FAST → target serialization.
+Common EDAG-to-FAST conversion owns sharing, bindings and evaluation regions;
+any further expression-to-binding normalization belongs in common FAST
+processing used by all targets. The Rust serializer renders those bindings
+with Rust syntax and runtime-operation spelling.
 
-```ts
-/** The `let` lines for `bindings` in order, each initializer printed against the bindings before it. */
-export const letBindings: (bindings: readonly (readonly [Exp, string])[]) => (name: (i: number) => string)
-    => Result<readonly string[], readonly unknown[]>
-```
+This supersedes the earlier proposal to add an EDAG-aware `letBindings`
+helper while retaining `scopeTagged` as the compiler's separate binding path.
+The migration must retire the replaced paths, rather than extend them.
+Preserving Rust-only temporary decisions or unchanged generated Rust text is
+not a compatibility requirement; preserve semantics and update output
+expectations to the common FAST policy.
 
-`nanvm/rust`'s block becomes `letBindings(used.map(binding))(i => snakeCase(used[i][0]))`
-unwrapped, retaining its indentation and plain Rust spelling. This helper
-prints the corpus's named bindings. `fjs/compiler/rust` keeps consuming
-`scopeTagged`: the EDAG printer's `letLine` retains the `let` keyword and
-initializer tags, its import-use metadata, thunk typing and operation `?`
-handling. `scope` remains the plain wrapper that removes tags from
-`scopeTagged`'s output. The compiler's temporaries do not pass through the
-plain `letBindings` helper.
+Move both compiler temporaries and corpus named bindings onto this path.
+The corpus supplies named shared values even when a value is reached only
+once. Carry these supplied bindings through the common conversion, preserving
+source identity and dependencies before dependents. Render binding syntax
+once in the FAST-to-Rust serializer.
+
+The useful contracts of the current marked output survive the migration:
+keyword and initializer token kinds, import-use metadata, thunk typing,
+operation `?` handling, and equality of demarked and plain output.
+These do not require retaining the `scopeTagged` API or its graph traversal.
 
 If retained after the formatting-policy decision
 below, `skipFn(signature, lines)` — the `#[rustfmt::skip]` item wrapper —
@@ -66,29 +74,34 @@ below this printer.
 
 ### Tasks
 
-- [ ] `letBindings` in `fjs/edag/rust` with proofs; move `nanvm/rust`'s
-      named bindings onto it, keeping the item module's `indent`, which
-      both printers use.
-- [ ] Preserve `scopeTagged`'s temporary-binding marks and existing
-      `toRustMarked` proofs: `let` is a keyword, initializer strings,
-      numbers and literal words keep their kinds, the marked text equals
-      `toRust`'s plain text, and no words are left unmarked. Keep `scope`'s
-      lines equal to the untagged `scopeTagged` lines and preserve the
-      compiler demo's highlighting.
+- [ ] During the common FAST migration, carry the corpus's supplied named
+      bindings through the common conversion and render their declarations
+      through the same FAST-to-Rust serializer as compiler temporaries.
+      Retire the replaced EDAG-aware emission paths.
+- [ ] Adapt the existing `toRustMarked` proofs to the new serializer: `let`
+      remains a keyword, initializer literals keep their token kinds, no
+      words are left unmarked, and demarked output equals plain output.
+      Preserve import-use metadata, thunk typing, operation `?` handling
+      and the compiler demo's highlighting without retaining a separate
+      temporary-placement algorithm.
 - [ ] If retained after the formatting-policy decision, implement and
       prove `skipFn` in `fjs/media/rust/item`; the printers using the
       per-function wrapper import it from there.
-- [ ] `npm run gen`; `tsc`, `fjs test`; generated Rust unchanged.
+- [ ] Regenerate Rust and update output expectations to the common FAST
+      policy. Prove preserved sharing, supplied bindings, dependency order and
+      eager/lazy semantics; run the checks required by the implementation diff.
 
 ### Related
 
 - [`fjs/js/string_escape`](../../../js/string_escape/module.f.mjs)'s
   `stringLiteral` — the same principle for string literals, done; this is
   the item layer.
-- [`fjs/media/rust/item`](../../../media/rust/item/module.f.mjs) — owns
+- [`fjs/media/rust/item`](../../../media/rust/item/module.f.js) — owns
   `indent`, and the string-only `skipFn` wrapper if retained.
 - [generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
   — proposes the corpus stop emitting `#[rustfmt::skip]` per function, which
   `skipFn` would keep; see the open question above.
+- [Compiler vocabulary and modularization](../../../todo/compiler-vocabulary-and-modularization.md)
+  — the common FAST path and binding ownership that govern this migration.
 - [`../../todo/identity-shared-walks.md`](../../todo/identity-shared-walks.md) —
-  the walk that decides *which* nodes get a `let`.
+  existing shared traversal and its planned ownership.

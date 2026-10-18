@@ -1,4 +1,4 @@
-# Optional chaining
+## Optional chaining
 
 **Priority:** P2
 **Status:** open — required linked language-design approval is not recorded
@@ -20,7 +20,7 @@ below preserves the original motivation and design.
 export default (a) => [a?.b, a?.["b"], a?.(1), a?.b.c(2)];
 ```
 
-## Problem and proposal
+### Problem and proposal
 
 When this proposal was written, the compiler refused JavaScript's optional
 chaining, although about twenty `module.f.mjs` modules used it, most as the
@@ -52,7 +52,7 @@ that resolves names and judges keys, the lowering, and the FunctionalScript
 writer that spells a graph back as text. Those pieces are now implemented,
 as the proofs and completed tasks record.
 
-## Benefits and drawbacks
+### Benefits and drawbacks
 
 **Benefits.** The construct is JavaScript's, harmless, and in use
 ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)):
@@ -80,7 +80,7 @@ lowering makes it the method call, and a group around it is still nothing.
 it is read as `?.` today, and `a?.5:1` is refused either way until `.5` is a
 number.
 
-## Authorization and approval
+### Authorization and approval
 
 The language designer, `sergey-shandar`, asked in the session that produced
 this proposal: "Let's implement optional chaining. Including `?.`, `?.()`".
@@ -95,7 +95,7 @@ explicitly excluded language-design approval. #2660 merged with the approval
 task still unchecked. This chronology is not claimed compliant with the rule;
 neither the implementation request nor the merge supplies the missing record.
 
-## Tasks
+### Tasks
 
 - [x] The grammar's `access` takes `?.name`, `?.[key]` and `?.(args)`; the
       syntax reader folds a chain's steps into the EDAG's chain shapes and
@@ -116,7 +116,7 @@ neither the implementation request nor the merge supplies the missing record.
       `sergey-shandar`; if no such record exists, obtain and record the
       designer's resolution of this approval-process gap for the merged feature.
 
-## Related
+### Related
 
 - [`fjs/edag/README.md`, Chains](../../fjs/edag/README.md#chains) — the
   nodes, the steps, and why a group is a boundary.

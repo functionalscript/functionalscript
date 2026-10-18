@@ -1,7 +1,7 @@
 /**
  * The proof of the parser's reading of the static functions the language
- * admits, `Object.is` and the four `Number` predicates ([spec: built-in
- * static functions](../../../spec/built-ins/static-functions.md)):
+ * admits, `Object.is`, `Object.entries` and the four `Number` predicates
+ * ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)):
  * each a value, the AST's `['Object.is']`, in every spelling JavaScript
  * reads it in, and each namespace refused everywhere else. It reads the
  * parser as `./proof.f.mjs` does, through the helpers it exports.
@@ -94,6 +94,21 @@ export const proof = {
         ]) { expectRefused(source, 'reserved word', 16) }
         expectRefused('export default Object.isInteger;', 'reserved word', 16)
         expectRefused('const { foo } = Number; export default 1;', 'reserved word', 17)
+    },
+    // `Object.entries` is read as `Object.is` is, in every spelling and
+    // through destructuring, though `entries` is a prototype name: the
+    // namespace's own list admits it before the key rule, which still
+    // refuses the name over any value and under the other namespace.
+    entries: () => {
+        for (const source of ['Object.entries', 'Object["entries"]', 'Object?.entries', 'Object?.["entries"]']) {
+            expectModule(`export default ${source};`, exported('["Object.entries"]'))
+        }
+        expectModule('export default Object.entries({ a: 1 });', exported('["()",["Object.entries"],[["object",[[":","a",1]]]]]'))
+        expectModule('const { entries, "entries": e } = Object; export default [entries, e];',
+            '[[],[["Object.entries"],["Object.entries"],["object",[[":","default",["array",[["cref",0],["cref",1]]]]]]]]')
+        expectRefused('export default [].entries;', 'prohibited property name', 19)
+        expectRefused('const { entries } = []; export default entries;', 'prohibited property name', 9)
+        expectRefused('const { entries } = Number; export default 1;', 'prohibited property name', 9)
     },
     // Every namespace is a reserved global, so no scope binds the word a
     // static read is decided by.

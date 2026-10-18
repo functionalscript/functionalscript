@@ -28,7 +28,7 @@ mod tests {
     use crate::{
         naive::Naive,
         vm::{
-            Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject, error,
+            Any, IVm, Nullish, ToAny, ToArray, ToObject, error,
             unstable::{bigint_any, f64_any},
         },
     };

@@ -852,7 +852,7 @@ mod test {
     }
 
     fn thunk(code: nanvm_lib::vm::StaticCode<Naive>) -> V {
-        use nanvm_lib::vm::IStaticFunction;
+        use nanvm_lib::vm::IVm;
         Naive::static_function(code, 0, [].to_array(), None).to_any()
     }
 

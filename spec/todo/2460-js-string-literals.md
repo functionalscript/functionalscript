@@ -1,4 +1,4 @@
-# JS String Literals
+## JS String Literals
 
 **Priority:** P5
 **Status:** open — single quotes are in the language
@@ -27,7 +27,7 @@ value, each UTF-16 code unit, lone surrogates included, being reachable via
 `\uXXXX`. The first spelling is FunctionalScript's; the other three stay
 deferred.
 
-## Single quotes: the record
+### Single quotes: the record
 
 `sergey-shandar` approved the single-quote scope in
 [#2243](https://github.com/functionalscript/functionalscript/pull/2243#pullrequestreview-5309337958),
@@ -44,7 +44,7 @@ to add. DataJS's own grammar, `fjs/ebnf/lib/datajs`, did not change; whether
 it follows is its own decision, which the deferral note below calls
 "DJS-level sugar".
 
-## Deferred: the other spellings
+### Deferred: the other spellings
 
 The extra escapes, raw control characters and line continuations stay deferred
 at the lowest priority. They are alternative spellings of values JSON already
@@ -80,7 +80,7 @@ take the first of those.
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#string_literals>
 
-## Tasks
+### Tasks
 
 - [ ] Admit the other escapes, raw control characters or line continuations
       only when a measured need appears, through the lexing issue's

@@ -5,7 +5,7 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, Object, ToAny, ToArray
 
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| Any::entry(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
+    let c0: Any<A> = A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
     let c1: Any<A> = [(string_key("x"), f64_any(0x3ff0000000000000)), (string_key("length"), f64_any(0x4008000000000000))].to_object().to_any();
     let c2: Any<A> = Any::call(c0.clone(), [c1.clone(), string_any("x")].to_array().to_any())?;
     let c3: Any<A> = Any::call(c0.clone(), [c1.clone(), string_any("length")].to_array().to_any())?;

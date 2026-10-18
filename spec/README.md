@@ -91,7 +91,7 @@ output; the others say under *Examples* that theirs are still to come
 | Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
 | Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `let`/`while` loops over one variable, `return`, `throw`, ordinary and method calls |
-| Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](./built-ins/member-functions.md)); `Object.is` and the `Number` predicates `isInteger`, `isSafeInteger`, `isNaN`, `isFinite` ([static functions](./built-ins/static-functions.md)) |
+| Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](./built-ins/member-functions.md)); `Object.is`, `Object.entries` and the `Number` predicates `isInteger`, `isSafeInteger`, `isNaN`, `isFinite` ([static functions](./built-ins/static-functions.md)) |
 | Compiler | JSON/DataJS evaluation; FunctionalScript, EDAG and Rust graph output; import linking and the authored `.f.js` check |
 
 The sections below give the restrictions and executor-specific limits for
@@ -105,8 +105,9 @@ language.
 ## Roadmap
 
 Unimplemented language features and remaining design work — ECMAScript
-proposals, I/O effects, the content-addressable VM, object identity,
-mutability and serialization — are tracked in [`spec/todo/`](./todo/README.md).
+proposals and the like — are tracked in [`spec/todo/`](./todo/README.md). The
+designs for I/O effects, the content-addressable VM, object identity,
+mutability and serialization are in [`spec/design/`](./design/README.md).
 Implemented behavior belongs in this document; a design record may remain
 open for approval, proofs or follow-up work after its syntax has landed.
 

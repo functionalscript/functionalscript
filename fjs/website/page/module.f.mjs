@@ -489,6 +489,24 @@ const breadcrumbs = path => [
 ]
 
 /**
+ * The page's heading: a link to each ancestor of `path`, root first, then
+ * `name`, the page itself, as text.
+ *
+ * **The breadcrumb is the heading.** A breadcrumb above a heading repeated
+ * the page's path twice; one line now says where the reader is, and it is
+ * still the `h1` that a screen reader's heading list and a search engine
+ * take the page's topic from.
+ *
+ * @type {(path: string) => (name: string) => Element}
+ */
+export const breadcrumb = path => name => ['nav', { 'aria-label': 'Breadcrumb' }, ['h1',
+    ...toArray(intersperse(/** @type {Node} */ (' / '))([
+        ...breadcrumbs(path).map(([href, text]) => /** @type {Node} */ (['a', { href: pageHref(href) }, text])),
+        /** @type {Node} */ (['span', { 'aria-current': 'page' }, name]),
+    ])),
+]]
+
+/**
  * The branch the published site is built from. Every other branch's build is
  * a preview.
  *
@@ -619,9 +637,7 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  * @type {(build: Build) => (dir: Dir) => string}
  */
 export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryLayout(build)(dir)(testsMain(
-    ['nav', ...toArray(intersperse(' / ')(breadcrumbs(dir.path).map(([path, name]) =>
-        /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
-    ['h1', dir.path],
+    breadcrumb(dir.path)(basename(dir.path)),
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
     ...(dir.demo === null ? [] : demoSection(dir.demo)),

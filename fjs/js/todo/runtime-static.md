@@ -178,11 +178,11 @@ and a call calls the body with the arguments. A path with neither is the
 executor's error, not the module's: the parser admitted it, so an executor
 given no runtime, or one without the body, reports a missing binding the
 way the transpiler reports a package without a runtime (`no runtime
-export`), never a `TypeError` and never a plausible value. NaNVM gains
-`IVm::runtime_static(path)` beside `runtime_method`, which `naive` answers
-by walking the compiled object's `static` section; the Rust backend emits
-the lookup for the node; and a body bound this way is exactly the
-non-capturing function
+export`), never a `TypeError` and never a plausible value. NaNVM's
+runtime is static: a static function per body, with an accessor the Rust
+backend reads the node as
+([`fjs/js/runtime/README.md`](../runtime/README.md), "How NaNVM finds
+it"); and a body bound this way is exactly the non-capturing function
 [`callable-function-objects.md`](../../../nanvm/lib/todo/callable-function-objects.md)'s
 `static function` tag anticipates. The native static table, if NaNVM keeps
 one, is an enumerable Rust array of paths like the member tables, and the
@@ -271,10 +271,13 @@ this proposal does not take.
       executors resolve a `static` node from the runtime, through
       `functionAt`, and fail naming the path without a binding; function
       text spells the node as the source calls it.
-- [x] NaNVM: `IVm::runtime_static` and `static_binding`, which fails
-      naming the path as the interpreter does; the Rust backend emits the
-      lookup; the completeness test checks every admitted path is bound.
-      NaNVM keeps no native static table, so there is no reverse walk.
+- [x] NaNVM: a static function is a built-in of the compiled runtime,
+      which the Rust backend reads by its accessor, `object_is::<A>()`, so
+      a path without a binding does not compile; the completeness test
+      checks the admitted paths and the compiled table agree. NaNVM keeps
+      no native static table, so there is no reverse walk;
+      `Object.entries`, its one native, is a built-in written by hand and
+      listed in the compiled table beside the bodies.
 - [x] The node is a value, `['Object.is']`, an `op0`, in place of
       `['static', path]`: the schema, the analysis, the executors, the
       Rust backend and function text; the analysis's path and placement
@@ -315,6 +318,28 @@ this proposal does not take.
       the host's on every pair of a list spanning every type.
 - [ ] Decide the global `isNaN` and `isFinite` there, which convert their
       argument as the `Number` predicates do not.
+- [x] Admit `Object.entries`, decided in `2360-built-in.md`, the first
+      static with no body: its path in `statics`, the node
+      `['Object.entries']`, answered natively by the represented
+      interpreter, as a function value of its own, and by NaNVM, as a
+      built-in written by hand and identified by its name, which nothing
+      creates or holds;
+      `const { entries } = Object` admitted over the prototype-name rule;
+      the spec, the docs that say the language enumerates no keys, and a
+      harness fixture.
+- [x] Give every runtime function the text ECMA-262 requires of a
+      built-in, a NativeFunction naming its [[InitialName]] with no
+      parameters — `function is() { [native code] }`,
+      `function isInteger() { [native code] }` — as `Object.entries`
+      answers `function entries() { [native code] }`, in place of its
+      body's EDAG text, in the interpreter and NaNVM alike: a runtime
+      function is the built-in, not its body (**sergey-shandar**, in the
+      `Object.entries` session). Done: in the represented interpreter a
+      static function's value is the static node, `['Object.is']`, the
+      built-in by its name — `===` compares the names, `String` spells
+      `staticText`, and the body the runtime holds at its path answers
+      the call and the `length`; on NaNVM `Function::text` forms the text
+      from the descriptor's name, and no descriptor carries one.
 
 ### Related
 

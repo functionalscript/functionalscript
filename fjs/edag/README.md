@@ -106,7 +106,9 @@ admission. Memo connects these reads to chains and to the helper's calls;
 [`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
 represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
 [`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
-objects, arrays and functions, using the shared function-text renderer in both interpreters.
+objects, arrays and functions, using the shared function-text renderer in both
+interpreters; a static function, the built-in and not its body, answers the
+NativeFunction text of its name.
 [`compiler/transpiler.interpret`](../compiler/transpiler/module.f.mjs) uses memo
 to evaluate each module with represented dependency exports. The AST value
 evaluator is retired; both FJS EDAG VMs and compiler initialization use this
@@ -312,7 +314,7 @@ vocabularies.
 | `['rest']` | the invocation's rest array, after the fixed prefix |
 | `['self']` | the owning function itself, as a value, the same every read: recursion is `['()', ['self'], args]`, and a nested function captures its parent's `self` as a slot |
 | `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a` |
-| `['Object.is']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the function the runtime's `static` section holds at the path [`fjs/js/static`](../js/static/module.f.js) admits it under, `['Object', 'is']`, capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`. One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same value. An executor with no binding for it fails rather than answer |
+| `['Object.is']`, `['Object.entries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` section holds at the path [`fjs/js/static`](../js/static/module.f.js) admits it under, `['Object', 'is']` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.mjs)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |

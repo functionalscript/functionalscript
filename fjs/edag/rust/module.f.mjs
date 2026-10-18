@@ -48,10 +48,10 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
-import { indent } from '../../media/rust/item/module.f.mjs'
+import { builtInIdentifier, f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
+import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { isStatic, staticPath } from '../module.f.mjs'
+import { isStatic } from '../module.f.mjs'
 import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, visit } from '../sharing/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
@@ -304,12 +304,13 @@ const stringCall = name => v => {
 
 /**
  * Fixed argument `k` of the function being called, read from the `args`
- * parameter of the closure {@link closure} prints: `undefined` past the end
- * of a short call, as JavaScript binds a missing argument.
+ * parameter of the closure {@link closure} prints: `nanvm-lib`'s
+ * `Array::argument`, `undefined` past the end of a short call, as
+ * JavaScript binds a missing argument — one bounds check and one clone.
  *
  * @type {(k: number) => Printed<string>}
  */
-const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(${num(`${k}`)})`}.unwrap_or_else(|| `, undefinedAny, ')'])
+const argRead = k => cat(['args.argument(', num(`${k}`), ')'])
 
 /**
  * Slot `i` of the frame the function was built with, read through the
@@ -321,6 +322,26 @@ const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(
  * @type {(i: number) => Result<Printed<string>, readonly unknown[]>}
  */
 const frameRead = i => plain(`A::frame(self_)[${num(`${i}`)}].clone()`)
+
+/**
+ * The function itself, as a value: the closure's `self_` parameter wrapped
+ * as the `Function` it is, an `Rc`-cheap clone of the one value every read
+ * of `self` is — the identity JavaScript gives a function for its lifetime,
+ * which `nanvm/lib/todo/callable-function-objects.md` asks for by
+ * threading that handle rather than rebuilding one.
+ *
+ * @type {() => Result<Printed<string>, readonly unknown[]>}
+ */
+const selfRead = () => ok(cat([vm('Function'), '::new(self_.clone())', toAny]))
+
+/**
+ * An atom as a value: `undefined`, or a primitive's literal. What a frame
+ * slot resolved at compile time prints as, in the static runtime
+ * (`fjs/compiler/rust/runtime`).
+ *
+ * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
+ */
+export const atomExpr = e => e instanceof Array ? ok(undefinedAny) : primitiveExpr(e)
 
 /**
  * The `mut` of a loop's variable, and none where the next value is the
@@ -485,11 +506,12 @@ const hasSpread = items => items.some(x => x instanceof Array && x[0] === '...')
  * `true` for a node that prints through an operation's `nanvm-lib` call,
  * answering a `Result`: a `.` read, a call, an operator node, or an array
  * holding a spread — every node but the value shapes, which construct an
- * `Any` directly.
+ * `Any` directly, and a static function, a built-in the runtime holds,
+ * whose read cannot fail.
  *
  * @type {(e: Exp) => boolean}
  */
-const isOperation = e => e instanceof Array
+const isOperation = e => e instanceof Array && !isStatic(e)
     && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', 'entry', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
         || (e[0] === '[]' && hasSpread(/** @type {readonly unknown[]} */ (e[1]))))
 
@@ -505,11 +527,13 @@ const last = e => {
 
 /**
  * The line binding a function's rest parameters, the arguments after its
- * `length` fixed ones, as the `Array<A>` a `['rest']` read clones.
+ * `length` fixed ones, as the `Array<A>` a `['rest']` read clones:
+ * `nanvm-lib`'s `Array::rest`, the arguments themselves after no fixed
+ * ones, a new array of the ones past `length` otherwise.
  *
  * @type {(length: number) => Printed<string>}
  */
-const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${num(`${length}`)})`}`, toArray, ';'])
+export const restLine = length => cat([`${kw('let')} rest = args.rest(`, num(`${length}`), ');'])
 
 /**
  * The printer for the EDAG under `root`, or the refusal of a shape this
@@ -584,14 +608,16 @@ const restLine = length => cat([`${kw('let')} rest = args.clone().into_iter()${l
  * holds one by another name: a loop's state, the variable of a `loop`
  * ({@link loopLines}); `frame` a slot's read, {@link frameRead} unless
  * the scope around holds the slot by a name of its own, a loop in place
- * ({@link loopInPlace}); and `base` is the number the first temporary
+ * ({@link loopInPlace}); `base` is the number the first temporary
  * takes, `c0` for a scope of its own and the next free number for a
  * loop's round, a block inside the scope around it, whose names a round
- * must not shadow.
+ * must not shadow; and `self_` prints a read of the function itself,
+ * {@link selfRead} unless the scope holds the function by a name of its
+ * own, a static runtime's item ({@link statementsWith}).
  *
- * @type {(nested: boolean, arg?: (k: number) => Printed<string>, frame?: (i: number) => Result<Printed<string>, readonly unknown[]>, base?: number) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
+ * @type {(nested: boolean, arg?: (k: number) => Printed<string>, frame?: (i: number) => Result<Printed<string>, readonly unknown[]>, base?: number, self_?: () => Result<Printed<string>, readonly unknown[]>) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
  */
-const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared => root => {
+const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = selfRead) => shared => root => {
     /** @type {(e: Exp) => boolean} */
     const isBound = e => shared.some(([n]) => n === e)
     /**
@@ -837,6 +863,17 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
     const node = e => {
         const [id, a, b, c] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return ok(undefinedAny) }
+        // A static function as a value: the built-in's accessor,
+        // `object_is::<A>()` for `Object.is`, its descriptor wrapped as the
+        // `Function` it is — a static function of the compiled runtime,
+        // one function by its name however often it is read, which is the
+        // identity JavaScript gives a built-in (`fjs/js/runtime/README.md`,
+        // "How NaNVM finds it"). A value, not an operation: the parser
+        // admitted the name and the runtime defines it, so a module naming
+        // a static the runtime lacks does not compile, where nothing fails
+        // when it runs. The accessor is an item of `nanvm_lib::vm`, spelled
+        // by `builtInIdentifier`.
+        if (isStatic(e)) { return ok(cat([vm('Function'), '::from(', vm(builtInIdentifier(id)), '::<A>())', toAny])) }
         // The arguments a function was called with: the `args` parameter of
         // the closure {@link closure} prints, an `Array<A>` — as a value, an
         // `Rc`-cheap clone of it. An indexed read, `a[0]` or `a.length`, is
@@ -857,12 +894,10 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
         // Slot `i` of the frame the function was built with, `frame`:
         // {@link frameRead} unless the scope is a loop in place's round.
         if (id === 'frame') { return frame(a) }
-        // The function itself, as a value: the closure's `self_` parameter
-        // wrapped as the `Function` it is, an `Rc`-cheap clone of the one
-        // value every read of `self` is — the identity JavaScript gives a
-        // function for its lifetime, which `nanvm/lib/todo/callable-function-objects.md`
-        // asks for by threading that handle rather than rebuilding one.
-        if (id === 'self') { return ok(cat([vm('Function'), '::new(self_.clone())', toAny])) }
+        // The function itself, as a value: {@link selfRead}, unless the
+        // scope holds the function by a name of its own, a static runtime's
+        // item.
+        if (id === 'self') { return self_() }
         if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }
         if (id === '{}') {
             // The corpus's bare expression has no Result-returning scope
@@ -1047,13 +1082,6 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      */
     const bare = e => {
         const [id, a, b, c] = e
-        // A static function as a value: `nanvm-lib`'s `static_binding`,
-        // the VM's binding for its path — `IVm::runtime_static`, the
-        // compiled runtime's body — or the failure naming it, a `Result`
-        // as every operation's is, here where a block answers it as well
-        // as where a `let` reads it. A path's keys are identifiers, so
-        // each is its own `&str` literal.
-        if (isStatic(e)) { return ok(cat([vm('static_binding'), `::<A>(&[${staticPath(e[0]).map(key => `"${key}"`).join(', ')}])`])) }
         // A chain: the node's entry point, then its continuation's steps,
         // then the exit — `Any::dot(a, key).end()` for a bare `a.b`, one
         // spelling whether or not a continuation follows. What the read
@@ -1224,7 +1252,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0) => shared =
      *
      * @type {(n: Exp) => (s: string) => string}
      */
-    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' || isStatic(n) ? `${s}?` : `(${s})?`
+    const checked = n => s => isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`
     /**
      * The `Result` an argument list's thunk answers: the array it builds,
      * `Ok(…)`, or `spread_array`'s own, which may throw, where it holds a
@@ -1384,6 +1412,35 @@ export const readsFrame = root => reads('frame')(root)
 export const readsSelf = root => reads('self')(root)
 
 /**
+ * The same, for `['rest']`: whether a scope reads the arguments past its
+ * fixed ones, which {@link restLine} binds.
+ *
+ * @type {(root: Exp) => boolean}
+ */
+export const readsRest = root => reads('rest')(root)
+
+/**
+ * Whether a scope reads its arguments beyond the first: the list,
+ * `['args']`, the rest, `['rest']`, or a fixed argument past the first,
+ * `['arg', k]` with `k > 0` — what a function of one argument, a member
+ * body of the static runtime over its receiver, has no spelling for.
+ *
+ * @type {(root: Exp) => boolean}
+ */
+export const readsBeyondFirst = root => reads('args')(root) || reads('rest')(root)
+    || visit(operandsOf)([])(root).some(([node]) => tagOf(node) === 'arg' && /** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[1] !== 0)
+
+/**
+ * The read of fixed argument `k` of a scope holding its first argument by
+ * a name of its own, `self_` for a member body of the static runtime,
+ * {@link statementsWith}: the name's clone for `k === 0`, and
+ * {@link argRead} otherwise.
+ *
+ * @type {(name: string) => (k: number) => Printed<string>}
+ */
+export const argNamed = name => k => k === 0 ? code(`${name}.clone()`) : argRead(k)
+
+/**
  * The indices a scope reads of its frame, one per distinct `['frame', i]`
  * node, a nested function's body left out as in {@link readsFrame}.
  *
@@ -1489,6 +1546,22 @@ export const eagerNodesOf = root => reach([], root)
  * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
 const blockOf = shared => root => okThen(p => p.block(root))(printer(false)(shared)(root))
+
+/**
+ * The statements of a function's body whose frame and self the scope
+ * around it resolves: `frame` prints slot `i`, and `self_` the function
+ * itself, where a closure would read `A::frame(self_)[i]` and wrap
+ * `self_`. The static runtime's items (`fjs/compiler/rust/runtime`), whose
+ * slots are module-level values resolved at compile time and whose self is
+ * the item by name; `arg` prints a fixed argument's read, {@link argRead}
+ * unless the scope holds the first by a name of its own, a member body's
+ * receiver ({@link argNamed}). Tagged lines with the names they spell, as
+ * {@link scopeTagged}'s.
+ *
+ * @type {(frame: (i: number) => Result<Printed<string>, readonly unknown[]>, self_: () => Result<Printed<string>, readonly unknown[]>, arg?: (k: number) => Printed<string>) => (root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ */
+export const statementsWith = (frame, self_, arg = argRead) => root => mapOk((/** @type {Printed<readonly string[]>} */ [s, uses]) =>
+    /** @type {Printed<readonly string[]>} */ ([lines(s), uses]))(okThen(p => p.block(root))(printer(false, arg, frame, 0, self_)([])(root)))
 
 /**
  * The statements of one scope over the caller's own bindings — a corpus

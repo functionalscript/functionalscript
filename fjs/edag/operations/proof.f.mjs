@@ -9,9 +9,10 @@
  */
 
 import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { noStatic, operation } from './module.f.mjs'
-import { staticIds } from '../module.f.mjs'
-import { invoke, vm } from '../amnesia/module.f.mjs'
+import { operation } from './module.f.mjs'
+import { noStatic, staticIds, staticPath } from '../module.f.mjs'
+import { isNative } from '../../js/static/module.f.js'
+import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
 import { settle } from '../value/call/module.f.mjs'
 
 /** @type {Context} */
@@ -128,20 +129,45 @@ export const proof = {
         failure(['()', ['entry'], [null, 'a']])
         failure(['.', null, 'a', ['|()', []]])
     },
-    // A static function is the body the runtime's `static` section holds
-    // at its path, a value whether called or not; with no runtime, or none
-    // at the path, the dispatcher fails naming it — every static alike.
+    // A static function is a value whether called or not, the node, one
+    // function by its name; the body the runtime's `static` section holds
+    // at its path answers its call, with the static as the body's `self`,
+    // and its `length`, and its text is its name's. With no runtime, or
+    // none at the path, the dispatcher fails naming it at the read — every
+    // static with a body alike — and the invoker at the call.
     objectIs: () => {
         failure(['()', ['Object.is'], [1, 1]], noStatic('Object.is'))
         failure(['Object.is'], 'no binding for the static Object.is')
-        for (const id of staticIds) { failure([id], noStatic(id)) }
+        for (const id of staticIds.filter(id => !isNative(staticPath(id)))) { failure([id], noStatic(id)) }
         /** @type {Context} */
         const withRuntime = {
             ...context,
-            runtime: ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]],
+            runtime: ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['[]', [['===', ['arg', 0], ['arg', 1]], ['self'], ['rest']]]]]]]]]]]]],
         }
-        const bound = operation({ ...evaluator, context: withRuntime, operand: (e, state) => [[...state, e], vm(withRuntime)(e)] })
-        assertStructurallySame(settle(invoke)(bound(['()', ['Object.is'], ['a', 'a']], [])[1]), ['ok', true])
+        const invokeBound = invokeWith(withRuntime.runtime)
+        const bound = operation({ ...evaluator, context: withRuntime, invoke: invokeBound, operand: (e, state) => [[...state, e], vm(withRuntime)(e)] })
+        /** @type {(e: ExpOp, expected: EdagValue) => void} */
+        const boundEq = (e, expected) => { assertStructurallySame(settle(invokeBound)(bound(e, [])[1]), ['ok', expected]) }
+        boundEq(['()', ['Object.is'], ['a', 'a', 'b']], ['[]', [true, ['Object.is'], ['[]', ['b']]]])
+        boundEq(['Object.is'], ['Object.is'])
+        boundEq(['.', ['Object.is'], 'length'], 2)
+        boundEq(['.', ['Object.is'], 'name'], ['undefined'])
+        boundEq(['String', ['Object.is']], 'function is() { [native code] }')
+        boundEq(['===', ['Object.is'], ['Object.is']], true)
+        // the static read, bound; its call, through an invoker without the
+        // runtime, is the same failure
+        assertStructurallySame(settle(invoke)(bound(['()', ['Object.is'], ['a', 'a']], [])[1]), ['error', noStatic('Object.is')])
+    },
+    // `Object.entries` is the dispatcher's own, with no runtime: a static
+    // like every other, called natively on its first argument.
+    objectEntries: () => {
+        eq(['Object.entries'], ['Object.entries'])
+        eq(['===', ['Object.entries'], ['Object.entries']], true)
+        eq(['()', ['Object.entries'], [['{}', [[':', 'b', 1], [':', '0', 2]]]]], ['[]', [['[]', ['0', 2]], ['[]', ['b', 1]]]])
+        eq(['.', ['Object.entries'], 'length'], 1)
+        eq(['String', ['Object.entries']], 'function entries() { [native code] }')
+        failure(['()', ['Object.entries'], [null]])
+        failure(['()', ['Object.entries'], []])
     },
     calls: () => {
         const at = /** @type {const} */ (['[]', [42]])

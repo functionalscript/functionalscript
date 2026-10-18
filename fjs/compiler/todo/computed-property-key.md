@@ -33,9 +33,9 @@ The key is immutable data in the language, so the construct is harmless
 `{ [a]: 5 }` is `{ 0: 5 }` whenever `a` is `0`, whichever way it is
 spelled. Refusing it forces the code to spell the key twice — once where
 it is defined and once at every literal that uses it — which is what
-[`website/demo/code`](../../website/demo/code/module.f.mjs)'s
-`{ [codeMarker]: '' }` avoids, and why that leaf stays outside the compiled
-language ([fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md)).
+[`website/demo/code`](../../website/demo/code/module.f.js)'s
+`{ [codeMarker]: '' }` avoids; that leaf compiles now and is an `.f.js`
+([fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point)).
 
 What the key becomes is already decided below the compiler. EDAG's
 `Property` takes any expression as its key
@@ -138,7 +138,7 @@ key folds to the constant spelling.
 - [spec roadmap](../../../spec/todo/README.md) — "computed property key
   from an expression" and "property key as number".
 - [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md) — the
-  `website/demo/code` leaf waits on this.
+  `website/demo/code` leaf waited on this, and is converted.
 - [PR 2826](https://github.com/functionalscript/functionalscript/pull/2826)
   — rewrote the leaves' computed reads and noted the object-literal key has
   no spelling the language accepts.

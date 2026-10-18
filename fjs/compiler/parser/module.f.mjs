@@ -522,10 +522,11 @@ const pushed = (stack, item) => ({ top: item, rest: stack })
  * and each of its properties reads the member its key names, the static
  * function itself, {@link staticMember}, as the access `Object.is` does —
  * so `const { is } = Object` makes the one entry `const is = Object.is`
- * makes, and a key the namespace does not admit is refused at the word,
- * as `Object.keys` is — once {@link checkedKey} has passed it, so a key
- * that is a prototype name, `keys` or `toString`, is refused first, at
- * the key, as in any pattern.
+ * makes, and `const { entries } = Object` reads `Object.entries`, though
+ * `entries` is a prototype name, {@link propertySource}. A key the
+ * namespace does not admit is refused as in any pattern where it is a
+ * prototype name, `keys` or `toString`, at the key, and at the word
+ * otherwise, as `Object.keys` is.
  *
  * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
@@ -550,9 +551,7 @@ const planned = check => (target, namespace) => {
             if (property instanceof Array) { return error(restTarget(property[1])) }
             const { key, target: element } = property
             if (key instanceof Array) { return error(computedPatternKey(key[2])) }
-            const [tag, named] = checkedKey(key, false)
-            if (tag === 'error') { return error(named) }
-            const [found, source] = propertySource(parent, named)
+            const [found, source] = propertySource(parent, key)
             if (found === 'error') { return error(source) }
             pending = pushed(pending, { target: element, source })
         } else if ('element' in item) {
@@ -602,17 +601,23 @@ const planned = check => (target, namespace) => {
 }
 
 /**
- * Where a property of an object pattern reads from: the key of the entry
- * its pattern's source is, or, over a namespace, the member the key names,
- * {@link staticMember} — a key the namespace does not admit refused at the
- * word, as `Object.keys` is.
+ * Where a property of an object pattern reads from, or its refusal: the key
+ * of the entry its pattern's source is, checked as an access's key is,
+ * {@link checkedKey}; or, over a namespace, the member the key names,
+ * {@link staticMember}, which the namespace's own list admits before any
+ * key rule, as the access `Object.entries` is read — so `entries`, a
+ * prototype name, reads its static — and a key it does not admit is
+ * refused as the access refuses it: a prototype name at the key, and any
+ * other at the word, as `Object.keys` is.
  *
- * @type {(parent: number | DjsTokenWithMetadata, named: string | number) => Result<_Source, ParseError>}
+ * @type {(parent: number | DjsTokenWithMetadata, key: DjsTokenWithMetadata) => Result<_Source, ParseError>}
  */
-const propertySource = (parent, named) => {
-    if (typeof parent === 'number') { return ok([parent, named]) }
-    const member = staticMember(nameOf(parent), named)
-    return member === null ? error(reservedWord(parent)) : ok(member)
+const propertySource = (parent, key) => {
+    const member = typeof parent === 'number' ? null : staticMember(nameOf(parent), keyNamed(key))
+    if (member !== null) { return ok(member) }
+    const [tag, named] = checkedKey(key, false)
+    if (tag === 'error') { return error(named) }
+    return typeof parent === 'number' ? ok([parent, named]) : error(reservedWord(parent))
 }
 
 /**

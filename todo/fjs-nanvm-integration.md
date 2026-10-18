@@ -144,6 +144,100 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured at `3e1d1a09`, the head of `main` after
+[#2980](https://github.com/functionalscript/functionalscript/pull/2980)
+converted the specification into a tree of pages. A leaf is as defined in
+the `5dcd94b` audit below, and the leaves were rediscovered as the `0c9ddf8`
+table below says: every authored non-proof module loaded through Node with a
+resolve hook recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 5 | `media/rust/item`, `website/demo/code` |
+| 2 | 3 | None: every remaining leaf is refused |
+
+There are five leaves where the `0c9ddf8` table left six, because two of
+its rows are no longer leaves and one leaf is new. `nanvm/methods` imports
+`media/rust`'s `stringLiteral` since
+[#2951](https://github.com/functionalscript/functionalscript/pull/2951), and
+`website/browser-source` imports `path/import`'s `specifierKind` since
+[#2954](https://github.com/functionalscript/functionalscript/pull/2954):
+each now waits on an `.f.mjs` it imports, whatever it refuses itself.
+`media/rust/item`, split out of the Rust generators in #2951, imports only
+`types/result`, an `.f.js`, and compiles whole. `website/demo/code`
+compiles whole since
+[#2963](https://github.com/functionalscript/functionalscript/pull/2963)
+admitted default parameters
+([spec: parameters](../spec/functions/parameters.md)), its one refusal.
+
+Both are converted with only their extension and their references changed,
+and each proof stays `proof.f.mjs`. `media/rust/item`'s six importers are
+`compiler/rust`, `edag/rust`, `nanvm/commands`, `nanvm/harness`,
+`nanvm/methods` and `nanvm/rust`, and it is linked from `media/rust` and
+from `edag/rust`'s
+[let-bindings `todo/`](../fjs/edag/rust/todo/let-bindings-owner.md).
+`website/demo/code`'s nine importers are the `compiler`, `crypto/hmac`,
+`crypto/pow`, `crypto/secp`, `crypto/sign` and `crypto/vdf` demos,
+`website/cli`, `website/demo/hash` and `website/demo/highlight`, and it is
+linked from [`fjs/website/README.md`](../fjs/website/README.md), the
+[computed-property-key `todo/`](../fjs/compiler/todo/computed-property-key.md)
+and the
+[default-parameters proposal](../spec/todo/3125-default-parameters.md),
+whose task to convert it and rerun this migration is ticked.
+
+Every importer of the two still imports another `.f.mjs`, so neither rename
+exposes a new leaf. The nearest is `nanvm/methods`, which now waits on
+`media/rust` alone, and `media/rust` waits on `types/list` and `text/utf16`.
+The second pass checks the three leaves the first refused, against the same
+compiler, and converts none.
+
+The authored `.f.js` population under `fjs/` grows from 32 to 34, and
+`npm start compile` checks 51: those 34, the specification's six DataJS
+vectors, and the eleven per-area example modules #2980 added under `spec/`.
+
+The three remaining rows were measured again on scratch copies at this
+head. `types/map` and `types/object/structurally_same` are unchanged.
+`types/list` adds what the `0c9ddf8` row did not reach behind a construct it
+had removed whole: in `iterable`, a bare `return` guard inside the loop and
+the body that ends at `while (true)`, behind the generator; in `last`, the
+body that ends at `while (true)`, behind its guard; and in `tryFold`, a
+`return` guard inside the `for…of`.
+
+Each row is the first actual refusal from the `resolve()` pipeline, and
+the last column what else the compiler does not accept in the module. The
+last column was measured, not read: each refusal was removed on a scratch
+copy, in turn, until the copy was accepted, so a construct is listed only
+where the compiler reported it. Locations are `line:column`; paths are
+relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
+| `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | `const { entries } = Object`: `entries` is a prohibited property name, `Array.prototype`'s, and spelled `Object.entries` it is refused at `Object`, whose one admitted member is `is`; the language enumerates no keys |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['types/list', 'types/map', 'types/object/structurally_same'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `0c9ddf8` (historical)
+
 Measured at `0c9ddf8`, the head of `main` at the 0.56.0 release. A leaf is
 as defined in the `5dcd94b` audit below, and the embedded-proof fixture is
 `example.f.js`, converted, so there is none to report separately. The leaves
@@ -190,8 +284,11 @@ runtime.
 deleted `types/object/is`, and the compiler accepts the call; its first
 refusal is the one before. Behind it, the `e40fa58` row read the `Object`
 global as the prohibited property name in `const { entries } = Object`; the
-compiler names the key, `entries`, which a pattern refuses before it reads
-the namespace ([spec: destructuring](../spec/bindings/destructuring.md)).
+compiler then named the key, `entries`, which a pattern refused before it
+read the namespace. Since `Object.entries` was admitted
+([2360](../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)),
+the namespace's list decides first, and a copy with `new Map` replaced
+compiles whole, measured after the table's commit.
 `types/list` adds what the earlier row did not reach in `next`: its two
 `return` guards inside the loop and the body that ends at `while (true)`.
 
@@ -207,7 +304,7 @@ relative to `fjs/`.
 | `nanvm/methods/module.f.mjs` | 115:20 | `Object.values` in `rows` | Nothing: the one refusal |
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; the generator, `Symbol` and `yield` in `iterable`; a `return` guard inside the loop in `last`; `for…of` in `tryFold`; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
-| `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | `const { entries } = Object`: `entries` is a prohibited property name, `Array.prototype`'s, and spelled `Object.entries` it is refused at `Object`, whose one admitted member is `is`; the language enumerates no keys |
+| `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | Nothing: the one refusal, since `Object.entries` is admitted, `const { entries } = Object` with it |
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | All in `read`: two loop variables and a `let` inside the loop, `continue`, `+=`, nested loops, and an `if` whose body neither returns nor throws |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | Nothing: the one refusal |
 

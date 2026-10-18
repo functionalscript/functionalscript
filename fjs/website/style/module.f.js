@@ -109,6 +109,12 @@ export const mirrorMarker = 'data-mirror'
  */
 export const resultMarker = 'data-result'
 
+/** The attribute of a verdict word inside a caption — `ok` or `error` —
+ * coloured as the result block under it is tinted.
+ * @type {string}
+ */
+export const verdictMarker = 'data-verdict'
+
 /** The attribute shared by the PoW verdict row and its layout rules.
  * @type {string}
  */
@@ -561,14 +567,11 @@ svg text { font: inherit }
    crosses a box — the layout routes one that skips a rank across a lane
    of its own — so a line needs no casing to stand out from a border it
    passes.
-   A graph is not text, so the page's reading width does not bind it: its
-   container is as wide as the drawing, never narrower than the text column
-   and never wider than the window, and centred on the page. Only a graph
-   wider than the window scrolls, sideways in its own container, so the page
-   around it stays still. The 3rem kept from the window's width leaves a
-   margin either side, and room for a vertical scroll bar, which 100vw
-   counts. */
-[data-graph] { overflow-x: auto; width: max-content; min-width: 100%; max-width: calc(100vw - 3rem); position: relative; left: 50%; transform: translateX(-50%) }
+   A graph stays inside the column of the block that holds it, so it never
+   spreads over the catalogue beside the page. A graph wider than its
+   column scrolls, sideways in its own container, so the page around it
+   stays still. */
+[data-graph] { overflow-x: auto }
 [data-graph] > svg { display: block }
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 [data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
@@ -701,6 +704,16 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 }
 [${resultMarker}="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
 [${resultMarker}="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
+/* A result that holds code — the rtti demo's answers — keeps the verdict's
+   tint and border and adds an edge in its colour, while its text takes the
+   text colour, so the token colours inside read as code and green is not
+   both "accepted" and "string". The caption's verdict word carries the
+   colour too. */
+[${codeMarker}][${resultMarker}] { color: var(--text) }
+[${codeMarker}][${resultMarker}="ok"] { border-left: 4px solid var(--pass) }
+[${codeMarker}][${resultMarker}="error"] { border-left: 4px solid var(--fail) }
+[${verdictMarker}="ok"] { color: var(--pass) }
+[${verdictMarker}="error"] { color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows
    every block, one above another, each a button with a radio dot. The one
    picked is outlined and tinted in the value colour with its dot filled; the
@@ -712,6 +725,8 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-pick-dot] { border: 2px solid var(--muted); border-radius: 50%; flex: none; height: .95rem; margin-top: .2rem; width: .95rem }
 [aria-pressed="true"] > [data-pick-dot] { background: var(--value); border-color: var(--value); box-shadow: inset 0 0 0 2px var(--value-bg) }
 [data-pick-code] { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap }
+/* The schema not picked keeps receding: its tokens take its muted colour. */
+[data-pick] > button[aria-pressed="false"]:not(:hover) [data-token] { color: inherit }
 /* Syntax highlighting inside a code block, from website/demo/highlight:
    the token classes only: punctuation and blanks keep the text colour. */
 [data-token="keyword"], [data-token="literal"] { color: var(--value) }

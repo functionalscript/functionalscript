@@ -22,7 +22,11 @@ What a function *is* — a Rust static function, an EDAG the VM interprets,
 or both — is each VM's own choice, and nothing in the core depends on it:
 `IFunction` has no constructor, and a holder of a `Function<A>` can only call
 it, read its `length`, and compare it by identity. A VM that binds static
-functions says so through `IStaticFunction`; `naive` does, and no more.
+functions says so through `IStaticFunction`; `naive` does, and no more. A
+built-in is the other kind of `Function<A>`, a `RuntimeFunction` the VM
+does not represent: a static function held by reference and identified by
+its name ([the runtime README](../../../../fjs/js/runtime/README.md), "How
+NaNVM finds it").
 
 ## Types
 
@@ -47,7 +51,7 @@ leaf needs IEEE 754 arithmetic Rust already has.
 ## EDAG
 
 The EDAG is VM-agnostic and is the stable, serializable representation of functions
-(see [`spec/todo/serialization.md`](../../../../spec/todo/serialization.md)).
+(see [`spec/design/serialization.md`](../../../../spec/design/serialization.md)).
 A VM implementation may transform it into internal bytecode on loading, or use the EDAG itself
 as its byte code, interpreting it directly.
 

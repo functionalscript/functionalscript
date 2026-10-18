@@ -396,21 +396,21 @@ export const proof = {
     },
     page: {
         /**
-         * The breadcrumb names every ancestor and stops before the directory
-         * itself: a page does not link to the page it is.
+         * The breadcrumb is the page's heading: every ancestor as a link, then
+         * the directory itself as text, since a page does not link to the page
+         * it is.
          */
         breadcrumb: () => {
             const html = pageHtml({ ...empty, path: 'fjs/types/list' })
             assert(html.includes(
-                '<nav><a href="/index.html">root</a> / <a href="/fjs/index.html">fjs</a>'
-                + ' / <a href="/fjs/types/index.html">types</a></nav>'), html)
-            assert(html.includes('<h1>fjs/types/list</h1>'), html)
+                '<nav aria-label="Breadcrumb"><h1><a href="/index.html">root</a> / <a href="/fjs/index.html">fjs</a>'
+                + ' / <a href="/fjs/types/index.html">types</a> / <span aria-current="page">list</span></h1></nav>'), html)
             assert(!html.includes('list/index.html'), html)
         },
         // One directory below the root has the root as its only ancestor.
         breadcrumbOneDeep: () => {
             const html = pageHtml({ ...empty, path: 'fjs' })
-            assert(html.includes('<nav><a href="/index.html">root</a></nav>'), html)
+            assert(html.includes('<h1><a href="/index.html">root</a> / <span aria-current="page">fjs</span></h1>'), html)
         },
         // The header comes first, outside the page's own `main`.
         header: () => {
@@ -442,13 +442,13 @@ export const proof = {
         // directory without one says nothing about it.
         linksItsApi: () => {
             const html = pageHtml({ ...empty, path: 'nanvm-lib', api: '/cargo.doc/nanvm_lib/index.html' })
-            assert(html.includes('<h1>nanvm-lib</h1><p><a href="/cargo.doc/nanvm_lib/index.html">API documentation</a></p>'), html)
+            assert(html.includes('<span aria-current="page">nanvm-lib</span></h1></nav><p><a href="/cargo.doc/nanvm_lib/index.html">API documentation</a></p>'), html)
             assert(!pageHtml({ ...empty, path: 'a' }).includes('API documentation'), 'no link without a reference')
         },
         // The directory above the crates links the reference's index.
         linksTheApiIndex: () => {
             const html = pageHtml({ ...empty, path: 'nanvm', apiIndex: '/cargo.doc/index.html' })
-            assert(html.includes('<h1>nanvm</h1><p><a href="/cargo.doc/index.html">Rust API documentation</a></p>'), html)
+            assert(html.includes('<span aria-current="page">nanvm</span></h1></nav><p><a href="/cargo.doc/index.html">Rust API documentation</a></p>'), html)
         },
         // The catalogue is the same one the root page carries.
         carriesSections: () => {

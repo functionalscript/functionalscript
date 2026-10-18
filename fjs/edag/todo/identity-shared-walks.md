@@ -18,12 +18,27 @@ both writers, by source identity: `visit` and `sharedNodesOf` live in
 the FunctionalScript writer writes from `identityAnalysis`, whose shared
 entries are what `sharedNodesOf` lists in each scope. The owner's call:
 "we have to fix a bug in shared serializer code, that must be used by both
-`JS` and `Rust`". What a writer names stays its own: the Rust printer
-gives an unshared operation a `let` too — `a => (a + a) + (a + a)` binds
-each `a + a` — where the FunctionalScript writer names a shared node and
-writes an unshared one in place. Whether more traversal machinery can be
-shared without complicating its consumers remains an optional
-investigation.
+`JS` and `Rust`". Current emission differs: the Rust printer gives an
+unshared operation a `let` too — `a => (a + a) + (a + a)` binds each
+`a + a` — where the FunctionalScript writer names a shared node and writes
+an unshared one in place.
+
+The [compiler modularization proposal](../../todo/compiler-vocabulary-and-modularization.md)
+requires EDAG → FAST → target serialization for every MVP target, minimizing
+code and keeping compiler decisions consistent across languages. Its common
+`to_fast` conversion owns graph sharing, bindings and evaluation regions. Any
+additional binding normalization needed for emission belongs in common FAST
+processing used by all targets; serializers own target syntax and runtime
+mapping. This supersedes preserving Rust's extra bindings as a separate
+per-writer policy. The migration may change emitted text while preserving
+semantics. An optimized backend that consumes EDAG directly is possible later
+work, outside the MVP.
+
+This is the proposed ownership after migration; the current writers below
+still perform placement themselves.
+
+Whether more traversal machinery can be shared without complicating its
+consumers remains an optional investigation.
 
 `sharing`'s `operandsOf` walks source `Exp` operands and includes only
 function captures, while `analysis.operandsOf` walks analyzed `Node`
@@ -62,8 +77,10 @@ binding even when reached once; this is not a repeated-edge count.
       caller-supplied bindings, and eager/lazy ownership.
 - [ ] If a simpler implementation emerges, prove those contracts against
       the existing Rust sharing and lazy-block cases, including distinct
-      structural-twin parents of one constructor. Regenerate and verify
-      unchanged Rust output and run the required checks. Otherwise record
+      structural-twin parents of one constructor. For traversal-only cleanup,
+      regenerate and verify unchanged Rust output; the linked modularization
+      follows the common FAST policy and may change output. Run the required
+      checks. Otherwise record
       why the separate representations need their current walks and retire
       this issue.
 

@@ -47,7 +47,7 @@ import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
  */
 const withRuntime = root => ({
     ...root,
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { String: { startsWith: (self, s) => self.slice(0, s.length) === s } } };")] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { startsWith: self => s => self.slice(0, s.length) === s } };")] } } },
 })
 
 /** @type {Commands<NodeOp | CompileValue>} */
@@ -89,6 +89,20 @@ const evaluate = source => {
     if (tag === 'error') { return ['error', value.message] }
     const result = read(memo(unwrap(analysis(unresolved(value).edag)))({ args: [] }), 'default')
     return result[0] === 'error' ? ['error', 'module initialization failed'] : toData(result[1])
+}
+
+/**
+ * The graph {@link evaluate} makes of a vector's document, failing the proof
+ * with the front end's message if it refuses. The message is built on a
+ * refusal only: on success the value is the graph, and SpiderMonkey's
+ * `Array.prototype.join` overflows stringifying arrays nested 410 deep.
+ *
+ * @type {(id: string, source: string) => Unknown}
+ */
+const evaluated = (id, source) => {
+    const [tag, value] = evaluate(source)
+    if (tag === 'error') { assert(false, `${id}: the front end refused the document: ${value}`) }
+    return value
 }
 
 /** The complete module result has an own default export. @type {(value: unknown) => unknown} */
@@ -1116,7 +1130,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // the body binds it once and each thunk clones it
             assertStructurallySame(body('export default (...a) => true ? a : a;'), [
                 '    let c0: Any<A> = A::static_function(|_self, args| {',
-                '        let rest = args.clone().into_iter().to_array();',
+                '        let rest = args.rest(0);',
                 '        let c0 = || Ok(rest.clone().to_any());',
                 '        Any::conditional(true.to_any(), c0, c0)',
                 '    }, 0, Array::default(), Some("(...$0)=>true?$0:$0")).to_any();',
@@ -1124,7 +1138,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             ])
             assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
                 '    let c0: Any<A> = A::static_function(|_self, args| {',
-                '        let rest = args.clone().into_iter().to_array();',
+                '        let rest = args.rest(0);',
                 '        let c0: Any<A> = rest.clone().to_any();',
                 '        let c1 = || Ok([c0.clone()].to_array().to_any());',
                 '        let c2 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
@@ -1256,8 +1270,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     subsetLaw: acceptSet.map(({ id, document, graph }) => () => {
         const source = documentText(document)
         assert(source !== null, `${id}: the document is not UTF-8`)
-        const [tag, value] = evaluate(source)
-        assert(tag === 'ok', `${id}: the front end refused the document: ${value}`)
+        const value = evaluated(id, source)
         const d = difference(graph)(value)
         assert(d === null, `${id}: the front end's graph is not the vector's: ${d}`)
     }),
@@ -1271,8 +1284,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     normalizeLoop: acceptSet.map(({ id, document, graph }) => () => {
         const source = documentText(document)
         assert(source !== null, `${id}: the document is not UTF-8`)
-        const [tag, value] = evaluate(source)
-        assert(tag === 'ok', `${id}: the front end refused the document: ${value}`)
+        const value = evaluated(id, source)
         const normalized = unwrap(tryStringify(value))
         const d = difference(graph)(unwrap(parseDataJs(normalized)))
         assert(d === null, `${id}: the normalized document does not denote the vector's graph: ${d}`)
@@ -1319,6 +1331,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Destructuring': 'ooooo',
                 'Methods and properties': 'ooooo',
                 'Static functions': 'ooooo',
+                'Object.entries': 'ooooo',
                 'Optional chaining': 'xoooo',
                 'The entry helper': 'ooooo',
                 'Named exports': 'ooooo',

@@ -1,9 +1,9 @@
-# Start the directory drawer on pages without a test runner
+## Start the directory drawer on pages without a test runner
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `page`'s `runner` script in [`fjs/website/page/module.f.mjs`](../page/module.f.mjs)
 does two things: it binds the browser test suite, and it calls
@@ -21,7 +21,7 @@ Raised by Codex's review of
 [#2836](https://github.com/functionalscript/functionalscript/pull/2836),
 on code that pull request carries from `main` and does not change.
 
-## Proposal
+### Proposal
 
 Emit the drawer's start with the directory layout rather than with the test
 runner: a script of its own next to `directoryLayout`, or a bootstrap the
@@ -29,7 +29,7 @@ layout always carries, with `runner` keeping only the suite. A proof over a
 directory with no proofs, and one with only blocked proofs, pins that the
 start is emitted.
 
-## Tasks
+### Tasks
 
 - [ ] Move the `startDirectoryDrawer` call out of `runner` and into the
   directory layout.
