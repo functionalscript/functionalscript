@@ -451,7 +451,9 @@ const demoProof = /** @type {const} */ ({
         // `open` is `rest` with `unknown`; any other rest shows what an extra
         // member must be, and an empty `or` is `never`.
         rest: () => {
-            assert(svg(open([number])).includes('>open<'), 'open')
+            const openHtml = svg(open([number]))
+            assert(openHtml.includes('>open<'), openHtml)
+            assert(!openHtml.includes('>declared<'), openHtml)
             const html = svg(rest([number], or()))
             assert(html.includes('>rest<'), html)
             assert(html.includes('>extra<'), html)

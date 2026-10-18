@@ -367,9 +367,10 @@ const constShape = c => c === null || typeof c !== 'object'
 /**
  * What a thunk returns, as a shape, its label led by `name` when the thunk
  * has one. A built-in draws inline; `open(c)` is `rest(c, unknown)` and
- * draws as `open`. The ports of an `array`, a `record` and an `or` have
- * empty keys: the node's label already says what each of them is, so an
- * inline member fills its row and an edge's row stays empty.
+ * draws as `open`. The ports of an `array`, a `record`, an `or` and an
+ * `open` have empty keys: the node's label already says what each of them
+ * is, so an inline member fills its row and an edge's row stays empty. A
+ * `rest` keeps `declared` and `extra`, which tell its two ports apart.
  *
  * @type {(name: string) => (info: ReturnType<Exclude<Type, Const>>) => Shape<Type>}
  */
@@ -392,7 +393,7 @@ const infoShape = name => info => {
         case 'rest': {
             const [, c, r] = info
             return r === unknown
-                ? { kind: 'rest', label: named('open'), children: [['declared', c]] }
+                ? { kind: 'rest', label: named('open'), children: [['', c]] }
                 : { kind: 'rest', label: named('rest'), children: [['declared', c], ['extra', r]] }
         }
         default: { return { inline: info[0] } }
