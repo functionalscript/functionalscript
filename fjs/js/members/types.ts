@@ -1,10 +1,12 @@
 /**
  * Type-level API for `fjs/js/members/module.f.mjs`: the shape of the
- * table, and the pins that keep it complete — every type's keys are
- * exactly the names its prototype has and `allowedCalls` admits, and
- * every entry is a function of the receiver, typed as that type, and the
- * arguments. A compile-time claim about exports lives here, at module
- * scope, where `tsc` checks it whatever a proof body does.
+ * table, which keeps it complete — every type's keys are exactly the
+ * names its prototype has and `allowedCalls` admits, a key added or
+ * missing failing `tsc` at the value — and every entry a function of the
+ * receiver, typed as that type, and the arguments, which is the type a
+ * consumer calls an entry through, `todo` or not. A compile-time claim
+ * about exports lives here, at module scope, where `tsc` checks it
+ * whatever a proof body does.
  *
  * @module
  */
@@ -29,36 +31,33 @@ import type { members } from './module.f.mjs'
  */
 export type TypeMemberFunc<T> = (self: T, ...args: readonly unknown[]) => unknown
 
-/** A type's members: a name, then its function. */
-export type TypeMembers<T> = {
-    readonly [k in string]: TypeMemberFunc<T>
+/** A type's members: each of the names `K`, then its function. */
+export type TypeMembers<T, K extends string> = {
+    readonly [k in K]: TypeMemberFunc<T>
 }
 
 /** An array receiver: any items, never written. */
 export type AnyArray = readonly unknown[]
 
-/** The table: a type, then its members. */
+/** The names a type's prototype has that a module may call. */
+export type Admitted<P extends readonly string[]> = Extract<P[number], AllowedCall>
+
+/**
+ * The table: a type, then its members, exactly the admitted names of the
+ * type's prototype. The value is declared as this type, so an entry is
+ * callable as `(self, ...args)` wherever it is imported, and a key the
+ * prototype lacks, or one it has and the value lacks, is a type error at
+ * the value.
+ */
 export type Members = {
-    readonly boolean: TypeMembers<boolean>
-    readonly string: TypeMembers<string>
-    readonly number: TypeMembers<number>
-    readonly bigint: TypeMembers<bigint>
-    readonly object: TypeMembers<object>
-    readonly array: TypeMembers<AnyArray>
-    readonly function: TypeMembers<Function>
+    readonly boolean: TypeMembers<boolean, Admitted<typeof booleanPrototype>>
+    readonly string: TypeMembers<string, Admitted<typeof stringPrototype>>
+    readonly number: TypeMembers<number, Admitted<typeof numberPrototype>>
+    readonly bigint: TypeMembers<bigint, Admitted<typeof bigintPrototype>>
+    readonly object: TypeMembers<object, Admitted<typeof objectPrototype>>
+    readonly array: TypeMembers<AnyArray, Admitted<typeof arrayPrototype>>
+    readonly function: TypeMembers<Function, Admitted<typeof functionPrototype>>
 }
 
-/** The names a type's prototype has that a module may call. */
-type Admitted<P extends readonly string[]> = Extract<P[number], AllowedCall>
-
-/** The seven types, and nothing else. */
-type _Types = Assert<Equal<keyof typeof members, keyof Members>>
-
-/** Every type holds exactly the admitted names of its prototype. */
-type _Boolean = Assert<Equal<keyof typeof members.boolean, Admitted<typeof booleanPrototype>>>
-type _String = Assert<Equal<keyof typeof members.string, Admitted<typeof stringPrototype>>>
-type _Number = Assert<Equal<keyof typeof members.number, Admitted<typeof numberPrototype>>>
-type _Bigint = Assert<Equal<keyof typeof members.bigint, Admitted<typeof bigintPrototype>>>
-type _Object = Assert<Equal<keyof typeof members.object, Admitted<typeof objectPrototype>>>
-type _Array = Assert<Equal<keyof typeof members.array, Admitted<typeof arrayPrototype>>>
-type _Function = Assert<Equal<keyof typeof members.function, Admitted<typeof functionPrototype>>>
+/** The exported value is the table, the seven types and nothing else. */
+type _Members = Assert<Equal<typeof members, Members>>

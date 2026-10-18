@@ -4,8 +4,9 @@
  * admits as a call, then the function of the receiver and the arguments
  * as the call passed them — `(self, ...args)`, the receiver typed as the
  * type it is under. The table is the inventory of what a FunctionalScript
- * program may call on a value, complete by construction: `types.ts` pins
- * every type's keys to exactly the admitted names of its prototype.
+ * program may call on a value, complete by construction: `types.ts`
+ * types every type's keys as exactly the admitted names of its prototype,
+ * and every entry as callable with the receiver and the arguments.
  *
  * An entry is a body, or `todo` where none is written yet: the executors
  * answer those natively today, NaNVM in `vm/lambda` and the interpreter in
@@ -22,7 +23,7 @@
 
 import { todo } from '../../asserts/module.f.mjs'
 
-/** @satisfies {Members} */
+/** @type {Members} */
 export const members = {
     boolean: {
         toString: todo,

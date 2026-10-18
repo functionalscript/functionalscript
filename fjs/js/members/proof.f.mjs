@@ -2,8 +2,6 @@
  * Proof of `fjs/js/members/module.f.mjs`: the table holds the seven types,
  * each with exactly the admitted names of its prototype, every entry a
  * function, and an entry not yet written throws `not implemented`.
- *
- * @import { Members } from './types.ts'
  */
 
 import { assertEq, todo } from '../../asserts/module.f.mjs'
@@ -39,6 +37,6 @@ export const proof = {
         }
     },
     throw: {
-        notImplemented: () => /** @type {Members} */ (members).string.startsWith('abc', 'a'),
+        notImplemented: () => members.string.startsWith('abc', 'a'),
     },
 }
