@@ -39,7 +39,9 @@ wrapper, which is why it is one and not `undefined` or `{ value }`:
 entry(o, k)[0]                          // the value, `undefined` where absent: the old read
 entry(o, k).length === 1                // presence
 const [v] = entry(o, k)                 // destructured, `undefined` where absent
-[...entry(o, k), fallback][0]           // value or fallback, one lookup
+[...entry(o, k), fallback][0]           // value or fallback, one lookup, the fallback evaluated either way
+const found = entry(o, k)               // the same, the fallback evaluated only where there is none
+found.length === 1 ? found[0] : fallback
 keys.flatMap(k => entry(o, k))          // the values present, in key order
 ```
 
@@ -64,7 +66,10 @@ Pluses:
 
 - **One scan for every question.** Value, presence, and value-or-default
   are each one call: `entry(o, k)[0]`, `entry(o, k).length === 1`,
-  `[...entry(o, k), d][0]`. Each is two reads, but of different kinds: the
+  `[...entry(o, k), d][0]` — or, where `d` must not be evaluated for
+  nothing, as a spread's item is, `const found = entry(o, k)` and
+  `found.length === 1 ? found[0] : d`, one scan still. Each is two reads,
+  but of different kinds: the
   call scans the property list — a linear walk in NaNVM and in the EDAG
   executors — and what follows is a random access at offset `0` or a
   `length`, constant time whatever the object. With a separate `hasEntry`,
