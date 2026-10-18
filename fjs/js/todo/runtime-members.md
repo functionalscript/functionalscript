@@ -158,7 +158,12 @@ export const runtime = {
   `optionCall` and the resolution — uses the primitive surface and plain
   calls of function values alone, no member call and no `?.`, and the
   printer refuses a chain node inside it: the `?.()` in `dot`'s sketch
-  becomes a conditional on `entry`'s answer.
+  becomes a conditional on `entry`'s answer, and `body[0](self)` is bound
+  to `f` and called as `f(self)`, since `a[k](...)` is a member call. A
+  property read, `a[k]`, is primitive — the backend's own-property read,
+  the `end` of a property step, which `entry` is built over — so the core
+  reads `own[0]` and `body.length` freely: a read defined in the source
+  would read its own definition.
 
 ### Tasks
 
