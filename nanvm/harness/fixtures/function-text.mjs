@@ -6,8 +6,11 @@
  * `+`, an array joined, a returned function whose capture is named by its
  * slot, a nested function, and an exported function, which the test reads
  * as a value and converts. The text is no part of identity: `one` is itself,
- * and two calls of `add(1)` make two functions with one text.
+ * and two calls of `add(1)` make two functions with one text. As a property
+ * key a function is its text too, read by the `entry` helper: the field the
+ * text names, and nothing where no field has it.
  */
+import { entry } from "./entry.mjs";
 /** @type {(...a: readonly number[]) => (...b: readonly number[]) => number} */
 const add = (...a) => (...b) => a[0] + b[0];
 const one = () => 1;
@@ -20,4 +23,8 @@ export default [
     add.toString(),
     one === one,
     add(1) === add(1),
+    entry({ "()=>1": 7 }, one),
+    entry({ "(...$0)=>(...$1)=>$0[0]+$1[0]": 8 }, add),
+    entry({ "()=>2": 9 }, one) === undefined,
+    entry([5], one) === undefined,
 ];
