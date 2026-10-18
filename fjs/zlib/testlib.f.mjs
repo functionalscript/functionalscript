@@ -11,7 +11,13 @@
  * their first, which is the highest.
  *
  * @module
+ *
+ * @import { Vec } from '../types/bit_vec/types.ts'
  */
+
+import { u8ListMsb, u8ListToVecMsb, vec } from '../types/bit_vec/module.f.mjs'
+import { fold, toArray } from '../types/list/module.f.mjs'
+import { append as adlerAppend, init as adlerInit } from './adler32/module.f.mjs'
 
 /** The words a text is made of. */
 const words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'function', 'const', 'return', 'let', 'if', 'else', 'import', ' ', '\n', '(', ')', '{', '}', '=>']
@@ -47,6 +53,55 @@ export const noise = n => {
         return seed >> 16 & 0xff
     })
 }
+
+/**
+ * The bytes a `Vec` holds.
+ *
+ * @type {(v: Vec) => readonly number[]}
+ */
+export const bytesOf = v => toArray(u8ListMsb(v))
+
+/**
+ * The bytes a string of hex digits spells.
+ *
+ * @type {(text: string) => readonly number[]}
+ */
+export const hex = text => Array.from({ length: text.length / 2 }, (_, i) => parseInt(text.slice(2 * i, 2 * i + 2), 16))
+
+/**
+ * The Adler-32 of `data` as the four bytes that close a stream.
+ *
+ * @type {(data: readonly number[]) => readonly number[]}
+ */
+export const closing = data => bytesOf(vec(32n)(BigInt(fold(adlerAppend)(adlerInit)(
+    // a `Vec` holds 128 KiB, and the bytes may be more
+    Array.from({ length: Math.ceil(data.length / 0xffff) }, (_, i) => u8ListToVecMsb(data.slice(i * 0xffff, (i + 1) * 0xffff)))))))
+
+/**
+ * A zlib stream of stored blocks holding `blocks`, one block each, the last
+ * flagged and the stream closed by the Adler-32 of the bytes. A stream of any
+ * length that needs no deflater, and one a decoder must read like any other.
+ *
+ * @type {(blocks: readonly (readonly number[])[]) => readonly number[]}
+ */
+export const stored = blocks => [
+    0x78, 0x01,
+    ...blocks.flatMap((block, i) => {
+        const len = block.length
+        return [i === blocks.length - 1 ? 1 : 0, len & 0xff, len >> 8, ~len & 0xff, ~len >> 8 & 0xff, ...block]
+    }),
+    ...closing(blocks.flat()),
+]
+
+/**
+ * The bytes in stored blocks of up to 65 535, which is as long as one holds.
+ *
+ * @type {(bytes: readonly number[]) => readonly number[]}
+ */
+export const storedBytes = bytes => stored(
+    bytes.length === 0
+        ? [[]]
+        : Array.from({ length: Math.ceil(bytes.length / 0xffff) }, (_, i) => bytes.slice(i * 0xffff, (i + 1) * 0xffff)))
 
 /**
  * The `n` low bits of `value`, the lowest first.

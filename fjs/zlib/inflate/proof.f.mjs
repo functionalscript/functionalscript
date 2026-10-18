@@ -1,15 +1,7 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { u8ListMsb, u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
-import { fold, toArray } from '../../types/list/module.f.mjs'
-import { append as adlerAppend, init as adlerInit } from '../adler32/module.f.mjs'
-import { bytes, field, noise, streams, text, written } from '../testlib.f.mjs'
+import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
+import { bytes, bytesOf, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.mjs'
 import { append, end, init } from './module.f.mjs'
-
-/** @type {(vec: import('../../types/bit_vec/types.ts').Vec) => readonly number[]} */
-const bytesOf = v => toArray(u8ListMsb(v))
-
-/** @type {(hex: string) => readonly number[]} */
-const hex = text => Array.from({ length: text.length / 2 }, (_, i) => parseInt(text.slice(2 * i, 2 * i + 2), 16))
 
 /**
  * What a stream read in `pieces` gave: the output as bytes, and the bytes after
@@ -30,19 +22,6 @@ const read = (...pieces) => {
     const rest = end(state)
     return { output, rest: rest === null ? null : bytesOf(rest) }
 }
-
-/** The Adler-32 of `data` as the four bytes that close a stream. @type {(data: readonly number[]) => readonly number[]} */
-const closing = data => bytesOf(vec(32n)(BigInt(fold(adlerAppend)(adlerInit)([u8ListToVecMsb(data)]))))
-
-/** A stream of stored blocks, the last one flagged, closed by the Adler-32 of the bytes. */
-const stored = (/** @type {readonly (readonly number[])[]} */ blocks) => [
-    0x78, 0x01,
-    ...blocks.flatMap((block, i) => {
-        const len = block.length
-        return [i === blocks.length - 1 ? 1 : 0, len & 0xff, len >> 8, ~len & 0xff, ~len >> 8 & 0xff, ...block]
-    }),
-    ...closing(blocks.flat()),
-]
 
 /** Seventy thousand bytes that differ from their neighbours. */
 const data = Array.from({ length: 70_000 }, (_, i) => (i * 31 + 7) & 0xff)

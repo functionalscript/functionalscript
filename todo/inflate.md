@@ -142,8 +142,17 @@ fast path.
       streams and by hand, and checked on some 21,000 streams of every level,
       strategy and window size, corrupted and cut into pieces, for the same
       answer as Node's on each. The Adler-32 is a loop over the bytes now.
-- [ ] `fjs/git/loose` and `fjs/git/packstore` read through it together, with
-      `readBytes` windows in; lift the delta ceiling in `fjs/git/pack`.
+- [x] [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) and
+      [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) read through it
+      together, over [`fjs/git/inflater`](../fjs/git/inflater/module.f.mjs): a
+      loose file by one `readWhole` and a pack entry in windows of a `Vec`, so no
+      object read whole is refused for its length. A stream that has made more
+      than its header declares is not read on. Checked on this repository's own
+      history through the real Node host: the 53 objects over 128 KiB, 8.2 MB, and
+      256 of every other kind, each byte for byte what `git cat-file` prints.
+- [ ] The delta ceiling: a delta chain is held to `maxDeltaBytes` (8 MiB, from
+      128 KiB) because a delta and its base are dense arrays; lifting it is
+      [`fjs/git/pack/todo/dense-delta.md`](../fjs/git/pack/todo/dense-delta.md).
 
 ### Related
 
