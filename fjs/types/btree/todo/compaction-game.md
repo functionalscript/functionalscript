@@ -31,27 +31,22 @@ A level's starting tree is built by inserting its keys in random order.
 
 ### What an exploration found
 
-Starting from the keys 10, 20, … inserted in order, rather than at random,
-and following every move from every shape reached (breadth-first, with a
-shape compared by its keys):
+A search over the move, from one start per depth:
 
-- **Depth 2, 8 keys.** The start is depth 3 with 7 nodes; 5 shapes are
-  reachable, the perfect one among them. A tutorial level.
-- **Depth 3, 26 keys.** The start is depth 4 with 23 nodes; 12,909 shapes are
-  reachable, the perfect one (13 nodes) among them. A real puzzle, small
-  enough for its par to be computed exhaustively.
-- **Depth 4, 80 keys.** The start is depth 6 with 78 nodes. The shapes are
-  too many to enumerate, and two million random moves that kept any move
-  not making the tree worse reached depth 5 with 44 nodes at best.
-
-About half of all moves give back the same shape — a key in a leaf with room
-goes back where it was. A move that changes nothing should say so, as the
-demo's remove of a missing key does, rather than look like a move that failed.
+- **The game is possible.** The move really changes the shape, and at
+  depths 2 and 3 it reaches the perfect tree.
+- **Par can be computed at depth 3.** Every shape reachable from a start can
+  be listed in a short search, so the par is exact. At depth 4 the shapes
+  are too many to list, and a random search did not reach the perfect tree:
+  its par needs another method, or stays unknown.
+- **Many moves change nothing.** A key in a leaf with room goes back where
+  it was. Such a move should say so, as the demo's remove of a missing key
+  does, rather than look like a move that failed.
 
 ### Open questions
 
-- **Progress between goals.** Depth alone barely moves — no move on 10 or 14
-  keys changes it — so the board should also show the node count: fewer nodes
+- **Progress between goals.** Depth alone barely moves — most moves leave it
+  as it was — so the board should also show the node count: fewer nodes
   means fuller nodes, which is how the depth drops.
 - **Where it lives.** The goal, the move count and the par are game state,
   not the versions demo's: a module of its own, with proofs that each
