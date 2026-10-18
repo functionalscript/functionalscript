@@ -1,8 +1,9 @@
-## One member function per name, dispatching on its receiver itself
+## One member function per name, and `dot`, the dispatcher, in FunctionalScript
 
 **Priority:** P3
-**Status:** wip — the member shape has landed, **sergey-shandar**'s
-decisions below taken; the direct call and the natives remain
+**Status:** wip — the member shape and the inventory have landed,
+**sergey-shandar**'s decisions below taken; `dot`, its compilation and the
+natives remain
 
 ### Problem
 
@@ -49,11 +50,31 @@ export const runtime = {
 - The native implementations become branches of the bodies, so the native
   table, the interpreter's dispatcher and `runtime_method`'s search by type
   go: one rule, in one place, for both executors.
-- A compiled `a.map(b)` calls the body directly, `map(a)` and then the
-  function it answers on NaNVM, the runtime's body in the interpreter,
-  skipping the key string and the scans. A call of a name not in
-  `allowedCalls` stays as it is: a property read, then a call of what it
-  holds.
+- The resolution a call step makes — the own property, else the body's
+  answer, else `undefined` — is written once, in the language, as the
+  runtime's `dot`, and every executor asks it:
+
+  ```js
+  export const dot = (self, key) => {
+      const f = entry(self, key)
+      return f.length === 1 ? f[0] : entry(member, key)[0]?.(self)
+  }
+  ```
+
+  `entry` is the language's own-property read, answering `[value]` or
+  `[]` ([`../../types/object/entry`](../../types/object/entry/module.f.js)),
+  so an own property wins whatever it holds, as it does in JavaScript —
+  `{ toString: f }` calls `f`, `{ x: undefined }.x()` throws, `[1][0]()`
+  throws for the element — and a receiver that owns nothing enumerable
+  under the key, every array, string, number, boolean, bigint and
+  function under an admitted name, costs one failed read before the
+  table. `entry(member, key)` reads the table as an object literal, so no
+  inherited name answers. The receiver is never nullish: the executor
+  throws for one before any argument, as `Member::new` and the
+  interpreter's property step do. A compiled `a.map(b)` stays
+  `Any::dot(a, "map").end_call(...)`: one dispatcher serves a literal key
+  and a computed one, `a[b]()`, alike, and a direct call by name would be
+  a second resolution to keep in step with the first.
 
 ### Decisions
 
@@ -73,22 +94,35 @@ export const runtime = {
   rather than the statics' `args: Array<A>` with the receiver as its one
   element: a member is a function of exactly its receiver, and the call
   step passes it with nothing built around it.
-- The direct call of a known name, `a.map(b)` with `map` in
-  `allowedCalls`, looks for an own property only when the receiver is an
-  object: an array, a string, a number, a boolean, a bigint or a function
-  cannot carry an own property under an admitted name, since nothing
-  mutates and their literals have none, so only an object literal can
-  shadow a built-in. Every other receiver goes straight to the body, or
-  to the native while the name has none.
-
 - The inventory comes first, as one table by type: `fjs/js/members`
   holds every built-in type, then every name its prototype has and
   `allowedCalls` admits, then the function of the receiver and the
   arguments, `(self, ...args)`, the receiver typed as the type it is
   under, which a body over `unknown` cannot be; `todo` stands where no
   body is written. `types.ts` pins each type's keys to exactly the
-  admitted names. Which names stay native, and how the executors are
-  generated from the table, is decided once it is filled.
+  admitted names. A per-name body is built from them: `map` is
+  `self => self instanceof Array ? (...args) => members.array.map(self, ...args) : undefined`,
+  the type dispatch inside the body, the typed implementation beside it.
+- The compiled output keeps `Any::dot(a, "map")`: no direct call by name,
+  since the alternatives are more complicated. The implementation behind
+  `dot` reuses the generated member functions, and an own property is
+  looked for through `entry`, which answers `[]` for every receiver but
+  an object's field or an element, so only an object literal can shadow a
+  built-in. Which entries stay native is decided as the table fills; a
+  native needs both NaNVM's Rust and the interpreter's case until its
+  body lands.
+- `dot` is written in FunctionalScript, as the proposal shows, with
+  `entry` answering `[value]` or `[]`
+  ([#3024](https://github.com/functionalscript/functionalscript/pull/3024)).
+  The interpreter asks it first and its natives after; NaNVM's call step
+  stays native until the static-runtime printer compiles the table `dot`
+  reads, which it refuses today as an object a body captures: an object
+  literal of functions read through `entry` by a key prints as a Rust
+  `match` on the name, `_ => None`, which also replaces the native
+  table's scan. With `dot` compiled, `Member::call` becomes the nullish
+  throw, the index keys an array, a string or a function owns, and `dot`;
+  the two-step guard, `runtime_method` by name and the interpreter's
+  `hasMethod` go with it, since `dot` answers the guard's question too.
 
 ### Tasks
 
@@ -97,15 +131,22 @@ export const runtime = {
       bound on `IStaticFunction`; `runtime_method` by name, the two-step
       call and guard in `Member` and in the interpreter's dispatcher;
       `static_function` on `IVm`.
-- [ ] The direct call: the Rust backend and the interpreter calling a
-      body by its name where a call's name is in `allowedCalls`, with no
-      key string and no scan, the own property checked first as the
-      executors check it today.
-- [ ] The natives, one body at a time: each native implementation a
-      branch of its body, the native table and the interpreter's
-      dispatcher shrinking as they move, with the corpus in
-      `nanvm/member` as the oracle; the primitives no body can define
-      stay native and listed, as the statics' are.
+- [x] The inventory: `fjs/js/members`, every type's admitted names,
+      `todo` where no body is written, its keys pinned.
+- [ ] `dot` in the runtime, as the proposal shows, with its proof on the
+      host; the interpreter asking it before its natives, `member` and
+      `left` in `value/method` going; the printer accepting the `dot`
+      section and leaving it out, named, until it compiles it.
+- [ ] The printer compiling `dot`: an object literal of functions read
+      through `entry` by a key as a `match` on the name, `instanceof` and
+      `typeof` tests as `Unpacked` matches; `Member::call` over the
+      compiled `dot`, the native scan, `runtime_method` and the two-step
+      guard going.
+- [ ] The natives, one body at a time: each a typed implementation in
+      `fjs/js/members` and a branch of its per-name body, the native
+      table and the interpreter's dispatcher shrinking as they move, with
+      the corpus in `nanvm/member` as the oracle; the primitives no body
+      can define stay native and listed, as the statics' are.
 
 ### Related
 
