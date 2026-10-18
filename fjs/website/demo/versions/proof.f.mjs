@@ -172,7 +172,8 @@ export const proof = {
             assert(!same({ before: nil, after: ofThree }), '')
         },
         // A row is an edge in one and a value in the other, edges leave
-        // from different corners, or values have different labels.
+        // from different corners, values have different labels or are
+        // drawn in different parts, or nodes have different titles.
         rows: () => {
             /** @type {Record<string, readonly Row<string>[]>} */
             const table = {
@@ -180,6 +181,9 @@ export const proof = {
                 bottom: [{ to: 'leaf', corner: 'bottom' }],
                 value: [{ label: '', inline: 'leaf' }],
                 named: [{ label: 'a', inline: 'leaf' }],
+                split: [{ label: '', inline: 'leaf', parts: [['le', 'prior'], ['af', 'current']] }],
+                resplit: [{ label: '', inline: 'leaf', parts: [['l', 'prior'], ['eaf', 'current']] }],
+                titled: [],
                 leaf: [],
             }
             /** @type {Structure<string, string>} */
@@ -188,7 +192,7 @@ export const proof = {
                 insert: () => v => v,
                 remove: () => v => v,
                 root: v => v,
-                shape: () => ({ rows: node => table[node], title: () => '', order: () => 0, layout: 'depth' }),
+                shape: () => ({ rows: node => table[node], title: node => node === 'titled' ? 'T' : '', order: () => 0, layout: 'depth' }),
             }
             /** @type {(before: string, after: string) => boolean} */
             const same = (before, after) => sameShape(named)({ before, after })
@@ -196,6 +200,10 @@ export const proof = {
             assert(!same('value', 'edge'), '')
             assert(!same('edge', 'bottom'), '')
             assert(!same('value', 'named'), '')
+            assert(!same('value', 'split'), '')
+            assert(!same('split', 'resplit'), '')
+            assert(same('split', 'split'), '')
+            assert(!same('leaf', 'titled'), '')
         },
     },
     // A key row is a control that moves its key; any other row is not.

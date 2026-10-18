@@ -241,6 +241,15 @@ const demoProof = {
             assertEq(JSON.stringify(depths('Move a key')), '[3,3]')
             assert(html(s).includes('Last step, move 40:'), '')
         },
+        // A move starts from the tree on screen, not the one before the
+        // last step: after inserting 80, moving 40 keeps 80.
+        moveAfterAStep: () => {
+            const inserted = follow('Insert into a leaf')
+            const s = _move(40)(inserted)
+            assertEq(s.versions.before, inserted.versions.after)
+            assertEq(JSON.stringify(toArray(values(s.versions.after))), JSON.stringify(toArray(values(inserted.versions.after))))
+            assert(toArray(values(s.versions.after)).includes(80), '')
+        },
         // A move that builds the same shape back changes nothing: both
         // versions are one tree, and it says so.
         moveAKeyBack: () => {

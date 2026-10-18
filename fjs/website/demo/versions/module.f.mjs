@@ -73,24 +73,26 @@ const nodesOfBoth = ({ root, shape }) => versions => {
 }
 
 /**
- * Whether two versions are drawn the same: the same rows, node by node,
- * whether or not the nodes are the same objects.
+ * Whether two versions are drawn the same: the same titles and rows, node
+ * by node, a value's parts included, whether or not the nodes are the same
+ * objects.
  *
  * @type {<V, N>(structure: Structure<V, N>) => (versions: Versions<V>) => boolean}
  */
 export const sameShape = ({ root, shape }) => versions => {
-    const { rows } = shape(versions)
+    const { rows, title } = shape(versions)
     /** @typedef {Parameters<typeof rows>[0]} N */
     /** @type {(a: N | null) => (b: N | null) => boolean} */
     const same = a => b => {
         if (a === b) { return true }
         if (a === null || b === null) { return false }
         const [ra, rb] = [rows(a), rows(b)]
-        return ra.length === rb.length && ra.every((x, i) => {
+        return title(a) === title(b) && ra.length === rb.length && ra.every((x, i) => {
             const y = rb[i]
             return 'to' in x
                 ? 'to' in y && x.corner === y.corner && same(x.to)(y.to)
                 : !('to' in y) && x.label === y.label && x.inline === y.inline
+                    && JSON.stringify(x.parts) === JSON.stringify(y.parts)
         })
     }
     return same(root(versions.before))(root(versions.after))
