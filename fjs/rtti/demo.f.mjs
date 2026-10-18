@@ -361,13 +361,16 @@ const partnerOf = (e, shown) => e.schemas.length === 2 ? schemaKey(e, shown === 
 const constShape = c => c === null || typeof c !== 'object'
     ? { inline: chunksText(leafSerialize(c)) }
     : c instanceof Array
-        ? { kind: 'tuple', label: '[ ]', children: tupleSchemaEntries(c) }
-        : { kind: 'struct', label: '{ }', children: structSchemaEntries(c) }
+        ? { kind: 'tuple', label: '[]', children: tupleSchemaEntries(c) }
+        : { kind: 'struct', label: '{}', children: structSchemaEntries(c) }
 
 /**
  * What a thunk returns, as a shape, its label led by `name` when the thunk
  * has one. A built-in draws inline; `open(c)` is `rest(c, unknown)` and
- * draws as `open`.
+ * draws as `open`. The ports of an `array`, a `record`, an `or` and an
+ * `open` have empty keys: the node's label already says what each of them
+ * is, so an inline member fills its row and an edge's row stays empty. A
+ * `rest` keeps `declared` and `extra`, which tell its two ports apart.
  *
  * @type {(name: string) => (info: ReturnType<Exclude<Type, Const>>) => Shape<Type>}
  */
@@ -379,18 +382,18 @@ const infoShape = name => info => {
             const s = constShape(info[1])
             return 'inline' in s ? s : { ...s, label: named(s.label) }
         }
-        case 'array': { return { kind: 'array', label: named('array'), children: [['item', info[1]]] } }
-        case 'record': { return { kind: 'record', label: named('record'), children: [['value', info[1]]] } }
+        case 'array': { return { kind: 'array', label: named('array'), children: [['', info[1]]] } }
+        case 'record': { return { kind: 'record', label: named('record'), children: [['', info[1]]] } }
         case 'or': {
             const [, ...members] = info
             return members.length === 0
                 ? { inline: 'never' }
-                : { kind: 'or', label: named('or'), children: members.map(/** @type {(m: Type) => readonly [string, Type]} */ m => ['|', m]) }
+                : { kind: 'or', label: named('or'), children: members.map(/** @type {(m: Type) => readonly [string, Type]} */ m => ['', m]) }
         }
         case 'rest': {
             const [, c, r] = info
             return r === unknown
-                ? { kind: 'rest', label: named('open'), children: [['declared', c]] }
+                ? { kind: 'rest', label: named('open'), children: [['', c]] }
                 : { kind: 'rest', label: named('rest'), children: [['declared', c], ['extra', r]] }
         }
         default: { return { inline: info[0] } }
@@ -415,10 +418,10 @@ const shapeOf = t => typeof t !== 'function' ? constShape(t)
  * @type {(schema: Type) => Graph}
  */
 export const _graphOf = schema => {
-    if (typeof schema !== 'function' || schema.name === '') { return graphOf(shapeOf)(schema) }
+    if (typeof schema !== 'function' || schema.name === '') { return { ...graphOf(shapeOf)(schema), targets: true } }
     const info = schema()
     const root = infoShape(schema.name)(info)
-    return graphOf(/** @type {(t: Type) => Shape<Type>} */ (t => t === info ? root : shapeOf(t)))(info)
+    return { ...graphOf(/** @type {(t: Type) => Shape<Type>} */ (t => t === info ? root : shapeOf(t)))(info), targets: true }
 }
 
 // ── readers ──────────────────────────────────────────────────────────────────

@@ -426,12 +426,14 @@ const demoProof = /** @type {const} */ ({
             const html = svg(exampleNamed('Shared parts').schemas[0].schema)
             assertEq(occurrences(html, 'data-graph-kind="struct"'), 3)
             assertEq(occurrences(html, 'data-graph-edge=""'), 5)
+            // Beside `id`'s value, each edge's row names its target.
+            assert(html.includes('data-graph-value-label="" data-graph-value-ref="">{}<'), html)
         },
         // A named root is expanded under its name; its use of itself is a
         // reference by name, drawn inline, so the graph has no cycle.
         recursive: () => {
             const html = svg(exampleNamed('Recursion').schemas[0].schema)
-            assert(html.includes('>tree { }<'), html)
+            assert(html.includes('>tree {}<'), html)
             assert(html.includes('data-graph-value-kind="ref">tree<'), html)
         },
         // A named thunk that is not a const is labelled with its name too.
@@ -451,13 +453,23 @@ const demoProof = /** @type {const} */ ({
         // `open` is `rest` with `unknown`; any other rest shows what an extra
         // member must be, and an empty `or` is `never`.
         rest: () => {
-            assert(svg(open([number])).includes('>open<'), 'open')
+            const openHtml = svg(open([number]))
+            assert(openHtml.includes('>open<'), openHtml)
+            assert(!openHtml.includes('>declared<'), openHtml)
             const html = svg(rest([number], or()))
             assert(html.includes('>rest<'), html)
             assert(html.includes('>extra<'), html)
             assert(html.includes('>never<'), html)
         },
         record: () => assert(svg(record(array(number))).includes('>record<'), 'record'),
+        // An `array`, a `record` and an `or` name no port: the label says
+        // what each member is.
+        unkeyed: () => {
+            const html = svg(record(array(or(number, [string]))))
+            for (const key of ['>value<', '>item<', '>|<']) { assert(!html.includes(key), html) }
+            // A tuple's brackets touch, as a struct's do.
+            assert(html.includes('data-graph-label="">[]<'), html)
+        },
     },
 })
 

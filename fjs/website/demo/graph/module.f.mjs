@@ -211,6 +211,22 @@ const cellWidthOf = label => max(24, label.length * charWidth + 12)
 /** @type {(edge: Edge) => string | null} */
 const inlineOf = ({ to }) => typeof to === 'number' ? null : to.inline
 
+/**
+ * What a port draws in its value cell: its inline value, or the label of
+ * the node its edge leads to where the row shows that instead, or nothing.
+ *
+ * @type {(port: _Port) => string | null}
+ */
+const valueOf = port => inlineOf(port.edge) ?? port.ref
+
+/**
+ * The attribute a row showing its target's label draws with, on its cell
+ * and its text alike, or none.
+ *
+ * @type {(port: _Port) => { readonly 'data-graph-value-ref'?: '' }}
+ */
+const refAttrOf = port => port.ref === null ? {} : { 'data-graph-value-ref': '' }
+
 /** @type {(values: readonly number[]) => number} */
 const maxOf = values => values.reduce((m, v) => max(m, v), 0)
 
@@ -264,6 +280,21 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
  * **An edge with a corner takes no row**: it leaves from that point of the
  * node's right side, and the rows are the other edges'.
  *
+ * **An edge beside values draws its target's label**, in the value's
+ * place, and its key, if any, in the key column: a row that differs from
+ * its neighbours by a missing value would read as one, and its key would
+ * not line up with theirs. The label says what the edge leads to, as an
+ * inline reference by name would. So does an edge with an empty key
+ * beside other edges, which would otherwise be a blank row. Its own
+ * attribute lets the stylesheet draw it as part of the edge, not as a
+ * value. A target with no label leaves the row as it was, and so does
+ * every edge of a graph that does not ask for `targets`.
+ *
+ * **Rows that are all empty edge ports draw nothing**: a row holding no key
+ * and no value says nothing, so such a node is its label alone, as wide as
+ * a node without ports. It keeps a row's height per edge, so each edge
+ * still leaves from a point of its own on the node's right side.
+ *
  * **An empty label is no column at all** when the node has ports: its rows
  * already say what it is, and an empty column would be a blank band
  * beside them. A node with neither keeps its label, or it would have no
@@ -277,16 +308,23 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
  */
 const portsOf = label => all => {
     const out = all.filter(({ edge }) => edge.corner === undefined)
-    const inlines = out.flatMap(({ edge }) => {
-        const inline = inlineOf(edge)
-        return inline === null ? [] : [{ keyed: edge.label !== '', key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
+    const blank = out.every(({ edge }) => inlineOf(edge) === null && edge.label === '')
+    /** @type {(o: _Out) => string | null} */
+    const refOf = ({ edge, target }) => blank || inlineOf(edge) !== null || target === '' ? null
+        : edge.label === '' || out.some(o => inlineOf(o.edge) !== null) ? target
+        : null
+    /** @type {(o: _Out) => string | null} */
+    const valueOf = o => inlineOf(o.edge) ?? refOf(o)
+    const inlines = out.flatMap(o => {
+        const value = valueOf(o)
+        return value === null ? [] : [{ keyed: o.edge.label !== '', key: cellWidthOf(o.edge.label), value: cellWidthOf(value) }]
     })
     const keyColumn = maxOf(inlines.flatMap(c => c.keyed ? [c.key] : []))
     const rows = max(
         maxOf(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
-        maxOf(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : [])))
-    const title = out.length === 0 ? widthOf(label) : label === '' ? 0 : cellWidthOf(label)
-    const width = max(widthOf(label), title + rows)
+        maxOf(out.flatMap(o => valueOf(o) === null ? [cellWidthOf(o.edge.label)] : [])))
+    const title = blank ? widthOf(label) : label === '' ? 0 : cellWidthOf(label)
+    const width = blank ? title : max(widthOf(label), title + rows)
     const height = out.length === 0 ? labelHeight : out.length * portHeight
     /** @type {Record<Corner, number>} */
     const exitAt = { top: 0, middle: height / 2, bottom: height }
@@ -295,8 +333,8 @@ const portsOf = label => all => {
         height,
         title,
         keyWidth: keyColumn,
-        ports: out.map(({ edge, index }, i) => ({ edge, index, y: i * portHeight })),
-        exits: all.flatMap(({ edge, index }) => edge.corner === undefined ? [] : [{ edge, index, y: exitAt[edge.corner] }]),
+        ports: out.map((o, i) => ({ ...o, y: i * portHeight, ref: refOf(o) })),
+        exits: all.flatMap(o => o.edge.corner === undefined ? [] : [{ ...o, y: exitAt[o.edge.corner] }]),
     }
 }
 
@@ -418,9 +456,9 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
  *
  * The first column starts at `left`.
  *
- * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
+ * @type {(left: number) => (targets: boolean) => (nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
  */
-const layout = left => nodes => edges => {
+const layout = left => targets => nodes => edges => {
     // **An edge must name nodes the graph has, or the graph is refused.**
     // An edge is drawn from a port of its source, so one whose source is
     // missing would have nowhere to leave from and would simply vanish,
@@ -433,8 +471,11 @@ const layout = left => nodes => edges => {
     // would hang a node's ports on whichever node sat at that index.
     // Each edge travels with its index, which is what names it from here
     // on: the same object may be listed twice and is then two edges.
+    const labels = new Map(nodes.map(n => [n.id, n.label]))
     const outgoing = new Map(nodes.map(n => [n.id,
-        edges.flatMap((edge, index) => edge.from === n.id ? [{ edge, index }] : [])]))
+        edges.flatMap((edge, index) => edge.from === n.id
+            ? [{ edge, index, target: targets && typeof edge.to === 'number' ? /** @type {string} */ (labels.get(edge.to)) : '' }]
+            : [])]))
     const outgoingOf = /** @type {(id: number) => readonly _Out[]} */ (id => /** @type {readonly _Out[]} */ (outgoing.get(id)))
     const ranks = new Map(nodes.map(n => [n.id, n.rank]))
     const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (ranks.get(id)))
@@ -570,7 +611,7 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  *
  * @type {(g: Graph) => _Placed}
  */
-const placedOf = ({ nodes, edges, entries = [] }) => {
+const placedOf = ({ nodes, edges, entries = [], targets = false }) => {
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
@@ -586,7 +627,7 @@ const placedOf = ({ nodes, edges, entries = [] }) => {
     const fromCorners = new Set(edges.flatMap(({ from, corner }) => corner === undefined ? [] : [from]))
     const mixed = edges.findIndex(({ from, to, corner }) => corner === undefined && typeof to === 'number' && fromCorners.has(from))
     if (mixed !== -1) { throw `graph: edge ${mixed} leaves a row of node ${edges[mixed].from}, whose other arrows leave from its corners` }
-    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(targets)(nodes)(edges)
 }
 
 /**
@@ -685,11 +726,13 @@ export const graphSvg = g => {
     /**
      * How wide a port's key cell is: the whole row for an edge, nothing for
      * a value with an empty key, and the key column for any other value.
-     * A row starts right of the label's column, `p.title` in.
+     * A row starts right of the label's column, `p.title` in, so a node
+     * whose rows are all empty edge ports, its label as wide as the node,
+     * has no row to draw.
      *
      * @type {(p: _Positioned) => (port: _Port) => number}
      */
-    const keyWidthOf = p => port => inlineOf(port.edge) === null ? p.width - p.title
+    const keyWidthOf = p => port => valueOf(port) === null ? p.width - p.title
         : port.edge.label === '' ? 0
         : p.keyWidth
     /** @type {readonly Element[]} */
@@ -704,18 +747,19 @@ export const graphSvg = g => {
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-port': '',
             }])]),
-            ...p.ports.flatMap(port => inlineOf(port.edge) === null ? [] : [/** @type {Element} */ (['rect', {
+            ...p.ports.flatMap(port => valueOf(port) === null ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x + p.title + keyWidthOf(p)(port)), y: String(p.y + port.y),
                 width: String(p.width - p.title - keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-value': '',
-                // A value with no key is the whole row, so it is left
-                // unfilled: a tint across every row would hide the node's
-                // own fill, which is what its kind is drawn with.
+                // A value with no key is the whole row: marked, so a
+                // stylesheet can leave it unfilled where a tint across
+                // every row would hide the node's own fill.
                 ...(keyWidthOf(p)(port) === 0 ? { 'data-graph-value-alone': '' } : {}),
+                ...refAttrOf(port),
                 ...valueKindOf(port.edge),
                 // An edge carries its kind on its line; a value has no
                 // line, so its cell carries the kind instead.
-                ...(port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
+                ...(port.ref !== null || port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
             }])]),
         ]),
         // The node's border again, over its cells: their thinner lines
@@ -740,9 +784,13 @@ export const graphSvg = g => {
         }, port.edge.label])]),
         ...p.ports.flatMap(port => {
             const { to } = port.edge
-            return typeof to === 'number' ? [] : [/** @type {Element} */ (['text', {
+            const at = {
                 x: String(p.x + (p.title + keyWidthOf(p)(port) + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
                 'text-anchor': 'middle', 'data-graph-value-label': '',
+            }
+            return port.ref !== null ? [/** @type {Element} */ (['text', { ...at, ...refAttrOf(port) }, port.ref])]
+                : typeof to === 'number' ? [] : [/** @type {Element} */ (['text', {
+                ...at,
                 ...valueKindOf(port.edge),
             }, ...(to.parts === undefined ? [to.inline]
                 : to.parts.map(([text, kind]) => /** @type {Element} */ (['tspan', { 'data-graph-part': kind }, text])))])]
