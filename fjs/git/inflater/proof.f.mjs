@@ -3,7 +3,7 @@ import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
-import { bytesOf, feed, finish, inflateAll, inflateWithin, malformed, sizeOf, start } from './module.f.mjs'
+import { bytesOf, feed, feedWithin, finish, inflateAll, inflateWithin, malformed, sizeOf, start } from './module.f.mjs'
 
 /** @type {(bytes: readonly number[], size: number) => readonly import('../../types/bit_vec/types.ts').Vec[]} */
 const chunks = (bytes, size) => Array.from({ length: Math.ceil(bytes.length / size) }, (_, i) => u8ListToVecMsb(bytes.slice(i * size, (i + 1) * size)))
@@ -30,6 +30,21 @@ export const proof = {
         assertEq(sizeOf(zeros), 300_000)
         assertEq(toArray(bytesOf(zeros)).length, 300_000)
         assertEq(sizeOf(null), 0)
+    },
+    // A chunk is inflated a piece at a time and not read on once the output is
+    // over the limit: five thousand bytes of output are a few pieces, and the limit
+    // stops it after the first one that passes it, not after the chunk.
+    pieces: () => {
+        const bytes = Array.from({ length: 5_000 }, (_, i) => i & 0xff)
+        const chunk = u8ListToVecMsb(storedBytes(bytes).slice(0, 5_000 + 5 + 2))
+        const whole = feedWithin(1_000_000)(chunk)(start)
+        assertEq(whole?.size, 5_000)
+        const stopped = feedWithin(100)(chunk)(start)
+        assertEq(stopped !== null && stopped.size > 100 && stopped.size < 5_000, true)
+        // a chunk that makes the stream malformed is, wherever its piece falls
+        assertEq(feedWithin(1_000_000)(u8ListToVecMsb([0, 0]))(start), null)
+        // and one that is empty gives the stream as it was
+        assertStructurallySame(feedWithin(0)(u8ListToVecMsb([]))(start), start)
     },
     // The stream is read while its output is within the limit the first bytes give,
     // and not past it: a chunk after the one that goes over is not looked at.

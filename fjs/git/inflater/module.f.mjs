@@ -21,7 +21,7 @@
  */
 
 import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/module.f.mjs'
-import { bytesIn, length, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
+import { bytesIn, length, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { flat, map, reverse, toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { append, end, init } from '../../zlib/inflate/module.f.mjs'
@@ -43,6 +43,46 @@ export const feed = chunk => ({ state, made, size }) => {
             made: result.output.reduce((so, v) => ({ first: v, tail: so }), made),
             size: result.output.reduce((so, v) => so + Number(bytesIn(length(v))), size)
         }
+}
+
+/**
+ * How much input is inflated before the output is looked at. A DEFLATE stream
+ * makes up to a thousand bytes of output from one of input, so a chunk of a
+ * `Vec`'s size could make a hundred megabytes before anything could say it is
+ * enough; a piece makes a megabyte at most.
+ */
+const pieceBytes = 0x400
+
+/**
+ * The pieces of a chunk, each of up to {@link pieceBytes}.
+ *
+ * @type {(chunk: Vec) => readonly Vec[]}
+ */
+const piecesOf = chunk => {
+    const bytes = toArray(u8ListMsb(chunk))
+    return Array.from(
+        { length: Math.ceil(bytes.length / pieceBytes) },
+        (_, i) => u8ListToVecMsb(bytes.slice(i * pieceBytes, (i + 1) * pieceBytes)))
+}
+
+/**
+ * The stream after a chunk of it, fed a piece at a time and not read on once its
+ * output is over `limit`: it is `null` where the chunk makes it malformed, and
+ * otherwise has at most a piece's worth of output beyond `limit`, and the rest of
+ * the chunk is not inflated. A caller that goes on past the limit takes the
+ * chunk's rest from itself.
+ *
+ * @type {(limit: number) => (chunk: Vec) => (progress: Progress) => Nullable<Progress>}
+ */
+export const feedWithin = limit => chunk => progress => {
+    let current = progress
+    for (const piece of piecesOf(chunk)) {
+        if (current.size > limit) { return current }
+        const next = feed(piece)(current)
+        if (next === null) { return null }
+        current = next
+    }
+    return current
 }
 
 /** The refusal of a stream that is malformed: `Z_DATA_ERROR`, as zlib calls it. @type {Refusal} */
@@ -97,14 +137,16 @@ export const inflateWithin = (head, limitOf) => chunks => {
     /** @type {Nullable<number>} */
     let limit = null
     for (const chunk of chunks) {
-        const next = feed(chunk)(progress)
-        if (next === null) { return error(malformed) }
-        if (limit === null && next.size >= head) {
-            limit = limitOf(bytesOf(reverse(next.made)))
-            if (limit === null) { return ok(null) }
+        for (const piece of piecesOf(chunk)) {
+            const next = feed(piece)(progress)
+            if (next === null) { return error(malformed) }
+            if (limit === null && next.size >= head) {
+                limit = limitOf(bytesOf(reverse(next.made)))
+                if (limit === null) { return ok(null) }
+            }
+            if (limit !== null && next.size > limit) { return ok(null) }
+            progress = next
         }
-        if (limit !== null && next.size > limit) { return ok(null) }
-        progress = next
     }
     return finish(progress)
 }
