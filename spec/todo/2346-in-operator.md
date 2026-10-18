@@ -1,9 +1,9 @@
-# The `in` Operator Stays Out
+## The `in` Operator Stays Out
 
 **Priority:** P3
 **Status:** open — approval of the language designer pending
 
-## Decision
+### Decision
 
 FunctionalScript does not have the `in` operator, and will not have it. The
 text `"a" in o` is a compilation error, as it is today. This is a refusal **by
@@ -20,7 +20,7 @@ in passing. The way to ask whether an object has an entry is the explicit
 proposal: the compiler recognizes only the `entry` helper today, so presence
 has no admitted spelling until 2345's tasks land.
 
-## What `in` answers in JavaScript
+### What `in` answers in JavaScript
 
 `k in o` is `true` when `o` has a property `k` **anywhere on its prototype
 chain**, enumerable or not:
@@ -35,7 +35,7 @@ chain**, enumerable or not:
 "a" in null;                 // TypeError
 ```
 
-## Why FunctionalScript does not want it
+### Why FunctionalScript does not want it
 
 **1. Only one way to implement it breaks the language's first rule; the other
 two are compatible and not worth their cost.** Successful FunctionalScript and
@@ -117,13 +117,13 @@ convention".
 
 **4. Simplicity and one way to do it.** The language prefers simplicity and
 safety to ease of use
-([design principles](./design-principles.md),
+([design principles](../design/design-principles.md),
 [§1](../../doc/DESIGN.md#1-simplicity-first)). Presence will have one spelling
 (`hasEntity`, once admitted), reads have one (`entry`), and neither needs a chain, a
 `TypeError` branch or a second meaning. Adding `in` would give the same
 question two spellings with different answers.
 
-## Alternatives rejected
+### Alternatives rejected
 
 | Alternative | Why not |
 |---|---|
@@ -133,7 +133,7 @@ question two spellings with different answers.
 | `in` recognized only inside a larger pattern | No useful pattern contains it; the proposed `hasEntity` is the pattern |
 | Defer silently | A refusal that does not say whether it is permanent reads as an open task (§10) |
 
-## Consequences
+### Consequences
 
 - The compiler keeps refusing `in`; it needs no new code, and no EDAG node,
   `nanvm-lib` operator or Rust printing for it. The `in` row of
@@ -151,7 +151,7 @@ question two spellings with different answers.
   it really wants to know.
 - The word `in` stays reserved ([lexical grammar](../lexical/identifiers.md)).
 
-## When to revisit
+### When to revisit
 
 Only if the language gains a prototype chain, if the rule that a prototype
 name is refused as the key of a read is itself changed, or if the principles'
@@ -159,7 +159,7 @@ first rule is. None is planned. Receiver-type dispatch alone does not reopen
 this: it is compatible, but rejected for reopening the read rule and for the
 questions it adds.
 
-## Tasks
+### Tasks
 
 - [ ] Language-designer approval, recorded here with a link
       ([design principles §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
@@ -170,7 +170,7 @@ questions it adds.
       [`operators.proof.f.mjs`](../../fjs/compiler/parser/operators.proof.f.mjs)
       pins the message and column of each, and that `in` stays a key.
 
-## Related
+### Related
 
 - [Enumerable property presence](./2345-has-own-property.md) — `hasEntity`.
 - [Undefined-valued properties](./1010-undefined-property.md).

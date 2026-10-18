@@ -43,12 +43,14 @@ with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
    native table ([`vm/lambda/method.rs`](../src/vm/lambda/method.rs)),
    the specification's algorithm over the receiver and the arguments.
 3. **The runtime's body**: the function the generated runtime holds under
-   the receiver's type and the name, which
+   the name, which
    [`fjs/js/runtime`](../../../fjs/js/runtime/README.md) writes once in
    FunctionalScript and `npm run gen` compiles to
    [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs). The call step asks
-   `runtime_method(type_name, key)` in `vm/runtime.rs` for its code and
-   calls it with the receiver as its first argument, `[receiver, ...args]`.
+   `runtime_method(key)` in `vm/runtime.rs` for its code, asks the code
+   for the receiver — the function of the arguments, or `undefined` for a
+   receiver the name is no member of — and calls that function with the
+   arguments.
 4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 
@@ -241,7 +243,7 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 
 ### Related
 
-- [Default function text](../../../spec/todo/serialization.md#function-text-and-serialization)
+- [Default function text](../../../spec/design/serialization.md#function-text-and-serialization)
   — adopted rendering contract and the remaining rendering choices.
 - [Named/rest rendering requirements](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)
   — shared rendering without regressing supported calls, returns or exports.

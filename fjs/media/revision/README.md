@@ -390,5 +390,5 @@ the existing `or(option, true)` idiom (a presence-only flag) rather than
   separate spec. Further out, a `{public-key}/{name}.{generation}` reference
   form, where the key's owner defines what `{name}` means: anchoring the
   identifier in a signer ties format identity to the web of trust
-  ([todo/plan/vision.md](../../../todo/plan/vision.md)'s `~/Alice/...`
+  ([doc/plan/vision.md](../../../doc/plan/vision.md)'s `~/Alice/...`
   relative-path model) and says whose evolution of `{name}` a blob follows.

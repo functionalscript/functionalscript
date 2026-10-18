@@ -12,9 +12,9 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c4 = || Ok([string_any("|")].to_array().to_any());
     let c5: Any<A> = Any::dot(c3, string_any("join")).end_call(c4)?;
     let c6: Any<A> = A::static_function(|_self, args| {
-        let rest = args.clone().into_iter().to_array();
+        let rest = args.rest(0);
         Ok(A::static_function(|self_, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
             let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             c0 + c1

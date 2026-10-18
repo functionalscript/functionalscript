@@ -15,7 +15,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c7: Any<A> = Any::option_dot(c5.clone(), || Ok(string_any("at"))).call(c6).end()?;
     let c8: Any<A> = (Any::nullish_coalescing(c7, || Ok(f64_any(0x0000000000000000))))?;
     let c9 = || {
-        let c10: Any<A> = A::static_function(|_self, args| { Ok(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())) }, 1, Array::default(), Some("($0)=>$0")).to_any();
+        let c10: Any<A> = A::static_function(|_self, args| { Ok(args.argument(0)) }, 1, Array::default(), Some("($0)=>$0")).to_any();
         Ok([c10].to_array().to_any())
     };
     let c11: Any<A> = Any::option_dot(c5.clone(), || Ok(string_any("map"))).call(c9).end()?;

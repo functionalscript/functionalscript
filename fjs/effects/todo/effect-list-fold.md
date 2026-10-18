@@ -1,7 +1,7 @@
 ## effect-list-fold. Move `foldStep` / `forEachStep` into `fjs/effects/list` and fold streams
 
 **Priority:** P3
-**Status:** wip. Unaffected in substance by the fallible-cell change — this is
+**Status:** wip — Unaffected in substance by the fallible-cell change — this is
 about folding a *stream* rather than a materialized list, which is still true —
 but any `EffectList<O, IoResult<Vec>>` spelling below is now
 `EffectList<O, Vec, IoChannel>`, and the error-item case the sketches carry is

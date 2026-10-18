@@ -227,7 +227,7 @@ mod test {
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Array, IStaticFunction, Object, Unpacked},
+        vm::{Array, IVm, Object, Unpacked},
     };
 
     #[test]
@@ -398,7 +398,7 @@ mod test {
     /// included.
     #[test]
     fn spread_calls() {
-        use crate::vm::IStaticFunction;
+        use crate::vm::IVm;
         let identity: Any<Naive> =
             Naive::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any();
         assert_eq!(

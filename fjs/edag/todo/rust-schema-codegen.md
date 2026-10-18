@@ -54,5 +54,5 @@ or operations trait.
   — the conformance examples shared by the FunctionalScript and Rust sides.
 - [callable-function-objects](../../../nanvm/lib/todo/callable-function-objects.md)
   — Stage 7's semantic EDAG association is independent of a Rust executor.
-- [`spec/todo/serialization.md`](../../../spec/todo/serialization.md) — the
+- [`spec/design/serialization.md`](../../../spec/design/serialization.md) — the
   EDAG-as-data decision and the two execution paths.

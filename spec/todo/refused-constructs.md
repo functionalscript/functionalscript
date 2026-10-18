@@ -1,4 +1,4 @@
-# Refused Constructs
+## Refused Constructs
 
 **Priority:** P2
 **Status:** open
@@ -15,7 +15,7 @@ the place to look when a program is refused and the question is whether that
 was meant, and the worklist for pinning each refusal in a proof
 ([pin-refused-constructs](../../fjs/compiler/todo/pin-refused-constructs.md)).
 
-## Reading the register
+### Reading the register
 
 **Scope.** A row is a construct that is valid in an ECMAScript module, in the
 syntax and in the early errors, and that FunctionalScript refuses. JavaScript's
@@ -55,7 +55,7 @@ describes:
 - A pull request that makes a **planned** or **open** refusal permanent sets
   its **Why** to **design** and links the record.
 
-## Source text
+### Source text
 
 | ID | Construct | Why |
 |---|---|---|
@@ -63,7 +63,7 @@ describes:
 | `lex.hashbang` | `#!` at the start of the file | planned ([hash comments](../../fjs/compiler/todo/083-compiler-hash-comments.md)) |
 | `lex.unicode-name` | `const é = 1`, `{ π: 1 }`, `o.é`, U+200C or U+200D in a name, `const \u0061 = 1` | planned ([roadmap](./README.md), names beyond ASCII; [identifiers](../lexical/identifiers.md)) |
 
-## Operators and expressions
+### Operators and expressions
 
 | ID | Construct | Why |
 |---|---|---|
@@ -76,8 +76,8 @@ describes:
 | `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) |
 | `op.delete` | `delete a.b` | open |
 | `op.void` | `void 0` | open |
-| `op.new` | `new Map()` | planned ([mutability](./mutability.md), [object identity](./object-identity.md)) |
-| `op.this` | `this` | design ([design principles](./design-principles.md)) |
+| `op.new` | `new Map()` | planned ([mutability](../design/mutability.md), [object identity](../design/object-identity.md)) |
+| `op.this` | `this` | design ([design principles](../design/design-principles.md)) |
 | `op.arguments` | `arguments` | open |
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) |
 | `op.number-spread` | `Number(...a)`, `Number(1, 2)` | planned ([number-spread](./2363-number-spread.md), roadmap) |
@@ -89,16 +89,16 @@ describes:
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) |
 | `op.tagged-template` | ``tag`x` `` | open |
 
-## Property access and names
+### Property access and names
 
 | ID | Construct | Why |
 |---|---|---|
 | `acc.runtime-key` | `a[i]` | design ([property accessor](./2330-property-accessor.md)) |
 | `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) |
-| `acc.mutating-call` | `a.push(0)` | planned ([mutability](./mutability.md), "Local mutability") |
+| `acc.mutating-call` | `a.push(0)` | planned ([mutability](../design/mutability.md), "Local mutability") |
 | `acc.prototype-call` | `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects.md#the-__proto__-key)) |
-| `acc.property-assignment` | `a.b = 1` | open (related: [mutability](./mutability.md)) |
+| `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) |
 | `name.intrinsic` | `const String = 1`, `export default String`, `export default Object` | design ([built-ins](./2360-built-in.md); [global names](./2365-global-names.md) reserves `Array`, `Number`, `Object` and `String` with no standalone value) |
@@ -107,7 +107,7 @@ describes:
 | `name.body-forward-reference` | `() => { const y = x; const x = 2; return y; }` with an outer `x` | planned ([body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)) |
 | `name.reserved-export` | `export const then = 1` | design ([exporting a value](../modules/exports.md)) |
 
-## Statements
+### Statements
 
 | ID | Construct | Why |
 |---|---|---|
@@ -127,7 +127,7 @@ describes:
 | `st.body-end` | a body that does not end in `return` or `throw`, `{}` | design ([functions](../functions/README.md)) |
 | `st.unreachable` | a statement after `return` or `throw` | design ([functions](../functions/README.md)) |
 
-## Declarations and members
+### Declarations and members
 
 | ID | Construct | Why |
 |---|---|---|
@@ -144,7 +144,7 @@ describes:
 | `decl.pattern-elision` | `[, b]`, `[a, , b]` | planned ([destructuring](./2450-destructuring.md), the next task, with the array rest) |
 | `decl.parameter-limit` | 17 fixed parameters | design ([functions](../functions/README.md)) |
 
-## Module structure
+### Module structure
 
 | ID | Construct | Why |
 |---|---|---|
@@ -162,7 +162,7 @@ describes:
 | `mod.namespace-import` | `import * as ns from "m"` | planned ([namespace import](./2220-namespace-import.md)) |
 | `mod.top-level-await` | `await 1;` | open (related: [promise](./3380-promise.md)) |
 
-## Literals
+### Literals
 
 | ID | Construct | Why |
 |---|---|---|
@@ -175,7 +175,7 @@ describes:
 | `lit.string-continuation` | a `\` before a line terminator in a string | open ([string literals](./2460-js-string-literals.md) defers it until a measured need appears) |
 | `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../values/template-literals.md) calls them deferred; no roadmap item admits them) |
 
-## Not on this register
+### Not on this register
 
 - JavaScript's own errors, which the compiler also diagnoses. They are
   refusals of broken JavaScript and not of FunctionalScript: a duplicate

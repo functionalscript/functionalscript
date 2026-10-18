@@ -10,7 +10,7 @@
   function is written; the body reads a capture as a slot of it, and a
   nested function captures through its parent. Nothing mutates, so a frame
   copied when the function is made is unobservable from a closure over the
-  scope ([function-frame](../todo/3111-function-frame.md)). A captured
+  scope ([function-frame](../design/3111-function-frame.md)). A captured
   primitive is written into the body instead, as a `const` holding one is
   wherever it is read, since it has nothing to share.
 
@@ -18,7 +18,7 @@
   own: a capture was an error only while a function had no frame to
   capture with, a restriction whose reason is gone
   ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
-  The frame is the one [function-frame](../todo/3111-function-frame.md) and
+  The frame is the one [function-frame](../design/3111-function-frame.md) and
   the EDAG's closed-scope model
   ([`["frame", N]`](../../todo/edag-stage1-discussion.md)) describe.
 

@@ -1,9 +1,12 @@
 /**
- * The built-in functions, defined once, in two sections keyed by the
- * name of a global. `member` holds, for a receiver's type — `String`,
- * `Array`, `Number` — the names whose body is written, each a
- * FunctionalScript function of the receiver and then the arguments as the
- * call passed them, `undefined` past the end. `static` holds the static
+ * The built-in functions, defined once, in two sections. `member` holds,
+ * by name, the member functions whose body is written, `startsWith`: each
+ * a FunctionalScript function of the receiver alone, answering `undefined`
+ * for a receiver the name is no member of, or the function of the
+ * arguments as the call passed them, `undefined` past the end — so the body
+ * dispatches on its receiver's type itself, and an executor asks it in two
+ * steps, the first before any argument exists, which is what the guard of
+ * `a.startsWith?.(x)` needs. `static` holds the static
  * functions by the path [`../static`](../static/module.f.js) admits them
  * under, `Object.is` at `static.Object.is` and `Number.isInteger` at
  * `static.Number.isInteger`, each a function of the arguments alone. Each
@@ -16,8 +19,8 @@
  * own native table.
  *
  * Which names a module may call stays [`../prototype`](../prototype/module.f.js)'s;
- * [`./types.ts`](./types.ts) pins every key here an allowed name on its
- * type's prototype. Every executor reads this one table — the represented
+ * [`./types.ts`](./types.ts) pins every key here an allowed name. Every
+ * executor reads this one table — the represented
  * interpreter runs a body as EDAG through the runtime its executor is
  * given, and NaNVM binds the module compiled to Rust by `npm run gen` — so
  * a built-in function is written here and nowhere else. The README says how
@@ -122,8 +125,7 @@ const found = (self, s, start) => {
 
 /**
  * The table: `static`, then a static path's keys, then the body; and
- * `member`, then a receiver's type by its global's name, then a name, then
- * the body.
+ * `member`, then a name, then the body.
  */
 export const runtime = {
     static: {
@@ -131,20 +133,20 @@ export const runtime = {
         Number: { isInteger, isSafeInteger, isNaN: isNaN_, isFinite: isFinite_ },
     },
     member: {
-        String: {
-            /**
-             * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith):
-             * whether `ToString(search)` occurs at `position`, clamped into the
-             * string. The search string is converted before the position, as
-             * the algorithm orders them, and either conversion can throw — a
-             * search whose own `toString` throws, a bigint position — so the
-             * order is observable. The two are a call's arguments, which every
-             * executor evaluates left to right; two `const`s would be evaluated
-             * as the result demands them, the position first.
-             *
-             * @type {(self: string, search: unknown, at: unknown) => boolean}
-             */
-            startsWith: (self, search, at) => found(self, String(search), position(at, self.length)),
-        },
+        /**
+         * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith),
+         * a string's and no other type's: whether `ToString(search)` occurs
+         * at `position`, clamped into the string. The search string is
+         * converted before the position, as the algorithm orders them, and
+         * either conversion can throw — a search whose own `toString`
+         * throws, a bigint position — so the order is observable. The two
+         * are a call's arguments, which every executor evaluates left to
+         * right; two `const`s would be evaluated as the result demands
+         * them, the position first.
+         *
+         * @type {(self: unknown) => undefined | ((search: unknown, at: unknown) => boolean)}
+         */
+        startsWith: self => typeof self !== 'string' ? undefined
+            : (search, at) => found(self, String(search), position(at, self.length)),
     },
 }

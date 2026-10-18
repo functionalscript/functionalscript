@@ -2,16 +2,16 @@
 
 use nanvm_lib::vm::unstable::{f64_any, strict_eq, strict_ne, string_any};
 use nanvm_lib::vm::{
-    Accessor, Any, Array, Function, IVm, Nullish, RuntimeCode, RuntimeFunction, ToAny, ToArray,
-    object_entries,
+    Accessor, Any, Array, Function, IStaticFunction, IVm, MemberCode, Nullish, RuntimeFunction,
+    ToAny, ToArray, object_entries,
 };
 
 /// `f0`
 #[rustfmt::skip]
 fn f0_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = (strict_eq(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x0000000000000000)))?;
+    let c0: Any<A> = (strict_eq(args.argument(0), f64_any(0x0000000000000000)))?;
     let c1 = || {
-        let c2: Any<A> = (f64_any(0x3ff0000000000000) / args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()))?;
+        let c2: Any<A> = (f64_any(0x3ff0000000000000) / args.argument(0))?;
         Any::lt(c2, f64_any(0x0000000000000000))
     };
     Any::logical_and(c0, c1)
@@ -19,34 +19,34 @@ fn f0_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 fn f0<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "f0", code: f0_code::<A>, length: 1, text: "($0)=>$0===0&&1/$0<0" }
+    &RuntimeFunction { name: "f0", code: f0_code::<A>, length: 1 }
 }
 
 /// `Number.isNaN`
 #[rustfmt::skip]
 fn number_is_nan_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    strict_ne(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()))
+    strict_ne(args.argument(0), args.argument(0))
 }
 
 #[rustfmt::skip]
 pub fn number_is_nan<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Number.isNaN", code: number_is_nan_code::<A>, length: 1, text: "($0)=>$0!==$0" }
+    &RuntimeFunction { name: "Number.isNaN", code: number_is_nan_code::<A>, length: 1 }
 }
 
 /// `Object.is`
 #[rustfmt::skip]
 fn object_is_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = (strict_eq(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())))?;
+    let c0: Any<A> = (strict_eq(args.argument(0), args.argument(1)))?;
     let c1: Any<A> = Function::from(f0::<A>()).to_any();
     let c2 = || {
-        let c3: Any<A> = Any::call(c1.clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any())?;
-        let c4: Any<A> = Any::call(c1.clone(), [args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any())?;
+        let c3: Any<A> = Any::call(c1.clone(), [args.argument(0)].to_array().to_any())?;
+        let c4: Any<A> = Any::call(c1.clone(), [args.argument(1)].to_array().to_any())?;
         strict_eq(c3, c4)
     };
     let c5: Any<A> = Function::from(number_is_nan::<A>()).to_any();
     let c6 = || {
-        let c7: Any<A> = Any::call(c5.clone(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any())?;
-        let c8 = || Any::call(c5.clone(), [args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any());
+        let c7: Any<A> = Any::call(c5.clone(), [args.argument(0)].to_array().to_any())?;
+        let c8 = || Any::call(c5.clone(), [args.argument(1)].to_array().to_any());
         Any::logical_and(c7, c8)
     };
     Any::conditional(c0, c2, c6)
@@ -54,16 +54,16 @@ fn object_is_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 pub fn object_is<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Object.is", code: object_is_code::<A>, length: 2, text: "($2,$3)=>$2===$3?$0($2)===$0($3):$1($2)&&$1($3)" }
+    &RuntimeFunction { name: "Object.is", code: object_is_code::<A>, length: 2 }
 }
 
 /// `Number.isInteger`
 #[rustfmt::skip]
 fn number_is_integer_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = (Any::typeof_(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())))?;
+    let c0: Any<A> = (Any::typeof_(args.argument(0)))?;
     let c1: Any<A> = (strict_eq(c0, string_any("number")))?;
     let c2 = || {
-        let c3: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) % f64_any(0x3ff0000000000000))?;
+        let c3: Any<A> = (args.argument(0) % f64_any(0x3ff0000000000000))?;
         strict_eq(c3, f64_any(0x0000000000000000))
     };
     Any::logical_and(c1, c2)
@@ -71,34 +71,34 @@ fn number_is_integer_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 pub fn number_is_integer<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Number.isInteger", code: number_is_integer_code::<A>, length: 1, text: "($0)=>typeof $0===\"number\"&&$0%1===0" }
+    &RuntimeFunction { name: "Number.isInteger", code: number_is_integer_code::<A>, length: 1 }
 }
 
 /// `Number.isSafeInteger`
 #[rustfmt::skip]
 fn number_is_safe_integer_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = (Any::typeof_(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())))?;
+    let c0: Any<A> = (Any::typeof_(args.argument(0)))?;
     let c1: Any<A> = (strict_eq(c0, string_any("number")))?;
-    let c2 = || Any::call(Function::from(number_is_integer::<A>()).to_any(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any());
+    let c2 = || Any::call(Function::from(number_is_integer::<A>()).to_any(), [args.argument(0)].to_array().to_any());
     let c3: Any<A> = (Any::logical_and(c1, c2))?;
-    let c4 = || Any::le(f64_any(0xc33fffffffffffff), args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()));
+    let c4 = || Any::le(f64_any(0xc33fffffffffffff), args.argument(0));
     let c5: Any<A> = (Any::logical_and(c3, c4))?;
-    let c6 = || Any::le(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), f64_any(0x433fffffffffffff));
+    let c6 = || Any::le(args.argument(0), f64_any(0x433fffffffffffff));
     Any::logical_and(c5, c6)
 }
 
 #[rustfmt::skip]
 pub fn number_is_safe_integer<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Number.isSafeInteger", code: number_is_safe_integer_code::<A>, length: 1, text: "($1)=>typeof $1===\"number\"&&$0($1)&&-9007199254740991<=$1&&$1<=9007199254740991" }
+    &RuntimeFunction { name: "Number.isSafeInteger", code: number_is_safe_integer_code::<A>, length: 1 }
 }
 
 /// `Number.isFinite`
 #[rustfmt::skip]
 fn number_is_finite_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = (Any::typeof_(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())))?;
+    let c0: Any<A> = (Any::typeof_(args.argument(0)))?;
     let c1: Any<A> = (strict_eq(c0, string_any("number")))?;
     let c2 = || {
-        let c3: Any<A> = (args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) * f64_any(0x0000000000000000))?;
+        let c3: Any<A> = (args.argument(0) * f64_any(0x0000000000000000))?;
         strict_eq(c3, f64_any(0x0000000000000000))
     };
     Any::logical_and(c1, c2)
@@ -106,70 +106,76 @@ fn number_is_finite_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 
 #[rustfmt::skip]
 pub fn number_is_finite<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "Number.isFinite", code: number_is_finite_code::<A>, length: 1, text: "($0)=>typeof $0===\"number\"&&$0*0===0" }
+    &RuntimeFunction { name: "Number.isFinite", code: number_is_finite_code::<A>, length: 1 }
 }
 
 /// `f1`
 #[rustfmt::skip]
 fn f1_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = Any::dot(args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
-    let c1: Any<A> = (args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()) + c0)?;
-    let c2: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
+    let c0: Any<A> = Any::dot(args.argument(1), string_any("length")).end()?;
+    let c1: Any<A> = (args.argument(2) + c0)?;
+    let c2: Any<A> = Any::dot(args.argument(0), string_any("length")).end()?;
     let c3: Any<A> = (Any::gt(c1.clone(), c2))?;
     let c4 = || {
-        let c5 = || Ok([args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()), c1.clone()].to_array().to_any());
-        let c6: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("slice")).end_call(c5)?;
-        strict_eq(c6, args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()))
+        let c5 = || Ok([args.argument(2), c1.clone()].to_array().to_any());
+        let c6: Any<A> = Any::dot(args.argument(0), string_any("slice")).end_call(c5)?;
+        strict_eq(c6, args.argument(1))
     };
     Any::conditional(c3, || Ok(false.to_any()), c4)
 }
 
 #[rustfmt::skip]
 fn f1<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "f1", code: f1_code::<A>, length: 3, text: "($0,$1,$2)=>{const $3=$2+$1.length;return $3>$0.length?false:$0.slice($2,$3)===$1;}" }
+    &RuntimeFunction { name: "f1", code: f1_code::<A>, length: 3 }
 }
 
 /// `f2`
 #[rustfmt::skip]
 fn f2_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) - f64_any(0x0000000000000000)
+    args.argument(0) - f64_any(0x0000000000000000)
 }
 
 #[rustfmt::skip]
 fn f2<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "f2", code: f2_code::<A>, length: 1, text: "($0)=>$0-0" }
+    &RuntimeFunction { name: "f2", code: f2_code::<A>, length: 1 }
 }
 
 /// `f3`
 #[rustfmt::skip]
 fn f3_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = Any::call(Function::from(f2::<A>()).to_any(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())].to_array().to_any())?;
+    let c0: Any<A> = Any::call(Function::from(f2::<A>()).to_any(), [args.argument(0)].to_array().to_any())?;
     let c1: Any<A> = Any::call(Function::from(number_is_nan::<A>()).to_any(), [c0.clone()].to_array().to_any())?;
     let c2: Any<A> = (Any::conditional(c1, || Ok(f64_any(0x0000000000000000)), || Ok(c0.clone())))?;
     let c3: Any<A> = (Any::lt(c2.clone(), f64_any(0x0000000000000000)))?;
     let c4 = || {
-        let c5: Any<A> = (Any::gt(c2.clone(), args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())))?;
+        let c5: Any<A> = (Any::gt(c2.clone(), args.argument(1)))?;
         let c6 = || {
             let c7: Any<A> = (c2.clone() % f64_any(0x3ff0000000000000))?;
             c2.clone() - c7
         };
-        Any::conditional(c5, || Ok(args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any())), c6)
+        Any::conditional(c5, || Ok(args.argument(1)), c6)
     };
     Any::conditional(c3, || Ok(f64_any(0x0000000000000000)), c4)
 }
 
 #[rustfmt::skip]
 fn f3<A: IVm>() -> &'static RuntimeFunction<A> {
-    &RuntimeFunction { name: "f3", code: f3_code::<A>, length: 2, text: "($2,$3)=>{const $4=$0($2);const $5=$1($4)?0:$4;return $5<0?0:$5>$3?$3:$5-$5%1;}" }
+    &RuntimeFunction { name: "f3", code: f3_code::<A>, length: 2 }
 }
 
-/// `String.prototype.startsWith`
+/// `startsWith`
 #[rustfmt::skip]
-fn string_starts_with<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = (args.clone().into_iter().nth(1).unwrap_or_else(|| Nullish::Undefined.to_any()).to_string().map(|v| v.to_any()))?;
-    let c1: Any<A> = Any::dot(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), string_any("length")).end()?;
-    let c2: Any<A> = Any::call(Function::from(f3::<A>()).to_any(), [args.clone().into_iter().nth(2).unwrap_or_else(|| Nullish::Undefined.to_any()), c1].to_array().to_any())?;
-    Any::call(Function::from(f1::<A>()).to_any(), [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0, c2].to_array().to_any())
+fn starts_with<A: IStaticFunction>(self_: Any<A>) -> Result<Any<A>, Any<A>> {
+    let c0: Any<A> = (Any::typeof_(self_.clone()))?;
+    let c1: Any<A> = (strict_ne(c0, string_any("string")))?;
+    let c2 = || Ok(A::static_function(|self_, args| {
+        let c0: Any<A> = A::frame(self_)[1].clone();
+        let c1: Any<A> = (args.argument(0).to_string().map(|v| v.to_any()))?;
+        let c2: Any<A> = Any::dot(c0.clone(), string_any("length")).end()?;
+        let c3: Any<A> = Any::call(A::frame(self_)[2].clone(), [args.argument(1), c2].to_array().to_any())?;
+        Any::call(A::frame(self_)[0].clone(), [c0.clone(), c1, c3].to_array().to_any())
+    }, 2, [Function::from(f1::<A>()).to_any(), self_.clone(), Function::from(f3::<A>()).to_any()].to_array(), Some("($3,$4)=>$0($1,String($3),$2($4,$1.length))")).to_any());
+    Any::conditional(c1, || Ok(Nullish::Undefined.to_any()), c2)
 }
 
 #[rustfmt::skip]
@@ -185,8 +191,8 @@ pub(crate) fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 6] {
 }
 
 #[rustfmt::skip]
-pub(crate) fn members<A: IVm>() -> [(&'static str, &'static str, RuntimeCode<A>); 1] {
+pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1] {
     [
-        ("String", "startsWith", string_starts_with),
+        ("startsWith", starts_with),
     ]
 }

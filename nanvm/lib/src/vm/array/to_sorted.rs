@@ -94,7 +94,7 @@ mod tests {
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject},
+        vm::{Any, Array, IVm, ToAny, ToArray, ToObject},
     };
 
     type A = Naive;

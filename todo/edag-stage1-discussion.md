@@ -18,10 +18,10 @@ not parser scheduling. Property/method-access safety is shared with
 [property-accessor](../spec/todo/2330-property-accessor.md); source functions
 are in the language ([functions](../spec/functions/README.md)), capturing
 ones included — the frame
-[function-frame](../spec/todo/3111-function-frame.md) describes, built by the
+[function-frame](../spec/design/3111-function-frame.md) describes, built by the
 compiler and printed to Rust; VM-internal call
 lowering belongs to
-[call-like-instructions](../spec/todo/9100-call-like-instructions.md).
+[call-like-instructions](../spec/design/9100-call-like-instructions.md).
 
 **P1 source/writer reconciliation:** the direct descriptor-value source plan
 is superseded by `entry`, the language's helper
@@ -425,7 +425,7 @@ accepts their source spellings except unary `+`, which remains EDAG-only.
 
 **`["frame", i]` and the closed-scope model.** A closure's free values are
 copied into a frame when the function object is created — the scheme
-[function-frame](../spec/todo/3111-function-frame.md) chooses — and
+[function-frame](../spec/design/3111-function-frame.md) chooses — and
 `["frame", i]` reads slot `i` of that array. The frame as a whole is no
 node: a slot read carries its index as metadata, exactly as a fixed
 parameter is `["arg", N]`, so that the index is validated against the
@@ -473,7 +473,7 @@ recursion with no special machinery.
 
 - **Mutual recursion is not covered.** `["self"]` reaches only the
   innermost enclosing function; `a` calling `b` calling `a`
-  ([function-frame](../spec/todo/3111-function-frame.md) has exactly this example)
+  ([function-frame](../spec/design/3111-function-frame.md) has exactly this example)
   is a cycle *between* functions. Either the partner is passed as an
   argument, or mutually recursive functions form a hashed **group** with
   members addressed by index. Open, and it belongs with subject 9 —
@@ -631,7 +631,7 @@ does not weaken JS-compatible executors' allocation and sharing guarantees.
 The [function-text exception](../spec/principles/README.md#function-source-representation-exception)
 is independent of identity: FJS VMs use EDAG-derived default text, while direct
 JavaScript execution retains its host representation. The
-[serialization record](../spec/todo/serialization.md#function-text-and-serialization)
+[serialization record](../spec/design/serialization.md#function-text-and-serialization)
 now distinguishes implemented code-only text, partial structural FJS source,
 and reflection-erasing JavaScript runtime compilation. Future interchange and
 CAVM hashing remain open; A2 does not change these API contracts.
@@ -768,9 +768,9 @@ Kept from the original decision, unchanged:
 - **Lowering is one-way and lossy.** Lifetime and slot management — `pop`,
   top-relative indexing, auto-consuming RPN stack schemes — belong to the
   VM-internal bytecode
-  ([vm-command-format](../spec/todo/vm-command-format.md),
-  [call-like-instructions](../spec/todo/9100-call-like-instructions.md),
-  [function-frame](../spec/todo/3111-function-frame.md)), whose generator
+  ([vm-command-format](../spec/design/vm-command-format.md),
+  [call-like-instructions](../spec/design/9100-call-like-instructions.md),
+  [function-frame](../spec/design/3111-function-frame.md)), whose generator
   does liveness analysis. Restoring the EDAG from bytecode is neither
   required nor generally possible: the function always carries its EDAG.
 - **The EDAG feeds multiple processors**: the bytecode interpreter,
@@ -1396,7 +1396,7 @@ Nothing references a name the function did not compute itself:
   ([const](../spec/bindings/constants.md),
   [default-import](../spec/modules/imports.md));
 - a captured const — the implemented frame
-  [function-frame](../spec/todo/3111-function-frame.md) designs;
+  [function-frame](../spec/design/3111-function-frame.md) designs;
 - a built-in namespace such as `Object` or `JSON`
   ([built-in](../spec/todo/2360-built-in.md)), which
   [2360](../spec/todo/2360-built-in.md) says may be used only as a
@@ -1492,7 +1492,7 @@ an engine artifact an engine may report as a failure, but a language
 whose ordinary loops overflow on a major target is not portable in
 practice — the reason `let` is on the roadmap at all.
 
-Related: [mutability](../spec/todo/mutability.md) treats `let` as stage
+Related: [mutability](../spec/design/mutability.md) treats `let` as stage
 zero of ownership tracking; whatever shape is chosen here must not
 require the EDAG to model mutable *objects*, only threaded state.
 
@@ -1519,7 +1519,7 @@ ordinary runtime values with captured sharing and EDAG reflection erased.
 Runtime compilation may emit JavaScript outside the current FJS grammar.
 General callable interchange, canonical hashing and exact representation
 round trips remain separate future work in
-[serialization](../spec/todo/serialization.md#function-text-and-serialization).
+[serialization](../spec/design/serialization.md#function-text-and-serialization).
 The requirements below retain the historical self-contained serializer
 discussion within each serializer's declared profile; they are not a pending
 contract for `String(f)`.
@@ -1579,7 +1579,7 @@ environment, the following constraints apply within its supported domain:
   binding. Current function text uses named `self`, and runtime-value compilation
   constructs captured values with bindings rather than recursively expanding
   text. For a future serializer that includes frames, the
-  [conditional lazy-rendering requirement](../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
+  [conditional lazy-rendering requirement](../spec/design/serialization.md#conditional-requirement-lazy-frame-rendering)
   discussion applies; it does not require `String(f)` to materialize frames.
 - **Data keys keep their meaning.** In an object literal, an own `__proto__`
   data key needs the computed spelling `{ ["__proto__"]: value }`, not a

@@ -13,9 +13,9 @@
  *
  * @module
  * @import { ExpOp, StepOver, ItemsOver, Over } from '../types.ts'
- * @import { EdagValue, Values, Property, Array as ValueArray, EntryFunction, NativeStatic } from '../value/types.ts'
+ * @import { EdagValue, Values, Property, Array as ValueArray, Closure, Runtime, Static } from '../value/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
- * @import { Invoke } from '../value/call/types.ts'
+ * @import { Invoke, Outcome } from '../value/call/types.ts'
  * @import { Evaluation, Evaluator, Tail } from './types.ts'
  */
 
@@ -24,16 +24,16 @@ import { error, ok, okThen } from '../../types/result/module.f.js'
 import { array } from '../value/array/module.f.mjs'
 import { object } from '../value/object/module.f.mjs'
 import { func } from '../value/function/module.f.mjs'
-import { prepare, settle } from '../value/call/module.f.mjs'
-import { entry, findProperty, read } from '../value/property/module.f.mjs'
+import { bind, prepare, settle } from '../value/call/module.f.mjs'
+import { entry, findProperty, functionAt, read } from '../value/property/module.f.mjs'
 import { throwValue } from '../value/control/module.f.mjs'
 import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
 import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
-import { functionAt, hasMethod, method } from '../value/method/module.f.mjs'
-import { objectEntries, ownEntries } from '../value/entries/module.f.mjs'
-import { staticPath } from '../module.f.mjs'
+import { admits, hasMethod, method } from '../value/method/module.f.mjs'
+import { ownEntries } from '../value/entries/module.f.mjs'
+import { noStatic, staticPath } from '../module.f.mjs'
 
 /** Propagate failures without running the continuation.
  * @template S
@@ -63,26 +63,30 @@ const nullish = value => value === null || typeOf(value) === 'undefined'
  *
  * @type {(fixed: Values, invoke: Invoke) => ValueResult}
  */
-const entryCall = ([receiver, key], invoke) =>
+export const entryCall = ([receiver, key], invoke) =>
     nullish(receiver) ? error(['undefined']) : okThen(name => entry(receiver, name))(toString(key, invoke))
 
 /**
- * A function with no body to interpret called, for the executors that
- * invoke one: the `entry` helper, {@link entryCall}, and `Object.entries`
- * on its one fixed argument, `ownEntries`. Each executor answers every
- * other function by walking its body.
+ * A static function called, for the executors that invoke one, its
+ * arguments all in `args`, since the call binds none for a static:
+ * `Object.entries`, which no body defines, on its first argument,
+ * `ownEntries`; every other the body the runtime's `static` section holds
+ * at its path, its arguments bound to the body's `length` as a call
+ * binds a closure's, and `run` with the static as its `self`, since the
+ * function the body is called as is the built-in, as NaNVM's item answers
+ * its own accessor; and, with no runtime or none at the path, the failure
+ * naming the static.
  *
- * @type {(fn: EntryFunction | NativeStatic, fixed: Values, invoke: Invoke) => ValueResult}
+ * @type {(runtime: Runtime | undefined, fn: Static, args: ValueArray, run: (body: Closure, fixed: Values, rest: ValueArray, self: Static) => Outcome) => Outcome}
  */
-export const nativeCall = (fn, fixed, invoke) => fn[0] === 'entry' ? entryCall(fixed, invoke) : ownEntries(fixed[0])
-
-/**
- * The failure of a static function no binding answers, by its name:
- * the parser admitted it, so the binding is the executor's to supply.
- *
- * @type {(name: string) => string}
- */
-export const noStatic = name => `no binding for the static ${name}`
+export const staticCall = (runtime, fn, args, run) => {
+    const [, values] = args
+    if (fn[0] === 'Object.entries') { return ownEntries(values.length === 0 ? ['undefined'] : values[0]) }
+    const body = /** @type {Closure | undefined} */ (functionAt(runtime, ['static', ...staticPath(fn[0])]))
+    if (body === undefined) { return error(noStatic(fn[0])) }
+    const [fixed, rest] = bind(body[1], values)
+    return run(body, fixed, rest, fn)
+}
 
 /** A node in tail position: its value, or the call it leaves for the executor.
  * @template E, S
@@ -142,22 +146,29 @@ export const operation = evaluator => {
         // EDAG indices are string/number literals or an explicit Number
         // operand. Its evaluation has already performed any conversion.
         const name = String(/** @type {string | number} */ (key))
-        const value = read(ok(receiver), name)
+        const value = read(ok(receiver), name, runtime)
         if (step === undefined) { return [state, value] }
         const [tag, arg, continuation] = step
         if (tag === '|.') { return then([state, value], (v, next) => continueValue(v, step, next)) }
         const own = isArray(receiver) && receiver[0] === '{}' && findProperty(receiver, name) !== undefined
-        const builtin = !own && hasMethod(receiver, name, runtime)
+        const builtin = !own && admits(receiver, name)
+        /** The call, after its arguments. @type {(callee: EdagValue, state: S) => Tail<S>} */
+        const proceed = (callee, next) => then(items(arg, next), (args, afterArgs) => {
+            const values = /** @type {ValueArray} */ (args)[1]
+            // a built-in method is answered as a value; a represented
+            // function's call is left for the executor
+            const result = builtin ? method(receiver, name, values, invoke, runtime)
+                : prepare(ok(callee), values.map(v => () => ok(v)))
+            return continued([afterArgs, result], continuation)
+        })
         return then([state, value], (callee, next) => {
-            if (tag === '|?.()' && !builtin && nullish(callee)) { return skip(continuation, next) }
-            return then(items(arg, next), (args, afterArgs) => {
-                const values = /** @type {ValueArray} */ (args)[1]
-                // a built-in method is answered as a value; a represented
-                // function's call is left for the executor
-                const result = builtin ? method(receiver, name, values, invoke, runtime)
-                    : prepare(ok(callee), values.map(v => () => ok(v)))
-                return continued([afterArgs, result], continuation)
-            })
+            if (tag !== '|?.()') { return proceed(callee, next) }
+            // the guard, before the arguments: an own property that is
+            // nullish skips, and so does a built-in no implementation is
+            // bound for, which the runtime's body decides for its receiver
+            // and may throw deciding
+            const guard = builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!nullish(callee))
+            return then([next, guard], (has, after) => has ? proceed(callee, after) : skip(continuation, after))
         })
     }
 
@@ -201,21 +212,20 @@ export const operation = evaluator => {
             case 'self': { return [state, self === undefined ? error(['undefined']) : ok(self)] }
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
-            // the static function no body defines, bound here and not by
-            // the runtime: one value, so the same function every read
-            case 'Object.entries': { return [state, ok(objectEntries)] }
-            // a static function as a value, the body the runtime's `static`
-            // section holds at its path — the same node every read, so the
-            // same function; with none — no runtime, or one without the
-            // path — the executor fails naming it, never `undefined` and
-            // never a plausible value. Named here, unlike everywhere else
-            // a node is read, since `Op0` is one tuple whatever its tag: a
-            // static `isStatic` turned away would still reach `binary`
-            // below as far as `tsc` can tell, and a tag missing here is a
-            // type error for the same reason
-            case 'Object.is': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': {
-                const fn = functionAt(runtime, ['static', ...staticPath(node[0])])
-                return [state, fn === undefined ? error(noStatic(node[0])) : ok(fn)]
+            // a static function as a value: the node, the built-in by its
+            // name, one function however often it is read, whose call and
+            // `length` the body the runtime's `static` section holds at
+            // its path answers — `Object.entries`, which no body defines,
+            // is answered natively — and with none — no runtime, or one
+            // without the path — the executor fails naming it at the read,
+            // never `undefined` and never a plausible value. Named here,
+            // unlike everywhere else a node is read, since `Op0` is one
+            // tuple whatever its tag: a static `isStatic` turned away would
+            // still reach `binary` below as far as `tsc` can tell, and a
+            // tag missing here is a type error for the same reason
+            case 'Object.is': case 'Object.entries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': {
+                const bound = node[0] === 'Object.entries' || functionAt(runtime, ['static', ...staticPath(node[0])]) !== undefined
+                return [state, bound ? ok(/** @type {Static} */ ([node[0]])) : error(noStatic(node[0]))]
             }
             case '[]': { return items(node[1], state) }
             case '{}': { return properties(node[1], state) }

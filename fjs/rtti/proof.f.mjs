@@ -2,7 +2,7 @@
  * @import { StringMap } from '../types/object/types.ts'
  * @import { Assert } from '../asserts/types.ts'
  * @import { Equal } from '../types/ts/types.ts'
- * @import { Option, Or, Rest, Type1, Unknown, DemoState } from './types.ts'
+ * @import { Option, Or, Rest, Type1, Unknown, DemoState, _Answer } from './types.ts'
  * @import { DemoEvent } from '../website/demo/types.ts'
  */
 
@@ -13,6 +13,7 @@ import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { _crossings, graphSvg } from '../website/demo/graph/module.f.mjs'
+import { toText } from '../text/marked/module.f.mjs'
 
 /** @type {StringMap<readonly unknown[]>} */
 const tests = {
@@ -90,11 +91,23 @@ const page = (name, shown = 0, compare = '') =>
  *
  * @type {(r: ReturnType<ReturnType<typeof _readersOf>>) => unknown}
  */
-const texts = r => 'error' in r ? r : { parse: r.parse.text, validate: r.validate.text }
+const texts = r => 'error' in r ? r : { parse: answerText(r.parse), validate: answerText(r.validate) }
+
+/** A reader's answer as the text its block shows. @type {(a: _Answer) => string} */
+const answerText = a => a.ok ? toText(a.marked) : a.text
+
+/** A highlighted run as the demo draws it. @type {(kind: string, text: string) => string} */
+const tok = (kind, text) => `<span data-token="${kind}">${text}</span>`
+
+/** The closed schema of "Closed vs open", highlighted. */
+const closedCode = `{ ${tok('identifier', 'name')}: ${tok('identifier', 'string')}, ${tok('identifier', 'age')}: ${tok('identifier', 'number')} }`
+
+/** The open schema of "Closed vs open", highlighted. */
+const openCode = `${tok('identifier', 'open')}(${closedCode})`
 
 /**
  * One schema of a pair as the demo draws it: a choice button holding a radio
- * dot and the schema's code, pressed when it is the one picked.
+ * dot and the schema's highlighted code, pressed when it is the one picked.
  *
  * @type {(i: number, pressed: boolean, source: string) => string}
  */
@@ -188,34 +201,41 @@ const demoProof = /** @type {const} */ ({
         // page.
         projectSource: () => {
             const html = page('Note')
-            assert(html.includes(`<pre data-code="">import { noteSchema } from <a href="/fjs/media/note/index.html">'functionalscript/fjs/media/note/module.f.mjs'</a></pre>`), html)
+            assert(html.includes(`<pre data-code="">${tok('keyword', 'import')} { ${tok('identifier', 'noteSchema')} } ${tok('identifier', 'from')} <a href="/fjs/media/note/index.html">'functionalscript/fjs/media/note/module.f.mjs'</a></pre>`), html)
         },
         // A pair shows both schemas, each its code as a choice, and marks the
         // one picked; picking the other moves the mark and nothing else.
         pair: () => {
             const a = page('Closed vs open')
-            assert(a.includes(`<div data-pick="">${choice(0, true, '{ name: string, age: number }')}${choice(1, false, 'open({ name: string, age: number })')}</div>`), a)
+            assert(a.includes(`<div data-pick="">${choice(0, true, closedCode)}${choice(1, false, openCode)}</div>`), a)
             assert(!a.includes('<pre data-code="">{ name'), a)
             const b = page('Closed vs open', 1)
-            assert(b.includes(`${choice(0, false, '{ name: string, age: number }')}${choice(1, true, 'open({ name: string, age: number })')}`), b)
+            assert(b.includes(`${choice(0, false, closedCode)}${choice(1, true, openCode)}`), b)
         },
-        // Each answer's verdict is on its label line, and its block — marked
-        // for the stylesheet to colour — holds only the value or the failure:
-        // red where the closed schema refuses the extra key, green where
-        // `open` admits it.
+        // Each answer's verdict is on its label line, the word marked for the
+        // stylesheet to colour, and its block — a code block marked with the
+        // verdict — holds only the value, highlighted, or the failure: red
+        // where the closed schema refuses the extra key, green where `open`
+        // admits it.
         verdict: () => {
             const a = page('Closed vs open')
-            assert(a.includes('<p data-caption="">parse · error</p><pre data-result="error">at the root: unexpected value</pre>'), a)
-            assert(a.includes('<p data-caption="">validate · error</p>'), a)
+            assert(a.includes('<p data-caption="">parse · <span data-verdict="error">error</span></p><pre data-code="" data-result="error">at the root: unexpected value</pre>'), a)
+            assert(a.includes('<p data-caption="">validate · <span data-verdict="error">error</span></p>'), a)
             assert(!a.includes('data-result="ok"'), a)
             const b = page('Closed vs open', 1)
-            assert(b.includes('<p data-caption="">parse · ok</p><pre data-result="ok">export default {'), b)
-            assert(b.includes('<p data-caption="">validate · ok</p>'), b)
+            assert(b.includes(`<p data-caption="">parse · <span data-verdict="ok">ok</span></p><pre data-code="" data-result="ok">${tok('keyword', 'export')} ${tok('keyword', 'default')} {${tok('string', '&quot;name&quot;')}:`), b)
+            assert(b.includes('<p data-caption="">validate · <span data-verdict="ok">ok</span></p>'), b)
             assert(!b.includes('data-result="error"'), b)
         },
         // The page reads schema, then its graph, then the value and the
         // answers: the graph is a picture of the schema, and the answers are
         // what typing changes, so each sits by what it belongs to.
+        // The value is typed into a highlighted field: a textarea over a
+        // coloured copy of its text.
+        valueField: () => {
+            const html = htmlToString(demo.view({ ...demo.init, text: 'export default {"a":1};' }))
+            assert(html.includes(`<span data-mirror="" aria-hidden="true">${tok('keyword', 'export')} ${tok('keyword', 'default')} {${tok('string', '&quot;a&quot;')}:${tok('number', '1')}};`), html)
+        },
         order: () => {
             const html = page('Closed vs open', 1)
             const at = (/** @type {string} */ needle) => {
@@ -231,14 +251,14 @@ const demoProof = /** @type {const} */ ({
         single: () => {
             const html = page('Dictionary', 1)
             assert(!html.includes('data-pick'), html)
-            assert(html.includes('<pre data-code="">record(number)</pre>'), html)
+            assert(html.includes(`<pre data-code="">${tok('identifier', 'record')}(${tok('identifier', 'number')})</pre>`), html)
         },
         // Text that is not a DataJS document is reported, and the readers do
         // not run. Bare JSON is not one: at the top of a module, `{` opens a
         // block.
         notADocument: () => {
             const html = htmlToString(demo.view({ ...demo.init, text: '{"a":1}' }))
-            assert(html.includes('<p data-caption="">DataJS · error</p><pre data-result="error">'), html)
+            assert(html.includes('<p data-caption="">DataJS · <span data-verdict="error">error</span></p><pre data-code="" data-result="error">'), html)
             assert(!html.includes('parse ·'), html)
         },
         // Under the graph come the TypeScript type, the JSON Schema and the
@@ -246,8 +266,8 @@ const demoProof = /** @type {const} */ ({
         outputs: () => {
             const html = page('Dictionary')
             assert(html.includes('<p data-caption="">TypeScript:</p><pre data-code="">{readonly[k in string]?:number}</pre>'), html)
-            assert(html.includes('<p data-caption="">JSON Schema:</p><pre data-code="">{&quot;type&quot;:&quot;object&quot;,&quot;additionalProperties&quot;:{&quot;type&quot;:&quot;number&quot;}}</pre>'), html)
-            assert(html.includes('<details><summary>Canonical form (toData)</summary><pre data-code="">'), html)
+            assert(html.includes(`<p data-caption="">JSON Schema:</p><pre data-code="">{${tok('string', '&quot;type&quot;')}:${tok('string', '&quot;object&quot;')},${tok('string', '&quot;additionalProperties&quot;')}:{${tok('string', '&quot;type&quot;')}:${tok('string', '&quot;number&quot;')}}}</pre>`), html)
+            assert(html.includes(`<details><summary>Canonical form (toData)</summary><pre data-code="">${tok('keyword', 'export')} ${tok('keyword', 'default')} [`), html)
             const at = (/** @type {string} */ needle) => html.indexOf(needle)
             assert(at('<svg') < at('<p data-caption="">TypeScript:</p>'), html)
             assert(at('<details>') < at('<label for="compare">'), html)
@@ -310,8 +330,10 @@ const demoProof = /** @type {const} */ ({
             const e = exampleNamed('Shared parts')
             const r = _readersOf(e.schemas[0].schema)(e.value)
             assert(!('error' in r), 'expected the readers to run')
-            assert('validate' in r && r.validate.text.startsWith('const $0={"street":"1 Main St","city":"Kyiv"};\nexport default {'), JSON.stringify(r))
-            assert('parse' in r && !r.parse.text.includes('const'), JSON.stringify(r))
+            assert('validate' in r && answerText(r.validate).startsWith('const $0={"street":"1 Main St","city":"Kyiv"};\nexport default {'), JSON.stringify(r))
+            assert('parse' in r && !answerText(r.parse).includes('const'), JSON.stringify(r))
+            // The shared value's name is marked as a name, by the writer.
+            assert('validate' in r && r.validate.ok && r.validate.marked.some(([t, k]) => t === '$0' && k === 'identifier'), JSON.stringify(r))
         },
         // A `;` inside a string ends no statement.
         semicolonInAString: () => assertEq(JSON.stringify(texts(_readersOf({ s: string })('export default {"s":";"};'))),
@@ -332,7 +354,7 @@ const demoProof = /** @type {const} */ ({
             for (const e of examples) {
                 for (const x of e.schemas) {
                     const o = _outputsOf(x.schema)
-                    assert(o.ts !== '' && o.jsonSchema !== '' && o.data !== '', e.name)
+                    assert(o.ts !== '' && toText(o.jsonSchema) !== '' && toText(o.data) !== '', e.name)
                 }
             }
         },
@@ -340,7 +362,7 @@ const demoProof = /** @type {const} */ ({
         recursive: () => {
             const o = _outputsOf(exampleNamed('Recursion').schemas[0].schema)
             assertEq(o.ts, 'type tree = {readonly"children":readonly(tree)[],readonly"value":number}\ntree')
-            assert(o.jsonSchema.includes('"$defs":{"tree":'), o.jsonSchema)
+            assert(toText(o.jsonSchema).includes('"$defs":{"tree":'), JSON.stringify(o.jsonSchema))
         },
     },
     // The comparison's five verdicts.
@@ -393,8 +415,8 @@ const demoProof = /** @type {const} */ ({
         page: () => {
             const r = _readersOf({ a: { b: number } })('export default {"a":{"b":"x"}};')
             assert(!('error' in r), 'expected the readers to run')
-            assert('validate' in r && r.validate.path !== undefined, JSON.stringify(r))
-            assertEq(JSON.stringify(_marked(r.validate.path ?? [])(r.value)),
+            assert('validate' in r && !r.validate.ok, JSON.stringify(r))
+            assertEq(JSON.stringify(_marked(r.validate.ok ? [] : r.validate.path)(r.value)),
                 JSON.stringify(['{', '"a":', '{', '"b":', ['mark', '"x"'], '}', '}']))
         },
     },
