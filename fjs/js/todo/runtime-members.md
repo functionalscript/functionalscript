@@ -73,8 +73,8 @@ export const runtime = {
   throws for one before any argument, as `Member::new` and the
   interpreter's property step do. A compiled `a.map(b)` stays
   `Any::dot(a, "map").end_call(...)`: one dispatcher serves a literal key
-  and a computed one, `a[b]()`, alike, and a direct call by name would be
-  a second resolution to keep in step with the first.
+  and a computed one, `a[Number(b)]()`, alike, and a direct call by name
+  would be a second resolution to keep in step with the first.
 
 ### Decisions
 
