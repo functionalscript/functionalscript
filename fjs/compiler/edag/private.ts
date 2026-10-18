@@ -7,7 +7,6 @@
 
 import type { ConstructorId, Exp, Items, Properties } from '../../edag/types.ts'
 import type { AstConst, BinaryTag, UnaryTag } from '../ast/types.ts'
-import type { Shape } from '../../website/demo/graph/types.ts'
 
 /** The nodes a reference can name: one per import, one per entry lowered so far, the arguments of the function being lowered, and a read of each slot of its frame. */
 export type _Nodes = {
@@ -77,5 +76,15 @@ export type _Resolved = {
 /** An edge of `demo.f.mjs`'s drawing: a port's label, the value it reaches, and `lazy` where the position is one the node may never evaluate. */
 export type _Child = readonly [label: string, value: Exp, kind?: 'lazy']
 
-/** A chain's link `demo.f.mjs` has already drawn, standing as the operand of the step after it, so the walk reads its shape rather than the chain again. */
-export type _Drawn = { readonly drawn: Shape<unknown> }
+/**
+ * A chain `demo.f.mjs` is drawing, one node however many steps it has: the
+ * label and ports so far, the spelling of the key the next call is on — none
+ * after a call, whose value has no name — and whether a `?.` has been
+ * passed, which makes the operands after it the ones a nullish value skips.
+ */
+export type _Chain = {
+    readonly label: string
+    readonly children: readonly _Child[]
+    readonly key: string
+    readonly lazy: boolean
+}
