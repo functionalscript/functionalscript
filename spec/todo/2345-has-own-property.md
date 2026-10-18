@@ -28,7 +28,8 @@ holding `undefined`; and the separate presence helper this file proposed
 before, `hasEntity` (raw flag or boolean, the choice it left open). One
 helper, one EDAG node, one question — the entry, if any — and a
 value-or-fallback read costs one lookup, not two. Approved by the language
-designer in the session the pull request for this file links
+designer, Sergey Shandar, on the pull request for this file:
+["Design is approved!"](https://github.com/functionalscript/functionalscript/pull/3023#issuecomment-6245721352)
 ([design principles §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
 
 An option that is an array composes with arrays and their methods without a

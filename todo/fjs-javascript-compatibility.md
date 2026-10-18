@@ -272,9 +272,9 @@ export default Object.values({ ...a, y: 1, x: 2 })
     .filter(value => value !== undefined); // [2, 1], not [1, 2]
 ```
 
-The proposed descriptor-enumerability pattern also reads `true` for an
-ordinary `{ x: undefined }` entry and `undefined` for a missing one. Equality
-of direct value reads or filtered output does not establish substitutability.
+The `entry` helper's option also reads `[undefined]` for an ordinary
+`{ x: undefined }` entry and `[]` for a missing one. Equality of direct value
+reads or filtered output does not establish substitutability.
 
 **Root-cause correction:** define equivalence over all admitted observation
 contexts and recheck it when adding an operation. Normalize only where that
