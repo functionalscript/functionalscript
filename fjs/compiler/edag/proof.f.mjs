@@ -1363,16 +1363,17 @@ export const proof = {
                 },
             },
             dot: {
-                // A string index folds into the node's own label; nothing
-                // about it needs a child edge to say what it is.
+                // A literal key is a value of the `.` node, not part of its
+                // label: a name in its `key` port, an index in its `idx`.
                 literalString: () => {
                     const shape = nodeShapeOf(['.', ['a'], 'x'], 'expected a shape')
-                    assertEq(shape.label, '.x')
-                    assertStructurallySame(shape.children, [['obj', ['a']]])
+                    assertEq(shape.label, '.')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['key', 'x']])
                 },
                 literalNumber: () => {
-                    const shape = nodeShapeOf(['.', ['a'], 0], 'expected a shape')
-                    assertEq(shape.label, '[0]')
+                    const shape = nodeShapeOf(['.', ['a'], 5], 'expected a shape')
+                    assertEq(shape.label, '.')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['idx', 5]])
                 },
                 // A computed index — `Number(x)`, the one shape `Index`
                 // allows beyond a bare literal — is an `Exp`, so it gets a
@@ -1565,11 +1566,11 @@ export const proof = {
             },
             lambda: () => {
                 const shape = nodeShapeOf(['=>', 0, [], ['rest']], 'expected a shape')
-                assertEq(shape.label, '=> (0)')
-                assertStructurallySame(shape.children, [['body', ['rest'], 'lazy']])
+                assertEq(shape.label, '=>')
+                assertStructurallySame(shape.children, [['length', 0], ['body', ['rest'], 'lazy']])
                 // one port per slot, named as the body reads it
                 const captures = nodeShapeOf(['=>', 0, [['[]', []], ['args']], ['frame', 1]], 'expected a shape')
-                assertStructurallySame(captures.children, [['frame 0', ['[]', []]], ['frame 1', ['args']], ['body', ['frame', 1], 'lazy']])
+                assertStructurallySame(captures.children, [['length', 0], ['frame 0', ['[]', []]], ['frame 1', ['args']], ['body', ['frame', 1], 'lazy']])
             },
             // Every Op0 name draws inline, and the three part
             // by meaning where `Op0Id` groups them by operand count:
@@ -1713,9 +1714,9 @@ export const proof = {
             assert(html.includes('data-graph-value="" data-graph-value-kind="terminal" data-graph-edge-kind="lazy">'), html)
             assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">rest<'), html)
             assert(html.includes('data-graph-value-label="">undefined<'), html)
-            // `1`, `2`, `3`, `4` and `undefined`, and `rest`, each in a
-            // cell; only the input is a terminal.
-            assertEq(html.split('data-graph-value=""').length - 1, 6)
+            // `1`, `2`, `3`, `4`, `undefined`, the key `"x"`, the length
+            // `0`, and `rest`, each in a cell; only the input is a terminal.
+            assertEq(html.split('data-graph-value=""').length - 1, 8)
             assertEq(html.split('data-graph-value="" data-graph-value-kind="terminal"').length - 1, 1)
             assert(!html.includes('>frame'), html)
             assert(html.includes('>body<'), html)
@@ -1773,7 +1774,7 @@ export const proof = {
             const html = htmlToString(demo.view(
                 'const a = {x: 1}; const f = a.x; export default [f(2), a.x === 1];'))
             assert(html.includes('>()<'), html)
-            assert(html.includes('>.x<'), html)
+            assert(html.includes('>&quot;x&quot;<'), html)
             assert(html.includes('>===<'), html)
         },
         // A primitive with no user to sit in — the whole export — is still
