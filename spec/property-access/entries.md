@@ -34,8 +34,10 @@ The option is an array, `Option<T>` in
 arrays as one: `entry(a, b)[0]` is the value, or `undefined` where there is
 none; `entry(a, b).length === 1` is presence; `const [v] = entry(a, b)`
 destructures it; `[...entry(a, b), d][0]` is the value or a default, in one
-lookup; and `keys.flatMap(k => entry(a, k))` is the values present, in key
-order. Presence has no other spelling: `in` is refused
+lookup, the default evaluated either way as a spread's item is, and binding
+the option first, `found.length === 1 ? found[0] : d`, evaluates it only
+where there is none; and `keys.flatMap(k => entry(a, k))` is the values
+present, in key order. Presence has no other spelling: `in` is refused
 ([`in`](../operators/in.md)), and `Object.hasOwn` and
 `a.hasOwnProperty(b)` are not in the language, each asking a different
 question — a non-enumerable own property, or the prototype chain.

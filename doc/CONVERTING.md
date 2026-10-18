@@ -140,7 +140,8 @@ and `[]` where there is none. `entry(a, k)[0]` is what `a[k]` reads on a
 plain object whose keys are its own, `entry(a, k).length === 1` is what
 `k in a` asks of such an object, and `[...entry(a, k), d][0]` is `a[k]`
 with a default for an absent key, which `a[k] ?? d` is not where the entry
-holds `undefined`. It differs from `a[k]` where JavaScript would reach past
+holds `undefined` — the default evaluated either way, as a spread's item is;
+where it must not be, bind the option and branch on its length. It differs from `a[k]` where JavaScript would reach past
 the own properties, and a conversion checks that the module never did:
 
 - `entry(a, "length")` is `[]` on an array, a string or a function, whose
