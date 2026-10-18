@@ -94,6 +94,19 @@ export const proof = {
                 v => ({ kind: 'n', label: `${v}`, children: v === 0 ? [['a', 1], ['b', 2]] : v === 2 ? [['c', 1]] : [] })))(0)
             assertStructurallySame(g.nodes.map(n => n.rank), [0, 2, 1])
         },
+        /**
+         * **A long path does not use the call stack.** The walk keeps its
+         * own stack, so a graph as deep as a chain of two thousand links —
+         * the EDAG demo draws one node per link — is walked, where a
+         * recursive walk ran out of stack.
+         */
+        deepPath: () => {
+            const n = 2000
+            const g = graphOf(/** @type {(v: number) => Shape<number>} */ (
+                v => v === 0 ? { inline: '0' } : { kind: 'n', label: `${v}`, children: [['next', v - 1]] }))(n)
+            assertEq(g.nodes.length, n)
+            assertEq(g.nodes[n - 1].rank, n - 1)
+        },
     },
     ranked: {
         // The root alone is rank 0.

@@ -144,3 +144,22 @@ export type _Walk = {
     readonly edges: readonly Edge[]
     readonly next: number
 }
+
+/**
+ * A node `graphOf` is inside: its id, the ids of the nodes it is inside,
+ * root first and its own last, its children and the next of them to walk,
+ * and the label and kind of the edge that reached it — added from the
+ * frame below once everything under this one is drawn. The root's are
+ * never read.
+ */
+export type _Frame<V> = {
+    readonly id: number
+    readonly path: readonly number[]
+    readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
+    readonly next: number
+    readonly label: string
+    readonly kind: string | undefined
+}
+
+/** The frames `graphOf` is inside, innermost first: its own stack in place of recursion. */
+export type _Stack<V> = readonly [_Frame<V>, _Stack<V>] | undefined

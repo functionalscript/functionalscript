@@ -241,6 +241,29 @@ does not parse already gets. Reading them costs the build about two seconds
 for the few hundred issues the tree holds (at `6d511a0`, 366 issues: 17 s
 against 15 s).
 
+**An issue shows its priority as a badge and its status as its icon** —
+`P1 ◐ name` — and the list is ordered by priority, then status, then name. The
+P1s, the issues that block everything else, lead the list rather than sitting
+wherever their names sort, and the badges are its left column, so a reader sees
+where each priority starts. Within one priority, status is ordered as
+[`issue`](./issue/module.f.mjs)'s `statuses` lists it: work in progress, then
+work not started, then work waiting or deferred, then the record, then what
+will not be done. Status first was the other order: it grouped the list by
+icon and sank the records to the bottom, but put every work in progress, a P5
+included, above an open P1.
+
+The status is `data-issue-status` on the link, beside `data-kind`, so its
+icon's text alternative — "blocked issue" — is part of the link's name; not
+`data-status`, which the test runner's report already gives `passed` and
+`failed`. The badge, `data-priority`, is outside the link, before it: it is
+read as a word of its own, and the link's name and underline are the issue's
+alone. Its emphasis falls with the priority rather than changing hue: P1 is
+filled in the failure colour, the conventional one for blocking; P2 in the
+value colour; P3 outlined; P4 plain muted text; P5 the same, fainter. A hue per
+level would say nothing about order, and would compete with the status icons.
+[`issue`'s demo](./issue/demo.f.mjs) draws every status and every priority,
+the one page that shows the whole set.
+
 ## A page runs the proofs under it
 
 A page is the browser test runner with a shorter list, never a second runner.
