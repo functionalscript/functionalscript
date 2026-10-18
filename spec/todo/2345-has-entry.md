@@ -47,7 +47,8 @@ default that respects an entry holding `undefined`, each one call, where
 the pair spends two scans on the third, `hasEntry(a, b) ? entry(a, b) : d`.
 That argument held until the runtime's dispatcher was written in the
 language ([runtime-members](../../fjs/js/todo/runtime-members.md),
-[DESIGN.md §13](../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)):
+[DESIGN.md §13](../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution),
+both arriving with [#3013](https://github.com/functionalscript/functionalscript/pull/3013)):
 
 - **An allocation on every member call.** `dot` reads the receiver and
   then the member table, and with the option each read builds a

@@ -15,6 +15,7 @@
 mod codec;
 mod common;
 mod files;
+mod inflate;
 mod native;
 mod resolve;
 
