@@ -9,6 +9,16 @@
 
 use crate::files::{IoError, MAX_FILE_SIZE_BYTES};
 
+/// The output Node's zlib produces in one call. Node checks the answer against
+/// [`MAX_FILE_SIZE_BYTES`] between calls, so a stream is refused for its size
+/// only once the output fills a whole call, or the stream ends past the bound;
+/// any other failure met before then is the one reported.
+const CHUNK: usize = 0x4000;
+
+/// The most output decoded before the size is what is refused: the first
+/// multiple of [`CHUNK`] past [`MAX_FILE_SIZE_BYTES`].
+const LIMIT: usize = (MAX_FILE_SIZE_BYTES as usize / CHUNK + 1) * CHUNK;
+
 /// Why a stream is refused. [`Fail::Data`] is zlib's own message.
 enum Fail {
     /// The stream is not valid: `Z_DATA_ERROR`.
@@ -17,7 +27,7 @@ enum Fail {
     Short,
     /// The stream asks for a preset dictionary: `Z_NEED_DICT`.
     NeedDict,
-    /// The output would pass [`MAX_FILE_SIZE_BYTES`].
+    /// The output passes [`MAX_FILE_SIZE_BYTES`].
     TooLarge,
 }
 
@@ -47,7 +57,16 @@ pub fn inflate(data: &[u8]) -> Result<Vec<u8>, IoError> {
         bits: 0,
         count: 0,
     };
-    let out = stream(&mut input)?;
+    let mut out = Vec::new();
+    match stream(&mut input, &mut out) {
+        Ok(()) => {}
+        // A full output buffer is reported before the input that is missing.
+        Err(Fail::Short) if out.len() >= LIMIT => return Err(Fail::TooLarge.into()),
+        Err(fail) => return Err(fail.into()),
+    }
+    if out.len() > MAX_FILE_SIZE_BYTES as usize {
+        return Err(Fail::TooLarge.into());
+    }
     let trailing = data.len() - input.pos;
     if trailing != 0 {
         return Err(IoError {
@@ -58,17 +77,16 @@ pub fn inflate(data: &[u8]) -> Result<Vec<u8>, IoError> {
     Ok(out)
 }
 
-fn stream(input: &mut Input) -> Result<Vec<u8>, Fail> {
+fn stream(input: &mut Input, out: &mut Vec<u8>) -> Result<(), Fail> {
     header(input)?;
-    let mut out = Vec::new();
     loop {
         let last = input.take(1)? == 1;
         match input.take(2)? {
-            0 => stored(input, &mut out)?,
-            1 => codes(input, &mut out, &fixed_literals(), &fixed_distances())?,
+            0 => stored(input, out)?,
+            1 => codes(input, out, &fixed_literals(), &fixed_distances())?,
             2 => {
                 let (literals, distances) = dynamic(input)?;
-                codes(input, &mut out, &literals, &distances)?
+                codes(input, out, &literals, &distances)?
             }
             _ => return Err(Fail::Data("invalid block type")),
         }
@@ -78,10 +96,10 @@ fn stream(input: &mut Input) -> Result<Vec<u8>, Fail> {
     }
     input.align();
     let adler = u32::from_be_bytes([input.byte()?, input.byte()?, input.byte()?, input.byte()?]);
-    if adler != adler32(&out) {
+    if adler != adler32(out) {
         return Err(Fail::Data("incorrect data check"));
     }
-    Ok(out)
+    Ok(())
 }
 
 /// The two bytes of RFC 1950 §2.2, in the order zlib checks them.
@@ -164,15 +182,16 @@ fn stored(input: &mut Input, out: &mut Vec<u8>) -> Result<(), Fail> {
         return Err(Fail::Data("invalid stored block lengths"));
     }
     let len = usize::from(len);
-    let bytes = input
-        .data
-        .get(input.pos..input.pos + len)
-        .ok_or(Fail::Short)?;
-    if out.len() + len > MAX_FILE_SIZE_BYTES as usize {
+    // Whatever the input has is copied before it is found short, as zlib does.
+    let have = len.min(input.data.len() - input.pos);
+    if out.len() + have > LIMIT {
         return Err(Fail::TooLarge);
     }
-    out.extend_from_slice(bytes);
-    input.pos += len;
+    out.extend_from_slice(&input.data[input.pos..input.pos + have]);
+    input.pos += have;
+    if have < len {
+        return Err(Fail::Short);
+    }
     Ok(())
 }
 
@@ -403,7 +422,7 @@ fn codes(
             .ok_or(Fail::Data("invalid literal/length code"))?;
         match symbol {
             0..=255 => {
-                if out.len() >= MAX_FILE_SIZE_BYTES as usize {
+                if out.len() >= LIMIT {
                     return Err(Fail::TooLarge);
                 }
                 out.push(symbol as u8);
@@ -424,7 +443,7 @@ fn codes(
                 if distance > out.len() {
                     return Err(Fail::Data("invalid distance too far back"));
                 }
-                if out.len() + length > MAX_FILE_SIZE_BYTES as usize {
+                if out.len() + length > LIMIT {
                     return Err(Fail::TooLarge);
                 }
                 // One byte at a time: a distance shorter than the length
@@ -616,6 +635,30 @@ mod test {
             refused(&data),
             ("Z_BUF_ERROR".into(), "unexpected end of file".into())
         );
+    }
+
+    /// Node checks the size between calls of 16 KiB of output, so a failure met
+    /// before the output fills the call that crosses the bound is the one
+    /// reported. The answers below are `zlib.inflateSync` for the same streams.
+    #[test]
+    fn failure_before_the_size() {
+        let damaged = |n: usize, cut: bool| {
+            let mut data = zeros(n);
+            if cut {
+                data.pop();
+            } else {
+                *data.last_mut().unwrap() ^= 1;
+            }
+            refused(&data).0
+        };
+        for n in [MAX_FILE_SIZE_BYTES as usize + 1, LIMIT - 1] {
+            assert_eq!(damaged(n, false), "Z_DATA_ERROR");
+            assert_eq!(damaged(n, true), "Z_BUF_ERROR");
+        }
+        assert_eq!(damaged(LIMIT, false), "Z_DATA_ERROR");
+        assert_eq!(damaged(LIMIT, true), "ERR_BUFFER_TOO_LARGE");
+        assert_eq!(damaged(LIMIT + 1, false), "ERR_BUFFER_TOO_LARGE");
+        assert_eq!(damaged(LIMIT + 1, true), "ERR_BUFFER_TOO_LARGE");
     }
 
     #[test]
