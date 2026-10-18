@@ -83,7 +83,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Graph, Shape } from '../../website/demo/graph/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { _Child } from './private.ts'
+ * @import { _Child, _Drawn } from './private.ts'
  */
 
 import { lazyOp2Id, staticIds } from '../../edag/module.f.mjs'
@@ -161,18 +161,6 @@ const numbered = itemChildren(false)
 const keyChild = (index, lazy) =>
     edge(typeof index === 'string' ? 'key' : 'idx', /** @type {Exp} */ (index), lazy && index instanceof Array)
 
-/** A chain's steps, first to last. @type {(step: unknown) => readonly (readonly unknown[])[]} */
-const stepList = step => {
-    if (step === undefined) { return [] }
-    const s = /** @type {readonly unknown[]} */ (step)
-    return [s, ...stepList(s[2])]
-}
-
-/** Steps rebuilt into the continuation they were read from. @type {(steps: readonly (readonly unknown[])[]) => unknown} */
-const continuation = steps => steps.reduceRight(
-    (next, [tag, x]) => next === undefined ? [tag, x] : [tag, x, next],
-    /** @type {unknown} */ (undefined))
-
 /**
  * A chain's first link: a key read off `obj`, plain or guarded, or a
  * guarded call of `callee`, whose arguments are the first thing a nullish
@@ -203,22 +191,30 @@ const step = (operand, region) => (tag, x) => {
 
 /**
  * A chain — an access, plain or guarded, a guarded call, and the steps
- * any of them carries — drawn one node per link: its last step, over the
- * chain without that step, down to the first {@link link}. The EDAG holds
- * the chain as one node; drawn as one box, it had to spell itself in the
- * label.
+ * any of them carries — drawn one node per link: the first {@link link},
+ * then each step over the link before it. The EDAG holds the chain as one
+ * node; drawn as one box, it had to spell itself in the label.
+ *
+ * One pass over the continuation, front to back: each step's operand is
+ * the link before it, already drawn and handed to the walk as a
+ * {@link _Drawn}, so no link is read twice however long the chain.
  *
  * @type {(exp: readonly unknown[]) => Shape<unknown>}
  */
 const chain = exp => {
     const [tag, base, x, cont] = exp
-    const steps = stepList(cont)
-    if (steps.length === 0) { return link(tag, base, x) }
-    const init = steps.slice(0, -1)
-    const operand = /** @type {Exp} */ (/** @type {unknown} */ (init.length === 0 ? [tag, base, x] : [tag, base, x, continuation(init)]))
-    const region = init.reduce((r, [t]) => t === '|?.()' || (t !== '|!()' && r), tag !== '.')
-    const [last, y] = steps[steps.length - 1]
-    return step(operand, region)(last, y)
+    let shape = link(tag, base, x)
+    let region = tag !== '.'
+    let next = cont
+    while (next !== undefined) {
+        const [t, y, rest] = /** @type {readonly unknown[]} */ (next)
+        /** @type {_Drawn} */
+        const operand = { drawn: shape }
+        shape = step(/** @type {Exp} */ (/** @type {unknown} */ (operand)), region)(t, y)
+        region = t === '|?.()' || (t !== '|!()' && region)
+        next = rest
+    }
+    return shape
 }
 
 /**
@@ -243,6 +239,9 @@ const chain = exp => {
  */
 export const _shapeOf = e => {
     if (e === null || typeof e !== 'object') { return { inline: chunksText(leafSerialize(/** @type {Primitive} */ (e))) } }
+    // A chain's link drawn before the step over it: an `Exp` is never a
+    // plain object, so this is the one shape that reaches here.
+    if (!(e instanceof Array)) { return /** @type {_Drawn} */ (e).drawn }
     const exp = /** @type {readonly unknown[]} */ (e)
     const tag = exp[0]
     if (tag === '[]') { return { kind: 'op', label: '[]', children: numbered(exp[1]) } }

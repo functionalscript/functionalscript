@@ -44,6 +44,25 @@ const nodeShapeOf = (exp, msg) => {
     return shape
 }
 
+/**
+ * A chain's nodes as the demo draws them, last link first: each node's
+ * label and its ports after its operand — the link before it, the next
+ * entry — and the first link's label with all of its ports.
+ *
+ * A step's operand is the link before it already drawn, not an `Exp`: a
+ * chain rebuilt for every prefix took quadratic time to draw, and
+ * `links` reads it as a first link, failing every chain proof.
+ *
+ * @type {(exp: unknown) => readonly (readonly [string, readonly unknown[]])[]}
+ */
+const links = exp => {
+    const { label, children } = nodeShapeOf(exp, 'expected a link')
+    const [[, operand], ...ports] = children
+    return operand instanceof Array || operand === null || typeof operand !== 'object'
+        ? [[label, children]]
+        : [[label, ports], ...links(operand)]
+}
+
 /** The default export's computation through the front end and lowering, a parse refusal thrown. @type {(source: string) => Unresolved} */
 const compile = source => {
     const { imports, edag } = unresolved(unwrap(parse('')(source)))
@@ -1387,125 +1406,119 @@ export const proof = {
                 // method off its receiver: one node per link, the call's
                 // arguments numbered as a plain call's are.
                 methodCall: () => {
-                    const shape = nodeShapeOf(['.', ['a'], 'x', ['|()', [1, ['...', ['b']]]]], 'expected a shape')
-                    assertEq(shape.label, '()')
-                    assertStructurallySame(shape.children, [['callee', ['.', ['a'], 'x']], ['0', 1], ['...1', ['b']]])
+                    assertStructurallySame(links(['.', ['a'], 'x', ['|()', [1, ['...', ['b']]]]]), [
+                        ['()', [['0', 1], ['...1', ['b']]]],
+                        ['.', [['obj', ['a']], ['key', 'x']]]])
                 },
                 // A computed index stays on the `.` the call is over.
                 computedMethodCall: () => {
-                    const shape = nodeShapeOf(['.', ['a'], ['Number', ['b']], ['|()', []]], 'expected a shape')
-                    assertEq(shape.label, '()')
-                    assertStructurallySame(shape.children, [['callee', ['.', ['a'], ['Number', ['b']]]]])
+                    assertStructurallySame(links(['.', ['a'], ['Number', ['b']], ['|()', []]]), [
+                        ['()', []],
+                        ['.', [['obj', ['a']], ['idx', ['Number', ['b']]]]]])
                 },
                 // A guarded call continuation opens a short-circuit region:
                 // the receiver is read regardless, and the call's own
                 // arguments are the first thing a nullish value skips.
                 guardedCall: () => {
-                    const shape = nodeShapeOf(['.', ['a'], 'x', ['|?.()', [1]]], 'expected a shape')
-                    assertEq(shape.label, '?.()')
-                    assertStructurallySame(shape.children, [['callee', ['.', ['a'], 'x']], ['0', 1, 'lazy']])
+                    assertStructurallySame(links(['.', ['a'], 'x', ['|?.()', [1]]]), [
+                        ['?.()', [['0', 1, 'lazy']]],
+                        ['.', [['obj', ['a']], ['key', 'x']]]])
                 },
                 // The steps after a guarded call are in its region, so each
                 // is marked `|`, down to the link that opened it.
                 guardedCallSteps: () => {
-                    const shape = nodeShapeOf(['.', ['a'], 'b', ['|?.()', [['x']], ['|.', 'c', ['|()', [['y']]]]]], 'expected a shape')
-                    assertEq(shape.label, '|()')
-                    const read = ['.', ['a'], 'b', ['|?.()', [['x']], ['|.', 'c']]]
-                    assertStructurallySame(shape.children, [['callee', read], ['0', ['y'], 'lazy']])
-                    const key = nodeShapeOf(read, 'expected a shape')
-                    assertEq(key.label, '|.')
-                    assertStructurallySame(key.children, [['obj', ['.', ['a'], 'b', ['|?.()', [['x']]]]], ['key', 'c']])
+                    assertStructurallySame(links(['.', ['a'], 'b', ['|?.()', [['x']], ['|.', 'c', ['|()', [['y']]]]]]), [
+                        ['|()', [['0', ['y'], 'lazy']]],
+                        ['|.', [['key', 'c']]],
+                        ['?.()', [['0', ['x'], 'lazy']]],
+                        ['.', [['obj', ['a']], ['key', 'b']]]])
                 },
             },
             /**
              * **A chain is one node per link, and a link inside a region is
              * marked `|`.** Every spelling of `fjs/edag`'s Chains table
-             * that a `?.` or `?.()` node begins: the last step is the node,
-             * over the chain without it, and each operand a nullish value
+             * that a `?.` or `?.()` node begins, drawn last link first,
+             * each over the link before it; each operand a nullish value
              * would skip is lazy.
              */
             chain: {
                 // `a?.b`: the guard is the label, the key a value.
                 guardedAccess: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], 'b'], 'expected a shape')
-                    assertEq(shape.label, '?.')
-                    assertStructurallySame(shape.children, [['obj', ['a']], ['key', 'b']])
+                    assertStructurallySame(links(['?.', ['a'], 'b']), [['?.', [['obj', ['a']], ['key', 'b']]]])
                 },
                 guardedNumber: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], 0], 'expected a shape')
-                    assertEq(shape.label, '?.')
-                    assertStructurallySame(shape.children, [['obj', ['a']], ['idx', 0]])
+                    assertStructurallySame(links(['?.', ['a'], 0]), [['?.', [['obj', ['a']], ['idx', 0]]]])
                 },
                 // A computed key is inside the region — `u?.[todo()]` never
                 // runs `todo` — so its `idx` edge is lazy, where a plain
                 // access's is not.
                 guardedComputed: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], ['Number', ['b']]], 'expected a shape')
-                    assertEq(shape.label, '?.')
-                    assertStructurallySame(shape.children, [['obj', ['a']], ['idx', ['Number', ['b']], 'lazy']])
+                    assertStructurallySame(links(['?.', ['a'], ['Number', ['b']]]), [
+                        ['?.', [['obj', ['a']], ['idx', ['Number', ['b']], 'lazy']]]])
                 },
                 // `a?.b.c(d, ...e)`: a `|()` over a `|.` over the `?.`.
                 steps: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|.', 'c', ['|()', [['d'], ['...', ['e']]]]]], 'expected a shape')
-                    assertEq(shape.label, '|()')
-                    assertStructurallySame(shape.children, [['callee', ['?.', ['a'], 'b', ['|.', 'c']]], ['0', ['d'], 'lazy'], ['...1', ['e'], 'lazy']])
-                    const key = nodeShapeOf(['?.', ['a'], 'b', ['|.', 'c']], 'expected a shape')
-                    assertEq(key.label, '|.')
-                    assertStructurallySame(key.children, [['obj', ['?.', ['a'], 'b']], ['key', 'c']])
+                    assertStructurallySame(links(['?.', ['a'], 'b', ['|.', 'c', ['|()', [['d'], ['...', ['e']]]]]]), [
+                        ['|()', [['0', ['d'], 'lazy'], ['...1', ['e'], 'lazy']]],
+                        ['|.', [['key', 'c']]],
+                        ['?.', [['obj', ['a']], ['key', 'b']]]])
                 },
                 // `a?.b(x)(y)`: a call on a call's value is a call node too.
                 callOnACall: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|()', [['x']], ['|()', [['y']]]]], 'expected a shape')
-                    assertEq(shape.label, '|()')
-                    assertStructurallySame(shape.children, [['callee', ['?.', ['a'], 'b', ['|()', [['x']]]]], ['0', ['y'], 'lazy']])
+                    assertStructurallySame(links(['?.', ['a'], 'b', ['|()', [['x']], ['|()', [['y']]]]]), [
+                        ['|()', [['0', ['y'], 'lazy']]],
+                        ['|()', [['0', ['x'], 'lazy']]],
+                        ['?.', [['obj', ['a']], ['key', 'b']]]])
                 },
                 // `a?.b?.(x)`: a guarded call after a `?.` is still in its
                 // region, so it is marked — the `|` is what tells it from
                 // `a.b?.(x)`, a guarded call outside any region.
                 guardedCallStep: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|?.()', [['x']]]], 'expected a shape')
-                    assertEq(shape.label, '|?.()')
-                    assertStructurallySame(shape.children, [['callee', ['?.', ['a'], 'b']], ['0', ['x'], 'lazy']])
+                    assertStructurallySame(links(['?.', ['a'], 'b', ['|?.()', [['x']]]]), [
+                        ['|?.()', [['0', ['x'], 'lazy']]],
+                        ['?.', [['obj', ['a']], ['key', 'b']]]])
                 },
                 // A computed key in a step is lazy inside the region.
                 computedStep: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|.', ['Number', ['c']]]], 'expected a shape')
-                    assertEq(shape.label, '|.')
-                    assertStructurallySame(shape.children, [['obj', ['?.', ['a'], 'b']], ['idx', ['Number', ['c']], 'lazy']])
+                    assertStructurallySame(links(['?.', ['a'], 'b', ['|.', ['Number', ['c']]]]), [
+                        ['|.', [['idx', ['Number', ['c']], 'lazy']]],
+                        ['?.', [['obj', ['a']], ['key', 'b']]]])
                 },
                 // `(a?.b.c)(x)`: the parentheses ended the region, so the
                 // call is a plain `()` and its arguments run regardless.
                 closingCall: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|.', 'c', ['|!()', [['x']]]]], 'expected a shape')
-                    assertEq(shape.label, '()')
-                    assertStructurallySame(shape.children, [['callee', ['?.', ['a'], 'b', ['|.', 'c']]], ['0', ['x']]])
+                    assertStructurallySame(links(['?.', ['a'], 'b', ['|.', 'c', ['|!()', [['x']]]]]), [
+                        ['()', [['0', ['x']]]],
+                        ['|.', [['key', 'c']]],
+                        ['?.', [['obj', ['a']], ['key', 'b']]]])
                 },
                 closingCallWithoutArguments: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|!()', []]], 'expected a shape')
-                    assertEq(shape.label, '()')
-                    assertStructurallySame(shape.children, [['callee', ['?.', ['a'], 'b']]])
+                    assertStructurallySame(links(['?.', ['a'], 'b', ['|!()', []]]), [
+                        ['()', []],
+                        ['?.', [['obj', ['a']], ['key', 'b']]]])
                 },
                 // A step after a closing call is outside the region: a plain `.`.
                 afterClosingCall: () => {
-                    const shape = nodeShapeOf(['?.', ['a'], 'b', ['|!()', [], ['|.', 'c']]], 'expected a shape')
-                    assertEq(shape.label, '.')
-                    assertStructurallySame(shape.children, [['obj', ['?.', ['a'], 'b', ['|!()', []]]], ['key', 'c']])
+                    assertStructurallySame(links(['?.', ['a'], 'b', ['|!()', [], ['|.', 'c']]]), [
+                        ['.', [['key', 'c']]],
+                        ['()', []],
+                        ['?.', [['obj', ['a']], ['key', 'b']]]])
                 },
                 // `a?.(x)`: a guarded call's callee is read regardless and
                 // its arguments are inside the region it opens.
                 guardedCall: () => {
-                    const shape = nodeShapeOf(['?.()', ['a'], [['x']]], 'expected a shape')
-                    assertEq(shape.label, '?.()')
-                    assertStructurallySame(shape.children, [['callee', ['a']], ['0', ['x'], 'lazy']])
+                    assertStructurallySame(links(['?.()', ['a'], [['x']]]), [
+                        ['?.()', [['callee', ['a']], ['0', ['x'], 'lazy']]]])
                 },
                 // `a?.(x).d(y)` and `a?.()(y)`: the steps after it.
                 guardedCallSteps: () => {
-                    const shape = nodeShapeOf(['?.()', ['a'], [['x']], ['|.', 'd', ['|()', [['y']]]]], 'expected a shape')
-                    assertEq(shape.label, '|()')
-                    assertStructurallySame(shape.children, [['callee', ['?.()', ['a'], [['x']], ['|.', 'd']]], ['0', ['y'], 'lazy']])
-                    const call = nodeShapeOf(['?.()', ['a'], [], ['|()', [['y']]]], 'expected a shape')
-                    assertEq(call.label, '|()')
-                    assertStructurallySame(call.children, [['callee', ['?.()', ['a'], []]], ['0', ['y'], 'lazy']])
+                    assertStructurallySame(links(['?.()', ['a'], [['x']], ['|.', 'd', ['|()', [['y']]]]]), [
+                        ['|()', [['0', ['y'], 'lazy']]],
+                        ['|.', [['key', 'd']]],
+                        ['?.()', [['callee', ['a']], ['0', ['x'], 'lazy']]]])
+                    assertStructurallySame(links(['?.()', null, [], ['|()', [['y']]]]), [
+                        ['|()', [['0', ['y'], 'lazy']]],
+                        ['?.()', [['callee', null]]]])
                 },
             },
             call: () => {
