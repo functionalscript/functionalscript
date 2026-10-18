@@ -396,8 +396,8 @@ const deltaPieces = (d, src, at, want) => {
 const minDeltaBytes = /** @type {const} */ (4)
 
 /**
- * The longest object a delta may build, and the longest base or delta that is
- * held as dense bytes to build one: 8 MiB.
+ * The longest object a delta may build, and the most that a chain holds as dense
+ * bytes to build one, its deltas and its base together: 8 MiB.
  *
  * A delta is applied over arrays of numbers, which cost about eight bytes of
  * heap a byte, so this is about 64 MiB of heap for the target, as much again

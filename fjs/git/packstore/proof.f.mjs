@@ -977,7 +977,20 @@ export const proof = {
         const [, baseRefused] = readBy(hostOf(listing, pair(idxOf([[firstId, 12], [secondId, second]]), pack)), secondId)
         assertEq(
             refusal(baseRefused).message,
-            `${packPath}:12 declares ${over} bytes, more than the ${maxDeltaBytes} a delta chain is built from`)
+            `${packPath}:12 declares ${over} bytes, more than the ${maxDeltaBytes - 4} a delta chain is built from`)
+    },
+    // The ceiling is the chain's, not each entry's: every delta is held until the
+    // base is reached, so a base that fits alone is refused when what the deltas
+    // before it hold leaves no room, and the refusal says how much room there was.
+    chainCeiling: () => {
+        const base = [...entryHeader(3, maxDeltaBytes - 50), ...storedBytes([1])]
+        const delta = [...entryHeader(6, 100), ...backDistance(base.length), ...storedBytes(Array.from({ length: 100 }, () => 0))]
+        const pack = packOfEntries([base, delta])
+        const [, r] = readBy(hostOf(listing, pair(idxOf([[firstId, 12], [secondId, 12 + base.length]]), pack)), secondId)
+        assertEq(refusal(r).code, packEntryCode)
+        assertEq(
+            refusal(r).message,
+            `${packPath}:12 declares ${maxDeltaBytes - 50} bytes, more than the ${maxDeltaBytes - 100} a delta chain is built from`)
     },
     // The ceiling is a delta chain's and not an object's: an object stored whole
     // that declares more than `maxDeltaBytes` is not refused for it, and is read

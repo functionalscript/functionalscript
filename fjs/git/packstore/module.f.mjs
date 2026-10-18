@@ -397,8 +397,9 @@ const missingBase = (e, at) =>
  *
  * **An object read whole is a list over the chunks it inflated to**, about a byte
  * a byte, and has no ceiling. A delta, and the base it is applied to, are dense
- * arrays, a number a byte, so those are held to {@link maxDeltaBytes} — by the
- * size their entries declare, before anything is inflated (see {@link linkOf}).
+ * arrays, a number a byte, so those are held together to {@link maxDeltaBytes} —
+ * by the sizes their entries declare, before anything is inflated (see
+ * {@link linkOf}).
  *
  * @type {(idx: Idx, path: string, at: number, chain: _Chain, e: Entry, data: List<Vec>) => Effect<never, readonly [_Chain, List<number>], IoChannel>}
  */
@@ -425,7 +426,7 @@ const advance = (idx, path, at, chain, e, data) => {
     return base === null
         ? refused(missingBase(e, at))
         : pureOk(/** @type {const} */ ([
-            { deltas: concat([dense])(chain.deltas), links: chain.links + 1, found: null },
+            { deltas: concat([dense])(chain.deltas), links: chain.links + 1, held: chain.held + e.size, found: null },
             [base],
         ]))
 }
@@ -486,10 +487,11 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
             // header near a window; one that does is refused, and said to be.
             return entryRefusal(path, at)(firstBytes < end - at ? `has no entry header in its first ${firstBytes} bytes` : 'is no pack entry')
         }
-        // A delta, and a base it is applied to, are held as dense arrays, so the
-        // size an entry declares decides before a byte of it is inflated.
-        if ((e.kind !== 'object' || chain.deltas !== null) && e.size > maxDeltaBytes) {
-            return entryRefusal(path, at)(`declares ${e.size} bytes, more than the ${maxDeltaBytes} a delta chain is built from`)
+        // A delta, and a base it is applied to, are held as dense arrays, and every
+        // delta of the chain is held until its base is reached, so what they declare
+        // together decides before a byte of an entry is inflated.
+        if ((e.kind !== 'object' || chain.deltas !== null) && chain.held + e.size > maxDeltaBytes) {
+            return entryRefusal(path, at)(`declares ${e.size} bytes, more than the ${maxDeltaBytes - chain.held} a delta chain is built from`)
         }
         // And a stream that has made more than its header declares is not read on:
         // one window of a stream can inflate to a thousand times its length.
@@ -514,7 +516,7 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
 }
 
 /** A chain with nothing read yet. */
-const chainStart = /** @type {_Chain} */ ({ deltas: null, links: 0, found: null })
+const chainStart = /** @type {_Chain} */ ({ deltas: null, links: 0, held: 0, found: null })
 
 /**
  * The code a `.pack` is refused with when it is not the pack its index belongs
