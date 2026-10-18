@@ -43,7 +43,8 @@
  * and the readers' answers are marked by the writers that print them; the
  * schema's source and the value a reader types have no writer behind them,
  * so they go through the highlighter's tokenizer. The TypeScript type is
- * marked by its printer; the comparison's lines, `equal → true`, a summary rather than code.
+ * marked by its printer. The comparison's lines, `equal → true`, stay plain:
+ * they are a summary rather than code.
  *
  * **A schema compares with any other.** The shown schema is compared with one
  * the reader picks, through the data form's `equal` and `subset`, so "two
