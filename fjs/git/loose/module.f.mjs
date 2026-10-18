@@ -27,8 +27,14 @@
 
 import { pureOk, refuse, step } from '../../effects/module.f.mjs'
 import { readWhole } from '../../effects/node/module.f.mjs'
-import { bytesOf, inflateAll } from '../inflater/module.f.mjs'
-import { tryRead as readEnvelope } from '../object/module.f.mjs'
+import { bytesOf, inflateWithin } from '../inflater/module.f.mjs'
+import { tryLength, tryRead as readEnvelope } from '../object/module.f.mjs'
+
+/**
+ * How much output holds an envelope whole: `commit`, a space, sixteen digits and
+ * the NUL are 24 bytes, so by 32 it is there or no envelope is.
+ */
+const envelopeBytes = 32
 
 /**
  * Reads the loose object at `path`: the file, inflated, past its envelope.
@@ -39,8 +45,8 @@ import { tryRead as readEnvelope } from '../object/module.f.mjs'
  * @type {(path: string) => Effect<ReadWhole, Nullable<Envelope>, IoChannel>}
  */
 export const tryRead = path => step(readWhole(path), chunks => {
-    const inflated = inflateAll(chunks)
+    const inflated = inflateWithin(envelopeBytes, tryLength)(chunks)
     return inflated[0] === 'error'
         ? refuse(inflated[1].code)(inflated[1].message)
-        : pureOk(readEnvelope(bytesOf(inflated[1])))
+        : pureOk(inflated[1] === null ? null : readEnvelope(bytesOf(inflated[1])))
 })

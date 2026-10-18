@@ -1,4 +1,4 @@
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { bytes, bytesOf, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.mjs'
 import { append, end, init } from './module.f.mjs'
@@ -156,8 +156,7 @@ export const proof = {
     // Three hundred thousand bytes from a few hundred: the output is many
     // chunks, none more than a step makes, over a window that copies from itself.
     manyChunks: () => {
-        const result = append(u8ListToVecMsb(hex(streams.zeros)))(init)
-        if (result === null) { throw 'refused' }
+        const result = assertNotNullish(append(u8ListToVecMsb(hex(streams.zeros)))(init), 'refused')
         const sizes = result.output.map(v => bytesOf(v).length)
         assertEq(sizes.reduce((a, b) => a + b, 0), 300_000)
         assertEq(Math.max(...sizes) <= 0x4000 + 258, true)

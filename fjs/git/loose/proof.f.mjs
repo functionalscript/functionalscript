@@ -36,6 +36,9 @@ const files = {
     notZlib: latin1('this is not a zlib stream'),
     cut: tagLoose.slice(0, 20),
     trailing: [...tagLoose, 1, 2, 3],
+    // an envelope of three bytes over a body of 100 000, and then bytes that are no
+    // stream: the body is stopped at its first chunk, and the rest never read
+    oversize: [...storedBytes([...latin1('blob 3\0'), ...Array.from({ length: 100_000 }, () => 0)]).slice(0, 1_000), ...Array.from({ length: 2_000 }, () => 0xff)],
 }
 
 /**
@@ -93,6 +96,11 @@ export const proof = {
     notAnObject: () => {
         assertStructurallySame(read('junk')[1], ['ok', null])
         assertStructurallySame(read('text')[1], ['ok', null])
+    },
+    // A stream that goes on past what its envelope says is no object, and is not
+    // inflated to find out: a stream no one has read to its end is no error.
+    oversize: () => {
+        assertStructurallySame(read('oversize')[1], ['ok', null])
     },
     // A file that cannot be read is the channel's, and nothing is inflated.
     missing: () => {

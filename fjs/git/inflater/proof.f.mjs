@@ -1,9 +1,9 @@
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
-import { bytesOf, feed, finish, inflateAll, malformed, sizeOf, start } from './module.f.mjs'
+import { bytesOf, feed, finish, inflateAll, inflateWithin, malformed, sizeOf, start } from './module.f.mjs'
 
 /** @type {(bytes: readonly number[], size: number) => readonly import('../../types/bit_vec/types.ts').Vec[]} */
 const chunks = (bytes, size) => Array.from({ length: Math.ceil(bytes.length / size) }, (_, i) => u8ListToVecMsb(bytes.slice(i * size, (i + 1) * size)))
@@ -26,11 +26,33 @@ export const proof = {
     },
     // A stream of Huffman blocks, and one that is many output chunks.
     huffman: () => {
-        const zeros = inflateAll(chunks(hex(streams.zeros), 100))
-        if (zeros[0] === 'error') { throw zeros[1] }
-        assertEq(sizeOf(zeros[1]), 300_000)
-        assertEq(toArray(bytesOf(zeros[1])).length, 300_000)
+        const zeros = assertOk(inflateAll(chunks(hex(streams.zeros), 100)))
+        assertEq(sizeOf(zeros), 300_000)
+        assertEq(toArray(bytesOf(zeros)).length, 300_000)
         assertEq(sizeOf(null), 0)
+    },
+    // The stream is read while its output is within the limit the first bytes give,
+    // and not past it: a chunk after the one that goes over is not looked at.
+    within: () => {
+        const bytes = Array.from({ length: 40 }, (_, i) => i)
+        const all = storedBytes(bytes)
+        // the chunk that holds the data, and one that would end it badly
+        const cut = [u8ListToVecMsb(all.slice(0, all.length - 4)), u8ListToVecMsb([0xff])]
+        const read = (/** @type {number} */ head, /** @type {(output: readonly number[]) => number | null} */ limitOf, /** @type {readonly import('../../types/bit_vec/types.ts').Vec[]} */ cs) => {
+            const r = inflateWithin(head, output => limitOf(toArray(output)))(cs)
+            return r[0] === 'ok' ? ['ok', r[1] === null ? null : toArray(bytesOf(r[1]))] : ['error', r[1].code]
+        }
+        // within the limit, the whole stream
+        assertStructurallySame(read(32, () => 40, chunks(all, 7)), ['ok', bytes])
+        // the limit is asked with the first bytes, once there are enough of them
+        assertStructurallySame(read(32, output => output.length === 40 ? 5 : 100, chunks(all, 1000)), ['ok', null])
+        // past it, the read stops, and what follows is not an error
+        assertStructurallySame(read(32, () => 10, cut), ['ok', null])
+        assertStructurallySame(read(32, () => null, cut), ['ok', null])
+        // a stream that never holds that many bytes is not asked
+        assertStructurallySame(read(64, () => 0, chunks(all, 1000)), ['ok', bytes])
+        // and a malformed one is the inflater's
+        assertStructurallySame(read(32, () => 40, chunks([0, 0], 1)), ['error', 'Z_DATA_ERROR'])
     },
     // A stream that is malformed, wherever the chunk that makes it so falls.
     malformed: () => {

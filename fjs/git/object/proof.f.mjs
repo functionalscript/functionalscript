@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
-import { objectTypes, tryRead, tryType, write } from './module.f.mjs'
+import { objectTypes, tryLength, tryRead, tryType, write } from './module.f.mjs'
 
 /** @type {(input: Bytes) => Envelope} */
 const read = input => {
@@ -66,6 +66,16 @@ export const proof = {
         assertStructurallySame(toArray(e.payload), latin1('ab'))
         assertStructurallySame(toArray(e.payload), latin1('ab'))
         assertStructurallySame(toArray(write('tree', e.payload)), latin1('tree 2\0ab'))
+    },
+    // The length an envelope claims, which is all of the object, and none where
+    // there is no envelope; the payload is not looked at.
+    length: () => {
+        assertEq(tryLength(latin1('blob 5\0hello')), 12)
+        assertEq(tryLength(latin1('tree 0\0')), 7)
+        assertEq(tryLength(latin1('blob 5\0')), 12)
+        assertEq(tryLength(latin1('blob 05\0')), null)
+        assertEq(tryLength(latin1('foo 1\0')), null)
+        assertEq(tryLength([]), null)
     },
     // Each refusal, one per condition the reader checks.
     refused: () => {

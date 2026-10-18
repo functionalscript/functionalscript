@@ -27,18 +27,22 @@ import { error, ok } from '../../types/result/module.f.js'
 import { append, end, init } from '../../zlib/inflate/module.f.mjs'
 
 /** A stream not yet read. @type {Progress} */
-export const start = { state: init, made: null }
+export const start = { state: init, made: null, size: 0 }
 
 /**
  * The stream after a chunk of it, or `null` where the chunk makes it malformed.
  *
  * @type {(chunk: Vec) => (progress: Progress) => Nullable<Progress>}
  */
-export const feed = chunk => ({ state, made }) => {
+export const feed = chunk => ({ state, made, size }) => {
     const result = append(chunk)(state)
     return result === null
         ? null
-        : { state: result.state, made: result.output.reduce((so, v) => ({ first: v, tail: so }), made) }
+        : {
+            state: result.state,
+            made: result.output.reduce((so, v) => ({ first: v, tail: so }), made),
+            size: result.output.reduce((so, v) => so + Number(bytesIn(length(v))), size)
+        }
 }
 
 /** The refusal of a stream that is malformed: `Z_DATA_ERROR`, as zlib calls it. @type {Refusal} */
@@ -74,6 +78,35 @@ export const inflateAll = chunks => {
         (so, chunk) => so === null ? null : feed(chunk)(so),
         start)
     return progress === null ? error(malformed) : finish(progress)
+}
+
+/**
+ * The stream held whole as chunks, inflated as long as its output is within
+ * what `limitOf` allows. `limitOf` is asked once, when the output first holds
+ * `head` bytes, with those bytes (all of the output, if the stream ends sooner
+ * and the answer is not needed): the most the stream may inflate to, or `null`
+ * where the bytes show it is no stream worth reading. Output past the limit, or
+ * a `null`, stops the read at that chunk with `null`, and not a byte of the rest
+ * is inflated, so a small stream cannot be made to inflate to gigabytes before
+ * what it declares is looked at.
+ *
+ * @type {(head: number, limitOf: (output: Bytes) => Nullable<number>) => (chunks: readonly Vec[]) => Result<Nullable<List<Vec>>, Refusal>}
+ */
+export const inflateWithin = (head, limitOf) => chunks => {
+    let progress = start
+    /** @type {Nullable<number>} */
+    let limit = null
+    for (const chunk of chunks) {
+        const next = feed(chunk)(progress)
+        if (next === null) { return error(malformed) }
+        if (limit === null && next.size >= head) {
+            limit = limitOf(bytesOf(reverse(next.made)))
+            if (limit === null) { return ok(null) }
+        }
+        if (limit !== null && next.size > limit) { return ok(null) }
+        progress = next
+    }
+    return finish(progress)
 }
 
 /**

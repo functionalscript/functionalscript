@@ -496,7 +496,7 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
         /** @type {(next: Nullable<Progress>) => Effect<never, Progress, IoChannel>} */
         const checked = next =>
             next === null ? refusal(malformed)
-            : sizeOf(next.made) > e.size ? entryRefusal(path, at)(`inflates to more than the ${e.size} its header declares`)
+            : next.size > e.size ? entryRefusal(path, at)(`inflates to more than the ${e.size} its header declares`)
             : pureOk(next)
         const read = step(
             checked(feed(u8ListToVecMsb(window.slice(e.dataAt)))(start)),

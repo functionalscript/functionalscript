@@ -15,6 +15,8 @@ import type { State } from '../../zlib/inflate/types.ts'
 export type Progress = {
     readonly state: State
     readonly made: List<Vec>
+    /** How many bytes `made` holds, so that nothing walks it to know. */
+    readonly size: number
 }
 
 /** Why a stream was refused, as the channel carries it: the code the host's `inflate` gave, and a message. */
