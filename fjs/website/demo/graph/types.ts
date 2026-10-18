@@ -88,11 +88,22 @@ export type Corner = 'top' | 'middle' | 'bottom'
  * kind as `data-graph-part`, so a stylesheet can colour them apart — the
  * bits a prefix inherits beside the bits it adds, say. Joined, they must
  * spell `inline`, which is still what sizes the cell.
+ *
+ * `click`, when given, makes the value's cell a control: a click on it, or
+ * Enter or Space while it has focus, sends the demo a `click` event with
+ * `click.name`, and `click.label` is what a screen reader announces.
  */
 export type Inline = {
     readonly inline: string
     readonly kind?: string | undefined
     readonly parts?: readonly (readonly [text: string, kind: string])[] | undefined
+    readonly click?: Click | undefined
+}
+
+/** A control's demo event name and what it says it does. */
+export type Click = {
+    readonly name: string
+    readonly label: string
 }
 
 /**
