@@ -92,6 +92,36 @@ export const ranked = (nodes, edges) => {
 const { is } = Object
 
 /**
+ * `walk` with `value` drawn as a new node: its id, and its children to
+ * walk next.
+ *
+ * @template V
+ * @param {_Walk} walk
+ * @param {V} value
+ * @param {Shape<V>} s
+ * @returns {{ readonly id: number, readonly walk: _Walk, readonly children: _Frame<V>['children'] }}
+ */
+const draw = (walk, value, s) => {
+    const id = walk.next
+    const [kind, label, children] = 'inline' in s
+        ? [s.kind ?? 'leaf', s.inline, []]
+        : [s.kind, s.label, s.children]
+    return {
+        id,
+        walk: {
+            refs: [...walk.refs, [value, id]],
+            nodes: [...walk.nodes, { id, kind, label }],
+            edges: walk.edges,
+            next: id + 1,
+        },
+        children,
+    }
+}
+
+/** `walk` with `edge` added. @type {(walk: _Walk, edge: Edge) => _Walk} */
+const withEdge = (walk, edge) => ({ ...walk, edges: [...walk.edges, edge] })
+
+/**
  * `root` as the graph it denotes, each value read by `shape`.
  *
  * **A value whose shape is a node is drawn once**, and found again by
@@ -120,30 +150,6 @@ export const graphOf =
      * @returns {(root: V) => Graph}
      */
     shape => root => {
-        /**
-         * `walk` with `value` drawn as a new node: its id, and its children
-         * to walk next.
-         *
-         * @type {(walk: _Walk, value: V, s: Shape<V>) => { readonly id: number, readonly walk: _Walk, readonly children: _Frame<V>['children'] }}
-         */
-        const draw = (walk, value, s) => {
-            const id = walk.next
-            const [kind, label, children] = 'inline' in s
-                ? [s.kind ?? 'leaf', s.inline, []]
-                : [s.kind, s.label, s.children]
-            return {
-                id,
-                walk: {
-                    refs: [...walk.refs, [value, id]],
-                    nodes: [...walk.nodes, { id, kind, label }],
-                    edges: walk.edges,
-                    next: id + 1,
-                },
-                children,
-            }
-        }
-        /** @type {(walk: _Walk, edge: Edge) => _Walk} */
-        const withEdge = (walk, edge) => ({ ...walk, edges: [...walk.edges, edge] })
         // Depth first, on a stack of its own rather than the call stack: a
         // graph is as deep as its longest path, and a recursive walk ran
         // out of stack on a path of a couple of thousand nodes. A node's
