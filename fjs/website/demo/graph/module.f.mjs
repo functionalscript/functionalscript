@@ -47,7 +47,7 @@
  *
  * @import { Corner, Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Walk } from './private.ts'
+ * @import { _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk } from './private.ts'
  * @import { StateScan } from '../../../types/function/operator/types.ts'
  */
 
@@ -121,44 +121,69 @@ export const graphOf =
      */
     shape => root => {
         /**
-         * `value`'s node id, and the walk with `value` and everything under
-         * it added — or just the walk, when `value` is already drawn.
-         * `path` is the ids of the nodes the walk is inside, root first.
+         * `walk` with `value` drawn as a new node: its id, and its children
+         * to walk next.
          *
-         * @type {(walk: _Walk, path: readonly number[]) => (value: V, s: Shape<V>) => { readonly id: number, readonly walk: _Walk }}
+         * @type {(walk: _Walk, value: V, s: Shape<V>) => { readonly id: number, readonly walk: _Walk, readonly children: _Frame<V>['children'] }}
          */
-        const node = (walk, path) => (value, s) => {
-            const found = walk.refs.find(([r]) => is(r, value))
-            if (found !== undefined) {
-                if (path.includes(found[1])) { throw `graph: a cycle through node ${found[1]}` }
-                return { id: found[1], walk }
-            }
+        const draw = (walk, value, s) => {
             const id = walk.next
             const [kind, label, children] = 'inline' in s
                 ? [s.kind ?? 'leaf', s.inline, []]
                 : [s.kind, s.label, s.children]
-            /** @type {_Walk} */
-            const withNode = {
-                refs: [...walk.refs, [value, id]],
-                nodes: [...walk.nodes, { id, kind, label }],
-                edges: walk.edges,
-                next: id + 1,
-            }
-            const inside = [...path, id]
-            const final = children.reduce(
-                /** @type {(acc: _Walk, child: readonly [string, V, string?]) => _Walk} */
-                (acc, [label, child, kind]) => {
-                    const c = shape(child)
-                    if ('inline' in c) {
-                        return { ...acc, edges: [...acc.edges, { from: id, to: c, label, kind }] }
-                    }
-                    const step = node(acc, inside)(child, c)
-                    return { ...step.walk, edges: [...step.walk.edges, { from: id, to: step.id, label, kind }] }
+            return {
+                id,
+                walk: {
+                    refs: [...walk.refs, [value, id]],
+                    nodes: [...walk.nodes, { id, kind, label }],
+                    edges: walk.edges,
+                    next: id + 1,
                 },
-                withNode)
-            return { id, walk: final }
+                children,
+            }
         }
-        const { walk } = node({ refs: [], nodes: [], edges: [], next: 0 }, [])(root, shape(root))
+        /** @type {(walk: _Walk, edge: Edge) => _Walk} */
+        const withEdge = (walk, edge) => ({ ...walk, edges: [...walk.edges, edge] })
+        // Depth first, on a stack of its own rather than the call stack: a
+        // graph is as deep as its longest path, and a recursive walk ran
+        // out of stack on a path of a couple of thousand nodes. A node's
+        // edge from its parent is added once everything under it is
+        // drawn, so ids and edges come out in the order recursion gave.
+        const start = draw({ refs: [], nodes: [], edges: [], next: 0 }, root, shape(root))
+        let walk = start.walk
+        /** @type {_Stack<V>} */
+        let stack = [{ id: start.id, path: [start.id], children: start.children, next: 0, label: '', kind: undefined }, undefined]
+        while (stack !== undefined) {
+            /** @type {readonly [_Frame<V>, _Stack<V>]} */
+            const [top, rest] = stack
+            if (top.next === top.children.length) {
+                // everything under `top` is drawn: the edge that reached it closes it
+                walk = rest === undefined ? walk : withEdge(walk, { from: rest[0].id, to: top.id, label: top.label, kind: top.kind })
+                stack = rest
+            } else {
+                const [label, child, kind] = top.children[top.next]
+                /** @type {_Stack<V>} */
+                const advanced = [{ ...top, next: top.next + 1 }, rest]
+                const c = shape(child)
+                if ('inline' in c) {
+                    walk = withEdge(walk, { from: top.id, to: c, label, kind })
+                    stack = advanced
+                } else {
+                    const found = walk.refs.find(([r]) => is(r, child))
+                    if (found === undefined) {
+                        const drawn = draw(walk, child, c)
+                        walk = drawn.walk
+                        stack = [{ id: drawn.id, path: [...top.path, drawn.id], children: drawn.children, next: 0, label, kind }, advanced]
+                    } else {
+                        // a value already drawn is one node however many
+                        // edges reach it, unless the walk is still inside it
+                        if (top.path.includes(found[1])) { throw `graph: a cycle through node ${found[1]}` }
+                        walk = withEdge(walk, { from: top.id, to: found[1], label, kind })
+                        stack = advanced
+                    }
+                }
+            }
+        }
         return { nodes: ranked(walk.nodes, walk.edges), edges: walk.edges }
     }
 
