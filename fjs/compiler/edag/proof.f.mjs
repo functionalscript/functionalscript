@@ -1587,6 +1587,8 @@ export const proof = {
                     ['undefined', { inline: 'undefined' }],
                     ['args', { inline: 'args', kind: 'terminal' }],
                     ['rest', { inline: 'rest', kind: 'terminal' }],
+                    ['entry', { inline: 'entry', kind: 'terminal' }],
+                    ['hasEntry', { inline: 'hasEntry', kind: 'terminal' }],
                 ]) {
                     assertStructurallySame(_shapeOf([tag]), shape, tag)
                 }

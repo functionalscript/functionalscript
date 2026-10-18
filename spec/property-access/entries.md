@@ -37,7 +37,8 @@ destructures it; `[...entry(a, b), d][0]` is the value or a default, in one
 lookup, the default evaluated either way as a spread's item is, and binding
 the option first, `found.length === 1 ? found[0] : d`, evaluates it only
 where there is none; and `keys.flatMap(k => entry(a, k))` is the values
-present, in key order. Presence has no other spelling: `in` is refused
+present, in key order. Presence alone, as a boolean, is the `hasEntry`
+helper below. It has no other spelling: `in` is refused
 ([`in`](../operators/in.md)), and `Object.hasOwn` and
 `a.hasOwnProperty(b)` are not in the language, each asking a different
 question — a non-enumerable own property, or the prototype chain.
@@ -50,10 +51,10 @@ executor merges. The price is the tail the common read carries,
 `entry(a, b)[0]` — a second read, but a random access at offset `0`,
 constant time whatever the object — and a fresh array per call: syntax and
 a constant, where a second scan is a cost the API would fix for good. The
-option is also the primitive the other two derive from in one lookup each,
-`(a, b) => entry(a, b)[0]` and `(a, b) => entry(a, b).length === 1`,
-ordinary functions today and candidates for recognition later, as `entry`
-is recognized; written the other way round, `entry` would scan twice.
+option is also the primitive the other two derive from in one lookup each:
+the value, `(a, b) => entry(a, b)[0]`, an ordinary function, and the
+presence, which `hasEntry` below answers by its own body, recognized as
+`entry` is; written the other way round, `entry` would scan twice.
 
 The helper is exactly what it spells. The compiler recognizes the function
 whole — its two parameters, the `const` the descriptor binds and the
