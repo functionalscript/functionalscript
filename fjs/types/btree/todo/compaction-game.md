@@ -27,10 +27,13 @@ fixed:
 | 3     | 1, 3, 9         | 13    | 26   |
 | 4     | 1, 3, 9, 27     | 40    | 80   |
 
+A level's starting tree is built by inserting its keys in random order.
+
 ### What an exploration found
 
-Starting from the keys 10, 20, … inserted in order, and following every move
-from every shape reached (breadth-first, with a shape compared by its keys):
+Starting from the keys 10, 20, … inserted in order, rather than at random,
+and following every move from every shape reached (breadth-first, with a
+shape compared by its keys):
 
 - **Depth 2, 8 keys.** The start is depth 3 with 7 nodes; 5 shapes are
   reachable, the perfect one among them. A tutorial level.
@@ -39,8 +42,7 @@ from every shape reached (breadth-first, with a shape compared by its keys):
   enough for its par to be computed exhaustively.
 - **Depth 4, 80 keys.** The start is depth 6 with 78 nodes. The shapes are
   too many to enumerate, and two million random moves that kept any move
-  not making the tree worse reached depth 5 with 44 nodes at best, so the
-  level starts from another insertion order.
+  not making the tree worse reached depth 5 with 44 nodes at best.
 
 About half of all moves give back the same shape — a key in a leaf with room
 goes back where it was. A move that changes nothing should say so, as the
