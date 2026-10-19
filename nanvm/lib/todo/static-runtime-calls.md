@@ -2,9 +2,10 @@
 
 **Priority:** P4
 **Status:** open — the optimizations the static runtime left for a
-measurement, from its design review; superseded by
-[`fjs/js/todo/runtime-value.md`](../../../fjs/js/todo/runtime-value.md),
-under which the runtime module prints the direct call only
+measurement, from its design review. Its subject, the lifting printer,
+goes with [`fjs/js/todo/runtime-value.md`](../../../fjs/js/todo/runtime-value.md),
+whose ordinary backend calls a known callee through `Any::call` as well;
+the direct call stays open there, retargeted at that backend
 
 ### Problem
 
