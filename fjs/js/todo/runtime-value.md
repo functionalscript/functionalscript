@@ -18,12 +18,12 @@ a value a VM allocates, so an `Any<A>` is never a global, and the
 `runtime` export object — a map of functions — has no place to live
 between calls. The static-runtime printer,
 [`../../compiler/rust/runtime/module.f.mjs`](../../compiler/rust/runtime/module.f.mjs),
-works around that by *lifting* the module at compile time: every function
-becomes a static `fn`, the two tables become functions answering arrays of
+worked around that by *lifting* the module at compile time: every function
+became a static `fn`, the two tables became functions answering arrays of
 function pointers, `statics` and `members` in `vm/gen.runtime.rs`, and
-everything else at module scope is refused
-([`../runtime/README.md`](../runtime/README.md), "The runtime is static
-code, not a value"). The workaround costs more than it saves:
+everything else at module scope was refused — the README's section of
+the time, "The runtime is static code, not a value", which "How NaNVM
+finds it" replaces. The workaround cost more than it saved:
 
 - **Dispatch exists twice.** `dot`, the dispatcher written once in the
   language (`runtime-members.md`), is printed nowhere; `Member::call` in
@@ -142,8 +142,8 @@ since `length` is non-enumerable. The runtime keeps `self.length`.
 `Accessor` and `MemberCode` in `nanvm/lib/src/vm/function/mod.rs`,
 `runtime_static` and `runtime_method` in `nanvm/lib/src/vm/runtime.rs`;
 the `IVm`/`IStaticFunction` split per item; the name-identity rule and its paragraph in the README;
-[`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md),
-whose direct call is what the runtime module now always prints.
+`nanvm/lib/todo/static-runtime-calls.md`, superseded: the direct call it
+asked for is what the runtime module now always prints.
 
 **What needs a home: the built-in's text.** `String(Object.is)` is the
 NativeFunction text, `function is() { [native code] }`, never the body's

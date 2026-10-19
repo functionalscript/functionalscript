@@ -98,6 +98,18 @@ impl<A: IVm> PartialEq for RunError<A> {
     }
 }
 
+/// A compiled module's `module`: a function of the runtime value it is
+/// given, answering its export object or the throw its initialization
+/// ended in.
+pub type Module<A> = fn(Any<A>) -> Result<Any<A>, Any<A>>;
+
+/// The runtime value every compiled module takes as its parameter, built
+/// once per run: `nanvm_lib::vm::runtime`, which cannot fail for the
+/// runtime the repository compiles.
+pub fn runtime<A: IVm>() -> Any<A> {
+    nanvm_lib::vm::runtime::<A>().expect("the runtime value")
+}
+
 /// Evaluates a module once, selects one of its exports, reads or calls it,
 /// and renders that one value as JSON. Nothing else in the export object is
 /// called or serialized.
@@ -121,18 +133,6 @@ impl<A: IVm> PartialEq for RunError<A> {
 /// does not go through `Any::call`, where a value that is not a function
 /// would be a thrown `TypeError`, indistinguishable from the program
 /// throwing.
-/// A compiled module's `module`: a function of the runtime value it is
-/// given, answering its export object or the throw its initialization
-/// ended in.
-pub type Module<A> = fn(Any<A>) -> Result<Any<A>, Any<A>>;
-
-/// The runtime value every compiled module takes as its parameter, built
-/// once per run: `nanvm_lib::vm::runtime`, which cannot fail for the
-/// runtime the repository compiles.
-pub fn runtime<A: IVm>() -> Any<A> {
-    nanvm_lib::vm::runtime::<A>().expect("the runtime value")
-}
-
 pub fn run<A: IVm>(
     module: Module<A>,
     export: &str,
