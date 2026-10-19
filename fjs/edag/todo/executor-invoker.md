@@ -18,7 +18,8 @@ export const invokeWith = runtime => {
     const run = (fn, fixed, rest, self) => /* the one line that differs */
     const body = (fn, fixed, rest) => fn[0] === 'entry' ? entryCall(fixed, invoke)
         : fn[0] === 'hasEntry' ? hasEntryCall(fixed, invoke)
-        : isStatic(fn) ? staticCall(runtime, fn, rest, run)
+        : isIntrinsic(fn) ? intrinsicCall(fn, fixed, invoke)
+        : isStatic(fn) ? staticCall(runtime, fn, rest, run, invoke)
         : run(fn, fixed, rest, fn)
     const invoke = invoker(body)
     return invoke
@@ -26,8 +27,9 @@ export const invokeWith = runtime => {
 export const invoke = invokeWith(undefined)
 ```
 
-`body` is the same text in both: the dispatch over `entryCall`, `hasEntryCall`
-and `staticCall` from `operations`, and the `invoker` tie. So is the context
+`body` is the same text in both: the dispatch over `entryCall`,
+`hasEntryCall`, `intrinsicCall` and `staticCall` from `operations`, and the
+`invoker` tie. So is the context
 literal both `run`s build, `{ frame: fn[2], args: [], fixed, rest, self,
 runtime }`. What differs is `run`'s last line, how a closure's body is run
 under that context — `outcome(context)(fn[3])` in `amnesia`,
@@ -38,7 +40,8 @@ difference is buried in the copy.
 
 `operations` exports `invokerWith(run)`: given `run(fn, context) =>
 Outcome`, it builds the context, writes `body`'s dispatch once over its own
-`entryCall`, `hasEntryCall` and `staticCall`, and ties `invoker`, answering
+`entryCall`, `hasEntryCall`, `intrinsicCall` and `staticCall`, and ties
+`invoker`, answering
 the `runtime => Invoke` both modules export. Each executor states only its
 `run`, and `invoke = invokeWith(undefined)` is derived there too. The owner
 is `operations` and not `value/call`: `operations` already imports `bind`,
