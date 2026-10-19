@@ -9,7 +9,7 @@
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
 import { invoke } from '../../amnesia/module.f.mjs'
-import { hasMethod, method } from './module.f.mjs'
+import { admits, hasMethod, method } from './module.f.mjs'
 
 const undefinedValue = /** @type {const} */ (['undefined'])
 const fn = /** @type {const} */ (['=>', 0, [], 5])
@@ -170,7 +170,14 @@ export const proof = {
         for (const missing of [table([]), table([['dot', 'x']]), dispatching(['=>', 1, [], ['undefined']])]) {
             assertStructurallySame(assertError(method('abc', 'startsWith', ['ab'], invoke, missing)), undefinedValue)
         }
+        // `length` is no member name: the guard answers `false` without
+        // asking `dot`, a throwing one included, and the call step reads
+        // the own `length` instead, a number no call can make
         const throwing = table([['dot', ['=>', 2, [], ['throw', 'boom']]]])
+        for (const receiver of [['[]', [1]], 'ab', ['=>', 0, [], 1]]) {
+            assertEq(assertOk(hasMethod(/** @type {EdagValue} */ (receiver), 'length', throwing, invoke)), false)
+            assertEq(admits(/** @type {EdagValue} */ (receiver), 'length'), false)
+        }
         assertEq(assertError(hasMethod('abc', 'startsWith', throwing, invoke)), 'boom')
         assertEq(assertError(method('abc', 'startsWith', ['ab'], invoke, throwing)), 'boom')
         // a native name is answered natively where `dot` answers nothing,

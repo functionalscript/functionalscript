@@ -271,6 +271,13 @@ export const proof = {
         assertStructurallySame(run(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [[], []])
         eq(['String', ['entry']], '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}')
         fails(['.', ['{}', [[':', 'toString', 0]]], 'toString', ['|()', []]])
+        // `length` is own and not enumerable: no entry, no member name and
+        // no function, so a call through it throws, optional or not — the
+        // runtime's `dot` is asked for admitted member names alone
+        fails(['.', ['[]', [1]], 'length', ['|()', []]])
+        fails(['.', ['[]', [1]], 'length', ['|?.()', []]])
+        fails(['.', 'ab', 'length', ['|?.()', []]])
+        fails(['.', ['=>', 0, [], 1], 'length', ['|?.()', []]])
         eq(['.', ['[]', [2, 3]], 'at', ['|()', [1]]], 3)
         // `Object.entries`: a function no body defines, called and read as
         // one, and one function however often the node is established,
