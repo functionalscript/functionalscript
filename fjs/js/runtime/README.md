@@ -57,25 +57,23 @@ the string and array names are the next batches.
 
 ## How each VM binds it
 
-A VM answers a call on a receiver it does not own in this order: the
-receiver's own property, then its **native** implementation of the name,
-then the **runtime's body**, asked for the receiver alone — the function
-of the arguments, which the VM then calls, or `undefined` — then the
-`TypeError` for calling `undefined`. The guard of an optional call,
-`a.startsWith?.(x)`, asks the same three before it evaluates `x`, the
-body's first step among them; a body is pure, so a guard and a call ask
-it twice at no cost but the call.
-
-The order is written once, as the runtime's `dot`: the own property,
-its presence asked by `hasEntry` so that an own `undefined` is found and
-its value read by `entry`, else the body's answer, else `undefined`, with
-no native in between and nothing built on the way — the natives
-are what a VM answers while a name has no body. The interpreter asks
-`dot` first and its natives after; NaNVM's call step stays native until
+A VM answers a call on a receiver in the order the runtime's `dot`
+writes once: the receiver's own property, its presence asked by `hasEntry`
+so that an own `undefined` is found and its value read by `entry`; else
+the **runtime's body**, asked for the receiver alone — the function of
+the arguments, which the VM then calls, or `undefined`; else the
+`TypeError` for calling `undefined`, with nothing built on the way. A
+**native** implementation stands in for a body a name does not have yet,
+and where a VM puts it differs while the transition lasts: the
+interpreter asks `dot` first and its natives after; NaNVM's call step
+stays native — the own property, then its native, then the body — until
 the static-runtime printer compiles the table `dot` reads, which
 [`../todo/runtime-members.md`](../todo/runtime-members.md) tracks, and
 the printer leaves `dot` out until then, refusing a `dot` that is no
-function.
+function. The guard of an optional call, `a.startsWith?.(x)`, asks the
+same steps before it evaluates `x`, the body's first step among them; a
+body is pure, so a guard and a call ask it twice at no cost but the
+call.
 A native implementation may stand beside a body where the VM measures the
 gain; the body is the reference, and the corpus in
 [`../../nanvm/member`](../../nanvm/member/module.f.js) checks the native

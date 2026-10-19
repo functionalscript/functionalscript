@@ -183,6 +183,11 @@ pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1
         assert(capturing(/** @type {Exp} */ (/** @type {unknown} */ (['.', object([['x', 1]]), 'x', ['|.', 'y']]))).startsWith(prefix))
         assert(capturing(['{}', [['...', object([])]]]).startsWith(prefix))
         assert(capturing(['{}', [[':', ['+', 1, 2], 1]]]).startsWith(prefix))
+        // the two helpers are module-level values, for `dot`, and no printed
+        // item may capture one: refused, naming the item, never printed as
+        // the `undefined` an unprinted atom would be
+        assertEq(capturing(['entry']), 'a body capturing a helper; `entry` and `hasEntry` are `dot`\'s to read: Object.f')
+        assertEq(capturing(['hasEntry']), 'a body capturing a helper; `entry` and `hasEntry` are `dot`\'s to read: Object.f')
         // an import read off an object that is no literal of named properties
         assert(capturing(['.', ['{}', [['...', object([])]]], 'x']).startsWith(prefix))
         assert(capturing(['.', ['{}', [[':', ['+', 1, 2], 1]]], 'x']).startsWith(prefix))

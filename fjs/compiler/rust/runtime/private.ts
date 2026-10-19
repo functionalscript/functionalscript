@@ -10,7 +10,7 @@ import type { Exp } from '../../../edag/types.ts'
  * A module-level node resolved at compile time: a function, which becomes
  * an item, or a literal, inlined where a body reads it.
  */
-export type _Resolved = readonly ['function', readonly unknown[]] | readonly ['literal', Exp]
+export type _Resolved = readonly ['function', readonly unknown[]] | readonly ['literal', Exp] | readonly ['helper', Exp]
 
 /**
  * A built-in the `runtime` export names: its name — `Object.is` for the

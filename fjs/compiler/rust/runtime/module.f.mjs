@@ -68,11 +68,11 @@ const bound = kind => kind === 'member' ? 'IStaticFunction' : 'IVm'
 
 /**
  * A module-level node resolved at compile time: a function, which becomes
- * an item; a literal, inlined where a body reads it; or the refusal of
- * anything else, since the runtime's module scope holds functions and
- * literals. The `entry` and `hasEntry` helpers, which `dot` reads, resolve
- * as a literal would, printed as the value the EDAG printer gives them
- * where an item holds them. An import is read off its export object by a literal key,
+ * an item; a literal, inlined where a body reads it; a helper, `entry` or
+ * `hasEntry`, which the module scope holds for `dot` and which no printed
+ * item may capture ({@link itemLines}); or the refusal of anything else,
+ * since the runtime's module scope holds functions, literals and the two
+ * helpers. An import is read off its export object by a literal key,
  * `{ f }.f`, and folds to the property's value, resolved in turn.
  *
  * @type {(node: Exp) => Result<_Resolved, readonly unknown[]>}
@@ -81,7 +81,8 @@ const resolve = node => {
     if (!(node instanceof Array)) { return ok(/** @type {const} */ (['literal', node])) }
     const [id, a, key] = /** @type {readonly any[]} */ (node)
     if (id === '=>') { return ok(/** @type {const} */ (['function', node])) }
-    if (id === 'undefined' || id === 'entry' || id === 'hasEntry') { return ok(/** @type {const} */ (['literal', node])) }
+    if (id === 'undefined') { return ok(/** @type {const} */ (['literal', node])) }
+    if (id === 'entry' || id === 'hasEntry') { return ok(/** @type {const} */ (['helper', node])) }
     if (id === '.' && node.length === 3 && typeof key === 'string') {
         const property = literalProperties(a)?.find(p => p[1] === key)
         return property === undefined ? refused(node) : resolve(/** @type {Exp} */ (property[2]))
@@ -273,9 +274,11 @@ const reference = ident => [`Function::from(${ident}::<A>()).to_any()`, [['vm', 
  * list, the rest, or a second fixed argument — which a function of the
  * receiver alone has no spelling for; a function a static's or a
  * helper's body makes at call time, since those are bound on `IVm` alone;
- * a member read as a value, which has no descriptor to read; and a slot
- * that resolves to nothing an item may hold. A slot that resolves to a
- * function names an item, since every module-level function is one.
+ * a member read as a value, which has no descriptor to read; a slot that
+ * holds `entry` or `hasEntry`, which `dot` alone reads and the printer
+ * leaves out with it, so no printed item has a spelling for them; and a
+ * slot that resolves to nothing an item may hold. A slot that resolves to
+ * a function names an item, since every module-level function is one.
  *
  * @type {(all: readonly _Item[]) => (item: _Item) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
@@ -291,7 +294,9 @@ const itemLines = all => ({ node, name, ident, kind }) => {
     /** @type {(i: number) => Result<Printed<string>, readonly unknown[]>} */
     const frame = i => okThen(
         /** @type {(resolved: _Resolved) => Result<Printed<string>, readonly unknown[]>} */
-        (resolved) => resolved[0] === 'function' ? itemReference(resolved[1]) : atomExpr(resolved[1]))(resolve(slots[i]))
+        (resolved) => resolved[0] === 'function' ? itemReference(resolved[1])
+            : resolved[0] === 'helper' ? error(['a body capturing a helper; `entry` and `hasEntry` are `dot`\'s to read', name])
+            : atomExpr(resolved[1]))(resolve(slots[i]))
     return okThen((/** @type {Printed<readonly string[]>} */ [statements, uses]) => {
         const rest = readsRest(body) ? [restLine(length)] : []
         const code = [
