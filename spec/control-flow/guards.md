@@ -42,7 +42,8 @@
   object is written in parentheses instead ([grouping](../operators/grouping.md)) —
   `(...args) => ({ a: 1 })`, as in JavaScript. The block
   is any number of statements — `const`s, and guards, `if` (below) — and
-  then one terminating statement, a `return` or a `throw` (below), each
+  then one terminating statement, a `return` or a `throw` (below), or a
+  switch with a `default` ([switch](./switch.md)), each
   ended as every statement is — by its `;`, or by the newline before the
   next statement, a guard's by its `}`, and the last one's by the `}`
   ([module structure](../modules/README.md)) — and an object literal is an
@@ -126,7 +127,8 @@
 - **`if (condition) block`** is a guard: a statement of a block body,
   standing where a `const` may, any number of times before the body's
   terminating statement. Its block is a block as above — any number of
-  statements and then a `return` or a `throw` — so the branch always
+  statements and then a `return`, a `throw`, or a switch with a `default`
+  ([switch](./switch.md)) — so the branch always
   terminates, and the statements after the guard, up to and including the
   body's own terminator, are what runs when the condition is falsy. The
   condition is any expression, evaluated where the statement stands and

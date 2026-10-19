@@ -37,6 +37,10 @@
  * statement ::= const | 'if' '(' value ')' block
  *             | 'let' id '=' value end | 'while' '(' value ')' loopBlock
  * terminator ::= 'return' value end | 'throw' value end
+ *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
+ * caseTail ::= 'case' value ':' caseTail | block afterCase
+ * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
+ *            | '}' statement* terminator
  * loopBlock ::= '{' loopStatement* '}'
  * loopStatement ::= const | id '=' value end
  * func   ::= [ '...' id ] ')' '=>' body
@@ -131,7 +135,7 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, AfterCase, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -168,7 +172,8 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * own list because {@link symbolOf} has to recognize exactly these values,
  * not merely encode them. Six frame a module, `return` and `throw` end a
  * function's block body — `throw` a module too — `if` opens a guard in
- * one, `let` and `while` a loop, and `as` introduces an import alias.
+ * one, `let` and `while` a loop, `switch` and `case` a switch, and `as`
+ * introduces an import alias.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
  * carries its own symbol, a rule whose identifier terminal is the bare `id`
@@ -190,7 +195,7 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'as', 'typeof', 'instanceof'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'switch', 'case', 'as', 'typeof', 'instanceof'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
@@ -242,6 +247,8 @@ export const identifier = /** @type {const} */ ({
     if: sym('if'),
     let: sym('let'),
     while: sym('while'),
+    switch: sym('switch'),
+    case: sym('case'),
     as: sym('as'),
     // required only where a tail continues, after an operand, where no
     // reference may stand — so unlike `typeof` it opens no second branch
@@ -1008,25 +1015,78 @@ export const bindingTarget = { name: identifierName, array, object }
 export const constStatement = [sym('const'), bindingTarget, sym('='), value, end]
 
 /**
+ * What follows a case's label: another label, `case`, a value, `:` and
+ * this rule again — so a case stacks any number of labels over its one
+ * block, `case a: case b: { … }`, as in JavaScript — or the case's
+ * {@link block}, the guard's own, so the case ends as every block does,
+ * in `return`, `throw` or a switch with a `default`, and never falls
+ * through into the next
+ * ([spec: switch](../../../../spec/control-flow/switch.md)), and then
+ * what follows the case, {@link afterCase}. `case` and `{` decide the
+ * two in one symbol. A case without braces, and `break`, are follow-ups.
+ *
+ * A thunk, and a variant: the block holds the terminator, which holds the
+ * case, which holds this, and a rule names itself across a block through
+ * a variant, as {@link statement} does — `fjs/ebnf/ast` expands a
+ * variant's branch when it is read and a tuple's element as it builds the
+ * tuple, so a cycle through a tuple alone has no finite type.
+ *
+ * @type {CaseTail}
+ */
+export const caseTail = () => ['const', {
+    case: [sym('case'), value, sym(':'), caseTail],
+    block: [block, afterCase],
+}]
+
+/**
+ * What follows a case's block: the next case, `case`, its first label,
+ * `:` and its {@link caseTail}; `default`, `:`, a {@link block} and the
+ * `}`, which ends the block the switch stands in — nothing may follow, as
+ * nothing follows a `return`; or that `}` alone, and then the statements
+ * and the terminator of the block the switch stands in, which are what
+ * runs when no label matched, as the statements after a guard run when
+ * its condition is falsy. `case`, `default` and `}` decide the three in
+ * one symbol, and `default` last is the one place it stands. A thunk and
+ * a variant, as {@link caseTail} is.
+ *
+ * @type {AfterCase}
+ */
+export const afterCase = () => ['const', {
+    case: [sym('case'), value, sym(':'), caseTail],
+    default: [sym('default'), sym(':'), block, sym('}')],
+    rest: [sym('}'), repeatFrom0(statement), terminator],
+}]
+
+/**
  * The statement a block ends with, {@link terminator}: `return value`, or
  * `throw value` — the function fails with the value, the language's one way
- * to fail on purpose ([spec: functions](../../../../spec/functions/README.md)).
- * Each is followed by its own {@link end}. JavaScript has
- * `throw [no LineTerminator here] Expression` exactly as it has `return`'s,
- * so the reader refuses a value beginning a line after either the same way
- * ({@link block}). One symbol decides between the two.
+ * to fail on purpose ([spec: functions](../../../../spec/functions/README.md))
+ * — or a switch, `switch (value) { case value: …`, its first case begun
+ * here and the rest of it {@link caseTail}'s: every case ends in one of
+ * the two, and the switch ends the block itself with a `default` or hands
+ * it on to the statements after it, {@link afterCase} — the one statement
+ * that holds the rest of its block, so that the block is a terminator
+ * short exactly when the switch has the `default` the grammar then lets
+ * nothing follow ([spec: switch](../../../../spec/control-flow/switch.md)).
+ * A switch with no case has no place here, so `switch (v) {}` is refused
+ * at its `}` and `switch (v) { default: … }` at its `default`.
+ * `return` and `throw` are each followed by their own {@link end}.
+ * JavaScript has `throw [no LineTerminator here] Expression` exactly as
+ * it has `return`'s, so the reader refuses a value beginning a line after
+ * either the same way ({@link block}). One symbol decides among the three.
  *
  * @type {Terminator}
  */
 export const terminator = /** @type {const} */ ({
     return: [sym('return'), value, end],
     throw: [sym('throw'), value, end],
+    switch: [sym('switch'), sym('('), value, sym(')'), sym('{'), sym('case'), value, sym(':'), caseTail],
 })
 
 /**
  * A statement of a function's block body before its {@link terminator}: a
  * `const`, or a guard, `if (condition) block` — its block this same
- * {@link block}, so the branch always ends in `return` or `throw`, and the
+ * {@link block}, so the branch always ends in a terminator, and the
  * statements after the guard are what runs when the condition is falsy
  * ([spec: functions](../../../../spec/functions/README.md)). No {@link end}
  * follows the guard's `}`: a block statement takes no `;` in JavaScript,
@@ -1099,7 +1159,8 @@ export const loopBlock = /** @type {const} */ ([
 /**
  * A function's block body: `{ const x = 1; return value; }` — any number of
  * {@link statement}s, `const`s and guards, and then the one
- * {@link terminator}, a `return` or a `throw`
+ * {@link terminator}, a `return`, a `throw`, or a switch, which holds the
+ * rest of the block where it has no `default`
  * ([spec: functions](../../../../spec/functions/README.md)).
  *
  * The `const` is {@link constStatement}, the module's own rule: the body
