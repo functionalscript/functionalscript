@@ -33,7 +33,7 @@ import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.mjs'
-import { isIntrinsic, noStatic, staticPath } from '../module.f.mjs'
+import { noStatic, staticPath } from '../module.f.mjs'
 
 /** Propagate failures without running the continuation.
  * @template S
