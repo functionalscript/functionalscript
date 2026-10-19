@@ -70,7 +70,8 @@ sentence of the grammar rather than a check after it.
   matched, in source order, as JavaScript evaluates them; a match is
   strict equality, `===`, as JavaScript's is, so `NaN` matches no label
   and an object matches itself alone.
-- `default:` is optional and last; its block runs when no label matched.
+- `default:` is optional and last, a clause of its own with no label
+  stacked on it; its block runs when no label matched.
   With a `default`, the `switch` is the body's terminating statement, and
   nothing follows it: a statement after it is unreachable, as one after a
   `return` is. Without one, the statements after the `switch`, up to and
@@ -128,6 +129,17 @@ read another way, each by name
 - A `default` that is not last. JavaScript admits it anywhere, with the
   same meaning once every branch terminates, so the position says nothing
   and a reader has to check that it does not; last is the one spelling.
+- A label stacked with the `default`, `case a: default: { … }` or
+  `default: case a: { … }`. JavaScript reads the two as one clause, so the
+  block runs on `a` and on no match alike — which is to say whatever the
+  label does: a label in the `default`'s clause can never change which
+  block runs, and is written only by mistake, as a leftover of a block
+  split in two or in the belief that it narrows something. Its one
+  effect is that `a` is evaluated on the way, which is the evaluation an
+  unused `const` spells on purpose. The refusal names the dead label
+  rather than reading it as nothing; admitting the clause as the
+  `default` whose block the label's test shares is a step under
+  [Later](#later).
 - A `switch` with no case, `switch (e) {}`, and one of a `default` alone,
   `switch (e) { default: { return v; } }`. JavaScript evaluates `e` and
   goes on, or runs the block; here either is a `const` nothing reads and
@@ -231,6 +243,9 @@ implementation's pull request:
   `switch` no longer needs a `default` to terminate the body.
 - A `switch` at the module level, the module being a function too, with
   the guard's own module-level follow-up.
+- A label stacked with the `default`, as the `default` with the label's
+  test evaluated for its own sake: `d === a ? B : B`, the one block both
+  arms of a conditional the language does not fold.
 - The empty switch and the switch of a `default` alone, as the block each
   abbreviates, should a generator of switches want zero cases to be a
   switch too.
