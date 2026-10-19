@@ -47,11 +47,11 @@ with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
    the name, which
    [`fjs/js/runtime`](../../../fjs/js/runtime/README.md) writes once in
    FunctionalScript and `npm run gen` compiles to
-   [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs). The call step asks
-   `runtime_method(key)` in `vm/runtime.rs` for its code, asks the code
-   for the receiver — the function of the arguments, or `undefined` for a
-   receiver the name is no member of — and calls that function with the
-   arguments.
+   [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs) as a value every
+   compiled module takes. The call step asks the value's `dot` for the
+   receiver and the key — the function of the arguments, or `undefined`
+   for a receiver the name is no member of — and calls that function with
+   the arguments.
 4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 

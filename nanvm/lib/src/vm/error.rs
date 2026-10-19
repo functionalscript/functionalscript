@@ -38,6 +38,14 @@ pub(crate) fn nullish_to_object<A: IVm>() -> Any<A> {
     type_error("Cannot convert undefined or null to object")
 }
 
+/// A static function read from a runtime value that holds nothing at the
+/// path: the parser admitted the path, so the value is incomplete, which is
+/// refused rather than answered with `undefined`
+/// ([`unstable::static_read`](crate::vm::unstable::static_read)).
+pub(crate) fn no_static_function<A: IVm>(path: &str) -> Any<A> {
+    type_error(&format!("the runtime has no static function {path}"))
+}
+
 /// `ToNumber` of a `bigint`.
 pub(crate) fn bigint_to_number<A: IVm>() -> Any<A> {
     type_error("Cannot convert a BigInt value to a number")

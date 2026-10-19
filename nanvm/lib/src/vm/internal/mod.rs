@@ -21,13 +21,11 @@ use crate::{
 /// VM, which reads a negative quiet `NaN` as a boxed value, can store its
 /// bits as they are.
 ///
-/// A VM is `'static`: a type with no lifetime, which a built-in's
-/// descriptor names behind a `'static` reference
-/// ([`RuntimeFunction`](crate::vm::RuntimeFunction)). The runtime is not
-/// the VM's to bind: every built-in is a static function of the compiled
-/// runtime, which a call step and a compiled read reach for any VM
-/// ([`runtime_method`](crate::vm::runtime_method),
-/// [`runtime_static`](crate::vm::runtime_static)).
+/// A VM is `'static`: a type with no lifetime, which a function's text
+/// names behind a `'static` reference. The runtime is not the VM's to
+/// bind: it is a value, [`runtime`](crate::vm::runtime), built once by
+/// whoever runs compiled modules and handed to each as its parameter, for
+/// any VM.
 pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
     // types
     type InternalString: IContainer<Self, Header = (), Item = u16>;

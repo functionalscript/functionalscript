@@ -229,8 +229,9 @@ the example, the third, which gets its own `todo/` when its turn comes.
       executor is given and no longer calls the host engine for it; the
       executors' contexts carry the runtime, the transpiler takes it as
       `interpret(load)`, and the harness loads it for the expectations.
-- [x] NaNVM binds the compiled runtime through `IVm::runtime_method`,
-      after its native table; `npm run gen` compiles the module to
+- [x] NaNVM binds the compiled runtime after its native table, today as
+      the value [runtime-value.md](./runtime-value.md) passes to every
+      module; `npm run gen` compiles the module to
       `vm/gen.runtime.rs`; the corpus runs the body; `starts_with` left
       `vm/lambda/string.rs`; the four-row completeness test counts a
       body as an answer.

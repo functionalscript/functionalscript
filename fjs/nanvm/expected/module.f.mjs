@@ -85,7 +85,7 @@ const throwing = [
     'use nanvm_lib::vm::{Any, IVm, Nullish, ToAny};',
     '',
     '#[rustfmt::skip]',
-    'pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {',
+    'pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {',
     '    Err(Nullish::Undefined.to_any())',
     '}',
 ].join('\n')

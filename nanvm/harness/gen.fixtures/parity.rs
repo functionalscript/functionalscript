@@ -7,7 +7,7 @@ use nanvm_lib::vm::unstable::{
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, Object, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| {
         let c0: Any<A> = Any::dot(args.argument(1), f64_any(0x0000000000000000)).end()?;
         let c1: Any<A> = (strict_eq(c0, string_any("ok")))?;
@@ -405,23 +405,23 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c4: Any<A> = Any::call(c0.clone(), [string_any("writeFile"), c2, c3.clone()].to_array().to_any())?;
         let c5: Any<A> = (args.argument(0) + string_any("/m.f.mjs"))?;
         let c6: Any<A> = [c5, Nullish::Null.to_any()].to_array().to_any();
-        let c7: Any<A> = A::static_function(|_self, args| {
+        let c7: Any<A> = A::static_function(|self_, args| {
             let c0: Any<A> = Any::dot(args.argument(0), string_any("id")).end()?;
             let c1 = || Ok([string_any("file:///")].to_array().to_any());
-            let c2: Any<A> = Any::dot(c0, string_any("startsWith")).end_call(c1)?;
+            let c2: Any<A> = Any::dot(c0, string_any("startsWith")).end_call(&A::frame(self_)[0], c1)?;
             let c3 = || {
                 let c4: Any<A> = Any::dot(args.argument(0), string_any("id")).end()?;
                 let c5 = || Ok([string_any("/m.f.mjs")].to_array().to_any());
-                Any::dot(c4, string_any("endsWith")).end_call(c5)
+                Any::dot(c4, string_any("endsWith")).end_call(&A::frame(self_)[0], c5)
             };
             let c6: Any<A> = (Any::logical_and(c2, c3))?;
             let c7 = || {
                 let c8: Any<A> = Any::dot(args.argument(0), string_any("path")).end()?;
                 let c9 = || Ok([string_any("m.f.mjs")].to_array().to_any());
-                Any::dot(c8, string_any("endsWith")).end_call(c9)
+                Any::dot(c8, string_any("endsWith")).end_call(&A::frame(self_)[0], c9)
             };
             Any::logical_and(c6, c7)
-        }, 1, Array::default(), Some("($0)=>$0.id.startsWith(\"file:///\")&&$0.id.endsWith(\"/m.f.mjs\")&&$0.path.endsWith(\"m.f.mjs\")")).to_any();
+        }, 1, [A::frame(self_)[3].clone()].to_array(), Some("($0)=>$0.id.startsWith(\"file:///\")&&$0.id.endsWith(\"/m.f.mjs\")&&$0.path.endsWith(\"m.f.mjs\")")).to_any();
         let c8: Any<A> = Any::call(c0.clone(), [string_any("resolveFileModule"), c6, c7].to_array().to_any())?;
         let c9: Any<A> = (args.argument(0) + string_any("/none.f.mjs"))?;
         let c10: Any<A> = [c9, Nullish::Null.to_any()].to_array().to_any();
@@ -430,7 +430,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c13: Any<A> = Any::call(c8, [c12].to_array().to_any())?;
         let c14: Any<A> = Any::call(c4, [c13].to_array().to_any())?;
         Any::call(c14, [Array::default().to_any()].to_array().to_any())
-    }, 1, [c1.clone(), c2.clone(), c7.clone()].to_array(), Some("($3)=>$0(\"writeFile\",[$3+\"/m.f.mjs\",-59497n],$1)($0(\"resolveFileModule\",[$3+\"/m.f.mjs\",null],($4)=>$4.id.startsWith(\"file:///\")&&$4.id.endsWith(\"/m.f.mjs\")&&$4.path.endsWith(\"m.f.mjs\"))($0(\"resolveFileModule\",[$3+\"/none.f.mjs\",null],$1)($2)))([])")).to_any();
+    }, 1, [c1.clone(), c2.clone(), c7.clone(), runtime.clone()].to_array(), Some("($3)=>$0(\"writeFile\",[$3+\"/m.f.mjs\",-59497n],$1)($0(\"resolveFileModule\",[$3+\"/m.f.mjs\",null],($4)=>$4.id.startsWith(\"file:///\")&&$4.id.endsWith(\"/m.f.mjs\")&&$4.path.endsWith(\"m.f.mjs\"))($0(\"resolveFileModule\",[$3+\"/none.f.mjs\",null],$1)($2)))([])")).to_any();
     let c85: Any<A> = [string_any("ok"), Nullish::Null.to_any()].to_array().to_any();
     let c86: Any<A> = [string_any("ok"), true.to_any()].to_array().to_any();
     let c87: Any<A> = [string_any("error"), string_any("ENOENT")].to_array().to_any();

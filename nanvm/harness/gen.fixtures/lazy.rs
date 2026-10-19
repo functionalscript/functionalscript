@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{bigint_any, f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = Any::dot(Array::default().to_any(), string_any("length")).end()?;
     let c1 = || bigint_any(1) / bigint_any(0);
     let c2: Any<A> = (Any::logical_and(c0.clone(), c1))?;

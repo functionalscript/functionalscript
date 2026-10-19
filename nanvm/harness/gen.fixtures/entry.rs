@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, Object, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
     let c1: Any<A> = [(string_key("x"), f64_any(0x3ff0000000000000)), (string_key("length"), f64_any(0x4008000000000000)), (string_key("u"), Nullish::Undefined.to_any())].to_object().to_any();
     let c2: Any<A> = Any::call(c0.clone(), [c1.clone(), string_any("x")].to_array().to_any())?;
@@ -31,7 +31,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c23: Any<A> = Any::call(c0.clone(), [f64_any(0x4014000000000000), string_any("x")].to_array().to_any())?;
     let c24: Any<A> = [f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any();
     let c25 = || Ok([c0.clone()].to_array().to_any());
-    let c26: Any<A> = Any::dot(c24, string_any("map")).end_call(c25)?;
+    let c26: Any<A> = Any::dot(c24, string_any("map")).end_call(&runtime, c25)?;
     let c27: Any<A> = Any::call(c0.clone(), [c1.clone(), string_any("y")].to_array().to_any())?;
     let c28: Any<A> = (Any::nullish_coalescing(c27, || Ok(f64_any(0x0000000000000000))))?;
     let c29: Any<A> = [string_any("x"), string_any("y"), string_any("length")].to_array().to_any();
@@ -39,7 +39,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c31: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [A::frame(self_)[1].clone(), args.argument(0)].to_array().to_any()) }, 1, [c0.clone(), c1.clone()].to_array(), Some("($2)=>$0($1,$2)")).to_any();
         Ok([c31].to_array().to_any())
     };
-    let c32: Any<A> = Any::dot(c29, string_any("map")).end_call(c30)?;
+    let c32: Any<A> = Any::dot(c29, string_any("map")).end_call(&runtime, c30)?;
     let c33: Any<A> = A::static_function(|_self, args| Any::has_entry(args.argument(0), args.argument(1)).map(|b| b.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any();
     let c34: Any<A> = Any::call(c33.clone(), [c1.clone(), string_any("x")].to_array().to_any())?;
     let c35: Any<A> = Any::call(c33.clone(), [c1.clone(), string_any("u")].to_array().to_any())?;

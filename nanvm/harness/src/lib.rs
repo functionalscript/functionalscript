@@ -121,12 +121,24 @@ impl<A: IVm> PartialEq for RunError<A> {
 /// does not go through `Any::call`, where a value that is not a function
 /// would be a thrown `TypeError`, indistinguishable from the program
 /// throwing.
+/// A compiled module's `module`: a function of the runtime value it is
+/// given, answering its export object or the throw its initialization
+/// ended in.
+pub type Module<A> = fn(Any<A>) -> Result<Any<A>, Any<A>>;
+
+/// The runtime value every compiled module takes as its parameter, built
+/// once per run: `nanvm_lib::vm::runtime`, which cannot fail for the
+/// runtime the repository compiles.
+pub fn runtime<A: IVm>() -> Any<A> {
+    nanvm_lib::vm::runtime::<A>().expect("the runtime value")
+}
+
 pub fn run<A: IVm>(
-    module: fn() -> Result<Any<A>, Any<A>>,
+    module: Module<A>,
     export: &str,
     action: Action<A>,
 ) -> Result<std::string::String, RunError<A>> {
-    let exports: Object<A> = module()
+    let exports: Object<A> = module(runtime::<A>())
         .map_err(RunError::Thrown)?
         .try_into()
         .expect("a compiled module returns its export object");
@@ -159,11 +171,11 @@ mod tests {
             bigint, exports, function, function_text, missing, named, named_imports, number,
             object, rest_function, special_numbers, throw,
         },
-        run,
+        run, runtime,
     };
 
     /// A compiled fixture's `module`, at the VM every test runs.
-    type Module = fn() -> Result<Any<Naive>, Any<Naive>>;
+    type Module = crate::Module<Naive>;
 
     /// The fixture's default export as JSON text, the way most tests read it.
     ///
@@ -177,7 +189,11 @@ mod tests {
     /// The fixture's default export as a value, for a test that checks what
     /// JSON cannot hold.
     fn default_export(module: Module) -> Any<Naive> {
-        module().unwrap().dot("default".into()).end().unwrap()
+        module(runtime())
+            .unwrap()
+            .dot("default".into())
+            .end()
+            .unwrap()
     }
 
     /// The whole export object, not only `default`: the corpus compares the
@@ -186,11 +202,11 @@ mod tests {
     #[test]
     fn module_result_contains_exports() {
         assert_eq!(
-            number::module::<Naive>().unwrap().to_json(),
+            number::module::<Naive>(runtime()).unwrap().to_json(),
             Ok(r#"{"default":42}"#.into())
         );
         assert_eq!(
-            object::module::<Naive>().unwrap().to_json(),
+            object::module::<Naive>(runtime()).unwrap().to_json(),
             Ok(r#"{"default":{"a":1,"b":"two"}}"#.into())
         );
     }
@@ -214,7 +230,7 @@ mod tests {
 
     /// A module written by hand in the shape the generator prints, throwing
     /// a value of the test's choosing.
-    fn throwing<A: IVm>() -> Result<Any<A>, Any<A>> {
+    fn throwing<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         Err("boom".into())
     }
 
@@ -227,7 +243,7 @@ mod tests {
 
     /// A module written by hand answering what no compiled module does: a
     /// value that is not the export object.
-    fn not_an_object<A: IVm>() -> Result<Any<A>, Any<A>> {
+    fn not_an_object<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         Ok(Number::from(42.0).to_any())
     }
 
@@ -268,7 +284,10 @@ mod tests {
     /// identity and source text, including when constructed inside a call.
     #[test]
     fn undefined_function_exports() {
-        let exports: Object<Naive> = function::module::<Naive>().unwrap().try_into().unwrap();
+        let exports: Object<Naive> = function::module::<Naive>(runtime())
+            .unwrap()
+            .try_into()
+            .unwrap();
         let noop = exports.own_property(&"noop".into()).unwrap();
         assert_eq!(noop, exports.own_property(&"repeated".into()).unwrap());
         assert_ne!(noop, exports.own_property(&"other".into()).unwrap());
@@ -299,7 +318,7 @@ mod tests {
             read_default(function_text::module),
             Ok(r#"["()=>1","()=>1!","()=>1|2","(...$1)=>$0[0]+$1[0]","(...$0)=>(...$1)=>$0[0]+$1[0]",true,false,7,8,false,false]"#.into())
         );
-        let exports: Object<Naive> = function_text::module::<Naive>()
+        let exports: Object<Naive> = function_text::module::<Naive>(runtime())
             .unwrap()
             .try_into()
             .unwrap();
@@ -317,7 +336,7 @@ mod tests {
     #[test]
     fn named_exports() {
         assert_eq!(
-            named::module::<Naive>().unwrap().to_json(),
+            named::module::<Naive>(runtime()).unwrap().to_json(),
             Ok(r#"{"a":[5],"default":[5],"z":[5]}"#.into())
         );
         assert_eq!(read_default(named::module), Ok("[5]".into()));

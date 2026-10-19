@@ -5,7 +5,7 @@
 //! Both must answer what a case says, and write the bytes it says.
 
 use nanvm_effects_node::{Native, run};
-use nanvm_harness::fixtures::console;
+use nanvm_harness::{fixtures::console, runtime};
 use nanvm_lib::{
     naive::Naive,
     vm::{Any, Array, Function, Number, Object, ToArray, unstable::string_any},
@@ -44,7 +44,7 @@ fn json(bytes: &[u8]) -> String {
 
 #[test]
 fn the_native_host_answers_what_the_cases_expect() {
-    let exports = Object::try_from(console::module::<Naive>().unwrap()).unwrap();
+    let exports = Object::try_from(console::module::<Naive>(runtime()).unwrap()).unwrap();
     let cases = names(&exports);
     assert!(!cases.is_empty());
     for case in cases {

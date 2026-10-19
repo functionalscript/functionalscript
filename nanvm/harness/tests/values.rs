@@ -5,6 +5,7 @@
 #[path = "../gen.values/captures.rs"]
 mod captures;
 
+use nanvm_harness::runtime;
 use nanvm_lib::{
     naive::Naive,
     vm::{Array, Function, Object, ToAny, ToArray},
@@ -12,7 +13,10 @@ use nanvm_lib::{
 
 #[test]
 fn evaluated_captures_keep_their_values_and_identity() {
-    let exports: Object<Naive> = captures::module::<Naive>().unwrap().try_into().unwrap();
+    let exports: Object<Naive> = captures::module::<Naive>(runtime())
+        .unwrap()
+        .try_into()
+        .unwrap();
     let shared = exports.own_property(&"shared".into()).unwrap();
     assert_eq!(shared.clone().to_json(), Ok("[3]".into()));
     assert_eq!(shared, exports.own_property(&"alias".into()).unwrap());
@@ -47,7 +51,10 @@ fn evaluated_captures_keep_their_values_and_identity() {
 
 #[test]
 fn nested_closures_preserve_captures_through_lazy_results_and_throws() {
-    let exports: Object<Naive> = captures::module::<Naive>().unwrap().try_into().unwrap();
+    let exports: Object<Naive> = captures::module::<Naive>(runtime())
+        .unwrap()
+        .try_into()
+        .unwrap();
     let shared = exports.own_property(&"shared".into()).unwrap();
     let make = Function::try_from(exports.own_property(&"make".into()).unwrap()).unwrap();
     assert_eq!(make.length(), 1);
@@ -88,8 +95,14 @@ fn nested_closures_preserve_captures_through_lazy_results_and_throws() {
 
 #[test]
 fn each_module_construction_makes_fresh_values() {
-    let first: Object<Naive> = captures::module::<Naive>().unwrap().try_into().unwrap();
-    let second: Object<Naive> = captures::module::<Naive>().unwrap().try_into().unwrap();
+    let first: Object<Naive> = captures::module::<Naive>(runtime())
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let second: Object<Naive> = captures::module::<Naive>(runtime())
+        .unwrap()
+        .try_into()
+        .unwrap();
     assert_ne!(first, second);
     for name in ["shared", "call", "other", "make"] {
         assert_ne!(

@@ -6,7 +6,7 @@ filed this, who approved the primitives as recognized helpers and the
 strengthened invariant by asking for the implementation; the first
 primitive, `slice`, was the first step, `runtime::<A>()`, the value
 built beside the lifted tables, the second, and `module::<A>(runtime)`,
-which retires the lifting, is the third
+which retired the lifting, the third; `dot` over the natives remains
 
 ### Problem
 
@@ -189,19 +189,25 @@ detail to settle in the first task.
 - [x] The runtime module holds no member call and no static read; the
       README's invariant says so for bodies as it does for initializers;
       the proof checks it on the EDAG, as it pins `dot`'s shape.
-- [x] `runtime::<A>()` printed by the ordinary backend, every function the
-      export reaches carrying the NativeFunction text of its path; the
-      built-in's identity is the value's; `Object.entries` a primitive the
-      `static` section lists like the rest, as the built-in itself.
-- [ ] `module::<A>(runtime)`: the compiler prints a member call as a call
-      of `runtime.dot` and a static read as the property reads of its
-      path; the harness and the CLI build the value once; a fixture shows
-      a runtime body using what it defines failing to compile.
+- [x] `runtime::<A>()` printed by the ordinary backend, every function a
+      `static` or `member` path reaches carrying the NativeFunction text
+      of that path, where `dot`, which no program reaches, and the helpers
+      keep their bodies'; the built-in's identity is the value's;
+      `Object.entries` a primitive the `static` section lists like the
+      rest, as the built-in itself.
+- [x] `module::<A>(runtime)`: the compiler prints a member call step on
+      a member with `&runtime`, through which the library's call step asks
+      the value's `dot` after the native table, and a static read as
+      `static_read(&runtime, path)`; a closure holds the runtime in its
+      frame where its body reaches a built-in; the harness and the corpus
+      build the value once; the runtime module prints with no runtime in
+      scope, so a body using what the runtime defines is the printer's
+      refusal, by name, before rustc sees it.
 - [ ] `dot` over the natives: a per-name body in `member` for every name
       the native table answers, the table's lookup order and
       `Member::call`'s runtime steps retiring; `nanvm/member` as the
       oracle.
-- [ ] Delete the lifting printer, `RuntimeFunction`, `Accessor`,
+- [x] Delete the lifting printer, `RuntimeFunction`, `Accessor`,
       `MemberCode`, `runtime_static`, `runtime_method`, and
       `static-runtime-calls.md`; the README's "How NaNVM finds it"
       describes the value.
@@ -218,9 +224,7 @@ detail to settle in the first task.
   the lifting this replaces, and the two invariants, one of which this
   strengthens.
 - [`../../../nanvm/lib/src/vm/runtime.rs`](../../../nanvm/lib/src/vm/runtime.rs)
-  — the tables and the search this retires.
-- [`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md)
-  — superseded: the direct call is the only call the runtime module makes.
+  — the value, where the tables and the search were.
 - [spec: why two helpers](../../../spec/property-access/entries.md#why-two-helpers)
   — "the core of the runtime may not use what it defines", the rule this
   extends to the whole module.

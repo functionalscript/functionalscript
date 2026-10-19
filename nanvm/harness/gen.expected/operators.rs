@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [f64_any(0x401c000000000000), f64_any(0x4014000000000000), f64_any(0x4028000000000000), f64_any(0x3ff8000000000000), f64_any(0x4000000000000000), f64_any(0x4042000000000000), f64_any(0xc018000000000000), f64_any(0xc01c000000000000), false.to_any(), string_any("number"), true.to_any(), true.to_any(), false.to_any(), true.to_any(), true.to_any(), false.to_any(), true.to_any(), f64_any(0x4000000000000000), f64_any(0x401c000000000000), f64_any(0x401c000000000000), f64_any(0x4028000000000000), f64_any(0x4008000000000000), f64_any(0x4008000000000000), string_any("ab"), f64_any(0x401c000000000000)].to_array().to_any();
     Ok([(string_key("default"), c0)].to_object().to_any())
 }

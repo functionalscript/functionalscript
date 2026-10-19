@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, Nullish, ToAny, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(string_key("a"), Nullish::Null.to_any())].to_object().to_any();
     let c1: Any<A> = Any::dot(c0, string_any("a")).end()?;
     let c2: Any<A> = Any::dot(c1, string_any("x")).end()?;
