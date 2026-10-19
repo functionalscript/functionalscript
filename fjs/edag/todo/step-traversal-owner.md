@@ -7,7 +7,7 @@
 
 A chain step is `[tag, x, next]`: `|.` carries a key, a call step carries an
 item list, and `next` is the rest. Folding its operands and mapping over it
-are the same recursion wherever they appear, and at `4f44c5d8` they appear
+are the same recursion wherever they appear, and at `4f44c5d1` they appear
 in five modules. [`sharing`](../sharing/module.f.mjs) has the parameterized
 fold, private:
 
