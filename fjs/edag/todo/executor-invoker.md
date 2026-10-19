@@ -15,25 +15,31 @@ identically:
 
 ```js
 export const invokeWith = runtime => {
-    const body = (fn, fixed, rest) => fn[0] !== '=>'
-        ? nativeCall(fn, fixed, invoke)
-        : /* run the body under */ ({ frame: fn[2], args: [], fixed, rest, self: fn, runtime })
+    const run = (fn, fixed, rest, self) => /* the one line that differs */
+    const body = (fn, fixed, rest) => fn[0] === 'entry' ? entryCall(fixed, invoke)
+        : fn[0] === 'hasEntry' ? hasEntryCall(fixed, invoke)
+        : isStatic(fn) ? staticCall(runtime, fn, rest, run)
+        : run(fn, fixed, rest, fn)
     const invoke = invoker(body)
     return invoke
 }
 export const invoke = invokeWith(undefined)
 ```
 
-The native dispatch, the context literal and the `invoker` tie are the same;
-what differs is how a `=>` body is run — `outcome(context)(fn[3])` in
-`amnesia`, `evaluate(identityAnalysis(fn), context, root)` in `memo` — and
-that one difference is buried in the copy.
+`body` is the same text in both: the dispatch over `entryCall`, `hasEntryCall`
+and `staticCall` from `operations`, and the `invoker` tie. So is the context
+literal both `run`s build, `{ frame: fn[2], args: [], fixed, rest, self,
+runtime }`. What differs is `run`'s last line, how a closure's body is run
+under that context — `outcome(context)(fn[3])` in `amnesia`,
+`evaluate(identityAnalysis(fn), context, root)` in `memo` — and that one
+difference is buried in the copy.
 
 ### Proposal
 
 `value/call` exports `invokerWith(run)`: given `run(fn, context) => Outcome`,
-it does the native dispatch, builds the context and ties `invoker`, answering
-the `runtime => Invoke` both modules export. Each executor states only its
+it builds the context, writes `body`'s dispatch once over `entryCall`,
+`hasEntryCall` and `staticCall`, and ties `invoker`, answering the
+`runtime => Invoke` both modules export. Each executor states only its
 `run`, and `invoke = invokeWith(undefined)` is derived there too.
 
 ### Tasks
