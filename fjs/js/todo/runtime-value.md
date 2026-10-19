@@ -4,7 +4,8 @@
 **Status:** wip — the shape is `sergey-shandar`'s, from the session that
 filed this, who approved the primitives as recognized helpers and the
 strengthened invariant by asking for the implementation; the first
-primitive, `slice`, is the first step
+primitive, `slice`, was the first step, and `runtime::<A>()`, the value
+built beside the lifted tables, is the second
 
 ### Problem
 
