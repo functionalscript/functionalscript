@@ -7,8 +7,8 @@ strengthened invariant by asking for the implementation; the first
 primitive, `slice`, was the first step, `runtime::<A>()`, the value
 built beside the lifted tables, the second, and `module::<A>(runtime)`,
 which retired the lifting, the third; `charCodeAt` with its first
-consumer, `codePointAt`, the fourth; `dot` over the
-natives remains
+consumer, `codePointAt`, the fourth; the last, `dot` asked first by
+every executor, is in progress and deletes this file
 
 ### Problem
 
