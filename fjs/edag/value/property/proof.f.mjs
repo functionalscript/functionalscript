@@ -14,6 +14,7 @@ import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
 import { call } from '../call/module.f.mjs'
 import { entry, hasEntry, findProperty, functionAt, read } from './module.f.mjs'
+import { invokeWith } from '../../amnesia/module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */
 const expectValue = (receiver, key, expected) => {
@@ -161,12 +162,19 @@ export const proof = {
         expectValue(['Object.entries'], 'length', 1)
         missing(['Object.entries'], 'name')
         /** @type {import('../types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
-        assertEq(assertOk(read(ok(['Object.is']), 'length', runtime)), 2)
-        assertStructurallySame(assertOk(read(ok(['Object.is']), 'name', runtime)), ['undefined'])
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
+        const invoke = invokeWith(runtime)
+        assertEq(assertOk(read(ok(['Object.is']), 'length', runtime, invoke)), 2)
+        assertStructurallySame(assertOk(read(ok(['Object.is']), 'name', runtime, invoke)), ['undefined'])
         missing(['Object.is'], 'name')
         assertEq(assertError(read(ok(['Object.is']), 'length')), 'no binding for the static Object.is')
-        assertEq(assertError(read(ok(['Number.isNaN']), 'length', runtime)), 'no binding for the static Number.isNaN')
+        // a runtime with no invoker to ask it through answers no body
+        assertEq(assertError(read(ok(['Object.is']), 'length', runtime)), 'no binding for the static Object.is')
+        assertEq(assertError(read(ok(['Number.isNaN']), 'length', runtime, invoke)), 'no binding for the static Number.isNaN')
+        // a `static` that throws is the read's throw
+        /** @type {import('../types.ts').Runtime} */
+        const throwing = ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]]
+        assertEq(assertError(read(ok(['Object.is']), 'length', throwing, invokeWith(throwing))), 'boom')
         for (const key of ['length', '0', 'name']) { none(['Object.is'], key) }
     },
     // The function value at a path into an object: the value at the end

@@ -4,7 +4,11 @@
 **Status:** wip — the design is approved by `sergey-shandar` on
 [#2869](https://github.com/functionalscript/functionalscript/pull/2869#issuecomment-6141562332);
 the mechanism and the first body, `startsWith`, have landed
-([`../runtime/README.md`](../runtime/README.md))
+([`../runtime/README.md`](../runtime/README.md)); the proposal below
+describes the shape as first built — the member table is now the module's
+`member` export, keyed by name alone, and the runtime value its two
+functions, `static` and `dot`
+([`runtime-members.md`](./runtime-members.md))
 
 ### Problem
 

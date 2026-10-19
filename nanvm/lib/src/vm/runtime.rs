@@ -2,17 +2,17 @@
 //! module into `gen.runtime.rs` beside this file, through the runtime
 //! printer (`fjs/compiler/rust/runtime`) and the ordinary backend, as any
 //! module is compiled. [`runtime`] answers the `runtime` export object —
-//! `static`, `member` and `dot` — built once by whoever runs compiled
-//! modules and handed to each as its parameter: a compiled module reads a
-//! static function from it, `static_read(&runtime, "Object.is")?`
+//! two functions, `static` and `dot`, over the module's tables — built
+//! once by whoever runs compiled modules and handed to each as its
+//! parameter: a compiled module reads a static function from it,
+//! `static_read(&runtime, "Object.is")?`, which calls `static` with the id
 //! ([`unstable::static_read`](crate::vm::unstable::static_read)), and a
 //! call step asks its `dot` for the function a member's body answers for
 //! the receiver, after the receiver's own property and before the native
-//! table
-//! ([`Member::call`](crate::vm::lambda::Member)). Every built-in in it is a
-//! closure carrying the NativeFunction text of its path, and `Object.entries`
-//! is the built-in itself, so the value is complete; the identity is the
-//! value's, two reads of a static one closure. No VM holds a runtime, and
+//! table ([`Member::call`](crate::vm::lambda::Member)). Every static body
+//! is a closure carrying the NativeFunction text of its id, and
+//! `Object.entries` is the built-in itself, so the table is complete; the
+//! identity is the value's, two reads of a static one closure. No VM holds a runtime, and
 //! the library asks nothing of it but through the value it is given. The
 //! design: `fjs/js/runtime/README.md`, "How NaNVM finds it".
 
@@ -31,24 +31,31 @@ mod tests {
 
     type A = Naive;
 
-    /// A property of the runtime value, by its key: `static`, `Object`, `is`.
+    /// A property of the runtime value, by its key: `static`, `dot`.
     fn at(value: &Any<A>, key: &str) -> Any<A> {
         Any::dot(value.clone(), key.into()).end().unwrap()
     }
 
-    /// The runtime as a value: the export object with its three sections.
-    /// A static read from it is the body as a function — `Object.is`,
-    /// SameValue, with the NativeFunction text of its path and the
-    /// `length` of its body — one value however often it is read, as the
-    /// language's own identity has it; `Object.entries` is the built-in
-    /// itself, with its text; a member read from it is the body of the
-    /// receiver; and `dot` is the dispatcher, answering an own property, a
-    /// member's function of the arguments, or `undefined`.
+    /// The function the runtime's `static` answers for an id.
+    fn static_at(rt: &Any<A>, id: &str) -> Any<A> {
+        at(rt, "static")
+            .call([id.into()].to_array().to_any())
+            .unwrap()
+    }
+
+    /// The runtime as a value: the export object with its two functions.
+    /// `static` answers a body as a function — `Object.is`, SameValue,
+    /// with the NativeFunction text of its id and the `length` of its body
+    /// — one value however often it is asked, as the language's own
+    /// identity has it; `Object.entries` is the built-in itself, with its
+    /// text; an id without a body is `undefined`; and `dot` is the
+    /// dispatcher, answering an own property, a member's function of the
+    /// arguments — a body keeps its own text, since no program reads a
+    /// member as a value — or `undefined`.
     #[test]
     fn value() {
         let rt: Any<A> = runtime::<A>().unwrap();
-        let statics = at(&rt, "static");
-        let is = at(&at(&statics, "Object"), "is");
+        let is = static_at(&rt, "Object.is");
         assert_eq!(
             is.clone().to_string(),
             Ok("function is() { [native code] }".into())
@@ -64,16 +71,16 @@ mod tests {
             Ok(true.to_any())
         );
         assert_eq!(call("a".into(), "a".into()), Ok(true.to_any()));
-        let again = at(&at(&at(&rt, "static"), "Object"), "is");
+        let again = static_at(&rt, "Object.is");
         assert_eq!(is, again);
         assert!(is.same_value(&again));
-        let is_nan = at(&at(&statics, "Number"), "isNaN");
+        let is_nan = static_at(&rt, "Number.isNaN");
         assert_eq!(
             is_nan.clone().to_string(),
             Ok("function isNaN() { [native code] }".into())
         );
         assert_ne!(is, is_nan);
-        let entries = at(&at(&statics, "Object"), "entries");
+        let entries = static_at(&rt, "Object.entries");
         assert_eq!(
             entries.clone().to_string(),
             Ok("function entries() { [native code] }".into())
@@ -88,18 +95,9 @@ mod tests {
             .unwrap();
         assert_eq!(pairs.to_json(), Ok(r#"[["0","a"],["1","b"]]"#.into()));
         assert!(entries.call([].to_array().to_any()).is_err());
-        let starts_with = at(&at(&rt, "member"), "startsWith");
-        assert_eq!(
-            starts_with.clone().to_string(),
-            Ok("function startsWith() { [native code] }".into())
-        );
-        let on_abc = starts_with
-            .call(["abc".into()].to_array().to_any())
-            .unwrap();
-        assert_eq!(
-            on_abc.call(["ab".into()].to_array().to_any()),
-            Ok(true.to_any())
-        );
+        for id in ["Object.keys", "Math.max", "Object", "is", "toString", ""] {
+            assert!(static_at(&rt, id).is_nullish(), "{id}");
+        }
         let dot = at(&rt, "dot");
         let dispatch = |receiver: Any<A>, key: &str| {
             dot.clone()
@@ -111,28 +109,30 @@ mod tests {
         let f = A::static_function(|_, _| Ok(7.0.to_any()), 0, [].to_array(), None).to_any();
         let own: Any<A> = [("startsWith".into(), f.clone())].to_object().to_any();
         assert_eq!(dispatch(own, "startsWith"), f);
+        let on_abc = dispatch("abc".into(), "startsWith");
+        assert_ne!(
+            on_abc.clone().to_string(),
+            Ok("function startsWith() { [native code] }".into())
+        );
         assert_eq!(
-            dispatch("abc".into(), "startsWith")
-                .call(["bc".into(), 1.0.to_any()].to_array().to_any()),
+            on_abc.call(["bc".into(), 1.0.to_any()].to_array().to_any()),
             Ok(true.to_any())
         );
     }
 
-    /// A compiled read of a static: `static_read` walks the path into the
-    /// `static` section, the one closure however often it is read, and
-    /// refuses a path the value lacks rather than answer `undefined` — the
-    /// one refusal whether the function, its namespace or a namespace on
-    /// the way is what is missing, never the `TypeError` of reading a key
-    /// of a missing namespace.
+    /// A compiled read of a static: `static_read` asks the runtime's
+    /// `static` for the id, the one closure however often it is read, and
+    /// refuses an id the runtime answers no function for rather than
+    /// answer `undefined` — the one refusal whatever the id names.
     #[test]
     fn static_read_by_path() {
         let rt: Any<A> = runtime::<A>().unwrap();
         let is = static_read(&rt, "Object.is").unwrap();
-        assert_eq!(is, at(&at(&at(&rt, "static"), "Object"), "is"));
+        assert_eq!(is, static_at(&rt, "Object.is"));
         assert_eq!(static_read(&rt, "Object.is").unwrap(), is);
         assert_eq!(
             static_read(&rt, "Object.entries").unwrap(),
-            at(&at(&at(&rt, "static"), "Object"), "entries")
+            static_at(&rt, "Object.entries")
         );
         for path in ["Object.keys", "Math.max", "Object", "Math"] {
             assert_eq!(static_read(&rt, path), Err(error::no_static_function(path)));

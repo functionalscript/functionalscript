@@ -34,7 +34,7 @@ export const invokeWith = runtime => {
     const body = (fn, fixed, rest) => fn[0] === 'entry' ? entryCall(fixed, invoke)
         : fn[0] === 'hasEntry' ? hasEntryCall(fixed, invoke)
         : isIntrinsic(fn) ? intrinsicCall(fn, fixed, invoke)
-        : isStatic(fn) ? staticCall(runtime, fn, rest, run)
+        : isStatic(fn) ? staticCall(runtime, fn, rest, run, invoke)
         : run(fn, fixed, rest, fn)
     const invoke = invoker(body)
     return invoke

@@ -137,13 +137,14 @@ export const proof = {
         assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'slice', ['|?.()', [['throw', 'evaluated']]]])), 'resolving')
         assertEq(assertError(vm({ frame: [], args: [], runtime })(['.', 'abc', 'startsWith', ['|()', [['throw', 'evaluated']]]])), 'evaluated')
     },
-    // `Object.is` answers from the runtime's `static` section, in the
+    // `Object.is` answers from the runtime's `static`, a function of the
+    // id over a table, in the
     // expression and in a function it calls, and as a value passed and
     // compared: the same function on every read, in one invocation or two.
     // With no runtime, or one without the path, it fails naming it.
     objectIs: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         /** @type {Exp} */
         const direct = ['()', ['Object.is'], ['a', 'a']]
         /** @type {Exp} */
@@ -159,11 +160,16 @@ export const proof = {
         assertEq(assertOk(ev(['String', ['Object.is']])), 'function is() { [native code] }')
         assertEq(assertOk(ev(['.', ['Object.is'], 'length'])), 2)
         /** @type {import('../value/types.ts').Runtime} */
-        const selfRuntime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 0, [], ['===', ['self'], ['Object.is']]]]]]]]]]]]
+        const selfRuntime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 0, [], ['===', ['self'], ['Object.is']]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         assertEq(assertOk(vm({ frame: [], args: [], runtime: selfRuntime })(['()', ['Object.is'], []])), true)
         const missing = 'no binding for the static Object.is'
         assertEq(assertError(vm({ frame: [], args: [] })(direct)), missing)
-        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['{}', []]]]] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [['{}', []]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]] })(['Object.is'])), missing)
+        // a runtime without `static`, and a `static` that is no function,
+        // answer no body; a `static` that throws is the read's throw
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', []] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [], 1]]]] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]] })(['Object.is'])), 'boom')
     },
     // `self` is the invoked function itself, by identity, in every reading
     // of the body; at the module's scope there is none to read

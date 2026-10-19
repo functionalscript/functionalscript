@@ -542,7 +542,7 @@ export const staticIds = /** @type {const} */ (['Object.is', 'Object.entries', '
 
 /**
  * A static function as a value, `['Object.is']`: the function the
- * runtime's `static` section holds at its path, {@link staticPath},
+ * runtime's `static` answers for the id, `runtime.static('Object.is')`,
  * capturing nothing and called as any function is,
  * `['()', ['Object.is'], [a, b]]`. Unlike `entry` it is one function, not
  * fresh where it is established — `Object.is === Object.is` holds in
@@ -570,8 +570,9 @@ export const staticId = or(...staticIds)
 export const isStatic = node => node instanceof Array && node.length === 1 && staticIds.some(id => id === node[0])
 
 /**
- * A static function's path into the runtime's `static` section, its tag's
- * keys: `['Number', 'isInteger']` for `Number.isInteger`.
+ * A static function's path, the keys of its tag — `['Number', 'isInteger']`
+ * for `Number.isInteger` — as [`../js/static`](../js/static/module.f.js)
+ * admits it; the runtime is asked by the tag itself.
  *
  * @type {(id: StaticId) => readonly string[]}
  */

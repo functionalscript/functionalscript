@@ -44,12 +44,11 @@ export type Function = Closure | EntryFunction | HasEntryFunction | Intrinsic | 
 
 /**
  * The runtime an executor answers member and static functions from: the
- * evaluated `runtime` export of `fjs/js/runtime`, an object whose `member`
- * section is keyed by receiver type, by its global's name, and then by
- * name, and whose `static` section holds each static at the path
- * `fjs/js/static` admits it under; each entry is the function value that
- * is the function's body, and a name without a body has no entry.
- * Its shape is the module's, which `fjs/js/runtime/types.ts` pins.
+ * evaluated `runtime` export of `fjs/js/runtime`, an object of two
+ * functions — `static`, answering a static function's body by its id, or
+ * `undefined` for an id without one, and `dot`, answering the callee of
+ * a member call for a receiver and a key, or `undefined`. Its shape is
+ * the module's, which `fjs/js/runtime/types.ts` pins.
  */
 export type Runtime = Object
 

@@ -1,25 +1,29 @@
 # The runtime
 
 The built-in functions, defined once. [`module.f.js`](./module.f.js)
-exports `runtime`, in two sections. Its `member` section holds, by name,
-the member functions whose **body** is written, `startsWith`: each a
+holds two tables and exports `runtime`, two functions over them, which is
+all an executor asks. The `member` table holds, by name, the member
+functions whose **body** is written, `startsWith`: each a
 FunctionalScript function of the receiver alone, answering `undefined`
 for a receiver the name is no member of, or the function of the arguments
 as the call passed them, `undefined` past the end — the body dispatches on
 its receiver's type itself, and an executor asks it in two steps, the
-first before any argument exists. Its `static` section holds the static
-functions at the path [`../static`](../static/module.f.js) admits each
-under — `Object.is` at `static.Object.is` — each a function of the
-arguments alone, written here and exported nowhere else: a module calls
-the built-in, `Object.is` or `Number.isInteger`, never the body, so the
-body is a VM's and the helper a built-in replaced moves in here when the
-built-in is admitted. A path every executor binds natively, `Object.entries`,
-holds the built-in itself, so every admitted path has a value and the table
-is complete as a value. The proof checks every static body against the
-host's own built-in at the same path. The design of the static section
-is [`../todo/runtime-static.md`](../todo/runtime-static.md). A name
-without a body is absent, and each VM answers it from its own native
-table. The proposal and the steps still to take are
+first before any argument exists. The `statics` table holds the static
+functions by id, the path [`../static`](../static/module.f.js) admits
+joined by `.` as the EDAG spells the node — `Object.is` — each a function
+of the arguments alone, written here and exported nowhere else: a module
+calls the built-in, `Object.is` or `Number.isInteger`, never the body, so
+the body is a VM's and the helper a built-in replaced moves in here when
+the built-in is admitted. An id every executor binds natively,
+`Object.entries`, holds the built-in itself, so every admitted id has a
+value and the table is complete. `runtime.static` answers the entry of
+`statics` for an id, or `undefined`; `runtime.dot` answers the callee of a
+member call, below. The tables are exported too, for the type pins, the
+proof and the Rust printer; no executor reads them. The proof checks every
+static body against the host's own built-in at the same path. The design
+of the statics is [`../todo/runtime-static.md`](../todo/runtime-static.md).
+A name without a body is absent, and each VM answers it from its own
+native table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).
 
 ## Inside the admitted set
@@ -203,17 +207,17 @@ defines; its step stays while the table holds a name.
 **A static function is a value with no receiver.** The EDAG spells
 `Object.is` as the value `['Object.is']`, and `Number.isInteger` as
 `['Number.isInteger']`, and the Rust backend prints the read as
-`static_read(&runtime, "Object.is")?`, the value's `static` section
-walked by the path: the one closure the value holds there, so every read
-is the same function and `===` compares identities, as JavaScript's does,
+`static_read(&runtime, "Object.is")?`, the value's `static` function
+called with the id: the one closure the runtime holds for it, so every
+read is the same function and `===` compares identities, as JavaScript's does,
 which `nanvm/harness/fixtures/object-is.mjs` checks on NaNVM against the
 interpreter, and `number-predicates.mjs` for the `Number` predicates over
 every kind of value. A path the value holds no function at is refused,
 never answered with `undefined`: the parser admits a static only from
 [`../static`](../static/module.f.js), and the represented interpreter,
-reading its context's runtime through `functionAt`, fails naming the path
-where a runtime lacks it. `Object.entries` has no body: the `static`
-section lists it as the built-in itself, the represented interpreter
+asking its context's runtime's `static` the same way, fails naming the id
+where a runtime answers no body. `Object.entries` has no body: the
+`statics` table lists it as the built-in itself, the represented interpreter
 answers it with a function value of its own, `edag/value/entries`, and in
 NaNVM's value it is a closure over `Any::entries`
 (`nanvm/harness/fixtures/object-entries.mjs`). The completeness test in
@@ -231,13 +235,14 @@ parameter as `_runtime`, so every module has the one signature.
 runtime printer, [`fjs/compiler/rust/runtime`](../../compiler/rust/runtime/module.f.mjs),
 hands this module's `runtime` export to the same backend, into
 `pub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>>`, with
-two differences. Every function the `static` and `member` sections name
-carries the NativeFunction text of its path, `function is() { [native
-code] }`, in place of its body's, since a runtime function is the
-built-in, not its body — the represented interpreter spells the same text
-from the static node, `staticText` in `fjs/edag`, and `object-is.mjs`
-holds the two to one text; a helper no section names, `found`, keeps its
-body's, and so does `dot`, which no program reaches. And a member
+two differences. Every static body the `statics` table names carries the
+NativeFunction text of its id, `function is() { [native code] }`, in
+place of its body's, since a static function is the built-in, not its
+body, and `String(Object.is)` is observable — the represented interpreter
+spells the same text from the static node, `staticText` in `fjs/edag`,
+and `object-is.mjs` holds the two to one text; a member body, a helper
+such as `found`, and `dot` and `static` themselves keep their bodies'
+texts, since no program reads any of them as a value. And a member
 call or a read of a static function this module defines, anywhere in it,
 is refused by name, since the scope has no runtime to dispatch through:
 the core may not use what it defines. A body reaches a native through an

@@ -16,25 +16,27 @@ key, then throws. The name was a literal in the source, and the list of
 names a module may call on a built-in, `allowedCalls` in
 [`../prototype`](../prototype/module.f.js), is known at compile time. The
 same dispatch is written twice more, in the represented interpreter's
-`value/method` and in the `member` section of
+`value/method` and in the `member` table of
 [`../runtime`](../runtime/module.f.js), keyed by receiver type.
 
 ### Proposal
 
-The runtime defines one function per member name, taking any receiver, and
-the function dispatches on its receiver itself:
+The runtime module defines one function per member name, taking any
+receiver, and the function dispatches on its receiver itself; the table is
+the module's `member` export, which `dot` reads, and the runtime value is
+its two functions, `static` and `dot`:
 
 ```js
-export const runtime = {
-    member: {
-        map: self => self instanceof Array
-            ? f => /* the array's map */
-            : undefined,
-    },
+export const member = {
+    map: self => self instanceof Array
+        ? f => /* the array's map */
+        : undefined,
 }
+
+export const runtime = { static: id => entry(statics, id), dot }
 ```
 
-- The `member` section is keyed by name alone, and a body is a function
+- The `member` table is keyed by name alone, and a body is a function
   of the receiver alone: `undefined` for a receiver the name is no member
   of, else the function of the arguments as the call passed them, a
   closure over the receiver. An executor asks the body in two steps — the

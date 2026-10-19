@@ -7,17 +7,16 @@
 import type { Exp } from '../../../edag/types.ts'
 
 /**
- * A module-level node a section names, resolved: a function, a built-in;
- * a native static the section lists as itself, no built-in of the
+ * A module-level node the `statics` table holds, resolved: a function, a
+ * built-in; a native static the table lists as itself, no built-in of the
  * module's; or anything else, no built-in.
  */
 export type _Resolved = readonly ['function', readonly unknown[]] | readonly ['native', Exp] | readonly ['other', Exp]
 
 /**
- * A built-in the `runtime` export names: its name — `Object.is` for the
- * `static` section, `startsWith` for the `member` section — and the
- * function node the name resolves to, which carries the NativeFunction
- * text of the name.
+ * A built-in the `statics` export names: its id, `Object.is`, and the
+ * function node the id resolves to, which carries the NativeFunction text
+ * of the id's last key.
  */
 export type _BuiltIn = {
     readonly name: string

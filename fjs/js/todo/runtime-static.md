@@ -6,7 +6,10 @@ proposal by merging it and asking for the implementation
 ([#2885](https://github.com/functionalscript/functionalscript/pull/2885));
 the member table is nested under `member`, keyed by the global's name;
 `sergey-shandar` then made the node a value, `['Object.is']`, in place of
-the callee-only `['static', path]`, and destructuring sugar over it
+the callee-only `['static', path]`, and destructuring sugar over it;
+since then the table is flat, keyed by the node's id, `'Object.is'`, and
+an executor asks `runtime.static(id)` for a body rather than reading a
+section — the proposal below describes the shape as first built
 
 ### Problem
 

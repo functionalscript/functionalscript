@@ -1,40 +1,44 @@
 /**
- * The built-in functions, defined once, in two sections and the dispatcher
- * over them. `member` holds, by name, the member functions whose body is
- * written, `startsWith` and `codePointAt`: each
- * a FunctionalScript function of the receiver alone, answering `undefined`
- * for a receiver the name is no member of, or the function of the
- * arguments as the call passed them, `undefined` past the end — so the body
- * dispatches on its receiver's type itself, and an executor asks it in two
- * steps, the first before any argument exists, which is what the guard of
- * `a.startsWith?.(x)` needs. `static` holds the static
- * functions by the path [`../static`](../static/module.f.js) admits them
- * under, `Object.is` at `static.Object.is` and `Number.isInteger` at
- * `static.Number.isInteger`, each a function of the arguments alone. Each
- * body is a VM's and no module's: a module calls the built-in, `Object.is`
- * or `Number.isInteger`, and every executor answers it from here, so
- * nothing else exports the body. A name without a body is absent — a
- * primitive no body can define in terms of the rest, or a name whose body
- * waits on a primitive the language has not admitted yet,
+ * The built-in functions, defined once: two tables, and the `runtime`
+ * export, two functions over them that an executor asks — the one place
+ * each resolution is written
+ * ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)).
+ *
+ * `member` holds, by name, the member functions whose body is written,
+ * `startsWith` and `codePointAt`: each a FunctionalScript function of the
+ * receiver alone, answering `undefined` for a receiver the name is no
+ * member of, or the function of the arguments as the call passed them,
+ * `undefined` past the end — so the body dispatches on its receiver's type
+ * itself, and an executor asks it in two steps, the first before any
+ * argument exists, which is what the guard of `a.startsWith?.(x)` needs.
+ * `statics` holds the static functions by id, the path
+ * [`../static`](../static/module.f.js) admits joined by `.` as the EDAG
+ * spells the node, `Object.is`, each a function of the arguments alone.
+ * Each body is a VM's and no module's: a module calls the built-in,
+ * `Object.is` or `Number.isInteger`, and every executor answers it from
+ * here, so nothing else exports the body. A name without a body is absent
+ * — a primitive no body can define in terms of the rest, or a name whose
+ * body waits on a primitive the language has not admitted yet,
  * [`README.md`](./README.md) says which — and each VM answers it from its
  * own native table.
  *
- * Which names a module may call stays [`../prototype`](../prototype/module.f.js)'s;
- * [`./types.ts`](./types.ts) pins every key here an allowed name. Every
- * executor reads this one table — the represented
- * interpreter runs a body as EDAG through the runtime its executor is
- * given, and NaNVM binds the module compiled to Rust by `npm run gen` — so
- * a built-in function is written here and nowhere else. `dot` is the
- * dispatcher a call step asks, the one place the resolution of a callee is
- * written ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)):
- * the callee of `a[key](...)` on a non-nullish receiver — the receiver's
- * own enumerable property under the key, whatever it holds, which shadows
- * a built-in as it does in JavaScript, else what the `member` body of the
- * name answers for the receiver, else `undefined`, which the executor
- * calls and throws for, or skips under `?.()`. Every executor asks it
- * before its natives, which answer the names without a body
- * ([`../todo/runtime-members.md`](../todo/runtime-members.md)). The README
- * says how each binds it and how a name gets its body.
+ * `runtime.dot` is the dispatcher a call step asks: the callee of
+ * `a[key](...)` on a non-nullish receiver — the receiver's own enumerable
+ * property under the key, whatever it holds, which shadows a built-in as it
+ * does in JavaScript, else what the `member` body of the name answers for
+ * the receiver, else `undefined`, which the executor calls and throws for,
+ * or skips under `?.()`. `runtime.static` answers a static function by
+ * its id, the body or the built-in itself, or `undefined` for an id the
+ * table lacks. Every executor asks `dot` before its natives, which answer
+ * the names without a body
+ * ([`../todo/runtime-members.md`](../todo/runtime-members.md)), and
+ * `static` for every static read; neither reads a table itself. The two
+ * tables are exported for the type pins of [`./types.ts`](./types.ts),
+ * which keep every key an admitted name, for the proof, and for the Rust
+ * printer, which gives each static body the NativeFunction text of its id.
+ * Which names a module may call stays
+ * [`../prototype`](../prototype/module.f.js)'s. The README says how each
+ * executor binds the runtime and how a name gets its body.
  *
  * @module
  */
@@ -146,8 +150,8 @@ const found = (self, s, start) => {
     return end > self.length ? false : slice(self, start, end) === s
 }
 
-/** The member section: a name, then the body. */
-const member = {
+/** The member table: a name, then the body of the receiver. */
+export const member = {
     /**
      * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith),
      * a string's and no other type's: whether `ToString(search)` occurs
@@ -186,18 +190,32 @@ const member = {
 }
 
 /**
- * The table: `static`, then a static path's keys, then the body — or, at a
- * path every executor binds natively, `Object.entries`, the built-in
- * itself, so that every admitted static path holds a value and the table
- * is complete as a value; `member`, then a name, then the body; and `dot`,
- * the dispatcher over `member`.
+ * The static table: a static function's id, then the body — or, at a path
+ * every executor binds natively, `Object.entries`, the built-in itself, so
+ * that every admitted id holds a value and the table is complete.
  */
+export const statics = {
+    'Object.is': is,
+    'Object.entries': Object.entries,
+    'Number.isInteger': isInteger,
+    'Number.isSafeInteger': isSafeInteger,
+    'Number.isNaN': isNaN_,
+    'Number.isFinite': isFinite_,
+}
+
+/** The runtime: the two functions an executor asks, `static` and `dot`. */
 export const runtime = {
-    static: {
-        Object: { is, entries: Object.entries },
-        Number: { isInteger, isSafeInteger, isNaN: isNaN_, isFinite: isFinite_ },
-    },
-    member,
+    /**
+     * The static function `id` names, `Object.is`: the entry of
+     * {@link statics}, read as the object literal it is so that no
+     * inherited name answers, or `undefined` for an id the table lacks,
+     * which an executor refuses by name and never answers with — the
+     * parser admits only the ids `../static` lists, so a missing one is
+     * the table incomplete, not a program's error.
+     *
+     * @type {(id: string) => unknown}
+     */
+    static: id => entry(statics, id),
     /**
      * The callee of `self[key](...)`, the receiver not nullish: the
      * receiver's own enumerable property under the key — an object's

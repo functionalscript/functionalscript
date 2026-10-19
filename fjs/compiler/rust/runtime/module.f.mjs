@@ -6,29 +6,33 @@
  * The module's `runtime` export is printed by the ordinary backend as any
  * module is ([`../module.f.mjs`](../module.f.mjs)'s `itemTagged`), a scope
  * that evaluates, into `pub fn runtime<A: IStaticFunction>() ->
- * Result<Any<A>, Any<A>>`: the object with its `static`, `member` and `dot`
- * sections, which whoever runs compiled modules builds once and hands each
- * as its parameter. Two things are this printer's own. Every function a
- * section names — `Object.is`, `startsWith` — carries the NativeFunction
- * text of its path in place of its body's, since a runtime function is
- * the built-in, not its body, which the ordinary backend takes as the
- * text a caller gives a node. And the scope is printed with no runtime in
- * it: a member call or a read of a static function the runtime defines is
- * refused by the backend, naming it, since the core may not use what it
- * defines — a body reaches a native through an intrinsic, `slice`, and
- * another body by reading it as a value — where the native static
- * `Object.entries`, which the `static` section lists as itself, is the
+ * Result<Any<A>, Any<A>>`: the object of two functions, `static` and
+ * `dot`, which whoever runs compiled modules builds once and hands each as
+ * its parameter. Two things are this printer's own. Every static body —
+ * the function the module's `statics` export holds at an id, `Object.is`
+ * — carries the NativeFunction text of its id in place of its body's,
+ * since a static function is the built-in, not its body, and `String(f)`
+ * of one is observable; the ordinary backend takes it as the text a caller
+ * gives a node. A member body's text is observable nowhere, since the
+ * language never reads a member as a value, so `member` keeps its
+ * bodies' texts and the printer does not read it. And the scope is printed
+ * with no runtime in it: a member call or a read of a static function the
+ * runtime defines is refused by the backend, naming it, since the core may
+ * not use what it defines — a body reaches a native through an intrinsic,
+ * `slice`, and another body by reading it as a value — where the native
+ * static `Object.entries`, which `statics` lists as itself, is the
  * closure the value holds.
  *
- * Refused too, before the backend sees the module: a module exporting
- * anything beside `runtime`, a section that is not objects of functions, a
- * `dot` that is no function, a body under a path `nanvm-lib` binds
- * natively, and one function two built-ins name, which JavaScript keeps
- * apart and which could carry only one of the two texts
+ * Refused too, before the backend sees the module: a module without a
+ * `runtime` export or a `statics` export that is an object literal, an
+ * entry that is no function, a body
+ * under a path `nanvm-lib` binds natively, and one function two ids name,
+ * which JavaScript keeps apart and which could carry only one of the two
+ * texts
  * ([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
  * A built-in is found through an import's read of its export object,
  * `{ f }.f`, which the lowering spells an import as and which folds to
- * `f`.
+ * `f`. Any other export is the module's own, for its types and its proof.
  *
  * @module
  *
@@ -47,10 +51,10 @@ import { isStatic, nativeFunctionText, staticPath } from '../../../edag/module.f
 import { itemTagged } from '../module.f.mjs'
 
 /**
- * A module-level node a section names, resolved: a function, which is a
- * built-in; a native static the section lists as itself, `Object.entries`,
- * which is no built-in of the module's; or anything else, which is no
- * built-in. An import is read off its export object by a literal key,
+ * A module-level node the `statics` table holds, resolved: a function,
+ * which is a built-in; a native static the table lists as itself,
+ * `Object.entries`, which is no built-in of the module's; or anything
+ * else, which is no built-in. An import is read off its export object by a literal key,
  * `{ f }.f`, and folds to the property's value, resolved in turn.
  *
  * @type {(node: Exp) => _Resolved}
@@ -85,84 +89,58 @@ const literalProperties = node => {
 }
 
 /**
- * The built-ins an object of the table holds, each resolving to a function
- * node, named by `name` from its key — a native static the section lists
- * as itself, `Object.entries`, passed over, since `nanvm-lib` writes it;
- * or the refusal of a value that is no object literal, as `refused` says,
- * or of an entry that is no function.
+ * The built-ins the `statics` export holds: each key an id a static path
+ * admits, `Object.is` — which `fjs/js/runtime/types.ts` pins, so the
+ * printer takes the keys as given — and each entry resolving to a function
+ * node, the body carrying the NativeFunction text of the id — or, at a
+ * path `nanvm-lib` binds natively, the native static as itself, passed
+ * over, since `nanvm-lib` writes it. Or the refusal: a value that is no
+ * object literal, an entry that is no function, a body at a native path.
  *
- * @type {(name: (key: string) => string) => (functions: unknown, refused: readonly unknown[]) => Result<readonly _BuiltIn[], readonly unknown[]>}
+ * @type {(table: unknown) => Result<readonly _BuiltIn[], readonly unknown[]>}
  */
-const builtIns = name => (functions, refused) => {
-    const properties = literalProperties(functions)
-    if (properties === null) { return error(refused) }
+const builtIns = table => {
+    const entries = literalProperties(table)
+    if (entries === null) { return error(['no `statics` export of an object literal', table]) }
     /** @type {(property: readonly any[]) => Result<readonly _BuiltIn[], readonly unknown[]>} */
-    const builtIn = ([, key, node]) => {
+    const builtIn = ([, id, node]) => {
         const [kind, resolved] = resolve(node)
-        return kind === 'function' ? ok([{ name: name(key), node: resolved }])
-            : kind === 'native' ? ok([])
-            : error(['a built-in that is no function', name(key)])
+        return isNative(staticPath(id))
+            ? kind === 'native' ? ok([]) : error(['a body for a static every executor binds natively', id])
+            : kind === 'function' ? ok([{ name: id, node: resolved }])
+            : error(['a built-in that is no function', id])
     }
-    return mapOk((/** @type {readonly (readonly _BuiltIn[])[]} */ lists) => lists.flat())(okList(properties.map(builtIn)))
+    return mapOk((/** @type {readonly (readonly _BuiltIn[])[]} */ lists) => lists.flat())(okList(entries.map(builtIn)))
 }
 
 /**
- * The `static` section's built-ins: an object of namespaces, each an
- * object of functions, named `Object.is`.
- *
- * @type {(section: unknown) => Result<readonly _BuiltIn[], readonly unknown[]>}
- */
-const statics = section => {
-    const namespaces = literalProperties(section)
-    if (namespaces === null) { return error(['a section of the runtime that is no object', section]) }
-    return mapOk((/** @type {readonly (readonly _BuiltIn[])[]} */ lists) => lists.flat())(okList(namespaces.map(([, namespace, functions]) =>
-        builtIns(key => `${namespace}.${key}`)(functions, ['a namespace of the runtime that is no object', namespace]))))
-}
-
-/**
- * The module's `runtime` export and every built-in it names, the `static`
- * section's then the `member` section's, either section absent for none.
- * Or the refusal: a module without the export or with another beside it,
- * a section that is not objects of functions, a `dot` that is no function,
- * a body under a path `nanvm-lib` binds natively, `Object.entries` —
- * the represented executors answer such a path natively before they ask
- * the runtime, so a body there would be NaNVM's alone, and the two would
- * answer apart — and one function two built-ins name, which JavaScript
- * keeps apart, `isNaN` and `Number.isNaN`, and which could carry only one
- * text.
+ * The module's `runtime` export, the value, and every built-in its
+ * `statics` export names, {@link builtIns}. Or the refusal: a module that
+ * is no object of exports, one without the `runtime` export or the
+ * `statics` export, what {@link builtIns} refuses, and one function two
+ * ids name, which JavaScript keeps apart, `isNaN` and `Number.isNaN`,
+ * and which could carry only one text.
  *
  * @type {(root: Exp) => Result<_Table, readonly unknown[]>}
  */
 const table = root => {
     const exports = literalProperties(root)
-    if (exports === null) { return error(['no `runtime` export of objects', root]) }
-    const others = exports.filter(p => p[1] !== 'runtime').map(p => p[1])
-    if (others.length !== 0) { return error(['the runtime module exports `runtime` alone', others]) }
+    if (exports === null) { return error(['the runtime module is no object of exports', root]) }
     const runtime = exports.find(p => p[1] === 'runtime')
-    if (runtime === undefined) { return error(['no `runtime` export of objects', root]) }
-    const sections = literalProperties(runtime[2])
-    if (sections === null) { return error(['no `runtime` export of objects', root]) }
-    /** @type {(name: string) => unknown} */
-    const section = name => sections.find(p => p[1] === name)?.[2] ?? ['{}', []]
-    const dot = sections.find(p => p[1] === 'dot')?.[2]
-    if (dot !== undefined && !(dot instanceof Array && dot[0] === '=>')) { return error(['a `dot` section that is no function', dot]) }
-    return okThen((/** @type {readonly _BuiltIn[]} */ bodies) => {
-        const native = bodies.find(b => isNative(b.name.split('.')))
-        if (native !== undefined) { return error(['a body for a static every executor binds natively', native.name]) }
-        return okThen((/** @type {readonly _BuiltIn[]} */ members) => {
-            const all = [...bodies, ...members]
-            const twice = all.find((b, i) => all.findIndex(c => c.node === b.node) !== i)
-            return twice === undefined ? ok(/** @type {_Table} */ ({ builtIns: all, value: /** @type {Exp} */ (runtime[2]) }))
-                : error(['a function two built-ins name; JavaScript keeps them apart', twice.name])
-        })(builtIns(key => key)(section('member'), ['a section of the runtime that is no object', section('member')]))
-    })(statics(section('static')))
+    if (runtime === undefined) { return error(['no `runtime` export', root]) }
+    const statics = exports.find(p => p[1] === 'statics')
+    if (statics === undefined) { return error(['no `statics` export of an object literal', root]) }
+    return okThen((/** @type {readonly _BuiltIn[]} */ all) => {
+        const twice = all.find((b, i) => all.findIndex(c => c.node === b.node) !== i)
+        return twice === undefined ? ok(/** @type {_Table} */ ({ builtIns: all, value: /** @type {Exp} */ (runtime[2]) }))
+            : error(['a function two built-ins name; JavaScript keeps them apart', twice.name])
+    })(builtIns(statics[2]))
 }
 
 /**
  * The runtime as a value, tagged, with the names it spells: the `runtime`
  * export object printed by the ordinary backend with no runtime in its
- * scope, every function a section names carrying the NativeFunction text
- * of its path.
+ * scope, every static body carrying the NativeFunction text of its id.
  *
  * @type {(sections: _Table) => Result<{ readonly lines: readonly string[], readonly uses: readonly Use[], readonly bound: string }, readonly unknown[]>}
  */
@@ -174,10 +152,11 @@ const valueLines = ({ builtIns, value }) => {
     }
     return mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: { readonly vm: readonly string[], readonly unstable: readonly string[] }, readonly bound: string }} */ { lines, uses, bound }) => ({
         lines: [
-            tagged('comment')('/// The runtime as a value: the `runtime` export of `fjs/js/runtime`, its `static`, `member` and `dot`'),
-            tagged('comment')('/// sections, as the ordinary backend prints any module — every built-in a closure carrying the'),
-            tagged('comment')('/// NativeFunction text of its path, `Object.entries` the built-in itself. Built once by whoever runs'),
-            tagged('comment')('/// compiled modules and handed to each as its parameter (`fjs/js/runtime/README.md`).'),
+            tagged('comment')('/// The runtime as a value: the `runtime` export of `fjs/js/runtime`, its `static` and `dot`'),
+            tagged('comment')('/// functions over the tables they close over, as the ordinary backend prints any module — every'),
+            tagged('comment')('/// static body a closure carrying the NativeFunction text of its id, `Object.entries` the built-in'),
+            tagged('comment')('/// itself. Built once by whoever runs compiled modules and handed to each as its parameter'),
+            tagged('comment')('/// (`fjs/js/runtime/README.md`).'),
             ...lines,
         ],
         uses: [...uses.vm.map(n => /** @type {Use} */ (['vm', n])), ...uses.unstable.map(n => /** @type {Use} */ (['unstable', n]))],
