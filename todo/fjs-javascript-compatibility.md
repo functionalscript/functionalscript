@@ -209,7 +209,8 @@ exception above covers. No FJS program reads a function's name at all:
 the enumerable-entry helper so that it cannot — `person.name` is enumerable
 where `f.name` and `f.length` are not — and retired the proposals that would
 have exposed it, `own-access.md` and `function-name.md`, in `4f4da828`;
-`f.name` is refused at the key, `entry(f, 'name')` is `[]`, and
+`f.name` is refused at the key, `entry(f, 'name')` is `undefined` and
+`hasEntry(f, 'name')` `false`, and
 [the language](../spec/functions/README.md) carries no name in the graph.
 The property-access plan,
 [2330](../spec/todo/2330-property-accessor.md), holds the same boundary from
