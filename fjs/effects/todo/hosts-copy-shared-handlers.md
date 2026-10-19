@@ -68,7 +68,8 @@ loop and one with `Array.from`; the Node host builds the `FileStat` literal
   phrase: either `_unreadableThrownValue` loses its underscore and
   `unknownValue` is it, or `io` takes the phrase as an argument. The owner's
   call; the first is simpler.
-- `maxFileSizeBytes` exported from [`node/module.f.mjs`](../node/module.f.mjs),
+- `maxFileSizeBytes` exported as `_maxFileSizeBytes` — linkage between the
+  two hosts, not API — from [`node/module.f.mjs`](../node/module.f.mjs),
   which already builds `fileSizeRefusal` on the same number, and the
   `readWhole` windowing as one function beside it; a `fileStat` helper in the
   Node host for `stat` and `fstat`.
@@ -83,7 +84,7 @@ does not mention.
       SpiderMonkey host its own, with proof; both hosts drop theirs.
 - [ ] The browser `import` through `io`; one phrase for the unreadable value,
       pinned on every host's report.
-- [ ] `maxFileSizeBytes` and the windowing shared; `fileStat` in the Node host.
+- [ ] `_maxFileSizeBytes` and the windowing shared; `fileStat` in the Node host.
 
 ### Related
 
