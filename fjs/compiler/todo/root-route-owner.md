@@ -43,13 +43,19 @@ the document either way, as it is now, and neither caller destructures it
 or names `jsonValue` itself. `resolve` is
 `_program(pureOk(linking), ({ exports }) => exports)`; `interpret` is
 `_program(mapStep(load, interpreting), identity)`, which loads the runtime
-only when a module needs it; `interpretSource` and `interpretLoaded` go, and
-neither caller names `_parseJson` or the context.
+only when a module needs it. `_transpileDefault` is the route's third
+caller, and the one that reads the root's kind today: it selects `default`
+from a module's export object and leaves a JSON document as it is, then
+decodes either to data. That choice is a module-branch `finish` and
+nothing more, so it is `mapStep(_program(mapStep(load, interpreting), value
+=> assertOk(read(ok(value), 'default'))), toData)`, and the kind never has
+to be answered beside the value. `interpretSource` and `interpretLoaded`
+go, and no caller names `_parseJson`, `source.json` or the context.
 
 ### Tasks
 
 - [ ] `_jsonModule`, the context and `_program` in `source`, with proof.
-- [ ] `compiler/edag` and `transpiler` route through them.
+- [ ] `resolve`, `interpret` and `_transpileDefault` route through them.
 
 ### Related
 
