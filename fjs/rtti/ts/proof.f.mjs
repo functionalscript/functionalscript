@@ -6,7 +6,8 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 import { absentBit, toData, unitBit } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../module.f.mjs'
-import { dataToTs, printer } from './module.f.mjs'
+import { dataToTs, dataToTsMarked, printer } from './module.f.mjs'
+import { toText, withNames } from '../../text/marked/module.f.mjs'
 
 const toTs = printer()
 
@@ -31,7 +32,40 @@ const eqData = (data, expected) => {
     assertEq(result, exp, [result, exp])
 }
 
+/** @type {(data: Data, expected: unknown) => void} */
+const eqMarked = (data, expected) => {
+    const [definitions, entry] = dataToTsMarked()(data)
+    const [plainDefinitions, plainEntry] = dataToTs()(data)
+    // the text is the plain text
+    assertEq(JSON.stringify([definitions.map(([n, t]) => [toText(n), toText(t)]), toText(entry)]), JSON.stringify([plainDefinitions, plainEntry]))
+    // no word is left unmarked
+    const all = [...definitions.flat(), entry]
+    assertEq(JSON.stringify(all.map(withNames)), JSON.stringify(all))
+    const result = JSON.stringify([definitions, entry])
+    const exp = JSON.stringify(expected)
+    assertEq(result, exp, [result, exp])
+}
+
 export const proof = {
+    marked: {
+        primitives: () => eqMarked(toData(or(string, number, bigint, boolean)), [[], [['boolean', 'keyword'], ['|'], ['number', 'keyword'], ['|'], ['string', 'keyword'], ['|'], ['bigint', 'keyword']]]),
+        top: () => eqMarked(toData(unknown), [[], [['unknown', 'keyword']]]),
+        never: () => eqMarked(toData(never), [[], [['never', 'keyword']]]),
+        units: () => eqMarked(toData(or(null, undefined, true)), [[], [['null', 'literal'], ['|'], ['undefined', 'keyword'], ['|'], ['true', 'literal']]]),
+        literals: () => eqMarked(toData(or(42, 'a')), [[], [['42', 'number'], ['|'], ['"a"', 'string']]]),
+        tuple: () => eqMarked(toData([boolean]), [[], [['readonly', 'keyword'], ['['], ['boolean', 'keyword'], [']']]]),
+        struct: () => eqMarked(toData({ x: or(option, number) }), [[], [['{'], ['readonly', 'keyword'], ['"x"', 'string'], ['?:'], ['number', 'keyword'], ['}']]]),
+        record: () => eqMarked(toData(record(string)), [[], [['{'], ['readonly', 'keyword'], ['['], ['k', 'identifier'], [' '], ['in', 'keyword'], [' '], ['string', 'keyword'], [']?:'], ['string', 'keyword'], ['}']]]),
+        recursive: () => {
+            /** @typedef {() => readonly ['array', _List]} _List */
+            /** @type {_List} */
+            const list = () => ['array', list]
+            eqMarked(toData(list), [
+                [[[['list', 'identifier']], [['readonly', 'keyword'], ['('], ['list', 'identifier'], [')[]']]]],
+                [['list', 'identifier']],
+            ])
+        },
+    },
     tag0: {
         boolean: () => eq(boolean, 'boolean'),
         number: () => eq(number, 'number'),
