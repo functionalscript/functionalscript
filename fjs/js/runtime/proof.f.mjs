@@ -172,6 +172,9 @@ export const proof = {
         assertEq(dot({ startsWith: f }, 'startsWith'), f)
         assertEq(dot({ x: 0 }, 'x'), 0)
         assertEq(dot({ x: undefined }, 'x'), undefined)
+        // an own `undefined` under a member name wins too, as in JavaScript,
+        // where the call throws; `hasEntry` is what finds it
+        assertEq(dot({ startsWith: undefined }, 'startsWith'), undefined)
         assertEq(dot([f], '0'), f)
         assertEq(dot('abc', '1'), 'b')
         assertEq(dot([1], 'length'), undefined)
@@ -185,7 +188,7 @@ export const proof = {
         assertEq(dot('abc', 'slice'), undefined)
         // the core rule of DESIGN.md §13, on the compiled EDAG: the body of
         // `dot` holds no chain step — no member call, no optional chain —
-        // since an executor runs it to answer those; a property read and a
+        // since an executor runs it to answer those; the two helpers and a
         // `()` of a function value are what it uses. Its slots, the
         // `member` table and the bodies in it, are not the core.
         /** @type {(node: unknown) => readonly unknown[]} */

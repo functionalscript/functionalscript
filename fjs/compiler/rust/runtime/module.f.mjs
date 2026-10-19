@@ -70,9 +70,9 @@ const bound = kind => kind === 'member' ? 'IStaticFunction' : 'IVm'
  * A module-level node resolved at compile time: a function, which becomes
  * an item; a literal, inlined where a body reads it; or the refusal of
  * anything else, since the runtime's module scope holds functions and
- * literals. The `entry` helper, which `dot` reads, resolves as a literal
- * would, printed as the value the EDAG printer gives it where an item
- * holds it. An import is read off its export object by a literal key,
+ * literals. The `entry` and `hasEntry` helpers, which `dot` reads, resolve
+ * as a literal would, printed as the value the EDAG printer gives them
+ * where an item holds them. An import is read off its export object by a literal key,
  * `{ f }.f`, and folds to the property's value, resolved in turn.
  *
  * @type {(node: Exp) => Result<_Resolved, readonly unknown[]>}
@@ -81,7 +81,7 @@ const resolve = node => {
     if (!(node instanceof Array)) { return ok(/** @type {const} */ (['literal', node])) }
     const [id, a, key] = /** @type {readonly any[]} */ (node)
     if (id === '=>') { return ok(/** @type {const} */ (['function', node])) }
-    if (id === 'undefined' || id === 'entry') { return ok(/** @type {const} */ (['literal', node])) }
+    if (id === 'undefined' || id === 'entry' || id === 'hasEntry') { return ok(/** @type {const} */ (['literal', node])) }
     if (id === '.' && node.length === 3 && typeof key === 'string') {
         const property = literalProperties(a)?.find(p => p[1] === key)
         return property === undefined ? refused(node) : resolve(/** @type {Exp} */ (property[2]))
@@ -199,7 +199,7 @@ const table = root => {
  */
 const items = (root, { builtIns, dot }) => {
     const nodes = visit(operandsOf)([])(root).map(([n]) => n).filter(n => n instanceof Array)
-    const stray = nodes.find(n => !['=>', '{}', '.', 'undefined', 'entry'].includes(n[0]))
+    const stray = nodes.find(n => !['=>', '{}', '.', 'undefined', 'entry', 'hasEntry'].includes(n[0]))
     if (stray !== undefined) { return refused(/** @type {Exp} */ (stray)) }
     return okThen(/** @type {() => Result<readonly _Item[], readonly unknown[]>} */ () => {
         const functions = nodes.filter(n => n[0] === '=>' && n !== dot)

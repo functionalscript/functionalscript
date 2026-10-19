@@ -525,11 +525,12 @@ disagrees with it is wrong by definition, and the corpus is what says so.
    meaning is one, and it never trades clarity for the speed of any
    backend. What it needs of a backend is the primitive surface — a value
    representation, the operators, `typeof`, `instanceof`, the own-property
-   read `a[k]` and the `entry` read over it, calling a function value,
+   read `a[k]` and the `entry` and `hasEntry` helpers over it, calling a
+   function value,
    closures with a frame, throw propagation, and the natives no body can
    define — and that surface is listed where the source is. The read is
-   primitive because nothing is below it: the source reads `entry`'s
-   answer as `[0]`, and a read defined in the source would read its own
+   primitive because nothing is below it: the source reads what `entry`
+   answers, and a read defined in the source would read its own
    definition. A new backend, in Rust, Swift or C#,
    provides the surface and generates the rest.
 2. **An optimization is a substitution rule, keyed on structure.** A

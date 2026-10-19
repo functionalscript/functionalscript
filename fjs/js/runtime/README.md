@@ -66,9 +66,10 @@ of the arguments, which the VM then calls, or `undefined` — then the
 body's first step among them; a body is pure, so a guard and a call ask
 it twice at no cost but the call.
 
-The order is written once, as the runtime's `dot`: the own property, read
-by `entry` as an option so that an own `undefined` is found, else the
-body's answer, else `undefined`, with no native in between — the natives
+The order is written once, as the runtime's `dot`: the own property,
+its presence asked by `hasEntry` so that an own `undefined` is found and
+its value read by `entry`, else the body's answer, else `undefined`, with
+no native in between and nothing built on the way — the natives
 are what a VM answers while a name has no body. The interpreter asks
 `dot` first and its natives after; NaNVM's call step stays native until
 the static-runtime printer compiles the table `dot` reads, which

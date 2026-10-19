@@ -113,7 +113,7 @@ The price the pair pays:
       importer of the option moved to the pair, the spec and the
       [compatibility record](../../todo/fjs-javascript-compatibility.md)
       updated.
-- [ ] `dot` over the pair, as above, in
+- [x] `dot` over the pair, as above, in
       [runtime-members](../../fjs/js/todo/runtime-members.md).
 
 ### Related

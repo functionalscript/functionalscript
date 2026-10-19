@@ -42,7 +42,7 @@
  */
 
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
-import { entry } from '../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
@@ -168,30 +168,27 @@ export const runtime = {
     /**
      * The callee of `self[key](...)`, the receiver not nullish: the
      * receiver's own enumerable property under the key — an object's
-     * field, an array's or a string's element, read by `entry` as an
-     * option so that an own `undefined` is found — else what the `member`
-     * body of the name answers for the receiver, the function of the
-     * arguments or `undefined`, else `undefined`. An own property wins
-     * whatever it holds, as it does in JavaScript: `{ toString: f }` calls
-     * `f`, `{ x: undefined }.x()` throws, and `[1][0]()` throws for the
-     * element. `entry(member, key)` reads the table as the object literal
-     * it is, so no inherited name answers. A body's throw is the call's,
-     * or the guard's. The core rule of DESIGN.md §13 holds here: no
-     * member call and no optional chain, only `entry`, a conditional, a
-     * property read and a plain call of a function value, since an
-     * executor runs this to answer a member call — which is why the body
-     * is bound to `f` before it is called: `body[0](self)` would be a
-     * member call, `['.', body, 0, ['|()', …]]`, where `f(self)` is a
-     * `()` of a value. The runtime's proof pins the shape on the EDAG.
+     * field, an array's or a string's element, its presence asked by
+     * `hasEntry` so that an own `undefined` is found, its value read by
+     * `entry` — else what the `member` body of the name answers for the
+     * receiver, the function of the arguments or `undefined`, else
+     * `undefined`. An own property wins whatever it holds, as it does in
+     * JavaScript: `{ toString: f }` calls `f`, `{ x: undefined }.x()`
+     * throws, and `[1][0]()` throws for the element. `entry(member, key)`
+     * reads the table as the object literal it is, so no inherited name
+     * answers, and nothing is built on the way: a receiver that owns
+     * nothing under the key costs one scan, an object that owns it two.
+     * A body's throw is the call's, or the guard's. The core rule of
+     * DESIGN.md §13 holds here: no member call and no optional chain,
+     * only the two helpers, a conditional and a plain call of a function
+     * value, since an executor runs this to answer a member call. The
+     * runtime's proof pins the shape on the EDAG.
      *
      * @type {(self: unknown, key: string) => unknown}
      */
     dot: (self, key) => {
-        const own = entry(self, key)
-        if (own.length === 1) { return own[0] }
-        const body = entry(member, key)
-        if (body.length !== 1) { return undefined }
-        const f = /** @type {(self: unknown) => unknown} */ (body[0])
-        return f(self)
+        if (hasEntry(self, key)) { return entry(self, key) }
+        const body = /** @type {undefined | ((self: unknown) => unknown)} */ (entry(member, key))
+        return body === undefined ? undefined : body(self)
     },
 }
