@@ -13,10 +13,12 @@ About a third of the module is something else — the policy Git applies to
 the subsection rule in `extensionAt`, `extensionValuesRead`, and the five
 version rules in `tryOidBytes`, which `oidBytes` runs over the `config` file.
 
-Nothing in `store` calls any of it. Every reader takes the width as a
-parameter — `readIn(ods, oidBytes)`, `tryRead(dir, oidBytes)` — so the format
-reader is exported for callers and never used by the module that holds it. It
-is also the only reason `store` imports
+None of the object readers call any of it. The format rules call one
+another — `oidBytes` runs `widthOf`, which composes `tryEntries` with
+`tryOidBytes` — and nothing else in the module calls them: every reader of
+an object takes the width as a parameter, `readIn(ods, oidBytes)`,
+`tryRead(dir, oidBytes)`, so the format reader is exported for callers and
+read by nothing the module is for. It is also the only reason `store` imports
 [`fjs/git/config`](../../config/module.f.mjs), and `store` is the only
 importer of `config` in the tree. The neighbours already describe it as if it
 lived elsewhere: `config`'s header says the format and the width it names are
