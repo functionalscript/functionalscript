@@ -34,7 +34,13 @@ fn next(&mut self) -> Option<Self::Item> {
 ### Proposal
 
 `IndexIter` gets an exact `size_hint`, `ExactSizeIterator` and
-`FusedIterator`; `IteratorRecord::Array` holds an `IndexIter<u32, Array<A>>`,
+`FusedIterator` — for the VM's containers, `IndexIter<u32, W>` with `W:
+ContainerWrapper`, not for every `SizedIndex`: `length` is a method on a
+trait that `[T]` implements too and that promises nothing about the length
+holding still, and both traits are promises about it, an exact hint and no
+item after `None`. The VM's containers are immutable, so for them the
+promise is kept by construction, and the three hand copies live over them
+alone. `IteratorRecord::Array` holds an `IndexIter<u32, Array<A>>`,
 and the two `ObjectSpread` variants an `Enumerate<IndexIter<…>>` mapped
 through `index_key` and `String::of_unit`. Only the code-point walk of
 `IteratorRecord::String`, which steps by one or two, stays hand-written.
@@ -43,7 +49,8 @@ shape as shipped; this changes two variants' fields, not what they answer.
 
 ### Tasks
 
-- [ ] `size_hint`, `ExactSizeIterator` and `FusedIterator` on `IndexIter`.
+- [ ] `size_hint`, `ExactSizeIterator` and `FusedIterator` on `IndexIter`
+      over a `ContainerWrapper`.
 - [ ] `IteratorRecord::Array`, `ObjectSpread::Array` and
       `ObjectSpread::String` over it; spread-operations updated.
 
