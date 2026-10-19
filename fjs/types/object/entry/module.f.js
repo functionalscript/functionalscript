@@ -30,11 +30,25 @@
  *
  * @module
  *
- * @import { EntryLookup } from './types.ts'
+ * @import { EntryLookup, HasEntry } from './types.ts'
  */
 
 /** @type {EntryLookup} */
 export const entry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
     return x?.enumerable ? [x.value] : [];
+};
+
+/**
+ * The `hasEntry` helper, the presence the option tells: whether `a` has
+ * an enumerable own property `b` names, `true` for one holding
+ * `undefined`, the key converted as `entry` converts it, a nullish `a`
+ * throwing as there. Recognized whole by the compiler as the EDAG's
+ * `['hasEntry']`, as `entry` is ([spec: has-entry](../../../../spec/todo/2345-has-entry.md)).
+ *
+ * @type {HasEntry}
+ */
+export const hasEntry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable === true;
 };

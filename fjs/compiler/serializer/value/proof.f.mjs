@@ -49,6 +49,7 @@ export const proof = {
         assertEq(factoryStringify(['entry']), `export default()=>{const $0=${text};return $0;};`)
         const helper = /** @type {const} */ (['entry'])
         assertEq(stringify(['[]', [helper, helper]]), `const $0=${text};const $4=[$0,$0];export default $4;`)
+        assertEq(stringify(['hasEntry']), 'const $0=($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable===true;};export default $0;')
     },
     // A static function is the built-in, not its body, so there is none
     // to write: the module reads the host's own, one function however

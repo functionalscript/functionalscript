@@ -579,6 +579,13 @@ export const proof = {
             // and nested in a function as any function may be
             expect('export default (o, p) => {\n const d = Object["getOwnPropertyDescriptor"](o, p)\n return d?.enumerable ? [d["value"]] : []\n}', '[[],[["object",[[":","default",["entry"]]]]]]')
             expect('export default () => (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [x.value] : []; };', '[[],[["object",[[":","default",["=>",0,[["entry"]]]]]]]]')
+            // the `hasEntry` helper beside it, the same but for its
+            // `return`, under any names and either key spelling too
+            const has = 'const hasEntry = (a, b) => {\n    const x = Object.getOwnPropertyDescriptor(a, b);\n    return x?.enumerable === true;\n};'
+            expect(`${has} export default hasEntry;`, '[[],[["hasEntry"],["object",[[":","default",["cref",0]]]]]]')
+            expect(`${has} export default hasEntry({ k: 1 }, "k");`, '[[],[["hasEntry"],["object",[[":","default",["()",["cref",0],[["object",[[":","k",1]]],"k"]]]]]]]')
+            expect('export default (o, p) => {\n const d = Object["getOwnPropertyDescriptor"](o, p)\n return d?.enumerable === true\n}', '[[],[["object",[[":","default",["hasEntry"]]]]]]')
+            expect(`${helper} ${has} export default [entry, hasEntry];`, '[[],[["entry"],["hasEntry"],["object",[[":","default",["array",[["cref",0],["cref",1]]]]]]]]')
         },
         // Not the helper: a body that departs from the helper's by a step is
         // an ordinary function, which is where `Object` — a reserved global,
@@ -603,6 +610,13 @@ export const proof = {
                 '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [x.value] : [undefined]; }',
                 '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [x.value] : [[]]; }',
                 '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [x.value, 1] : []; }',
+                // a step from `hasEntry`: the bare flag, the other literal,
+                // the literal first, and a plain access of the descriptor
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable === false; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return true === x?.enumerable; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x.enumerable === true; }',
+                '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.value === true; }',
                 '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [...x.value] : []; }',
                 '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [x] : []; }',
                 '(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [] : [x.value]; }',

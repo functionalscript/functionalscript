@@ -480,6 +480,11 @@ export const proof = {
         writes(['()', ['entry'], [1, 2]], `const $0=${named};export default $0(1,2);`)
         writes(['.', ['entry'], 'length'], `const $0=${named};export default $0.length;`)
         writes(['=>', 0, [], ['entry']], `export default ()=>${text};`)
+        // `hasEntry` in its one spelling, the same way
+        const has = '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}'
+        writes(['hasEntry'], `export default ${has};`)
+        writes(['()', ['hasEntry'], [1, 2]], `const $0=($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable===true;};export default $0(1,2);`)
+        writes(['.', ['hasEntry'], 'length'], `const $0=($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable===true;};export default $0.length;`)
         // an operand of an operator, a prefix's and a conditional's
         // condition are grouped as a function is, an arrow being no
         // operand bare; a conditional's arm, an item and an argument are

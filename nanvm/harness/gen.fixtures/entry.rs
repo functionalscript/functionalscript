@@ -44,6 +44,26 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         Ok([c33].to_array().to_any())
     };
     let c34: Any<A> = Any::dot(c31, string_any("flatMap")).end_call(c32)?;
-    let c35: Any<A> = [c2, c3, c4, c6, c8, c10, c12, c14, c15, c16, c17, c18, c19, c21, c23, c24, c27, c30, c34].to_array().to_any();
-    Ok([(string_key("default"), c35), (string_key("entry"), c0.clone())].to_object().to_any())
+    let c35: Any<A> = A::static_function(|_self, args| Any::has_entry(args.argument(0), args.argument(1)).map(|b| b.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any();
+    let c36: Any<A> = Any::call(c35.clone(), [c1.clone(), string_any("x")].to_array().to_any())?;
+    let c37: Any<A> = Any::call(c35.clone(), [c1.clone(), string_any("u")].to_array().to_any())?;
+    let c38: Any<A> = Any::call(c35.clone(), [c1.clone(), string_any("y")].to_array().to_any())?;
+    let c39: Any<A> = [f64_any(0x401c000000000000), f64_any(0x4020000000000000)].to_array().to_any();
+    let c40: Any<A> = Any::call(c35.clone(), [c39, f64_any(0x3ff0000000000000)].to_array().to_any())?;
+    let c41: Any<A> = [f64_any(0x401c000000000000), f64_any(0x4020000000000000)].to_array().to_any();
+    let c42: Any<A> = Any::call(c35.clone(), [c41, string_any("length")].to_array().to_any())?;
+    let c43: Any<A> = Any::call(c35.clone(), [string_any("ab"), string_any("1")].to_array().to_any())?;
+    let c44: Any<A> = Any::call(c35.clone(), [c35.clone(), string_any("length")].to_array().to_any())?;
+    let c45: Any<A> = Any::dot(c35.clone(), string_any("length")).end()?;
+    let c46: Any<A> = (Any::typeof_(c35.clone()))?;
+    let c47: Any<A> = [(string_key("1"), f64_any(0x4022000000000000))].to_object().to_any();
+    let c48: Any<A> = Any::call(c35.clone(), [c47, f64_any(0x3ff0000000000000)].to_array().to_any())?;
+    let c49: Any<A> = Any::call(c35.clone(), [f64_any(0x4014000000000000), string_any("x")].to_array().to_any())?;
+    let c50: Any<A> = Any::call(c35.clone(), [c1.clone(), string_any("z")].to_array().to_any())?;
+    let c51: Any<A> = (Any::conditional(c50, || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))))?;
+    let c52: Any<A> = Any::call(c0.clone(), [c1.clone(), string_any("x")].to_array().to_any())?;
+    let c53: Any<A> = Any::dot(c52, f64_any(0x0000000000000000)).end()?;
+    let c54: Any<A> = [c51, c53].to_array().to_any();
+    let c55: Any<A> = [c2, c3, c4, c6, c8, c10, c12, c14, c15, c16, c17, c18, c19, c21, c23, c24, c27, c30, c34, c36, c37, c38, c40, c42, c43, c44, c45, c46, c48, c49, c54].to_array().to_any();
+    Ok([(string_key("default"), c55), (string_key("entry"), c0.clone()), (string_key("hasEntry"), c35.clone())].to_object().to_any())
 }

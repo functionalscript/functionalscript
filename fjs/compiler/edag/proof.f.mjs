@@ -520,6 +520,10 @@ export const proof = {
         expectEdag(two, ['[]', [['entry'], ['entry']]])
         assert(two instanceof Array && two[0] === '[]' && two[1][0] !== two[1][1], two)
         expectEdag(compile(`${helper} export default entry({ k: 1 }, "k");`).edag, ['()', ['entry'], [['{}', [[':', 'k', 1]]], 'k']])
+        // `hasEntry` is its own node the same way
+        const has = 'const hasEntry = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable === true; };'
+        expectEdag(compile(`${has} export default hasEntry;`).edag, ['hasEntry'])
+        expectEdag(compile(`${has} export default hasEntry({ k: 1 }, "k");`).edag, ['()', ['hasEntry'], [['{}', [[':', 'k', 1]]], 'k']])
         expectEdag(compile(`${helper} export default [entry.length, typeof entry];`).edag, ['[]', [['.', ['entry'], 'length'], ['typeof', ['entry']]]])
         // an unreached helper is anchored as any entry is
         expectEdag(compile(`${helper} export default 1;`).edag, [',', [['entry'], 1]])
@@ -1583,6 +1587,8 @@ export const proof = {
                     ['undefined', { inline: 'undefined' }],
                     ['args', { inline: 'args', kind: 'terminal' }],
                     ['rest', { inline: 'rest', kind: 'terminal' }],
+                    ['entry', { inline: 'entry', kind: 'terminal' }],
+                    ['hasEntry', { inline: 'hasEntry', kind: 'terminal' }],
                 ]) {
                     assertStructurallySame(_shapeOf([tag]), shape, tag)
                 }

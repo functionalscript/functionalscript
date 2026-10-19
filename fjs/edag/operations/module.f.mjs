@@ -25,7 +25,7 @@ import { array } from '../value/array/module.f.mjs'
 import { object } from '../value/object/module.f.mjs'
 import { func } from '../value/function/module.f.mjs'
 import { bind, prepare, settle } from '../value/call/module.f.mjs'
-import { entry, findProperty, functionAt, read } from '../value/property/module.f.mjs'
+import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.mjs'
 import { throwValue } from '../value/control/module.f.mjs'
 import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
@@ -65,6 +65,16 @@ const nullish = value => value === null || typeOf(value) === 'undefined'
  */
 export const entryCall = ([receiver, key], invoke) =>
     nullish(receiver) ? error(['undefined']) : okThen(name => entry(receiver, name))(toString(key, invoke))
+
+/**
+ * The `hasEntry` helper called, `['hasEntry']`'s body: whether the entry
+ * is there, the one bit the option carries, read without building the
+ * option, the receiver and the key treated as `entryCall` treats them.
+ *
+ * @type {(fixed: Values, invoke: Invoke) => ValueResult}
+ */
+export const hasEntryCall = ([receiver, key], invoke) =>
+    nullish(receiver) ? error(['undefined']) : okThen(name => hasEntry(receiver, name))(toString(key, invoke))
 
 /**
  * A static function called, for the executors that invoke one, its
@@ -212,6 +222,7 @@ export const operation = evaluator => {
             case 'self': { return [state, self === undefined ? error(['undefined']) : ok(self)] }
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
+            case 'hasEntry': { return [state, ok(['hasEntry'])] }
             // a static function as a value: the node, the built-in by its
             // name, one function however often it is read, whose call and
             // `length` the body the runtime's `static` section holds at

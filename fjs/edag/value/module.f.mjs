@@ -26,9 +26,9 @@ import { array as rttiArray, number, string } from '../../rtti/module.f.mjs'
  * The raw recursive schema, pinned separately from its phantom annotation.
  * Undefined is tagged just as in EDAG, rather than a bare missing position.
  * @type {() => readonly ['or', typeof primitive, readonly ['undefined'],
- *  typeof array, typeof object, typeof func, typeof entryFunction, typeof staticFunction]}
+ *  typeof array, typeof object, typeof func, typeof entryFunction, typeof hasEntryFunction, typeof staticFunction]}
  */
-export const _value = () => ['or', primitive, ['undefined'], array, object, func, entryFunction, staticFunction]
+export const _value = () => ['or', primitive, ['undefined'], array, object, func, entryFunction, hasEntryFunction, staticFunction]
 
 /** Shape of an evaluated value, excluding computation outside function bodies. @type {Phantom<typeof _value, EdagValue>} */
 export const value = _value
@@ -55,6 +55,9 @@ export const func = /** @type {const} */ (['=>', number, values, exp])
  * — fresh wherever the node is established, as a closure is.
  */
 export const entryFunction = /** @type {const} */ (['entry'])
+
+/** The `hasEntry` helper as a value, `['hasEntry']` established: as `entryFunction`, answering the presence. */
+export const hasEntryFunction = /** @type {const} */ (['hasEntry'])
 
 /**
  * A static function as a value, the EDAG's own node, `['Object.is']`: the

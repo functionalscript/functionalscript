@@ -13,7 +13,7 @@ import { array } from '../array/module.f.mjs'
 import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
 import { call } from '../call/module.f.mjs'
-import { entry, findProperty, functionAt, read } from './module.f.mjs'
+import { entry, findProperty, functionAt, hasEntry, read } from './module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */
 const expectValue = (receiver, key, expected) => {
@@ -121,8 +121,14 @@ export const proof = {
             return option[1][0]
         }
         /** @type {(receiver: EdagValue, key: string) => void} */
-        const none = (receiver, key) => assertStructurallySame(assertOk(entry(receiver, key)), ['[]', []])
+        const none = (receiver, key) => {
+            assertStructurallySame(assertOk(entry(receiver, key)), ['[]', []])
+            assertEq(assertOk(hasEntry(receiver, key)), false)
+        }
         assertEq(some(assertOk(entry(record, 'value'))), data)
+        assertEq(assertOk(hasEntry(record, 'value')), true)
+        assertEq(assertOk(hasEntry(['{}', [[':', 'u', undefinedValue]]], 'u')), true)
+        assertEq(assertOk(hasEntry('ab', '1')), true)
         none(record, 'length')
         assertEq(some(assertOk(entry(['{}', [[':', 'length', 3]]], 'length'))), 3)
         // an entry holding `undefined` is an entry, where the read alone
@@ -136,16 +142,19 @@ export const proof = {
         assertEq(some(assertOk(entry('ab', '1'))), 'b')
         for (const key of ['length', '2', '01']) { none('ab', key) }
         /** @type {readonly EdagValue[]} */
-        const entryless = [functionValue, ['entry'], ['Object.entries'], true, 0, 1n]
+        const entryless = [functionValue, ['entry'], ['hasEntry'], ['Object.entries'], true, 0, 1n]
         for (const receiver of entryless) {
             for (const key of ['length', '0', 'name']) { none(receiver, key) }
         }
         for (const receiver of [null, undefinedValue]) {
             assertStructurallySame(assertError(entry(receiver, 'a')), ['undefined'])
+            assertStructurallySame(assertError(hasEntry(receiver, 'a')), ['undefined'])
         }
         // the helper owns the `length` every function does, read as a property
         expectValue(['entry'], 'length', 2)
         missing(['entry'], '0')
+        expectValue(['hasEntry'], 'length', 2)
+        missing(['hasEntry'], '0')
         // and so does a static function: `Object.entries` its `1`, with no
         // runtime to ask, and every other the length of the body the
         // runtime holds at its path, failing by name with no runtime or

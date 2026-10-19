@@ -45,11 +45,12 @@
  * builds no module: a malformed suffix is found before any name is
  * resolved. `./README.md` holds the argument.
  *
- * The `entry` helper is the fold's to recognize, {@link entryFunction}: the
- * one function whose body names a property at run time, matched whole on
- * the syntax tree with its names resolved as every other body's are, and
- * the one place `Object` stands but `Object.is` — outside the two the fold
- * refuses the word, as it refuses every reserved global.
+ * The `entry` helper and the `hasEntry` helper beside it are the fold's to
+ * recognize, {@link entryFunction}: the two functions whose bodies name a
+ * property at run time, the value and the presence, matched whole on the
+ * syntax tree with their names resolved as every other body's are, and
+ * the one place `Object` stands but `Object.is` — outside the three the
+ * fold refuses the word, as it refuses every reserved global.
  *
  * A static function — `Object.is`, and the four `Number` predicates,
  * `Number.isInteger` — is a value, the AST's `['Object.is']`, in every
@@ -85,7 +86,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
@@ -1423,18 +1424,39 @@ const isEntryOf = (node, x) => {
 }
 
 /**
+ * Whether a node is `x?.enumerable === true`, the `hasEntry` helper's
+ * presence, `x` the word its `const` binds: the same guarded access the
+ * option tests, compared to `true`.
+ *
+ * @type {(node: Node, x: string) => boolean}
+ */
+const isHasEntryOf = (node, x) => {
+    if (node[0] !== '===') { return false }
+    const [, condition, literal] = node
+    return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && isKeyNamed(condition[2], 'enumerable')
+        && literal[0] === 'primitive' && literal[1] === true
+}
+
+/**
  * The `entry` helper, recognized whole
- * ([spec: entry](../../../spec/property-access/entries.md)):
+ * ([spec: entry](../../../spec/property-access/entries.md)), and the
+ * `hasEntry` helper beside it, the same but for its `return`
+ * ([spec: has-entry](../../../spec/todo/2345-has-entry.md)):
  *
  * ```js
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);
  *     return x?.enumerable ? [x.value] : [];
  * }
+ * (a, b) => {
+ *     const x = Object.getOwnPropertyDescriptor(a, b);
+ *     return x?.enumerable === true;
+ * }
  * ```
  *
- * under any three distinct names — the AST's `['entry']`, the one function
- * whose body reads a property named at run time, and the one place the
+ * under any three distinct names — the AST's `['entry']` and
+ * `['hasEntry']`, the two functions whose body reads a property named at
+ * run time, and the one place the
  * `Object` namespace stands but `Object.is`. It is matched on the syntax
  * tree with its names resolved by the rules every other body follows: the
  * two parameters and the body's `const` are what the body reads back, and
@@ -1447,7 +1469,7 @@ const isEntryOf = (node, x) => {
  * break the line rules every block's statements keep, {@link unterminated}
  * and {@link brokenLine}, which the shape alone cannot see.
  *
- * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<AstEntryFunction, ParseError> | null}
+ * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<AstEntryFunction | AstHasEntryFunction, ParseError> | null}
  */
 const entryFunction = ([, list, body]) => {
     if (!('fixed' in list) || list.fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
@@ -1466,12 +1488,14 @@ const entryFunction = ([, list, body]) => {
     const x = nameOf(declaration.target[1])
     const names = [a, b, x]
     if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
-    if (!isDescriptorOf(declaration.value, a, b) || !isEntryOf(returned.value, x)) { return null }
+    if (!isDescriptorOf(declaration.value, a, b)) { return null }
+    const has = isHasEntryOf(returned.value, x)
+    if (!has && !isEntryOf(returned.value, x)) { return null }
     if (unterminated(declaration, returned)) { return error(unexpectedToken(returned.start)) }
     if (brokenLine(returned)) { return error(unexpectedToken(returned.first)) }
-    /** @type {AstEntryFunction} */
-    const entry = ['entry']
-    return ok(entry)
+    /** @type {AstEntryFunction | AstHasEntryFunction} */
+    const helper = has ? ['hasEntry'] : ['entry']
+    return ok(helper)
 }
 
 /**

@@ -104,7 +104,7 @@ const same = (a, b) => a instanceof Array
  */
 export const mergeable = node => {
     switch (node[0]) {
-        case '[]': case '{}': case '=>': case 'entry': case '()': case '?.()': { return false }
+        case '[]': case '{}': case '=>': case 'entry': case 'hasEntry': case '()': case '?.()': { return false }
         case '.': case '?.': { return node.length === 3 }
         default: { return true }
     }
@@ -268,6 +268,7 @@ const handlers = {
     rest: o0,
     self: o0,
     entry: o0,
+    hasEntry: o0,
     // the static functions, a row each, so a new one is a `tsc` error here
     // until it has its row
     'Object.is': o0,
@@ -394,7 +395,7 @@ export const operandsOf = node => {
     // a static function, as `entry`, is a function of its parameters alone
     if (isStatic(node)) { return [] }
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': case 'hasEntry': { return [] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }

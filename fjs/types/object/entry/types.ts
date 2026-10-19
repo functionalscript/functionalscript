@@ -19,6 +19,9 @@ import type { entry } from './module.f.js'
  */
 export type EntryLookup = <T, K>(a: T, b: K) => Option<K extends keyof T ? T[K] : unknown>
 
+/** The presence of the enumerable own property, the one bit the option carries. */
+export type HasEntry = (a: unknown, b: any) => boolean
+
 type _UnknownReceiver = Assert<Equal<
     ReturnType<typeof entry<unknown, string>>,
     Option<unknown>

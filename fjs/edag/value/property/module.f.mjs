@@ -10,7 +10,8 @@
  * This is the lookup kernel for admitted property reads, `read`, and for
  * a call of the `entry` helper, `entry`: the same lookup less what a value
  * owns without enumerating it, a `length` and whatever a function has,
- * answered as an option.
+ * answered as an option — and for a call of `hasEntry`, `hasEntry`, the
+ * presence alone, with nothing built.
  * The caller owns operand evaluation order, key conversion to a string and
  * source-name admission. Reads do not traverse prototypes or expose storage
  * tuple fields; findProperty supplies stored object-property presence to
@@ -101,7 +102,7 @@ export const read = (receiver, key, runtime) => {
         case '{}': { return field(value, key) }
         case '=>': { return ok(key === 'length' ? value[1] : ['undefined']) }
         // the `entry` helper owns the `length` every function does, `2`
-        case 'entry': { return ok(key === 'length' ? 2 : ['undefined']) }
+        case 'entry': case 'hasEntry': { return ok(key === 'length' ? 2 : ['undefined']) }
         default: { return error(['undefined']) }
     }
 }
@@ -141,4 +142,16 @@ export const entry = (receiver, key) => {
     if (receiver === null || (isArray(receiver) && receiver[0] === 'undefined')) { return error(['undefined']) }
     const found = entryOf(receiver, key)
     return ok(['[]', found === undefined ? [] : [found]])
+}
+
+/**
+ * Whether the entry `key` names is there: what a call of the `hasEntry`
+ * helper reads, `true` for an entry holding `undefined`, the receiver
+ * treated as {@link entry} treats it, and no option built.
+ *
+ * @type {(receiver: EdagValue, key: string) => ValueResult}
+ */
+export const hasEntry = (receiver, key) => {
+    if (receiver === null || (isArray(receiver) && receiver[0] === 'undefined')) { return error(['undefined']) }
+    return ok(entryOf(receiver, key) !== undefined)
 }

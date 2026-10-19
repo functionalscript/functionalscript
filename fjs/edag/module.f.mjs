@@ -641,9 +641,13 @@ export const noStatic = name => `no binding for the static ${name}`
  * helper and no other way: the source has no other spelling of a key
  * computed at run time.
  *
+ * `hasEntry` is the helper beside it, the presence as a boolean, `true`
+ * for an entry holding `undefined`: `['()', ['hasEntry'], [a, b]]`
+ * ([spec: has-entry](../../spec/todo/2345-has-entry.md)).
+ *
  * The rest are the static functions, {@link staticId}.
  */
-export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', staticId)
+export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', staticId)
 
 
 export const op0 = /** @type {const} */ ([op0Id])

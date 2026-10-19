@@ -105,7 +105,7 @@ import { chunksText } from '../../text/marked/module.f.mjs'
 // flat list of strings simple enough to check against the type file by eye.
 // The static functions are the one group a later row grows, so they are
 // the EDAG's own list.
-const op0 = new Set(['undefined', 'args', 'rest', 'self', 'entry', ...staticIds])
+const op0 = new Set(['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', ...staticIds])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
     '===', '!==', '>', '>=', '<', '<=',

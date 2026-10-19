@@ -179,15 +179,29 @@ impl<A: IVm> Any<A> {
     /// option, as every absent key does. An `Option<Any>` is the one- or
     /// zero-element sequence the array is built from.
     pub fn entry(self, key: Self) -> Result<Self, Self> {
+        Ok(self.own_entry(key)?.to_array().to_any())
+    }
+
+    /// The `hasEntry` helper: whether the enumerable own property `key`
+    /// names is there, the one bit [`Any::entry`]'s option carries, `true`
+    /// for an entry holding `undefined`, the receiver and the key treated
+    /// as `entry` treats them, so a nullish receiver throws and a key
+    /// converts first (`spec/todo/2345-has-entry.md`).
+    pub fn has_entry(self, key: Self) -> Result<bool, Self> {
+        Ok(self.own_entry(key)?.is_some())
+    }
+
+    /// The enumerable own property `key` names, or `None`: what `entry` and
+    /// `has_entry` share, the receiver checked before the key is converted.
+    fn own_entry(self, key: Self) -> Result<Option<Self>, Self> {
         let unpacked = non_nullish_receiver(self)?;
         let key = key.to_string()?;
-        let found = match unpacked {
+        Ok(match unpacked {
             Unpacked::Object(o) => o.own_property(&key),
             Unpacked::Array(a) => a.entry(&key),
             Unpacked::String(s) => s.entry(&key),
             _ => None,
-        };
-        Ok(found.to_array().to_any())
+        })
     }
 
     /// Same as `Number.isNaN` in ECMAScript.
@@ -297,6 +311,32 @@ mod tests {
         assert_eq!(option(o.entry("01".into())), None);
         let z = [("0".into(), 7.0.to_any())].to_object().to_any::<A>();
         assert_eq!(option(z.entry((-0.0f64).to_any())), Some(7.0.to_any()));
+    }
+
+    /// `has_entry` is the option's presence: `true` for an entry holding
+    /// `undefined`, `false` for none, a `length` or anything of a function,
+    /// with `entry`'s throws for a nullish receiver and a key whose
+    /// conversion throws.
+    #[test]
+    fn has_entry_is_the_presence() {
+        let o = [("u".into(), Any::undefined()), ("1".into(), 42.0.to_any())]
+            .to_object()
+            .to_any::<A>();
+        assert_eq!(o.clone().has_entry("u".into()), Ok(true));
+        assert_eq!(o.clone().has_entry("v".into()), Ok(false));
+        assert_eq!(o.clone().has_entry(1.0.to_any()), Ok(true));
+        assert_eq!(o.has_entry("toString".into()), Ok(false));
+        let a = [7.0.to_any()].to_array().to_any::<A>();
+        assert_eq!(a.clone().has_entry("0".into()), Ok(true));
+        assert_eq!(a.has_entry("length".into()), Ok(false));
+        let s: Any<A> = "ab".into();
+        assert_eq!(s.clone().has_entry(1.0.to_any()), Ok(true));
+        assert_eq!(s.has_entry("length".into()), Ok(false));
+        assert_eq!(5.0.to_any::<A>().has_entry("0".into()), Ok(false));
+        assert_eq!(
+            Nullish::Null.to_any::<A>().has_entry("x".into()),
+            Err(error::nullish_to_object())
+        );
     }
 
     /// An entry holding `undefined` is an entry, which the option tells
