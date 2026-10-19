@@ -82,7 +82,7 @@ export const hasEntryCall = ([receiver, key], invoke) =>
  * runtime — the receiver's own property, else the native, else the
  * `TypeError` of calling `undefined` — so the runtime's bodies reach a
  * native through it without naming what the runtime defines
- * (`fjs/js/todo/runtime-value.md`). The receiver is the helper's first
+ * (`fjs/js/runtime/README.md`, "Two invariants"). The receiver is the helper's first
  * fixed argument and the native's arguments the rest, as its `length`
  * binds them, `undefined` where the call passed none, as the helper
  * itself passes them on.

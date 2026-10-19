@@ -31,10 +31,8 @@
  * own enumerable property under the key, whatever it holds, which shadows
  * a built-in as it does in JavaScript, else what the `member` body of the
  * name answers for the receiver, else `undefined`, which the executor
- * calls and throws for, or skips under `?.()`. The interpreter asks it
- * before its natives; NaNVM's call step is native until the
- * static-runtime printer compiles the table `dot` reads, and the printer
- * leaves `dot` out until then
+ * calls and throws for, or skips under `?.()`. Every executor asks it
+ * before its natives, which answer the names without a body
  * ([`../todo/runtime-members.md`](../todo/runtime-members.md)). The README
  * says how each binds it and how a name gets its body.
  *

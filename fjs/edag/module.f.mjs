@@ -625,7 +625,7 @@ export const noStatic = name => `no binding for the static ${name}`
  * runtime — the receiver's own property, else the native, else the
  * `TypeError` of calling `undefined` — which is how the runtime's own
  * bodies reach a native without naming what the runtime defines
- * (`fjs/js/todo/runtime-value.md`). As a value the node is fresh where it
+ * (`fjs/js/runtime/README.md`, "Two invariants"). As a value the node is fresh where it
  * is established, as `entry` is and every `=>` is.
  */
 export const intrinsics = /** @type {const} */ ([['slice', 3], ['charCodeAt', 2]])

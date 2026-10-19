@@ -254,7 +254,8 @@ export const proof = {
     // `codePointAt`, called as a function, and
     // the native static `Object.entries` is listed as itself — so the module
     // can be evaluated with no runtime, and NaNVM can hold it as a value
-    // whose bodies never name it (`../todo/runtime-value.md`). The
+    // whose bodies never name it (`../runtime/README.md`, "How NaNVM finds
+    // it"). The
     // intrinsic is there, as a node, where the member call was.
     core: () => {
         assertEq(steps(edag).join(), '')

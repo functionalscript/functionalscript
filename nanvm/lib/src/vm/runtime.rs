@@ -136,7 +136,7 @@ mod tests {
     }
 
     /// A call step reaches a body through the value: `"abc".startsWith`
-    /// through `dot`, after the native table, the receiver alone first and
+    /// through `dot`, before the native table, the receiver alone first and
     /// then the arguments, and `?.()` sees the body's function as a callee
     /// on a string and nothing on a number. The search is converted before
     /// the position, as the body orders them: its own `toString`'s throw

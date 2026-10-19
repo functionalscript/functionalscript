@@ -98,7 +98,7 @@ export const runtime = {
   every VM, `IVm::static_function`, rather than the printer inlining the
   shape without a closure; a measurement may move it later.
 - The body's shape is the receiver itself, `self => …`, a closure of one
-  argument in the runtime value ([runtime-value.md](./runtime-value.md)),
+  argument in the runtime value ([`../runtime/README.md`](../runtime/README.md)),
   rather than the statics' `(...args)` with the receiver as its one
   element: a member is a function of exactly its receiver, and the call
   step passes it with nothing built around it.
@@ -122,10 +122,10 @@ export const runtime = {
 - `dot` is written in FunctionalScript, as the proposal shows, over the
   pair `hasEntry` and `entry`, the presence and the value
   ([why two helpers](../../../spec/property-access/entries.md#why-two-helpers)).
-  The interpreter asks it first and its natives after; NaNVM's call step
-  asks its native first and then the runtime value's `dot`, the value
-  every compiled module takes as its parameter
-  ([`runtime-value.md`](./runtime-value.md)). With bodies written over the
+  Every executor asks it first and its natives after, NaNVM through the
+  runtime value every compiled module takes as its parameter
+  ([`../runtime/README.md`](../runtime/README.md), "How NaNVM finds it"),
+  so a body answers its name on every executor at once. With bodies written over the
   intrinsics for the names the native table answers, `Member::call`
   becomes the nullish throw, the index keys an array, a string or a
   function owns, and `dot`; the two-step guard and the interpreter's
@@ -173,8 +173,8 @@ export const runtime = {
       `startsWith` the first; the two-step call and guard in `Member` and
       in the interpreter's dispatcher; `static_function` on `IVm`. NaNVM
       first lifted the module into static functions found by name; the
-      runtime value ([runtime-value.md](./runtime-value.md)) replaced
-      that.
+      runtime value (`../runtime/README.md`, "How NaNVM finds it")
+      replaced that.
 - [x] The inventory: `fjs/js/members`, every type's admitted names,
       `todo` where no body is written, its keys pinned.
 - [x] `dot` in the runtime, as the proposal shows, with its proof on the
@@ -182,12 +182,11 @@ export const runtime = {
       `value/method` going (`left`, the names the natives lack, stays as
       what the guard asks without running a native); the printer accepting
       the `dot` section and leaving it out, named, until it compiles it.
-- [ ] The printer compiling `dot` — superseded by
-      [`runtime-value.md`](./runtime-value.md), which prints it as any
-      function of a module the backend evaluates: an object literal of functions read
-      through `entry` by a key as a `match` on the name, `instanceof` and
-      `typeof` tests as `Unpacked` matches; `Member::call` over the
-      value's `dot`, the native scan and the two-step guard going.
+- [x] `dot` compiled: printed as any function of a module the backend
+      evaluates, in the runtime value every compiled module takes;
+      `Member::call` asks it before the native table, as the interpreter
+      does. The native scan and the two-step guard go with the last body
+      (below).
 - [ ] The chain in the runtime: `dot` answering a `PropertyLambda`,
       `optionDot` and `optionCall`, with their proof on the host and the
       corpus's chain cases as the oracle; the interpreter running them,
@@ -197,16 +196,23 @@ export const runtime = {
       against `vm/lambda`'s.
 - [ ] The natives, one body at a time: each a typed implementation in
       `fjs/js/members` and a branch of its per-name body, the native
-      table and the interpreter's dispatcher shrinking as they move, with
-      the corpus in `nanvm/member` as the oracle; the primitives no body
-      can define stay native and listed, as the statics' are.
+      table and the interpreter's dispatcher shrinking as they move — an
+      entry beside a body is unreachable, since every executor asks `dot`
+      first — with the corpus in `nanvm/member` as the oracle; the
+      primitives no body can define stay native as intrinsics, listed in
+      `fjs/edag`, as the statics' are in `fjs/js/static`. `startsWith`
+      and `codePointAt` are written; the string names over `slice` and
+      `charCodeAt` alone — `at`, `charAt`, `endsWith`, `includes`,
+      `indexOf`, `lastIndexOf`, `substring`, `isWellFormed` — are the
+      next batch.
 
 ### Related
 
 - [`runtime.md`](./runtime.md) — the bodies written once, which this
   extends to the dispatch.
-- [`runtime-value.md`](./runtime-value.md) — the runtime as a value the
-  module receives, which compiles `dot` as an ordinary function.
+- [`../runtime/README.md`](../runtime/README.md) — "How NaNVM finds
+  it": the runtime as a value the module receives, with `dot` compiled as
+  an ordinary function, and the intrinsics a body reaches a native through.
 - [`runtime-static.md`](./runtime-static.md) — the static runtime the
   bodies compile into.
 - [`../prototype/README.md`](../prototype/README.md) — the read and call
