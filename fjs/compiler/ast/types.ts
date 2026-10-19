@@ -42,7 +42,7 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGu
  * ```js
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable ? [x.value] : [];
+ *     return x?.enumerable ? x.value : undefined;
  * }
  * ```
  *
