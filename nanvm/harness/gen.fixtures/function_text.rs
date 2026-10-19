@@ -4,13 +4,13 @@ use nanvm_lib::vm::unstable::{f64_any, strict_eq, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, Object, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any();
-    let c1: Any<A> = Any::dot(c0.clone(), string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
+    let c1: Any<A> = Any::dot(c0.clone(), string_any("toString")).end_call(&runtime, || Ok(Array::default().to_any()))?;
     let c2: Any<A> = (c0.clone() + string_any("!"))?;
     let c3: Any<A> = [c0.clone(), f64_any(0x4000000000000000)].to_array().to_any();
     let c4 = || Ok([string_any("|")].to_array().to_any());
-    let c5: Any<A> = Any::dot(c3, string_any("join")).end_call(c4)?;
+    let c5: Any<A> = Any::dot(c3, string_any("join")).end_call(&runtime, c4)?;
     let c6: Any<A> = A::static_function(|_self, args| {
         let rest = args.rest(0);
         Ok(A::static_function(|self_, args| {
@@ -21,8 +21,8 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         }, 0, [rest.clone().to_any()].to_array(), Some("(...$1)=>$0[0]+$1[0]")).to_any())
     }, 0, Array::default(), Some("(...$0)=>(...$1)=>$0[0]+$1[0]")).to_any();
     let c7: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
-    let c8: Any<A> = Any::dot(c7, string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
-    let c9: Any<A> = Any::dot(c6.clone(), string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
+    let c8: Any<A> = Any::dot(c7, string_any("toString")).end_call(&runtime, || Ok(Array::default().to_any()))?;
+    let c9: Any<A> = Any::dot(c6.clone(), string_any("toString")).end_call(&runtime, || Ok(Array::default().to_any()))?;
     let c10: Any<A> = (strict_eq(c0.clone(), c0.clone()))?;
     let c11: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
     let c12: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
@@ -53,7 +53,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c37: Any<A> = Any::call(c14.clone(), [f64_any(0x4014000000000000), string_any("x")].to_array().to_any())?;
     let c38: Any<A> = [f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any();
     let c39 = || Ok([c14.clone()].to_array().to_any());
-    let c40: Any<A> = Any::dot(c38, string_any("map")).end_call(c39)?;
+    let c40: Any<A> = Any::dot(c38, string_any("map")).end_call(&runtime, c39)?;
     let c41: Any<A> = Any::call(c14.clone(), [c15.clone(), string_any("y")].to_array().to_any())?;
     let c42: Any<A> = (Any::nullish_coalescing(c41, || Ok(f64_any(0x0000000000000000))))?;
     let c43: Any<A> = [string_any("x"), string_any("y"), string_any("length")].to_array().to_any();
@@ -61,7 +61,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c45: Any<A> = A::static_function(|self_, args| { Any::call(A::frame(self_)[0].clone(), [A::frame(self_)[1].clone(), args.argument(0)].to_array().to_any()) }, 1, [c14.clone(), c15.clone()].to_array(), Some("($2)=>$0($1,$2)")).to_any();
         Ok([c45].to_array().to_any())
     };
-    let c46: Any<A> = Any::dot(c43, string_any("map")).end_call(c44)?;
+    let c46: Any<A> = Any::dot(c43, string_any("map")).end_call(&runtime, c44)?;
     let c47: Any<A> = A::static_function(|_self, args| Any::has_entry(args.argument(0), args.argument(1)).map(|b| b.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any();
     let c48: Any<A> = Any::call(c47.clone(), [c15.clone(), string_any("x")].to_array().to_any())?;
     let c49: Any<A> = Any::call(c47.clone(), [c15.clone(), string_any("u")].to_array().to_any())?;

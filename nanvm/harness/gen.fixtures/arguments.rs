@@ -6,7 +6,7 @@ use nanvm_lib::vm::unstable::{
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| { Ok(args.argument(0)) }, 2, Array::default(), Some("($0,$1)=>$0")).to_any();
     let c1: Any<A> = Any::dot(c0.clone(), string_any("length")).end()?;
     let c2: Any<A> = A::static_function(|_self, args| { Ok(args.argument(1)) }, 2, Array::default(), Some("($0,$1)=>$1")).to_any();

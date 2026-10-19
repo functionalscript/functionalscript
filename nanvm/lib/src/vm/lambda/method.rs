@@ -2,7 +2,7 @@ use crate::{
     common::sized_index::SizedIndex,
     vm::{
         Any, Array, Function, IVm, Number, String, ToAny, Unpacked, array::callback::callback,
-        error, runtime::runtime_method,
+        error,
     },
 };
 
@@ -32,24 +32,6 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
         Unpacked::String(_) => lookup(super::string::string(), key),
         Unpacked::Number(_) => lookup(super::number::number(), key),
         _ => None,
-    }
-}
-
-/// The runtime's member function under the key, asked for the receiver:
-/// the function of the arguments the body answers for a receiver the name
-/// is a member of, `None` for one it is not or for a name the runtime has
-/// no body for, and the body's throw where its first step throws
-/// ([`runtime_method`](crate::vm::runtime_method)). What a call step calls
-/// after the native table has no entry, and what the guard of `?.()` asks
-/// before any argument exists; the body is pure, so asking twice costs and
-/// changes nothing.
-pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Result<Option<Any<A>>, Any<A>> {
-    match runtime_method::<A>(key) {
-        None => Ok(None),
-        Some(code) => {
-            let f = code(receiver.clone())?;
-            Ok(if f.is_nullish() { None } else { Some(f) })
-        }
     }
 }
 
@@ -349,15 +331,20 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IVm, ToAny, ToArray, ToObject, error},
+        vm::{Any, BigInt, Function, IVm, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
 
+    /// The runtime value a call step takes.
+    fn rt() -> Any<A> {
+        crate::vm::runtime::<A>().unwrap()
+    }
+
     fn to_string_with(receiver: Any<A>, radix: Any<A>) -> Result<Any<A>, Any<A>> {
         receiver
             .dot("toString".into())
-            .end_call(|| Ok([radix].to_array().to_any()))
+            .end_call(&rt(), || Ok([radix].to_array().to_any()))
     }
 
     /// A radix on a number or a bigint: the default reads as radix ten, any
@@ -393,7 +380,7 @@ mod tests {
         Ok([].to_array().to_any())
     }
     fn to_string(receiver: Any<A>) -> Result<Any<A>, Any<A>> {
-        receiver.dot("toString".into()).end_call(no_args)
+        receiver.dot("toString".into()).end_call(&rt(), no_args)
     }
 
     /// `toString()` on every type answers what `String(x)` answers.
@@ -427,7 +414,7 @@ mod tests {
         let g = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         let joined = |a: Any<A>| {
             a.dot("join".into())
-                .end_call(|| Ok([g()].to_array().to_any()))
+                .end_call(&rt(), || Ok([g()].to_array().to_any()))
         };
         assert_eq!(joined([].to_array().to_any()), Ok("".into()));
         assert_eq!(joined([1.0.to_any()].to_array().to_any()), Ok("1".into()));
@@ -437,7 +424,7 @@ mod tests {
             let empty: Any<A> = [].to_array().to_any();
             empty
                 .dot("join".into())
-                .end_call(move || Ok([separator.clone()].to_array().to_any()))
+                .end_call(&rt(), move || Ok([separator.clone()].to_array().to_any()))
         };
         assert_eq!(join_with([g()].to_array().to_any()), Ok("".into()));
         assert_eq!(
@@ -459,13 +446,13 @@ mod tests {
         assert_eq!(
             empty
                 .dot("join".into())
-                .end_call(|| Ok([own].to_array().to_any())),
+                .end_call(&rt(), || Ok([own].to_array().to_any())),
             Ok("".into())
         );
         let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         let join = |a: Any<A>, separator: Any<A>| {
             a.dot("join".into())
-                .end_call(|| Ok([separator].to_array().to_any()))
+                .end_call(&rt(), || Ok([separator].to_array().to_any()))
         };
         let separator: Any<A> = [("toString".into(), f())].to_object().to_any();
         let pair = || [0.0.to_any(), 2.0.to_any()].to_array().to_any();
@@ -486,7 +473,7 @@ mod tests {
         let a: Any<A> = [0.0.to_any(), 1.0.to_any()].to_array().to_any();
         let sliced = a
             .dot("slice".into())
-            .end_call(|| Ok([start].to_array().to_any()));
+            .end_call(&rt(), || Ok([start].to_array().to_any()));
         assert_eq!(sliced.and_then(to_string), Ok("1".into()));
     }
 
@@ -498,21 +485,21 @@ mod tests {
         assert_eq!(
             arr.clone()
                 .option_dot(|| Ok("toString".into()))
-                .call(no_args)
+                .call(&rt(), no_args)
                 .end(),
             Ok("1,2".into())
         );
         assert_eq!(
             arr.clone()
                 .option_dot(|| Ok("toString".into()))
-                .end_call(no_args),
+                .end_call(&rt(), no_args),
             Ok("1,2".into())
         );
         let o: Any<A> = [("b".into(), arr)].to_object().to_any();
         assert_eq!(
             o.option_dot(|| Ok("b".into()))
                 .dot(|| Ok("toString".into()))
-                .call(no_args)
+                .call(&rt(), no_args)
                 .end(),
             Ok("1,2".into())
         );
@@ -529,13 +516,16 @@ mod tests {
         let at = |index: Any<A>| {
             arr.clone()
                 .dot("at".into())
-                .end_call(|| Ok([index].to_array().to_any()))
+                .end_call(&rt(), || Ok([index].to_array().to_any()))
         };
         assert_eq!(at(0.0.to_any()), Ok(1.0.to_any()));
         assert_eq!(at((-1.0f64).to_any()), Ok(3.0.to_any()));
         assert_eq!(at("1".into()), Ok(2.0.to_any()));
         assert_eq!(at(3.0.to_any()), Ok(Any::undefined()));
-        assert_eq!(arr.dot("at".into()).end_call(no_args), Ok(1.0.to_any()));
+        assert_eq!(
+            arr.dot("at".into()).end_call(&rt(), no_args),
+            Ok(1.0.to_any())
+        );
     }
 
     /// A receiver of each type the completeness table names.
@@ -578,11 +568,16 @@ mod tests {
         bound("Array", &super::array::<A>());
         bound("String", &super::super::string::string::<A>());
         bound("Number", &super::super::number::number::<A>());
+        let dot = rt().dot("dot".into()).end().unwrap();
         let has = |(type_, name): &(&str, &str)| {
             let r = receiver(type_);
             let key: Any<A> = (*name).into();
             super::method::<A>(&r, &key).is_some()
-                || super::runtime::<A>(&r, &key).unwrap().is_some()
+                || !dot
+                    .clone()
+                    .call([r, key].to_array().to_any())
+                    .unwrap()
+                    .is_nullish()
         };
         for pair in ANSWERED {
             assert!(has(pair), "{pair:?} is answered but has no entry");
@@ -604,63 +599,22 @@ mod tests {
         }
     }
 
-    /// The runtime answers `startsWith` on a string and nothing on a
-    /// receiver that is no string, the body deciding, and a call step
-    /// reaches the body: through the native table first, which has no
-    /// entry, then the runtime, the receiver alone first and then the
-    /// arguments; `?.()` sees the body's function as a callee on a string
-    /// and nothing on a number.
-    #[test]
-    fn runtime_starts_with() {
-        let key: Any<A> = "startsWith".into();
-        assert!(super::method::<A>(&"abc".into(), &key).is_none());
-        assert!(super::runtime::<A>(&"abc".into(), &key).unwrap().is_some());
-        assert!(super::runtime::<A>(&1.0.to_any(), &key).unwrap().is_none());
-        assert!(
-            super::runtime::<A>(&Any::undefined(), &key)
-                .unwrap()
-                .is_none()
-        );
-        assert!(
-            super::runtime::<A>(&"abc".into(), &"slice".into())
-                .unwrap()
-                .is_none()
-        );
-        assert_eq!(
-            1.0.to_any()
-                .dot(key.clone())
-                .option_call(|| panic!("the arguments of a skipped call"))
-                .end(),
-            Ok(Any::undefined())
-        );
-        let abc: Any<A> = "abc".into();
-        let args = || Ok(["ab".into()].to_array().to_any());
-        assert_eq!(
-            abc.clone().dot(key.clone()).end_call(args),
-            Ok(true.to_any())
-        );
-        assert_eq!(
-            abc.clone().dot(key.clone()).option_call(args).end(),
-            Ok(true.to_any())
-        );
-        assert_eq!(
-            abc.dot(key)
-                .end_call(|| Ok(["bc".into(), 1.0.to_any()].to_array().to_any())),
-            Ok(true.to_any())
-        );
-    }
-
-    /// Every static path the parser admits is in the compiled table, as a
-    /// body or as the native written by hand, `Object.entries`: a compiled
-    /// read names its accessor, so a path the table lacked would not
-    /// compile, and this checks the names agree.
+    /// Every static path the parser admits is a function of the runtime
+    /// value, a body or the native, `Object.entries`: a compiled read
+    /// finds it through `static_read`, which this checks for the admitted
+    /// paths.
     #[test]
     fn static_completeness() {
         use super::super::methods_table::STATICS;
+        let rt = crate::vm::runtime::<A>().unwrap();
         for path in STATICS {
+            let value =
+                crate::vm::unstable::static_read(&rt, &path.join(".")).unwrap_or_else(|_| {
+                    panic!("{path:?} is admitted but the runtime holds nothing at it")
+                });
             assert!(
-                crate::vm::runtime_static::<A>(&path.join(".")).is_some(),
-                "{path:?} is admitted but has no binding"
+                Function::try_from(value).is_ok(),
+                "{path:?} is admitted but no function in the runtime"
             );
         }
     }

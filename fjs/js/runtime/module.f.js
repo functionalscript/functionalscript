@@ -32,10 +32,9 @@
  * a built-in as it does in JavaScript, else what the `member` body of the
  * name answers for the receiver, else `undefined`, which the executor
  * calls and throws for, or skips under `?.()`. The interpreter asks it
- * before its natives; NaNVM's call step is native until the
- * static-runtime printer compiles the table `dot` reads, and the printer
- * leaves `dot` out until then
- * ([`../todo/runtime-members.md`](../todo/runtime-members.md)). The README
+ * first and its natives after; NaNVM's call step asks its native first
+ * and then `dot`, until `dot` dispatches the natives too
+ * ([`../todo/runtime-value.md`](../todo/runtime-value.md)). The README
  * says how each binds it and how a name gets its body.
  *
  * @module

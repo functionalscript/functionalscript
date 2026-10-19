@@ -48,8 +48,8 @@ export const runtime = {
   `TypeError`, or a skip under `?.()`. The body never falls back itself,
   so no prototype name is destructured anywhere.
 - The native implementations become branches of the bodies, so the native
-  table, the interpreter's dispatcher and `runtime_method`'s search by type
-  go: one rule, in one place, for both executors.
+  table and the interpreter's dispatcher go: one rule, in one place, for
+  both executors.
 - The resolution a call step makes — the own property, else the body's
   answer, else `undefined` — is written once, in the language, as the
   runtime's `dot`, and every executor asks it:
@@ -97,9 +97,9 @@ export const runtime = {
   a member is bound on `IStaticFunction`, which is now the capability of
   every VM, `IVm::static_function`, rather than the printer inlining the
   shape without a closure; a measurement may move it later.
-- The body's Rust signature is the receiver itself,
-  `fn starts_with<A: IStaticFunction>(self_: Any<A>)`, a `MemberCode<A>`,
-  rather than the statics' `args: Array<A>` with the receiver as its one
+- The body's shape is the receiver itself, `self => …`, a closure of one
+  argument in the runtime value ([runtime-value.md](./runtime-value.md)),
+  rather than the statics' `(...args)` with the receiver as its one
   element: a member is a function of exactly its receiver, and the call
   step passes it with nothing built around it.
 - The inventory comes first, as one table by type: `fjs/js/members`
@@ -123,13 +123,12 @@ export const runtime = {
   pair `hasEntry` and `entry`, the presence and the value
   ([why two helpers](../../../spec/property-access/entries.md#why-two-helpers)).
   The interpreter asks it first and its natives after; NaNVM's call step
-  stays native until the static-runtime printer compiles the table `dot`
-  reads, which it refuses today as an object a body captures: an object
-  literal of functions read through `entry` by a key prints as a Rust
-  `match` on the name, `_ => None`, which also replaces the native
-  table's scan. With `dot` compiled, `Member::call` becomes the nullish
-  throw, the index keys an array, a string or a function owns, and `dot`;
-  the two-step guard, `runtime_method` by name and the interpreter's
+  asks its native first and then the runtime value's `dot`, the value
+  every compiled module takes as its parameter
+  ([`runtime-value.md`](./runtime-value.md)). With bodies written over the
+  intrinsics for the names the native table answers, `Member::call`
+  becomes the nullish throw, the index keys an array, a string or a
+  function owns, and `dot`; the two-step guard and the interpreter's
   `hasMethod` go with it, since `dot` answers the guard's question too.
 - The whole chain moves into the runtime after `dot`, under
   [DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution):
@@ -171,10 +170,11 @@ export const runtime = {
 ### Tasks
 
 - [x] The member shape: `member` keyed by name, bodies of the receiver,
-      `startsWith` the first; the static-runtime printer printing a member
-      bound on `IStaticFunction`; `runtime_method` by name, the two-step
-      call and guard in `Member` and in the interpreter's dispatcher;
-      `static_function` on `IVm`.
+      `startsWith` the first; the two-step call and guard in `Member` and
+      in the interpreter's dispatcher; `static_function` on `IVm`. NaNVM
+      first lifted the module into static functions found by name; the
+      runtime value ([runtime-value.md](./runtime-value.md)) replaced
+      that.
 - [x] The inventory: `fjs/js/members`, every type's admitted names,
       `todo` where no body is written, its keys pinned.
 - [x] `dot` in the runtime, as the proposal shows, with its proof on the
@@ -187,8 +187,7 @@ export const runtime = {
       function of a module the backend evaluates: an object literal of functions read
       through `entry` by a key as a `match` on the name, `instanceof` and
       `typeof` tests as `Unpacked` matches; `Member::call` over the
-      compiled `dot`, the native scan, `runtime_method` and the two-step
-      guard going.
+      value's `dot`, the native scan and the two-step guard going.
 - [ ] The chain in the runtime: `dot` answering a `PropertyLambda`,
       `optionDot` and `optionCall`, with their proof on the host and the
       corpus's chain cases as the oracle; the interpreter running them,
@@ -210,7 +209,7 @@ export const runtime = {
   module receives, which compiles `dot` as an ordinary function.
 - [`runtime-static.md`](./runtime-static.md) — the static runtime the
   bodies compile into.
-- [`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md)
+- [`../../edag/todo/direct-calls.md`](../../edag/todo/direct-calls.md)
   — the sibling case, a known callee inside the runtime called directly.
 - [`../prototype/README.md`](../prototype/README.md) — the read and call
   rules by name alone.

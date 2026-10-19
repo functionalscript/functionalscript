@@ -6,7 +6,7 @@ use nanvm_lib::vm::unstable::{
 use nanvm_lib::vm::{Any, IVm, Nullish, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(string_key("a"), f64_any(0x3ff0000000000000)), (string_key("b"), f64_any(0x4000000000000000))].to_object().to_any();
     let c1: Any<A> = spread_object([spread_entries(c0.clone()), property_item(string_key("c"), f64_any(0x4008000000000000))]);
     let c2: Any<A> = spread_object([property_item(string_key("b"), f64_any(0x0000000000000000)), spread_entries(c0.clone())]);

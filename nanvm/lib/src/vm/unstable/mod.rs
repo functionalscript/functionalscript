@@ -3,7 +3,8 @@
 use crate::{
     sign::Sign,
     vm::{
-        Any, BigInt, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToObject, ToString, error,
+        Any, BigInt, Function, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToObject,
+        ToString, error,
     },
 };
 
@@ -59,6 +60,31 @@ pub fn bigint_any_words<A: IVm>(negative: bool, words: &[u64]) -> Any<A> {
 /// empty-payload one, whatever sign or payload the engine held it with.
 pub fn f64_any<A: IVm>(v: u64) -> Any<A> {
     Number::from(f64::from_bits(v)).to_any()
+}
+
+/// A static function read from the runtime value by its path, `Object.is`:
+/// what a compiled module's read of a static spells,
+/// `static_read(&runtime, "Object.is")?` — the value's `static` section,
+/// then each key — the one closure the value holds at the path, so two
+/// reads are one function, as `Object.is === Object.is` is in JavaScript.
+/// A path the value holds no function at — nothing, a namespace, or a
+/// namespace missing on the way — is refused
+/// ([`error::no_static_function`]): the parser admitted the path, so the
+/// value is incomplete, and `undefined` would be a plausible wrong answer,
+/// as would the `TypeError` of reading a key of the missing namespace.
+pub fn static_read<A: IVm>(runtime: &Any<A>, path: &str) -> Result<Any<A>, Any<A>> {
+    let statics = runtime.clone().dot(string_any("static")).end()?;
+    let value = path.split('.').try_fold(statics, |value, key| {
+        if value.is_nullish() {
+            Err(error::no_static_function(path))
+        } else {
+            value.dot(string_any(key)).end()
+        }
+    })?;
+    match Function::try_from(value) {
+        Ok(f) => Ok(f.to_any()),
+        Err(_) => Err(error::no_static_function(path)),
+    }
 }
 
 /// `===` as an operator result. `==` on `Any` is exactly JavaScript's `===`,

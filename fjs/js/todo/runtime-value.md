@@ -4,8 +4,9 @@
 **Status:** wip — the shape is `sergey-shandar`'s, from the session that
 filed this, who approved the primitives as recognized helpers and the
 strengthened invariant by asking for the implementation; the first
-primitive, `slice`, was the first step, and `runtime::<A>()`, the value
-built beside the lifted tables, is the second
+primitive, `slice`, was the first step, `runtime::<A>()`, the value
+built beside the lifted tables, the second, and `module::<A>(runtime)`,
+which retired the lifting, the third; `dot` over the natives remains
 
 ### Problem
 
@@ -17,12 +18,12 @@ a value a VM allocates, so an `Any<A>` is never a global, and the
 `runtime` export object — a map of functions — has no place to live
 between calls. The static-runtime printer,
 [`../../compiler/rust/runtime/module.f.mjs`](../../compiler/rust/runtime/module.f.mjs),
-works around that by *lifting* the module at compile time: every function
-becomes a static `fn`, the two tables become functions answering arrays of
+worked around that by *lifting* the module at compile time: every function
+became a static `fn`, the two tables became functions answering arrays of
 function pointers, `statics` and `members` in `vm/gen.runtime.rs`, and
-everything else at module scope is refused
-([`../runtime/README.md`](../runtime/README.md), "The runtime is static
-code, not a value"). The workaround costs more than it saves:
+everything else at module scope was refused — the README's section of
+the time, "The runtime is static code, not a value", which "How NaNVM
+finds it" replaces. The workaround cost more than it saved:
 
 - **Dispatch exists twice.** `dot`, the dispatcher written once in the
   language (`runtime-members.md`), is printed nowhere; `Member::call` in
@@ -141,12 +142,13 @@ since `length` is non-enumerable. The runtime keeps `self.length`.
 `Accessor` and `MemberCode` in `nanvm/lib/src/vm/function/mod.rs`,
 `runtime_static` and `runtime_method` in `nanvm/lib/src/vm/runtime.rs`;
 the `IVm`/`IStaticFunction` split per item; the name-identity rule and its paragraph in the README.
-[`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md)
-loses its subject, not its point: the ordinary backend calls a captured
-module function through `Any::call` of its frame slot as the lifting
-printer called an item's accessor, so the direct call of a known callee
-stays open, and the step that deletes the printer retargets it at that
-backend, as `fjs/edag/todo/direct-calls.md`, to measure first.
+`nanvm/lib/todo/static-runtime-calls.md` loses its subject, not its
+point: the ordinary backend calls a captured module function through
+`Any::call` of its frame slot as the lifting printer called an item's
+accessor, so the direct call of a known callee stays open, retargeted at
+that backend as
+[`../../edag/todo/direct-calls.md`](../../edag/todo/direct-calls.md), to
+measure first.
 
 **What needs a home: the built-in's text.** `String(Object.is)` is the
 NativeFunction text, `function is() { [native code] }`, never the body's
@@ -199,15 +201,19 @@ detail to settle in the first task.
       keep their bodies'; the built-in's identity is the value's;
       `Object.entries` a primitive the `static` section lists like the
       rest, as the built-in itself.
-- [ ] `module::<A>(runtime)`: the compiler prints a member call as a call
-      of `runtime.dot` and a static read as the property reads of its
-      path; the harness and the CLI build the value once; a fixture shows
-      a runtime body using what it defines failing to compile.
+- [x] `module::<A>(runtime)`: the compiler prints a member call step on
+      a member with `&runtime`, through which the library's call step asks
+      the value's `dot` after the native table, and a static read as
+      `static_read(&runtime, path)`; a closure holds the runtime in its
+      frame where its body reaches a built-in; the harness and the corpus
+      build the value once; the runtime module prints with no runtime in
+      scope, so a body using what the runtime defines is the printer's
+      refusal, by name, before rustc sees it.
 - [ ] `dot` over the natives: a per-name body in `member` for every name
       the native table answers, the table's lookup order and
       `Member::call`'s runtime steps retiring; `nanvm/member` as the
       oracle.
-- [ ] Delete the lifting printer, `RuntimeFunction`, `Accessor`,
+- [x] Delete the lifting printer, `RuntimeFunction`, `Accessor`,
       `MemberCode`, `runtime_static` and `runtime_method`, and retarget
       `static-runtime-calls.md` at the ordinary backend as
       `fjs/edag/todo/direct-calls.md`; the README's "How NaNVM finds it"
@@ -225,10 +231,9 @@ detail to settle in the first task.
   the lifting this replaces, and the two invariants, one of which this
   strengthens.
 - [`../../../nanvm/lib/src/vm/runtime.rs`](../../../nanvm/lib/src/vm/runtime.rs)
-  — the tables and the search this retires.
-- [`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md)
-  — open: the direct call of a known callee, which the lifting step
-  retargets at the ordinary backend.
+  — the value, where the tables and the search were.
+- [`../../edag/todo/direct-calls.md`](../../edag/todo/direct-calls.md)
+  — the direct call of a known callee, retargeted at the ordinary backend.
 - [spec: why two helpers](../../../spec/property-access/entries.md#why-two-helpers)
   — "the core of the runtime may not use what it defines", the rule this
   extends to the whole module.

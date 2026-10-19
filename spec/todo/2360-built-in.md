@@ -99,10 +99,10 @@ this one: enumerating keys is exactly what the language lacks, so
 ([runtime-static](../../fjs/js/todo/runtime-static.md)). The runtime
 holds nothing at its path, and each executor answers the node itself: the
 represented interpreter with a function value of its own,
-`['Object.entries']`, called natively as `['entry']` is; NaNVM with a
-built-in written in `vm/runtime.rs`, `vm::object_entries`, a static
-function identified by its name, so every read is a handle to one
-function and nothing is created or held.
+`['Object.entries']`, called natively as `['entry']` is; NaNVM with the
+closure over `Any::entries` the runtime value holds at the path
+([runtime-value](../../fjs/js/todo/runtime-value.md)), so every read is
+the one function.
 
 **Destructuring.** `entries` is a prototype name, `Array.prototype`'s,
 which every pattern refuses at the key. Over a namespace the namespace's
@@ -156,8 +156,8 @@ are that session's reading of the direction, open to the owner's review.
 
 **Implemented** as proposed: `fjs/js/static`'s `natives` lists the path,
 the represented interpreter answers it from `fjs/edag/value/entries`, and
-NaNVM with `vm::object_entries`, a built-in identified by its name, which
-`runtime_static` answers from the compiled table as it answers a body;
+NaNVM with a closure over `Any::entries` in the runtime value, which the
+`static` section lists as the built-in itself;
 `nanvm/harness/fixtures/object-entries.mjs` and
 `object-entries-throws.mjs` hold the executors to Node.
 

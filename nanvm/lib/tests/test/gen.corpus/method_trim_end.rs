@@ -4,10 +4,11 @@ use crate::harness::*;
 
 #[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("padded", Any::dot(string_any(" \t\n﻿a b　\r\n"), string_any("trimEnd")).end_call(|| Ok(Array::default().to_any())), string_any(" \t\n﻿a b"));
-    check::<A>("inner", Any::dot(string_any("a  b"), string_any("trimEnd")).end_call(|| Ok(Array::default().to_any())), string_any("a  b"));
-    check::<A>("blank", Any::dot(string_any(" \t "), string_any("trimEnd")).end_call(|| Ok(Array::default().to_any())), string_any(""));
-    check::<A>("empty", Any::dot(string_any(""), string_any("trimEnd")).end_call(|| Ok(Array::default().to_any())), string_any(""));
-    check::<A>("nextLineIsNotSpace", Any::dot(string_any("a"), string_any("trimEnd")).end_call(|| Ok(Array::default().to_any())), string_any("a"));
-    check::<A>("argumentIgnored", Any::dot(string_any(" a "), string_any("trimEnd")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any(" a"));
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("padded", Any::dot(string_any(" \t\n﻿a b　\r\n"), string_any("trimEnd")).end_call(&rt, || Ok(Array::default().to_any())), string_any(" \t\n﻿a b"));
+    check::<A>("inner", Any::dot(string_any("a  b"), string_any("trimEnd")).end_call(&rt, || Ok(Array::default().to_any())), string_any("a  b"));
+    check::<A>("blank", Any::dot(string_any(" \t "), string_any("trimEnd")).end_call(&rt, || Ok(Array::default().to_any())), string_any(""));
+    check::<A>("empty", Any::dot(string_any(""), string_any("trimEnd")).end_call(&rt, || Ok(Array::default().to_any())), string_any(""));
+    check::<A>("nextLineIsNotSpace", Any::dot(string_any("a"), string_any("trimEnd")).end_call(&rt, || Ok(Array::default().to_any())), string_any("a"));
+    check::<A>("argumentIgnored", Any::dot(string_any(" a "), string_any("trimEnd")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any(" a"));
 }

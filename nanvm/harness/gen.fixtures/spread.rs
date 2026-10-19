@@ -6,7 +6,7 @@ use nanvm_lib::vm::unstable::{
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
     let c1: Any<A> = spread_array([value_item(f64_any(0x0000000000000000)), spread_item(c0.clone()), value_item(f64_any(0x4008000000000000))])?;
     let c2: Any<A> = spread_array([spread_item(string_any("a😀"))])?;
@@ -21,7 +21,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c8: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
         spread_array([spread_item(c8)])
     };
-    let c9: Any<A> = Any::dot(c0.clone(), string_any("at")).end_call(c7)?;
+    let c9: Any<A> = Any::dot(c0.clone(), string_any("at")).end_call(&runtime, c7)?;
     let c10: Any<A> = [c1, c2, c4, c6, c9].to_array().to_any();
     Ok([(string_key("default"), c10)].to_object().to_any())
 }

@@ -4,10 +4,11 @@ use crate::harness::*;
 
 #[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("ascii", Any::dot(string_any("abc"), string_any("isWellFormed")).end_call(|| Ok(Array::default().to_any())), true.to_any());
-    check::<A>("pair", Any::dot(string_any("a😀b"), string_any("isWellFormed")).end_call(|| Ok(Array::default().to_any())), true.to_any());
-    check::<A>("loneHigh", Any::dot(string_any_utf16(&[0x0061, 0xd83d]), string_any("isWellFormed")).end_call(|| Ok(Array::default().to_any())), false.to_any());
-    check::<A>("loneLow", Any::dot(string_any_utf16(&[0xde00, 0x0061]), string_any("isWellFormed")).end_call(|| Ok(Array::default().to_any())), false.to_any());
-    check::<A>("reversedPair", Any::dot(string_any_utf16(&[0xde00, 0xd83d]), string_any("isWellFormed")).end_call(|| Ok(Array::default().to_any())), false.to_any());
-    check::<A>("empty", Any::dot(string_any(""), string_any("isWellFormed")).end_call(|| Ok(Array::default().to_any())), true.to_any());
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("ascii", Any::dot(string_any("abc"), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())), true.to_any());
+    check::<A>("pair", Any::dot(string_any("a😀b"), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())), true.to_any());
+    check::<A>("loneHigh", Any::dot(string_any_utf16(&[0x0061, 0xd83d]), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())), false.to_any());
+    check::<A>("loneLow", Any::dot(string_any_utf16(&[0xde00, 0x0061]), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())), false.to_any());
+    check::<A>("reversedPair", Any::dot(string_any_utf16(&[0xde00, 0xd83d]), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())), false.to_any());
+    check::<A>("empty", Any::dot(string_any(""), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())), true.to_any());
 }

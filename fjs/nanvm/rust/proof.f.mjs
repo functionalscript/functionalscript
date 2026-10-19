@@ -128,8 +128,9 @@ pub fn run<A: IStaticFunction>() {
 
 #[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("last", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("at")).end_call(|| Ok([f64_any(0xbff0000000000000)].to_array().to_any())), f64_any(0x4000000000000000));
-    check::<A>("noArgument", Any::dot(Array::default().to_any(), string_any("at")).end_call(|| Ok(Array::default().to_any())), Nullish::Undefined.to_any());
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("last", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())), f64_any(0x4000000000000000));
+    check::<A>("noArgument", Any::dot(Array::default().to_any(), string_any("at")).end_call(&rt, || Ok(Array::default().to_any())), Nullish::Undefined.to_any());
 }
 `],
 ]

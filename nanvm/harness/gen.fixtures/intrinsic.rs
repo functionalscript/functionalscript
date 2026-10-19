@@ -4,8 +4,8 @@ use nanvm_lib::vm::unstable::{f64_any, strict_eq, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any();
+pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+    let c0: Any<A> = A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call_native(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any();
     let c1: Any<A> = Any::call(c0.clone(), [string_any("abcdef"), f64_any(0x3ff0000000000000), f64_any(0x4008000000000000)].to_array().to_any())?;
     let c2: Any<A> = Any::call(c0.clone(), [string_any("abcdef"), f64_any(0x4000000000000000)].to_array().to_any())?;
     let c3: Any<A> = Any::call(c0.clone(), [string_any("abcdef")].to_array().to_any())?;
@@ -20,14 +20,14 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c12: Any<A> = Any::call(c0.clone(), [c11, f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())?;
     let c13: Any<A> = Any::dot(c0.clone(), string_any("length")).end()?;
     let c14: Any<A> = (Any::typeof_(c0.clone()))?;
-    let c15: Any<A> = A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any();
+    let c15: Any<A> = A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call_native(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any();
     let c16: Any<A> = (strict_eq(c0.clone(), c15.clone()))?;
     let c17: Any<A> = [c0.clone(), c15.clone()].to_array().to_any();
     let c18 = || {
         let c19: Any<A> = A::static_function(|_self, args| { Any::call(args.argument(0), [string_any("xyz"), f64_any(0x3ff0000000000000)].to_array().to_any()) }, 1, Array::default(), Some("($0)=>$0(\"xyz\",1)")).to_any();
         Ok([c19].to_array().to_any())
     };
-    let c20: Any<A> = Any::dot(c17, string_any("map")).end_call(c18)?;
+    let c20: Any<A> = Any::dot(c17, string_any("map")).end_call(&runtime, c18)?;
     let c21: Any<A> = [c1, c2, c3, c4, c5, c6, c7, c9, c12, c13, c14, c16, c20].to_array().to_any();
     Ok([(string_key("default"), c21)].to_object().to_any())
 }
