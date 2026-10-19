@@ -1,10 +1,9 @@
 ## Switch statement
 
 **Priority:** P2
-**Status:** wip — the one form below is implemented
-([switch](../control-flow/switch.md)) in
-[#3045](https://github.com/functionalscript/functionalscript/pull/3045);
-the approval is owed ([Approval](#approval))
+**Status:** wip — approved by the language designer
+([Approval](#approval)); the implementation of the one form below is
+[#3045](https://github.com/functionalscript/functionalscript/pull/3045)
 
 Introducing `switch`, in one form first: the terminating `switch`, the
 guard's sibling.
@@ -127,9 +126,18 @@ read another way, each by name
 - A `default` that is not last. JavaScript admits it anywhere, with the
   same meaning once every branch terminates, so the position says nothing
   and a reader has to check that it does not; last is the one spelling.
-- A `switch` with no case, `switch (e) {}`. JavaScript evaluates `e` and
-  goes on; here it would be a `const` nothing reads, and a statement that
-  dispatches on nothing is a mistake rather than a form.
+- A `switch` with no case, `switch (e) {}`, and one of a `default` alone,
+  `switch (e) { default: { return v; } }`. JavaScript evaluates `e` and
+  goes on, or runs the block; here either is a `const` nothing reads and
+  then the block, which the language spells as that `const` and the
+  block's statements in place — the same graph, and the one the writer
+  would write back. A `switch` that tests nothing is what deleting the
+  last case leaves behind, and refusing it names that slip rather than
+  reading it as the block it abbreviates; the mistake it prevents is the
+  same one the guard's `if (c) { … }` with no condition would be. The
+  grammar refuses both by beginning a switch with its first case. Should
+  generated code want a switch of any number of cases, zero included,
+  admitting the two is one grammar step, under [Later](#later).
 - A statement after a `switch` that has a `default`: unreachable, as one
   after `return` is.
 - A `const` outside a case block — between the `{` and the first label, or
@@ -186,7 +194,9 @@ A new language feature needs the formal, explicit approval of the language
 designer, `sergey-shandar`, distinct from the proposer, before it is
 implemented
 ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
-Not yet approved.
+**Approved** by `sergey-shandar`, the language designer, on the
+implementation's pull request:
+[functionalscript/functionalscript#3045 (comment)](https://github.com/functionalscript/functionalscript/pull/3045#discussion_r4316967530).
 
 ### Tasks
 
@@ -220,6 +230,9 @@ Not yet approved.
   `switch` no longer needs a `default` to terminate the body.
 - A `switch` at the module level, the module being a function too, with
   the guard's own module-level follow-up.
+- The empty switch and the switch of a `default` alone, as the block each
+  abbreviates, should a generator of switches want zero cases to be a
+  switch too.
 - A `switch` whose every case is a `return` of an expression, as the one
   spelling of a pure dispatch; and `match`/`when`
   ([new-pl](../../todo/new-pl.md)), which the proposal there chose for
