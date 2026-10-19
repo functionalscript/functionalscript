@@ -15,6 +15,10 @@
  * leaves line up in the last column, and a column reads in order of its
  * nodes' average keys.
  *
+ * **Generate builds a random tree**: the keys 10, 20, … up to the count,
+ * inserted in an order the browser picks — how a level of the
+ * [game](./todo/compaction-game.md) starts.
+ *
  * **A click on a key removes it and inserts it again.** The keys stay the
  * same, but the shape may not: a remove that empties a leaf merges or
  * borrows, and the insert that follows can split somewhere else. It is the
@@ -111,11 +115,13 @@ const versions = versionsDemo({
     noun: 'tree',
     intro: 'Every step builds a new tree and leaves the old one as it was, but only the path from the root to the change is built again: everything else is shared by both versions. Click a key in the tree to remove it and insert it again.',
     presets,
+    random: { max: 100, count: 26, keys: tensUpTo },
 })
 
 export const demo = versions.demo
 export const _load = versions.load
 export const _press = versions.press
 export const _move = versions.move
+export const _generate = versions.generate
 export const _graphOf = versions.graphOf
 export const _census = versions.census
