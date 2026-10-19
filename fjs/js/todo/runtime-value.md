@@ -139,9 +139,13 @@ since `length` is non-enumerable. The runtime keeps `self.length`.
 **What goes.** The lifting printer and its tests; `RuntimeFunction`,
 `Accessor` and `MemberCode` in `nanvm/lib/src/vm/function/mod.rs`,
 `runtime_static` and `runtime_method` in `nanvm/lib/src/vm/runtime.rs`;
-the `IVm`/`IStaticFunction` split per item; the name-identity rule and its paragraph in the README;
-[`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md),
-whose direct call is what the runtime module now always prints.
+the `IVm`/`IStaticFunction` split per item; the name-identity rule and its paragraph in the README.
+[`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md)
+loses its subject, not its point: the ordinary backend calls a captured
+module function through `Any::call` of its frame slot as the lifting
+printer called an item's accessor, so the direct call of a known callee
+stays open, retargeted at that backend as `fjs/edag/todo/direct-calls.md`,
+to measure first.
 
 **What needs a home: the built-in's text.** `String(Object.is)` is the
 NativeFunction text, `function is() { [native code] }`, never the body's
