@@ -317,7 +317,14 @@ the fold's:
   reserved, so no scope binds the word and the shape alone decides. A
   function that is neither helper, by shape or by its names, is resolved
   as every function is, where `Object` is refused as the reserved word it
-  is.
+  is;
+- an intrinsic's helper, matched whole the same way: a function of as many
+  bare, distinct names as the intrinsic's `length` whose expression body
+  is the one member call of the intrinsic's name on the first with the
+  rest, `(s, a, b) => s.slice(a, b)` — the AST's `['slice']`, by the
+  member's name, the list `intrinsics` in [`fjs/edag`](../../edag/module.f.mjs)
+  and the helpers [`fjs/js/intrinsic`](../../js/intrinsic/module.f.js). A
+  step from the shape is an ordinary function with an ordinary member call.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar

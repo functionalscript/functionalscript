@@ -137,7 +137,7 @@ export const proof = {
         assertEq(some('ab', '1'), 'b')
         for (const key of ['length', '2', '01']) { none('ab', key) }
         /** @type {readonly EdagValue[]} */
-        const entryless = [functionValue, ['entry'], ['hasEntry'], ['Object.entries'], true, 0, 1n]
+        const entryless = [functionValue, ['entry'], ['hasEntry'], ['slice'], ['Object.entries'], true, 0, 1n]
         for (const receiver of entryless) {
             for (const key of ['length', '0', 'name']) { none(receiver, key) }
         }
@@ -150,6 +150,9 @@ export const proof = {
         missing(['entry'], '0')
         expectValue(['hasEntry'], 'length', 2)
         missing(['hasEntry'], '0')
+        // and an intrinsic its helper's, `3` for `slice`
+        expectValue(['slice'], 'length', 3)
+        missing(['slice'], '0')
         // and so does a static function: `Object.entries` its `1`, with no
         // runtime to ask, and every other the length of the body the
         // runtime holds at its path, failing by name with no runtime or

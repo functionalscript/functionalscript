@@ -18,7 +18,7 @@
  */
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
-import { fromValue, isStatic } from '../../edag/module.f.mjs'
+import { fromValue, isIntrinsic, isStatic } from '../../edag/module.f.mjs'
 import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
 import { mapStep, step } from '../../effects/module.f.mjs'
 import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
@@ -319,6 +319,9 @@ const lowerLeaf = nodes => ast => {
     // each answered by every executor with the one function its runtime
     // holds, however often it is read
     if (isStatic(ast)) { return plain([ast[0]]) }
+    // an intrinsic's helper, the EDAG's own node for it, fresh per helper
+    // written as `entry`'s is
+    if (isIntrinsic(ast)) { return plain([ast[0]]) }
     switch (ast[0]) {
         case 'aref': { return plain(nodes.parameters[ast[1]]) }
         case 'cref': { return plain(nodes.consts[ast[1]]) }

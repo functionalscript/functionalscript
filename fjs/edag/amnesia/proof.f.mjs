@@ -313,6 +313,13 @@ export const proof = {
         eq(has(['{}', [[':', '1', 42]]], 1), true)
         eq(['.', ['hasEntry'], 'length'], 2)
         eq(['typeof', ['hasEntry']], 'function')
+        // an intrinsic, `slice`, the member call on its first argument with
+        // the rest, answered natively or by an own property
+        eq(['()', ['slice'], ['abcdef', 1, 3]], 'bc')
+        same(['()', ['slice'], [['[]', [7, 8, 9]], 1, 2]], [8])
+        eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 'own']]]], 0, 1]], 'own')
+        eq(['.', ['slice'], 'length'], 3)
+        eq(['typeof', ['slice']], 'function')
         // and nullish receivers fail before the key is read at all
         fails(entry(null, 'a'))
         fails(entry(['undefined'], boom))
@@ -801,6 +808,10 @@ export const proof = {
         // does so under a receiver that is not nullish.
         entryNullReceiver: () => fails(['()', ['entry'], [null, 'a']]),
         hasEntryNullReceiver: () => fails(['()', ['hasEntry'], [null, 'a']]),
+        // an intrinsic on a nullish receiver, or on one without the member,
+        // is the member call's throw
+        sliceNullReceiver: () => fails(['()', ['slice'], [null, 0, 1]]),
+        sliceNoMember: () => fails(['()', ['slice'], [5, 0, 1]]),
         hasEntryKeyConversion: () => fails(['()', ['hasEntry'], [['{}', []], ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]]]], 'key'),
         entryKeyConversion: () => fails(['()', ['entry'], [['{}', []], ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]]]], 'key'),
         // A non-function returns an implicit represented failure.

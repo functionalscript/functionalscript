@@ -1,10 +1,10 @@
 ## The runtime as a value the module receives
 
 **Priority:** P2
-**Status:** open — the shape is `sergey-shandar`'s, from the session that
-filed this; the primitives as recognized helpers and the strengthened
-invariant are language decisions and wait on his approval before the
-first task
+**Status:** wip — the shape is `sergey-shandar`'s, from the session that
+filed this, who approved the primitives as recognized helpers and the
+strengthened invariant by asking for the implementation; the first
+primitive, `slice`, is the first step
 
 ### Problem
 
@@ -177,14 +177,18 @@ detail to settle in the first task.
 
 ### Tasks
 
-- [ ] Approval of the shape, the primitives as recognized helpers and the
+- [x] Approval of the shape, the primitives as recognized helpers and the
       strengthened invariant, by the language designer, before the next
       task.
-- [ ] The primitives: `charCodeAt` and `slice` as recognized helper
-      bodies with a node each, the interpreter's answer, the serialized
-      text and the Rust spelling; `natives` lists them; the runtime
-      imports them and `found` calls `slice` as a function.
-- [ ] The runtime module holds no member call and no static read; the
+- [x] The first primitive with its first consumer: `slice` as a
+      recognized helper body with a node, the interpreter's answer, the
+      serialized text and the Rust spelling, listed in `fjs/edag`'s
+      `intrinsics` — the code's word for a primitive, since `Primitive` is
+      the EDAG's name for a literal value — and called as a function by
+      `found` (`fjs/js/intrinsic`).
+- [ ] `charCodeAt` the same way, with the first body that reads a code
+      unit.
+- [x] The runtime module holds no member call and no static read; the
       README's invariant says so for bodies as it does for initializers;
       the proof checks it on the EDAG, as it pins `dot`'s shape.
 - [ ] `runtime::<A>()` printed by the ordinary backend, every function the
