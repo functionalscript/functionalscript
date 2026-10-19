@@ -26,7 +26,7 @@ mod tests {
     use super::compiled::runtime;
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IVm, ToAny, ToArray, ToObject, unstable::static_read},
+        vm::{Any, BigInt, IVm, ToAny, ToArray, ToObject, error, unstable::static_read},
     };
 
     type A = Naive;
@@ -123,7 +123,7 @@ mod tests {
     /// A compiled read of a static: `static_read` asks the runtime's
     /// `static` for the id, the one closure however often it is read, and
     /// refuses an id the runtime answers no function for rather than
-    /// answer `undefined`.
+    /// answer `undefined` — the one refusal whatever the id names.
     #[test]
     fn static_read_by_path() {
         let rt: Any<A> = runtime::<A>().unwrap();
@@ -134,9 +134,9 @@ mod tests {
             static_read(&rt, "Object.entries").unwrap(),
             static_at(&rt, "Object.entries")
         );
-        assert!(static_read(&rt, "Object.keys").is_err());
-        assert!(static_read(&rt, "Math.max").is_err());
-        assert!(static_read(&rt, "Object").is_err());
+        for path in ["Object.keys", "Math.max", "Object", "Math"] {
+            assert_eq!(static_read(&rt, path), Err(error::no_static_function(path)));
+        }
     }
 
     /// A call step reaches a body through the value: `"abc".startsWith`
