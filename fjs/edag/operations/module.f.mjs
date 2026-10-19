@@ -34,7 +34,7 @@ import { toPrimitive, toString } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
 import { staticBody } from '../value/property/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.mjs'
-import { isIntrinsic, noStatic } from '../module.f.mjs'
+import { noStatic } from '../module.f.mjs'
 
 /** Propagate failures without running the continuation.
  * @template S

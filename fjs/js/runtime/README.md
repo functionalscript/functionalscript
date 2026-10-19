@@ -143,7 +143,7 @@ flowchart LR
     harness["harness<br/>interpret(pureOk(runtime)), compiled live"]
     interpreter["EDAG interpreter<br/>amnesia and memo"]
     naive["nanvm-lib<br/>runtime::<A>(), the value a compiled module takes"]
-    step["a call step<br/>own property, native, body, TypeError"]
+    step["a call step<br/>own property, body, native, TypeError"]
     src -->|import| host --> proof
     src --> compiler
     compiler -->|npm run gen| edag --> corpus --> interpreter
@@ -159,8 +159,8 @@ the interpreter uses: a consumer evaluates it once to the module's export
 object and passes that in the executor's context, or, where it already
 has the compiler loaded, interprets the source on the spot, as the
 harness does. The Rust is what NaNVM binds. Whatever the form, a call
-step resolves the same way: the receiver's own property, the VM's native
-implementation, the runtime's body, the `TypeError`.
+step resolves the same way: the receiver's own property, the runtime's body, the VM's
+native implementation for a name without one, the `TypeError`.
 
 ## How NaNVM finds it
 
