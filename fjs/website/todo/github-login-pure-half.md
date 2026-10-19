@@ -34,14 +34,26 @@ inside its `start` closure, where no proof reaches it:
 Move the pure half into `github/module.f.mjs`: `callbackParams`,
 `isCallback(params)`, `authorizeUrl(config, state, challenge)`,
 `pending(state, verifier, now)`, `redirectMatches(config, origin)` and the
-messages as one `const`. Add `fjs/basen/base64url` — `baseN(6n, urlAlphabet)`,
-unpadded — and use it for `state`, `verifier` and `challenge`, so one codec
+messages as one `const`. Add `fjs/basen/base64url`, the URL alphabet without
+padding, and use it for `state`, `verifier` and `challenge`, so one encoder
 serves both the host and its proof. The host keeps the DOM, `crypto`,
 `sessionStorage`, `history` and `location`.
 
+The login encodes and never decodes, and the raw `baseN` pair is not a
+byte codec: 32 bytes encode to 43 symbols, and `stringToVec` reads all 258
+bits of them back rather than the 256 that were there. That trimming — the
+byte length the symbol count implies, and the padding bits checked zero —
+is what [`fjs/basen/base64`](../../basen/base64/module.f.mjs)'s `decode`
+adds over `baseN`, with the `=` handling on top. So `base64url` is either
+`encode` alone, which is all the login needs, or a codec whose `decode`
+shares that rule with `base64` — lifted into `fjs/basen` as the byte-codec
+layer over `baseN`, which [base16-byte-codec](../../basen/todo/base16-byte-codec.md)
+wants for a third alphabet — rather than a second copy of it.
+
 ### Tasks
 
-- [ ] `fjs/basen/base64url` with its proof.
+- [ ] `fjs/basen/base64url` with its proof: `encode` alone, or a `decode`
+      sharing `base64`'s trimming rule.
 - [ ] The pure functions and messages in `github/module.f.mjs`, with proof.
 - [ ] `github-runtime.mjs` imports them; its proof drops the second base64url.
 
