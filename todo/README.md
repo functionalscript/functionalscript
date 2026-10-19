@@ -259,7 +259,7 @@ into a `README.md` or JSDoc, move it and delete the file.
 
 ## Priority scale
 
-The values are the ones [`fjs/website/issue`](../fjs/website/issue/module.f.mjs)'s
+The values are the ones [`fjs/website/issue`](../fjs/website/issue/module.f.js)'s
 `priorities` and `statuses` hold, in the order the website lists issues by; a
 new value is added there and here in one pull request, or the site build
 refuses the issue that uses it.

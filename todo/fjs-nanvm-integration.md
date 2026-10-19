@@ -144,6 +144,79 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured at `999164a`, the head of `main` after
+[#3056](https://github.com/functionalscript/functionalscript/pull/3056)
+made the runtime value two functions. A leaf is as defined in the
+`5dcd94b` audit below, and the leaves were rediscovered as the `0c9ddf8`
+table below says: every authored non-proof module loaded through Node with a
+resolve hook recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 4 | `website/issue` |
+| 2 | 3 | None: every remaining leaf is refused |
+
+There are four leaves where the `3e1d1a09` table left three, because one
+leaf is new. `website/issue`, added by
+[#3022](https://github.com/functionalscript/functionalscript/pull/3022) to
+show every issue's status and priority, imports only `types/result`, an
+`.f.js`, and compiles whole.
+
+It is converted with only its extension and its references changed, and
+its proof stays `proof.f.mjs`. Its two importers are `website` and
+`website/page`; its `types.ts` imports the type of `priorities` and
+`statuses` from it, its demo and proof import it, and it is linked from
+[`fjs/website/README.md`](../fjs/website/README.md) and
+[`todo/README.md`](./README.md#issue-format). Both importers and the demo
+still import other `.f.mjs` modules, `media/html`, `path` and
+`website/demo` among them, so the rename exposes no new leaf. The nearest
+is still `nanvm/methods`, which waits on `media/rust` alone, and
+`media/rust` waits on `types/list` and `text/utf16`. The second pass checks
+the three leaves the first refused, against the same compiler, and converts
+none.
+
+The authored `.f.js` population under `fjs/` grows from 35 to 36, and
+`npm start compile` checks 53: those 36, the specification's six DataJS
+vectors, and its eleven per-area example modules. It is 35, not the 34 the
+`3e1d1a09` text counted, because `js/intrinsic` was added as an `.f.js`
+([#3048](https://github.com/functionalscript/functionalscript/pull/3048))
+and `text/shell` renamed to one
+([#2991](https://github.com/functionalscript/functionalscript/pull/2991))
+since.
+
+The three remaining rows are the `3e1d1a09` table's, unchanged: none of
+the three modules has changed since, and each first refusal was measured
+again at this head and is the same. The last column is that table's
+measurement, not a reading of the file.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
+| `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | `const { entries } = Object`: `entries` is a prohibited property name, `Array.prototype`'s, and spelled `Object.entries` it is refused at `Object`, whose one admitted member is `is`; the language enumerates no keys |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['types/list', 'types/map', 'types/object/structurally_same'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `3e1d1a09` (historical)
+
 Measured at `3e1d1a09`, the head of `main` after
 [#2980](https://github.com/functionalscript/functionalscript/pull/2980)
 converted the specification into a tree of pages. A leaf is as defined in
