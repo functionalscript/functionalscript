@@ -132,6 +132,17 @@ export const proof = {
                 assert(h.includes('<input type="text" id="bits" name="bits" value="0100100001101001">'), h)
                 assert(h.includes('16 input bits and 1 padding bits: L1 8, L2 3, L3 1 words.'), h)
             },
+            // Each row is its own level: in `Hi`'s first eight bits, L1's
+            // words `01 00 100 0…` switch colour three times, L2's `7 4 6`
+            // once, and L3's single word never, drawn in that order under
+            // names in the same order.
+            rowsAreLevels: () => {
+                const h = htmlToString(demo.view({ ...demo.init, input: 'bits' }))
+                /** @type {(pixels: string) => string} */
+                const row = pixels => `<div data-sul-row="">${[...pixels].map(c => `<span data-sul-px="${c}"></span>`).join('')}</div>`
+                assert(h.includes(`${row('aabbaaab')}${row('aaaaaaab')}${row('aaaaaaaa')}</div>`), h)
+                assert(h.includes(['bits', 'L1', 'L2', 'L3'].map(name => `<div data-sul-row="">${name}</div>`).join('')), h)
+            },
             refused: () => {
                 const h = htmlToString(demo.view({ ...demo.init, input: 'bits', bits: '2' }))
                 assert(h.includes('<pre data-result="error">bits are 0 and 1 only</pre>'), h)
