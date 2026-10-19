@@ -42,9 +42,10 @@ export default node => {
   (() => B1)() : d === c ? (() => B2)() : (() => rest)()`, where `d` is
   the discriminant's value, shared as a body `const` is — one node however
   many labels read it, evaluated where the statement stands whether or not
-  a label is reached, so that `switch (null.x) { … }` throws here as in
-  JavaScript — and each block and the statements after the `switch` are
-  the body of a parameterless function called where it stands, inlined as
+  a label is reached, so that `switch (null.x) { case 1: { return 2; } }`
+  throws here as in JavaScript — and each block and the statements after
+  the `switch` are the body of a parameterless function called where it
+  stands, inlined as
   a guard's arms are. A `default` block is the last alternate in place of
   `rest`. The `||` over a stacked group evaluates the second label only
   when the first did not match, which is JavaScript's order, and the `?:`
