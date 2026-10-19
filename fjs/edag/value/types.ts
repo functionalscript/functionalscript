@@ -28,7 +28,7 @@ export type Object = readonly ['{}', readonly Property[]]
 /** A closure: its length, evaluated captures and unevaluated body. */
 export type Closure = readonly ['=>', number, Values, Exp]
 
-/** The `entry` helper as a value: a function of `length` `2` the executor calls natively, answering the option `[value]` or `[]`, fresh where the node is established. */
+/** The `entry` helper as a value: a function of `length` `2` the executor calls natively, answering the value of the enumerable own property or `undefined`, fresh where the node is established. */
 export type EntryFunction = readonly ['entry']
 
 /** The `hasEntry` helper as a value, as `EntryFunction`: a function of `length` `2` answering the presence. */

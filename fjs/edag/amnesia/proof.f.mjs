@@ -279,19 +279,19 @@ export const proof = {
         // and nothing else — not a stock method, which no object here owns;
         // not a `length`, which an array owns without enumerating it.
         const entry = /** @type {(a: Exp, b: Exp) => Exp} */ ((a, b) => ['()', ['entry'], [a, b]])
-        same(entry(['{}', [[':', 'a', 7]]], 'a'), [7])
-        // An entry holding `undefined` is one; absent is none: no
-        // descriptor, so `?.enumerable` is `undefined` rather than a read
-        // of `undefined.enumerable`.
-        same(entry(['{}', [[':', 'a', ['undefined']]]], 'a'), [undefined])
-        same(entry(['{}', []], 'a'), [])
-        same(entry(['{}', []], 'toString'), [])
+        eq(entry(['{}', [[':', 'a', 7]]], 'a'), 7)
+        // An entry holding `undefined` reads as none; `hasEntry` tells it
+        // from none: no descriptor, so `?.enumerable` is `undefined` rather
+        // than a read of `undefined.enumerable`.
+        eq(entry(['{}', [[':', 'a', ['undefined']]]], 'a'), undefined)
+        eq(entry(['{}', []], 'a'), undefined)
+        eq(entry(['{}', []], 'toString'), undefined)
         // The key converts as a property key does: `1` reads `'1'`.
-        same(entry(['{}', [[':', '1', 42]]], 1), [42])
-        same(entry(['[]', [5, 6]], 1), [6])
-        same(entry(['[]', [5, 6]], 'length'), [])
-        same(entry('ab', 1), ['b'])
-        same(entry(['entry'], 'length'), [])
+        eq(entry(['{}', [[':', '1', 42]]], 1), 42)
+        eq(entry(['[]', [5, 6]], 1), 6)
+        eq(entry(['[]', [5, 6]], 'length'), undefined)
+        eq(entry('ab', 1), 'b')
+        eq(entry(['entry'], 'length'), undefined)
         eq(['.', ['entry'], 'length'], 2)
         eq(['typeof', ['entry']], 'function')
         // `hasEntry`, the presence the option tells, through its own node

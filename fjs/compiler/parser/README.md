@@ -305,8 +305,8 @@ the fold's:
 - the `entry` and `hasEntry` helpers, which are matched whole rather than
   resolved ([spec: entry](../../../spec/property-access/entries.md)): a
   function of two parameters whose block body binds the descriptor
-  `Object.getOwnPropertyDescriptor` answers for them and returns the option
-  of the value an enumerable one holds, `[x.value]` or `[]`, or its
+  `Object.getOwnPropertyDescriptor` answers for them and returns the value
+  an enumerable one holds, `x?.enumerable ? x.value : undefined`, or its
   presence, `x?.enumerable === true` — under any three distinct names, the
   keys in either spelling, with or without its semicolons where JavaScript
   inserts them — is the AST's `['entry']` or `['hasEntry']`; `Object` is

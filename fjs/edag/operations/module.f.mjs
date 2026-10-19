@@ -53,8 +53,8 @@ const nullish = value => value === null || typeOf(value) === 'undefined'
 
 /**
  * The `entry` helper called, `['entry']`'s body for the executors that
- * invoke it: the option of the entry its second argument names among the
- * first's enumerable own properties, `[value]` or `[]`, the key converted as
+ * invoke it: the value of the entry its second argument names among the
+ * first's enumerable own properties, or `undefined`, the key converted as
  * `Object.getOwnPropertyDescriptor` converts one — through its own
  * `toString`, under `invoke`, where it is an object — after a nullish
  * receiver has failed, as `ToObject` fails before the key is read. The
@@ -68,8 +68,8 @@ export const entryCall = ([receiver, key], invoke) =>
 
 /**
  * The `hasEntry` helper called, `['hasEntry']`'s body: whether the entry
- * is there, the one bit the option carries, read without building the
- * option, the receiver and the key treated as `entryCall` treats them.
+ * is there, `true` for one holding `undefined`, which `entryCall` reads
+ * as none, the receiver and the key treated as `entryCall` treats them.
  *
  * @type {(fixed: Values, invoke: Invoke) => ValueResult}
  */

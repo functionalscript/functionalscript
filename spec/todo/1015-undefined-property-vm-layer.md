@@ -9,7 +9,7 @@ This question arose in [PR #1888](https://github.com/functionalscript/functional
 while designing `hasOwn`: should undefined-valued properties disappear in the
 language surface, during construction, or only during a lookup? The old
 direct `Object.hasOwn` proposal is withdrawn; its replacement is the
-[`entry` helper](../property-access/entries.md)'s option, `[value]` or `[]`.
+[`entry` helper](../property-access/entries.md) and `hasEntry` beside it.
 
 A representation choice cannot answer that source pattern differently merely
 because the VM calls a property absent. The [compatibility principles](../principles/README.md)
@@ -28,18 +28,18 @@ export default a.x; // undefined
 Dropping the final pair before applying it would leave `x` equal to `1`.
 That is not compatible with the original property read.
 
-The additional presence constraint uses the `entry` helper as
+The additional presence constraint uses the `hasEntry` helper as
 [reading an entry](../property-access/entries.md) specifies it:
 
 ```js
-const entry = (a, b) => {
+const hasEntry = (a, b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
-    return x?.enumerable ? [x.value] : [];
+    return x?.enumerable === true;
 };
 
 const a = { x: 1, x: undefined };
-export default [a.x, entry(a, "x")];
-// JavaScript: [undefined, [undefined]]
+export default [a.x, hasEntry(a, "x")];
+// JavaScript: [undefined, true]
 ```
 
 This is the helper as implemented, and its successful observations must be
@@ -47,9 +47,9 @@ preserved.
 
 A standalone descriptor expression may be represented in the JavaScript-subset
 AST but is refused by FJS admission outside a complete approved pattern.
-Removing `Object.hasOwn` does not erase the helper's observation: answering
-`[]` instead of `[undefined]` because the VM calls the entry absent would
-change a successful result.
+Removing `Object.hasOwn` does not erase the helper's observation: `hasEntry`
+answering `false` instead of `true` because the VM calls the entry absent
+would change a successful result.
 
 [Undefined properties](./1010-undefined-property.md) carries the spread and
 insertion-order counterexamples. Only a normalization proven equivalent for
@@ -71,7 +71,7 @@ sole authority.
 - [x] Remove the alternative that an internally defined absence can justify a
       different successful result for an admitted JavaScript pattern.
 - [ ] Audit construction, overwrite and order through the relevant
-      EDAG/NaNVM/writer paths, as presence was with the `entry` helper's option.
+      EDAG/NaNVM/writer paths, as presence was with the `hasEntry` helper.
 - [ ] Add the duplicate-key regression and composition regressions to the
       shared conformance corpus, retaining unsupported-input refusals.
 - [x] Test the complete helper through AST-to-EDAG admission and execution;

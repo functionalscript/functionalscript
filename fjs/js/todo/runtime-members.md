@@ -56,14 +56,17 @@ export const runtime = {
 
   ```js
   export const dot = (self, key) => {
-      const f = entry(self, key)
-      return f.length === 1 ? f[0] : entry(member, key)[0]?.(self)
+      if (hasEntry(self, key)) { return entry(self, key) }
+      const body = entry(member, key)
+      return body === undefined ? undefined : body(self)
   }
   ```
 
-  `entry` is the language's own-property read, answering `[value]` or
-  `[]` ([`../../types/object/entry`](../../types/object/entry/module.f.js)),
-  so an own property wins whatever it holds, as it does in JavaScript —
+  `entry` is the language's own-property read, the value or `undefined`,
+  and `hasEntry` the presence beside it
+  ([`../../types/object/entry`](../../types/object/entry/module.f.js),
+  [has-entry](../../../spec/todo/2345-has-entry.md)), so an own property
+  wins whatever it holds, as it does in JavaScript —
   `{ toString: f }` calls `f`, `{ x: undefined }.x()` throws, `[1][0]()`
   throws for the element — and a receiver that owns nothing enumerable
   under the key, every array, string, number, boolean, bigint and
@@ -111,14 +114,14 @@ export const runtime = {
 - The compiled output keeps `Any::dot(a, "map")`: no direct call by name,
   since the alternatives are more complicated. The implementation behind
   `dot` reuses the generated member functions, and an own property is
-  looked for through `entry`, which answers `[]` for every receiver but
-  an object's field or an element, so only an object literal can shadow a
-  built-in. Which entries stay native is decided as the table fills; a
+  looked for through `hasEntry` and `entry`, which find nothing for every
+  receiver but an object's field or an element, so only an object literal
+  can shadow a built-in. Which entries stay native is decided as the table fills; a
   native needs both NaNVM's Rust and the interpreter's case until its
   body lands.
-- `dot` is written in FunctionalScript, as the proposal shows, with
-  `entry` answering `[value]` or `[]`
-  ([#3024](https://github.com/functionalscript/functionalscript/pull/3024)).
+- `dot` is written in FunctionalScript, as the proposal shows, over the
+  pair `hasEntry` and `entry`, the presence and the value
+  ([why two helpers](../../../spec/property-access/entries.md#why-two-helpers)).
   The interpreter asks it first and its natives after; NaNVM's call step
   stays native until the static-runtime printer compiles the table `dot`
   reads, which it refuses today as an object a body captures: an object
