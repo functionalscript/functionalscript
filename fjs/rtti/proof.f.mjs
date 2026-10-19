@@ -265,7 +265,7 @@ const demoProof = /** @type {const} */ ({
         // folded canonical form, then the comparison, then the value.
         outputs: () => {
             const html = page('Dictionary')
-            assert(html.includes('<p data-caption="">TypeScript:</p><pre data-code="">{readonly[k in string]?:number}</pre>'), html)
+            assert(html.includes('<p data-caption="">TypeScript:</p><pre data-code="">{<span data-token="keyword">readonly</span>[<span data-token="identifier">k</span> <span data-token="keyword">in</span> <span data-token="keyword">string</span>]?:<span data-token="keyword">number</span>}</pre>'), html)
             assert(html.includes(`<p data-caption="">JSON Schema:</p><pre data-code="">{${tok('string', '&quot;type&quot;')}:${tok('string', '&quot;object&quot;')},${tok('string', '&quot;additionalProperties&quot;')}:{${tok('string', '&quot;type&quot;')}:${tok('string', '&quot;number&quot;')}}}</pre>`), html)
             assert(html.includes(`<details><summary>Canonical form (toData)</summary><pre data-code="">${tok('keyword', 'export')} ${tok('keyword', 'default')} [`), html)
             const at = (/** @type {string} */ needle) => html.indexOf(needle)
@@ -354,15 +354,17 @@ const demoProof = /** @type {const} */ ({
             for (const e of examples) {
                 for (const x of e.schemas) {
                     const o = _outputsOf(x.schema)
-                    assert(o.ts !== '' && toText(o.jsonSchema) !== '' && toText(o.data) !== '', e.name)
+                    assert(toText(o.ts) !== '' && toText(o.jsonSchema) !== '' && toText(o.data) !== '', e.name)
                 }
             }
         },
         // A recursive schema prints its definition as a `type` alias first.
         recursive: () => {
             const o = _outputsOf(exampleNamed('Recursion').schemas[0].schema)
-            assertEq(o.ts, 'type tree = {readonly"children":readonly(tree)[],readonly"value":number}\ntree')
+            assertEq(toText(o.ts), 'type tree = {readonly"children":readonly(tree)[],readonly"value":number}\ntree')
             assert(toText(o.jsonSchema).includes('"$defs":{"tree":'), JSON.stringify(o.jsonSchema))
+            // the alias is marked: `type` a keyword, its name an identifier
+            assertEq(JSON.stringify(o.ts.slice(0, 3)), JSON.stringify([['type', 'keyword'], [' '], ['tree', 'identifier']]))
         },
     },
     // The comparison's five verdicts.
@@ -426,12 +428,14 @@ const demoProof = /** @type {const} */ ({
             const html = svg(exampleNamed('Shared parts').schemas[0].schema)
             assertEq(occurrences(html, 'data-graph-kind="struct"'), 3)
             assertEq(occurrences(html, 'data-graph-edge=""'), 5)
+            // Beside `id`'s value, each edge's row names its target.
+            assert(html.includes('data-graph-value-label="" data-graph-value-ref="">{}<'), html)
         },
         // A named root is expanded under its name; its use of itself is a
         // reference by name, drawn inline, so the graph has no cycle.
         recursive: () => {
             const html = svg(exampleNamed('Recursion').schemas[0].schema)
-            assert(html.includes('>tree { }<'), html)
+            assert(html.includes('>tree {}<'), html)
             assert(html.includes('data-graph-value-kind="ref">tree<'), html)
         },
         // A named thunk that is not a const is labelled with its name too.
@@ -451,13 +455,23 @@ const demoProof = /** @type {const} */ ({
         // `open` is `rest` with `unknown`; any other rest shows what an extra
         // member must be, and an empty `or` is `never`.
         rest: () => {
-            assert(svg(open([number])).includes('>open<'), 'open')
+            const openHtml = svg(open([number]))
+            assert(openHtml.includes('>open<'), openHtml)
+            assert(!openHtml.includes('>declared<'), openHtml)
             const html = svg(rest([number], or()))
             assert(html.includes('>rest<'), html)
             assert(html.includes('>extra<'), html)
             assert(html.includes('>never<'), html)
         },
         record: () => assert(svg(record(array(number))).includes('>record<'), 'record'),
+        // An `array`, a `record` and an `or` name no port: the label says
+        // what each member is.
+        unkeyed: () => {
+            const html = svg(record(array(or(number, [string]))))
+            for (const key of ['>value<', '>item<', '>|<']) { assert(!html.includes(key), html) }
+            // A tuple's brackets touch, as a struct's do.
+            assert(html.includes('data-graph-label="">[]<'), html)
+        },
     },
 })
 

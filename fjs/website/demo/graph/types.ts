@@ -41,6 +41,12 @@ export type Ranked = Node & { readonly rank: number }
  * **An edge ends at a node, or at an {@link Inline} value** drawn in its
  * port, right of the label, rather than as a node of its own.
  *
+ * **Beside values, an edge's row shows the label of the node it leads
+ * to** in the value's place, its key in the key column, marked
+ * `data-graph-value-ref` so the stylesheet draws it as part of the edge.
+ * So does a row with an empty label beside other edges. In a node whose
+ * rows are all edges with empty labels, no row is drawn at all.
+ *
  * **An edge's kind is about the edge, not about what it points at.** The
  * EDAG demo marks an operand a node may never evaluate — `&&`'s right, an
  * arm of `?:` — and the same node reached from an eager position elsewhere
@@ -82,11 +88,22 @@ export type Corner = 'top' | 'middle' | 'bottom'
  * kind as `data-graph-part`, so a stylesheet can colour them apart — the
  * bits a prefix inherits beside the bits it adds, say. Joined, they must
  * spell `inline`, which is still what sizes the cell.
+ *
+ * `click`, when given, makes the value's cell a control: a click on it, or
+ * Enter or Space while it has focus, sends the demo a `click` event with
+ * `click.name`, and `click.label` is what a screen reader announces.
  */
 export type Inline = {
     readonly inline: string
     readonly kind?: string | undefined
     readonly parts?: readonly (readonly [text: string, kind: string])[] | undefined
+    readonly click?: Click | undefined
+}
+
+/** A control's demo event name and what it says it does. */
+export type Click = {
+    readonly name: string
+    readonly label: string
 }
 
 /**

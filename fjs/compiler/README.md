@@ -221,7 +221,12 @@ operation of one operand that always fails, in place of the value returned.
 A guard, `if (c) { … }`, is sugar the parser unfolds: its block and the
 statements after it are each a parameterless function called where it
 stands, inlined as below, and the guard the `?:` of the two
-([spec: functions](../../spec/functions/README.md)). A body
+([spec: functions](../../spec/functions/README.md)); a switch,
+`switch (d) { case a: { … } … }`, is the chain of such conditionals, each
+case's test the `===` of the discriminant — an entry of the body, one node
+however many labels test it — and a label, a case's labels under `||`, the
+`default` block or the statements after the switch the last alternate
+([spec: switch](../../spec/control-flow/switch.md)). A body
 `const` is an entry of the function's own body, as a module `const` is of the
 module — one node however many references reach it, and what the returned
 value does not reach anchored by the comma rather than dropped, which is the

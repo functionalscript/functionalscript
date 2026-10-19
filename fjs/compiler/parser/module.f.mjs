@@ -45,11 +45,12 @@
  * builds no module: a malformed suffix is found before any name is
  * resolved. `./README.md` holds the argument.
  *
- * The `entry` helper is the fold's to recognize, {@link entryFunction}: the
- * one function whose body names a property at run time, matched whole on
- * the syntax tree with its names resolved as every other body's are, and
- * the one place `Object` stands but `Object.is` — outside the two the fold
- * refuses the word, as it refuses every reserved global.
+ * The `entry` helper and the `hasEntry` helper beside it are the fold's to
+ * recognize, {@link entryFunction}: the two functions whose bodies name a
+ * property at run time, the value and the presence, matched whole on the
+ * syntax tree with their names resolved as every other body's are, and
+ * the one place `Object` stands but `Object.is` — outside the three the
+ * fold refuses the word, as it refuses every reserved global.
  *
  * A static function — `Object.is`, and the four `Number` predicates,
  * `Number.isInteger` — is a value, the AST's `['Object.is']`, in every
@@ -85,10 +86,10 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, ValueStatement, While } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State } from './private.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -290,10 +291,10 @@ const brokenLine = statement => statement.first.newline
  * Whether `next` is refused at its first token: `previous` ended without
  * its `;`, and `next` begins on the same line. Nothing before the first
  * statement, and a `}` or the end of input after the last, so neither is
- * asked; nor is a guard, which ends at its `}` and takes no `;`, so the
- * statement after one may share its line, as in JavaScript.
+ * asked; nor is a guard or a switch, which ends at its `}` and takes no
+ * `;`, so the statement after one may share its line, as in JavaScript.
  *
- * @type {(previous: Statement | If | While | null, next: Statement | If | While) => boolean}
+ * @type {(previous: Statement | If | Switch | While | null, next: Statement | If | Switch | While) => boolean}
  */
 const unterminated = (previous, next) => previous !== null && 'semicolon' in previous && !previous.semicolon && !next.start.newline
 
@@ -1184,6 +1185,7 @@ const bodyRound = (stack, scope, frame) => {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
     if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
+    if (kind === 'switch') { return [{ top: frame, rest: stack }, scope, ['enter', statement.discriminant]] }
     // a `while` reached here has no `let` before it: a `let` takes its
     // `while` with it, below
     if (kind === 'while') { return [stack, scope, error(whileWithoutLet(statement.start))] }
@@ -1407,34 +1409,54 @@ const isDescriptorOf = (node, a, b) => {
 }
 
 /**
- * Whether a node is `x?.enumerable ? [x.value] : []`, the helper's option,
- * `x` the word its `const` binds: a guarded access ending its chain there,
- * an array of the one plain access, and the empty array.
+ * Whether a node is `x?.enumerable ? x.value : undefined`, the helper's
+ * value, `x` the word its `const` binds: a guarded access ending its
+ * chain there, the one plain access, and the literal `undefined`.
  *
  * @type {(node: Node, x: string) => boolean}
  */
 const isEntryOf = (node, x) => {
     if (node[0] !== '?:') { return false }
-    const [, condition, then, otherwise] = node
-    if (then[0] !== 'array' || then[1].length !== 1 || otherwise[0] !== 'array' || otherwise[1].length !== 0) { return false }
-    const [value] = then[1]
+    const [, condition, value, otherwise] = node
     return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && isKeyNamed(condition[2], 'enumerable')
         && value[0] === '.' && value.length === 3 && isRef(value[1], x) && isKeyNamed(value[2], 'value')
+        && otherwise[0] === 'primitive' && otherwise[1] === undefined
+}
+
+/**
+ * Whether a node is `x?.enumerable === true`, the `hasEntry` helper's
+ * presence, `x` the word its `const` binds: the same guarded access the
+ * option tests, compared to `true`.
+ *
+ * @type {(node: Node, x: string) => boolean}
+ */
+const isHasEntryOf = (node, x) => {
+    if (node[0] !== '===') { return false }
+    const [, condition, literal] = node
+    return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && isKeyNamed(condition[2], 'enumerable')
+        && literal[0] === 'primitive' && literal[1] === true
 }
 
 /**
  * The `entry` helper, recognized whole
- * ([spec: entry](../../../spec/property-access/entries.md)):
+ * ([spec: entry](../../../spec/property-access/entries.md)), and the
+ * `hasEntry` helper beside it, the same but for its `return`
+ * ([spec: why two helpers](../../../spec/property-access/entries.md#why-two-helpers)):
  *
  * ```js
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable ? [x.value] : [];
+ *     return x?.enumerable ? x.value : undefined;
+ * }
+ * (a, b) => {
+ *     const x = Object.getOwnPropertyDescriptor(a, b);
+ *     return x?.enumerable === true;
  * }
  * ```
  *
- * under any three distinct names — the AST's `['entry']`, the one function
- * whose body reads a property named at run time, and the one place the
+ * under any three distinct names — the AST's `['entry']` and
+ * `['hasEntry']`, the two functions whose body reads a property named at
+ * run time, and the one place the
  * `Object` namespace stands but `Object.is`. It is matched on the syntax
  * tree with its names resolved by the rules every other body follows: the
  * two parameters and the body's `const` are what the body reads back, and
@@ -1447,7 +1469,7 @@ const isEntryOf = (node, x) => {
  * break the line rules every block's statements keep, {@link unterminated}
  * and {@link brokenLine}, which the shape alone cannot see.
  *
- * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<AstEntryFunction, ParseError> | null}
+ * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<AstEntryFunction | AstHasEntryFunction, ParseError> | null}
  */
 const entryFunction = ([, list, body]) => {
     if (!('fixed' in list) || list.fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
@@ -1466,12 +1488,14 @@ const entryFunction = ([, list, body]) => {
     const x = nameOf(declaration.target[1])
     const names = [a, b, x]
     if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
-    if (!isDescriptorOf(declaration.value, a, b) || !isEntryOf(returned.value, x)) { return null }
+    if (!isDescriptorOf(declaration.value, a, b)) { return null }
+    const has = isHasEntryOf(returned.value, x)
+    if (!has && !isEntryOf(returned.value, x)) { return null }
     if (unterminated(declaration, returned)) { return error(unexpectedToken(returned.start)) }
     if (brokenLine(returned)) { return error(unexpectedToken(returned.first)) }
-    /** @type {AstEntryFunction} */
-    const entry = ['entry']
-    return ok(entry)
+    /** @type {AstEntryFunction | AstHasEntryFunction} */
+    const helper = has ? ['hasEntry'] : ['entry']
+    return ok(helper)
 }
 
 /**
@@ -1667,9 +1691,24 @@ const returned = (stack, scope, frame, value) => {
         // a guard's condition: its block is the first arm, a block of
         // JavaScript's own, so it may bind what the body has bound or read
         if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], 0, null) }
+        // a switch's discriminant: an entry of the body, which every
+        // label's test reads, as a `const` holding it would be; then the
+        // cases, each an arm, and the tail, {@link switchRound}
+        if (kind === 'switch') {
+            return switchRound(stack, scope, {
+                switch: statement,
+                body: { ...frame, entries: frame.entries + 1, done: concat(frame.done)([value]) },
+                discriminant: ['cref', frame.entries],
+                index: 0,
+                label: 0,
+                condition: null,
+                arms: null,
+            })
+        }
         // the body's last entry: what it returns, or the `throw` it ends with
         return closed(stack, scope, [...toArray(frame.done), kind === 'throw' ? thrown(value) : value])
     }
+    if ('switch' in frame) { return switchReturned(stack, scope, frame, value) }
     if ('guard' in frame) {
         /** @type {AstCall} */
         const call = ['()', value, []]
@@ -1696,25 +1735,85 @@ const returned = (stack, scope, frame, value) => {
 }
 
 /**
- * An arm of a guard entered: its statements from `first` on — the guard's
- * block from its start, the statements after the guard from the position
- * after it in the body's own list, shared rather than copied — resolved as
- * the body of a parameterless function of its own, in a scope inside
- * `scope` that captures what it reads from there, under the guard's frame,
- * which receives the function once the body closes. `enclosing` is what
- * the arm may not bind: nothing for the guard's block, a block of
- * JavaScript's own; and for the statements after the guard the names of
- * the block they continue — what it has bound, and what it has read from
- * outside so far, in a statement before the guard, in the condition, or in
- * the guard's block, whose reads pass through the block's scope and are
- * remembered in its names — since a `const` of such a name after the guard
- * would have been the one every such read named in JavaScript, before its
- * declaration ({@link captureShadowed}).
+ * An arm of a guard or a switch entered: its statements from `first` on —
+ * the guard's block, a case's or the `default`'s from its start, the
+ * statements after the guard or the switch from the position after it in
+ * the body's own list, shared rather than copied — resolved as the body
+ * of a parameterless function of its own, in a scope inside `scope` that
+ * captures what it reads from there, under the guard's or the switch's
+ * frame, which receives the function once the body closes. `enclosing`
+ * is what the arm may not bind: nothing for a block of JavaScript's own;
+ * and for the statements after the guard or the switch the names of the
+ * block they continue — what it has bound, and what it has read from
+ * outside so far, in a statement before the guard, in the condition, or
+ * in the guard's block, whose reads pass through the block's scope and
+ * are remembered in its names — since a `const` of such a name after the
+ * guard would have been the one every such read named in JavaScript,
+ * before its declaration ({@link captureShadowed}).
  *
- * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: Block[1], first: number, enclosing: List<_Env>) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame | _SwitchFrame, statements: Block[1], first: number, enclosing: List<_Env>) => _State}
  */
 const arm = (stack, scope, frame, statements, first, enclosing) =>
     bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope, self: null, loop: null, loopReads: [] }, { statements, first, index: first, plan: null, entries: 0, done: null })
+
+/**
+ * The next step of a switch: the label at `label` of the case at `index`
+ * entered, in the scope of the block the switch stands in, where the case
+ * has one left; the case's block where it has not, an arm as a guard's
+ * block is; and past the last case the tail — the `default` block, an arm
+ * as a case's, or the statements after the switch, the arm the statements
+ * after a guard are, with the same names not theirs to bind
+ * ({@link arm}).
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _SwitchFrame) => _State}
+ */
+const switchRound = (stack, scope, frame) => {
+    const { cases, default: fallback } = frame.switch
+    const { body, index, label } = frame
+    if (index < cases.length) {
+        const { labels, block } = cases[index]
+        return label < labels.length
+            ? [{ top: frame, rest: stack }, scope, ['enter', labels[label]]]
+            : arm(stack, scope, frame, block[1], 0, null)
+    }
+    return fallback !== null
+        ? arm(stack, scope, frame, fallback[1], 0, null)
+        : arm(stack, scope, frame, body.statements, body.index + 1, { first: scope.names, tail: scope.enclosing })
+}
+
+/**
+ * A value handed to a switch: a label resolved, and the test of the
+ * discriminant against it, `===`, joined to the case's condition by `||`,
+ * so that the labels are tested in order and each only when the ones
+ * before it did not match, as JavaScript tests them; a case's block
+ * closed, and the condition with the call of the block's function one
+ * arm; or the tail closed, which ends the body as the statements after a
+ * guard end it — the conditional of each arm over the next, the tail's
+ * call the last alternate, so that the switch and the chain of guards it
+ * abbreviates are one graph
+ * ([spec: switch](../../../spec/control-flow/switch.md)).
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _SwitchFrame, value: AstConst) => _State}
+ */
+const switchReturned = (stack, scope, frame, value) => {
+    const { cases } = frame.switch
+    const { index, label, condition } = frame
+    if (index < cases.length && label < cases[index].labels.length) {
+        /** @type {AstBinary} */
+        const test = ['===', frame.discriminant, value]
+        return switchRound(stack, scope, { ...frame, label: label + 1, condition: condition === null ? test : ['||', condition, test] })
+    }
+    /** @type {AstCall} */
+    const call = ['()', value, []]
+    if (index < cases.length) {
+        // a case has a label, so its condition is resolved by the time its block is
+        const matched = assertNotNullish(condition, ['a case with no label', frame.switch])
+        return switchRound(stack, scope, { ...frame, index: index + 1, label: 0, condition: null, arms: { first: [matched, call], tail: frame.arms } })
+    }
+    /** @type {AstConst} */
+    const conditional = toArray(frame.arms).reduce((otherwise, [matched, then]) => ['?:', matched, then, otherwise], /** @type {AstConst} */ (call))
+    return closed(stack, scope, [...toArray(frame.body.done), conditional])
+}
 
 /**
  * A loop's initial value resolved: the `while` after the `let`, with the

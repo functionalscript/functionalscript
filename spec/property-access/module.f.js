@@ -21,7 +21,7 @@ const optionalChaining = [
 
 /** @type {Examples} */
 const entries = [
-    ['The entry helper', 'const entry = (a, b) => {\n    const x = Object.getOwnPropertyDescriptor(a, b);\n    return x?.enumerable ? [x.value] : [];\n};\nconst o = { k: 1, u: undefined };\nexport default [entry(o, "k"), entry(o, "u").length, entry(o, "x"), entry([7, 8], 1), entry("ab", 1), entry(o, "k")[0], typeof entry];'],
+    ['The entry helper', 'const entry = (a, b) => {\n    const x = Object.getOwnPropertyDescriptor(a, b);\n    return x?.enumerable ? x.value : undefined;\n};\nconst hasEntry = (a, b) => {\n    const x = Object.getOwnPropertyDescriptor(a, b);\n    return x?.enumerable === true;\n};\nconst o = { k: 1, u: undefined };\nexport default [entry(o, "k"), hasEntry(o, "u"), entry(o, "x"), entry([7, 8], 1), entry("ab", 1), hasEntry(o, "x"), typeof entry];'],
 ]
 
 export default { index, optionalChaining, entries, all: [...index, ...optionalChaining, ...entries] }

@@ -121,12 +121,16 @@ export const proof = {
     reads: () => {
         const object = /** @type {const} */ (['{}', [[':', 'a', 7]]])
         eq(['.', object, 'a'], 7)
-        eq(['()', ['entry'], [object, 'a']], ['[]', [7]])
+        eq(['()', ['entry'], [object, 'a']], 7)
         eq(['?.', null, 'a'], ['undefined'])
         eq(['?.', object, 'a'], 7)
         eq(['?.', ['{}', [[':', 'a', object]]], 'a', ['|.', 'a']], 7)
-        eq(['()', ['entry'], [object, 1]], ['[]', []])
+        eq(['()', ['entry'], [object, 1]], ['undefined'])
         failure(['()', ['entry'], [null, 'a']])
+        eq(['()', ['hasEntry'], [object, 'a']], true)
+        eq(['()', ['hasEntry'], [object, 1]], false)
+        eq(['()', ['hasEntry'], [['{}', [[':', 'u', ['undefined']]]], 'u']], true)
+        failure(['()', ['hasEntry'], [null, 'a']])
         failure(['.', null, 'a', ['|()', []]])
     },
     // A static function is a value whether called or not, the node, one

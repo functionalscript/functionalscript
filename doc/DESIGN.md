@@ -18,6 +18,7 @@ brief at the top of [AGENTS.md](../AGENTS.md); everything here is their full tex
 10. [Refuse what you cannot handle](#10-refuse-what-you-cannot-handle)
 11. [Build the replacement beside the module it replaces](#11-build-the-replacement-beside-the-module-it-replaces)
 12. [Preserve harmless JavaScript conventions](#12-preserve-harmless-javascript-conventions)
+13. [One source of truth; optimize by substitution](#13-one-source-of-truth-optimize-by-substitution)
 
 ---
 
@@ -506,3 +507,54 @@ code review does not replace explicit language-design approval.
 This gate also applies to familiar JavaScript features. The general
 incremental-design guidance in [§3](#3-design-before-implementation) does not
 waive the TODO, benefit/drawback explanation, or independent approval.
+
+## 13. One source of truth; optimize by substitution
+
+**Write the correct code once, in FunctionalScript, and treat it as the
+source of truth. Make everything faster by substituting a part of what is
+generated from it with an equivalent, never by rewriting the source or by
+keeping a second implementation of it by hand.** The language's semantics
+— what a member call resolves to, how an optional chain short-circuits,
+what a built-in answers — is one body of FunctionalScript in the runtime,
+proved on the host, interpreted by the interpreter, and compiled by every
+backend. Correctness is argued there and nowhere else: a backend that
+disagrees with it is wrong by definition, and the corpus is what says so.
+
+1. **The source is complete and naive.** It expresses the semantics in the
+   simplest correct form, allocating a closure or an object wherever the
+   meaning is one, and it never trades clarity for the speed of any
+   backend. What it needs of a backend is the primitive surface — a value
+   representation, the operators, `typeof`, `instanceof`, the own-property
+   read `a[k]` and the `entry` and `hasEntry` helpers over it, calling a
+   function value,
+   closures with a frame, throw propagation, and the natives no body can
+   define — and that surface is listed where the source is. The read is
+   primitive because nothing is below it: the source reads what `entry`
+   answers, and a read defined in the source would read its own
+   definition. A new backend, in Rust, Swift or C#,
+   provides the surface and generates the rest.
+2. **An optimization is a substitution rule, keyed on structure.** A
+   backend may print a recognizable shape of the generated code as a
+   faster equivalent: a chain of property steps as a stack-allocated state
+   machine, a table read as a `match` on the name, a call of a known
+   function as a direct call. The rule lives in the backend, the source
+   does not change, and each rule is keyed on the structure the EDAG
+   already spells — a node, a section, a shape of literal — never on the
+   text of a body. A rule that would need to look inside a body to apply
+   is a sign the body should expose the shape instead.
+3. **The naive emission is never deleted.** Every backend keeps the
+   ability to print the source as it is, and the harness runs its fixtures
+   both ways and diffs the answers. That is the proof of each rule, and it
+   is cheaper than any argument.
+4. **The core may not use what it defines.** The part of the source that
+   defines calls — the chain steps and the resolution of a callee — is
+   written against the primitive surface and plain calls of function
+   values alone, with no member call and no optional chain, since on the
+   naive backend those would be calls of itself. The printer refuses a
+   chain node inside a core body. Everything above the core, the bodies of
+   the built-ins, may use the whole language.
+
+The first application is the member call, `fjs/js/todo/runtime-members.md`:
+the dispatcher `dot`, then the three chain continuations, move into the
+runtime as the source; NaNVM's `vm/lambda` becomes the substitution for the
+chain nodes, and its native tables shrink as bodies land.

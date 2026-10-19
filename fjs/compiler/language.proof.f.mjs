@@ -55,6 +55,30 @@ export const proof = {
         ].join('\n')))
         assertEq(jsonRefused('export default (a) => { if (a) { return 1; } return 2; };'), 'output.json - error: callable materialization requires a target compile/load boundary')
     },
+    // A switch is written back as what it lowers to, as a guard is: the
+    // chain of conditionals over the discriminant, a `const` of the body
+    // where more than one test reads it — `switch` itself is never written
+    // — and the Rust output tests the discriminant with `strict_eq`, the
+    // labels of one case under `logical_or`, each a closure after the first.
+    switches: () => {
+        assertEq(compileSource('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };')('output.js'), 'export default ($0)=>$0===1?1:2;')
+        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.js'), 'export default ($0)=>{const $1=$0[0];return $1===1||$1===2?1:$1===3?(()=>{throw 3;})():0;};')
+        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: { const x = [1]; return [x, x]; } } const y = [2]; return y; };')('output.js'), 'export default ($0)=>$0[0]===1?(()=>{const $1=[1];return [$1,$1];})():[2];')
+        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.edag.data.js'), 'const $0=[".",["arg",0],0];export default ["{}",[[":","default",["=>",1,[],["?:",["||",["===",$0,1],["===",$0,2]],1,["?:",["===",$0,3],["throw",3],0]]]]]];')
+        assert(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.rs').includes([
+            '        let c0: Any<A> = Any::dot(args.argument(0), f64_any(0x0000000000000000)).end()?;',
+            '        let c1: Any<A> = (strict_eq(c0.clone(), f64_any(0x3ff0000000000000)))?;',
+            '        let c2 = || strict_eq(c0.clone(), f64_any(0x4000000000000000));',
+            '        let c3: Any<A> = (Any::logical_or(c1, c2))?;',
+            '        let c4 = || {',
+            '            let c5: Any<A> = (strict_eq(c0.clone(), f64_any(0x4008000000000000)))?;',
+            '            let c6 = || Err(f64_any(0x4008000000000000));',
+            '            Any::conditional(c5, c6, || Ok(f64_any(0x0000000000000000)))',
+            '        };',
+            '        Any::conditional(c3, || Ok(f64_any(0x3ff0000000000000)), c4)',
+        ].join('\n')))
+        assertEq(jsonRefused('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };'), 'output.json - error: callable materialization requires a target compile/load boundary')
+    },
     // JSON denotes a tree, so a node the export reaches twice is written
     // where each reference reaches it, as `JSON.stringify` writes it — a
     // container `const`, an alias of one, or an import, along any route and

@@ -2,6 +2,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, isStatic, statics } from '../static/module.f.js'
 import { runtime } from './module.f.js'
+import edag from './gen.edag.data.mjs'
 
 const { entries, values } = Object
 
@@ -43,12 +44,12 @@ const samples = [
 ]
 
 export const proof = {
-    // `member` and `static` are the two sections; every key `member` holds
+    // `member` and `static` are the two sections and `dot` the dispatcher; every key `member` holds
     // is a name `allowedCalls` admits — the same claim `./types.ts` makes at
     // the type level — and every entry is a body of the receiver alone,
     // answering `undefined` or a function.
     keys: () => {
-        assertEq(Object.keys(runtime).toSorted().join(), 'member,static')
+        assertEq(Object.keys(runtime).toSorted().join(), 'dot,member,static')
         for (const [name, entry] of entries(members)) {
             assert(allowed.includes(name), name)
             assertEq(entry.length, 1)
@@ -160,6 +161,49 @@ export const proof = {
             }
         }
     },
+    // The dispatcher, on the host: an own enumerable property first,
+    // whatever it holds — a field, an element, a character, an own
+    // `undefined` — then the member body's answer for the receiver, then
+    // `undefined`; a `length`, a function's properties and every inherited
+    // name are no entry.
+    dot: () => {
+        const { dot } = runtime
+        const f = () => 1
+        assertEq(dot({ startsWith: f }, 'startsWith'), f)
+        assertEq(dot({ x: 0 }, 'x'), 0)
+        assertEq(dot({ x: undefined }, 'x'), undefined)
+        // an own `undefined` under a member name wins too, as in JavaScript,
+        // where the call throws; `hasEntry` is what finds it
+        assertEq(dot({ startsWith: undefined }, 'startsWith'), undefined)
+        assertEq(dot([f], '0'), f)
+        assertEq(dot('abc', '1'), 'b')
+        assertEq(dot([1], 'length'), undefined)
+        assertEq(dot(f, 'length'), undefined)
+        assertEq(dot({}, 'toString'), undefined)
+        assertEq(dot({}, 'constructor'), undefined)
+        assertEq(dot(members, 'constructor'), undefined)
+        assertEq(typeof dot('abc', 'startsWith'), 'function')
+        assertEq(/** @type {(search: unknown) => boolean} */ (dot('abc', 'startsWith'))('ab'), true)
+        for (const self of samples.filter(v => typeof v !== 'string' && v !== null && v !== undefined)) { assertEq(dot(self, 'startsWith'), undefined, self) }
+        assertEq(dot('abc', 'slice'), undefined)
+        // the core rule of DESIGN.md §13, on the compiled EDAG: the body of
+        // `dot` holds no chain step — no member call, no optional chain —
+        // since an executor runs it to answer those; the two helpers and a
+        // `()` of a function value are what it uses. Its slots, the
+        // `member` table and the bodies in it, are not the core.
+        /** @type {(node: unknown) => readonly unknown[]} */
+        const steps = node => node instanceof Array
+            ? [...(['|()', '|?.()', '|!()', '|.', '?.', '?.()'].includes(/** @type {string} */ (node[0])) ? [node[0]] : []), ...node.flatMap(steps)]
+            : []
+        const sections = /** @type {readonly (readonly [string, string, readonly unknown[]])[]} */ (/** @type {readonly any[]} */ (edag)[1][0][2][1])
+        const compiled = sections.find(([, name]) => name === 'dot')
+        assert(compiled !== undefined)
+        const [tag, length, , body] = compiled[2]
+        assertEq(`${tag}/${length}`, '=>/2')
+        assertEq(steps(body).join(), '')
+        assertEq(JSON.stringify(body).includes('["()"'), true)
+        assertEq(steps(sections.find(([, name]) => name === 'member')).length > 0, true)
+    },
     throw: {
         // The detached call `host` makes is a real one: a built-in that
         // builds with `this` as its constructor, which no static may be,
@@ -174,5 +218,7 @@ export const proof = {
         // is the call's; which of two throws wins is pinned where the
         // executors run the body, in `nanvm/corpus` and `vm/runtime.rs`.
         searchConversion: () => { runtime.member.startsWith('abc')?.({ toString: () => { throw 'A' } }, 0) },
+        // a nullish receiver is the executor's throw, before `dot` is asked
+        nullishReceiver: () => { runtime.dot(null, 'x') },
     },
 }

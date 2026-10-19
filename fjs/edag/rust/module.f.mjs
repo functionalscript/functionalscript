@@ -512,7 +512,7 @@ const hasSpread = items => items.some(x => x instanceof Array && x[0] === '...')
  * @type {(e: Exp) => boolean}
  */
 const isOperation = e => e instanceof Array && !isStatic(e)
-    && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', 'entry', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
+    && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', 'entry', 'hasEntry', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
         || (e[0] === '[]' && hasSpread(/** @type {readonly unknown[]} */ (e[1]))))
 
 /**
@@ -890,6 +890,11 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
         // `ToPrimitive` answers with.
         if (id === 'entry') {
             return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
+        }
+        // The `hasEntry` helper as a value, the same closure over
+        // `Any::has_entry`, its `bool` made an `Any`.
+        if (id === 'hasEntry') {
+            return ok(cat(['A::static_function(|_self, args| Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|b| b', toAny, '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
         }
         // Slot `i` of the frame the function was built with, `frame`:
         // {@link frameRead} unless the scope is a loop in place's round.
@@ -1481,7 +1486,7 @@ const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : o
  * @type {(root: Exp) => boolean}
  */
 export const holdsFunction = root => visit(withBodies)([])(root)
-    .some(([node]) => tagOf(node) === '=>' || tagOf(node) === 'entry')
+    .some(([node]) => tagOf(node) === '=>' || tagOf(node) === 'entry' || tagOf(node) === 'hasEntry')
 
 /** A position left out. @type {(x: unknown) => readonly unknown[]} */
 const none = () => []

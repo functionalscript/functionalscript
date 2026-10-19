@@ -64,8 +64,8 @@ export type DemoEvent =
  * not recoverable: it is a defect, and the runtime reports it as one.
  *
  * **What a demo may name is what the runtime implements**, which is today
- * `sandbox` and `catch` from [`effects/common`](../../effects/common/types.ts)
- * — host-neutral operations a browser has as surely as Node does. A demo that
+ * `sandbox`, `catch` and `randomInt` from
+ * [`effects/common`](../../effects/common/types.ts) — host-neutral operations a browser has as surely as Node does. A demo that
  * needs nothing declares `never` and returns `pureOk`, which is the same shape
  * with an empty vocabulary rather than a second kind of demo. An operation the
  * runtime does not implement answers `notImplemented` through the demo's own

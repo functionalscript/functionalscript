@@ -33,7 +33,7 @@ export type AstImport = {
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
 /** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, a `Number` or `String` conversion, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a static function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstString|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstStatic|AstRest|AstArg|AstFrameRef|AstThrow
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstString|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstHasEntryFunction|AstStatic|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * The `entry` helper, which the parser recognizes whole
@@ -42,14 +42,14 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGu
  * ```js
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable ? [x.value] : [];
+ *     return x?.enumerable ? x.value : undefined;
  * }
  * ```
  *
  * under any names — the one function that reads a property named at run
- * time, the enumerable own property the key names once converted as
- * `Object.getOwnPropertyDescriptor` converts it, as an option: `[value]`,
- * or `[]` where there is none. It is a function like
+ * time, the value of the enumerable own property the key names once
+ * converted as `Object.getOwnPropertyDescriptor` converts it, or
+ * `undefined` where there is none. It is a function like
  * any other: a value, of `length` `2`, capturing nothing, and a fresh
  * identity wherever it is written, as every arrow is. The lowering spells
  * it as the EDAG's own node for it, `['entry']`, which the source spells
@@ -57,6 +57,13 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGu
  * as the helper.
  */
 export type AstEntryFunction = readonly ['entry']
+
+/**
+ * The `hasEntry` helper, recognized whole as `entry` is: the same body
+ * but for its `return`, `x?.enumerable === true`, the presence of the
+ * enumerable own property as a boolean. The EDAG's `['hasEntry']`.
+ */
+export type AstHasEntryFunction = readonly ['hasEntry']
 
 /**
  * A static function the language admits, as a value — `Object.is` or one

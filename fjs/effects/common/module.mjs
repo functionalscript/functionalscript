@@ -10,7 +10,7 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
- * @import { Catch, Sandbox, SandboxResult } from './types.ts'
+ * @import { Catch, RandomInt, Sandbox, SandboxResult } from './types.ts'
  * @import { ToAsyncOperationMap } from '../types.ts'
  */
 
@@ -60,6 +60,20 @@ export const sandbox = async f => {
         result = error(e)
     }
     return { result, duration: after - before }
+}
+
+/**
+ * The `randomInt` handler, for a host to add to its operation map: 32 bits
+ * from `crypto.getRandomValues`, which Node and a browser both have.
+ *
+ * It is not in {@link commonOperationMap}, which every host spreads whole:
+ * a host without a secure generator — the SpiderMonkey shell — would then
+ * claim an operation it cannot perform.
+ *
+ * @type {ToAsyncOperationMap<RandomInt>}
+ */
+export const randomIntOperationMap = {
+    randomInt: async () => ok(crypto.getRandomValues(new Uint32Array(1))[0]),
 }
 
 /**

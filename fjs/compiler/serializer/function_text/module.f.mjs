@@ -20,7 +20,7 @@
  */
 
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
-import { chunksText, keyword } from '../../../text/marked/module.f.mjs'
+import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
 import { keepsRecursion, loopOf, reaches } from '../../../edag/loop/module.f.mjs'
 import { scopeHolds } from '../../../edag/analysis/module.f.mjs'
 import { isStatic } from '../../../edag/module.f.mjs'
@@ -39,7 +39,7 @@ const selfName = path => name(`${path}/self`)
  * and the descriptor `const`.
  *
  * ```js
- * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}
+ * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}
  * ```
  *
  * @type {(path: string) => string}
@@ -61,7 +61,38 @@ export const _entryChunks = path => {
         keyword('const'),
         ` ${binding(x)}=Object.getOwnPropertyDescriptor(${a},${b});`,
         keyword('return'),
-        ` ${x}?.enumerable?[${x}.value]:[];}`,
+        ` ${x}?.enumerable?${x}.value:`,
+        literal('undefined'),
+        ';}',
+    ]
+}
+
+/**
+ * The `hasEntry` helper's text, the one spelling of `['hasEntry']`, as
+ * {@link _entryText} is of `['entry']`: the same descriptor, the presence
+ * returned.
+ *
+ * ```js
+ * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}
+ * ```
+ *
+ * @type {(path: string) => string}
+ */
+export const _hasEntryText = path => chunksText(_hasEntryChunks(path))
+
+/** {@link _hasEntryText} as chunks, as {@link _entryChunks}. @type {(path: string) => readonly Chunk[]} */
+export const _hasEntryChunks = path => {
+    const a = argName(path, 0)
+    const b = argName(path, 1)
+    const x = name(`${path}/descriptor`)
+    return [
+        `(${binding(a)},${binding(b)})=>{`,
+        keyword('const'),
+        ` ${binding(x)}=Object.getOwnPropertyDescriptor(${a},${b});`,
+        keyword('return'),
+        ` ${x}?.enumerable===`,
+        literal('true'),
+        ';}',
     ]
 }
 
@@ -100,6 +131,7 @@ const entry = (s, i) => {
         case 'frame': { return `(${s.frame[n[1]]})` }
         case 'self': { return `(${selfName(s.path)})` }
         case 'entry': { return `(${_entryText(`${s.path}/function${i}`)})` }
+        case 'hasEntry': { return `(${_hasEntryText(`${s.path}/function${i}`)})` }
         case '[]': { return `([${items(s, n[1])}])` }
         case '{}': { return `({${n[1].map(p => p[0] === '...'
             ? `...${operand(s, p[1])}` : `[${operand(s, p[1])}]:${operand(s, p[2])}`).join(',')}})` }

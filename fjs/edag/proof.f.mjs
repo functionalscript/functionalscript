@@ -97,7 +97,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -699,24 +699,31 @@ export const proof = {
         // the helper as a value) denotes, the language's own helper run as
         // JavaScript; not a schema check.
         entryJs: () => {
-            /** @type {(a: unknown, k: PropertyKey) => readonly [unknown] | readonly []} */
+            /** @type {(a: unknown, k: PropertyKey) => unknown} */
             const entry = (a, k) => {
                 const x = Object.getOwnPropertyDescriptor(a, k)
-                return x?.enumerable ? [x.value] : []
+                return x?.enumerable ? x.value : undefined
+            }
+            /** @type {(a: unknown, k: PropertyKey) => boolean} */
+            const hasEntry = (a, k) => {
+                const x = Object.getOwnPropertyDescriptor(a, k)
+                return x?.enumerable === true
             }
             const a = { ['__proto__']: 42, u: undefined }
-            assertStructurallySame(entry(a, '__proto__'), [42])
-            assertStructurallySame(entry(a, 'u'), [undefined])
-            assertStructurallySame(entry(a, 'x'), [])
-            assertStructurallySame(entry(a, 'toString'), [])
-            assertStructurallySame(entry([7], 0), [7])
-            assertStructurallySame(entry([7], '0'), [7])
-            assertStructurallySame(entry([7], 'length'), [])
-            assertStructurallySame(entry('ab', 1), ['b'])
-            assertStructurallySame(entry('ab', 'length'), [])
-            assertStructurallySame(entry(entry, 'length'), [])
-            assertStructurallySame(entry(entry, 'name'), [])
-            assertStructurallySame(entry({ length: 3 }, 'length'), [3])
+            assertEq(entry(a, '__proto__'), 42)
+            assertEq(entry(a, 'u'), undefined)
+            assertEq(hasEntry(a, 'u'), true)
+            assertEq(entry(a, 'x'), undefined)
+            assertEq(hasEntry(a, 'x'), false)
+            assertEq(entry(a, 'toString'), undefined)
+            assertEq(entry([7], 0), 7)
+            assertEq(entry([7], '0'), 7)
+            assertEq(entry([7], 'length'), undefined)
+            assertEq(entry('ab', 1), 'b')
+            assertEq(entry('ab', 'length'), undefined)
+            assertEq(entry(entry, 'length'), undefined)
+            assertEq(entry(entry, 'name'), undefined)
+            assertEq(entry({ length: 3 }, 'length'), 3)
         },
     },
     op2: {

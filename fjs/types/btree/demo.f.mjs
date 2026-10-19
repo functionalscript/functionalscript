@@ -1,6 +1,7 @@
 /**
- * A persistent B-tree after a step: type keys, see what the last one
- * built — and everything it shares with the tree before.
+ * A persistent B-tree after a step: type keys, or click one in the tree,
+ * see what the last step built — and everything it shares with the tree
+ * before.
  *
  * **Nothing here changes in place**, so inserting a key builds a new tree and
  * leaves the old one as it was. That would be expensive if the new tree were
@@ -14,6 +15,16 @@
  * leaves line up in the last column, and a column reads in order of its
  * nodes' average keys.
  *
+ * **Generate builds a random tree**: the keys 10, 20, … up to the count,
+ * inserted in an order the browser picks — how a level of the
+ * [compaction game](../../website/playground/btree/module.f.mjs) starts.
+ *
+ * **A click on a key removes it and inserts it again.** The keys stay the
+ * same, but the shape may not: a remove that empties a leaf merges or
+ * borrows, and the insert that follows can split somewhere else. It is the
+ * one move of the [compaction game](../../website/playground/btree/module.f.mjs),
+ * which draws its tree with this {@link structure}.
+ *
  * @module
  *
  * @import { TNode, Tree } from './types/types.ts'
@@ -24,6 +35,9 @@ import { set } from './set/module.f.mjs'
 import { remove } from './remove/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
 import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
+
+/** @type {(key: number) => Row<TNode<number>>} */
+const keyRow = key => ({ label: '', inline: String(key), key })
 
 /**
  * A node's rows: its keys, each alone in a row, and its subtrees as edges
@@ -36,19 +50,19 @@ import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
  */
 const rowsOf = node => {
     switch (node.length) {
-        case 1: { return [{ label: '', inline: String(node[0]) }] }
+        case 1: { return [keyRow(node[0])] }
         case 2: {
             const [v0, v1] = node
-            return [{ label: '', inline: String(v0) }, { label: '', inline: String(v1) }]
+            return [keyRow(v0), keyRow(v1)]
         }
         case 3: {
             const [l, v, r] = node
-            return [{ label: '', inline: String(v) }, { to: l, corner: 'top' }, { to: r, corner: 'bottom' }]
+            return [keyRow(v), { to: l, corner: 'top' }, { to: r, corner: 'bottom' }]
         }
         case 5: {
             const [l, v0, m, v1, r] = node
             return [
-                { label: '', inline: String(v0) }, { label: '', inline: String(v1) },
+                keyRow(v0), keyRow(v1),
                 { to: l, corner: 'top' }, { to: m, corner: 'middle' }, { to: r, corner: 'bottom' },
             ]
         }
@@ -62,7 +76,7 @@ const average = node => {
 }
 
 /** @type {Structure<Tree<number>, TNode<number>>} */
-const structure = {
+export const structure = {
     empty: null,
     insert: key => set(cmp(key))(() => key),
     remove: key => remove(cmp(key)),
@@ -76,7 +90,7 @@ const structure = {
  *
  * @type {(n: number) => readonly number[]}
  */
-const tensUpTo = n => Array.from({ length: n }, (_, i) => (i + 1) * 10)
+export const tensUpTo = n => Array.from({ length: n }, (_, i) => (i + 1) * 10)
 
 /**
  * The presets the drop-down offers, each one press from what its name
@@ -91,6 +105,8 @@ export const presets = [
     ['Grow a level', tensUpTo(14), 150, 'Press Insert to add 150: the split runs all the way up to the root, and the tree grows a level.'],
     ['Remove and merge', tensUpTo(7), 70, 'Press Remove to take out 70: its leaf empties and merges with its sibling, and the tree shrinks a level.'],
     ['Remove a missing key', tensUpTo(7), 90, 'Press Remove to take out 90: it is not in the tree, so nothing changes and every node is shared.'],
+    ['Move a key', tensUpTo(10), 40, 'Click 40 in the tree: it is removed and inserted again, and the tree comes back with the same keys in one node fewer.'],
+    ['Move a key back', tensUpTo(10), 50, 'Click 50 in the tree: removing it empties its leaf, and inserting it again builds the same shape back, so nothing changes.'],
     ['Big tree', tensUpTo(31), 320, 'Press Insert to add 320: only the five nodes on its path are built again, and the other 26 are shared.'],
 ]
 
@@ -98,12 +114,15 @@ const versions = versionsDemo({
     structure,
     name: 'btree',
     noun: 'tree',
-    intro: 'Every step builds a new tree and leaves the old one as it was, but only the path from the root to the change is built again: everything else is shared by both versions.',
+    intro: 'Every step builds a new tree and leaves the old one as it was, but only the path from the root to the change is built again: everything else is shared by both versions. Click a key in the tree to remove it and insert it again.',
     presets,
+    random: { max: 100, count: 26, keys: tensUpTo },
 })
 
 export const demo = versions.demo
 export const _load = versions.load
 export const _press = versions.press
+export const _move = versions.move
+export const _generate = versions.generate
 export const _graphOf = versions.graphOf
 export const _census = versions.census

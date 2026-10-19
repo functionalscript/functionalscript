@@ -77,7 +77,7 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    designer approval,
 3. [ ] [operators](./2340-operators.md),
 4. [x] enumerable presence — prohibit `Object.hasOwn`; [`entry`](../property-access/entries.md)
-   answers an option, `[value]` or `[]`,
+   reads the value and `hasEntry` beside it answers the presence,
 5. [ ] [built-in](./2360-built-in.md),
 6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; each name is reserved no later
@@ -171,10 +171,15 @@ information — see [serialization](../design/serialization.md) and
    open in the record
 3. [x] `while` — with `let` above; `while` over several variables, and
    `break` and `continue` in its block, are open there
-4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
+4. [x] [switch](./3230-switch.md) — the terminating `switch`, every case a
+   guard's block and `default` last, is in the language
+   ([switch](../control-flow/switch.md)); surface syntax over `?:` and
+   `===`, no new EDAG node. The brace-less case, `break` and the
+   module-level `switch` are open in the record
+5. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
    ([mutability](../design/mutability.md)), **not** for I/O: effects keep I/O state in
    the runner ([io-effects](../design/io-effects.md)).
-5. [x] `throw` — a panic as a statement, in a function body and at module
+6. [x] `throw` — a panic as a statement, in a function body and at module
    level ([functions](../functions/README.md),
    [module structure](../modules/README.md)); with `if` it is what
    `assert` needs.

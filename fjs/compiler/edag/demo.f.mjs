@@ -23,6 +23,12 @@
  * lowered module already carries; this walk reads it rather than
  * reconstructing it.
  *
+ * **A property read draws its key as a value.** `a.x` is a `.` node with
+ * the receiver in its `obj` port and the key in its `key` port, `"x"`;
+ * `a[5]` is the same `.` with the index in its `idx` port, `5`. A computed
+ * index, `a[Number(i)]`, is an edge from `idx` to the node it is. A function
+ * is a `=>` node with its length in its `length` port.
+ *
  * **A method call is one node.** `o.f(x)` lowers to a `.` carrying its call
  * as a continuation, `['.', o, 'f', ['|()', [x]]]`, not to a `()` over a
  * `.`: the receiver stays live into the call rather than becoming a value
@@ -99,7 +105,7 @@ import { chunksText } from '../../text/marked/module.f.mjs'
 // flat list of strings simple enough to check against the type file by eye.
 // The static functions are the one group a later row grows, so they are
 // the EDAG's own list.
-const op0 = new Set(['undefined', 'args', 'rest', 'self', 'entry', ...staticIds])
+const op0 = new Set(['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', ...staticIds])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
     '===', '!==', '>', '>=', '<', '<=',
@@ -221,6 +227,11 @@ const chain = exp => {
         })(step)
     }
     const guarded = tag === '?.'
+    // A plain access with nothing after it is a `.` node drawing its key as
+    // a value: a name in its `key` port, a literal index in its `idx`.
+    if (!guarded && step === undefined && !(x instanceof Array)) {
+        return { kind: 'op', label: '.', children: [['obj', /** @type {Exp} */ (base)], [typeof x === 'number' ? 'idx' : 'key', /** @type {Exp} */ (x)]] }
+    }
     return steps({
         label: guarded ? `?.${keyLabel(x)}` : dotLabel(x),
         children: [['obj', /** @type {Exp} */ (base)], ...indexChildren(x, guarded)],
@@ -302,7 +313,7 @@ export const _shapeOf = e => {
             ],
         }
     }
-    // Length is metadata, while frame and lazy body are expression edges;
+    // Length is a value port, while frame and lazy body are expression edges;
     // a fixed parameter and a frame slot are inputs, their index metadata.
     if (tag === 'arg') { return { inline: `arg ${exp[1]}`, kind: 'terminal' } }
     if (tag === 'frame') { return { inline: `frame ${exp[1]}`, kind: 'terminal' } }
@@ -311,8 +322,9 @@ export const _shapeOf = e => {
         // body after them: a function that captures nothing has no frame
         // port at all.
         return {
-            kind: 'op', label: `=> (${exp[1]})`,
+            kind: 'op', label: '=>',
             children: [
+                ['length', /** @type {Exp} */ (exp[1])],
                 .../** @type {readonly Exp[]} */ (exp[2]).map((slot, i) => /** @type {readonly [string, Exp]} */ ([`frame ${i}`, slot])),
                 ['body', /** @type {Exp} */ (exp[3]), 'lazy'],
             ],
@@ -377,7 +389,11 @@ const drawn = module => {
 
 /**
  * `text` as the EDAG its module lowers to, or the parser's own error if it
- * does not compile.
+ * does not compile. An operand drawn beside a value names the node it
+ * leads to, its key in the values' key column, so a node's operands line
+ * up whether they are constants or nodes. A shared node is still drawn
+ * once: its label in the rows of the edges into it reads as a reference to
+ * the one box the edges reach.
  *
  * @type {(text: string) => Result<Graph, string>}
  */
@@ -399,8 +415,9 @@ export const _graphOf = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast)
  * the box could not have said which of the six was the conditional one. The
  * numbers and `undefined` are primitives, tinted cells inside the ports that
  * use them. `rest` is an input, a filled grey cell: a value arriving from
- * outside a scope rather than computed from operands. The function has no
- * frame port because it captures nothing, and its `body` port is broken
+ * outside a scope rather than computed from operands. The function's
+ * `length` is a value, `1`; it has no frame port because it captures
+ * nothing, and its `body` port is broken
  * because building the function does not run it. `checked` is the one thing
  * the export does not reach, so the compiler anchors it with a comma and the
  * whole module is that comma's result. Its two edges carry the roles a
@@ -441,6 +458,12 @@ export const _graphOf = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast)
  *   `?:` node, the statements after a guard its alternate, so the drawing
  *   has no `if` in it — the statement is sugar over the conditional, and
  *   the graph is the one `n < 0 ? -1 : n > 0 ? 1 : 0` draws.
+ * - **Switch** is a body that is one `switch` over three cases: a `?:`
+ *   node per case, its condition the `===` of the discriminant — one node,
+ *   read by every test — and a label, two labels under `||`, the next
+ *   case its alternate and the `default` block the last, a `throw` node,
+ *   so the drawing has no `switch` in it either — the statement is sugar
+ *   over the same conditional a chain of guards is.
  * - **Hex escape** and **Parse error** do not parse, because an error is
  *   something this demo shows too.
  *

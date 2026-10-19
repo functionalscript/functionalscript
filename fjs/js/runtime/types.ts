@@ -1,7 +1,8 @@
 /**
  * Type-level API for `fjs/js/runtime/module.f.js`: the pins that keep the
  * table inside the admitted set — `member` and `static` are its two
- * sections; every key `member` holds is a name `allowedCalls` admits, and
+ * sections and `dot` the dispatcher over them; every key `member` holds
+ * is a name `allowedCalls` admits, and
  * every entry a member body; every path `static` holds is one
  * `fjs/js/static` admits, and none it binds natively, and every entry a
  * body. A compile-time claim about exports lives here, at module scope,
@@ -34,7 +35,12 @@ export type MemberName = keyof Member
  */
 export type Body = (self: unknown) => undefined | ((...args: never[]) => unknown)
 
-type _Sections = Assert<Equal<keyof Runtime, 'member' | 'static'>>
+type _Sections = Assert<Equal<keyof Runtime, 'dot' | 'member' | 'static'>>
+
+/** The dispatcher: the callee of `self[key](...)`, or `undefined`. */
+export type Dot = Runtime['dot']
+
+type _Dot = Assert<Equal<Dot, (self: unknown, key: string) => unknown>>
 
 /** Every key is an allowed name. */
 type _Keys = Assert<Equal<MemberName extends AllowedCall ? true : false, true>>

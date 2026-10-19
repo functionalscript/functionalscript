@@ -11,8 +11,9 @@ impl<A: IVm> Object<A> {
     /// this is simply what property lookup already is here — there is no
     /// second, chain-walking accessor for this to differ from. `None` is
     /// "no such own property", distinct from `Some` of a present
-    /// `undefined`, which `Any::entry` answers as `[undefined]` against
-    /// `[]`; a caller that wants the value itself uses this.
+    /// `undefined`, which `Any::has_entry` tells apart where `Any::entry`
+    /// answers `undefined` for both; a caller that wants the value itself
+    /// uses this.
     ///
     /// Searches from the *last* entry backward: an object's property list
     /// is never deduplicated on construction (`fjs/edag/module.f.mjs`'s own

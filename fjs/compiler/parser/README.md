@@ -58,6 +58,10 @@ block  ::= '{' statement* terminator '}'
 statement ::= const | 'if' '(' value ')' block
             | 'let' id '=' value end | 'while' '(' value ')' loopBlock
 terminator ::= 'return' value end | 'throw' value end
+           | 'switch' '(' value ')' '{' 'case' value ':' caseTail
+caseTail ::= 'case' value ':' caseTail | block afterCase
+afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
+           | '}' statement* terminator
 loopBlock ::= '{' loopStatement* '}'
 loopStatement ::= const | id '=' value end
 func   ::= [ '...' id ] ')' '=>' body
@@ -302,17 +306,18 @@ the fold's:
   list instead of the read rule, so `a.at(0)` and `a.toString()` are calls
   like any other while `a.at` stays a refused read: a detached built-in is a
   function that only fails;
-- the `entry` helper, which is matched whole rather than resolved
-  ([spec: entry](../../../spec/property-access/entries.md)): a
+- the `entry` and `hasEntry` helpers, which are matched whole rather than
+  resolved ([spec: entry](../../../spec/property-access/entries.md)): a
   function of two parameters whose block body binds the descriptor
-  `Object.getOwnPropertyDescriptor` answers for them and returns the option
-  of the value an enumerable one holds, `[x.value]` or `[]` — under any
-  three distinct names, the keys in
-  either spelling, with or without its semicolons where JavaScript inserts
-  them — is the AST's `['entry']`; `Object` is reserved, so no scope binds
-  the word and the shape alone decides. A function that is not the helper,
-  by shape or by its names, is resolved as every function is, where
-  `Object` is refused as the reserved word it is.
+  `Object.getOwnPropertyDescriptor` answers for them and returns the value
+  an enumerable one holds, `x?.enumerable ? x.value : undefined`, or its
+  presence, `x?.enumerable === true` — under any three distinct names, the
+  keys in either spelling, with or without its semicolons where JavaScript
+  inserts them — is the AST's `['entry']` or `['hasEntry']`; `Object` is
+  reserved, so no scope binds the word and the shape alone decides. A
+  function that is neither helper, by shape or by its names, is resolved
+  as every function is, where `Object` is refused as the reserved word it
+  is.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar
@@ -354,15 +359,22 @@ the grammar has matched the whole module, statement by statement, on the
 pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.mjs) set.
 
 Function blocks retain an ordered list of tagged statements — `const`
-declarations and `if` guards, each guard holding its condition and a block of
-its own — and a tagged `return` or `throw` in this source tree. `() => 7` and
+declarations, `if` guards, each guard holding its condition and a block of
+its own, and switches, each holding its discriminant, its cases and its
+`default` block where it has one — and a tagged `return` or `throw` in this
+source tree. `() => 7` and
 `() => { return 7; }` therefore have different source bodies; the fold lowers
 them to the same executable body, a `throw` to one whose value is the
-`['throw', v]` node, and a guard to the conditional of two calls of
+`['throw', v]` node, a guard to the conditional of two calls of
 parameterless functions, one of its block and one of the statements after
 it, which the lowering inlines
-([spec: functions](../../../spec/functions/README.md)). The grammar still
-requires zero or more statements followed by one terminating statement, and a
+([spec: functions](../../../spec/functions/README.md)), and a switch to the
+chain of such conditionals, each case's test the `===` of the discriminant
+— an entry of the body — and a label, a case's labels under `||`
+([spec: switch](../../../spec/control-flow/switch.md)). The grammar still
+requires zero or more statements followed by one terminating statement — a
+switch is one, and holds the rest of its block where it has no `default`,
+which the reader puts back into the block's one list — and a
 module ends in an export or a `throw` the same way. This representation
 change adds no ASI.
 

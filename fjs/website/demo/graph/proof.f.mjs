@@ -223,6 +223,21 @@ export const proof = {
             assert(html.includes('data-graph-value-label=""><tspan data-graph-part="prior">01</tspan><tspan data-graph-part="current">01</tspan></text>'), html)
             assert(html.includes('data-graph-value-label="">7</text>'), html)
         },
+        // A value with a click is a control on its cell, and its text lets
+        // the pointer through to it; a value without one is neither.
+        inlineClick: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '', rank: 0 }],
+                edges: [
+                    { from: 0, to: { inline: '5', click: { name: 'move:5', label: 'Move 5' } }, label: '' },
+                    { from: 0, to: { inline: '7' }, label: '' },
+                ],
+            }))
+            assert(html.includes('data-demo-click="move:5" tabindex="0" role="button" aria-label="Move 5" pointer-events="all" cursor="pointer"'), html)
+            assert(html.includes('pointer-events="none">5</text>'), html)
+            assert(html.includes('data-graph-value-label="">7</text>'), html)
+            assertEq(html.split('data-demo-click').length - 1, 1)
+        },
         // An empty label is no column when a node has ports: each node is
         // its rows alone, and the edge runs from the middle of the first row
         // to the middle of the second's. A node with no ports keeps its
@@ -263,6 +278,37 @@ export const proof = {
             assert(html.includes('<text x="35" y="20" text-anchor="middle" data-graph-value-label="">5<'), html)
             assertEq(html.split('data-graph-port=""').length - 1, 1)
             assert(html.includes('<rect x="34" y="30" width="26" height="20" data-graph-value="">'), html)
+        },
+        // An edge beside a value draws its target's label
+        // in the value's place, marked as a reference, and a keyed one its
+        // key in the key column; a lazy one's kind stays on its line. A
+        // target with no label of its own leaves the row as it was.
+        refRow: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'or', rank: 0 }, { id: 1, kind: 'a', label: '{}', rank: 1 }, { id: 2, kind: 'a', label: 'x', rank: 1 }, { id: 3, kind: 'a', label: '', rank: 1 }],
+                edges: [{ from: 0, to: { inline: '5' }, label: '' }, { from: 0, to: 1, label: '' }, { from: 0, to: 2, label: 'k', kind: 'lazy' }, { from: 0, to: 3, label: '' }],
+            }))
+            assert(html.includes('data-graph-value-alone="" data-graph-value-ref="">'), html)
+            assert(html.includes('data-graph-value-label="" data-graph-value-ref="">{}<'), html)
+            assert(html.includes('<rect x="36" y="63" width="24" height="20" data-graph-port="">'), html)
+            assert(html.includes('data-graph-edge-label="">k<'), html)
+            assert(html.includes('data-graph-value-label="" data-graph-value-ref="">x<'), html)
+            assertEq(html.split('data-graph-value-ref=""').length - 1, 4)
+            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 1)
+        },
+        // Rows that are all edges with empty keys draw nothing: the node is
+        // its 50px label alone, two rows tall, and each edge leaves from the
+        // middle of its own row.
+        blankPorts: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'or', rank: 0 }, { id: 1, kind: 'a', label: 'x', rank: 1 }, { id: 2, kind: 'a', label: 'y', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: '' }, { from: 0, to: 2, label: '' }],
+            }))
+            assert(html.includes('<rect x="10" y="23" width="50" height="40" rx="4" data-graph-node=""'), html)
+            assert(!html.includes('data-graph-port=""'), html)
+            assert(!html.includes('data-graph-edge-label=""'), html)
+            assert(html.includes('<text x="35" y="43" text-anchor="middle" data-graph-label="">or<'), html)
+            assertEq(routes(html).map(d => d.split(' ')[0]).join(' '), 'M60,33 M60,53')
         },
         /**
          * **An edge's label sits in a port of its own node**, not on the
@@ -617,10 +663,11 @@ export const proof = {
             assert(html.includes('viewBox="0 0 138 40"'), html)
         },
         /**
-         * **Beside an inline value, an edge's key fills its row**, from
-         * the label column to the node's right side, and the edge leaves
-         * from there: no cell of the node is empty. `wide`'s keys share one
-         * column, 24px, and its value takes the rest. **A node keeps its
+         * **Beside an inline value, an edge's key sits in the key
+         * column** and its target's label in the value's, and the edge
+         * leaves from the row's right side: no cell of the node is empty.
+         * `wide`'s keys share one column, 24px, and its value and its
+         * edge's target take the rest. **A node keeps its
          * own width**, so `narrow` is 78px in a column whose `wide` is
          * 88px, and its edge runs straight right to the column's edge
          * before it turns rather than cutting across the next column.
@@ -646,7 +693,8 @@ export const proof = {
             assert(html.includes('<rect x="114" y="10" width="88" height="40" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="154" y="10" width="24" height="20" data-graph-port="">'), html)
             assert(html.includes('<rect x="178" y="10" width="24" height="20" data-graph-value="">'), html)
-            assert(html.includes('<rect x="154" y="30" width="48" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="154" y="30" width="24" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="178" y="30" width="24" height="20" data-graph-value="" data-graph-value-ref="">'), html)
             assert(html.includes('<rect x="114" y="64" width="78" height="20" rx="4" data-graph-node=""'), html)
             assert(html.includes('d="M202,40 L242,23"'), html)
             assert(html.includes('d="M192,74 L202,74 L242,23"'), html)

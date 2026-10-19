@@ -42,10 +42,9 @@
  * **Code is coloured by what wrote it.** The JSON Schema, the canonical form
  * and the readers' answers are marked by the writers that print them; the
  * schema's source and the value a reader types have no writer behind them,
- * so they go through the highlighter's tokenizer. The TypeScript type stays
- * plain until its printer marks it
- * ([`ts/todo/marked-output.md`](./ts/todo/marked-output.md)), and so do
- * the comparison's lines, `equal → true`, a summary rather than code.
+ * so they go through the highlighter's tokenizer. The TypeScript type is
+ * marked by its printer. The comparison's lines, `equal → true`, stay plain:
+ * they are a summary rather than code.
  *
  * **A schema compares with any other.** The shown schema is compared with one
  * the reader picks, through the data form's `equal` and `subset`, so "two
@@ -75,7 +74,7 @@ import { structSchemaEntries, tupleSchemaEntries } from './common/module.f.mjs'
 import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
 import { equal, subset, toData } from './data/module.f.mjs'
-import { dataToTs } from './ts/module.f.mjs'
+import { dataToTsMarked } from './ts/module.f.mjs'
 import { dataToJsonSchema } from '../media/json/schema/module.f.mjs'
 import { marked } from '../media/json/module.f.mjs'
 import { identity } from '../types/function/module.f.js'
@@ -104,7 +103,7 @@ import { op1Id } from '../edag/module.f.mjs'
 import { value as edagValue } from '../edag/value/module.f.mjs'
 import { dirent } from '../effects/schema/module.f.mjs'
 import { fundingSchema } from '../website/funding/module.f.mjs'
-import { chunksText } from '../text/marked/module.f.mjs'
+import { chunksMarked, chunksText, keyword } from '../text/marked/module.f.mjs'
 
 const person = /** @type {const} */ ({ name: string, age: number })
 
@@ -361,13 +360,16 @@ const partnerOf = (e, shown) => e.schemas.length === 2 ? schemaKey(e, shown === 
 const constShape = c => c === null || typeof c !== 'object'
     ? { inline: chunksText(leafSerialize(c)) }
     : c instanceof Array
-        ? { kind: 'tuple', label: '[ ]', children: tupleSchemaEntries(c) }
-        : { kind: 'struct', label: '{ }', children: structSchemaEntries(c) }
+        ? { kind: 'tuple', label: '[]', children: tupleSchemaEntries(c) }
+        : { kind: 'struct', label: '{}', children: structSchemaEntries(c) }
 
 /**
  * What a thunk returns, as a shape, its label led by `name` when the thunk
  * has one. A built-in draws inline; `open(c)` is `rest(c, unknown)` and
- * draws as `open`.
+ * draws as `open`. The ports of an `array`, a `record`, an `or` and an
+ * `open` have empty keys: the node's label already says what each of them
+ * is, so an inline member fills its row and an edge's row stays empty. A
+ * `rest` keeps `declared` and `extra`, which tell its two ports apart.
  *
  * @type {(name: string) => (info: ReturnType<Exclude<Type, Const>>) => Shape<Type>}
  */
@@ -379,18 +381,18 @@ const infoShape = name => info => {
             const s = constShape(info[1])
             return 'inline' in s ? s : { ...s, label: named(s.label) }
         }
-        case 'array': { return { kind: 'array', label: named('array'), children: [['item', info[1]]] } }
-        case 'record': { return { kind: 'record', label: named('record'), children: [['value', info[1]]] } }
+        case 'array': { return { kind: 'array', label: named('array'), children: [['', info[1]]] } }
+        case 'record': { return { kind: 'record', label: named('record'), children: [['', info[1]]] } }
         case 'or': {
             const [, ...members] = info
             return members.length === 0
                 ? { inline: 'never' }
-                : { kind: 'or', label: named('or'), children: members.map(/** @type {(m: Type) => readonly [string, Type]} */ m => ['|', m]) }
+                : { kind: 'or', label: named('or'), children: members.map(/** @type {(m: Type) => readonly [string, Type]} */ m => ['', m]) }
         }
         case 'rest': {
             const [, c, r] = info
             return r === unknown
-                ? { kind: 'rest', label: named('open'), children: [['declared', c]] }
+                ? { kind: 'rest', label: named('open'), children: [['', c]] }
                 : { kind: 'rest', label: named('rest'), children: [['declared', c], ['extra', r]] }
         }
         default: { return { inline: info[0] } }
@@ -546,17 +548,15 @@ export const _marked = path => value => {
  * What rtti derives from `schema` besides its readers: the TypeScript type
  * the printer writes — its recursive definitions first, as `type` aliases,
  * then the type itself — the JSON Schema, and the canonical data form both
- * are printed from. The JSON Schema and the data form are marked by their
- * writers; the TypeScript is plain text, which no writer marks yet
- * ([`ts/todo/marked-output.md`](./ts/todo/marked-output.md)).
+ * are printed from. Each is marked by the writer that prints it.
  *
- * @type {(schema: Type) => { readonly ts: string, readonly jsonSchema: Marked, readonly data: Marked }}
+ * @type {(schema: Type) => { readonly ts: Marked, readonly jsonSchema: Marked, readonly data: Marked }}
  */
 export const _outputsOf = schema => {
     const data = toData(schema)
-    const [definitions, entry] = dataToTs()(data)
+    const [definitions, entry] = dataToTsMarked()(data)
     return {
-        ts: [...definitions.map(([name, type]) => `type ${name} = ${type}`), entry].join('\n'),
+        ts: chunksMarked([...definitions.flatMap(([name, type]) => [keyword('type'), ' ', ...name, ' = ', ...type, '\n']), ...entry]),
         jsonSchema: marked(identity)(dataToJsonSchema(data)),
         data: documentMarked(/** @type {Unknown} */ (data)),
     }
@@ -683,7 +683,7 @@ const outputsView = s => {
     const o = _outputsOf(s.schema)
     return [
         caption('TypeScript:'),
-        ['pre', { [codeMarker]: '' }, o.ts],
+        ['pre', { [codeMarker]: '' }, ...render(o.ts)],
         caption('JSON Schema:'),
         ['pre', { [codeMarker]: '' }, ...render(o.jsonSchema)],
         ['details', ['summary', 'Canonical form (toData)'], ['pre', { [codeMarker]: '' }, ...render(o.data)]],
