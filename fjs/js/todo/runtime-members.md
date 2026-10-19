@@ -209,5 +209,7 @@ export const runtime = {
   module receives, which compiles `dot` as an ordinary function.
 - [`runtime-static.md`](./runtime-static.md) — the static runtime the
   bodies compile into.
+- [`../../edag/todo/direct-calls.md`](../../edag/todo/direct-calls.md)
+  — the sibling case, a known callee inside the runtime called directly.
 - [`../prototype/README.md`](../prototype/README.md) — the read and call
   rules by name alone.
