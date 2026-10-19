@@ -234,6 +234,8 @@ detail to settle in the first task.
   strengthens.
 - [`../../../nanvm/lib/src/vm/runtime.rs`](../../../nanvm/lib/src/vm/runtime.rs)
   — the value, where the tables and the search were.
+- [`../../edag/todo/direct-calls.md`](../../edag/todo/direct-calls.md)
+  — the direct call of a known callee, retargeted at the ordinary backend.
 - [spec: why two helpers](../../../spec/property-access/entries.md#why-two-helpers)
   — "the core of the runtime may not use what it defines", the rule this
   extends to the whole module.
