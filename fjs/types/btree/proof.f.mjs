@@ -4,6 +4,8 @@
  * @import { List, Result } from '../list/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
  * @import { State } from '../../website/demo/versions/types.ts'
+ * @import { RandomInt } from '../../effects/common/types.ts'
+ * @import { RunInstance } from '../../effects/mock/types.ts'
  */
 
 import { values } from './module.f.mjs'
@@ -11,7 +13,9 @@ import { cmp } from '../string/module.f.mjs'
 import { next, toArray } from '../list/module.f.mjs'
 import { value, find as findFind } from './find/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { _census, _graphOf, _load, _move, _press, demo, presets } from './demo.f.mjs'
+import { _census, _generate, _graphOf, _load, _move, _press, demo, presets } from './demo.f.mjs'
+import { run as mockRun } from '../../effects/mock/module.f.mjs'
+import { ok } from '../result/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../result/module.f.js'
@@ -119,7 +123,29 @@ const depths = name => {
     return [depth(versions.before), depth(versions.after)]
 }
 
+/**
+ * A host whose `randomInt` answers 0, 1, 2, … in turn.
+ *
+ * @type {RunInstance<RandomInt, number>}
+ */
+const counter = mockRun(/** @type {Parameters<typeof mockRun<RandomInt, number>>[0]} */ ({
+    randomInt: () => (/** @type {number} */ n) => [n + 1, ok(n)],
+}))
+
 const demoProof = {
+    // Generate opens on 26 keys, the perfect tree of depth 3's, and builds a
+    // tree of 10, 20, … 260 from one `randomInt` per key.
+    generate: () => {
+        assert(html(demo.init).includes('name="count" value="26"'), '')
+        const [asked, r] = counter(0)(_generate(demo.init))
+        assertEq(asked, 26)
+        assert(r[0] === 'ok', '')
+        const { versions, status } = r[1]
+        assertEq(versions.before, versions.after)
+        assertEq(JSON.stringify(toArray(values(versions.after))), JSON.stringify(Array.from({ length: 26 }, (_, i) => (i + 1) * 10)))
+        assert('random' in status && status.random.length === 26, '')
+        assert(html(r[1]).includes('26 keys inserted in random order: 10, 30, 50, 70, '), '')
+    },
     // The page opens on the first preset loaded: one tree that is both
     // versions, every node shared, the key in the field and the hint saying
     // what to press. Nothing has changed, so nothing is coloured.

@@ -91,7 +91,8 @@ d === a || d === b ? (() => B1)() : d === c ? (() => B2)() : (() => rest)()
 
 where `d` is the discriminant's value, shared as a body `const` is — one
 node however many labels read it, evaluated where the statement stands
-whether or not a label is reached, so that `switch (null.x) {}` throws
+whether or not a label is reached, so that `switch (null.x) { case 1:
+{ return 2; } }` throws
 here as in JavaScript — and each block and the statements after the
 `switch` are the body of a parameterless function called where it stands,
 inlined as a guard's arms are

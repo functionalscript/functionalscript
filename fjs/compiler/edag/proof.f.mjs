@@ -1685,7 +1685,11 @@ export const proof = {
         // to match.
         sharing: () => {
             const html = htmlToString(demo.view(demo.init))
-            assertEq(html.split('>+<').length - 1, 1) // one `+` node, however many edges reach it
+            assertEq(html.split('data-graph-label="">+<').length - 1, 1) // one `+` node, however many edges reach it
+            // The five edges into it from beside a value name it in their
+            // rows: the array's `0` and `1`, `a.x`'s `obj`, and `a * 3`'s
+            // and `a < 4`'s `left`.
+            assertEq(html.split('data-graph-value-ref="">+<').length - 1, 5)
             // Every edge ends at the middle of its target's left side, level
             // with its label, so the lines that end at the `+` box's left
             // edge and the `+` label's height are the ones that reach it:
@@ -1722,7 +1726,10 @@ export const proof = {
             assert(html.includes('data-graph-value-label="">undefined<'), html)
             // `1`, `2`, `3`, `4`, `undefined`, the key `"x"`, the length
             // `0`, and `rest`, each in a cell; only the input is a terminal.
-            assertEq(html.split('data-graph-value=""').length - 1, 8)
+            // The other eight cells name the nodes their edges lead to.
+            const refs = html.split('data-graph-value-label="" data-graph-value-ref=""').length - 1
+            assertEq(refs, 8)
+            assertEq(html.split('data-graph-value=""').length - 1 - refs, 8)
             assertEq(html.split('data-graph-value="" data-graph-value-kind="terminal"').length - 1, 1)
             assert(!html.includes('>frame'), html)
             assert(html.includes('>body<'), html)
