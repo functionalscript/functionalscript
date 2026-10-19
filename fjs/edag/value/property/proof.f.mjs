@@ -171,6 +171,10 @@ export const proof = {
         // a runtime with no invoker to ask it through answers no body
         assertEq(assertError(read(ok(['Object.is']), 'length', runtime)), 'no binding for the static Object.is')
         assertEq(assertError(read(ok(['Number.isNaN']), 'length', runtime, invoke)), 'no binding for the static Number.isNaN')
+        // a `static` that throws is the read's throw
+        /** @type {import('../types.ts').Runtime} */
+        const throwing = ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]]
+        assertEq(assertError(read(ok(['Object.is']), 'length', throwing, invokeWith(throwing))), 'boom')
         for (const key of ['length', '0', 'name']) { none(['Object.is'], key) }
     },
     // The function value at a path into an object: the value at the end

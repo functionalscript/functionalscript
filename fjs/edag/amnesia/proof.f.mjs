@@ -165,6 +165,11 @@ export const proof = {
         const missing = 'no binding for the static Object.is'
         assertEq(assertError(vm({ frame: [], args: [] })(direct)), missing)
         assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [['{}', []]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]] })(['Object.is'])), missing)
+        // a runtime without `static`, and a `static` that is no function,
+        // answer no body; a `static` that throws is the read's throw
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', []] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [], 1]]]] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]] })(['Object.is'])), 'boom')
     },
     // `self` is the invoked function itself, by identity, in every reading
     // of the body; at the module's scope there is none to read

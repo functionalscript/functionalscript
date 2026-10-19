@@ -8,8 +8,8 @@
  * @import { Context, Evaluator } from './types.ts'
  */
 
-import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { operation } from './module.f.mjs'
+import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { operation, staticCall } from './module.f.mjs'
 import { noStatic, staticIds, staticPath } from '../module.f.mjs'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
@@ -148,6 +148,12 @@ export const proof = {
     objectIs: () => {
         failure(['()', ['Object.is'], [1, 1]], noStatic('Object.is'))
         failure(['Object.is'], 'no binding for the static Object.is')
+        // a `static` that throws is the call's throw, asked for the body
+        // directly, as the executors ask after the read
+        /** @type {EdagValue} */
+        const throwing = ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]]
+        const asked = invokeWith(throwing)
+        assertEq(assertError(settle(asked)(staticCall(throwing, ['Object.is'], ['[]', []], () => { throw 'unreached' }, asked))), 'boom')
         for (const id of staticIds.filter(id => !isNative(staticPath(id)))) { failure([id], noStatic(id)) }
         /** @type {Context} */
         const withRuntime = {
