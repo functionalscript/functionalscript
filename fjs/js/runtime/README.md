@@ -84,11 +84,13 @@ of an optional call, `a.startsWith?.(x)`, asks the
 same steps before it evaluates `x`, the body's first step among them; a
 body is pure, so a guard and a call ask it twice at no cost but the
 call.
-A native implementation may stand beside a body where the VM measures the
-gain; the body is the reference, and the corpus in
-[`../../nanvm/member`](../../nanvm/member/module.f.js) checks the native
-answer against it. A name without a body keeps the host engine as its
-oracle there, as every name had before, until its body lands. The completeness table
+A native beside a body is unreachable, since `dot` answers first; a VM
+that measures a gain in a native substitutes it for the body in its
+dispatch ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)),
+never as an entry in the table. The corpus in
+[`../../nanvm/member`](../../nanvm/member/module.f.js) checks every body
+against the host engine, which stays the oracle for a name without one,
+as it was for every name before. The completeness table
 [`../../nanvm/methods`](../../nanvm/methods/module.f.mjs) generates counts
 a body as an answer: every admitted pair is answered, natively or by a
 body, and no other pair is.
@@ -286,11 +288,13 @@ cycle:
   body by
   reading it as a value, never by its name: the core may not use what it
   defines, and the whole module is the core, which the proof checks on the
-  compiled EDAG — no chain step and no static node anywhere in it. This is
-  what lets NaNVM hold the runtime as a value its bodies never name: the
-  runtime printer prints the module with no runtime in scope, so a member
-  call or a static read anywhere in it, body or initializer, is the
-  backend's refusal, by name ("How NaNVM finds it").
+  compiled EDAG — no chain step anywhere in it, and no static node but the
+  natives the table lists as themselves, `Object.entries`, which every
+  executor binds and no body reads. This is what lets NaNVM hold the
+  runtime as a value its bodies never name: the runtime printer prints the
+  module with no runtime in scope, so a member call or a static read of a
+  body anywhere in it, body or initializer, is the backend's refusal, by
+  name, and a native static is the built-in itself ("How NaNVM finds it").
 
 ## Giving a name its body
 

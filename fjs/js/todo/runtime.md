@@ -247,8 +247,10 @@ the example, the third, which gets its own `todo/` when its turn comes.
       asked first: `Object.is` is a value a module compares, so `naive`
       holds the object per thread
       ([`runtime-static.md`](./runtime-static.md)).
-- [ ] A name whose body lands leaves NaNVM's hand tables unless a
-      measurement keeps it, in the same table, as an optimization.
+- [ ] A name whose body lands leaves NaNVM's hand tables: an entry beside
+      a body is unreachable, since `dot` answers first, and a native a
+      measurement asks for substitutes for the body in the dispatch, not
+      in the table.
 - [x] File the static-function table as its own `todo/`:
       [`runtime-static.md`](./runtime-static.md), which also nests this
       table under `runtime.member`, keyed by the global's name, to make
