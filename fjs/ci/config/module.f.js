@@ -149,7 +149,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixpkgs-26.05-darwin',
-    commit: '7529d323f8f9926b38df356da2483c2a4e759d00',
+    commit: 'e16b7a8dc0d467861b053a85f437d7dede44963c',
 })
 
 // `rust-overlay`, the second input of the shared flake. Nixpkgs builds
