@@ -69,7 +69,12 @@ export const runtime = {
   under the key, every array, string, number, boolean, bigint and
   function under an admitted name, costs one failed read before the
   table. `entry(member, key)` reads the table as an object literal, so no
-  inherited name answers. The receiver is never nullish: the executor
+  inherited name answers. A `length`, which an array, a string and a
+  function own without enumerating it, is no entry and no member name:
+  a call step asks `dot` for an admitted member name alone, and reads
+  `length` as the executor's own property read does, `a.length`, so
+  `a.length?.()` throws as in JavaScript, a number being no function, and
+  `dot` is never asked for it. The receiver is never nullish: the executor
   throws for one before any argument, as `Member::new` and the
   interpreter's property step do. A compiled `a.map(b)` stays
   `Any::dot(a, "map").end_call(...)`: one dispatcher serves a literal key
