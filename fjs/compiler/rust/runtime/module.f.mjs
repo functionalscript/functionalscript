@@ -195,7 +195,8 @@ const table = root => {
  * printing one Rust name, {@link printedNames} — a static and a member of
  * one type and key, or a member whose key ends in `Code`, say. The `dot`
  * dispatcher is no item: the one function no built-in reaches by design,
- * so a built-in naming the very function `dot` is, is refused.
+ * so a built-in naming the very function `dot` is, or capturing it in a
+ * slot, is refused.
  *
  * @type {(root: Exp, table: _Table) => Result<readonly _Item[], readonly unknown[]>}
  */
@@ -208,6 +209,7 @@ const items = (root, { builtIns, dot }) => {
         if (shared !== undefined) { return error(['a built-in naming the `dot` dispatcher; the dispatcher is no built-in', shared.name]) }
         const functions = nodes.filter(n => n[0] === '=>' && n !== dot)
         const reached = reach(builtIns.map(b => b.node), [])
+        if (dot !== undefined && reached.some(n => n === dot)) { return error(['a body capturing the `dot` dispatcher; no built-in reaches it', 'dot']) }
         const dropped = functions.find(n => !reached.includes(n))
         if (dropped !== undefined) { return error(['a function no built-in reaches; a property written twice keeps its last value', dropped]) }
         const twice = builtIns.find((b, i) => builtIns.findIndex(c => c.node === b.node) !== i)

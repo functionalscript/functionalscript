@@ -160,6 +160,10 @@ pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1
         const shared = fn(2, [], ['undefined'])
         assertEq(refusal(module([['static', object([['Object', object([['is', shared]])]])], ['dot', shared]])), 'a built-in naming the `dot` dispatcher; the dispatcher is no built-in: Object.is')
         assertEq(refusal(module([['member', object([['startsWith', shared]])], ['dot', shared]])), 'a built-in naming the `dot` dispatcher; the dispatcher is no built-in: startsWith')
+        // nor may a built-in's body capture it, directly or through a
+        // function it captures: refused, never an item the table lacks
+        assertEq(refusal(module([['static', object([['Object', object([['f', fn(0, [shared], ['frame', 0])]])]])], ['dot', shared]])), 'a body capturing the `dot` dispatcher; no built-in reaches it: dot')
+        assertEq(refusal(module([['member', object([['startsWith', fn(1, [fn(0, [shared], ['frame', 0])], ['frame', 0])]])], ['dot', shared]])), 'a body capturing the `dot` dispatcher; no built-in reaches it: dot')
         const lazy = assertOk(generateRuntime(module([['static', object([['Number', object([['f', fn(1, [], ['&&', ['arg', 0], ['+', ['arg', 0], 1]])]])]])]])))
         assert(lazy.includes('    let c0 = || args.argument(0) + f64_any(0x3ff0000000000000);\n    Any::logical_and(args.argument(0), c0)\n'))
     },
