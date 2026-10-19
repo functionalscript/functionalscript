@@ -7,12 +7,14 @@
  * FunctionalScript logic without importing a module named after a different
  * host.
  *
- * **Three have two implementers**, all three dispatched rather than counted by
- * argument: {@link Sandbox}, {@link Catch} and {@link Import} are answered by
- * the browser page's interpreter as well as by Node's. `Import` arrived when
- * the page's module loading moved into FunctionalScript — its `import()` had
- * been an injected argument, and naming it is what let the walk over it be
- * shared.
+ * **Four have two implementers**, all four dispatched rather than counted by
+ * argument: {@link Sandbox}, {@link Catch}, {@link Import} and
+ * {@link RandomInt} are answered by a browser page as well as by Node. `Import`
+ * arrived when the page's module loading moved into FunctionalScript — its
+ * `import()` had been an injected argument, and naming it is what let the walk
+ * over it be shared. `RandomInt` arrived when a demo needed random input: it
+ * had been Node's alone, and the demo runtime answering it too is what moved
+ * it here.
  *
  * **{@link All}, {@link Write} and {@link Read} have one implementer**, and are
  * here on the layering argument instead — nothing about them is Node's: a byte stream named
@@ -136,6 +138,20 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  * *reachable* proof trees.
  */
 export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unknown>>]
+
+// randomInt
+
+/**
+ * Answers a random integer in `[0, 2^32)`: 32 random bits, from the host's
+ * secure generator.
+ *
+ * It is here because it has two implementers: Node, and the website's demo
+ * runtime. Both read the same `crypto.getRandomValues`, which every
+ * JavaScript host has, so one handler serves both — `randomInt` in
+ * [`./module.mjs`](./module.mjs). A caller that wants a reproducible sequence
+ * seeds its own pure generator with it rather than asking for more.
+ */
+export type RandomInt = readonly['randomInt', () => OpResult<number>]
 
 // all
 

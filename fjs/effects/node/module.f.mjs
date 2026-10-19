@@ -37,7 +37,7 @@ import { commandsOf, do_, errorMessage, ioError, toIoError } from '../module.f.m
 import { min } from '../../types/number/min/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import {
-    all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
+    all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
     catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
@@ -63,10 +63,10 @@ export { errorMessage, ioError, toIoError }
 // `../common`'s, kept visible here because `NodeOp` unions them and dozens of
 // call sites name them through this module — a live coupling, not a shim. An
 // operation belongs to the layer of whoever implements it: a browser page
-// dispatches `sandbox`, `catch` and `import`, and the rest are there because
+// dispatches `sandbox`, `catch`, `import` and `randomInt`, and the rest are there because
 // nothing about them is Node's. `../common/types.ts` keeps the count,
 // and says how it counts.
-export { all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
+export { all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write }
 
 /**
  * The host a {@link Listen} refuses.
@@ -394,11 +394,6 @@ export const inflateTrailingCode = 'ERR_TRAILING_BYTES'
  * @type {(count: number) => string}
  */
 export const inflateTrailingMessage = count => `${count} bytes after the end of the zlib stream`
-
-// randomInt
-
-/** @type {Func<RandomInt>} */
-export const randomInt = do_('randomInt')
 
 // exec
 
