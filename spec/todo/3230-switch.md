@@ -61,8 +61,10 @@ sentence of the grammar rather than a check after it.
 - `switch (e)` evaluates the discriminant once, eagerly, where the
   statement stands, as JavaScript evaluates it before any label.
 - A `case` is one or more labels and then a block — the guard's own
-  block: any number of statements and then a `return` or a
-  `throw`, so every branch terminates. Stacked labels, `case a: case b:`,
+  block: any number of statements and then the one statement every block
+  ends with, a `return`, a `throw`, or a switch with a `default`, whose
+  every branch ends so in turn — so every branch terminates. Stacked
+  labels, `case a: case b:`,
   share the one block, as in JavaScript. A label is any expression,
   evaluated where it stands and only when every label before it has not
   matched, in source order, as JavaScript evaluates them; a match is
