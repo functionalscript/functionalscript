@@ -76,8 +76,17 @@ tokenizer's side. `lib/js` adds one mapping for
 continuation, `\0`, with the `valid` flag as the mapping's result.
 `toJsToken` reads the cooked value and the `source` provenance off the node.
 `stringDecodeScan`, `templateDecodeStep` and the `_StringDecode` and
-`_TemplateDecode` types in `private.ts` go; `templateSourceAccepted` reads
-the escape nodes rather than the text. The remaining escapes in
+`_TemplateDecode` types in `private.ts` go. The compiler's tokenizer never
+sees a node: `js/tokenizer` answers it a `TemplateToken` of `kind`, the
+cooked `value` and the `source` text, and `templateSourceAccepted` scans
+that text for the FJS policy — the JSON escapes, an escaped backtick, an
+escaped `${`, and nothing else — because `A` and `\x41` cook to the same
+`value`. So the token carries what the policy decides on: `TemplateToken`
+gains `escapes`, each escape as the grammar's `templateEscape` classified
+it, and `templateSourceAccepted` becomes a test over that list, with no
+scanner and no escape state; the raw-control rule, no C0 control but CR
+and LF, is about characters and not escapes, and stays a character test
+over `source`. The remaining escapes in
 [single-quote-and-template-lexing](../../../ebnf/lib/js/todo/single-quote-and-template-lexing.md)
 then become one grammar branch plus one mapping arm each.
 
@@ -91,7 +100,8 @@ then become one grammar branch plus one mapping arm each.
 - [ ] Mappings for `singleQuoteEscape` and `templateEscape` in `lib/js`.
 - [ ] `toJsToken` over the mapped nodes; the scanners and their state types
       go.
-- [ ] `compiler/tokenizer` reads the nodes.
+- [ ] `TemplateToken` carries `escapes`; `compiler/tokenizer`'s policy reads
+      it, and its escape scan goes.
 
 ### Related
 

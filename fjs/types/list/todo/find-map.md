@@ -25,8 +25,8 @@ find(null)(p => p !== null)(map(([k, x]) => walk([...path, k])(x))(children))
 
 `findMap = f => compose(filterMap(f))(first(null))` in `fjs/types/list`:
 `filterMap` drops the `null`s lazily, so it stops at the first answer.
-`media` already walks a lazy list and uses it — one site, which the
-composition is still worth naming for.
+`media` already walks a lazy list and is its consumer today; the
+composition is worth naming for it alone.
 
 `nix` and `html` are recursive walks over arrays, one frame per level of
 nesting, and `firstReasonOf`'s doc says its `reduce` is a plain one on
