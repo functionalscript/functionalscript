@@ -279,13 +279,12 @@ export const proof = {
             assertEq(html.split('data-graph-port=""').length - 1, 1)
             assert(html.includes('<rect x="34" y="30" width="26" height="20" data-graph-value="">'), html)
         },
-        // With `targets`, an edge beside a value draws its target's label
+        // An edge beside a value draws its target's label
         // in the value's place, marked as a reference, and a keyed one its
         // key in the key column; a lazy one's kind stays on its line. A
         // target with no label of its own leaves the row as it was.
         refRow: () => {
             const html = htmlToString(graphSvg({
-                targets: true,
                 nodes: [{ id: 0, kind: 'a', label: 'or', rank: 0 }, { id: 1, kind: 'a', label: '{}', rank: 1 }, { id: 2, kind: 'a', label: 'x', rank: 1 }, { id: 3, kind: 'a', label: '', rank: 1 }],
                 edges: [{ from: 0, to: { inline: '5' }, label: '' }, { from: 0, to: 1, label: '' }, { from: 0, to: 2, label: 'k', kind: 'lazy' }, { from: 0, to: 3, label: '' }],
             }))
@@ -664,10 +663,11 @@ export const proof = {
             assert(html.includes('viewBox="0 0 138 40"'), html)
         },
         /**
-         * **Beside an inline value, an edge's key fills its row**, from
-         * the label column to the node's right side, and the edge leaves
-         * from there: no cell of the node is empty. `wide`'s keys share one
-         * column, 24px, and its value takes the rest. **A node keeps its
+         * **Beside an inline value, an edge's key sits in the key
+         * column** and its target's label in the value's, and the edge
+         * leaves from the row's right side: no cell of the node is empty.
+         * `wide`'s keys share one column, 24px, and its value and its
+         * edge's target take the rest. **A node keeps its
          * own width**, so `narrow` is 78px in a column whose `wide` is
          * 88px, and its edge runs straight right to the column's edge
          * before it turns rather than cutting across the next column.
@@ -693,16 +693,12 @@ export const proof = {
             assert(html.includes('<rect x="114" y="10" width="88" height="40" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="154" y="10" width="24" height="20" data-graph-port="">'), html)
             assert(html.includes('<rect x="178" y="10" width="24" height="20" data-graph-value="">'), html)
-            assert(html.includes('<rect x="154" y="30" width="48" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="154" y="30" width="24" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="178" y="30" width="24" height="20" data-graph-value="" data-graph-value-ref="">'), html)
             assert(html.includes('<rect x="114" y="64" width="78" height="20" rx="4" data-graph-node=""'), html)
             assert(html.includes('d="M202,40 L242,23"'), html)
             assert(html.includes('d="M192,74 L202,74 L242,23"'), html)
             assertEq(_crossings(g), 0)
-            // With `targets`, the edge's key sits in the key column and
-            // its target's label in the value's.
-            const targeted = htmlToString(graphSvg({ ...g, targets: true }))
-            assert(targeted.includes('<rect x="154" y="30" width="24" height="20" data-graph-port="">'), targeted)
-            assert(targeted.includes('<rect x="178" y="30" width="24" height="20" data-graph-value="" data-graph-value-ref="">'), targeted)
         },
         /**
          * **A node's cells round with its corners.** Square cells over a
