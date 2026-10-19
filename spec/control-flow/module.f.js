@@ -20,4 +20,9 @@ const loops = [
     ['Loop', 'export default n => {\n    let r = 1;\n    while (r < n) {\n        r = r * 2;\n    }\n    return r;\n};'],
 ]
 
-export default { guards, loops, all: [...guards, ...loops] }
+/** @type {Examples} */
+const switches = [
+    ['Switch', 'export default node => {\n    switch (node[0]) {\n        case "array": case "object": { return "container"; }\n        case "string": { return "text"; }\n        default: { throw ["unknown", node[0]]; }\n    }\n};'],
+]
+
+export default { guards, loops, switches, all: [...guards, ...loops, ...switches] }

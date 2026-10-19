@@ -1327,6 +1327,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Loop': 'xxooo',
                 'Throw': 'xxooo',
                 'Early return': 'xxooo',
+                'Switch': 'xxooo',
                 'Shorthand members': 'ooooo',
                 'Destructuring': 'ooooo',
                 'Methods and properties': 'ooooo',
