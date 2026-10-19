@@ -8,7 +8,7 @@
  * @import { Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Console, Read, ReadConsoles, Write, WriteConsoles, _UtfList } from './types.ts'
- * @import { All, Catch, Import, Sandbox, SandboxResult } from './types.ts'
+ * @import { All, Catch, Import, RandomInt, Sandbox, SandboxResult } from './types.ts'
  */
 
 import { do_, pure, pureOk, resultMapStep, step } from '../module.f.mjs'
@@ -43,6 +43,13 @@ export const sandbox = do_('sandbox')
  * @type {Func<Catch>}
  */
 export const catch_ = do_('catch')
+
+/**
+ * Asks the host for a random integer in `[0, 2^32)`. See {@link RandomInt}.
+ *
+ * @type {Func<RandomInt>}
+ */
+export const randomInt = do_('randomInt')
 
 // all
 
