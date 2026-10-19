@@ -14,6 +14,7 @@
  * @module
  *
  * @import { StructField } from '../../types/ts/types.ts'
+ * @import { Marked } from '../../text/marked/types.ts'
  * @import { Type } from '../types.ts'
  * @import { ArraySet, Data, Node, ObjectSet, RuleSet, UnionAlgebra, UnionSet } from '../data/types.ts'
  * @import { _Ctx } from './private.ts'
@@ -23,7 +24,9 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { assoc, dedup } from '../../types/array/module.f.mjs'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { primitive, union, printer as tsPrinter } from '../../types/ts/module.f.mjs'
+import { _taggedPrimitive as primitive, _taggedUnion as union, _taggedPrinter as tsPrinter } from '../../types/ts/module.f.mjs'
+import { fromTagged, tagged, untagged } from '../../text/marked/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 import {
     absentBit,
     admitsAbsence as dataAdmitsAbsence,
@@ -52,6 +55,10 @@ const reserved = [
     // type-operator keywords, and `intrinsic` (TS2795 outside lib.d.ts)
     'infer', 'intrinsic', 'keyof', 'readonly', 'unique',
 ]
+
+const keyword = tagged('keyword')
+
+const literal = tagged('literal')
 
 /** @type {(c: string) => boolean} */
 const isIdStart = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_' || c === '$'
@@ -103,7 +110,7 @@ const identifiers = rules => {
  */
 const nodeToTs = ctx => n =>
     typeof n === 'string'
-        ? assertNotNullish(assoc(n)(ctx.ids), `missing definition: ${n}`)
+        ? tagged('identifier')(assertNotNullish(assoc(n)(ctx.ids), `missing definition: ${n}`))
         : unionToTs(ctx)(n)
 
 /**
@@ -243,12 +250,12 @@ const objectSetToTs = ctx => p => {
  * @type {(ctx: _Ctx) => UnionAlgebra<string>}
  */
 const tsAlgebra = ctx => ({
-    top: 'unknown',
-    unit: name => name,
+    top: keyword('unknown'),
+    unit: name => name === 'null' || name === 'false' || name === 'true' ? literal(name) : keyword(name),
     whole: kind =>
-        kind === 'array' ? ctx.ts.array('unknown')
-        : kind === 'object' ? ctx.ts.record('unknown')
-        : kind,
+        kind === 'array' ? ctx.ts.array(keyword('unknown'))
+        : kind === 'object' ? ctx.ts.record(keyword('unknown'))
+        : keyword(kind),
     number: primitive,
     string: primitive,
     bigint: primitive,
@@ -269,6 +276,21 @@ const tsAlgebra = ctx => ({
  * @type {(ctx: _Ctx) => (u: UnionSet) => string}
  */
 const unionToTs = ctx => unionFold(tsAlgebra(ctx))
+
+/**
+ * The definitions and entry expression of a {@link Data} as tagged text.
+ *
+ * @type {(mut?: true) => (data: Data) => readonly [readonly (readonly [string, string])[], string]}
+ */
+const dataToTagged = mut => ([rules, entry]) => {
+    /** @type {_Ctx} */
+    const ctx = { ts: tsPrinter(mut), ids: identifiers(rules), rules }
+    return [
+        definedEntries(rules).map(([n, u]) =>
+            /** @type {const} */ ([nodeToTs(ctx)(n), unionToTs(ctx)(u)])),
+        nodeToTs(ctx)(entry),
+    ]
+}
 
 /**
  * Renders a serializable RTTI {@link Data} (from `toData`) as TypeScript:
@@ -292,14 +314,28 @@ const unionToTs = ctx => unionFold(tsAlgebra(ctx))
  *
  * @type {(mut?: true) => (data: Data) => readonly [readonly (readonly [string, string])[], string]}
  */
-export const dataToTs = mut => ([rules, entry]) => {
-    /** @type {_Ctx} */
-    const ctx = { ts: tsPrinter(mut), ids: identifiers(rules), rules }
-    return [
-        definedEntries(rules).map(([n, u]) =>
-            /** @type {const} */ ([nodeToTs(ctx)(n), unionToTs(ctx)(u)])),
-        nodeToTs(ctx)(entry),
-    ]
+export const dataToTs = mut => data => {
+    const [definitions, entry] = dataToTagged(mut)(data)
+    return [definitions.map(([n, t]) => [untagged(n), untagged(t)]), untagged(entry)]
+}
+
+/** @type {(tagged: string) => Marked} */
+const resolved = text => unwrap(fromTagged(text))
+
+/**
+ * {@link dataToTs}, marked: the same definitions and entry expression, each
+ * as runs whose text is the text `dataToTs` answers. The `type` and `readonly`
+ * keywords and the type names — `string`, `number`, `bigint`, `boolean`,
+ * `unknown`, `never`, `undefined`, `in` — are `keyword`s; `null`, `true` and
+ * `false` are `literal`s; string and number literal types are `string` and
+ * `number`; an alias name is an `identifier`. The `type` keyword and the `=`
+ * of a definition are the caller's to write, as `dataToTs` leaves them.
+ *
+ * @type {(mut?: true) => (data: Data) => readonly [readonly (readonly [Marked, Marked])[], Marked]}
+ */
+export const dataToTsMarked = mut => data => {
+    const [definitions, entry] = dataToTagged(mut)(data)
+    return [definitions.map(([n, t]) => [resolved(n), resolved(t)]), resolved(entry)]
 }
 
 /**

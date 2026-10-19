@@ -35,3 +35,7 @@ and not about this representation.
 - [ ] A base and a target as `Vec` chunks, with the copy and the insert on them,
       proven against `tryApplyDelta`'s results on the same deltas.
 - [ ] `packstore` chains through it; `maxDeltaBytes` goes or is restated.
+
+### Related
+
+- [delta-ceiling](./delta-ceiling.md) — the number the ceiling is until this lands, and the decision on it.
