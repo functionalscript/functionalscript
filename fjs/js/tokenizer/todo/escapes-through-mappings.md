@@ -37,9 +37,19 @@ to make unnecessary.
 
 ### Proposal
 
-Give the token layer a rewrite set, as the JSON reader has. `escapeMapping`
-and `characterMapping` move down to `lib/json`, beside the rules they map, so
-neither reader imports the other; `lib/js` adds one mapping for
+Give the token layer a rewrite set, as the JSON reader has. The string
+mappings move down to `lib/json`, beside the rules they map, and they do
+not move alone: `escapeMapping` and `characterMapping` close over `textTag`,
+the `Text` symbol `tagged('text', 'value')` makes, and `stringMappings` is
+read back through `textAt`, all of which `json/parser` owns today and the
+DataJS parser imports from it. The layer that moves is the whole of it —
+`tagged` and the `Text` tag, `textAt`, the three string mappings — into
+`lib/json` or a module beside it, so that `json/parser`, `datajs/parser`
+and the tokenizer each import the grammar's reader of its own strings and
+none imports another reader. That is the one owner
+[parser-meta-accessors](../../../media/todo/parser-meta-accessors.md) is
+already giving the tagged-symbol accessors, and this lands on it. `lib/js`
+adds one mapping for
 `singleQuoteEscape` and one for `templateEscape` — `\x`, `\u{…}`, line
 continuation, `\0`, with the `valid` flag as the mapping's result.
 `toJsToken` reads the cooked value and the `source` provenance off the node.
@@ -51,8 +61,9 @@ then become one grammar branch plus one mapping arm each.
 
 ### Tasks
 
-- [ ] `escapeMapping` and `characterMapping` in `lib/json`; `json/parser`
-      imports them.
+- [ ] The text-tag layer — `tagged`, the `Text` tag, `textAt` and the string
+      mappings — in `lib/json` or beside it, on parser-meta-accessors'
+      owner; `json/parser` and `datajs/parser` import it.
 - [ ] Mappings for `singleQuoteEscape` and `templateEscape` in `lib/js`.
 - [ ] `toJsToken` over the mapped nodes; the scanners and their state types
       go.
@@ -64,3 +75,5 @@ then become one grammar branch plus one mapping arm each.
   — the escapes still to add.
 - [mapping-precheck](../../../ebnf/ll1/todo/mapping-precheck.md) — what a
   mapping may assume.
+- [parser-meta-accessors](../../../media/todo/parser-meta-accessors.md) —
+  the one owner of the tagged-symbol accessors this builds on.
