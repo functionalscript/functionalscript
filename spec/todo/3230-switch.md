@@ -223,12 +223,19 @@ implementation's pull request:
 - [ ] `spec/control-flow/switch.md`, a `switch` program in the control-flow
   demo module with its real output, and the same graph and hash asserted
   against the hand-written chain of guards
+- [ ] the pages and rows that say a block ends in `return` or `throw`
+  naming the third terminator, a switch with a `default`:
+  [guards](../control-flow/guards.md), and the `st.guard`, `st.body-end`
+  and `st.unreachable` rows of [refused constructs](./refused-constructs.md)
 - [ ] the `st.switch` row of [refused constructs](./refused-constructs.md)
-  narrowed to the forms this record leaves out — a case without braces, a
-  case block that does not terminate, `break` in a case, a switch at
-  module level or in a loop's block — planned under [Later](#later), as
-  the `st.guard` row holds the guard's follow-ups; and the
-  `st.break-continue` row naming this record too
+  narrowed to every form this record refuses — a case without braces, a
+  case block that does not terminate, `break` in a case, a `default` that
+  is not last, a label stacked with the `default`, a switch with no case
+  or of a `default` alone, a switch at module level or in a loop's block —
+  planned where [Later](#later) names the form and design where
+  [Refusals](#proposal) alone does, as the `st.guard` row holds the
+  guard's follow-ups; and the `st.break-continue` row naming this record
+  too
 - [ ] the standard modules whose `switch` the form refuses — a case block
   that does not terminate, a case without braces — rewritten or waiting on
   a follow-up, each named
