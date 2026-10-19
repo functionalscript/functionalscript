@@ -214,9 +214,10 @@ implementation's pull request:
 
 ### Tasks
 
-- [x] `switch` and `case` among the framing keywords; the three grammar
-  rules in `fjs/compiler/parser/grammar`, with the register's refusals
-  pinned in its proof
+- [x] `switch` and `case` among the framing keywords; the grammar rules in
+  `fjs/compiler/parser/grammar` — the switch a terminator that holds the
+  rest of its block, its cases recursive through variants, which is what
+  keeps the rule's type finite — with the refusals pinned in its proof
 - [x] the fold in `fjs/compiler/parser`: the discriminant as an entry of
   the body, each label entered in order, each block an arm as a guard's,
   the chain closed from the last case back
