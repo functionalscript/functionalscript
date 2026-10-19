@@ -11,7 +11,7 @@
  * executor makes it with no runtime — the receiver's own property, else
  * the native, else the `TypeError` of calling `undefined`. That is how the
  * runtime's bodies reach a native without naming what the runtime defines
- * ([`../todo/runtime-value.md`](../todo/runtime-value.md)): the runtime
+ * ([`../runtime/README.md`](../runtime/README.md), "Two invariants"): the runtime
  * holds no member call: `found` calls `slice` as a function, and
  * `codePointAt` calls `charCodeAt`.
  *

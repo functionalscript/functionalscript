@@ -24,9 +24,9 @@
 //! A property step holds its receiver and key, [`Member`], and the read
 //! waits for the exit: `end` reads, and a call exit resolves the callee —
 //! an object's own property or an array's element first, then the
-//! receiver type's built-in member function ([`method`](method::method)),
-//! then the function the runtime value's `dot` answers for the receiver,
-//! then the `TypeError` for calling `undefined`. A call step on a member
+//! function the runtime value's `dot` answers for the receiver, then the
+//! receiver type's built-in member function ([`method`](method::method))
+//! for a name without a body, then the `TypeError` for calling `undefined`. A call step on a member
 //! takes the runtime value for that, `&runtime`, the parameter every
 //! compiled module receives (`fjs/js/runtime/README.md`, "How NaNVM finds
 //! it"); a step on a plain value needs none. No user function reads
@@ -61,8 +61,9 @@ pub(crate) trait Live<A: IVm>: Sized {
     /// receiver, which the runtime value's `dot` answers.
     fn is_nullish(&self, runtime: &Any<A>) -> Result<bool, Any<A>>;
     /// The call, its arguments evaluated: `Any::call` of a value, and a
-    /// member's own-property-first resolution, the runtime value asked
-    /// last.
+    /// member's resolution — the receiver's own property, the function
+    /// the runtime value's `dot` answers, the native for a name without a
+    /// body, the `TypeError`.
     fn call(self, runtime: &Any<A>, args: Any<A>) -> Result<Any<A>, Any<A>>;
 }
 

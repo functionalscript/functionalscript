@@ -7,11 +7,12 @@ use crate::vm::{
 /// A property step's live state: the receiver and the key, the read
 /// deferred to the exit that needs it. `end` reads the property; a call
 /// exit resolves the callee — an object's own property or an array's
-/// element first, then the receiver type's built-in member function — and
-/// the guard of `|?.()` asks the same resolution whether there is a callee
-/// at all. Holding the key rather than the value is what lets a call reach
-/// a built-in the receiver does not own, `[1].at(0)`, and what keeps the
-/// receiver for it.
+/// element first, then the body the runtime value's `dot` answers for the
+/// name, then the receiver type's native member function for a name
+/// without a body — and the guard of `|?.()` asks the same resolution
+/// whether there is a callee at all. Holding the key rather than the
+/// value is what lets a call reach a built-in the receiver does not own,
+/// `[1].at(0)`, and what keeps the receiver for it.
 ///
 /// The receiver is never nullish: [`Member::new`] throws for one, before
 /// the arguments of any step, and a live chain is one that got past it.
@@ -73,8 +74,11 @@ impl<A: IVm> Member<A> {
     /// the name is no member of, or the throw of its first step
     /// (`fjs/js/runtime`'s `dot`; `fjs/js/runtime/README.md`, "How NaNVM
     /// finds it"). `dot` is pure, so the guard of `?.()` and the call may
-    /// each ask it. Asked after the native table, so a name both answer is
-    /// the native's, the substitution DESIGN.md §13 allows a VM.
+    /// each ask it. Asked before the native table, as the interpreter asks
+    /// it, so a name with a body is the body's wherever it is called and a
+    /// native beside a body is unreachable: substituting a native for a
+    /// body, which DESIGN.md §13 allows a VM, is a measured change to this
+    /// order, not an entry in the table.
     fn body(&self, runtime: &Any<A>) -> Result<Option<Any<A>>, Any<A>> {
         let dot = runtime.clone().dot("dot".into()).end()?;
         let callee = dot.call(
@@ -98,28 +102,28 @@ impl<A: IVm> Member<A> {
         match self.own() {
             Some(v) => Ok(v.is_nullish()),
             None => {
-                Ok(method(&self.receiver, &self.key).is_none() && self.body(runtime)?.is_none())
+                Ok(self.body(runtime)?.is_none() && method(&self.receiver, &self.key).is_none())
             }
         }
     }
 
     /// The call, its arguments already evaluated: the own property or
     /// element if there is one — `Any::call` throwing for a value that is
-    /// no function — else the receiver type's native built-in of the name
-    /// with the receiver, else the function the runtime value's body
-    /// answers for the receiver, called with the arguments, else the
-    /// `TypeError` for calling `undefined`, as JavaScript throws on a type
-    /// without the method. The arguments are the array a call spreads, and
-    /// a value that is no array throws on every path, through
-    /// `Array::try_from` as `Any::call` throws, before a built-in sees
-    /// them.
+    /// no function — else the function the runtime value's body answers
+    /// for the receiver, called with the arguments, else the receiver
+    /// type's native built-in of the name with the receiver, for a name
+    /// without a body, else the `TypeError` for calling `undefined`, as
+    /// JavaScript throws on a type without the method. The arguments are
+    /// the array a call spreads, and a value that is no array throws on
+    /// every path, through `Array::try_from` as `Any::call` throws,
+    /// before a built-in sees them.
     pub(crate) fn call(self, runtime: &Any<A>, args: Any<A>) -> Result<Any<A>, Any<A>> {
         match self.own() {
             Some(callee) => callee.call(args),
-            None => match method(&self.receiver, &self.key) {
-                Some(f) => f(self.receiver, Array::try_from(args)?),
-                None => match self.body(runtime)? {
-                    Some(f) => f.call(args),
+            None => match self.body(runtime)? {
+                Some(f) => f.call(args),
+                None => match method(&self.receiver, &self.key) {
+                    Some(f) => f(self.receiver, Array::try_from(args)?),
                     None => Any::undefined().call(args),
                 },
             },
@@ -178,6 +182,65 @@ mod tests {
         assert_eq!(
             not_callable.dot("toString".into()).end_call(&rt(), no_args),
             Err(error::unexpected_type())
+        );
+    }
+
+    /// The runtime value's `dot` is asked before the native table: a body
+    /// for a name the table answers too is what the call reaches, and the
+    /// table answers only where `dot` says `undefined` — `at`, which has
+    /// no body in the runtime, is the native's through it.
+    #[test]
+    fn body_before_native() {
+        let answering: Any<A> = [(
+            "dot".into(),
+            A::static_function(
+                |self_, _| Ok(A::frame(self_)[0].clone()),
+                2,
+                [seven()].to_array(),
+                None,
+            )
+            .to_any(),
+        )]
+        .to_object()
+        .to_any();
+        let one: Any<A> = [1.0.to_any()].to_array().to_any();
+        let zero = || Ok([0.0.to_any()].to_array().to_any());
+        assert_eq!(
+            one.clone().dot("at".into()).end_call(&answering, zero),
+            Ok(7.0.to_any())
+        );
+        assert_eq!(one.dot("at".into()).end_call(&rt(), zero), Ok(1.0.to_any()));
+    }
+
+    /// The guard of `?.()` asks `dot` before the native table too, and
+    /// before any argument: for `[1].at?.(x)` on a runtime whose `dot`
+    /// throws, the answer is that throw and `x` is never evaluated, where
+    /// the native table alone would call `at` with `x`. The call asks in
+    /// the same order.
+    #[test]
+    fn guard_asks_body_first() {
+        let throwing: Any<A> = [(
+            "dot".into(),
+            A::static_function(|_, _| Err("boom".into()), 2, [].to_array(), None).to_any(),
+        )]
+        .to_object()
+        .to_any();
+        let one: Any<A> = [1.0.to_any()].to_array().to_any();
+        assert_eq!(
+            one.clone()
+                .dot("at".into())
+                .option_call(&throwing, || panic!("the argument is not evaluated"))
+                .end(),
+            Err("boom".into())
+        );
+        let zero = || Ok([0.0.to_any()].to_array().to_any());
+        assert_eq!(
+            one.clone().dot("at".into()).option_call(&rt(), zero).end(),
+            Ok(1.0.to_any())
+        );
+        assert_eq!(
+            one.dot("at".into()).end_call(&throwing, zero),
+            Err("boom".into())
         );
     }
 

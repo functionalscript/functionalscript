@@ -31,10 +31,9 @@
  * own enumerable property under the key, whatever it holds, which shadows
  * a built-in as it does in JavaScript, else what the `member` body of the
  * name answers for the receiver, else `undefined`, which the executor
- * calls and throws for, or skips under `?.()`. The interpreter asks it
- * first and its natives after; NaNVM's call step asks its native first
- * and then `dot`, until `dot` dispatches the natives too
- * ([`../todo/runtime-value.md`](../todo/runtime-value.md)). The README
+ * calls and throws for, or skips under `?.()`. Every executor asks it
+ * before its natives, which answer the names without a body
+ * ([`../todo/runtime-members.md`](../todo/runtime-members.md)). The README
  * says how each binds it and how a name gets its body.
  *
  * @module

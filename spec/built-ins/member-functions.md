@@ -34,7 +34,7 @@ names. The call means exactly what the member call means with no runtime:
 the receiver's own property, else the native, else the `TypeError`. The
 runtime's own bodies reach a native this way, so the runtime names nothing
 it defines ([`fjs/js/intrinsic`](../../fjs/js/intrinsic/module.f.js);
-[runtime-value](../../fjs/js/todo/runtime-value.md)).
+[the runtime's README](../../fjs/js/runtime/README.md)).
 
 Native execution has these limits:
 

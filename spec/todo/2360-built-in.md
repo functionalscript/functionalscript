@@ -101,7 +101,8 @@ holds nothing at its path, and each executor answers the node itself: the
 represented interpreter with a function value of its own,
 `['Object.entries']`, called natively as `['entry']` is; NaNVM with the
 closure over `Any::entries` the runtime value holds at the path
-([runtime-value](../../fjs/js/todo/runtime-value.md)), so every read is
+([the runtime's README](../../fjs/js/runtime/README.md), "How NaNVM finds
+it"), so every read is
 the one function.
 
 **Destructuring.** `entries` is a prototype name, `Array.prototype`'s,

@@ -258,10 +258,10 @@ export const proof = {
     // `Object.entries` is the built-in itself at its own table entry, the
     // one static node anywhere, so no body reads it — so the module can be
     // evaluated with no runtime, and NaNVM can hold it as a value whose
-    // bodies never name it (`../todo/runtime-value.md`). The
-    // intrinsic is there, as a node, where the member call was. An
-    // absence is a finding only of a detector that sees: each is shown a
-    // node it is for, first.
+    // bodies never name it (`../runtime/README.md`, "How NaNVM finds
+    // it"). The intrinsic is there, as a node, where the member call was.
+    // An absence is a finding only of a detector that sees: each is shown
+    // a node it is for, first.
     core: () => {
         assertEq(steps([['|()', ['=>', 0, [], 1], []]]).join(), '|()')
         assertEq(statics([['Object.is']]).join(), 'Object.is')

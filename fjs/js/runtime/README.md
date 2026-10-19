@@ -71,21 +71,22 @@ the **runtime's body**, asked for the receiver alone — the function of
 the arguments, which the VM then calls, or `undefined`; else the
 `TypeError` for calling `undefined`, with nothing built on the way. A
 **native** implementation stands in for a body a name does not have yet,
-and where a VM puts it differs while the transition lasts: the
-interpreter asks `dot` first and its natives after; NaNVM's call step
-asks its native first and then the runtime value's `dot` — the own
-property, its native, the body — until `dot` dispatches the natives too,
-through bodies written over the intrinsics, which
-[`../todo/runtime-value.md`](../todo/runtime-value.md) tracks. The guard
+asked where `dot` answers `undefined`: every VM asks `dot` first and its
+natives after, so a body answers its name wherever it is called, and the
+native table holds the names without one, which
+[`../todo/runtime-members.md`](../todo/runtime-members.md) gives their
+bodies one at a time. The guard
 of an optional call, `a.startsWith?.(x)`, asks the
 same steps before it evaluates `x`, the body's first step among them; a
 body is pure, so a guard and a call ask it twice at no cost but the
 call.
-A native implementation may stand beside a body where the VM measures the
-gain; the body is the reference, and the corpus in
-[`../../nanvm/member`](../../nanvm/member/module.f.js) checks the native
-answer against it. A name without a body keeps the host engine as its
-oracle there, as every name had before, until its body lands. The completeness table
+A native beside a body is unreachable, since `dot` answers first; a VM
+that measures a gain in a native substitutes it for the body in its
+dispatch ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)),
+never as an entry in the table. The corpus in
+[`../../nanvm/member`](../../nanvm/member/module.f.js) checks every body
+against the host engine, which stays the oracle for a name without one,
+as it was for every name before. The completeness table
 [`../../nanvm/methods`](../../nanvm/methods/module.f.mjs) generates counts
 a body as an answer: every admitted pair is answered, natively or by a
 body, and no other pair is.
@@ -140,7 +141,7 @@ flowchart LR
     harness["harness<br/>interpret(pureOk(runtime)), compiled live"]
     interpreter["EDAG interpreter<br/>amnesia and memo"]
     naive["nanvm-lib<br/>runtime::<A>(), the value a compiled module takes"]
-    step["a call step<br/>own property, native, body, TypeError"]
+    step["a call step<br/>own property, body, native, TypeError"]
     src -->|import| host --> proof
     src --> compiler
     compiler -->|npm run gen| edag --> corpus --> interpreter
@@ -156,8 +157,8 @@ the interpreter uses: a consumer evaluates it once to the module's export
 object and passes that in the executor's context, or, where it already
 has the compiler loaded, interprets the source on the spot, as the
 harness does. The Rust is what NaNVM binds. Whatever the form, a call
-step resolves the same way: the receiver's own property, the VM's native
-implementation, the runtime's body, the `TypeError`.
+step resolves the same way: the receiver's own property, the runtime's body, the VM's
+native implementation for a name without one, the `TypeError`.
 
 ## How NaNVM finds it
 
@@ -179,24 +180,25 @@ sequenceDiagram
     participant R as the runtime value
     M->>L: Any::dot([1], "map").end_call(&runtime, args)
     L->>L: own property? none on an array
-    L->>T: method(receiver, "map")
-    T-->>L: None, once map has a body
     L->>R: runtime.dot(receiver, "map")
     R-->>L: the function of the arguments, or undefined
+    L->>T: method(receiver, "map"), for undefined
+    T-->>L: the native, while map has no body
     L->>L: f.call(args), or the TypeError
     L-->>M: the answer, or Err(thrown)
 ```
 
 `Member::call` in `vm/lambda/member.rs` resolves in that order — the
-receiver's own property, the native table in `vm/lambda/method.rs`, the
-runtime value's `dot`, asked for the receiver and the key and answering
-the function of the arguments or `undefined`, the `TypeError` for calling
-`undefined` — and the `?.()` guard asks the same lookups, before any
-argument is evaluated. A call step on a member takes `&runtime` for that;
-a step on a plain value, and a property read, take none. The order will
-shorten to `dot` alone once `dot` dispatches the natives too, through
-bodies written over the intrinsics
-([`../todo/runtime-value.md`](../todo/runtime-value.md)).
+receiver's own property, the runtime value's `dot`, asked for the
+receiver and the key and answering the function of the arguments or
+`undefined`, the native table in `vm/lambda/method.rs` for a name without
+a body, the `TypeError` for calling `undefined` — and the `?.()` guard
+asks the same lookups, before any argument is evaluated. A call step on a
+member takes `&runtime` for that; a step on a plain value, and a property
+read, take none. The native table shrinks as the names it answers get
+bodies ([`../todo/runtime-members.md`](../todo/runtime-members.md)), down
+to the intrinsics' names, `slice` and `charCodeAt`, which no body
+defines; its step stays while the table holds a name.
 
 **A static function is a value with no receiver.** The EDAG spells
 `Object.is` as the value `['Object.is']`, and `Number.isInteger` as
@@ -246,8 +248,10 @@ the crate declares `extern crate self as nanvm_lib`.
 
 Nothing is held by the library and no VM binds anything: a VM is a value
 representation, and the runtime is a value a module is given. A VM that
-wants a native implementation of a name that has a body adds it to the
-native table, which a call step asks first.
+wants a native implementation of a name that has a body substitutes it by
+a measured change to the call step's order
+([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution));
+the table is asked after `dot`, so an entry beside a body is unreachable.
 
 ## Two invariants
 
@@ -296,8 +300,9 @@ cycle:
    accepting the module.
 2. Remove the interpreter's native case in `edag/value/method`, so the
    body is what answers it there.
-3. Remove NaNVM's entry in `vm/lambda` and the typed method under it, or
-   keep it as an optimization with a measurement that justifies it.
+3. Remove NaNVM's entry in `vm/lambda` and the typed method under it:
+   `dot` is asked first, so the entry is unreachable once the body exists,
+   and the completeness test counts the body as the answer.
 4. `npm run gen`, then the corpus: the name's cases in `nanvm/member` run
    the body through `amnesia` and on NaNVM.
 
