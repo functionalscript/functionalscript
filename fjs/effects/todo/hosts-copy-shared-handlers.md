@@ -38,11 +38,17 @@ loop and one with `Array.from`; the Node host builds the `FileStat` literal
 
 ### Proposal
 
-- `commonOperationMapFor(run)` in `common/module.mjs`: the common map plus
-  `all` over the runner given, spread by each host as
-  `...commonOperationMapFor(runNodeEffect)`. The browser runner, which
-  [node-module-layering](./node-module-layering.md) names as the next host,
-  then gets `all` rather than a third copy.
+- `all` answered by the runner itself: `asyncRun` and `asyncPartialRun` in
+  [`module.mjs`](../module.mjs) build the loop that dispatches an operation,
+  so they are the one place that holds the runner `all` maps over, and they
+  add the `all` handler to the map they are given. No host writes it, and
+  the browser runner, which [node-module-layering](./node-module-layering.md)
+  names as the next host, gets it rather than a third copy. The knot is what
+  rules out the plainer `commonOperationMapFor(runNodeEffect)`: each host's
+  runner is a `const` whose initializer is the map, so passing the runner
+  into the map reads it in its own temporal dead zone, where the inline
+  handlers only close over it. A map built by the runner, or one given a
+  thunk of it, is the shape; the first needs nothing from the hosts.
 - The browser `import` handler is `io(() => import(specifier(…)))`, and one
   phrase: either `_unreadableThrownValue` loses its underscore and
   `unknownValue` is it, or `io` takes the phrase as an argument. The owner's
@@ -57,7 +63,8 @@ does not mention.
 
 ### Tasks
 
-- [ ] `commonOperationMapFor`; both hosts spread it and drop their `all`.
+- [ ] `all` in `asyncRun` and `asyncPartialRun`, with proof; both hosts drop
+      theirs.
 - [ ] The browser `import` through `io`; one phrase for the unreadable value,
       pinned on every host's report.
 - [ ] `maxFileSizeBytes` and the windowing shared; `fileStat` in the Node host.
