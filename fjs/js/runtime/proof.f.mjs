@@ -28,9 +28,9 @@ const steps = node => node instanceof Array
     ? [...(['|()', '|?.()', '|!()', '|.', '?.', '?.()'].includes(/** @type {string} */ (node[0])) ? [node[0]] : []), ...node.flatMap(steps)]
     : []
 
-/** The static-function nodes a node holds, anywhere in it. @type {(node: unknown) => readonly unknown[]} */
+/** The static-function nodes a node holds, anywhere in it, a shared node as often as it is reached: the table, which the `static` function captures and the `statics` export is, twice. @type {(node: unknown) => readonly (readonly [string])[]} */
 const staticNodes = node => node instanceof Array
-    ? [...(isStaticNode(node) ? [node[0]] : []), ...node.flatMap(staticNodes)]
+    ? [...(isStaticNode(node) ? [node] : []), ...node.flatMap(staticNodes)]
     : []
 
 /** The node an object node holds under a key. @type {(node: unknown, key: string) => unknown} */
@@ -263,7 +263,8 @@ export const proof = {
         assertEq(staticNodes([['Object.is']]).join(), 'Object.is')
         assertEq(steps(edag).join(), '')
         const natives = staticPaths.filter(isNative)
-        assertEq(staticNodes(edag).join(), natives.map(path => path.join('.')).join())
+        // the distinct static nodes: a body reading one writes a node of its own
+        assertEq([...new Set(staticNodes(edag))].map(node => node[0]).join(), natives.map(path => path.join('.')).join())
         for (const path of natives) {
             assertEq(JSON.stringify(at(at(edag, 'statics'), path.join('.'))), JSON.stringify([path.join('.')]))
         }
