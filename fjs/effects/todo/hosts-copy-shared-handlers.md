@@ -48,8 +48,12 @@ loop and one with `Array.from`; the Node host builds the `FileStat` literal
   answers no `all`, and a stray `all` node still asserts as the command it
   is not. A whole runner declares it in its type alone, which the loop
   cannot read, so the declaration is a builder: `asyncRunAll(map)` is
-  `asyncRun` with `all` tied over its own loop, and the Node and
-  SpiderMonkey hosts take it; the browser's two runners, over `Catch |
+  `asyncRun` with `all` tied over its own loop, and the Node host takes
+  it; the SpiderMonkey host's `runShellEffect` is
+  `asyncPartialRun(nodeCommands)` already — it implements part of `NodeOp`
+  and answers `notImplemented` for the rest through the partial runner —
+  and stays so, taking `all` because `nodeCommands` name it; the browser's
+  two runners, over `Catch |
   Sandbox | _BrowserReport` and `Import | _BrowserReport`, declare no `All`
   — [node-module-layering](./node-module-layering.md) records that its
   loading walk is a sequential fold again and `All` has no second
@@ -74,8 +78,9 @@ does not mention.
 
 ### Tasks
 
-- [ ] `asyncRunAll`, and `all` in `asyncPartialRun` where its commands name
-      it, with proof; the Node and SpiderMonkey hosts drop theirs.
+- [ ] `asyncRunAll`, which the Node host takes, and `all` in
+      `asyncPartialRun` where its commands name it, which gives the
+      SpiderMonkey host its own, with proof; both hosts drop theirs.
 - [ ] The browser `import` through `io`; one phrase for the unreadable value,
       pinned on every host's report.
 - [ ] `maxFileSizeBytes` and the windowing shared; `fileStat` in the Node host.
