@@ -826,12 +826,14 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
     /**
      * The block a thunk's `let` prints in: the scope's own, where it makes
      * the thunk, else the thunk whose block does — the one block reaching
-     * the operation the thunk is a lazy operand of. A thunk is a node: an
-     * atom's block binds nothing and asks for none.
+     * the operation the thunk is a lazy operand of — there is one, since
+     * every operation under `root` is reached eagerly by the scope or by a
+     * region, whose thunk holds the operands it makes. A thunk is a node:
+     * an atom's block binds nothing and asks for none.
      *
      * @type {(t: Exp) => Exp}
      */
-    const parent = t => outer.includes(t) ? root : thunks.find(u => u instanceof Array && u !== t && held(u).includes(t)) ?? root
+    const parent = t => outer.includes(t) ? root : /** @type {Exp} */ (thunks.find(u => u instanceof Array && u !== t && held(u).includes(t)))
     /**
      * What the blocks around `e`'s hold, out to the scope's own: bound
      * before `e`'s block runs, and so referenced by name there, never
