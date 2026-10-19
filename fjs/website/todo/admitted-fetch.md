@@ -63,12 +63,16 @@ rate-limit headers on the PR page, the status against the shape on the
 login page and in the worker. The refusal is for what no caller can read:
 transport, which says whether the request timed out, since the PR page
 words a timeout apart from a lost connection through `transportFailure`; a
-redirect where none is allowed; a body that is not JSON; a body no shape
-admits — and every refusal but transport carries the status
-and the headers too, since the PR page decides `onUnauthorized` on a 401
-and its retry note on a 403 or 429 from the status and the rate-limit
-headers alone, over a body its success readers do not admit. A caller that
-accepts more than one shape gives one
+body that is not JSON; a body no shape admits — and every refusal that had
+a response carries its status and headers, since the PR page decides
+`onUnauthorized` on a 401 and its retry note on a 403 or 429 from the
+status and the rate-limit headers alone, over a body its success readers do
+not admit. A redirect is whichever of those the `redirect` policy makes
+it: under the page hosts' `'error'` the fetch rejects and no `Response`
+exists, so it is a transport refusal like any other network error, with
+nothing to attach; under the worker's `'manual'` it is a response with a
+3xx status, which the worker refuses on the status as it does now. A
+caller that accepts more than one shape gives one
 `read` over their `or`: the login's `tokenSchema` or `exchangeFailureSchema`,
 the worker's `providerTokenSchema` or `providerErrorSchema`, so the error
 GitHub answers under 200 is admitted as what it is, and "fixed errors keep
