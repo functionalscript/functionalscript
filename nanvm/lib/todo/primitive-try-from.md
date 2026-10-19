@@ -47,6 +47,12 @@ conversion.
 - [ ] `TryFrom<Unpacked<A>> for Primitive<A>`.
 - [ ] `to_primitive_value`, `Any::to_primitive` and `to_numeric` through it;
       the `Dispatch` impl for `PrimitiveCoercionOp` goes.
+- [ ] In the same change, [to-primitive](./to-primitive.md)'s account of the
+      design names `Any::to_primitive` as the single entry where it names
+      `PrimitiveCoercionOp` — both where the conversions go through it and
+      where a function's `ToNumber` answers without asking it for text. That
+      issue describes the code as it stands, so it changes when the code
+      does, not before.
 
 ### Related
 
