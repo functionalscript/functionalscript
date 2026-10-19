@@ -26,7 +26,3 @@ Each of these is its own step, after the first one shipped:
   versions demos do for the Patricia trie and the B-tree.
 - **An `Id`.** Paste one and see which of the three it is: an L3 literal,
   a raw bit vector and its bits, or a hash.
-
-### Related
-
-- [end-padding.md](./end-padding.md) — the padding the hash levels add
