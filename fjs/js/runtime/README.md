@@ -199,9 +199,10 @@ receiver and the key and answering the function of the arguments or
 a body, the `TypeError` for calling `undefined` — and the `?.()` guard
 asks the same lookups, before any argument is evaluated. A call step on a
 member takes `&runtime` for that; a step on a plain value, and a property
-read, take none. The order shortens to `dot` alone once every name the
-native table answers has a body
-([`../todo/runtime-members.md`](../todo/runtime-members.md)).
+read, take none. The native table shrinks as the names it answers get
+bodies ([`../todo/runtime-members.md`](../todo/runtime-members.md)), down
+to the intrinsics' names, `slice` and `charCodeAt`, which no body
+defines; its step stays while the table holds a name.
 
 **A static function is a value with no receiver.** The EDAG spells
 `Object.is` as the value `['Object.is']`, and `Number.isInteger` as

@@ -61,8 +61,9 @@ pub(crate) trait Live<A: IVm>: Sized {
     /// receiver, which the runtime value's `dot` answers.
     fn is_nullish(&self, runtime: &Any<A>) -> Result<bool, Any<A>>;
     /// The call, its arguments evaluated: `Any::call` of a value, and a
-    /// member's own-property-first resolution, the runtime value asked
-    /// last.
+    /// member's resolution — the receiver's own property, the function
+    /// the runtime value's `dot` answers, the native for a name without a
+    /// body, the `TypeError`.
     fn call(self, runtime: &Any<A>, args: Any<A>) -> Result<Any<A>, Any<A>>;
 }
 
