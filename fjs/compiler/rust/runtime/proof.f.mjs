@@ -29,8 +29,9 @@ export const proof = {
      * `IStaticFunction` since it makes the function of the arguments, a
      * closure over its receiver — the helpers no section names by their
      * index, an import's export object folded to the function it holds,
-     * every frame slot a reference to an item, and the two tables, the
-     * natives `nanvm-lib` writes listed beside the bodies.
+     * every frame slot a reference to an item, the `dot` dispatcher
+     * compiled over the members, and the table of statics, the natives
+     * `nanvm-lib` writes listed beside the bodies.
      */
     runtime: () => {
         const rust = assertOk(generateRuntime(/** @type {Exp} */ (/** @type {unknown} */ (runtime))))
@@ -50,11 +51,14 @@ export const proof = {
             '        ("Object.is", object_is),',
             '        ("Number.isNaN", number_is_nan),',
             '        ("Object.entries", object_entries),',
-            '        ("startsWith", starts_with),',
+            // the dispatcher: the own entry, else the member the key names
+            'pub(crate) fn dot<A: IStaticFunction>(self_: Any<A>, key: Any<A>) -> Result<Any<A>, Any<A>> {\n    if Any::has_entry(self_.clone(), key.clone())? {\n        return Any::entry(self_, key);\n    }\n    match () {\n        _ if key.is_str("startsWith") => starts_with(self_),\n        _ => Ok(Nullish::Undefined.to_any()),\n    }\n}',
             'use nanvm_lib::vm::unstable::{f64_any, strict_eq, strict_ne, string_any};',
         ]) {
             assert(rust.includes(line), line)
         }
+        // the members have no table: the compiled `dot` is their lookup
+        assert(!rust.includes('fn members') && !rust.includes('MemberCode'))
         // no static evaluates anything or reads a frame: a closure is made
         // in the one member alone, and no member has a descriptor
         const statics = rust.slice(0, rust.indexOf('/// `startsWith`'))
@@ -66,8 +70,8 @@ export const proof = {
      * A small module, whole: a helper the static captures, an argument
      * read, a literal in every atom kind inlined where the slot is read,
      * `self` as the item itself, and a member reading its receiver, the
-     * code alone, a `fn` of the receiver. The two tables list the natives
-     * after the sections'.
+     * code alone, a `fn` of the receiver. The table of statics lists the
+     * natives after the section's.
      */
     small: () => {
         const helper = fn(1, [], ['+', ['arg', 0], 1])
@@ -80,8 +84,8 @@ export const proof = {
 
 use nanvm_lib::vm::unstable::{f64_any, string_any};
 use nanvm_lib::vm::{
-    Accessor, Any, Array, Function, IStaticFunction, IVm, MemberCode, Nullish, RuntimeFunction,
-    ToAny, ToArray, object_entries,
+    Accessor, Any, Array, Function, IStaticFunction, IVm, Nullish, RuntimeFunction, ToAny, ToArray,
+    object_entries,
 };
 
 /// \`f0\`
@@ -120,39 +124,30 @@ pub(crate) fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 2] {
         ("Object.entries", object_entries),
     ]
 }
-
-#[rustfmt::skip]
-pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1] {
-    [
-        ("tail", tail),
-    ]
-}
 `)
         // the tagged text resolves, every tag closed
         assertOk(fromTagged(assertOk(generateRuntimeTagged(root))))
     },
     /**
-     * Either section may be absent; with none, the tables hold the natives
-     * alone and `members` is empty. A body reading no argument takes
-     * `_args`, a member's `_self`, a static reading `rest` binds it first,
-     * and a body reading a nested thunk keeps the thunk's lines under its
-     * `let`.
+     * Either section may be absent; with none, the table holds the natives
+     * alone. A body reading no argument takes `_args`, a member's `_self`,
+     * a static reading `rest` binds it first, and a body reading a nested
+     * thunk keeps the thunk's lines under its `let`.
      */
     sections: () => {
         const one = fn(0, [], 1)
         const statics = assertOk(generateRuntime(module([['static', object([['Number', object([['one', one]])]])]])))
         assert(statics.includes('fn number_one_code<A: IVm>(_args: Array<A>) -> Result<Any<A>, Any<A>> {'))
-        assert(statics.includes('pub(crate) fn members<A: IStaticFunction>() -> [(&\'static str, MemberCode<A>); 0] {\n    []\n}'))
+        assert(!statics.includes('IStaticFunction'))
         const members = assertOk(generateRuntime(module([['member', object([['one', one]])]])))
         assert(members.includes('pub(crate) fn statics<A: IVm>() -> [(&\'static str, Accessor<A>); 1] {\n    [\n        ("Object.entries", object_entries),\n    ]\n}'))
-        assert(members.includes('fn one<A: IStaticFunction>(_self: Any<A>)') && members.includes('("one", one)'))
+        assert(members.includes('fn one<A: IStaticFunction>(_self: Any<A>)') && !members.includes('fn members'))
         assert(!members.includes('RuntimeFunction'))
         const tail = assertOk(generateRuntime(module([['static', object([['Object', object([['tail', fn(1, [], ['rest'])]])]])]])))
         assert(tail.includes('fn object_tail_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {\n    let rest = args.rest(1);\n    Ok(rest.clone().to_any())\n}'))
         const none = assertOk(generateRuntime(module([])))
-        assert(none.includes('Accessor<A>); 1]') && none.includes('MemberCode<A>); 0]'))
-        // the `dot` dispatcher is not printed, and must be a function
-        assertEq(assertOk(generateRuntime(module([['dot', fn(2, [], ['undefined'])]]))), none)
+        assert(none.includes('Accessor<A>); 1]') && !none.includes('MemberCode') && !none.includes('fn dot'))
+        // the `dot` dispatcher must be a function
         assertEq(refusal(module([['dot', 'x']])), 'a `dot` section that is no function: x')
         assertEq(refusal(module([['dot', object([])]])), 'a `dot` section that is no function: {},')
         // and no built-in may name the very function `dot` is: refused by
@@ -166,6 +161,66 @@ pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1
         assertEq(refusal(module([['member', object([['startsWith', fn(1, [fn(0, [shared], ['frame', 0])], ['frame', 0])]])], ['dot', shared]])), 'a body capturing the `dot` dispatcher; no built-in reaches it: dot')
         const lazy = assertOk(generateRuntime(module([['static', object([['Number', object([['f', fn(1, [], ['&&', ['arg', 0], ['+', ['arg', 0], 1]])]])]])]])))
         assert(lazy.includes('    let c0 = || args.argument(0) + f64_any(0x3ff0000000000000);\n    Any::logical_and(args.argument(0), c0)\n'))
+    },
+    /**
+     * The `dot` dispatcher is compiled by its shape — the receiver's own
+     * entry, else the member the key names called on the receiver, a
+     * `match` on the name over the member table it captures, else
+     * `undefined` — with the slots in any order and the table's read
+     * shared or spelled twice; a table with no member is the `undefined`
+     * alone. A `dot` of any other shape is refused, as is a table entry
+     * that is no member of the section.
+     */
+    dot: () => {
+        /** @type {(table: Exp, order?: readonly [number, number, number]) => Exp} */
+        const dispatcher = (table, [h, e, t] = [0, 1, 2]) => {
+            /** @type {Exp} */
+            const read = ['()', ['frame', e], [['frame', t], ['arg', 1]]]
+            /** @type {readonly Exp[]} */
+            const slots = []
+            const placed = [...slots]
+            placed[h] = ['hasEntry']
+            placed[e] = ['entry']
+            placed[t] = table
+            return fn(2, placed, ['?:', ['()', ['frame', h], [['arg', 0], ['arg', 1]]], ['()', ['frame', e], [['arg', 0], ['arg', 1]]],
+                ['?:', ['===', read, ['undefined']], ['undefined'], ['()', read, [['arg', 0]]]]])
+        }
+        const starts = fn(1, [], ['undefined'])
+        const at = fn(1, [], ['undefined'])
+        const table = object([['startsWith', starts], ['at', at]])
+        const compiled = 'pub(crate) fn dot<A: IStaticFunction>(self_: Any<A>, key: Any<A>) -> Result<Any<A>, Any<A>> {\n    if Any::has_entry(self_.clone(), key.clone())? {\n        return Any::entry(self_, key);\n    }\n    match () {\n        _ if key.is_str("startsWith") => starts_with(self_),\n        _ if key.is_str("at") => at(self_),\n        _ => Ok(Nullish::Undefined.to_any()),\n    }\n}'
+        assert(assertOk(generateRuntime(module([['member', table], ['dot', dispatcher(table)]]))).includes(compiled))
+        assert(assertOk(generateRuntime(module([['member', table], ['dot', dispatcher(table, [2, 0, 1])]]))).includes(compiled))
+        // the read spelled twice rather than shared
+        /** The body over the slots `hasEntry`, `entry`, the table, in that order, the read spelled twice. @type {Exp} */
+        const body = ['?:', ['()', ['frame', 0], [['arg', 0], ['arg', 1]]], ['()', ['frame', 1], [['arg', 0], ['arg', 1]]], ['?:', ['===', ['()', ['frame', 1], [['frame', 2], ['arg', 1]]], ['undefined']], ['undefined'], ['()', ['()', ['frame', 1], [['frame', 2], ['arg', 1]]], [['arg', 0]]]]]
+        assert(assertOk(generateRuntime(module([['member', table], ['dot', fn(2, [['hasEntry'], ['entry'], table], body)]]))).includes(compiled))
+        // no member: the `undefined` alone, and the bound `IStaticFunction` is the dispatcher's
+        const empty = assertOk(generateRuntime(module([['dot', dispatcher(object([]))]])))
+        assert(empty.includes('fn dot<A: IStaticFunction>(self_: Any<A>, key: Any<A>) -> Result<Any<A>, Any<A>> {\n    if Any::has_entry(self_.clone(), key.clone())? {\n        return Any::entry(self_, key);\n    }\n    Ok(Nullish::Undefined.to_any())\n}'))
+        assert(empty.includes('IStaticFunction,'))
+        // every other shape is refused: one argument, two slots, a helper
+        // or the table missing
+        const shape = 'a `dot` the printer does not compile; the dispatcher asks `hasEntry`, reads `entry`, else calls the member the key names on the receiver: dot'
+        /** @type {(dot: Exp) => void} */
+        const refused = dot => assertEq(refusal(module([['member', table], ['dot', dot]])), shape)
+        refused(fn(1, [['hasEntry'], ['entry'], table], body))
+        refused(fn(2, [['hasEntry'], ['entry']], ['undefined']))
+        refused(fn(2, [['entry'], ['entry'], table], body))
+        refused(fn(2, [['hasEntry'], ['hasEntry'], table], body))
+        refused(fn(2, [['hasEntry'], ['entry'], ['undefined']], body))
+        // a table that is no object literal is a stray module-level node,
+        // refused as every item's capture of one is
+        assert(refusal(module([['member', table], ['dot', fn(2, [['hasEntry'], ['entry'], ['[]', []]], body)]])).startsWith('no static Rust for a module-level node'))
+        // the slots in place, the body not the dispatcher's: the arguments
+        // swapped, a branch missing, the table read by the receiver
+        refused(fn(2, [['hasEntry'], ['entry'], table], ['?:', ['()', ['frame', 0], [['arg', 1], ['arg', 0]]], ['()', ['frame', 1], [['arg', 0], ['arg', 1]]], ['undefined']]))
+        refused(fn(2, [['hasEntry'], ['entry'], table], ['?:', ['()', ['frame', 0], [['arg', 0], ['arg', 1]]], ['()', ['frame', 1], [['arg', 0], ['arg', 1]]], ['undefined']]))
+        refused(fn(2, [['hasEntry'], ['entry'], table], ['?:', ['()', ['frame', 0], [['arg', 0], ['arg', 1]]], ['()', ['frame', 1], [['arg', 0], ['arg', 1]]], ['?:', ['===', ['()', ['frame', 1], [['frame', 2], ['arg', 0]]], ['undefined']], ['undefined'], ['()', ['()', ['frame', 1], [['frame', 2], ['arg', 0]]], [['arg', 0]]]]]))
+        // a table entry that is no member of the section: a function the
+        // section lacks, or one under another name
+        assertEq(refusal(module([['member', table], ['dot', dispatcher(object([['startsWith', starts], ['slice', fn(1, [], ['undefined'])]]))]])), 'a function no built-in reaches; a property written twice keeps its last value: =>,1,,undefined')
+        assertEq(refusal(module([['member', table], ['dot', dispatcher(object([['startsWith', at]]))]])), 'a `dot` table entry that is no member of the section: startsWith')
     },
     /** A built-in's identifier is `builtInIdentifier`'s, `isNaN` as `is_nan`. */
     identifiers: () => {

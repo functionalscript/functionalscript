@@ -1,17 +1,18 @@
-use super::method::{method, runtime};
+use super::method::{Method, method};
 use crate::vm::{
     Any, Array, IVm, Unpacked,
     member_access::{non_nullish_receiver, undefined_if_absent},
+    runtime::runtime_dot,
 };
 
 /// A property step's live state: the receiver and the key, the read
 /// deferred to the exit that needs it. `end` reads the property; a call
-/// exit resolves the callee — an object's own property or an array's
-/// element first, then the receiver type's built-in member function — and
-/// the guard of `|?.()` asks the same resolution whether there is a callee
-/// at all. Holding the key rather than the value is what lets a call reach
-/// a built-in the receiver does not own, `[1].at(0)`, and what keeps the
-/// receiver for it.
+/// exit resolves the callee — the runtime's `dot`, the receiver's own
+/// property else the member the key names, then the native built-in of a
+/// name without a body — and the guard of `|?.()` asks the same
+/// resolution whether there is a callee at all. Holding the key rather
+/// than the value is what lets a call reach a built-in the receiver does
+/// not own, `[1].at(0)`, and what keeps the receiver for it.
 ///
 /// The receiver is never nullish: [`Member::new`] throws for one, before
 /// the arguments of any step, and a live chain is one that got past it.
@@ -67,40 +68,69 @@ impl<A: IVm> Member<A> {
         undefined_if_absent(self.own())
     }
 
+    /// What a call step finds under the key, in the order the runtime's
+    /// `dot` writes once ([`runtime_dot`]): what `dot` answers where it is
+    /// not nullish — the receiver's own enumerable property, whatever it
+    /// holds, or the function of the arguments the member body of the name
+    /// answers for the receiver; else, `dot` answering `undefined` alike
+    /// for an own property holding it, for a property the receiver owns
+    /// without enumerating, a `length`, and for a name with no body, the
+    /// own property where there is one, called and thrown for or skipped
+    /// as it is in JavaScript; else the native built-in of the name,
+    /// standing in for a body the name does not have yet; else nothing. A
+    /// body's throw, its first step's, is the step's.
+    fn resolve(&self) -> Result<Callee<A>, Any<A>> {
+        let answer = runtime_dot(self.receiver.clone(), self.key.clone())?;
+        if !answer.is_nullish() {
+            return Ok(Callee::Value(answer));
+        }
+        if let Some(own) = self.own() {
+            return Ok(Callee::Value(own));
+        }
+        Ok(match method(&self.receiver, &self.key) {
+            Some(f) => Callee::Native(f),
+            None => Callee::None,
+        })
+    }
+
     /// The guard of `|?.()`: whether the callee the call would find is
     /// nullish — an own property that is, or nothing at all, no own
     /// property and no built-in of the name, native or the runtime's, which
     /// the runtime's body decides for the receiver, and may throw deciding.
     /// `({}).at?.()` skips; `({}).toString?.()` calls.
     pub(crate) fn is_nullish(&self) -> Result<bool, Any<A>> {
-        match self.own() {
-            Some(v) => Ok(v.is_nullish()),
-            None => Ok(method(&self.receiver, &self.key).is_none()
-                && runtime(&self.receiver, &self.key)?.is_none()),
-        }
+        Ok(match self.resolve()? {
+            Callee::Value(v) => v.is_nullish(),
+            Callee::Native(_) => false,
+            Callee::None => true,
+        })
     }
 
-    /// The call, its arguments already evaluated: the own property or
-    /// element if there is one — `Any::call` throwing for a value that is
-    /// no function — else the receiver type's native built-in of the name
-    /// with the receiver, else the function the runtime's body answers for
-    /// the receiver, called with the arguments, else the `TypeError` for
-    /// calling `undefined`, as JavaScript throws on a type without the
+    /// The call, its arguments already evaluated: what [`Member::resolve`]
+    /// finds — a value, `Any::call` throwing for one that is no function;
+    /// a native built-in, with the receiver; or nothing, the `TypeError`
+    /// for calling `undefined`, as JavaScript throws on a type without the
     /// method. The arguments are the array a call spreads, and a value that
     /// is no array throws on every path, through `Array::try_from` as
     /// `Any::call` throws, before a built-in sees them.
     pub(crate) fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
-        match self.own() {
-            Some(callee) => callee.call(args),
-            None => match method(&self.receiver, &self.key) {
-                Some(f) => f(self.receiver, Array::try_from(args)?),
-                None => match runtime(&self.receiver, &self.key)? {
-                    Some(f) => f.call(args),
-                    None => Any::undefined().call(args),
-                },
-            },
+        match self.resolve()? {
+            Callee::Value(callee) => callee.call(args),
+            Callee::Native(f) => f(self.receiver, Array::try_from(args)?),
+            Callee::None => Any::undefined().call(args),
         }
     }
+}
+
+/// What a call step found under the key ([`Member::resolve`]).
+enum Callee<A: IVm> {
+    /// A value to call: the runtime's `dot`'s answer, or an own property it
+    /// answers `undefined` for.
+    Value(Any<A>),
+    /// The native built-in of a name without a body.
+    Native(Method<A>),
+    /// Nothing.
+    None,
 }
 
 #[cfg(test)]

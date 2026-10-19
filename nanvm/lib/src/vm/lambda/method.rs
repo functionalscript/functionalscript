@@ -2,7 +2,7 @@ use crate::{
     common::sized_index::SizedIndex,
     vm::{
         Any, Array, Function, IVm, Number, String, ToAny, Unpacked, array::callback::callback,
-        error, runtime::runtime_method,
+        error,
     },
 };
 
@@ -15,11 +15,13 @@ use crate::{
 pub(crate) type Method<A> = fn(Any<A>, Array<A>) -> Result<Any<A>, Any<A>>;
 
 /// The built-in member function a key names on the receiver's type, for
-/// the receiver a call step has found no own property on. The names a
-/// module may call are `allowedCalls` in `fjs/js/prototype`, and which of
-/// them this table answers, type by type, is
-/// `nanvm/lib/todo/member-functions.md`; a name the table lacks is `None`,
-/// and the call throws as JavaScript throws on a type without the method.
+/// the receiver the runtime's `dot` has answered `undefined` for and that
+/// owns nothing under the key: a native, standing in for a body the name
+/// does not have yet. The names a module may call are `allowedCalls` in
+/// `fjs/js/prototype`, and which of them this table answers, type by type,
+/// is `nanvm/lib/todo/member-functions.md`; a name the table lacks is
+/// `None`, and the call throws as JavaScript throws on a type without the
+/// method.
 ///
 /// `toString` needs no receiver type: every type has it. Every other name
 /// is the receiver type's own table, one function per type below.
@@ -32,24 +34,6 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
         Unpacked::String(_) => lookup(super::string::string(), key),
         Unpacked::Number(_) => lookup(super::number::number(), key),
         _ => None,
-    }
-}
-
-/// The runtime's member function under the key, asked for the receiver:
-/// the function of the arguments the body answers for a receiver the name
-/// is a member of, `None` for one it is not or for a name the runtime has
-/// no body for, and the body's throw where its first step throws
-/// ([`runtime_method`](crate::vm::runtime_method)). What a call step calls
-/// after the native table has no entry, and what the guard of `?.()` asks
-/// before any argument exists; the body is pure, so asking twice costs and
-/// changes nothing.
-pub(crate) fn runtime<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Result<Option<Any<A>>, Any<A>> {
-    match runtime_method::<A>(key) {
-        None => Ok(None),
-        Some(code) => {
-            let f = code(receiver.clone())?;
-            Ok(if f.is_nullish() { None } else { Some(f) })
-        }
     }
 }
 
@@ -349,7 +333,7 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IVm, ToAny, ToArray, ToObject, error},
+        vm::{Any, BigInt, IVm, ToAny, ToArray, ToObject, error, runtime_dot},
     };
 
     type A = Naive;
@@ -581,8 +565,7 @@ mod tests {
         let has = |(type_, name): &(&str, &str)| {
             let r = receiver(type_);
             let key: Any<A> = (*name).into();
-            super::method::<A>(&r, &key).is_some()
-                || super::runtime::<A>(&r, &key).unwrap().is_some()
+            super::method::<A>(&r, &key).is_some() || !runtime_dot(r, key).unwrap().is_nullish()
         };
         for pair in ANSWERED {
             assert!(has(pair), "{pair:?} is answered but has no entry");
@@ -604,27 +587,29 @@ mod tests {
         }
     }
 
-    /// The runtime answers `startsWith` on a string and nothing on a
-    /// receiver that is no string, the body deciding, and a call step
-    /// reaches the body: through the native table first, which has no
-    /// entry, then the runtime, the receiver alone first and then the
-    /// arguments; `?.()` sees the body's function as a callee on a string
-    /// and nothing on a number.
+    /// The runtime's `dot` answers `startsWith` on a string and nothing
+    /// on a receiver that is no string, the body deciding, and a call step
+    /// reaches the body through `dot`, the receiver alone first and then
+    /// the arguments, with no native entry for the name; `?.()` sees the
+    /// body's function as a callee on a string and nothing on a number.
     #[test]
     fn runtime_starts_with() {
         let key: Any<A> = "startsWith".into();
         assert!(super::method::<A>(&"abc".into(), &key).is_none());
-        assert!(super::runtime::<A>(&"abc".into(), &key).unwrap().is_some());
-        assert!(super::runtime::<A>(&1.0.to_any(), &key).unwrap().is_none());
         assert!(
-            super::runtime::<A>(&Any::undefined(), &key)
+            !runtime_dot::<A>("abc".into(), key.clone())
                 .unwrap()
-                .is_none()
+                .is_nullish()
         );
         assert!(
-            super::runtime::<A>(&"abc".into(), &"slice".into())
+            runtime_dot::<A>(1.0.to_any(), key.clone())
                 .unwrap()
-                .is_none()
+                .is_nullish()
+        );
+        assert!(
+            runtime_dot::<A>("abc".into(), "slice".into())
+                .unwrap()
+                .is_nullish()
         );
         assert_eq!(
             1.0.to_any()

@@ -6,18 +6,21 @@
 //! member's the code alone, of the receiver, answering `undefined` for a
 //! receiver the name is no member of or the function of the arguments, a
 //! closure over the receiver, since nothing reads a member as a value and a
-//! call step asks it in those two steps. Two tables, `statics` by name and
-//! `members` by name, are what [`runtime_static`] and [`runtime_method`]
-//! search. No VM holds a runtime, and nothing is evaluated: a built-in is
-//! one function by its name however often it is read, for every VM. The
-//! native
-//! tables in `vm/lambda` keep every name without a body, and may keep a
-//! name that has one where a measurement justifies the second
-//! implementation. [`object_entries`] is the one static function no body
-//! can define, written here and listed in the compiled table beside the
-//! bodies. The design: `fjs/js/runtime/README.md`, "How NaNVM finds it".
+//! call step asks it in those two steps. The runtime's `dot`, the
+//! dispatcher, is compiled by its shape: the receiver's own enumerable
+//! property, else the member the key names called on the receiver — a
+//! `match` on the name over the member bodies — else `undefined`, which
+//! is what a call step calls ([`runtime_dot`]). One table, `statics` by
+//! name, is what [`runtime_static`] searches. No VM holds a runtime, and
+//! nothing is evaluated: a built-in is one function by its name however
+//! often it is read, for every VM. The native tables in `vm/lambda` keep
+//! every name without a body, and may keep a name that has one where a
+//! measurement justifies the second implementation. [`object_entries`] is
+//! the one static function no body can define, written here and listed
+//! in the compiled table beside the bodies. The design:
+//! `fjs/js/runtime/README.md`, "How NaNVM finds it".
 
-use crate::vm::{Any, Array, IVm, MemberCode, RuntimeFunction};
+use crate::vm::{Any, Array, IVm, RuntimeFunction};
 
 /// The compiled runtime: a `#[path]`, since a `gen.` name is not a Rust
 /// identifier. Its accessors are every compiled module's, re-exported from
@@ -35,20 +38,19 @@ pub fn runtime_static<A: IVm>(name: &str) -> Option<&'static RuntimeFunction<A>>
         .map(|(_, accessor)| accessor())
 }
 
-/// The code the runtime's `member` section holds under the key, or `None`:
-/// a function of the receiver alone, answering `undefined` for a receiver
-/// the name is no member of, or the function of the arguments as the call
-/// passed them, a closure over the receiver, with no descriptor, since the
-/// language never reads a member as a value. A call step asks it after the
-/// receiver's own property and the native table
-/// ([`method`](crate::vm::lambda) in `vm/lambda/method.rs`), and before
-/// the `TypeError` for calling `undefined`; the guard of `?.()` asks the
-/// first step alone, before any argument exists.
-pub fn runtime_method<A: IVm>(key: &Any<A>) -> Option<MemberCode<A>> {
-    compiled::members::<A>()
-        .into_iter()
-        .find(|(k, _)| key.is_str(k))
-        .map(|(_, code)| code)
+/// The runtime's `dot`, compiled: what a call step calls for the receiver
+/// under the key — the receiver's own enumerable property, whatever it
+/// holds, so an own property shadows a member as in JavaScript; else the
+/// function of the arguments the member body of the name answers for the
+/// receiver, a closure over it, or `undefined` where the name is no member
+/// of the receiver's type or has no body; the body's throw where its first
+/// step throws. The one resolution, written once in `fjs/js/runtime` and
+/// asked by [`Member`](crate::vm::lambda) in `vm/lambda/member.rs` before
+/// its native table, and by the guard of `?.()` before any argument
+/// exists; a body is pure, so asking twice costs and changes nothing. The
+/// receiver is not nullish: the call step threw for one before.
+pub fn runtime_dot<A: IVm>(receiver: Any<A>, key: Any<A>) -> Result<Any<A>, Any<A>> {
+    compiled::dot(receiver, key)
 }
 
 /// The code of `Object.entries`: the entries of its first argument,
@@ -77,7 +79,7 @@ pub fn object_entries<A: IVm>() -> &'static RuntimeFunction<A> {
 
 #[cfg(test)]
 mod tests {
-    use super::{MemberCode, compiled::object_is, object_entries, runtime_method, runtime_static};
+    use super::{compiled::object_is, object_entries, runtime_dot, runtime_static};
     use crate::{
         naive::Naive,
         vm::{Any, BigInt, Function, IVm, ToAny, ToArray, ToObject},
@@ -85,20 +87,45 @@ mod tests {
 
     type A = Naive;
 
-    /// A member's code.
-    fn member(key: &str) -> Option<MemberCode<A>> {
-        runtime_method::<A>(&key.into())
-    }
-
-    /// A body is found by its name; a name without a body and an unknown
-    /// name are not, and the key is the name exactly.
+    /// `dot` on a string: a body is found by its name; a name without a
+    /// body, an unknown name, the name spelled otherwise and an index past
+    /// the end answer `undefined`, where an index within it is the
+    /// character, the string's own.
     #[test]
     fn lookup() {
-        assert!(member("startsWith").is_some());
-        assert!(member("slice").is_none());
-        assert!(member("nothing").is_none());
-        assert!(member("startswith").is_none());
-        assert!(runtime_method::<A>(&1.0.to_any()).is_none());
+        let dot = |key: Any<A>| runtime_dot("abc".into(), key).unwrap();
+        assert!(!dot("startsWith".into()).is_nullish());
+        assert!(dot("slice".into()).is_nullish());
+        assert!(dot("nothing".into()).is_nullish());
+        assert!(dot("startswith".into()).is_nullish());
+        assert!(dot(9.0.to_any()).is_nullish());
+        assert_eq!(dot(1.0.to_any()), "b".into());
+    }
+
+    /// `dot` on a receiver that owns the key: the own enumerable property
+    /// wins, whatever it holds — a function, a number under a member's
+    /// name, `undefined` — and an own property no entry sees, a `length`,
+    /// is `undefined` as a name without a body is.
+    #[test]
+    fn own_property() {
+        let seven = A::static_function(|_, _| Ok(7.0.to_any()), 0, [].to_array(), None).to_any();
+        let o: Any<A> = [
+            ("f".into(), seven.clone()),
+            ("startsWith".into(), 1.0.to_any()),
+            ("u".into(), Any::undefined()),
+        ]
+        .to_object()
+        .to_any();
+        assert_eq!(runtime_dot(o.clone(), "f".into()), Ok(seven));
+        assert_eq!(
+            runtime_dot(o.clone(), "startsWith".into()),
+            Ok(1.0.to_any())
+        );
+        assert_eq!(runtime_dot(o.clone(), "u".into()), Ok(Any::undefined()));
+        assert_eq!(runtime_dot(o, "x".into()), Ok(Any::undefined()));
+        let a: Any<A> = [8.0.to_any()].to_array().to_any();
+        assert_eq!(runtime_dot(a.clone(), 0.0.to_any()), Ok(8.0.to_any()));
+        assert_eq!(runtime_dot(a, "length".into()), Ok(Any::undefined()));
     }
 
     /// A static body is found by its name, and is the one its accessor
@@ -172,23 +199,24 @@ mod tests {
         assert!(entries.call([].to_array().to_any()).is_err());
     }
 
-    /// The code asked as a call step asks it: with the receiver alone
-    /// first, `undefined` for every receiver that is no string and the
-    /// function of the arguments for a string, then that function called
-    /// with the arguments — the compiled `startsWith`, on NaNVM.
+    /// The body asked as a call step asks it, through `dot`: with the
+    /// receiver alone first, `undefined` for every receiver that is no
+    /// string and the function of the arguments for a string, then that
+    /// function called with the arguments — the compiled `startsWith`, on
+    /// NaNVM. A nullish receiver is `hasEntry`'s throw, as a call step
+    /// threw for it before asking.
     #[test]
     fn starts_with() {
-        let code = member("startsWith").unwrap();
-        let stage = code;
+        let stage = |receiver: Any<A>| runtime_dot(receiver, "startsWith".into());
         for receiver in [
             1.0.to_any(),
             true.to_any(),
             [].to_array().to_any(),
             [].to_object().to_any(),
-            Any::undefined(),
         ] {
             assert!(stage(receiver).unwrap().is_nullish());
         }
+        assert!(stage(Any::undefined()).is_err());
         let on_abc = stage("abc".into()).unwrap();
         assert!(!on_abc.is_nullish());
         let call = |args: &[Any<A>]| on_abc.clone().call(args.to_vec().to_array().to_any());

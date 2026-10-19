@@ -26,7 +26,7 @@ use crate::{
 /// ([`RuntimeFunction`](crate::vm::RuntimeFunction)). The runtime is not
 /// the VM's to bind: every built-in is a static function of the compiled
 /// runtime, which a call step and a compiled read reach for any VM
-/// ([`runtime_method`](crate::vm::runtime_method),
+/// ([`runtime_dot`](crate::vm::runtime_dot),
 /// [`runtime_static`](crate::vm::runtime_static)).
 pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
     // types

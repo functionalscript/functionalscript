@@ -17,9 +17,12 @@
  * frame slot is resolved here, to a function's accessor or an inlined
  * literal; and the `runtime` export object is read as the table of
  * built-ins, its `static` section naming each `Object.is`, its `member`
- * section `startsWith`, and printed nowhere. A built-in's identity is its
- * name, so a read of one costs nothing and holds nothing: no evaluation,
- * no holder, no `thread_local!`.
+ * section `startsWith`, and printed nowhere. The `dot` section, the
+ * dispatcher, is compiled by its shape rather than printed as a body
+ * ({@link dotLines}): the member table it reads through `entry` is a
+ * `match` on the name, which is what `nanvm-lib`'s call step calls. A
+ * built-in's identity is its name, so a read of one costs nothing and
+ * holds nothing: no evaluation, no holder, no `thread_local!`.
  *
  * What the runtime's module scope may hold is **functions and literals**,
  * and an import's read of its export object, `{ f }.f`, which the lowering
@@ -52,6 +55,7 @@ import { operandsOf, visit } from '../../../edag/sharing/module.f.mjs'
 import { builtInIdentifier } from '../../../media/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.mjs'
+import { structurallySame } from '../../../types/object/structurally_same/module.f.mjs'
 import { isNative, natives } from '../../../js/static/module.f.js'
 
 const kw = tagged('keyword')
@@ -145,9 +149,8 @@ const statics = section => {
  * Every built-in the module's `runtime` export names, the `static` section's
  * then the `member` section's — an object of functions by name, `startsWith`
  * — either section absent for none, and the `dot` section, the dispatcher,
- * which is not printed: NaNVM's call step is native until the printer
- * compiles the table `dot` reads, and `dot` captures that table, which no
- * item may hold (`fjs/js/todo/runtime-members.md`). Or the refusal of a
+ * compiled by its shape ({@link dotLines}), which captures the member
+ * table, an object no item may hold. Or the refusal of a
  * module without the export or with another beside it, whose initializer
  * the lifting would drop, of a section that is not objects of functions,
  * of a `dot` that is no function, or of a body under a path `nanvm-lib`
@@ -194,9 +197,9 @@ const table = root => {
  * keeps `isNaN` and `Number.isNaN` apart however alike; and two items
  * printing one Rust name, {@link printedNames} — a static and a member of
  * one type and key, or a member whose key ends in `Code`, say. The `dot`
- * dispatcher is no item: the one function no built-in reaches by design,
- * so a built-in naming the very function `dot` is, or capturing it in a
- * slot, is refused.
+ * dispatcher is no item, {@link dotLines} compiling it: the one function
+ * no built-in reaches by design, so a built-in naming the very function
+ * `dot` is, or capturing it in a slot, is refused.
  *
  * @type {(root: Exp, table: _Table) => Result<readonly _Item[], readonly unknown[]>}
  */
@@ -355,14 +358,12 @@ const accessorLines = (name, ident, length, exported) => [
 const stringText = name => `"${name}"`
 
 /**
- * The two tables, tagged: `statics`, every static built-in by its name —
- * the sections' and, from [`fjs/js/static`](../../../js/static/module.f.js),
+ * The table of statics, tagged: every static built-in by its name — the
+ * sections' and, from [`fjs/js/static`](../../../js/static/module.f.js),
  * the natives `nanvm-lib` writes by hand, `Object.entries` — each row an
- * accessor, and `members`, every member built-in by its name, each row
- * the code itself, a `MemberCode` bound on `IStaticFunction` as the code
- * is; the arrays
- * `nanvm-lib`'s lookups search, and the crate's own, where the accessors
- * are every compiled module's.
+ * accessor; the array `nanvm-lib`'s `runtime_static` searches, and the
+ * crate's own, where the accessors are every compiled module's. The
+ * members have no table: the compiled `dot` is their lookup.
  *
  * @type {(builtIns: readonly _BuiltIn[], all: readonly _Item[]) => Printed<readonly string[]>}
  */
@@ -373,18 +374,94 @@ const tables = (builtIns, all) => {
         ...builtIns.filter(b => !b.member).map(b => `(${lit(stringText(b.name))}, ${ident(b)})`),
         ...natives.map(path => `(${lit(stringText(path.join('.')))}, ${builtInIdentifier(path.join('.'))})`),
     ]
-    const members = builtIns.filter(b => b.member).map(b => `(${lit(stringText(b.name))}, ${ident(b)})`)
-    /** @type {(name: string, kind: _Item['kind'], row: string, rows: readonly string[]) => readonly string[]} */
-    const fn = (name, kind, row, rows) => [
-        '#[rustfmt::skip]',
-        `${kw('pub')}(${kw('crate')}) ${kw('fn')} ${name}<A: ${bound(kind)}>() -> [(${row}); ${lit(`${rows.length}`)}] {`,
-        ...(rows.length === 0 ? [`${indent}[]`] : [`${indent}[`, ...rows.map(r => `${indent}${indent}${r},`), `${indent}]`]),
-        '}',
-    ]
     return [
-        [...fn('statics', 'static', "&'static str, Accessor<A>", statics), '', ...fn('members', 'member', "&'static str, MemberCode<A>", members)],
+        [
+            '#[rustfmt::skip]',
+            `${kw('pub')}(${kw('crate')}) ${kw('fn')} statics<A: ${bound('static')}>() -> [(&'static str, Accessor<A>); ${lit(`${statics.length}`)}] {`,
+            `${indent}[`, ...statics.map(r => `${indent}${indent}${r},`), `${indent}]`,
+            '}',
+        ],
         natives.map(path => /** @type {Use} */ (['vm', builtInIdentifier(path.join('.'))])),
     ]
+}
+
+/**
+ * The `dot` dispatcher compiled, tagged with the names it spells, or the
+ * refusal of a `dot` whose shape is not the one the runtime writes. The
+ * dispatcher is the one body the printer compiles by its shape rather
+ * than prints: `fjs/js/runtime`'s `dot` asks `hasEntry` of the receiver
+ * and the key, reads `entry` where it holds, else reads the member table
+ * through `entry` by the key and calls what it finds on the receiver, or
+ * answers `undefined` — and the table, an object literal of the member
+ * functions captured in a slot, which no item may hold, is a `match` on
+ * the name here, each arm the member's code called on the receiver,
+ * `_` the `undefined`. So the Rust is
+ *
+ * ```rust
+ * pub(crate) fn dot<A: IStaticFunction>(self_: Any<A>, key: Any<A>) -> Result<Any<A>, Any<A>> {
+ *     if Any::has_entry(self_.clone(), key.clone())? {
+ *         return Any::entry(self_, key);
+ *     }
+ *     match () {
+ *         _ if key.is_str("startsWith") => starts_with(self_),
+ *         _ => Ok(Nullish::Undefined.to_any()),
+ *     }
+ * }
+ * ```
+ *
+ * what `nanvm-lib`'s call step calls, the lookup by name the members had
+ * as a table and a scan before. The shape is the source's, in the EDAG:
+ * a function of two, its slots the two helpers and the table in any
+ * order, its body `hasEntry(a, k) ? entry(a, k) : (entry(T, k) ===
+ * undefined ? undefined : entry(T, k)(a))` — spelled out here from the
+ * slots found and compared whole, so the inner read matches shared or
+ * written twice. A `dot` of any other shape is refused rather than
+ * printed as something else, and so is a table entry that is no member
+ * of the section — the source is the one place the dispatcher is
+ * written, and a change there is a change here
+ * ([DESIGN.md §13](../../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)).
+ *
+ * @type {(dot: unknown, builtIns: readonly _BuiltIn[], all: readonly _Item[]) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ */
+const dotLines = (dot, builtIns, all) => {
+    const refusal = error(['a `dot` the printer does not compile; the dispatcher asks `hasEntry`, reads `entry`, else calls the member the key names on the receiver', 'dot'])
+    const [, length, slots, body] = /** @type {readonly any[]} */ (dot)
+    if (length !== 2 || !(slots instanceof Array) || slots.length !== 3) { return refusal }
+    /** The index of the slot resolving to the helper `name`, or `-1`. @type {(name: 'entry' | 'hasEntry') => number} */
+    const helper = name => slots.findIndex(s => {
+        const resolved = resolve(s)
+        return resolved[0] === 'ok' && resolved[1][0] === 'helper' && /** @type {readonly unknown[]} */ (resolved[1][1])[0] === name
+    })
+    const [h, e, t] = [helper('hasEntry'), helper('entry'), slots.findIndex(s => literalProperties(s) !== null)]
+    if (h < 0 || e < 0 || t < 0) { return refusal }
+    const [self, key] = [['arg', 0], ['arg', 1]]
+    const read = ['()', ['frame', e], [['frame', t], key]]
+    const shape = ['?:', ['()', ['frame', h], [self, key]], ['()', ['frame', e], [self, key]],
+        ['?:', ['===', read, ['undefined']], ['undefined'], ['()', read, [self]]]]
+    if (!structurallySame(body, shape)) { return refusal }
+    return okThen((/** @type {readonly (readonly [string, string])[]} */ arms) => {
+        const lookup = arms.length === 0 ? [`${indent}Ok(Nullish::Undefined.to_any())`] : [
+            `${indent}${kw('match')} () {`,
+            ...arms.map(([name, ident]) => `${indent}${indent}_ ${kw('if')} key.is_str(${lit(stringText(name))}) => ${ident}(self_),`),
+            `${indent}${indent}_ => Ok(Nullish::Undefined.to_any()),`,
+            `${indent}}`,
+        ]
+        return ok(/** @type {Printed<readonly string[]>} */ ([[
+            tagged('comment')('/// `dot`'),
+            '#[rustfmt::skip]',
+            `${kw('pub')}(${kw('crate')}) ${kw('fn')} dot<A: ${bound('member')}>(self_: Any<A>, key: Any<A>) -> Result<Any<A>, Any<A>> {`,
+            `${indent}${kw('if')} Any::has_entry(self_.clone(), key.clone())? {`,
+            `${indent}${indent}${kw('return')} Any::entry(self_, key);`,
+            `${indent}}`,
+            ...lookup,
+            '}',
+        ], [['vm', bound('member')], ['vm', 'Nullish'], ['vm', 'ToAny']]]))
+    })(okList(/** @type {readonly (readonly any[])[]} */ (literalProperties(slots[t])).map(([, key, node]) => {
+        const resolved = resolve(/** @type {Exp} */ (node))
+        const member = builtIns.find(b => b.member && b.name === key && resolved[0] === 'ok' && resolved[1][0] === 'function' && resolved[1][1] === b.node)
+        return member === undefined ? error(['a `dot` table entry that is no member of the section', key])
+            : ok(/** @type {const} */ ([key, all.filter(i => i.node === member.node)[0].ident]))
+    })))
 }
 
 /**
@@ -407,10 +484,10 @@ export const generateRuntimeTagged = root => okThen((/** @type {_Table} */ secti
             ...tableLines,
             '',
         ].join('\n')
-    })(okList(all.map(itemLines(all)))))(items(root, sections)))(table(root))
+    })(okList([...all.map(itemLines(all)), ...(sections.dot === undefined ? [] : [dotLines(sections.dot, sections.builtIns, all)])])))(items(root, sections)))(table(root))
 
-/** The names the two tables spell: their rows' types and the members' bound. @type {readonly Use[]} */
-const skeletonUses = [['vm', 'Accessor'], ['vm', 'MemberCode'], ['vm', bound('member')]]
+/** The names the table spells: its rows' type. @type {readonly Use[]} */
+const skeletonUses = [['vm', 'Accessor']]
 
 /**
  * The names spelled from `module`, each once, sorted.

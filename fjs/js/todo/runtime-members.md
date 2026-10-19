@@ -182,11 +182,14 @@ export const runtime = {
       `value/method` going (`left`, the names the natives lack, stays as
       what the guard asks without running a native); the printer accepting
       the `dot` section and leaving it out, named, until it compiles it.
-- [ ] The printer compiling `dot`: an object literal of functions read
-      through `entry` by a key as a `match` on the name, `instanceof` and
-      `typeof` tests as `Unpacked` matches; `Member::call` over the
-      compiled `dot`, the native scan, `runtime_method` and the two-step
-      guard going.
+- [x] The printer compiling `dot`: the dispatcher by its shape, the
+      member table it reads through `entry` by a key a `match` on the
+      name; `Member::call` over the compiled `dot`, `runtime_method`, the
+      members table and the two-step guard going, the native table asked
+      after `dot` for a name without a body.
+- [ ] `instanceof` and `typeof` tests in a body as `Unpacked` matches, a
+      substitution keyed on the node, where a measurement shows the
+      conversions they print as cost something.
 - [ ] The chain in the runtime: `dot` answering a `PropertyLambda`,
       `optionDot` and `optionCall`, with their proof on the host and the
       corpus's chain cases as the oracle; the interpreter running them,

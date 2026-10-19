@@ -40,18 +40,22 @@ with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
    never a prototype name, so the two lookups never compete. The guard of
    `?.()` asks this same lookup, so `"a"[0]?.()` throws rather than skips,
    the character being no more nullish than `f.length` is.
-2. **The native built-in**: the receiver type's entry of that name in the
-   native table ([`vm/lambda/method.rs`](../src/vm/lambda/method.rs)),
-   the specification's algorithm over the receiver and the arguments.
-3. **The runtime's body**: the function the generated runtime holds under
+2. **The runtime's body**: the function the generated runtime holds under
    the name, which
    [`fjs/js/runtime`](../../../fjs/js/runtime/README.md) writes once in
    FunctionalScript and `npm run gen` compiles to
    [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs). The call step asks
-   `runtime_method(key)` in `vm/runtime.rs` for its code, asks the code
-   for the receiver — the function of the arguments, or `undefined` for a
-   receiver the name is no member of — and calls that function with the
-   arguments.
+   the compiled `dot`, `runtime_dot(receiver, key)` in `vm/runtime.rs`,
+   which answers the own enumerable property of step 1 itself, else asks
+   the body of the name for the receiver — the function of the
+   arguments, or `undefined` for a receiver the name is no member of —
+   and calls that function with the arguments. Step 1's property the
+   receiver owns without enumerating, a `length`, is the call step's own
+   to find where `dot` answers `undefined`.
+3. **The native built-in**: the receiver type's entry of that name in the
+   native table ([`vm/lambda/method.rs`](../src/vm/lambda/method.rs)),
+   the specification's algorithm over the receiver and the arguments,
+   standing in for a body the name does not have yet.
 4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 

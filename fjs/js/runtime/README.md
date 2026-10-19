@@ -64,16 +64,13 @@ the **runtime's body**, asked for the receiver alone — the function of
 the arguments, which the VM then calls, or `undefined`; else the
 `TypeError` for calling `undefined`, with nothing built on the way. A
 **native** implementation stands in for a body a name does not have yet,
-and where a VM puts it differs while the transition lasts: the
-interpreter asks `dot` first and its natives after; NaNVM's call step
-stays native — the own property, then its native, then the body — until
-the static-runtime printer compiles the table `dot` reads, which
-[`../todo/runtime-members.md`](../todo/runtime-members.md) tracks, and
-the printer leaves `dot` out until then, refusing a `dot` that is no
-function. The guard of an optional call, `a.startsWith?.(x)`, asks the
-same steps before it evaluates `x`, the body's first step among them; a
-body is pure, so a guard and a call ask it twice at no cost but the
-call.
+asked after `dot` on both executors: the interpreter asks `dot` first and
+its natives after, and NaNVM's call step calls the compiled `dot` first
+and its native table after, for a name `dot` answers `undefined` for and
+the receiver does not own. The guard of an optional call,
+`a.startsWith?.(x)`, asks the same steps before it evaluates `x`, the
+body's first step among them; a body is pure, so a guard and a call ask
+it twice at no cost but the call.
 A native implementation may stand beside a body where the VM measures the
 gain; the body is the reference, and the corpus in
 [`../../nanvm/member`](../../nanvm/member/module.f.js) checks the native
@@ -103,10 +100,12 @@ body, and no other pair is.
   printer, the compiler being the generator: every body a static Rust
   function, a static built-in's with an accessor answering its descriptor
   and a member's the code alone, bound on `IStaticFunction` since its
-  answer is a closure over the receiver, and two tables by name, which
-  `nanvm-lib`'s `runtime_method` and `runtime_static` search for every
-  VM. Nothing is evaluated and no VM holds a runtime. The native
-  tables in `vm/lambda` keep every name without a body.
+  answer is a closure over the receiver; `dot` compiled by its shape, the
+  member table it reads a `match` on the name, which `nanvm-lib`'s call
+  step calls through `runtime_dot`; and a table of statics by name,
+  which `runtime_static` searches, for every VM. Nothing is evaluated and
+  no VM holds a runtime. The native tables in `vm/lambda` keep every name
+  without a body.
 
 The generator also writes the module's EDAG as
 `gen.edag.data.mjs` beside it, for the one consumer that needs the runtime
@@ -132,8 +131,8 @@ flowchart LR
     corpus["corpus proofs<br/>evaluate once, pass as the context's runtime"]
     harness["harness<br/>interpret(pureOk(runtime)), compiled live"]
     interpreter["EDAG interpreter<br/>amnesia and memo"]
-    naive["nanvm-lib<br/>runtime_method, runtime_static"]
-    step["a call step<br/>own property, native, body, TypeError"]
+    naive["nanvm-lib<br/>runtime_dot, runtime_static"]
+    step["a call step<br/>dot: own entry or body; native; TypeError"]
     src -->|import| host --> proof
     src --> compiler
     compiler -->|npm run gen| edag --> corpus --> interpreter
@@ -164,30 +163,33 @@ from there:
 sequenceDiagram
     participant M as compiled module
     participant L as nanvm-lib call step
-    participant T as native table
     participant R as gen.runtime.rs
+    participant T as native table
     M->>L: Any::dot([1], "map").end_call(args)
-    L->>L: own property? none on an array
-    L->>T: method(receiver, "map")
-    T-->>L: None, once map has a body
-    L->>R: members(): ("map", code)
-    R-->>L: the body, a static function
-    L->>R: code(receiver)
+    L->>R: dot(receiver, "map")
+    R->>R: hasEntry? none on an array under "map"
+    R->>R: match on the name: map(receiver), once map has a body
     R-->>L: the function of the arguments, or undefined
+    L->>T: method(receiver, "map"), where dot answered undefined
+    T-->>L: the native, until map has a body
     L->>L: f.call(args), or the TypeError
     L-->>M: the answer, or Err(thrown)
 ```
 
 `Member::call` in `vm/lambda/member.rs` resolves in that order — the
-receiver's own property, the native table in `vm/lambda/method.rs`, the
-runtime's body through `runtime_method`, asked for the receiver and then
-called, the `TypeError` for calling `undefined` — and the `?.()` guard
-asks the same lookups, the body's first step included, to decide whether
-a callee exists, before any argument is evaluated. A member's body is a
-Rust function of the receiver answering a function value or `undefined`,
-and nothing more: the language never reads a member as a value, so none
-has a descriptor, a `length` or a text, and a call step asks the code the
-table holds.
+compiled `dot` through `runtime_dot`, which is this module's `dot`
+compiled by its shape: the receiver's own enumerable property, else the
+member the key names, a `match` on the name over the member bodies,
+asked for the receiver, else `undefined`; then, where `dot` answered
+`undefined`, the receiver's own property if it has one, an own
+`undefined` or a `length`, called and thrown for; then the native table
+in `vm/lambda/method.rs`; then the `TypeError` for calling `undefined` —
+and the `?.()` guard asks the same resolution, the body's first step
+included, to decide whether a callee exists, before any argument is
+evaluated. A member's body is a Rust function of the receiver answering a
+function value or `undefined`, and nothing more: the language never reads
+a member as a value, so none has a descriptor, a `length` or a text, and
+the compiled `dot` calls the code by name.
 
 **A static function is a value with no receiver.** The EDAG spells
 `Object.is` as the value `['Object.is']`, and `Number.isInteger` as

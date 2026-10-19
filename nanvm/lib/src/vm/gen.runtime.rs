@@ -2,8 +2,8 @@
 
 use nanvm_lib::vm::unstable::{f64_any, strict_eq, strict_ne, string_any};
 use nanvm_lib::vm::{
-    Accessor, Any, Array, Function, IStaticFunction, IVm, MemberCode, Nullish, RuntimeFunction,
-    ToAny, ToArray, object_entries,
+    Accessor, Any, Array, Function, IStaticFunction, IVm, Nullish, RuntimeFunction, ToAny, ToArray,
+    object_entries,
 };
 
 /// `f0`
@@ -178,6 +178,18 @@ fn starts_with<A: IStaticFunction>(self_: Any<A>) -> Result<Any<A>, Any<A>> {
     Any::conditional(c1, || Ok(Nullish::Undefined.to_any()), c2)
 }
 
+/// `dot`
+#[rustfmt::skip]
+pub(crate) fn dot<A: IStaticFunction>(self_: Any<A>, key: Any<A>) -> Result<Any<A>, Any<A>> {
+    if Any::has_entry(self_.clone(), key.clone())? {
+        return Any::entry(self_, key);
+    }
+    match () {
+        _ if key.is_str("startsWith") => starts_with(self_),
+        _ => Ok(Nullish::Undefined.to_any()),
+    }
+}
+
 #[rustfmt::skip]
 pub(crate) fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 6] {
     [
@@ -187,12 +199,5 @@ pub(crate) fn statics<A: IVm>() -> [(&'static str, Accessor<A>); 6] {
         ("Number.isNaN", number_is_nan),
         ("Number.isFinite", number_is_finite),
         ("Object.entries", object_entries),
-    ]
-}
-
-#[rustfmt::skip]
-pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1] {
-    [
-        ("startsWith", starts_with),
     ]
 }
