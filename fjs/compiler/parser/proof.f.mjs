@@ -254,6 +254,71 @@ export const proof = {
     // ending in the call of the loop's function with the variable's last
     // binding — and the variable names the entry from the loop on
     // ([spec: loops](../../../spec/control-flow/loops.md)).
+    // A switch, `switch (d) { case a: case b: { … } … }`, is the fold's to
+    // shape as a guard is: the discriminant an entry of the body, read by
+    // the test of every label, `===`, the tests of one case joined by `||`
+    // in the labels' order; each case's block the body of a parameterless
+    // function called where it stands, as a guard's arm is; and the `?:` of
+    // each case's test over the next, the `default` block or the statements
+    // after the switch the last alternate
+    // ([spec: switch](../../../spec/control-flow/switch.md)).
+    switches: {
+        shape: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('export default n => { switch (n[0]) { case 1: case 2: { const x = [1]; return [x, x]; } case 3: { throw 3; } } const y = [2]; return y; };'))
+            assert(tag === 'ok')
+            assertStructurallySame(value, [[], [['object', [[':', 'default', ['=>', 1, [
+                ['.', ['arg', 0], 0],
+                ['?:', ['||', ['===', ['cref', 0], 1], ['===', ['cref', 0], 2]],
+                    ['()', ['=>', 0, [['array', [1]], ['array', [['cref', 0], ['cref', 0]]]]], []],
+                    ['?:', ['===', ['cref', 0], 3],
+                        ['()', ['=>', 0, [['throw', 3]]], []],
+                        ['()', ['=>', 0, [['array', [2]], ['cref', 0]]], []]]],
+            ]]]]]]])
+            // with a `default`, its block is the last alternate, and the
+            // switch is the body's last statement
+            const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { return 1; } default: { return 0; } } };'))
+            assert(tag2 === 'ok')
+            assertStructurallySame(value2, [[], [['object', [[':', 'default', ['=>', 1, [
+                ['arg', 0],
+                ['?:', ['===', ['cref', 0], 1], ['()', ['=>', 0, [1]], []], ['()', ['=>', 0, [0]], []]],
+            ]]]]]]])
+            // a switch in a case block is the arm's own, its discriminant an
+            // entry of the arm's function, read through the arm's frame
+            const [tag3, value3] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { switch (n) { case 2: { return 2; } } return 1; } } return 0; };'))
+            assert(tag3 === 'ok')
+            assertStructurallySame(value3, [[], [['object', [[':', 'default', ['=>', 1, [
+                ['arg', 0],
+                ['?:', ['===', ['cref', 0], 1],
+                    ['()', ['=>', 0, [['fref', 0], ['?:', ['===', ['cref', 0], 2], ['()', ['=>', 0, [2]], []], ['()', ['=>', 0, [1]], []]]], [['arg', 0]]], []],
+                    ['()', ['=>', 0, [0]], []]],
+            ]]]]]]])
+            // after a loop, the switch reads the variable's last binding
+            const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { r = r + 1; } switch (r) { case 1: { return r; } } return 0; };'))
+            assert(tag4 === 'ok')
+            assertStructurallySame(value4, [[], [['object', [[':', 'default', ['=>', 1, [
+                ['()', ['=>', 1, [['?:', ['<', ['arg', 0], ['fref', 0]], ['()', ['=>', 0, [['+', ['fref', 0], 1], ['()', ['fref', 1], [['cref', 0]]]], [['arg', 0], ['self']]], []], ['arg', 0]]], [['arg', 0]]], [0]],
+                ['cref', 0],
+                ['?:', ['===', ['cref', 1], 1], ['()', ['=>', 0, [['fref', 0]], [['cref', 0]]], []], ['()', ['=>', 0, [0]], []]],
+            ]]]]]]])
+        },
+        // the statements after a switch are the body's one block with the
+        // ones before it: a name that block has bound, or read from outside
+        // in the discriminant, a label or a case block, is not theirs to
+        // bind; a case block is a block of its own and may shadow either
+        scoping: () => {
+            expectRefused('export default (n, c) => { switch (n) { case c: { return 1; } } const c = 2; return c; };', 'duplicate id', 71)
+            expectRefused('export default n => { switch (n) { case 1: { return 1; } } const n = 2; return n; };', 'duplicate id', 66)
+            expectRefused('export default n => { const c = 1; return () => { switch (n) { case c: { return 1; } } const c = 2; return c; }; };', 'capture shadowed', 94)
+            expectRefused('export default n => { const c = 1; return () => { switch (n) { case 1: { return c; } } const c = 2; return c; }; };', 'capture shadowed', 94)
+            expectRefused('export default n => { const c = 1; return () => { switch (c) { case 1: { return 1; } } const c = 2; return c; }; };', 'capture shadowed', 94)
+            const [tag, value] = parseFromTokens(tokenizeString('export default n => { const c = 1; return () => { switch (n) { case 1: { const c = 2; return c; } } return c; }; };'))
+            assert(tag === 'ok')
+            assertStructurallySame(value, [[], [['object', [[':', 'default', ['=>', 1, [
+                1,
+                ['=>', 0, [['fref', 0], ['?:', ['===', ['cref', 0], 1], ['()', ['=>', 0, [2, ['cref', 0]]], []], ['()', ['=>', 0, [['fref', 0]], [['fref', 1]]], []]]], [['arg', 0], ['cref', 0]]],
+            ]]]]]]])
+        },
+    },
     loops: {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const d = [2]; r = r + d[0]; } return [r, r]; };'))

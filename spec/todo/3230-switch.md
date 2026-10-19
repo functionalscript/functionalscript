@@ -1,7 +1,8 @@
 ## Switch statement
 
 **Priority:** P2
-**Status:** open — awaiting the language designer's approval
+**Status:** wip — the one form below is implemented
+([switch](../control-flow/switch.md)); the approval is owed
 ([Approval](#approval))
 
 Introducing `switch`, in one form first: the terminating `switch`, the
@@ -40,12 +41,20 @@ compiler reads as a chain of guards over one shared value — surface
 syntax over `?:` and `===`, no new node:
 
 ```
-statement ::= const | 'if' '(' value ')' block
-            | 'let' id '=' value end | 'while' '(' value ')' loopBlock
-            | 'switch' '(' value ')' '{' case* default? '}'
-case ::= ('case' value ':')+ block
-default ::= 'default' ':' block
+terminator ::= 'return' value end | 'throw' value end
+             | 'switch' '(' value ')' '{' 'case' value ':' caseTail
+caseTail ::= 'case' value ':' caseTail | block afterCase
+afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
+            | '}' statement* terminator
 ```
+
+The switch stands where `return` and `throw` do, in the terminator's
+position, and holds the rest of its block: with a `default` the block
+ends with it, and without one the statements after it and their
+terminator are its tail, read back into the block's one flat list. That
+is what lets the grammar say both that a `default` ends the block and
+that the statements after a `switch` continue it, with one symbol of
+lookahead and no rule the fold has to check.
 
 - `switch (e)` evaluates the discriminant once, eagerly, where the
   statement stands, as JavaScript evaluates it before any label.
@@ -145,7 +154,7 @@ bind (`duplicate id`, `capture shadowed`), exactly as after a guard.
 - The terminating block rules out the two mistakes `switch` is known for,
   fallthrough and the shared declaration scope, by the same rule the guard
   already has, rather than by a new one.
-- The grammar reads it in one symbol, as `const`, `if` and `let` are
+- The grammar reads it in one symbol, as `return` and `throw` are
   decided, and the fold builds it from the guard's own `arm`: one more
   frame, the discriminant's entry, and the `||` over a stacked group.
 
@@ -160,7 +169,8 @@ bind (`duplicate id`, `capture shadowed`), exactly as after a guard.
   block, as in `fjs/types/btree/find` — so a few standard modules change
   before they compile. Each such site is a latent fallthrough in
   JavaScript, so the change is a fix.
-- Two keywords, three grammar rules, and one frame in the fold.
+- Two keywords, two grammar rules and a third alternative of the
+  terminator, and one frame in the fold.
 - Duplicate labels, `case 1: … case 1: …`, are not refused: JavaScript
   admits them, the second is unreachable, and telling two labels apart in
   general is analysis the compiler does not do. A proof may pin that the
@@ -176,16 +186,17 @@ Not yet approved.
 
 ### Tasks
 
-- [ ] `switch` and `case` among the framing keywords; the three grammar
-  rules in `fjs/compiler/parser/grammar`, with the register's refusals
-  pinned in its proof
-- [ ] the fold in `fjs/compiler/parser`: the discriminant as an entry of
+- [x] `switch` and `case` among the framing keywords; the grammar rules in
+  `fjs/compiler/parser/grammar` — the switch a terminator that holds the
+  rest of its block, its cases recursive through variants, which is what
+  keeps the rule's type finite — with the refusals pinned in its proof
+- [x] the fold in `fjs/compiler/parser`: the discriminant as an entry of
   the body, each label entered in order, each block an arm as a guard's,
   the chain closed from the last case back
-- [ ] `spec/control-flow/switch.md`, a `switch` program in the control-flow
-  demo module with its real output, and the same graph and hash asserted
-  against the hand-written chain of guards
-- [ ] the `st.switch` row deleted from [refused constructs](./refused-constructs.md),
+- [x] `spec/control-flow/switch.md`, a `switch` program in the control-flow
+  demo module with its real output, and the same graph asserted against
+  the hand-written chain of guards
+- [x] the `st.switch` row deleted from [refused constructs](./refused-constructs.md),
   and the `st.break-continue` row naming this record too
 - [ ] the standard modules whose `switch` the form refuses — a case block
   that does not terminate, a case without braces — rewritten or waiting on

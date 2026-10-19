@@ -78,10 +78,41 @@ export type Node =
  * order; a bare `return`, a bare `throw` and a statement after the last are
  * unsupported.
  */
-export type Block = readonly ['block', readonly [...(readonly BlockStatement[]), readonly ['return' | 'throw', ValueStatement]]]
+export type Block = readonly ['block', readonly [...(readonly BlockStatement[]), BlockEnd]]
 
-/** A block's statement before the one that ends it, tagged by its keyword: a `const`, a guard, a loop's `let`, or its `while`. */
-export type BlockStatement = readonly ['const', Const] | readonly ['if', If] | readonly ['let', Let] | readonly ['while', While]
+/**
+ * The statement a block ends with, tagged by its keyword: a `return` or a
+ * `throw` with its value, or a switch with a `default`, {@link Switch},
+ * which the grammar lets nothing follow.
+ */
+export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch]
+
+/** A block's statement before the one that ends it, tagged by its keyword: a `const`, a guard, a loop's `let`, its `while`, or a switch without a `default`, {@link Switch}, the statements after it in the list being what runs when no label matched. */
+export type BlockStatement = readonly ['const', Const] | readonly ['if', If] | readonly ['let', Let] | readonly ['while', While] | readonly ['switch', Switch]
+
+/**
+ * A switch, `switch (discriminant) { case a: case b: block … default: block }`:
+ * the token it begins with, its discriminant, its cases, one or more, and
+ * its `default` block, `null` where it has none. It records no `;`, as a
+ * guard does not. With a `default` it is the statement its block ends
+ * with; without one, the statements after it, up to and including the
+ * block's own end, are what runs when no label matched — the grammar reads
+ * them as the switch's tail, and the reader puts them after it in the
+ * block's one list, so that the fold reads them as it reads the
+ * statements after a guard ([spec: switch](../../../../spec/control-flow/switch.md)).
+ */
+export type Switch = {
+    readonly start: DjsTokenWithMetadata
+    readonly discriminant: Node
+    readonly cases: readonly Case[]
+    readonly default: Block | null
+}
+
+/** A case of a switch: its labels, one or more values, each the `case` of a `case value:`, and its block, which ends in `return` or `throw` as every block does. */
+export type Case = {
+    readonly labels: readonly Node[]
+    readonly block: Block
+}
 
 /**
  * A loop, `while (condition) block`: the token it begins with, its
@@ -421,6 +452,7 @@ export type Out =
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
     | { readonly id: 'statement', readonly statement: BlockStatement }
+    | { readonly id: 'end', readonly end: Block[1] }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }
     | { readonly id: 'last', readonly consts: List<ModuleConst>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }

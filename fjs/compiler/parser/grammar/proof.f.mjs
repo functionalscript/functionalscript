@@ -20,7 +20,7 @@ import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, assignment, attribute, block, body, circuitTail, conditionalTail, constStatement,
     djsModule, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopStatement, member, object, parameters, paren, statement,
-    parenGroup, parenthesized, primitive, sym, symbolOf, template, value,
+    afterCase, caseTail, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -417,6 +417,37 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { r = 1; return r; };'), ['error', 'r'])
         assertStructurallySame(read('let r = 0; while (r) { r = 1; } export default r;'), ['error', 'let'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { let = 1; } return r; };'), ['error', 'let'])
+        // a switch, `switch ( value ) { case value : block … }`, is a
+        // terminator the grammar reads where `return` and `throw` stand:
+        // one or more cases, each one or more labels and then the block
+        // rule itself, so every case ends in `return` or `throw`; and then
+        // either `default`, its block, and the `}` of the block the switch
+        // stands in, or that `}` and the rest of the block, its statements
+        // and its terminator, which the switch holds. A case without
+        // braces, a case that does not terminate, `break`, a `default`
+        // anywhere but last, a switch with no case, a statement after a
+        // switch with a `default`, a `;` after the `}`, and a switch at
+        // module level or in a loop's block are outside the grammar.
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } } return 2; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } default: { return 2; } } };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: case 2: { return 1; } case 3: { throw 3; } } const x = 1; return x; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => {switch(a){case 1:{return 1}default:{return 2}}};'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } } switch (a) { case 2: { return 2; } } return 3; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { switch (a) { case 2: { return 2; } } return 1; } default: { if (a) { return 3; } return 4; } } };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { if (a) { switch (a) { case 1: { return 1; } default: { return 2; } } } return 3; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: return 1; } return 2; };'), ['error', 'return'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { const x = 1; } } return 2; };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { break; } } return 2; };'), ['error', 'break'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { default: { return 2; } case 1: { return 1; } } };'), ['error', 'default'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { default: { return 2; } } };'), ['error', 'default'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { } return 2; };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } default: { return 2; } } return 3; };'), ['error', 'return'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } } };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } }; return 2; };'), ['error', ';'])
+        assertStructurallySame(read('export default (...a) => { switch a { case 1: { return 1; } } return 2; };'), ['error', 'a'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case: { return 1; } } return 2; };'), ['error', ':'])
+        assertStructurallySame(read('switch (1) { case 1: { throw 1; } } export default 2;'), ['error', 'switch'])
+        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { switch (r) { case 1: { return 1; } } } return r; };'), ['error', 'switch'])
     },
     // Any value takes accesses, `.name` and `[key]`, trivia allowed around
     // each token since a value ends with its own, and a key is a string or
@@ -671,6 +702,13 @@ export const proof = {
         parser(/** @type {Rule} */ (lastStatement))
         // a block's statement: `const` and `if` decide the two in one symbol
         parser(/** @type {Rule} */ (statement))
+        // a block's end: `return`, `throw` and `switch` decide the three,
+        // and `default` and `}` a switch's tail
+        parser(/** @type {Rule} */ (terminator))
+        // a case's labels and its block: `case` and `{` decide the two,
+        // and after the block `case`, `default` and `}` the three
+        parser(/** @type {Rule} */ (caseTail))
+        parser(/** @type {Rule} */ (afterCase))
     },
     demo: {
         // A diagram per title, and a diagram for every box.

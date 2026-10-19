@@ -36,10 +36,10 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ParameterNames, Parenthesized, Statement, Template, Unary, UnaryOperand, Value } from '../grammar/types.ts'
- * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ParameterNames, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { namedImports, primitive } from '../grammar/module.f.mjs'
+ * @import { _AccessNode, _AttributeNode, _SwitchRead, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
@@ -50,7 +50,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, entries, entry, loopStatement, member, parameterNames, statement, symbolOf, template, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, entries, entry, loopStatement, member, parameterNames, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -243,6 +243,13 @@ const statementAt = node => {
     const out = outAt(node)
     assert(out.id === 'statement')
     return out.statement
+}
+
+/** @type {(node: _Leaf) => Block[1]} */
+const endAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'end')
+    return out.end
 }
 
 /** @type {(node: _Leaf) => LoopStatement} */
@@ -1034,15 +1041,76 @@ const operandToNode = node => {
 
 /**
  * A block from its children, `{`, the statements, the terminator and `}`:
- * its ordered statements, `const`s and guards, then the `return` or `throw`
- * that ends it, tagged by its keyword — and the `{` it begins at. A
- * function's body and a guard's block are read the same way.
+ * its ordered statements, `const`s and guards, then what ends it, the
+ * terminator's own record, {@link toEnd} — and the `{` it begins at. A
+ * function's body, a guard's block and a case's are read the same way.
  *
  * @type {(node: Children<BlockRule, DjsTokenWithMetadata, Out>) => readonly [Block, DjsTokenWithMetadata]}
  */
-const blockOf = ([open, statements, term]) => {
-    const [kind, branch] = unmapped(term)
-    return [['block', [...unmapped(statements).map(statementAt), [kind, valueStatementOf(unmapped(branch))]]], tokenAt(open)]
+const blockOf = ([open, statements, term]) =>
+    [['block', [...unmapped(statements).map(statementAt), ...endAt(term)]], tokenAt(open)]
+
+/**
+ * What ends a block, from the terminator's children: the `return` or
+ * `throw`, tagged by its keyword, one statement; or the switch — the
+ * `switch` it begins at, its discriminant, and from its first label on
+ * its cases and what ends it, {@link casesOf}: a `default` block, which
+ * ends the block the switch stands in; or the rest of that block, this
+ * record again, put after the switch — so that a block is one flat list
+ * whatever its switches hold, and the fold reads the statements after a
+ * switch where it reads the statements after a guard.
+ *
+ * @type {(node: Children<Terminator, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toEnd = node => {
+    // destructured here rather than in the parameter list, where
+    // narrowing on `kind` would not reach `branch`
+    const [kind, branch] = node
+    if (kind === 'return') { return symbol({ id: 'end', end: [['return', valueStatementOf(unmapped(branch))]] }) }
+    if (kind === 'throw') { return symbol({ id: 'end', end: [['throw', valueStatementOf(unmapped(branch))]] }) }
+    const [first, , discriminant, , , , label, , tail] = unmapped(branch)
+    const { cases, end } = casesOf([], [nodeAt(label)], tail)
+    const read = { start: tokenAt(first), discriminant: nodeAt(discriminant), cases }
+    return symbol({ id: 'end', end: end[0] === 'default' ? [['switch', { ...read, default: end[1] }]] : [['switch', { ...read, default: null }], ...end[1]] })
+}
+
+/**
+ * The cases of a switch from a case's tail — `cases` the ones closed so
+ * far and `labels` the labels of the one under way — and what ends the
+ * switch: a label joins the case under way; a block closes it, and what
+ * follows the block is read on, {@link afterCaseOf}.
+ *
+ * @type {(cases: readonly Case[], labels: readonly Node[], tail: Ast<CaseTail, DjsTokenWithMetadata, Out>) => _SwitchRead}
+ */
+const casesOf = (cases, labels, tail) => {
+    const [which, branch] = unmapped(tail)
+    if (which === 'case') {
+        const [, label, , next] = unmapped(branch)
+        return casesOf(cases, [...labels, nodeAt(label)], next)
+    }
+    const [blk, after] = unmapped(branch)
+    return afterCaseOf([...cases, { labels, block: blockOf(unmapped(blk))[0] }], after)
+}
+
+/**
+ * What follows a case's block: the next case, whose first label opens it,
+ * {@link casesOf}; the `default` block, read as a body's; or the rest of
+ * the block the switch stands in, its statements and its end.
+ *
+ * @type {(cases: readonly Case[], after: Ast<AfterCase, DjsTokenWithMetadata, Out>) => _SwitchRead}
+ */
+const afterCaseOf = (cases, after) => {
+    const [which, branch] = unmapped(after)
+    if (which === 'case') {
+        const [, label, , next] = unmapped(branch)
+        return casesOf(cases, [nodeAt(label)], next)
+    }
+    if (which === 'default') {
+        const [, , blk] = unmapped(branch)
+        return { cases, end: ['default', blockOf(unmapped(blk))[0]] }
+    }
+    const [, statements, term] = unmapped(branch)
+    return { cases, end: ['rest', [...unmapped(statements).map(statementAt), ...endAt(term)]] }
 }
 
 /**
@@ -1397,6 +1465,7 @@ export const mappings = [
     map(importStatement, toImport),
     map(constStatement, toConst),
     map(statement, toStatement),
+    map(terminator, toEnd),
     map(loopStatement, toLoopStatement),
     map(lastStatement, toLast),
     map(djsModule, toModule),

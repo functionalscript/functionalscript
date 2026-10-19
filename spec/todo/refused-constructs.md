@@ -116,8 +116,7 @@ describes:
 | `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
 | `st.do-while` | `do { } while (c)` | open |
-| `st.break-continue` | `break`, `continue` | planned ([let](./3220-let.md), "Later") |
-| `st.switch` | `switch` | planned ([switch](./3230-switch.md)) |
+| `st.break-continue` | `break`, `continue` | planned ([let](./3220-let.md) and [switch](./3230-switch.md), "Later") |
 | `st.try` | `try`, `catch`, `finally` | open |
 | `st.debugger` | `debugger` | open |
 | `st.label` | `x: while (c) { }` | open |

@@ -73,7 +73,7 @@ output; the others say under *Examples* that theirs are still to come
   [names and identity](./functions/names-and-identity.md),
   [outputs](./functions/function-outputs.md)
 - [Control flow](./control-flow/README.md): [guards](./control-flow/guards.md),
-  [loops](./control-flow/loops.md)
+  [loops](./control-flow/loops.md), [switch](./control-flow/switch.md)
 - [Built-ins](./built-ins/README.md): [member functions](./built-ins/member-functions.md),
   [static functions](./built-ins/static-functions.md)
 - [Command line](./command-line/README.md): [checking](./command-line/checking.md),
