@@ -6,7 +6,9 @@ filed this, who approved the primitives as recognized helpers and the
 strengthened invariant by asking for the implementation; the first
 primitive, `slice`, was the first step, `runtime::<A>()`, the value
 built beside the lifted tables, the second, and `module::<A>(runtime)`,
-which retired the lifting, the third; `dot` over the natives remains
+which retired the lifting, the third; `charCodeAt` with its first
+consumer, `codePointAt`, is the fourth, in progress; `dot` over the
+natives remains
 
 ### Problem
 
