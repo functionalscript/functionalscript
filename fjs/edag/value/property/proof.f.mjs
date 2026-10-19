@@ -13,7 +13,7 @@ import { array } from '../array/module.f.mjs'
 import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
 import { call } from '../call/module.f.mjs'
-import { entry, findProperty, functionAt, read } from './module.f.mjs'
+import { entry, findProperty, functionAt, hasEntry, read } from './module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */
 const expectValue = (receiver, key, expected) => {
@@ -121,8 +121,14 @@ export const proof = {
             return option[1][0]
         }
         /** @type {(receiver: EdagValue, key: string) => void} */
-        const none = (receiver, key) => assertStructurallySame(assertOk(entry(receiver, key)), ['[]', []])
+        const none = (receiver, key) => {
+            assertStructurallySame(assertOk(entry(receiver, key)), ['[]', []])
+            assertEq(assertOk(hasEntry(receiver, key)), false)
+        }
         assertEq(some(assertOk(entry(record, 'value'))), data)
+        assertEq(assertOk(hasEntry(record, 'value')), true)
+        assertEq(assertOk(hasEntry(['{}', [[':', 'u', undefinedValue]]], 'u')), true)
+        assertEq(assertOk(hasEntry('ab', '1')), true)
         none(record, 'length')
         assertEq(some(assertOk(entry(['{}', [[':', 'length', 3]]], 'length'))), 3)
         // an entry holding `undefined` is an entry, where the read alone
@@ -142,6 +148,7 @@ export const proof = {
         }
         for (const receiver of [null, undefinedValue]) {
             assertStructurallySame(assertError(entry(receiver, 'a')), ['undefined'])
+            assertStructurallySame(assertError(hasEntry(receiver, 'a')), ['undefined'])
         }
         // the helper owns the `length` every function does, read as a property
         expectValue(['entry'], 'length', 2)
