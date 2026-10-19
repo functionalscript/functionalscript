@@ -3,14 +3,15 @@
  * [`../prototype`](../prototype/module.f.js), which holds the member
  * functions'.
  *
- * Each admitted static is a **path** into the `static` section of
- * [`../runtime`](../runtime/module.f.js): `['Object', 'is']` is
+ * Each admitted static is a **path** of keys: `['Object', 'is']` is
  * `Object.is`. A two-key path is a namespace's member; a path whose last
  * key is `''` is the global called as a function, `Object(a)`; a one-key
- * path is a global that is a function, `isNaN`. One representation names
- * every binding, so the parser, the runtime's `types.ts`, an executor and
- * a VM's completeness test all probe the same object the same way, by
- * walking the keys.
+ * path is a global that is a function, `isNaN`. The keys joined by `.`
+ * are the id the EDAG spells the node with and the key of the
+ * [`../runtime`](../runtime/module.f.js)'s `statics` table, which its
+ * `static` function answers by: one representation names every binding,
+ * so the parser, the runtime's `types.ts`, an executor and a VM's
+ * completeness test all name the same static the same way.
  *
  * A global's namespace is closed: a name is admitted here one at a time,
  * each its own decision in

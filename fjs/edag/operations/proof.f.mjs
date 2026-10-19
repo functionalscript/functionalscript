@@ -140,7 +140,7 @@ export const proof = {
         failure(['.', null, 'a', ['|()', []]])
     },
     // A static function is a value whether called or not, the node, one
-    // function by its name; the body the runtime's `static` section holds
+    // function by its name; the body the runtime's `static` answers
     // at its path answers its call, with the static as the body's `self`,
     // and its `length`, and its text is its name's. With no runtime, or
     // none at the path, the dispatcher fails naming it at the read — every
