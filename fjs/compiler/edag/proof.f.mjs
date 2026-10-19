@@ -45,7 +45,7 @@ const nodeShapeOf = (exp, msg) => {
 }
 
 /** The default export's computation through the front end and lowering, a parse refusal thrown. @type {(source: string) => Unresolved} */
-const compile = source => {
+export const compile = source => {
     const { imports, edag } = unresolved(unwrap(parse('')(source)))
     return { imports, edag: _defaultExport(edag) }
 }
@@ -70,7 +70,7 @@ const linkRefusal = root => path => {
 }
 
 /** An EDAG the schema admits, and structurally the one expected. @type {(edag: Exp, expected: Exp) => void} */
-const expectEdag = (edag, expected) => {
+export const expectEdag = (edag, expected) => {
     assertEq(validate(exp)(edag)[0], 'ok')
     assertStructurallySame(edag, expected)
 }
@@ -142,13 +142,13 @@ const expectElseChain = depth => exp => {
 const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':', 'default', ['cref', 0]]]]]]).edag)
 
 /** Interpret before choosing an output boundary. @type {(graph: Exp) => EdagValue} */
-const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
+export const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
 
 /** Ordinary data comparisons erase reflection explicitly. @type {(graph: Exp) => unknown} */
 const execute = graph => assertOk(toData(value(graph)))
 
 /** Call represented functions without manufacturing host wrappers. @type {(fn: EdagValue, args: Values) => EdagValue} */
-const apply = (fn, args) => assertOk(call(ok(fn), args.map(arg => () => ok(arg)), invoke))
+export const apply = (fn, args) => assertOk(call(ok(fn), args.map(arg => () => ok(arg)), invoke))
 
 export const proof = {
     namedImports: {
@@ -1288,42 +1288,6 @@ export const proof = {
             const guarded = value(compile('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };').edag)
             assertStructurallySame(assertOk(toData(apply(guarded, [true]))), [[1], [1]])
             assertEq(apply(guarded, [false]), 0)
-        },
-    },
-    // A switch, `switch (d) { case a: case b: { … } … }`, is sugar as the
-    // guard is: the fold makes of it the conditional of each case's test —
-    // the discriminant, an entry of the body, `===` each label, the labels
-    // of one case joined by `||` — over the call of its block, the `default`
-    // block or the statements after the switch the last alternate, so a
-    // switch and the chain of guards over a `const` of the discriminant are
-    // one graph, and `switch` adds no node.
-    switches: {
-        graphs: () => {
-            expectEdag(compile('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };').edag, ['=>', 1, [], ['?:', ['===', ['arg', 0], 1], 1, 2]])
-            /** @type {Exp} */
-            const d = ['.', ['arg', 0], 0]
-            expectEdag(compile('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };').edag, ['=>', 1, [], ['?:', ['||', ['===', d, 1], ['===', d, 2]], 1, ['?:', ['===', d, 3], ['throw', 3], 0]]])
-            /** @type {Exp} */
-            const one = ['[]', [1]]
-            expectEdag(compile('export default (n) => { switch (n[0]) { case 1: { const x = [1]; return [x, x]; } } const y = [2]; return y; };').edag, ['=>', 1, [], ['?:', ['===', d, 1], ['[]', [one, one]], ['[]', [2]]]])
-        },
-        // the graph is the one the chain of guards has, node for node: the
-        // discriminant is one node however many labels test it
-        sameAsSpelled: () => {
-            /** @type {(switched: string, spelled: string) => void} */
-            const same = (switched, spelled) => assertStructurallySame(compile(switched).edag, compile(spelled).edag)
-            same('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };', 'export default (n) => { const d = n[0]; if (d === 1 || d === 2) { return 1; } if (d === 3) { throw 3; } return 0; };')
-            same('export default (n) => { switch (n[0]) { case 1: { const x = [1]; return [x, x]; } } const y = [2]; return y; };', 'export default (n) => { const d = n[0]; if (d === 1) { const x = [1]; return [x, x]; } const y = [2]; return y; };')
-            same('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };', 'export default (n) => n === 1 ? 1 : 2;')
-            const shared = compile('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } } return 0; };').edag
-            const or = /** @type {readonly any[]} */ (/** @type {readonly any[]} */ (shared)[3])[1]
-            assert(or[1][1] === or[2][1], shared)
-        },
-        // what a switch computes, through the memo executor: strict
-        // equality, the first match, and the `default` on none
-        run: () => {
-            const kind = value(compile('export default (n) => { switch (n) { case 1: case 2: { return "low"; } case 3: { return "three"; } default: { return "other"; } } };').edag)
-            assertStructurallySame([apply(kind, [1]), apply(kind, [2]), apply(kind, [3]), apply(kind, [4]), apply(kind, ['1'])], ['low', 'low', 'three', 'other', 'other'])
         },
     },
     throws: {
