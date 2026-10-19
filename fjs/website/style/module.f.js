@@ -691,15 +691,17 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
    as a byte's is, to show where one ends. A level's pixels take one of two
    colours, switching where a word ends. The padding's pixels are faded, as
    they carry no data. A label never widens its unit, which would open a gap
-   in the stripes: it is as wide as the unit's bits, and a longer one, such
-   as the padding's over a single bit, runs past its box. Typed bits have no
-   label, and no box. The rows' names are the first unit, on the first line
+   in the stripes: it is as wide as the unit's bits. The padding's label is
+   the exception: the padding is the last unit, so nothing follows to leave a
+   gap before, and its box grows to hold its word even over a single bit.
+   Typed bits have no label, and no box. The rows' names are the first unit, on the first line
    only. */
 [data-sul-units] { display: flex; flex-wrap: wrap; margin-block: .5rem; row-gap: .75rem }
 [data-sul-unit] { display: flex; flex-direction: column; gap: 2px }
 [data-sul-names] { color: var(--muted); padding-right: .5rem }
 [data-sul-label] { border: 1px solid var(--border); box-sizing: border-box; margin-left: -1px; min-height: 1.5em; min-width: calc(100% + 1px); text-align: center; white-space: nowrap; width: 0 }
 [data-sul-label]:empty { border-color: transparent }
+[data-sul-pad] [data-sul-label] { width: auto }
 [data-sul-label]:not([data-stand-in], :empty) { background: color-mix(in srgb, var(--border) 45%, var(--bg)); font-weight: 700 }
 [data-sul-row] { display: flex; height: 1.2em; line-height: 1.2em }
 [data-sul-bit], [data-sul-px] { text-align: center; width: 1ch }
