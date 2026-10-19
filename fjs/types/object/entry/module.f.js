@@ -1,20 +1,15 @@
 /**
  * The `entry` helper, the language's one read of a property named at run
  * time ([spec: entry](../../../../spec/property-access/entries.md)):
- * the enumerable own property `b` names of `a` — an object's field, an
- * array's or a string's element, and nothing a value owns without
- * enumerating it, a `length` or anything of a function — as an option, a
- * one-element array holding the value, or an empty array where there is
- * none. `[undefined]` is an entry holding `undefined`; `[]` is no entry.
- * The key is converted as a property key is, so that `entry(a, 0)` and
- * `entry(a, "0")` read one element. A `null` or `undefined` `a` throws, as
- * reading a property of one does, and so does a key whose conversion
- * throws.
- *
- * The option is an array, so it composes with arrays: `entry(a, b)[0]` is
- * the value or `undefined`, `entry(a, b).length === 1` is presence,
- * `const [v] = entry(a, b)` destructures it, and
- * `keys.flatMap(k => entry(a, k))` collects the values present.
+ * the value of the enumerable own property `b` names of `a` — an object's
+ * field, an array's or a string's element, and nothing a value owns
+ * without enumerating it, a `length` or anything of a function — and
+ * `undefined` where there is none, the key converted as a property key is,
+ * so that `entry(a, 0)` and `entry(a, "0")` read one element. A `null` or
+ * `undefined` `a` throws, as reading a property of one does, and so does a
+ * key whose conversion throws. An entry holding `undefined` reads as none
+ * here; `hasEntry` beside it tells the two apart
+ * ([spec: why two helpers](../../../../spec/property-access/entries.md#why-two-helpers)).
  *
  * Written once here and imported: the compiler reads this very text as the
  * EDAG's `['entry']`, the helper as a value, and a module that spells its
@@ -24,17 +19,31 @@
  * converted, as the helper converts it, which TypeScript's narrower name
  * for what `Object.getOwnPropertyDescriptor` takes does not say.
  *
- * Known keys retain their indexed value type inside the option; the
- * fallback accepts arbitrary receivers and keys and returns an option of
- * an unknown value.
+ * Known keys keep their indexed value type together with `undefined` for
+ * absent, inherited, or non-enumerable properties. The fallback accepts
+ * arbitrary receivers and keys and returns an unknown value.
  *
  * @module
  *
- * @import { EntryLookup } from './types.ts'
+ * @import { EntryLookup, HasEntry } from './types.ts'
  */
 
 /** @type {EntryLookup} */
 export const entry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
-    return x?.enumerable ? [x.value] : [];
+    return x?.enumerable ? x.value : undefined;
+};
+
+/**
+ * The `hasEntry` helper, the presence beside the value: whether `a` has
+ * an enumerable own property `b` names, `true` for one holding
+ * `undefined`, which `entry` reads as none, the key converted as `entry`
+ * converts it, a nullish `a` throwing as there. Recognized whole by the compiler as the EDAG's
+ * `['hasEntry']`, as `entry` is ([spec: why two helpers](../../../../spec/property-access/entries.md#why-two-helpers)).
+ *
+ * @type {HasEntry}
+ */
+export const hasEntry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable === true;
 };

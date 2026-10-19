@@ -243,6 +243,19 @@ const valueKindOf = ({ to }) =>
     typeof to === 'number' || to.kind === undefined ? {} : { 'data-graph-value-kind': to.kind }
 
 /**
+ * The attributes an inline value's `click` draws with, on its cell: a
+ * control the demo runtime hears, which the keyboard can reach. The cell
+ * takes the pointer even where the stylesheet leaves it unfilled, and the
+ * text over it lets the pointer through, so the whole cell is the target.
+ *
+ * @type {(edge: Edge) => { readonly [k in string]?: string }}
+ */
+const clickOf = ({ to }) => typeof to === 'number' || to.click === undefined ? {} : {
+    'data-demo-click': to.click.name, tabindex: '0', role: 'button', 'aria-label': to.click.label,
+    'pointer-events': 'all', cursor: 'pointer',
+}
+
+/**
  * The attribute of the two groups a node is drawn in — its box with its
  * rows, and its text, which are apart because edges are drawn between
  * them: the node's kind, so a stylesheet can treat the whole node as one,
@@ -759,6 +772,7 @@ export const graphSvg = g => {
                 // An edge carries its kind on its line; a value has no
                 // line, so its cell carries the kind instead.
                 ...(port.ref !== null || port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
+                ...clickOf(port.edge),
             }])]),
         ]),
         // The node's border again, over its cells: their thinner lines
@@ -791,6 +805,7 @@ export const graphSvg = g => {
                 : typeof to === 'number' ? [] : [/** @type {Element} */ (['text', {
                 ...at,
                 ...valueKindOf(port.edge),
+                ...(to.click === undefined ? {} : { 'pointer-events': 'none' }),
             }, ...(to.parts === undefined ? [to.inline]
                 : to.parts.map(([text, kind]) => /** @type {Element} */ (['tspan', { 'data-graph-part': kind }, text])))])]
         }),

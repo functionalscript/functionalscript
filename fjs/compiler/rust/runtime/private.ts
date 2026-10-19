@@ -10,7 +10,7 @@ import type { Exp } from '../../../edag/types.ts'
  * A module-level node resolved at compile time: a function, which becomes
  * an item, or a literal, inlined where a body reads it.
  */
-export type _Resolved = readonly ['function', readonly unknown[]] | readonly ['literal', Exp]
+export type _Resolved = readonly ['function', readonly unknown[]] | readonly ['literal', Exp] | readonly ['helper', Exp]
 
 /**
  * A built-in the `runtime` export names: its name — `Object.is` for the
@@ -36,4 +36,10 @@ export type _Item = {
     readonly name: string
     readonly ident: string
     readonly kind: 'static' | 'member' | 'helper'
+}
+
+/** The sections of a runtime module: its built-ins, and its `dot` dispatcher's node, which is not printed, or `undefined` for none. */
+export type _Table = {
+    readonly builtIns: readonly _BuiltIn[]
+    readonly dot: unknown
 }

@@ -470,21 +470,26 @@ export const proof = {
     // mints identity, and named where it is called or read, as a function
     // callee or base is.
     entry: () => {
-        const text = '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}'
+        const text = '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}'
         writes(['entry'], `export default ${text};`)
-        writes(['[]', [['entry'], ['entry']]], `export default [${text},($3,$4)=>{const $5=Object.getOwnPropertyDescriptor($3,$4);return $5?.enumerable?[$5.value]:[];}];`)
+        writes(['[]', [['entry'], ['entry']]], `export default [${text},($3,$4)=>{const $5=Object.getOwnPropertyDescriptor($3,$4);return $5?.enumerable?$5.value:undefined;}];`)
         /** @type {Exp} */
         const helper = ['entry']
-        const named = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?[$3.value]:[];}'
+        const named = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?$3.value:undefined;}'
         writes(['[]', [helper, helper]], `const $0=${named};export default [$0,$0];`)
         writes(['()', ['entry'], [1, 2]], `const $0=${named};export default $0(1,2);`)
         writes(['.', ['entry'], 'length'], `const $0=${named};export default $0.length;`)
         writes(['=>', 0, [], ['entry']], `export default ()=>${text};`)
+        // `hasEntry` in its one spelling, the same way
+        const has = '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}'
+        writes(['hasEntry'], `export default ${has};`)
+        writes(['()', ['hasEntry'], [1, 2]], `const $0=($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable===true;};export default $0(1,2);`)
+        writes(['.', ['hasEntry'], 'length'], `const $0=($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable===true;};export default $0.length;`)
         // an operand of an operator, a prefix's and a conditional's
         // condition are grouped as a function is, an arrow being no
         // operand bare; a conditional's arm, an item and an argument are
         // not, as a function is not
-        const second = '($3,$4)=>{const $5=Object.getOwnPropertyDescriptor($3,$4);return $5?.enumerable?[$5.value]:[];}'
+        const second = '($3,$4)=>{const $5=Object.getOwnPropertyDescriptor($3,$4);return $5?.enumerable?$5.value:undefined;}'
         writes(['typeof', ['entry']], `export default typeof (${text});`)
         writes(['-', ['entry']], `export default -(${text});`)
         writes(['===', ['entry'], ['entry']], `export default (${text})===(${second});`)
