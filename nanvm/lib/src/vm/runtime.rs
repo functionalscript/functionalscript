@@ -7,7 +7,8 @@
 //! static function from it, `static_read(&runtime, "Object.is")?`
 //! ([`unstable::static_read`](crate::vm::unstable::static_read)), and a
 //! call step asks its `dot` for the function a member's body answers for
-//! the receiver, after the receiver's own property and the native table
+//! the receiver, after the receiver's own property and before the native
+//! table
 //! ([`Member::call`](crate::vm::lambda::Member)). Every built-in in it is a
 //! closure carrying the NativeFunction text of its path, and `Object.entries`
 //! is the built-in itself, so the value is complete; the identity is the
