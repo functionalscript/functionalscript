@@ -215,5 +215,7 @@ export const runtime = {
   an ordinary function, and the intrinsics a body reaches a native through.
 - [`runtime-static.md`](./runtime-static.md) — the static runtime the
   bodies compile into.
+- [`../../edag/todo/direct-calls.md`](../../edag/todo/direct-calls.md)
+  — the sibling case, a known callee inside the runtime called directly.
 - [`../prototype/README.md`](../prototype/README.md) — the read and call
   rules by name alone.
