@@ -272,6 +272,7 @@ const handlers = {
     hasEntry: o0,
     // the intrinsics, a row each, as the static functions below
     slice: o0,
+    charCodeAt: o0,
     // the static functions, a row each, so a new one is a `tsc` error here
     // until it has its row
     'Object.is': o0,

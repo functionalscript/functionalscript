@@ -12,7 +12,7 @@ equal to what the compiler admits. The same arrangement for `Array` is
 
 | file | built-ins |
 |---|---|
-| [`reads.rs`](reads.rs) | `at`, `charAt`, `charCodeAt`, `codePointAt`, `isWellFormed`, `toWellFormed` |
+| [`reads.rs`](reads.rs) | `at`, `charAt`, `charCodeAt`, `isWellFormed`, `toWellFormed` |
 | [`search.rs`](search.rs) | `includes`, `indexOf`, `lastIndexOf`, `endsWith` |
 | [`building.rs`](building.rs) | `slice`, `substring`, `concat`, `repeat`, `padStart`, `padEnd`, `trim`, `trimStart`, `trimEnd` |
 | [`patterns.rs`](patterns.rs) | `replace`, `replaceAll`, `split` |
@@ -60,7 +60,8 @@ model them:
 
 Every position, length and index counts UTF-16 code units, as JavaScript does: a
 surrogate pair is two positions, `"😀".split("")` is two lone surrogates. Only
-`codePointAt`, `isWellFormed` and `toWellFormed` look at pairs. A lone surrogate
+`isWellFormed` and `toWellFormed` look at pairs here; `codePointAt` does in its
+body in the runtime, over the intrinsic `charCodeAt`. A lone surrogate
 has no Rust `&str` spelling, so the corpus and `fjs compile` write such a string
 as its code units, `string_any_utf16(&[…])`.
 

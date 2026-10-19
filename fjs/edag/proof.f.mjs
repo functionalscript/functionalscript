@@ -98,7 +98,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -233,15 +233,17 @@ export const proof = {
     // Each static tag is its path's keys joined by `.`, and the test a
     // reader dispatches a static node on is the node of one tag of the
     // list: a tag's own spelling and nothing near it, alone.
-    // The intrinsics: `slice` alone, its helper of `length` `3`; a node is
+    // The intrinsics: `slice`, its helper of `length` `3`, and `charCodeAt`,
+    // of `2`; a node is
     // one by its one tag, and nothing else is — a helper, a static, a tag
     // with an operand, the bare tag.
     intrinsics: () => {
-        assertStructurallySame(intrinsics, [['slice', 3]])
-        assertStructurallySame(intrinsicIds, ['slice'])
+        assertStructurallySame(intrinsics, [['slice', 3], ['charCodeAt', 2]])
+        assertStructurallySame(intrinsicIds, ['slice', 'charCodeAt'])
         assertEq(intrinsicLength('slice'), 3)
+        assertEq(intrinsicLength('charCodeAt'), 2)
         for (const id of intrinsicIds) { assert(isIntrinsic([id]), id) }
-        for (const node of [['entry'], ['hasEntry'], ['Object.is'], ['slice', 1], 'slice', [], null]) { assert(!isIntrinsic(node), node) }
+        for (const node of [['entry'], ['hasEntry'], ['Object.is'], ['slice', 1], ['charCodeAt', 1], 'slice', [], null]) { assert(!isIntrinsic(node), node) }
     },
     staticIds: () => {
         assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])

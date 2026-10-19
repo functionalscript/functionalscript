@@ -674,12 +674,24 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
         const r = reached(e)
         return [...r, ...r.flatMap(lazyOperandsOf)]
     }
+    /** Every lazy operand of an operation under `root`. */
+    const lazyOperands = order.flatMap(([n]) => lazyOperandsOf(n))
+    /**
+     * Whether a block establishes `o` eagerly: the scope's, or a lazy
+     * operand's, which reaches `o` on an eager path of its own — a
+     * `const` read in the condition of a conditional and again in an
+     * arm, inside an arm of another conditional, as a body's early return
+     * leaves it.
+     *
+     * @type {(o: Exp) => boolean}
+     */
+    const establishedEagerly = o => eager.includes(o) || lazyOperands.some(t => t !== o && reached(t).includes(o))
     /**
      * Every lazy operand nothing establishes eagerly: the root of its
-     * thunk's block. A lazy operand also reached eagerly is an ordinary
-     * temporary, and its thunk answers the name.
+     * thunk's block. A lazy operand some block establishes eagerly is an
+     * ordinary temporary of that block, and its thunk answers the name.
      */
-    const thunks = order.flatMap(([n]) => lazyOperandsOf(n)).filter(o => !eager.includes(o))
+    const thunks = lazyOperands.filter(o => !establishedEagerly(o))
     /**
      * The thunk whose block binds a node the scope's root reaches only
      * through lazy operands: the one whose own root reaches the node
@@ -805,19 +817,44 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
      */
     const outer = [...held(root), ...order.flatMap(([n, count]) => atomic(n) && count >= 2 ? [n] : [])]
     /**
+     * What a block holds: the scope's own block, {@link outer}; a thunk's,
+     * {@link held}.
+     *
+     * @type {(e: Exp) => readonly Exp[]}
+     */
+    const holdings = e => e === root ? outer : held(e)
+    /**
+     * The block a thunk's `let` prints in: the scope's own, where it makes
+     * the thunk, else the thunk whose block does — the one block reaching
+     * the operation the thunk is a lazy operand of. A thunk is a node: an
+     * atom's block binds nothing and asks for none.
+     *
+     * @type {(t: Exp) => Exp}
+     */
+    const parent = t => outer.includes(t) ? root : thunks.find(u => u instanceof Array && u !== t && held(u).includes(t)) ?? root
+    /**
+     * What the blocks around `e`'s hold, out to the scope's own: bound
+     * before `e`'s block runs, and so referenced by name there, never
+     * bound again.
+     *
+     * @type {(e: Exp) => readonly Exp[]}
+     */
+    const around = e => e === root ? [] : [...holdings(parent(e)), ...around(parent(e))]
+    /**
      * The temporaries `e`'s block binds, in dependency order: the ones it
      * holds — every one, for the scope's root; for a thunk's root, less the
-     * ones the scope's block already holds — a value reached eagerly
-     * elsewhere, a shared atom, and the thunks over that value's own lazy
-     * operands, which the scope's block makes where the value is — and
-     * less the thunk itself, the block's own answer — unless the root is
-     * a loop in place, which its own block binds, and answers by name.
+     * ones the blocks around it already hold — a value reached eagerly
+     * there, a shared atom, and the thunks over that value's own lazy
+     * operands, which the block makes where the value is — and less the
+     * thunk itself, the block's own answer — unless the root is a loop in
+     * place, which its own block binds, and answers by name.
      *
      * @type {(e: Exp) => readonly Exp[]}
      */
     const declaredBy = e => {
-        const own = e === root ? outer : held(e)
-        return temporaries.filter(([n]) => (n !== e || isInPlace(n)) && own.includes(n) && (e === root || !outer.includes(n))).map(([n]) => n)
+        if (!(e instanceof Array)) { return [] }
+        const outside = around(e)
+        return temporaries.filter(([n]) => (n !== e || isInPlace(n)) && holdings(e).includes(n) && !outside.includes(n)).map(([n]) => n)
     }
     /**
      * The temporaries in the order their `let` lines print: a block's own,

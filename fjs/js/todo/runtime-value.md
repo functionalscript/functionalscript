@@ -7,7 +7,7 @@ strengthened invariant by asking for the implementation; the first
 primitive, `slice`, was the first step, `runtime::<A>()`, the value
 built beside the lifted tables, the second, and `module::<A>(runtime)`,
 which retired the lifting, the third; `charCodeAt` with its first
-consumer, `codePointAt`, is the fourth, in progress; `dot` over the
+consumer, `codePointAt`, the fourth; `dot` over the
 natives remains
 
 ### Problem
@@ -186,8 +186,8 @@ detail to settle in the first task.
       `intrinsics` — the code's word for a primitive, since `Primitive` is
       the EDAG's name for a literal value — and called as a function by
       `found` (`fjs/js/intrinsic`).
-- [ ] `charCodeAt` the same way, with the first body that reads a code
-      unit.
+- [x] `charCodeAt` the same way, with the first body that reads a code
+      unit, `codePointAt`, which replaces both executors' natives.
 - [x] The runtime module holds no member call and no static read; the
       README's invariant says so for bodies as it does for initializers;
       the proof checks it on the EDAG, as it pins `dot`'s shape.

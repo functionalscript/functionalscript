@@ -1,7 +1,7 @@
 /**
  * The built-in functions, defined once, in two sections and the dispatcher
- * over them. `member` holds,
- * by name, the member functions whose body is written, `startsWith`: each
+ * over them. `member` holds, by name, the member functions whose body is
+ * written, `startsWith` and `codePointAt`: each
  * a FunctionalScript function of the receiver alone, answering `undefined`
  * for a receiver the name is no member of, or the function of the
  * arguments as the call passed them, `undefined` past the end — so the body
@@ -43,7 +43,7 @@
 
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
-import { slice } from '../intrinsic/module.f.js'
+import { charCodeAt, slice } from '../intrinsic/module.f.js'
 
 /**
  * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
@@ -112,18 +112,26 @@ const is = (a, b) => a === b
 const toNumber = value => /** @type {number} */ (value) - 0
 
 /**
- * A position argument as the string methods read one:
- * `ToIntegerOrInfinity`, which makes `NaN` and `undefined` `0`, and then
- * clamped into the string, between `0` and its `length`. The clamp comes
- * first here, since an infinity has no fraction to drop, and truncating a
- * finite position after it answers the same.
+ * An argument as `ToIntegerOrInfinity` reads one: `ToNumber`, then `NaN`
+ * made `0`, an infinity kept, and a finite number truncated toward zero,
+ * its fraction dropped.
+ *
+ * @type {(value: unknown) => number}
+ */
+const integer = value => {
+    const n = toNumber(value)
+    return isNaN_(n) ? 0 : isFinite_(n) ? n - n % 1 : n
+}
+
+/**
+ * A position argument as the string methods read one: {@link integer},
+ * then clamped into the string, between `0` and its `length`.
  *
  * @type {(value: unknown, length: number) => number}
  */
 const position = (value, length) => {
-    const n = toNumber(value)
-    const p = isNaN_(n) ? 0 : n
-    return p < 0 ? 0 : p > length ? length : p - p % 1
+    const p = integer(value)
+    return p < 0 ? 0 : p > length ? length : p
 }
 
 /**
@@ -157,6 +165,26 @@ const member = {
      */
     startsWith: self => typeof self !== 'string' ? undefined
         : (search, at) => found(self, String(search), position(at, self.length)),
+    /**
+     * [`String.prototype.codePointAt`](https://tc39.es/ecma262/#sec-string.prototype.codepointat),
+     * a string's and no other type's: the code point at `at`, read as
+     * `ToIntegerOrInfinity`, or `undefined` outside the string. A code
+     * unit that leads a surrogate pair, followed by one that trails, is
+     * the pair's code point; any other code unit, a lone surrogate
+     * included, is itself. The code units are the intrinsic `charCodeAt`,
+     * called as a function, the first body that reads one.
+     *
+     * @type {(self: unknown) => undefined | ((at: unknown) => number | undefined)}
+     */
+    codePointAt: self => typeof self !== 'string' ? undefined
+        : at => {
+            const i = integer(at)
+            if (i < 0 || i >= self.length) { return undefined }
+            const first = charCodeAt(self, i)
+            if (first < 0xd800 || first > 0xdbff || i + 1 === self.length) { return first }
+            const second = charCodeAt(self, i + 1)
+            return second < 0xdc00 || second > 0xdfff ? first : (first - 0xd800) * 0x400 + (second - 0xdc00) + 0x1_0000
+        },
 }
 
 /**

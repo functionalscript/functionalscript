@@ -626,7 +626,51 @@ export const proof = {
         assertEq(printed(['hasEntry']), 'A::static_function(|_self, args| Any::has_entry(args.argument(0), args.argument(1)).map(|b| b.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any()')
         // an intrinsic: the closure answering the member call of the name
         // on its first argument with the rest, the library's call step
+        assertEq(printed(['charCodeAt']), 'A::static_function(|_self, args| Any::dot(args.argument(0), string_any("charCodeAt")).end_call_native(|| Ok([args.argument(1)].to_array().to_any())), 2, Array::default(), Some("($0,$1)=>$0.charCodeAt($1)")).to_any()')
         assertEq(printed(['slice']), 'A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call_native(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any()')
+    },
+    /**
+     * A shared operation established inside a lazy region — read eagerly
+     * there, in a condition, and again as an arm of that condition — is a
+     * temporary of the region's block, bound once before the condition
+     * as the `const` it lowers from is, and the arm answers it by name;
+     * a region nested in that one reads the same binding and binds nothing
+     * again. At the scope's own level the same shape binds the same way.
+     * A body's early return leaves this shape: everything after the
+     * return is one arm, and a `const` after it is established inside.
+     */
+    sharedInRegion: () => {
+        /** @type {Exp} */
+        const x = ['-', 5, 2]
+        assertStructurallySame(scoped(['?:', true, ['?:', ['<', x, 1], x, 2], 3]), [
+            'let c0 = || {',
+            '    let c1: Any<A> = (f64_any(0x4014000000000000) - f64_any(0x4000000000000000))?;',
+            '    let c2: Any<A> = (Any::lt(c1.clone(), f64_any(0x3ff0000000000000)))?;',
+            '    Any::conditional(c2, || Ok(c1.clone()), || Ok(f64_any(0x4000000000000000)))',
+            '};',
+            'Any::conditional(true.to_any(), c0, || Ok(f64_any(0x4008000000000000)))',
+        ])
+        /** @type {Exp} */
+        const y = ['-', 7, 1]
+        assertStructurallySame(scoped(['?:', true, ['?:', ['<', y, 1], ['?:', ['>', y, 0], y, 4], 2], 3]), [
+            'let c0 = || {',
+            '    let c1: Any<A> = (f64_any(0x401c000000000000) - f64_any(0x3ff0000000000000))?;',
+            '    let c2: Any<A> = (Any::lt(c1.clone(), f64_any(0x3ff0000000000000)))?;',
+            '    let c3 = || {',
+            '        let c4: Any<A> = (Any::gt(c1.clone(), f64_any(0x0000000000000000)))?;',
+            '        Any::conditional(c4, || Ok(c1.clone()), || Ok(f64_any(0x4010000000000000)))',
+            '    };',
+            '    Any::conditional(c2, c3, || Ok(f64_any(0x4000000000000000)))',
+            '};',
+            'Any::conditional(true.to_any(), c0, || Ok(f64_any(0x4008000000000000)))',
+        ])
+        /** @type {Exp} */
+        const z = ['-', 9, 1]
+        assertStructurallySame(scoped(['?:', ['<', z, 1], z, 2]), [
+            'let c0: Any<A> = (f64_any(0x4022000000000000) - f64_any(0x3ff0000000000000))?;',
+            'let c1: Any<A> = (Any::lt(c0.clone(), f64_any(0x3ff0000000000000)))?;',
+            'Any::conditional(c1, || Ok(c0.clone()), || Ok(f64_any(0x4000000000000000)))',
+        ])
     },
     /**
      * A static function as a value — `Object.is` — is read from the
@@ -1333,6 +1377,7 @@ export const proof = {
             assertEq(holdsFunction(['entry']), true)
             assertEq(holdsFunction(['hasEntry']), true)
             assertEq(holdsFunction(['slice']), true)
+            assertEq(holdsFunction(['charCodeAt']), true)
             assertEq(holdsFunction(['[]', [['entry']]]), true)
             assertEq(holdsFunction(['=>', 0, [], 1]), true)
             assertEq(holdsFunction(['=>', 0, [1], 1]), true)

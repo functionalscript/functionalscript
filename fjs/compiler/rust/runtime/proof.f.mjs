@@ -26,7 +26,7 @@ export const proof = {
      * Every function a section names carries the NativeFunction text of
      * its path — a static, a member — where a helper keeps its body's;
      * `Object.entries` is the closure over `Any::entries` under its own;
-     * the intrinsic `found` calls asks no runtime; and the sections are
+     * the intrinsics `found` and `codePointAt` call ask no runtime; and the sections are
      * the three. No static is read and no member called: the module has
      * no runtime in scope, and the printer would refuse either.
      */
@@ -44,6 +44,7 @@ export const proof = {
             'A::static_function(|_self, args| Any::entries(args.argument(0)), 1, Array::default(), Some("function entries() { [native code] }")).to_any()',
             'Some("($0)=>$0===0&&1/$0<0")',
             'string_any("slice")).end_call_native(|| Ok([args.argument(1), args.argument(2)].to_array().to_any()))',
+            'string_any("charCodeAt")).end_call_native(|| Ok([args.argument(1)].to_array().to_any()))',
             '(string_key("dot"), ',
         ]) {
             assert(rust.includes(line), line)

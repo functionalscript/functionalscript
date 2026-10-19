@@ -153,6 +153,7 @@ export const proof = {
         // and an intrinsic its helper's, `3` for `slice`
         expectValue(['slice'], 'length', 3)
         missing(['slice'], '0')
+        expectValue(['charCodeAt'], 'length', 2)
         // and so does a static function: `Object.entries` its `1`, with no
         // runtime to ask, and every other the length of the body the
         // runtime holds at its path, failing by name with no runtime or

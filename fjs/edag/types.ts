@@ -241,7 +241,7 @@ export type Comma = readonly[',', Exps]
 export type Op0Id =
     | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | IntrinsicId | StaticId
 
-/** An intrinsic's tag, the member's name: `'slice'`. The list is `intrinsics` in `module.f.mjs`. */
+/** An intrinsic's tag, the member's name: `'slice'`, `'charCodeAt'`. The list is `intrinsics` in `module.f.mjs`. */
 export type IntrinsicId = (typeof intrinsics)[number][0]
 
 /** A static function's tag, its path's keys joined by `.`: `'Object.is'`, `'Number.isInteger'`. */

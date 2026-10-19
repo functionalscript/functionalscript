@@ -144,7 +144,7 @@ export const proof = {
         assertEq(n.isNaN('NaN'), false)
         assertEq(n.isFinite('1'), false)
     },
-    // The one member body so far, on the host: `String.prototype.startsWith`
+    // The member bodies, on the host. `String.prototype.startsWith`
     // is a string's alone, `undefined` on every other receiver, and its
     // algorithm case by case — the search converted, the position clamped
     // and truncated, an empty search found anywhere.
@@ -173,6 +173,41 @@ export const proof = {
             }
         }
     },
+    // `String.prototype.codePointAt` is a string's alone, and its algorithm
+    // case by case: a pair's code point where a lead surrogate is followed
+    // by a trail, the code unit itself otherwise — a lone surrogate, a
+    // trail, a lead at the end — and `undefined` outside the string, the
+    // position truncated, `NaN` and `undefined` the first.
+    codePointAt: () => {
+        const { codePointAt } = runtime.member
+        for (const self of samples.filter(v => typeof v !== 'string')) { assertEq(codePointAt(self), undefined, self) }
+        /** @type {(self: string) => (at: unknown) => number | undefined} */
+        const on = self => /** @type {(at: unknown) => number | undefined} */ (codePointAt(self))
+        assertEq(on('abc')(1), 0x62)
+        assertEq(on('abc')(1.9), 0x62)
+        assertEq(on('abc')(undefined), 0x61)
+        assertEq(on('abc')(NaN), 0x61)
+        assertEq(on('abc')('2'), 0x63)
+        assertEq(on('abc')(3), undefined)
+        assertEq(on('abc')(-1), undefined)
+        assertEq(on('abc')(-0.5), 0x61)
+        assertEq(on('abc')(Infinity), undefined)
+        assertEq(on('')(0), undefined)
+        assertEq(on('\u{1F600}')(0), 0x1_f600)
+        assertEq(on('\u{1F600}')(1), 0xde00)
+        assertEq(on('\ud83da')(0), 0xd83d)
+        assertEq(on('a\ud83d')(1), 0xd83d)
+        assertEq(on('\ude00\ud83d')(0), 0xde00)
+        assertEq(on('\udbff\udfff')(0), 0x10_ffff)
+        assertEq(on('\ud800\udc00')(0), 0x1_0000)
+        // the host's own, on every sample but a bigint position, which
+        // throws on both
+        for (const s of ['abc', '\u{1F600}', 'a\u{1F600}b', '\ud83d', '']) {
+            for (const a of samples.filter(v => typeof v !== 'bigint')) {
+                assertEq(on(s)(a), s.codePointAt(/** @type {number} */ (a)), [s, a])
+            }
+        }
+    },
     // The dispatcher, on the host: an own enumerable property first,
     // whatever it holds — a field, an element, a character, an own
     // `undefined` — then the member body's answer for the receiver, then
@@ -195,6 +230,8 @@ export const proof = {
         assertEq(dot({}, 'constructor'), undefined)
         assertEq(dot(members, 'constructor'), undefined)
         assertEq(typeof dot('abc', 'startsWith'), 'function')
+        assertEq(typeof dot('abc', 'codePointAt'), 'function')
+        assertEq(dot(1, 'codePointAt'), undefined)
         assertEq(/** @type {(search: unknown) => boolean} */ (dot('abc', 'startsWith'))('ab'), true)
         for (const self of samples.filter(v => typeof v !== 'string' && v !== null && v !== undefined)) { assertEq(dot(self, 'startsWith'), undefined, self) }
         assertEq(dot('abc', 'slice'), undefined)
@@ -213,7 +250,8 @@ export const proof = {
     // The core may not use what it defines, and the whole module is the
     // core: no body and no initializer holds a member call, an optional
     // chain or a static function the runtime defines — a native is reached
-    // through an intrinsic, `slice` in `found`, called as a function, and
+    // through an intrinsic, `slice` in `found` and `charCodeAt` in
+    // `codePointAt`, called as a function, and
     // the native static `Object.entries` is listed as itself — so the module
     // can be evaluated with no runtime, and NaNVM can hold it as a value
     // whose bodies never name it (`../todo/runtime-value.md`). The
@@ -222,6 +260,7 @@ export const proof = {
         assertEq(steps(edag).join(), '')
         assertEq(statics(edag).join(), '')
         assertEq(JSON.stringify(edag).includes('["slice"]'), true)
+        assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
         assertEq(JSON.stringify(edag).includes('["Object.entries"]'), true)
     },
     throw: {
@@ -234,6 +273,7 @@ export const proof = {
         },
         // A bigint position is the `TypeError` `ToNumber` throws.
         bigintPosition: () => { runtime.member.startsWith('abc')?.('a', 0n) },
+        bigintCodePointPosition: () => { runtime.member.codePointAt('abc')?.(0n) },
         // The search is converted through its own `toString`, whose throw
         // is the call's; which of two throws wins is pinned where the
         // executors run the body, in `nanvm/corpus` and `vm/runtime.rs`.

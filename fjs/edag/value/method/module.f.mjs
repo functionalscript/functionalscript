@@ -72,7 +72,7 @@ export const callee = (runtime, key, receiver, invoke) => {
  * list is what `native` below leaves out, named once so the guard of an
  * optional call can ask it without running a native.
  */
-const left = ['startsWith']
+const left = ['startsWith', 'codePointAt']
 
 /**
  * Whether `key` is a name a call may make on the receiver: a non-nullish
@@ -202,7 +202,7 @@ const stringMethod = (receiver, key, args, invoke) => {
             if (separatorKind === 'error') { return separator }
             return ok(['[]', receiver.split(/** @type {string} */ (text), limit >>> 0)])
         }
-        case 'at': case 'charAt': case 'charCodeAt': case 'codePointAt': case 'repeat':
+        case 'at': case 'charAt': case 'charCodeAt': case 'repeat':
         case 'padStart': case 'padEnd': case 'slice': case 'substring': {
             const result = toNumber(first, invoke)
             const [kind, index] = result
@@ -211,7 +211,6 @@ const stringMethod = (receiver, key, args, invoke) => {
                 case 'at': { return ok(receiver.at(index) ?? ['undefined']) }
                 case 'charAt': { return ok(receiver.charAt(index)) }
                 case 'charCodeAt': { return ok(receiver.charCodeAt(index)) }
-                case 'codePointAt': { return ok(receiver.codePointAt(index) ?? ['undefined']) }
                 case 'repeat': {
                     const count = integer(index)
                     return count < 0 || count === Infinity ? error(['undefined']) : ok(receiver.repeat(count))

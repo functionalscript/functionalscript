@@ -284,6 +284,8 @@ export const proof = {
         eq(['.', ['slice'], 'length'], 3)
         eq(['typeof', ['slice']], 'function')
         eq(['===', ['slice'], ['slice']], false)
+        eq(['()', ['charCodeAt'], ['abc', 1]], 0x62)
+        eq(['.', ['charCodeAt'], 'length'], 2)
         eq(['===', ['entry'], ['entry']], false)
         eq(['()', ['=>', 0, [], ['===', ['entry'], ['entry']]], []], false)
         const helper = /** @type {Exp} */ (['entry'])

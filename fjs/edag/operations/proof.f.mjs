@@ -135,6 +135,8 @@ export const proof = {
         eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 7]]]], 1]], 7)
         failure(['()', ['slice'], [null, 1]])
         failure(['()', ['slice'], [['{}', []], 1]])
+        eq(['()', ['charCodeAt'], ['abc', 2]], 0x63)
+        failure(['()', ['charCodeAt'], [null, 0]])
         failure(['.', null, 'a', ['|()', []]])
     },
     // A static function is a value whether called or not, the node, one

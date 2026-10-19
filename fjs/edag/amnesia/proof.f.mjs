@@ -320,6 +320,9 @@ export const proof = {
         eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 'own']]]], 0, 1]], 'own')
         eq(['.', ['slice'], 'length'], 3)
         eq(['typeof', ['slice']], 'function')
+        // the second, `charCodeAt`: the code unit at the position
+        eq(['()', ['charCodeAt'], ['abc', 1]], 0x62)
+        eq(['.', ['charCodeAt'], 'length'], 2)
         // and nullish receivers fail before the key is read at all
         fails(entry(null, 'a'))
         fails(entry(['undefined'], boom))
