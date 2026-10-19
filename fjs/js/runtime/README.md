@@ -304,8 +304,10 @@ cycle:
   ([`../intrinsic`](../intrinsic/module.f.js)), and another body by
   reading it as a value, never by its name: the core may not use what it
   defines, and the whole module is the core, which the proof checks on the
-  compiled EDAG — no chain step and no static node anywhere in it. This is
-  what lets a VM hold the runtime as a value its bodies never name
+  compiled EDAG — no chain step anywhere in it, and no static node but the
+  natives the table lists as themselves, `Object.entries`, which every
+  executor binds and no body reads. This is what lets a VM hold the runtime
+  as a value its bodies never name
   ([`../todo/runtime-value.md`](../todo/runtime-value.md)). NaNVM holds
   the initializer rule as a stronger one still: the static-runtime printer
   lifts the module at compile time, so its scope holds functions, literals

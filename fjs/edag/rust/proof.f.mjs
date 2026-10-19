@@ -616,11 +616,6 @@ export const proof = {
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
     },
     /**
-     * The `entry` helper as a value: the static function every function
-     * is, its body `Any::entry` of its two fixed arguments, under the text
-     * the writer gives the helper.
-     */
-    /**
      * A helper as a value with the names it spells, what a frame slot
      * holding one prints as in the static runtime: tagged, as
      * `scopeTagged`'s lines are.
@@ -643,6 +638,11 @@ export const proof = {
         assert(text.includes('Some("()=>()=>2")') && text.includes('Some("()=>2")'))
         assert(!unwrap(scopeTagged(['[]', [given]])).lines.map(untagged).join('\n').includes('native code'))
     },
+    /**
+     * The `entry` helper as a value: the static function every function
+     * is, its body `Any::entry` of its two fixed arguments, under the text
+     * the writer gives the helper.
+     */
     entry: () => {
         assertEq(printed(['entry']), 'A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any()')
         assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')

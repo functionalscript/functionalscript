@@ -185,7 +185,8 @@ detail to settle in the first task.
       `found` (`fjs/js/intrinsic`).
 - [ ] `charCodeAt` the same way, with the first body that reads a code
       unit.
-- [x] The runtime module holds no member call and no static read; the
+- [x] The runtime module holds no member call and no static read, but
+      the natives its table lists as themselves, `Object.entries`; the
       README's invariant says so for bodies as it does for initializers;
       the proof checks it on the EDAG, as it pins `dot`'s shape.
 - [x] `runtime::<A>()` printed by the ordinary backend, every function a
