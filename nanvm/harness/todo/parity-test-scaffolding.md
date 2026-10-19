@@ -20,11 +20,13 @@ fn names(exports: &Object<Naive>) -> Vec<String> { exports.own_entries().into_it
 
 ### Proposal
 
-`tests/common/mod.rs` — or a `pub mod host` in `src/`, since
-`nanvm-effects-node` is already a dev-dependency — with `member`, `names`,
-`Scratch` and `perform_case(host, effect) -> Any<Naive>`, which runs the
-effect, checks the tag and answers the answers. The two tests keep what
-differs: the stdin bytes, the stdout and stderr asserts. The JavaScript twins
+`tests/common/mod.rs` with `member`, `names`, `Scratch` and
+`perform_case(host, effect) -> Any<Naive>`, which runs the
+effect, checks the tag and answers the answers. It lives under `tests`, not
+`src`: `nanvm-effects-node` is a dev-dependency of the harness, which the
+library target cannot see, so a helper in `src/` that built a `Native`
+host would fail to compile. The two tests keep what differs: the stdin
+bytes, the stdout and stderr asserts. The JavaScript twins
 in [`fjs/nanvm/parity`](../../../fjs/nanvm/parity/proof.mjs) are short and
 not the subject here.
 

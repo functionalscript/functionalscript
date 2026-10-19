@@ -23,7 +23,8 @@ inside its `start` closure, where no proof reaches it:
 - the pending record `{ state, verifier, createdAt }`, whose schema is in the
   pure module;
 - the check that the registered redirect is this site's `/prs/`;
-- a base64url, hand-written over `btoa` and three `split`/`join`s, which
+- a base64url, hand-written over `btoa` with the alphabet swapped and the
+  padding stripped by `split`/`join`, which
   `github-runtime.proof.mjs` writes a second time to check the first — while
   [`fjs/basen`](../../basen/module.f.mjs) has `baseN` and a Base64 module one
   alphabet away;
