@@ -11,7 +11,7 @@ and `read_file`, `read_bounded` and `check_window` in `files.rs` write
 `IoError { code: None, message }` inline. `inflate.rs` builds the coded
 refusal a third way: `From<Fail>` matches each `Fail` to a code and a
 message and writes the literal, and the trailing-bytes refusal in `inflate`
-writes it again; `native.rs` writes the literal too. `files.rs` also builds
+writes it again. `files.rs` also builds
 `Stat { size, is_file, is_directory }` from a `Metadata` identically in
 `stat` and `fstat`.
 
@@ -19,14 +19,14 @@ writes it again; `native.rs` writes the literal too. `files.rs` also builds
 
 Two constructors on `IoError` in `files.rs` — `refusal(code, message)` and
 `message(message)` — replacing both helpers and every literal, the
-inflater's `From<Fail>` and trailing-bytes refusal and `native.rs`'s among
-them; `From<fs::Metadata> for Stat` for `stat` and `fstat`. `failure` stays
+inflater's `From<Fail>` and trailing-bytes refusal among them;
+`From<fs::Metadata> for Stat` for `stat` and `fstat`. `failure` stays
 the one `io::Error` translator.
 
 ### Tasks
 
 - [ ] `IoError::refusal` and `IoError::message`; the helpers and the literals
-      in `files.rs`, `resolve.rs`, `inflate.rs` and `native.rs` go.
+      in `files.rs`, `resolve.rs` and `inflate.rs` go.
 - [ ] `From<fs::Metadata> for Stat`.
 
 ### Related
