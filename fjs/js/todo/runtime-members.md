@@ -1,9 +1,9 @@
 ## One member function per name, and `dot`, the dispatcher, in FunctionalScript
 
 **Priority:** P3
-**Status:** wip — the member shape and the inventory have landed,
-**sergey-shandar**'s decisions below taken; `dot`, its compilation and the
-natives remain
+**Status:** wip — the member shape, the inventory, `dot` and its
+compilation have landed, **sergey-shandar**'s decisions below taken; the
+chain and the natives remain
 
 ### Problem
 
@@ -73,11 +73,13 @@ export const runtime = {
   function under an admitted name, costs one failed read before the
   table. `entry(member, key)` reads the table as an object literal, so no
   inherited name answers. A `length`, which an array, a string and a
-  function own without enumerating it, is no entry and no member name:
-  a call step asks `dot` for an admitted member name alone, and reads
-  `length` as the executor's own property read does, `a.length`, so
-  `a.length?.()` throws as in JavaScript, a number being no function, and
-  `dot` is never asked for it. The receiver is never nullish: the executor
+  function own without enumerating it, is no entry and no member name,
+  so `dot` answers `undefined` for it: the interpreter asks `dot` for an
+  admitted member name alone and reads `length` as the executor's own
+  property read does, `a.length`; NaNVM's call step asks `dot` for every
+  key and reads the own property where `dot` answered `undefined`. Either
+  way `a.length?.()` throws as in JavaScript, a number being no function.
+  The receiver is never nullish: the executor
   throws for one before any argument, as `Member::new` and the
   interpreter's property step do. A compiled `a.map(b)` stays
   `Any::dot(a, "map").end_call(...)`: one dispatcher serves a literal key
