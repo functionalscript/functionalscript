@@ -144,8 +144,8 @@ the `IVm`/`IStaticFunction` split per item; the name-identity rule and its parag
 loses its subject, not its point: the ordinary backend calls a captured
 module function through `Any::call` of its frame slot as the lifting
 printer called an item's accessor, so the direct call of a known callee
-stays open, retargeted at that backend as `fjs/edag/todo/direct-calls.md`,
-to measure first.
+stays open, and the step that deletes the printer retargets it at that
+backend, as `fjs/edag/todo/direct-calls.md`, to measure first.
 
 **What needs a home: the built-in's text.** `String(Object.is)` is the
 NativeFunction text, `function is() { [native code] }`, never the body's
@@ -200,8 +200,9 @@ detail to settle in the first task.
       `Member::call`'s runtime steps retiring; `nanvm/member` as the
       oracle.
 - [ ] Delete the lifting printer, `RuntimeFunction`, `Accessor`,
-      `MemberCode`, `runtime_static`, `runtime_method`, and
-      `static-runtime-calls.md`; the README's "How NaNVM finds it"
+      `MemberCode`, `runtime_static` and `runtime_method`, and retarget
+      `static-runtime-calls.md` at the ordinary backend as
+      `fjs/edag/todo/direct-calls.md`; the README's "How NaNVM finds it"
       describes the value.
 
 ### Related
@@ -218,7 +219,8 @@ detail to settle in the first task.
 - [`../../../nanvm/lib/src/vm/runtime.rs`](../../../nanvm/lib/src/vm/runtime.rs)
   — the tables and the search this retires.
 - [`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md)
-  — superseded: the direct call is the only call the runtime module makes.
+  — open: the direct call of a known callee, which the lifting step
+  retargets at the ordinary backend.
 - [spec: why two helpers](../../../spec/property-access/entries.md#why-two-helpers)
   — "the core of the runtime may not use what it defines", the rule this
   extends to the whole module.
