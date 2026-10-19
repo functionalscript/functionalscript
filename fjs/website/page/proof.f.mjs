@@ -78,13 +78,15 @@ export const proof = {
     },
     /**
      * **Every page opens with the same header:** the logo and the name
-     * linking home, the releases, and the repository.
+     * linking home, the CLI, the pull requests, the releases, the
+     * playground, and the repository.
      */
     header: {
         links: () => assertEq(headerHtml(local),
             '<header><nav aria-label="Site">'
             + '<a href="/index.html" data-home=""><img src="/fjs/website/favicon.svg" alt="" width="24" height="24">FunctionalScript</a>'
             + '<span data-site-links=""><a href="/cli/">CLI</a><a href="/prs/index.html">PRs</a><a href="/changelog/index.html">Releases</a>'
+            + '<a href="/fjs/website/playground/index.html">Playground</a>'
             + `<a href="${repository}">GitHub<span aria-hidden="true"> ↗</span></a></span>`
             + '</nav></header>'),
         /**
