@@ -256,7 +256,7 @@ export const proof = {
     // a node it is for, first.
     core: () => {
         assertEq(steps([['|()', ['=>', 0, [], 1], []]]).join(), '|()')
-        assertEq(statics([['Object.is']]).join(), 'Object.is')
+        assertEq(staticNodes([['Object.is']]).join(), 'Object.is')
         assertEq(steps(edag).join(), '')
         assertEq(staticNodes(edag).join(), '')
         assertEq(JSON.stringify(edag).includes('["slice"]'), true)
