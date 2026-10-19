@@ -7,10 +7,11 @@
 
 `vm/primitive.rs` has `From<Primitive<A>> for Unpacked<A>` and no inverse, so
 the inverse is written where it is needed. `to_primitive_value` in
-`vm/primitive_coercion.rs` matches the five primitive variants into `Some`
-and the three others into `None`; the `Dispatch` impl for
-`PrimitiveCoercionOp` in the same file is the identity on the five
-primitives, one method each, with the three object arms doing the work;
+`vm/primitive_coercion.rs` matches the primitive variants — `Nullish`,
+`Boolean`, `Number`, `String`, `BigInt` — into `Some` and the others —
+`Object`, `Array`, `Function` — into `None`; the `Dispatch` impl for
+`PrimitiveCoercionOp` in the same file is the identity on the primitives,
+one method each, with the object, array and function arms doing the work;
 `to_numeric` in `vm/numeric_coercion.rs` routes each primitive variant to
 `NumberCoercion`'s method of the same name, arm by arm.
 
@@ -33,7 +34,7 @@ A new primitive variant is one edit per copy, and the copies must agree.
 Unpacked<A>; }` in `vm/primitive.rs`, beside the `From` it inverts, the `Err`
 handing the object, array or function back unchanged. Then
 `to_primitive_value` is `Primitive::try_from(v.into()).ok()`;
-`Any::to_primitive` is a three-arm match on the `Err` — object through
+`Any::to_primitive` is a match on the `Err` — object through
 `ordinary_to_primitive` with the object method, array with `arr_to_string`,
 function with its text — and the `Dispatch` impl goes; `to_numeric` is
 `Primitive::BigInt(b) => Numeric::BigInt(b)`, and

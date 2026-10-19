@@ -10,7 +10,8 @@ The [README](../README.md) says the two readers share the kernel in
 read a container "in the same order by construction". Each module then
 instantiates the kernel by hand: `arrayValidate`/`arrayParse`,
 `recordValidate`/`recordParse`, `tupleValidate`/`tupleParse`,
-`structValidate`/`structParse`, the three `rest` forms, the `or` and the
+`structValidate`/`structParse`, the `rest` forms for a tuple, a struct and
+the rest itself, the `or` and the
 visitor object with the same `unknown` and `option` arms and the same
 comment — the same several dozen lines in
 [`validate`](../validate/module.f.mjs) and [`parse`](../parse/module.f.mjs),

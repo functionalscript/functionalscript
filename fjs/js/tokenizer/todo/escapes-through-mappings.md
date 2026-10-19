@@ -44,7 +44,8 @@ not move alone: `escapeMapping` and `characterMapping` close over `textTag`,
 the `Text` symbol `tagged('text', 'value')` makes, and `stringMappings` is
 read back through `textAt`, all of which `json/parser` owns today and the
 DataJS parser imports from it. The layer that moves is the whole of it —
-`tagged` and the `Text` tag, `textAt`, the three string mappings — into
+`tagged` and the `Text` tag, `textAt`, the string mappings `escapeMapping`,
+`characterMapping` and `stringMapping` — into
 `lib/json` or a module beside it, so that `json/parser`, `datajs/parser`
 and the tokenizer each import the grammar's reader of its own strings and
 none imports another reader. That is the move
