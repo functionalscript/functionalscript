@@ -229,11 +229,12 @@ the example, the third, which gets its own `todo/` when its turn comes.
       executor is given and no longer calls the host engine for it; the
       executors' contexts carry the runtime, the transpiler takes it as
       `interpret(load)`, and the harness loads it for the expectations.
-- [x] NaNVM binds the compiled runtime through `IVm::runtime_method`,
-      after its native table; `npm run gen` compiles the module to
-      `vm/gen.runtime.rs`; the corpus runs the body; `starts_with` left
-      `vm/lambda/string.rs`; the four-row completeness test counts a
-      body as an answer.
+- [x] NaNVM binds the compiled runtime — through `runtime_method` after
+      its native table at first; through the compiled `dot` before it
+      since [runtime-members.md](./runtime-members.md); `npm run gen`
+      compiles the module to `vm/gen.runtime.rs`; the corpus runs the
+      body; `starts_with` left `vm/lambda/string.rs`; the four-row
+      completeness test counts a body as an answer.
 - [ ] The rest of the string batch, a few names per pull request as
       [SESSION.md](../../../doc/SESSION.md) asks: `endsWith`, `includes`,
       `indexOf`, `lastIndexOf`, `at`, `charAt`, `codePointAt`, `substring`,

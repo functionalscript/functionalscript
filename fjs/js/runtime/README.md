@@ -148,8 +148,9 @@ the interpreter uses: a consumer evaluates it once to the module's export
 object and passes that in the executor's context, or, where it already
 has the compiler loaded, interprets the source on the spot, as the
 harness does. The Rust is what NaNVM binds. Whatever the form, a call
-step resolves the same way: the receiver's own property, the VM's native
-implementation, the runtime's body, the `TypeError`.
+step resolves the same way: `dot` — the receiver's own property, else
+the runtime's body — then the VM's native implementation, then the
+`TypeError`.
 
 ## How NaNVM finds it
 

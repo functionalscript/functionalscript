@@ -48,8 +48,8 @@ export const runtime = {
   `TypeError`, or a skip under `?.()`. The body never falls back itself,
   so no prototype name is destructured anywhere.
 - The native implementations become branches of the bodies, so the native
-  table, the interpreter's dispatcher and `runtime_method`'s search by type
-  go: one rule, in one place, for both executors.
+  table and the interpreter's dispatcher go, as `runtime_method`'s search
+  by type has: one rule, in one place, for both executors.
 - The resolution a call step makes — the own property, else the body's
   answer, else `undefined` — is written once, in the language, as the
   runtime's `dot`, and every executor asks it:
@@ -126,11 +126,12 @@ export const runtime = {
   stays native until the static-runtime printer compiles the table `dot`
   reads, which it refuses today as an object a body captures: an object
   literal of functions read through `entry` by a key prints as a Rust
-  `match` on the name, `_ => None`, which also replaces the native
-  table's scan. With `dot` compiled, `Member::call` becomes the nullish
-  throw, the index keys an array, a string or a function owns, and `dot`;
-  the two-step guard, `runtime_method` by name and the interpreter's
-  `hasMethod` go with it, since `dot` answers the guard's question too.
+  `match` on the name, `_` the `undefined`, which replaces the native
+  table's scan once every native is a branch. With `dot` compiled,
+  `Member::call` is the nullish throw, `dot`, the index keys an array, a
+  string or a function owns, and the native table until then; the
+  two-step guard, `runtime_method` by name and the interpreter's
+  `hasMethod` went with it, since `dot` answers the guard's question too.
 - The whole chain moves into the runtime after `dot`, under
   [DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution):
   the three continuations of the README's chains section, in
