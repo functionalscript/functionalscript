@@ -26,13 +26,15 @@ marks `edag/rust` declares.
 
 `useLinesTagged` takes the flat `readonly Use[]` and sorts and dedupes
 itself, or `edag/rust` exports `usesOf(uses): Uses` and both callers pass
-the list; `kw` and `lit` are exported by `edag/rust` and imported.
+the list; `edag/rust` exports its marks as `_kw` and `_lit` and the runtime
+printer imports them — the underscore because the export is linkage for
+one importer and not API, as `fjs/AGENTS.md` has it.
 
 ### Tasks
 
 - [ ] `useLinesTagged` over `Use[]`, or `usesOf`; `scopeTagged` and the
       runtime generator use it.
-- [ ] `kw` and `lit` exported once.
+- [ ] The marks exported once, as `_kw` and `_lit`.
 
 ### Related
 
