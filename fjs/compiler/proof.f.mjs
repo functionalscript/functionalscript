@@ -47,7 +47,7 @@ import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
  */
 const withRuntime = root => ({
     ...root,
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { startsWith: self => s => self.slice(0, s.length) === s } };")] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("const startsWith = self => s => self.slice(0, s.length) === s; export const runtime = { member: { startsWith }, dot: (self, key) => key === 'startsWith' ? startsWith(self) : undefined };")] } } },
 })
 
 /** @type {Commands<NodeOp | CompileValue>} */
@@ -1333,7 +1333,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Static functions': 'ooooo',
                 'Object.entries': 'ooooo',
                 'Optional chaining': 'xoooo',
-                'The entry helper': 'ooooo',
+                'The entry helper': 'xoooo',
                 'Named exports': 'ooooo',
                 'A failure at run time': 'xxooo',
                 'An import': 'xxxxx',

@@ -17,14 +17,16 @@ import { directory, expectedDirectory, expectedModules, expectedModulesPath, fix
  * A stand-in for `fjs/js/runtime`, at its path: a `startsWith` body
  * answering `7` whatever it is called on, so an expectation that holds `7`
  * was computed by the body, a member being a function of the receiver
- * answering the function of the arguments. The expectations read the
- * runtime from this file, so every root below carries it.
+ * answering the function of the arguments, and a `dot` answering that
+ * body's answer under the name, as the interpreter asks it. The
+ * expectations read the runtime from this file, so every root below
+ * carries it.
  *
  * @type {(fixtures: Dir) => Dir}
  */
 const withRuntime = fixtures => ({
     'nanvm': { 'harness': { 'fixtures': fixtures } },
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = { member: { startsWith: () => () => 7 } };')] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('const startsWith = () => () => 7; export const runtime = { member: { startsWith }, dot: (self, key) => key === \'startsWith\' ? startsWith(self) : undefined };')] } } },
 })
 
 /**

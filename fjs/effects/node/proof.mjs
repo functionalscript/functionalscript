@@ -48,7 +48,7 @@ import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
     awaitIfPromise, both, catch_, childWait, close, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat, import_,
-    inflate, inflateTrailingCode, open, pread, readWhole, rename, requestBodyOffsetMessage,
+    inflate, inflateTrailingCode, open, pread, randomInt, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
     writeFile as writeFileEffect,
 } from './module.f.mjs'
@@ -621,6 +621,14 @@ export const proof = {
             const missing = fileURLToPath(new URL('missing.mjs', directory))
             await hostCheck(resolveFileModule(missing, null), result => assertEq(result[0], 'error'))
         }),
+    },
+    // The shared handler through the real runner: a whole number in
+    // `[0, 2^32)`, from the host's `crypto.getRandomValues`.
+    randomInt: async () => {
+        /** @type {NodeProgram} */
+        const program = () => resultMapStep(randomInt(), r =>
+            r[0] === 'ok' && Number.isInteger(r[1]) && r[1] >= 0 && r[1] < 0x1_0000_0000 ? ok(0) : error(1))
+        assertEq(await exitCode(program), 0)
     },
     inflate: {
         // A stream through the real zlib: the bytes it was made from, every

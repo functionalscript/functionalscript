@@ -43,7 +43,7 @@
  * @import { Exp } from '../../../edag/types.ts'
  * @import { Printed, Use } from '../../../edag/rust/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
- * @import { _BuiltIn, _Item, _Resolved } from './private.ts'
+ * @import { _BuiltIn, _Item, _Resolved, _Table } from './private.ts'
  */
 
 import { error, mapOk, ok, okList, okThen } from '../../../types/result/module.f.js'
@@ -68,9 +68,11 @@ const bound = kind => kind === 'member' ? 'IStaticFunction' : 'IVm'
 
 /**
  * A module-level node resolved at compile time: a function, which becomes
- * an item; a literal, inlined where a body reads it; or the refusal of
- * anything else, since the runtime's module scope holds functions and
- * literals. An import is read off its export object by a literal key,
+ * an item; a literal, inlined where a body reads it; a helper, `entry` or
+ * `hasEntry`, which the module scope holds for `dot` and which no printed
+ * item may capture ({@link itemLines}); or the refusal of anything else,
+ * since the runtime's module scope holds functions, literals and the two
+ * helpers. An import is read off its export object by a literal key,
  * `{ f }.f`, and folds to the property's value, resolved in turn.
  *
  * @type {(node: Exp) => Result<_Resolved, readonly unknown[]>}
@@ -80,6 +82,7 @@ const resolve = node => {
     const [id, a, key] = /** @type {readonly any[]} */ (node)
     if (id === '=>') { return ok(/** @type {const} */ (['function', node])) }
     if (id === 'undefined') { return ok(/** @type {const} */ (['literal', node])) }
+    if (id === 'entry' || id === 'hasEntry') { return ok(/** @type {const} */ (['helper', node])) }
     if (id === '.' && node.length === 3 && typeof key === 'string') {
         const property = literalProperties(a)?.find(p => p[1] === key)
         return property === undefined ? refused(node) : resolve(/** @type {Exp} */ (property[2]))
@@ -141,15 +144,18 @@ const statics = section => {
 /**
  * Every built-in the module's `runtime` export names, the `static` section's
  * then the `member` section's — an object of functions by name, `startsWith`
- * — either section absent for none; or the refusal of a module without the
- * export or with another beside it, whose initializer the lifting would
- * drop, of a section that is not objects of functions, or of a body under
- * a path `nanvm-lib` binds natively,
- * `Object.entries`: the represented executors answer such a path
- * natively before they ask the runtime, so a body there would be NaNVM's
- * alone, and the two would answer apart.
+ * — either section absent for none, and the `dot` section, the dispatcher,
+ * which is not printed: NaNVM's call step is native until the printer
+ * compiles the table `dot` reads, and `dot` captures that table, which no
+ * item may hold (`fjs/js/todo/runtime-members.md`). Or the refusal of a
+ * module without the export or with another beside it, whose initializer
+ * the lifting would drop, of a section that is not objects of functions,
+ * of a `dot` that is no function, or of a body under a path `nanvm-lib`
+ * binds natively, `Object.entries`: the represented executors answer such
+ * a path natively before they ask the runtime, so a body there would be
+ * NaNVM's alone, and the two would answer apart.
  *
- * @type {(root: Exp) => Result<readonly _BuiltIn[], readonly unknown[]>}
+ * @type {(root: Exp) => Result<_Table, readonly unknown[]>}
  */
 const table = root => {
     const exports = literalProperties(root)
@@ -161,10 +167,12 @@ const table = root => {
     if (sections === null) { return error(['no `runtime` export of objects', root]) }
     /** @type {(name: string) => unknown} */
     const section = name => sections.find(p => p[1] === name)?.[2] ?? ['{}', []]
+    const dot = sections.find(p => p[1] === 'dot')?.[2]
+    if (dot !== undefined && !(dot instanceof Array && dot[0] === '=>')) { return error(['a `dot` section that is no function', dot]) }
     return okThen((/** @type {readonly _BuiltIn[]} */ bodies) => {
         const native = bodies.find(b => isNative(b.name.split('.')))
         if (native !== undefined) { return error(['a body for a static every executor binds natively', native.name]) }
-        return mapOk((/** @type {readonly _BuiltIn[]} */ members) => [...bodies, ...members])(
+        return mapOk((/** @type {readonly _BuiltIn[]} */ members) => /** @type {_Table} */ ({ builtIns: [...bodies, ...members], dot }))(
             builtIns(key => key, true)(section('member'), ['a section of the runtime that is no object', section('member')]))
     })(statics(section('static')))
 }
@@ -175,7 +183,8 @@ const table = root => {
  * table where a built-in resolves to it — a member's identifier its name,
  * `starts_with` — and a helper, `f` with its index among
  * them, otherwise, the module's own. Refused: a module-level node that is
- * no function, no object, no import's read and no `undefined` — an
+ * no function, no object, no import's read, no `undefined` and not the
+ * `entry` helper, which `dot` reads and no item may hold — an
  * operation the lifting would drop unevaluated; an import's read that
  * resolves to nothing an item may hold, wherever it stands, since one a
  * property written twice left behind would otherwise go unchecked; a
@@ -184,17 +193,23 @@ const table = root => {
  * mean something else; a function two built-ins name, since JavaScript
  * keeps `isNaN` and `Number.isNaN` apart however alike; and two items
  * printing one Rust name, {@link printedNames} — a static and a member of
- * one type and key, or a member whose key ends in `Code`, say.
+ * one type and key, or a member whose key ends in `Code`, say. The `dot`
+ * dispatcher is no item: the one function no built-in reaches by design,
+ * so a built-in naming the very function `dot` is, or capturing it in a
+ * slot, is refused.
  *
- * @type {(root: Exp, builtIns: readonly _BuiltIn[]) => Result<readonly _Item[], readonly unknown[]>}
+ * @type {(root: Exp, table: _Table) => Result<readonly _Item[], readonly unknown[]>}
  */
-const items = (root, builtIns) => {
+const items = (root, { builtIns, dot }) => {
     const nodes = visit(operandsOf)([])(root).map(([n]) => n).filter(n => n instanceof Array)
-    const stray = nodes.find(n => !['=>', '{}', '.', 'undefined'].includes(n[0]))
+    const stray = nodes.find(n => !['=>', '{}', '.', 'undefined', 'entry', 'hasEntry'].includes(n[0]))
     if (stray !== undefined) { return refused(/** @type {Exp} */ (stray)) }
     return okThen(/** @type {() => Result<readonly _Item[], readonly unknown[]>} */ () => {
-        const functions = nodes.filter(n => n[0] === '=>')
+        const shared = builtIns.find(b => b.node === dot)
+        if (shared !== undefined) { return error(['a built-in naming the `dot` dispatcher; the dispatcher is no built-in', shared.name]) }
+        const functions = nodes.filter(n => n[0] === '=>' && n !== dot)
         const reached = reach(builtIns.map(b => b.node), [])
+        if (dot !== undefined && reached.some(n => n === dot)) { return error(['a body capturing the `dot` dispatcher; no built-in reaches it', 'dot']) }
         const dropped = functions.find(n => !reached.includes(n))
         if (dropped !== undefined) { return error(['a function no built-in reaches; a property written twice keeps its last value', dropped]) }
         const twice = builtIns.find((b, i) => builtIns.findIndex(c => c.node === b.node) !== i)
@@ -264,9 +279,11 @@ const reference = ident => [`Function::from(${ident}::<A>()).to_any()`, [['vm', 
  * list, the rest, or a second fixed argument — which a function of the
  * receiver alone has no spelling for; a function a static's or a
  * helper's body makes at call time, since those are bound on `IVm` alone;
- * a member read as a value, which has no descriptor to read; and a slot
- * that resolves to nothing an item may hold. A slot that resolves to a
- * function names an item, since every module-level function is one.
+ * a member read as a value, which has no descriptor to read; a slot that
+ * holds `entry` or `hasEntry`, which `dot` alone reads and the printer
+ * leaves out with it, so no printed item has a spelling for them; and a
+ * slot that resolves to nothing an item may hold. A slot that resolves to
+ * a function names an item, since every module-level function is one.
  *
  * @type {(all: readonly _Item[]) => (item: _Item) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
@@ -282,7 +299,9 @@ const itemLines = all => ({ node, name, ident, kind }) => {
     /** @type {(i: number) => Result<Printed<string>, readonly unknown[]>} */
     const frame = i => okThen(
         /** @type {(resolved: _Resolved) => Result<Printed<string>, readonly unknown[]>} */
-        (resolved) => resolved[0] === 'function' ? itemReference(resolved[1]) : atomExpr(resolved[1]))(resolve(slots[i]))
+        (resolved) => resolved[0] === 'function' ? itemReference(resolved[1])
+            : resolved[0] === 'helper' ? error(['a body capturing a helper; `entry` and `hasEntry` are `dot`\'s to read', name])
+            : atomExpr(resolved[1]))(resolve(slots[i]))
     return okThen((/** @type {Printed<readonly string[]>} */ [statements, uses]) => {
         const rest = readsRest(body) ? [restLine(length)] : []
         const code = [
@@ -375,9 +394,9 @@ const tables = (builtIns, all) => {
  *
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
-export const generateRuntimeTagged = root => okThen((/** @type {readonly _BuiltIn[]} */ builtIns) => okThen((/** @type {readonly _Item[]} */ all) =>
+export const generateRuntimeTagged = root => okThen((/** @type {_Table} */ sections) => okThen((/** @type {readonly _Item[]} */ all) =>
     mapOk((/** @type {readonly Printed<readonly string[]>[]} */ printed) => {
-        const [tableLines, tableUses] = tables(builtIns, all)
+        const [tableLines, tableUses] = tables(sections.builtIns, all)
         const uses = [...printed.flatMap(([, u]) => u), ...tableUses, ...skeletonUses]
         return [
             tagged('comment')(generatedHeader('`npm run gen` from `fjs/js/runtime/module.f.js`', 'change the runtime and regenerate')),
@@ -388,7 +407,7 @@ export const generateRuntimeTagged = root => okThen((/** @type {readonly _BuiltI
             ...tableLines,
             '',
         ].join('\n')
-    })(okList(all.map(itemLines(all)))))(items(root, builtIns)))(table(root))
+    })(okList(all.map(itemLines(all)))))(items(root, sections)))(table(root))
 
 /** The names the two tables spell: their rows' types and the members' bound. @type {readonly Use[]} */
 const skeletonUses = [['vm', 'Accessor'], ['vm', 'MemberCode'], ['vm', bound('member')]]

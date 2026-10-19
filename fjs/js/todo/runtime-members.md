@@ -56,14 +56,17 @@ export const runtime = {
 
   ```js
   export const dot = (self, key) => {
-      const f = entry(self, key)
-      return f.length === 1 ? f[0] : entry(member, key)[0]?.(self)
+      if (hasEntry(self, key)) { return entry(self, key) }
+      const body = entry(member, key)
+      return body === undefined ? undefined : body(self)
   }
   ```
 
-  `entry` is the language's own-property read, answering `[value]` or
-  `[]` ([`../../types/object/entry`](../../types/object/entry/module.f.js)),
-  so an own property wins whatever it holds, as it does in JavaScript —
+  `entry` is the language's own-property read, the value or `undefined`,
+  and `hasEntry` the presence beside it
+  ([`../../types/object/entry`](../../types/object/entry/module.f.js),
+  [why two helpers](../../../spec/property-access/entries.md#why-two-helpers)), so an own property
+  wins whatever it holds, as it does in JavaScript —
   `{ toString: f }` calls `f`, `{ x: undefined }.x()` throws, `[1][0]()`
   throws for the element — and a receiver that owns nothing enumerable
   under the key, every array, string, number, boolean, bigint and
@@ -111,14 +114,14 @@ export const runtime = {
 - The compiled output keeps `Any::dot(a, "map")`: no direct call by name,
   since the alternatives are more complicated. The implementation behind
   `dot` reuses the generated member functions, and an own property is
-  looked for through `entry`, which answers `[]` for every receiver but
-  an object's field or an element, so only an object literal can shadow a
-  built-in. Which entries stay native is decided as the table fills; a
+  looked for through `hasEntry` and `entry`, which find nothing for every
+  receiver but an object's field or an element, so only an object literal
+  can shadow a built-in. Which entries stay native is decided as the table fills; a
   native needs both NaNVM's Rust and the interpreter's case until its
   body lands.
-- `dot` is written in FunctionalScript, as the proposal shows, with
-  `entry` answering `[value]` or `[]`
-  ([#3024](https://github.com/functionalscript/functionalscript/pull/3024)).
+- `dot` is written in FunctionalScript, as the proposal shows, over the
+  pair `hasEntry` and `entry`, the presence and the value
+  ([why two helpers](../../../spec/property-access/entries.md#why-two-helpers)).
   The interpreter asks it first and its natives after; NaNVM's call step
   stays native until the static-runtime printer compiles the table `dot`
   reads, which it refuses today as an object a body captures: an object
@@ -157,8 +160,13 @@ export const runtime = {
   its dispatcher in `value/method`. The core — `dot`, `optionDot`,
   `optionCall` and the resolution — uses the primitive surface and plain
   calls of function values alone, no member call and no `?.`, and the
-  printer refuses a chain node inside it: the `?.()` in `dot`'s sketch
-  becomes a conditional on `entry`'s answer.
+  printer refuses a chain node inside it: `dot` asks `hasEntry` and reads
+  `entry`, two helpers the backend answers, and calls the body as a value,
+  `body(self)`, never as `a[k](...)`, which is a member call. A property
+  read, `a[k]`, is primitive — the backend's own-property read, the `end`
+  of a property step, which the two helpers are built over — so the core
+  may read one freely: a read defined in the source would read its own
+  definition.
 
 ### Tasks
 
@@ -169,10 +177,11 @@ export const runtime = {
       `static_function` on `IVm`.
 - [x] The inventory: `fjs/js/members`, every type's admitted names,
       `todo` where no body is written, its keys pinned.
-- [ ] `dot` in the runtime, as the proposal shows, with its proof on the
-      host; the interpreter asking it before its natives, `member` and
-      `left` in `value/method` going; the printer accepting the `dot`
-      section and leaving it out, named, until it compiles it.
+- [x] `dot` in the runtime, as the proposal shows, with its proof on the
+      host; the interpreter asking it before its natives, `member` in
+      `value/method` going (`left`, the names the natives lack, stays as
+      what the guard asks without running a native); the printer accepting
+      the `dot` section and leaving it out, named, until it compiles it.
 - [ ] The printer compiling `dot`: an object literal of functions read
       through `entry` by a key as a `match` on the name, `instanceof` and
       `typeof` tests as `Unpacked` matches; `Member::call` over the

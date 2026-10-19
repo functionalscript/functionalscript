@@ -227,7 +227,7 @@ export const proof = {
             expectRefused('export default n => { let r = 0; while (r < n) { const { a: [r] } = {}; } return r; };', 'loop variable shadowed', 62)
             // and `Object`, a reserved global, bound by a pattern after an
             // `entry` helper read it
-            expectRefused('const e = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [x.value] : []; }; const { Object } = {}; export default e;', 'reserved word', 122)
+            expectRefused('const e = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }; const { Object } = {}; export default e;', 'reserved word', 127)
             // the statement before it, written without its `;`, still ends
             // at a newline and not at a pattern on the same line
             expectRefused('const x = {}; const [a] = x const { b } = x; export default [a, b];', 'unexpected token', 29)

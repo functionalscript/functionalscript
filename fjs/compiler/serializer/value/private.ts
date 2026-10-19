@@ -9,5 +9,6 @@ export type _ValueNode =
     | readonly ['[]', readonly Operand[]]
     | readonly ['{}', readonly (readonly [':', string, Operand])[]]
     | readonly ['entry']
+    | readonly ['hasEntry']
     | readonly [StaticId]
     | Extract<Node, readonly ['=>', ...readonly unknown[]]>

@@ -7,8 +7,9 @@
   `const hello = () => 0` and in `export default () => 0` is the same node,
   `['=>', 0, [], 0]`, whatever JavaScript would name it (`make`, `hello`,
   `default`), and no program observes the difference: `f.name` is
-  refused at the key of `.`, and `entry(f, 'name')` is `[]`, since
-  `name` is not an enumerable own property
+  refused at the key of `.`, and `entry(f, 'name')` is `undefined` and
+  `hasEntry(f, 'name')` `false`, since `name` is not an enumerable own
+  property
   ([reading an entry at run time](../property-access/entries.md)), which is
   the decision that retired the proposals that would have exposed a name. The
   name a JavaScript engine gives a function it loads from the written

@@ -623,17 +623,17 @@ export const noStatic = name => `no binding for the static ${name}`
  * ```js
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable ? [x.value] : [];
+ *     return x?.enumerable ? x.value : undefined;
  * }
  * ```
  *
  * A function of `length` `2` capturing nothing, minting a fresh identity
  * where it is established as every `=>` does, and called as any function
- * is, `['()', ['entry'], [a, b]]`: the option of the enumerable own
- * property the key names — a fresh `[value]` for an object's field, an
- * array's or a string's element, an entry holding `undefined` included,
- * and `[]` for nothing a value owns without enumerating it, a `length` or
- * anything of a function — the key converted as
+ * is, `['()', ['entry'], [a, b]]`: the value of the enumerable own
+ * property the key names — an object's field, an array's or a string's
+ * element — and `undefined` for none, an entry holding `undefined`
+ * included, and for nothing a value owns without enumerating it, a
+ * `length` or anything of a function — the key converted as
  * `Object.getOwnPropertyDescriptor` converts it, `0` and `"0"` naming one
  * entry, once a `null` or `undefined` receiver has failed (`entryJs` in
  * `./proof.f.mjs`). The compiler emits the node
@@ -641,9 +641,13 @@ export const noStatic = name => `no binding for the static ${name}`
  * helper and no other way: the source has no other spelling of a key
  * computed at run time.
  *
+ * `hasEntry` is the helper beside it, the presence as a boolean, `true`
+ * for an entry holding `undefined`: `['()', ['hasEntry'], [a, b]]`
+ * ([spec: why two helpers](../../spec/property-access/entries.md#why-two-helpers)).
+ *
  * The rest are the static functions, {@link staticId}.
  */
-export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', staticId)
+export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', staticId)
 
 
 export const op0 = /** @type {const} */ ([op0Id])
