@@ -62,7 +62,11 @@ status and the headers, which the caller reads as it needs — `Link` and the
 rate-limit headers on the PR page, the status against the shape on the
 login page and in the worker. The refusal is for what no caller can read:
 transport, a redirect where none is allowed, a body that is not JSON, a
-body no shape admits. A caller that accepts more than one shape gives one
+body no shape admits — and every refusal but transport carries the status
+and the headers too, since the PR page decides `onUnauthorized` on a 401
+and its retry note on a 403 or 429 from the status and the rate-limit
+headers alone, over a body its success readers do not admit. A caller that
+accepts more than one shape gives one
 `read` over their `or`: the login's `tokenSchema` or `exchangeFailureSchema`,
 the worker's `providerTokenSchema` or `providerErrorSchema`, so the error
 GitHub answers under 200 is admitted as what it is, and "fixed errors keep
