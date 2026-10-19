@@ -55,7 +55,9 @@ ends with it, and without one the statements after it and their
 terminator are its tail, read back into the block's one flat list. That
 is what lets the grammar say both that a `default` ends the block and
 that the statements after a `switch` continue it, with one symbol of
-lookahead and no rule the fold has to check.
+lookahead and no rule the fold has to check; and a switch begins with
+its first case, so the empty switch and one of a `default` alone are no
+sentence of the grammar rather than a check after it.
 
 - `switch (e)` evaluates the discriminant once, eagerly, where the
   statement stands, as JavaScript evaluates it before any label.
