@@ -108,7 +108,6 @@ export type Entry = {
 /**
  * A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every
  * edge named, and the {@link Entry} arrows into it, if it has any.
-
  */
 export type Graph = {
     readonly nodes: readonly Ranked[]
