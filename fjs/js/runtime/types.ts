@@ -4,9 +4,10 @@
  * sections and `dot` the dispatcher over them; every key `member` holds
  * is a name `allowedCalls` admits, and
  * every entry a member body; every path `static` holds is one
- * `fjs/js/static` admits, and none it binds natively, and every entry a
- * body. A compile-time claim about exports lives here, at module scope,
- * where `tsc` checks it whatever a proof body does.
+ * `fjs/js/static` admits, and every entry a body — or, at a path every
+ * executor binds natively, the built-in itself. A compile-time claim
+ * about exports lives here, at module scope, where `tsc` checks it
+ * whatever a proof body does.
  *
  * @module
  */
@@ -14,7 +15,7 @@
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { AllowedCall } from '../prototype/types.ts'
-import type { NativePath, StaticPath } from '../static/types.ts'
+import type { StaticPath } from '../static/types.ts'
 import type { runtime } from './module.f.js'
 
 /** The table: `member`, then a member name, then its body; `static`, then a path's keys, then its body. */
@@ -64,14 +65,12 @@ export type StaticBodyPath = {
 /** A static body: a function of the arguments alone. */
 export type StaticBody = (...args: never[]) => unknown
 
-/**
- * Every path with a body is admitted. Not the converse: an admitted path
- * a VM binds natively, a primitive, has no body.
- */
+/** Every path with an entry is admitted. */
 type _StaticAdmitted = Assert<Equal<StaticBodyPath extends StaticPath ? true : false, true>>
 
-/** No native path has a body: a primitive is every executor's, and a body beside it would be a second implementation. */
-type _NativeBodiless = Assert<Equal<Extract<StaticBodyPath, NativePath>, never>>
+/** Every admitted path holds a value: the natives too, each the built-in itself, never a body beside it, which would be a second implementation. */
+type _Complete = Assert<Equal<StaticPath extends StaticBodyPath ? true : false, true>>
+type _NativeIsTheBuiltIn = Assert<Equal<Static['Object']['entries'], typeof Object.entries>>
 
 /** Every entry of the static section. */
 type StaticEntry = {

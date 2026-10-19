@@ -13,8 +13,8 @@ const allowed = allowedCalls
 /** The member section by name, for a proof that walks it. @type {Readonly<Record<string, (self: unknown) => unknown>>} */
 const members = runtime.member
 
-/** The static section by path, for a proof that walks it. @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */
-const section = runtime.static
+/** The static section by path, for a proof that walks it, each entry called as a body is, on two arguments — `Object.entries`, the built-in itself, by `natives` alone. @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */
+const section = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ (runtime.static))
 
 /** The host's own globals, each static path read from them as from the section. @type {typeof section} */
 const host = /** @type {typeof section} */ (/** @type {unknown} */ ({ Object, Number }))
@@ -32,6 +32,9 @@ const steps = node => node instanceof Array
 const statics = node => node instanceof Array
     ? [...(isStaticNode(node) ? [node[0]] : []), ...node.flatMap(statics)]
     : []
+
+/** The node an object node holds under a key. @type {(node: unknown, key: string) => unknown} */
+const at = (node, key) => Object.fromEntries(/** @type {readonly (readonly [string, string, unknown])[]} */ (/** @type {readonly any[]} */ (node)[1]).map(([, k, v]) => [k, v]))[key]
 
 /**
  * Every type, with the values the static functions part on: the zeros and
@@ -71,19 +74,19 @@ export const proof = {
         }
         assert(values(members).length > 0)
     },
-    // Every path the static section holds is admitted and none is native,
-    // and every entry is a body: a namespace's members, or the function a
-    // global is.
+    // Every path the static section holds is admitted, and every entry is
+    // a function: a body — a namespace's members, or the function a global
+    // is — or, at a native path, the built-in itself.
     staticPaths: () => {
         /** @type {Readonly<Record<string, unknown>>} */
         const section = runtime.static
         for (const [global, value] of entries(section)) {
             if (typeof value === 'function') {
-                assert(isStatic([global]) && !isNative([global]), global)
+                assert(isStatic([global]), global)
                 continue
             }
             for (const [name, entry] of entries(/** @type {Readonly<Record<string, unknown>>} */ (value))) {
-                assert(isStatic([global, name]) && !isNative([global, name]), `${global}.${name}`)
+                assert(isStatic([global, name]), `${global}.${name}`)
                 assertEq(typeof entry, 'function')
             }
         }
@@ -113,16 +116,17 @@ export const proof = {
             }
         }
     },
-    // A native static has no body here, every executor binding it itself,
-    // and the host's own built-in answers alike detached and on its
-    // namespace, as `host` checks a body's: `Object.entries` reads no
-    // `this`. On every sample but the two nullish ones, on which both
-    // calls throw.
+    // A native static has no body here, every executor binding it itself:
+    // the section holds the built-in itself at the path, so the table is
+    // complete as a value, and the host's own built-in answers alike
+    // detached and on its namespace, as `host` checks a body's:
+    // `Object.entries` reads no `this`. On every sample but the two
+    // nullish ones, on which both calls throw.
     natives: () => {
         /** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
         const bodies = runtime.static
         for (const [global, name] of staticPaths.filter(isNative)) {
-            assertEq(bodies[global]?.[name], undefined, [global, name])
+            assertEq(bodies[global]?.[name], host[global][name], [global, name])
             const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[global])
             const detached = namespace[name]
             for (const a of samples.filter(a => a !== null && a !== undefined)) {
@@ -211,10 +215,12 @@ export const proof = {
     },
     // The core may not use what it defines, and the whole module is the
     // core: no body and no initializer holds a member call, an optional
-    // chain or a static function — a native is reached through an
-    // intrinsic, `slice` in `found`, called as a function — so the module
-    // can be evaluated with no runtime, and NaNVM can hold it as a value
-    // whose bodies never name it (`../todo/runtime-value.md`). The
+    // chain or a static function the runtime defines — a native is reached
+    // through an intrinsic, `slice` in `found`, called as a function, and
+    // the native static `Object.entries` is the built-in itself at its own
+    // table entry, the one static node anywhere, so no body reads it — so
+    // the module can be evaluated with no runtime, and NaNVM can hold it as
+    // a value whose bodies never name it (`../todo/runtime-value.md`). The
     // intrinsic is there, as a node, where the member call was. An
     // absence is a finding only of a detector that sees: each is shown a
     // node it is for, first.
@@ -222,7 +228,11 @@ export const proof = {
         assertEq(steps([['|()', ['=>', 0, [], 1], []]]).join(), '|()')
         assertEq(statics([['Object.is']]).join(), 'Object.is')
         assertEq(steps(edag).join(), '')
-        assertEq(statics(edag).join(), '')
+        const natives = staticPaths.filter(isNative)
+        assertEq(statics(edag).join(), natives.map(path => path.join('.')).join())
+        for (const path of natives) {
+            assertEq(JSON.stringify(path.reduce(at, at(at(edag, 'runtime'), 'static'))), JSON.stringify([path.join('.')]))
+        }
         assertEq(JSON.stringify(edag).includes('["slice"]'), true)
     },
     throw: {

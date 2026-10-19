@@ -13,7 +13,9 @@ under — `Object.is` at `static.Object.is` — each a function of the
 arguments alone, written here and exported nowhere else: a module calls
 the built-in, `Object.is` or `Number.isInteger`, never the body, so the
 body is a VM's and the helper a built-in replaced moves in here when the
-built-in is admitted. The proof checks every static body against the
+built-in is admitted. A path every executor binds natively, `Object.entries`,
+holds the built-in itself, so every admitted path has a value and the table
+is complete as a value. The proof checks every static body against the
 host's own built-in at the same path. The design of the static section
 is [`../todo/runtime-static.md`](../todo/runtime-static.md). A name
 without a body is absent, and each VM answers it from its own native
@@ -254,6 +256,24 @@ VM is a value representation, and the runtime reaches it as library code
 does. A VM that wants a native implementation of a name that has a body
 adds it to the native table, which a call step asks first.
 
+**The runtime as a value, beside the tables.** The same `gen.runtime.rs`
+holds `runtime::<A>()`, this module's `runtime` export printed by the
+ordinary backend as any module is — a scope that evaluates, a closure
+with a frame for every function — answering the object with its `static`,
+`member` and `dot` sections. Every function the `static` and `member`
+sections name carries the NativeFunction text of its path in place of its
+body's, since a runtime function is the built-in, not its body; `dot`,
+which no program reaches, keeps its body's as a helper does; and
+`Object.entries` is the built-in itself, so every admitted static path
+holds a value. Nothing
+reads it yet: it is the replacement built beside what it replaces
+([DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)),
+for a compiled module to take as a parameter and reach every built-in
+through, after which the lifting, the tables and the name identity go
+([`../todo/runtime-value.md`](../todo/runtime-value.md)). The identity
+the value gives is the language's own: two reads of `static.Object.is`
+are one closure.
+
 ## Two invariants
 
 The shape is a bootstrap — the compiler writes the runtime, and a
@@ -284,8 +304,10 @@ cycle:
   ([`../intrinsic`](../intrinsic/module.f.js)), and another body by
   reading it as a value, never by its name: the core may not use what it
   defines, and the whole module is the core, which the proof checks on the
-  compiled EDAG — no chain step and no static node anywhere in it. This is
-  what lets a VM hold the runtime as a value its bodies never name
+  compiled EDAG — no chain step anywhere in it, and no static node but the
+  natives the table lists as themselves, `Object.entries`, which every
+  executor binds and no body reads. This is what lets a VM hold the runtime
+  as a value its bodies never name
   ([`../todo/runtime-value.md`](../todo/runtime-value.md)). NaNVM holds
   the initializer rule as a stronger one still: the static-runtime printer
   lifts the module at compile time, so its scope holds functions, literals

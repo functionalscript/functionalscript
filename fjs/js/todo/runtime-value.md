@@ -4,7 +4,8 @@
 **Status:** wip — the shape is `sergey-shandar`'s, from the session that
 filed this, who approved the primitives as recognized helpers and the
 strengthened invariant by asking for the implementation; the first
-primitive, `slice`, is the first step
+primitive, `slice`, was the first step, and `runtime::<A>()`, the value
+built beside the lifted tables, is the second
 
 ### Problem
 
@@ -188,13 +189,16 @@ detail to settle in the first task.
       `found` (`fjs/js/intrinsic`).
 - [ ] `charCodeAt` the same way, with the first body that reads a code
       unit.
-- [x] The runtime module holds no member call and no static read; the
+- [x] The runtime module holds no member call and no static read, but
+      the natives its table lists as themselves, `Object.entries`; the
       README's invariant says so for bodies as it does for initializers;
       the proof checks it on the EDAG, as it pins `dot`'s shape.
-- [ ] `runtime::<A>()` printed by the ordinary backend, every function the
-      export reaches carrying the NativeFunction text of its path; the
-      built-in's identity is the value's; `Object.entries` a primitive the
-      `static` section lists like the rest.
+- [x] `runtime::<A>()` printed by the ordinary backend, every function a
+      `static` or `member` path reaches carrying the NativeFunction text
+      of that path, where `dot`, which no program reaches, and the helpers
+      keep their bodies'; the built-in's identity is the value's;
+      `Object.entries` a primitive the `static` section lists like the
+      rest, as the built-in itself.
 - [ ] `module::<A>(runtime)`: the compiler prints a member call as a call
       of `runtime.dot` and a static read as the property reads of its
       path; the harness and the CLI build the value once; a fixture shows

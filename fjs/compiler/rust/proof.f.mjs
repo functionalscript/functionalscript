@@ -8,8 +8,8 @@
 import { assert, assertEq, assertError, assertOk, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { generate, toRust } from './module.f.mjs'
-import { toText } from '../../text/marked/module.f.mjs'
+import { generate, itemTagged, toRust } from './module.f.mjs'
+import { toText, untagged } from '../../text/marked/module.f.mjs'
 import { unmarkedWords, wordsOf } from '../../edag/rust/unmarked/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
@@ -22,6 +22,20 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 const refusedByRust = ['An import', 'A named import and a call', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error']
 
 export const proof = {
+    /**
+     * A module's scope as one named item, with its bound and the names it
+     * spells, which `generate` prints as `module` and the static runtime
+     * as `runtime`, giving its built-ins their texts.
+     */
+    itemTagged: () => {
+        const given = /** @type {Exp} */ (['=>', 1, [], ['arg', 0]])
+        const { lines, uses, bound } = unwrap(itemTagged('runtime', e => e === given ? 'function id() { [native code] }' : undefined)(['{}', [[':', 'id', given]]]))
+        assertEq(bound, 'IStaticFunction')
+        assertEq(lines.map(untagged).join('\n'), '#[rustfmt::skip]\npub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {\n    let c0: Any<A> = A::static_function(|_self, args| { Ok(args.argument(0)) }, 1, Array::default(), Some("function id() { [native code] }")).to_any();\n    Ok([(string_key("id"), c0)].to_object().to_any())\n}')
+        assertEq(uses.unstable.join(), 'string_key')
+        assertEq(unwrap(itemTagged('module')(1)).bound, 'IVm')
+        assertEq(unwrap(itemTagged('module')(1)).lines.map(untagged).join('\n'), '#[rustfmt::skip]\npub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {\n    Ok(f64_any(0x3ff0000000000000))\n}')
+    },
     structuralRefusals: () => {
         for (const length of [-0, -1, 0.5, NaN, Infinity]) {
             assertEq(assertError(toRust(['=>', length, [], 1])),

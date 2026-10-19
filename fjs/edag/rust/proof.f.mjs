@@ -14,7 +14,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { argNamed, atomExpr, braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsBeyondFirst, readsFrame, readsRest, scope, scopeTagged, statementsOf, statementsWith, useLines, useLinesTagged } from './module.f.mjs'
+import { argNamed, atomExpr, braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsBeyondFirst, readsFrame, readsRest, scope, scopeTagged, statementsOf, statementsWith, useLines, useLinesTagged, helperExpr } from './module.f.mjs'
 import { fromTagged, toText, untagged } from '../../text/marked/module.f.mjs'
 import { unmarkedWords } from './unmarked/module.f.js'
 
@@ -614,6 +614,29 @@ export const proof = {
             'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))')
         assertEq(printed(['=>', 0, [], ['undefined']]), 'function_any()')
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
+    },
+    /**
+     * A helper as a value with the names it spells, what a frame slot
+     * holding one prints as in the static runtime: tagged, as
+     * `scopeTagged`'s lines are.
+     */
+    helperExpr: () => {
+        const [text, uses] = unwrap(helperExpr(['slice']))
+        assertEq(untagged(text), printed(['slice']))
+        assertStructurallySame([...new Set(uses.map(([m, n]) => `${m}::${n}`))].toSorted(), ['unstable::string_any', 'vm::Array', 'vm::ToAny', 'vm::ToArray'])
+        assertEq(unwrap(helperExpr(['entry']))[1].some(([, n]) => n === 'Array'), true)
+    },
+    /**
+     * A caller's text for a function node, in place of the writer's, where
+     * it gives one — the static runtime's built-ins — and the writer's
+     * where it gives none, nested functions included.
+     */
+    givenText: () => {
+        const given = /** @type {Exp} */ (['=>', 0, [], 1])
+        const text = unwrap(scopeTagged(['[]', [given, ['=>', 0, [], ['=>', 0, [], 2]]]], e => e === given ? 'function f() { [native code] }' : undefined)).lines.map(untagged).join('\n')
+        assert(text.includes('Some("function f() { [native code] }")'))
+        assert(text.includes('Some("()=>()=>2")') && text.includes('Some("()=>2")'))
+        assert(!unwrap(scopeTagged(['[]', [given]])).lines.map(untagged).join('\n').includes('native code'))
     },
     /**
      * The `entry` helper as a value: the static function every function

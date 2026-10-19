@@ -589,7 +589,18 @@ export const staticPath = id => id.split('.')
  *
  * @type {(id: StaticId) => string}
  */
-export const staticText = id => `function ${staticPath(id).at(-1)}() { [native code] }`
+export const staticText = id => nativeFunctionText(`${staticPath(id).at(-1)}`)
+
+/**
+ * The text of a built-in named `name`, NativeFunction syntax
+ * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)):
+ * `function is() { [native code] }`. A static function's is
+ * {@link staticText}; the runtime as a value gives it to every function
+ * its `static` and `member` sections reach (`fjs/compiler/rust/runtime`).
+ *
+ * @type {(name: string) => string}
+ */
+export const nativeFunctionText = name => `function ${name}() { [native code] }`
 
 /**
  * The failure of a static function no binding answers, by its name: the
