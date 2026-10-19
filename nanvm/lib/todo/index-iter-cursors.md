@@ -48,9 +48,15 @@ traits for every implementor; a container with interior mutability would
 have to decline the trait, which nothing in the tree is. The hint is a
 `usize`, and `Uint` — `Copy`, `Default`, `PartialEq`, `AddAssign`, `Sub`,
 `From<u8>`, a blanket impl over whatever has them — converts to nothing, so
-`length() - i` has no way into a `usize` but counting. `Uint` gains the
-conversion, `Into<usize>`, which `u32` and `usize`, the two indices the
-tree uses, have, and the hint is `(self.container.length() - self.i).into()`.
+`length() - i` has no way into a `usize` but counting — and `Into<usize>`
+is not it, since `usize` is `From<u8>` and `From<u16>` alone and `u32`,
+the index of every VM container, would drop out of the trait. `Uint` gains
+a method instead, `fn to_usize(self) -> usize`, written per index — `self
+as usize` for `u32`, itself for `usize` — which ends the blanket impl: the
+trait is implemented for the two indices the tree uses rather than for
+whatever has the operators, and the hint is `(self.container.length() -
+self.i).to_usize()`. `TryFrom` would carry a failure the exact `len` has
+no answer for.
 `IteratorRecord::Array`
 holds an `IndexIter<u32, Array<A>>`,
 and the two `ObjectSpread` variants an `Enumerate<IndexIter<…>>` mapped
@@ -61,9 +67,9 @@ shape as shipped; this changes two variants' fields, not what they answer.
 
 ### Tasks
 
-- [ ] A fixed length stated as `SizedIndex`'s contract and `Into<usize>` on
-      `Uint`; `size_hint`, `ExactSizeIterator` and `FusedIterator` on
-      `IndexIter`'s one impl.
+- [ ] A fixed length stated as `SizedIndex`'s contract and `to_usize` on
+      `Uint`, implemented for `u32` and `usize`; `size_hint`,
+      `ExactSizeIterator` and `FusedIterator` on `IndexIter`'s one impl.
 - [ ] `IteratorRecord::Array`, `ObjectSpread::Array` and
       `ObjectSpread::String` over it; spread-operations updated.
 
