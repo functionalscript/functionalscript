@@ -1067,6 +1067,30 @@ export const demo = {
         await settle()
         assertEq(d.rendered.length, renders)
     },
+    /**
+     * **A demo may ask for random bits.** The runtime answers `randomInt`
+     * with the shared handler, a whole number in `[0, 2^32)`: the demo
+     * dispatches it as a `Do` node, spelled out because a fixture imports
+     * nothing, and shows whether the answer was one.
+     */
+    answersRandomInt: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'idle',
+    update: state => event => event.kind !== 'click' ? () => ['ok', state] : {
+        command: 'randomInt',
+        payload: [],
+        continuation: r => () => ['ok', r[0] === 'ok' && Number.isInteger(r[1]) && r[1] >= 0 && r[1] < 0x1_0000_0000 ? 'random' : 'not: ' + JSON.stringify(r)],
+    },
+    view: text => ['div', ['button', { type: 'button', name: 'roll' }, 'Roll'], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.click('roll')
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>random</pre>'), d.root.innerHTML)
+    },
     // An `<input type="button">` is a button too, and asks like one.
     acceptsAnInputButton: async () => {
         const d = dom(moduleUrl(`
