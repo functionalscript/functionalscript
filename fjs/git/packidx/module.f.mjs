@@ -363,13 +363,13 @@ const nextStep = offset => (best, v) =>
  * so the offsets are exactly where the entries begin, and the next one up is
  * where this one ends.
  *
- * The window has to be exact rather than generous, because `inflate` refuses
- * bytes after the end of a stream — a file that holds them is not the object
- * its stream spells — so a reader that hands the host a few bytes too many
- * hands it the beginning of the entry after this one and is refused. Measured
- * on a pack Git 2.43.0 wrote of six objects, two of them deltas: every entry's
- * window taken this way inflated with nothing left over, and the last one ended
- * at the pack's length less its checksum.
+ * The window is the entry's bound and the inflater finds the end of the stream
+ * inside it, so a reader that reads a few bytes too many is refused for them
+ * rather than handed the beginning of the entry after this one: bytes after the
+ * end of a stream are refused — a file that holds them is not the object its
+ * stream spells. Measured on a pack Git 2.43.0 wrote of six objects, two of them
+ * deltas: every entry's window taken this way inflated with nothing left over,
+ * and the last one ended at the pack's length less its checksum.
  *
  * A scan and not a search: `offsets` runs parallel to `ids` and so is in id
  * order, not in pack order. One pass per entry read, which a delta chain pays

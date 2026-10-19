@@ -34,26 +34,29 @@
  * bytes that are no object, bytes that hash to another id — tries the packs,
  * and what the loose read said stands only where no pack holds the id.
  *
- * **Reading packs widens what this asks of its host, and that is a break.** A
- * loose read needs `readFile` and `inflate`; a packed one adds exactly four —
- * `readdir` for the pack directory, `readWhole` for the index, and `stat` and
- * `readBytes` for the pack. The index is read *whole*, since its size is the
- * pack's object count and no `Vec` holds it, and that is one operation and not
- * a fold: `readWhole` opens the path once and reads it to the end, so the
- * chunks it answers are one file's. The pack beside it is read at known offsets
- * instead, which is what `stat` and `readBytes` are for: the length, then the
- * header, the trailer and one entry's window. `readFile` is not among the four —
- * neither pack file goes through it, and the loose path already needed it.
+ * **What this asks of its host.** A loose read needs `readWhole`, which opens the
+ * file once and answers the chunks it holds; a packed one adds `readdir` for the
+ * pack directory, `stat` and `readBytes` for the pack, and the index is read by
+ * `readWhole` too, since its size is the pack's object count and no `Vec` holds
+ * it — one operation and not a fold, so the chunks it answers are one file's.
+ * The pack is read at known offsets instead, which is what `stat` and
+ * `readBytes` are for: the length, then the header, the trailer and the windows
+ * of an entry. `readFile` is for the configuration and the alternates, and
+ * `inflate` is not asked for at all: the objects are inflated by
+ * [`fjs/zlib/inflate`](../../zlib/inflate/module.f.mjs), which is pure. The
+ * host's `inflate` effect, which answered one `Vec` of 128 KiB at most for one of
+ * the same, refused every object over that length — about one in a hundred in
+ * this repository's own history; none is refused for its length now, though a delta
+ * chain is held to a ceiling (see [`fjs/git/pack`](../pack/module.f.mjs)).
  *
- * Every one of the four is a `NodeOp`, so a program on the node runner notices
- * nothing — what has to grow is an interpreter written for exactly the old set,
- * which a mock or a partial runner is. Both of this repository's own callers
- * were such interpreters and grew four handlers each, which is the measure of
- * what an importer has to do.
+ * Each of these is a `NodeOp`, so a program on the node runner notices nothing.
+ * What has to grow is an interpreter written for exactly an older set, which a
+ * mock or a partial runner is: a loose object is now one `readWhole` where it was
+ * a `readFile` and an `inflate`.
  *
  * @module
  *
- * @import { Inflate, IoChannel, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { IoChannel, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -489,7 +492,7 @@ const packedOr = (idOf, id, loose) => r => {
  * Everything it needs is a leading parameter, so the step closes over nothing
  * the walk carries (§3.3).
  *
- * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, _Outcome, IoChannel>}
+ * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, _Outcome, IoChannel>}
  */
 const inOne = (idOf, oidBytes, id) => od => {
     const p = loosePath(od, id)
@@ -539,7 +542,7 @@ const inOne = (idOf, oidBytes, id) => od => {
  * the store that was asked, not about the last store it borrows from. With no
  * alternates there is one directory and this is what the reader did before.
  *
- * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => (found: Nullable<_Outcome>) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly [Nullable<_Outcome>, List<string>], IoChannel>}
+ * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => (found: Nullable<_Outcome>) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, readonly [Nullable<_Outcome>, List<string>], IoChannel>}
  */
 const storeOf = (idOf, oidBytes, id) => od => found => {
     if (found !== null && found[0][0] === 'ok' && found[0][1] !== null) {
@@ -609,7 +612,7 @@ const kept = (found, o) => {
  * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
  * id that is not `oidBytes` wide.
  *
- * @type {(ods: readonly string[], oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
+ * @type {(ods: readonly string[], oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, Nullable<Envelope>, IoChannel>}
  */
 export const readIn = (ods, oidBytes) => {
     const idOf = of(oidBytes)
@@ -643,7 +646,7 @@ export const readIn = (ods, oidBytes) => {
  * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
  * id that is not `oidBytes` wide.
  *
- * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
+ * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, Nullable<Envelope>, IoChannel>}
  */
 export const tryRead = (dir, oidBytes) => {
     const dirs = objectsDirs(dir)

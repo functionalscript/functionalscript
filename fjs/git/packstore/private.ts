@@ -36,6 +36,8 @@ import type { Entry } from '../pack/types.ts'
 export type _Chain = {
     readonly deltas: List<readonly number[]>
     readonly links: number
+    /** The bytes the deltas collected so far declare: all of them are held at once, as dense arrays. */
+    readonly held: number
     readonly found: Nullable<Envelope>
 }
 
