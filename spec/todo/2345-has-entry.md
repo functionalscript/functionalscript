@@ -106,7 +106,7 @@ The price the pair pays:
 
 ### Tasks
 
-- [ ] `hasEntry` beside the option: the body recognized whole in the
+- [x] `hasEntry` beside the option: the body recognized whole in the
       parser, the AST's and the EDAG's `['hasEntry']`, the interpreter's
       operation, the JavaScript output writing the helper back, the Rust
       printer and `Any::has_entry` in `nanvm-lib`, the corpus cases, and
