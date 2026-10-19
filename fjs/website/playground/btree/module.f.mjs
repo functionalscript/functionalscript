@@ -139,14 +139,16 @@ const graph = graphOf(structure)
 
 /**
  * A new random tree for the level of `depth`: the state the game starts a
- * level from, or the state it was in, saying why it could not.
+ * level from, or the game as it was — its level, its tree and its par search
+ * — saying why it could not. A refusal changes nothing else: a search kept
+ * under another level's depth would go on with that level's keys.
  *
  * @type {(depth: number) => (game: Game) => Effect<RandomInt, Game, never>}
  */
 export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(depth))), r => {
     if (r[0] === 'error') {
         /** @type {Game} */
-        const refused = { ...game, depth, error: `No random tree: ${errorMessage(r[1])}.` }
+        const refused = { ...game, error: `No random tree: ${errorMessage(r[1])}.` }
         return pureOk(refused)
     }
     const tree = r[1].reduce((t, k) => structure.insert(k)(t), structure.empty)

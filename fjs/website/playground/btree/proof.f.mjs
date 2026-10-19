@@ -82,17 +82,23 @@ export const proof = {
             assertEq(versions.before, versions.after)
             assertEq(JSON.stringify(keysOf(game)), JSON.stringify(tensUpTo(26)))
         },
-        // A host without random numbers builds nothing, and says so; the
-        // level is the one asked for, so New tree tries it again.
+        // A host without random numbers builds nothing, and says so. The
+        // game stays as it was, its level included: a depth-2 search still
+        // running goes on with depth 2's keys, and finds the in-order
+        // tree's par, 3.
         refused: () => {
             /** @type {RunInstance<RandomInt, null>} */
             const none = partialRun(commandsOf({ randomInt: null }))({})
-            const [, r] = none(null)(start(3)(level2))
+            const searching = { ...level2, par: parSearch(tensUpTo(8))(inOrder) }
+            const [, r] = none(null)(start(3)(searching))
             assert(r[0] === 'ok', '')
-            assertEq(r[1].versions, level2.versions)
-            assertEq(r[1].depth, 3)
-            assertEq(r[1].error, 'No random tree: operation not implemented: randomInt.')
-            assert(html(r[1]).includes('No random tree: operation not implemented: randomInt.'), '')
+            const game = r[1]
+            assertEq(JSON.stringify({ ...game, error: null }), JSON.stringify(searching))
+            assertEq(game.error, 'No random tree: operation not implemented: randomInt.')
+            const h = html(game)
+            assert(h.includes('No random tree: operation not implemented: randomInt.'), h)
+            assert(h.includes('<option value="2" selected="">'), h)
+            assertEq(finish(tensUpTo(8))(50)(searchTurn(game).par), 3)
         },
     },
     move: {
