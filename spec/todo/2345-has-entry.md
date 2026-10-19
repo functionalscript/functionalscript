@@ -85,8 +85,12 @@ The price the pair pays:
 
 - **Two scans where presence and value are both wanted**, on the
   receivers that own the key. Each scan is one lookup, a hash or a short
-  walk, where the option's saving was one lookup against one allocation,
-  and the allocation is the dearer of the two on every VM.
+  walk, where the option's saving was one lookup against one allocation.
+  Which of the two is dearer is not measured, and the decision does not
+  rest on it: the three reasons above are about the API's shape — a read
+  with no tail, the shape in the source, a floor that depends on no
+  property read — and the allocation is named as the thing the option
+  spends on every member call that the pair does not spend at all.
 - **An own `undefined` is invisible to `entry` alone.** `entry({ x:
   undefined }, "x")` and `entry({}, "x")` are both `undefined`; a caller
   that cares asks `hasEntry`, as JavaScript's `in` and `Object.hasOwn`
