@@ -117,7 +117,7 @@ describes:
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
 | `st.do-while` | `do { } while (c)` | open |
 | `st.break-continue` | `break`, `continue` | planned ([let](./3220-let.md) and [switch](./3230-switch.md), "Later") |
-| `st.switch` | a case without braces, a case block that does not terminate (in `return`, `throw`, or a switch with a `default`), `break` in a case, a switch at module level or in a loop's block | planned ([switch](./3230-switch.md), "Later": follow-ups, each additive on the one form [switch](../control-flow/switch.md) has) |
+| `st.switch` | a case without braces, a case block that does not terminate (in `return`, `throw`, or a switch with a `default`), `break` in a case, a label stacked with the `default`, a switch at module level or in a loop's block | planned ([switch](./3230-switch.md), "Later": follow-ups, each additive on the one form [switch](../control-flow/switch.md) has) |
 | `st.try` | `try`, `catch`, `finally` | open |
 | `st.debugger` | `debugger` | open |
 | `st.label` | `x: while (c) { }` | open |

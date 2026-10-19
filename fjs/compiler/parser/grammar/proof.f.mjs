@@ -425,7 +425,8 @@ export const proof = {
         // stands in, or that `}` and the rest of the block, its statements
         // and its terminator, which the switch holds. A case without
         // braces, a case that does not terminate, `break`, a `default`
-        // anywhere but last, a switch with no case, a statement after a
+        // anywhere but last or with a label stacked on it, a switch with no
+        // case, a statement after a
         // switch with a `default`, a `;` after the `}`, and a switch at
         // module level or in a loop's block are outside the grammar.
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } } return 2; };'), ['ok'])
@@ -440,6 +441,8 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { break; } } return 2; };'), ['error', 'break'])
         assertStructurallySame(read('export default (...a) => { switch (a) { default: { return 2; } case 1: { return 1; } } };'), ['error', 'default'])
         assertStructurallySame(read('export default (...a) => { switch (a) { default: { return 2; } } };'), ['error', 'default'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: default: { return 1; } } };'), ['error', 'default'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } default: case 2: { return 2; } } };'), ['error', 'case'])
         assertStructurallySame(read('export default (...a) => { switch (a) { } return 2; };'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } default: { return 2; } } return 3; };'), ['error', 'return'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } } };'), ['error', '}'])

@@ -26,7 +26,8 @@ export default node => {
   not match, as JavaScript evaluates them; a match is strict equality,
   `===`, as JavaScript's is, so `NaN` matches no label and an object
   matches itself alone; and the first match wins. `default:` is optional
-  and last; its block runs when no label matched. With a `default`, the
+  and last, a clause of its own with no label stacked on it; its block
+  runs when no label matched. With a `default`, the
   `switch` is the body's terminating statement, and nothing follows it:
   a statement after it is unreachable, as one after a `return` is.
   Without one, the statements after the `switch`, up to and including the
@@ -101,6 +102,13 @@ export default node => {
     admits it anywhere, with the same meaning once every branch
     terminates, so the position says nothing, and last is the one
     spelling.
+  - A label stacked with the `default`, `case a: default: { … }` refused
+    at the `default` and `default: case a: { … }` at the `case`: JavaScript
+    reads the two as one clause, whose block runs on `a` and on no match
+    alike, so the label can never change which block runs and is written
+    only by mistake; its one effect, that `a` is evaluated on the way, is
+    what an unused `const` spells on purpose. Admitting the clause as the
+    `default` whose block the label's test shares is a follow-up.
   - A `switch` with no case, `switch (e) {}`, refused at its `}`, and one
     with a `default` alone, refused at the `default`: either is the block
     it abbreviates, a `const` nothing reads and then the statements, which
