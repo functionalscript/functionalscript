@@ -1,13 +1,17 @@
 /**
  * @import { DemoEvent } from '../types.ts'
  * @import { Keys, Layout, Row, State, Structure } from './types.ts'
+ * @import { RandomInt } from '../../../effects/common/types.ts'
+ * @import { RunInstance } from '../../../effects/mock/types.ts'
  * @import { _Cell, _List } from './private.ts'
  */
 
-import { census, decimal, graphOf, sameShape, stepLine, versionsDemo } from './module.f.mjs'
+import { census, decimal, graphOf, sameShape, shuffled, stepLine, versionsDemo } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { graphSvg } from '../graph/module.f.mjs'
-import { runPure } from '../../../effects/module.f.mjs'
+import { commandsOf, runPure } from '../../../effects/module.f.mjs'
+import { ok } from '../../../types/result/module.f.js'
+import { partialRun, run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
 
@@ -78,6 +82,32 @@ const { demo, load, press, move } = versionsDemo({
         ['Empty', [], 5, 'Press Insert to add 0101.'],
     ],
 })
+
+/**
+ * A host whose `randomInt` answers 0, 1, 2, … in turn, its state the next
+ * answer.
+ *
+ * @type {RunInstance<RandomInt, number>}
+ */
+const counter = mockRun(/** @type {Parameters<typeof mockRun<RandomInt, number>>[0]} */ ({
+    randomInt: () => (/** @type {number} */ n) => [n + 1, ok(n)],
+}))
+
+const random = versionsDemo({
+    structure: chain('depth'),
+    name: 'random',
+    noun: 'list',
+    intro: '',
+    presets: [['One', [1], 2, '']],
+    random: { max: 5, count: 3, keys: n => Array.from({ length: n }, (_, i) => i + 1) },
+})
+
+/**
+ * The random demo's update for an event that asks for nothing.
+ *
+ * @type {(event: DemoEvent) => (state: State<_List>) => State<_List>}
+ */
+const updateRandom = event => state => unwrap(assertNotNullish(runPure(random.demo.update(state)(event))[0]))
 
 /** @type {(state: State<_List>) => string} */
 const html = state => htmlToString(demo.view(state))
@@ -332,5 +362,65 @@ export const proof = {
         // answers nothing: a state would put the proof's private list type
         // in its published declaration, which the package does not ship.
         throw: () => { load('no such preset') },
+    },
+    // A demo with a Generate button builds a random version from keys in an
+    // order its host picks.
+    random: {
+        // One `randomInt` per key, each picking among the keys still left:
+        // a counter answering 0, 1, 2 picks the first of three, the second
+        // of the two left, and the last.
+        shuffled: () => {
+            assertEq(JSON.stringify(counter(0)(shuffled([1, 2, 3]))), '[3,["ok",[1,3,2]]]')
+            assertEq(JSON.stringify(counter(0)(shuffled([]))), '[0,["ok",[]]]')
+        },
+        // The count field opens on the demo's count, and Generate builds the
+        // version from that many keys, as both versions, and spells out the
+        // order it inserted them in.
+        generate: () => {
+            const h = htmlToString(random.demo.view(random.demo.init))
+            assert(h.includes('<label for="random-count">Random keys </label><input type="text" id="random-count" name="count" value="3" size="4"> <button type="button" name="generate">Generate</button>'), h)
+            const [, r] = counter(0)(random.demo.update(random.demo.init)({ kind: 'click', name: 'generate' }))
+            assert(r[0] === 'ok', '')
+            const s = r[1]
+            assertEq(JSON.stringify(s.status), '{"random":[1,3,2]}')
+            assertEq(s.versions.before, s.versions.after)
+            assertEq(JSON.stringify(s.versions.after), JSON.stringify(listOf([1, 2, 3])))
+            assert(htmlToString(random.demo.view(s)).includes('3 keys inserted in random order: 1, 3, 2.'), '')
+        },
+        // A count outside 1 to the most, or no number at all, builds nothing
+        // and says what it takes; the field keeps what was typed.
+        refused: () => {
+            ['0', '6', 'x'].forEach(value => {
+                const typed = updateRandom({ kind: 'input', name: 'count', value })(random.demo.init)
+                const [n, r] = counter(0)(random.demo.update(typed)({ kind: 'click', name: 'generate' }))
+                assertEq(n, 0)
+                assert(r[0] === 'ok', '')
+                assertEq(r[1].versions, random.demo.init.versions)
+                assertEq(r[1].count, value)
+                assertEq(r[1].error, `"${value}" is not a number of keys: type a whole number from 1 to 5.`)
+            })
+        },
+        // A host without random numbers builds nothing, and says so.
+        notImplemented: () => {
+            /** @type {RunInstance<RandomInt, null>} */
+            const none = partialRun(commandsOf({ randomInt: null }))({})
+            const [, r] = none(null)(random.demo.update(random.demo.init)({ kind: 'click', name: 'generate' }))
+            assert(r[0] === 'ok', '')
+            assertEq(r[1].versions, random.demo.init.versions)
+            assertEq(r[1].error, 'No random tree: operation not implemented: randomInt.')
+        },
+        // Loading a preset keeps the count the reader typed.
+        keepsTheCount: () => {
+            const typed = updateRandom({ kind: 'input', name: 'count', value: '4' })(random.demo.init)
+            assertEq(updateRandom({ kind: 'input', name: 'example', value: 'One' })(typed).count, '4')
+        },
+        // A demo without `random` has no count field, and Generate is
+        // nothing to it.
+        absent: () => {
+            assertEq(demo.init.count, '')
+            assert(!html(demo.init).includes('name="count"'), '')
+            assertEq(update({ kind: 'click', name: 'generate' })(demo.init), demo.init)
+            assertEq(JSON.stringify(runPure(versionsDemo({ structure: chain('depth'), name: 'none', noun: 'list', intro: '', presets: [['One', [1], 2, '']] }).generate(demo.init))), JSON.stringify([ok(demo.init)]))
+        },
     },
 }

@@ -9,7 +9,7 @@
  * migration debt `AGENTS.md` names, multiplied by every demo.
  *
  * @import { CommandSet, Commands } from '../effects/types.ts'
- * @import { Catch, Sandbox } from '../effects/common/types.ts'
+ * @import { Catch, RandomInt, Sandbox } from '../effects/common/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
  * @import { Element as HtmlElement } from '../media/html/types.ts'
  * @import { _FieldMemory as FieldMemory } from './private.ts'
@@ -17,7 +17,7 @@
 
 import { asyncPartialRun } from '../effects/module.mjs'
 import { commandsOf } from '../effects/module.f.mjs'
-import { commonOperationMap } from '../effects/common/module.mjs'
+import { commonOperationMap, randomIntOperationMap } from '../effects/common/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
@@ -26,9 +26,10 @@ import { editOf } from './demo/mirror/module.f.mjs'
 /**
  * What a demo may ask this page for.
  *
- * **Host-neutral operations only, and both of them are already written.**
+ * **Host-neutral operations only, and all three are already written.**
  * `sandbox` runs a thunk and reports how long it took, `catch` reports whether
- * one threw — a browser has `performance.now()` and a `try` as surely as Node
+ * one threw, and `randomInt` answers 32 random bits — a browser has
+ * `performance.now()`, a `try` and `crypto.getRandomValues` as surely as Node
  * does, which is why `effects/common` holds them rather than either host. A
  * demo that wants to measure something asks for `sandbox`; nothing in the page
  * knows what it is measuring.
@@ -46,19 +47,19 @@ import { editOf } from './demo/mirror/module.f.mjs'
  * the runner tests membership against is derived from it, so the two cannot
  * disagree — the same shape `effects/node` uses for the same reason.
  *
- * @type {CommandSet<Sandbox | Catch>}
+ * @type {CommandSet<Sandbox | Catch | RandomInt>}
  */
-const commandSet = { sandbox: null, catch: null }
+const commandSet = { sandbox: null, catch: null, randomInt: null }
 
 /**
  * The commands of {@link commandSet}, in the form a partial runner tests
  * membership against.
  *
- * @type {Commands<Sandbox | Catch>}
+ * @type {Commands<Sandbox | Catch | RandomInt>}
  */
 const commands = commandsOf(commandSet)
 
-const run = asyncPartialRun(commands)(commonOperationMap)
+const run = asyncPartialRun(commands)({ ...commonOperationMap, ...randomIntOperationMap })
 
 /**
  * Says whether the page is waiting on this demo, and stops the reader asking

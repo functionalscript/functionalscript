@@ -69,8 +69,9 @@ Proposed destinations:
 | `fjs/effects/common` (was `effects/sandbox`) | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what the browser runner's "shared module" resolved to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
 | `fjs/effects/common` (was `effects/console`) | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/common` (was `effects/test`) | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
-| stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
+| stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `isNotFound`, `Env`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
 | `fjs/effects/common` (was staying) | `Module`, `Import`, `import_` — **moved**: a browser page loads modules too, and had been doing it through an injected `importer` callback, which was the operation under another name (see the judgement call below) |
+| `fjs/effects/common` (was staying) | `RandomInt`, `randomInt` — **moved**: the website's demo runtime answers it too, from the same `crypto.getRandomValues` Node's handler reads, so one handler (`randomIntOperationMap`) serves both |
 | stays, now settled | `Now`, `Fetch` — the browser interpreter implements neither: a page measures its own wall clock rather than dispatching `now`, and performs no `fetch` at all |
 | already moved to `fjs/effects` | `OpResult`, `IoChannel`, `IoError`, `IoErrorInfo`, `IoResult`, `ioError`, `toIoError` — the vocabulary every operation is declared in; `effects/node` re-exports them (see the judgement call below) |
 
@@ -82,9 +83,11 @@ union that names them all does not.
 
 Judgement calls worth deciding explicitly rather than by accident:
 
-- **`RandomInt` stays.** An ambient host capability with no cross-runtime
-  abstraction to gain and no consumer outside `fjs/cas` and the interpreters.
-  Moving it would be motion without a reader benefit.
+- **`RandomInt` moved, once a browser answered it.** It stayed while Node was
+  its only implementer and `fjs/cas` its only consumer: moving it then would
+  have been motion without a reader benefit. A demo that builds a random tree
+  gave it a second implementer, the website's demo runtime, and by the rule
+  that settled `Import` below, that is what moves an operation to `common`.
 - **`Now` and `Fetch` stay; `Import` moved, and both halves were settled by
   building the browser interpreter rather than by arguing.** This issue and
   the browser-runner sharing plan disagreed: this file put all three in "stays"
