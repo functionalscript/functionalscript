@@ -62,20 +62,18 @@ pub fn f64_any<A: IVm>(v: u64) -> Any<A> {
     Number::from(f64::from_bits(v)).to_any()
 }
 
-/// A static function read from the runtime value by its path, `Object.is`:
+/// A static function read from the runtime value by its id, `Object.is`:
 /// what a compiled module's read of a static spells,
-/// `static_read(&runtime, "Object.is")?` — the value's `static` section,
-/// then each key — the one closure the value holds at the path, so two
+/// `static_read(&runtime, "Object.is")?` — the value's `static` function,
+/// called with the id — the one closure the runtime holds for it, so two
 /// reads are one function, as `Object.is === Object.is` is in JavaScript.
-/// A path the value holds no function at — nothing, or a namespace — is
-/// refused ([`error::no_static_function`]): the parser admitted the path,
-/// so the value is incomplete, and `undefined` would be a plausible wrong
-/// answer.
+/// An id the runtime answers no function for is refused
+/// ([`error::no_static_function`]): the parser admitted the id, so the
+/// runtime's table is incomplete, and `undefined` would be a plausible
+/// wrong answer. A throw of `static` itself is the read's.
 pub fn static_read<A: IVm>(runtime: &Any<A>, path: &str) -> Result<Any<A>, Any<A>> {
-    let statics = runtime.clone().dot(string_any("static")).end()?;
-    let value = path
-        .split('.')
-        .try_fold(statics, |value, key| value.dot(string_any(key)).end())?;
+    let read = runtime.clone().dot(string_any("static")).end()?;
+    let value = read.call([string_any(path)].to_array().to_any())?;
     match Function::try_from(value) {
         Ok(f) => Ok(f.to_any()),
         Err(_) => Err(error::no_static_function(path)),

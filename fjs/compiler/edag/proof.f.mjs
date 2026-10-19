@@ -554,14 +554,14 @@ export const proof = {
         expectEdag(compile('export default Object?.["is"](0, -0);').edag, ['()', ['Object.is'], [0, -0]])
         expectEdag(compile('const { is } = Object; export default [is, Object.is];').edag, ['[]', [['Object.is'], ['Object.is']]])
         /** @type {import('../../edag/value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         const run = memo(assertOk(analysis(compile('const { is } = Object; const f = () => Object.is; export default [is(1, 1), Object.is(1, 2), is === f(), [1].map(x => f()(x, 1))];').edag)))
         assertStructurallySame(assertOk(toData(unwrap(run({ args: [], runtime })))), [true, false, true, [true]])
         assertEq(assertError(run({ args: [] })), 'no binding for the static Object.is')
         // a `Number` predicate the same way, read at its own path
         expectEdag(compile('const { isInteger } = Number; export default [isInteger, Number?.["isFinite"]];').edag, ['[]', [['Number.isInteger'], ['Number.isFinite']]])
         /** @type {import('../../edag/value/types.ts').Runtime} */
-        const numbers = ['{}', [[':', 'static', ['{}', [[':', 'Number', ['{}', [[':', 'isNaN', ['=>', 1, [], ['typeof', ['arg', 0]]]]]]]]]]]]
+        const numbers = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Number.isNaN', ['=>', 1, [], ['typeof', ['arg', 0]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         const typed = memo(assertOk(analysis(compile('const { isNaN } = Number; export default [isNaN("x"), Number.isNaN(1)];').edag)))
         assertStructurallySame(assertOk(toData(unwrap(typed({ args: [], runtime: numbers })))), ['string', 'number'])
         assertEq(assertError(typed({ args: [], runtime })), 'no binding for the static Number.isNaN')

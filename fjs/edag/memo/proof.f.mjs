@@ -78,7 +78,7 @@ export const proof = {
     // the named failure without a runtime, as `amnesia`'s.
     objectIs: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         /** @type {Exp} */
         const nested = ['()', ['=>', 0, [], ['()', ['Object.is'], [1, 1]]], []]
         const run = memo(assertOk(analysis(nested)))

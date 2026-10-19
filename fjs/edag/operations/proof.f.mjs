@@ -152,7 +152,7 @@ export const proof = {
         /** @type {Context} */
         const withRuntime = {
             ...context,
-            runtime: ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['[]', [['===', ['arg', 0], ['arg', 1]], ['self'], ['rest']]]]]]]]]]]]],
+            runtime: ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['[]', [['===', ['arg', 0], ['arg', 1]], ['self'], ['rest']]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]],
         }
         const invokeBound = invokeWith(withRuntime.runtime)
         const bound = operation({ ...evaluator, context: withRuntime, invoke: invokeBound, operand: (e, state) => [[...state, e], vm(withRuntime)(e)] })

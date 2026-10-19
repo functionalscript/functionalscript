@@ -16,7 +16,7 @@ key, then throws. The name was a literal in the source, and the list of
 names a module may call on a built-in, `allowedCalls` in
 [`../prototype`](../prototype/module.f.js), is known at compile time. The
 same dispatch is written twice more, in the represented interpreter's
-`value/method` and in the `member` section of
+`value/method` and in the `member` table of
 [`../runtime`](../runtime/module.f.js), keyed by receiver type.
 
 ### Proposal
@@ -34,7 +34,7 @@ export const runtime = {
 }
 ```
 
-- The `member` section is keyed by name alone, and a body is a function
+- The `member` table is keyed by name alone, and a body is a function
   of the receiver alone: `undefined` for a receiver the name is no member
   of, else the function of the arguments as the call passed them, a
   closure over the receiver. An executor asks the body in two steps — the
