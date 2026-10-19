@@ -10,7 +10,7 @@ import type { List } from '../../../types/list/types.ts'
 import type { Meta, Unmapped } from '../../../ebnf/ast/types.ts'
 import type { TokenMetadata } from '../../../ebnf/lib/js/types.ts'
 import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
-import type { Block, Case, Item, Key, Out, Parameter } from './types.ts'
+import type { Item, Key, Out, Parameter } from './types.ts'
 
 /**
  * The ordinary token stream the grammar reads, with the tokenizer's one
@@ -19,16 +19,6 @@ import type { Block, Case, Item, Key, Out, Parameter } from './types.ts'
 export type _TokenStream = {
     readonly tokens: readonly DjsTokenWithMetadata[]
     readonly eofMetadata: TokenMetadata
-}
-
-/**
- * A switch read from its first label on: its cases, and what ends it — the
- * `default` block, or the rest of the block the switch stands in, its
- * statements and its end, which follow the switch in that block's list.
- */
-export type _SwitchRead = {
-    readonly cases: readonly Case[]
-    readonly end: readonly ['default', Block] | readonly ['rest', Block[1]]
 }
 
 /** A position a reader inspects: a symbol of either alphabet, or a node the machine built. */

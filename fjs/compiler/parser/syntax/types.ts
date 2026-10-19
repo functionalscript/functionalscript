@@ -115,6 +115,13 @@ export type Case = {
 }
 
 /**
+ * What ends a switch: the `default` block, or the rest of the block the
+ * switch stands in, its statements and its end, which follow the switch
+ * in that block's list.
+ */
+export type SwitchEnd = readonly ['default', Block] | readonly ['rest', Block[1]]
+
+/**
  * A loop, `while (condition) block`: the token it begins with, its
  * condition, and its block, {@link LoopBlock}. It records no `;`, as a
  * guard does not. The `let` before it, a {@link Let},
@@ -453,6 +460,8 @@ export type Out =
     | { readonly id: 'const', readonly statement: Const }
     | { readonly id: 'statement', readonly statement: BlockStatement }
     | { readonly id: 'end', readonly end: Block[1] }
+    | { readonly id: 'caseTail', readonly labels: List<Node>, readonly block: Block, readonly cases: List<Case>, readonly end: SwitchEnd }
+    | { readonly id: 'afterCase', readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }
     | { readonly id: 'last', readonly consts: List<ModuleConst>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }

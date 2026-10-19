@@ -301,6 +301,16 @@ export const proof = {
                 ['?:', ['===', ['cref', 1], 1], ['()', ['=>', 0, [['fref', 0]], [['cref', 0]]], []], ['()', ['=>', 0, [0]], []]],
             ]]]]]]])
         },
+        // a switch of thousands of cases, or of labels, is that many levels
+        // of the grammar's tree, read as a list's are: each mapping puts one
+        // item before what its tail returned, on the machine's heap stack,
+        // and the fold closes the chain over a stack of its own
+        stackSafety: () => {
+            const cases = Array.from({ length: 3000 }, (_, i) => `case ${i}: { return ${i}; }`).join(' ')
+            assertEq(parseFromTokens(tokenizeString(`export default (a) => { switch (a) { ${cases} } return 0; };`))[0], 'ok')
+            const labels = Array.from({ length: 3000 }, (_, i) => `case ${i}:`).join(' ')
+            assertEq(parseFromTokens(tokenizeString(`export default (a) => { switch (a) { ${labels} { return 1; } } return 0; };`))[0], 'ok')
+        },
         // the statements after a switch are the body's one block with the
         // ones before it: a name that block has bound, or read from outside
         // in the discriminant, a label or a case block, is not theirs to
