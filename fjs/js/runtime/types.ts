@@ -1,29 +1,41 @@
 /**
  * Type-level API for `fjs/js/runtime/module.f.js`: the pins that keep the
- * table inside the admitted set — `member` and `static` are its two
- * sections and `dot` the dispatcher over them; every key `member` holds
- * is a name `allowedCalls` admits, and
- * every entry a member body; every path `static` holds is one
- * `fjs/js/static` admits, and none it binds natively, and every entry a
- * body. A compile-time claim about exports lives here, at module scope,
- * where `tsc` checks it whatever a proof body does.
+ * tables inside the admitted set and the `runtime` export the two
+ * functions over them — every key `member` holds is a name `allowedCalls`
+ * admits, and every entry a member body; the keys of `statics` are
+ * exactly the ids `fjs/js/static` admits, and every entry a body — or, at
+ * a path every executor binds natively, the built-in itself. A
+ * compile-time claim about exports lives here, at module scope, where
+ * `tsc` checks it whatever a proof body does.
  *
  * @module
  */
 
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
+import type { StaticId } from '../../edag/types.ts'
 import type { AllowedCall } from '../prototype/types.ts'
-import type { NativePath, StaticPath } from '../static/types.ts'
-import type { runtime } from './module.f.js'
+import type { member, runtime, statics } from './module.f.js'
 
-/** The table: `member`, then a member name, then its body; `static`, then a path's keys, then its body. */
+/** The runtime: `static`, a static function by its id, and `dot`, the callee of a member call. */
 export type Runtime = typeof runtime
 
-/** The member section: a member name, then its body. */
-export type Member = Runtime['member']
+type _Sections = Assert<Equal<keyof Runtime, 'dot' | 'static'>>
 
-/** A member name the section holds. */
+/** The static read: the function at an id, or `undefined`. */
+export type Static = Runtime['static']
+
+type _Static = Assert<Equal<Static, (id: string) => unknown>>
+
+/** The dispatcher: the callee of `self[key](...)`, or `undefined`. */
+export type Dot = Runtime['dot']
+
+type _Dot = Assert<Equal<Dot, (self: unknown, key: string) => unknown>>
+
+/** The member table: a member name, then its body. */
+export type Member = typeof member
+
+/** A member name the table holds. */
 export type MemberName = keyof Member
 
 /**
@@ -35,47 +47,23 @@ export type MemberName = keyof Member
  */
 export type Body = (self: unknown) => undefined | ((...args: never[]) => unknown)
 
-type _Sections = Assert<Equal<keyof Runtime, 'dot' | 'member' | 'static'>>
-
-/** The dispatcher: the callee of `self[key](...)`, or `undefined`. */
-export type Dot = Runtime['dot']
-
-type _Dot = Assert<Equal<Dot, (self: unknown, key: string) => unknown>>
-
 /** Every key is an allowed name. */
 type _Keys = Assert<Equal<MemberName extends AllowedCall ? true : false, true>>
 
 /** Every entry is a member body. */
 type _Entries = Assert<Equal<Member[MemberName] extends Body ? true : false, true>>
 
-/** The static section: a global's name, then a namespace's member or the function the global is. */
-export type Static = Runtime['static']
+/** The static table: a static function's id, then its body or the built-in itself. */
+export type Statics = typeof statics
 
-/**
- * Every path the static section holds a body at: `[G, n]` for a
- * namespace's member, `[G]` for a global that is a function.
- */
-export type StaticBodyPath = {
-    readonly [G in keyof Static]: Static[G] extends Body
-        ? readonly [G]
-        : { readonly [N in keyof Static[G]]: readonly [G, N] }[keyof Static[G]]
-}[keyof Static]
+/** The keys are the admitted ids, one for one: an id with no entry, or an entry no id admits, fails here. */
+type _StaticKeys = Assert<Equal<keyof Statics, StaticId>>
 
 /** A static body: a function of the arguments alone. */
 export type StaticBody = (...args: never[]) => unknown
 
-/**
- * Every path with a body is admitted. Not the converse: an admitted path
- * a VM binds natively, a primitive, has no body.
- */
-type _StaticAdmitted = Assert<Equal<StaticBodyPath extends StaticPath ? true : false, true>>
+/** Every entry is a function. */
+type _StaticEntries = Assert<Equal<Statics[StaticId] extends StaticBody ? true : false, true>>
 
-/** No native path has a body: a primitive is every executor's, and a body beside it would be a second implementation. */
-type _NativeBodiless = Assert<Equal<Extract<StaticBodyPath, NativePath>, never>>
-
-/** Every entry of the static section. */
-type StaticEntry = {
-    readonly [G in keyof Static]: Static[G] extends StaticBody ? Static[G] : Static[G][keyof Static[G]]
-}[keyof Static]
-
-type _StaticEntries = Assert<Equal<StaticEntry extends StaticBody ? true : false, true>>
+/** A native is the built-in itself, never a body beside it, which would be a second implementation. */
+type _NativeIsTheBuiltIn = Assert<Equal<Statics['Object.entries'], typeof Object.entries>>

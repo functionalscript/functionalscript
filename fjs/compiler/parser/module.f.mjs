@@ -86,7 +86,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstIntrinsic, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State, _SwitchFrame } from './private.ts'
@@ -102,7 +102,7 @@ import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.mjs'
-import { staticIds, staticPath } from '../../edag/module.f.mjs'
+import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -1438,6 +1438,44 @@ const isHasEntryOf = (node, x) => {
 }
 
 /**
+ * An intrinsic's helper, recognized whole as the `entry` helper is: a
+ * function of as many parameters as the intrinsic's `length`, each a bare
+ * name, whose expression body is the member call of the intrinsic's name
+ * on the first with the rest, in order —
+ *
+ * ```js
+ * (s, a, b) => s.slice(a, b)
+ * ```
+ *
+ * under any distinct names — the AST's `['slice']`, the member's name
+ * ([`fjs/js/intrinsic`](../../js/intrinsic/module.f.js); the list is
+ * `intrinsics` in `fjs/edag`). `null` where the function is not a helper,
+ * by shape or by its names — a keyword or a reserved global among them, a
+ * name repeated, a pattern, a rest parameter, a spread, a block body, the
+ * key in the computed spelling — and the ordinary resolution takes it
+ * from there, as it takes every member call.
+ *
+ * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => AstIntrinsic | null}
+ */
+const intrinsicFunction = ([, list, body]) => {
+    if (!('fixed' in list) || list.rest !== null || body[0] !== '()') { return null }
+    const [, callee, items] = body
+    if (callee[0] !== '.' || callee.length !== 3 || callee[2] instanceof Array) { return null }
+    const key = keyNamed(callee[2])
+    const intrinsic = intrinsics.find(([id]) => id === key)
+    if (intrinsic === undefined || list.fixed.length !== intrinsicLength(intrinsic[0]) || items.length !== list.fixed.length - 1) { return null }
+    const tokens = list.fixed.flatMap(p => p[0] === 'name' ? [p[1]] : [])
+    if (tokens.length !== list.fixed.length) { return null }
+    const names = tokens.map(nameOf)
+    if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    const [receiver, ...rest] = names
+    if (!isRef(callee[1], receiver) || !items.every((item, k) => isRef(item, rest[k]))) { return null }
+    /** @type {AstIntrinsic} */
+    const helper = [intrinsic[0]]
+    return helper
+}
+
+/**
  * The `entry` helper, recognized whole
  * ([spec: entry](../../../spec/property-access/entries.md)), and the
  * `hasEntry` helper beside it, the same but for its `return`
@@ -1518,10 +1556,12 @@ const entryFunction = ([, list, body]) => {
  * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: string | null) => _State}
  */
 const entered = (stack, scope, node, self) => {
-    // the helper first, whole: a function that is one has no body to
+    // the helpers first, whole: a function that is one has no body to
     // resolve
     const entry = entryFunction(node)
     if (entry !== null) { return [stack, scope, entry] }
+    const intrinsic = intrinsicFunction(node)
+    if (intrinsic !== null) { return [stack, scope, ok(intrinsic)] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const { names, count, entries, late } = bound

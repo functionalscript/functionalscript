@@ -47,11 +47,11 @@ with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
    the name, which
    [`fjs/js/runtime`](../../../fjs/js/runtime/README.md) writes once in
    FunctionalScript and `npm run gen` compiles to
-   [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs). The call step asks
-   `runtime_method(key)` in `vm/runtime.rs` for its code, asks the code
-   for the receiver — the function of the arguments, or `undefined` for a
-   receiver the name is no member of — and calls that function with the
-   arguments.
+   [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs) as a value every
+   compiled module takes. The call step asks the value's `dot` for the
+   receiver and the key — the function of the arguments, or `undefined`
+   for a receiver the name is no member of — and calls that function with
+   the arguments.
 4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 
@@ -191,7 +191,8 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 - [x] `at` — `vm/string/reads.rs`
 - [x] `charAt` — `vm/string/reads.rs`
 - [x] `charCodeAt` — `vm/string/reads.rs`
-- [x] `codePointAt` — `vm/string/reads.rs`
+- [x] `codePointAt` — `fjs/js/runtime/module.f.js`, the runtime's body,
+      bound through `vm/runtime.rs`
 - [x] `concat` — `vm/string/building.rs`
 - [x] `endsWith` — `vm/string/search.rs`
 - [x] `includes` — `vm/string/search.rs`

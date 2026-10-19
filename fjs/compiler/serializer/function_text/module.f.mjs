@@ -15,6 +15,7 @@
  * @module
  * @import { Analysis, ItemOperand, Node, Operand, Step } from '../../../edag/analysis/types.ts'
  * @import { Loop } from '../../../edag/loop/types.ts'
+ * @import { IntrinsicId } from '../../../edag/types.ts'
  * @import { _Scope } from './private.ts'
  * @import { Chunk } from '../../../text/marked/types.ts'
  */
@@ -23,7 +24,7 @@ import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
 import { keepsRecursion, loopOf, reaches } from '../../../edag/loop/module.f.mjs'
 import { scopeHolds } from '../../../edag/analysis/module.f.mjs'
-import { isStatic } from '../../../edag/module.f.mjs'
+import { intrinsicLength, isIntrinsic, isStatic } from '../../../edag/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve, _arg as argName, _rest as restName, _parameters as parameters } from '../names/module.f.mjs'
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
@@ -96,6 +97,30 @@ export const _hasEntryChunks = path => {
     ]
 }
 
+/** `0` to `n - 1`, in order. @type {(n: number) => readonly number[]} */
+const indices = n => n <= 0 ? [] : [...indices(n - 1), n - 1]
+
+/**
+ * An intrinsic's helper's text, the one spelling of its node, `['slice']`,
+ * as {@link _entryText} is of `['entry']`: the member call of the name on
+ * the first parameter with the rest, over the parameters' symbolic names
+ * at `path`, as many as the intrinsic's `length`.
+ *
+ * ```js
+ * ($0,$1,$2)=>$0.slice($1,$2)
+ * ```
+ *
+ * @type {(id: IntrinsicId) => (path: string) => string}
+ */
+export const _intrinsicText = id => path => chunksText(_intrinsicChunks(id)(path))
+
+/** {@link _intrinsicText} as chunks, as {@link _entryChunks}: one, since the text holds no keyword and no literal. @type {(id: IntrinsicId) => (path: string) => readonly Chunk[]} */
+export const _intrinsicChunks = id => path => {
+    const names = indices(intrinsicLength(id)).map(k => argName(path, k))
+    const [receiver, ...rest] = names
+    return [`(${names.map(binding).join(',')})=>${receiver}.${id}(${rest.join(',')})`]
+}
+
 /** Render a value, demanding a shared entry through its cell. @type {(s: _Scope, v: Operand) => string} */
 const operand = (s, v) => {
     if (!(v instanceof Array)) { return `(${chunksText(leafSerialize(v))})` }
@@ -124,6 +149,8 @@ const entry = (s, i) => {
     const n = /** @type {Exclude<Node, readonly ['args']>} */ (s.a.nodes[i])
     // a static function is written as the source reads it, its tag
     if (isStatic(n)) { return `(${n[0]})` }
+    // an intrinsic's helper, in its one spelling
+    if (isIntrinsic(n)) { return `(${_intrinsicText(n[0])(`${s.path}/function${i}`)})` }
     switch (n[0]) {
         case 'undefined': { return '(undefined)' }
         case 'arg': { return `(${argName(s.path, n[1])})` }

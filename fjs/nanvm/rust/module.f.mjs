@@ -56,7 +56,7 @@ import {
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
-import { braced, expExpr as sharedExpExpr, nestsOperation, statementsOf } from '../../edag/rust/module.f.mjs'
+import { braced, expExpr as sharedExpExpr, needsRuntime, nestsOperation, statementsOf } from '../../edag/rust/module.f.mjs'
 
 /**
  * The shared printer as a throwing convenience, for this module's own use:
@@ -65,12 +65,19 @@ import { braced, expExpr as sharedExpExpr, nestsOperation, statementsOf } from '
  * `Result` — the same distinction {@link expExpr}'s own doc comment draws,
  * decided the other way for a different consumer.
  *
+ * A case's member calls dispatch through the runtime value `rt`, which a
+ * group's `run` binds once where any case reaches it
+ * ({@link groupFile}).
+ *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
  */
-const expExpr = shared => e => unwrap(sharedExpExpr(shared)(e))
+const expExpr = shared => e => unwrap(sharedExpExpr(shared, runtimeName)(e))
+
+/** The name a group's `run` binds the runtime value to, {@link groupFile}. */
+const runtimeName = 'rt'
 
 /** @type {(e: Exp) => string} */
-export const nodeExpr = e => unwrap(sharedExpExpr([])(e))
+export const nodeExpr = e => unwrap(sharedExpExpr([], runtimeName)(e))
 
 /**
  * A case's result as the `Result` `check` takes: one bare operation over
@@ -86,7 +93,7 @@ export const nodeExpr = e => unwrap(sharedExpExpr([])(e))
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
  */
 const caseText = shared => e => nestsOperation(shared)(e)
-    ? `scope(|| ${braced(unwrap(statementsOf(shared)(e)))})`
+    ? `scope(|| ${braced(unwrap(statementsOf(shared, runtimeName)(e)))})`
     : expExpr(shared)(e)
 
 /**
@@ -243,7 +250,11 @@ const header = [
  * One group's file: its cases as the statements of one function, `run`,
  * named by the module the file is rather than by itself. Everything a
  * statement names comes from the harness's glob, so no file lists what it
- * happens to use and none warns of what it does not.
+ * happens to use and none warns of what it does not. Where a case or a
+ * shared value reaches the runtime — a member call, a static read — `run`
+ * binds the runtime value first, `rt`, as a compiled module receives it;
+ * a group that reaches none binds nothing, since an unused binding is a
+ * warning.
  *
  * @type {(shared: readonly SharedNode[]) => (g: Group) => string}
  */
@@ -251,12 +262,14 @@ const groupFile = shared => g => {
     const used = usedShared(shared)(g)
     /** @type {(s: SharedNode) => readonly[Exp, string]} */
     const binding = ([k, node]) => [node, `${snakeCase(k)}.clone()`]
+    const reaches = [...used.map(([, node]) => node), ...casesOf(g).flatMap(c => orders(g)(c).map(([, args]) => caseExp(shared)(g)(args)))].some(needsRuntime)
     return [
         ...header,
         'use crate::harness::*;',
         '',
         '#[rustfmt::skip]',
         'pub fn run<A: IStaticFunction>() {',
+        ...(reaches ? [`${indent}let ${runtimeName}: Any<A> = runtime::<A>().unwrap();`] : []),
         // An initializer is printed against the bindings established before
         // it, so a `ref` to an earlier shared value clones that binding
         // rather than constructing a second object. Printed without them the

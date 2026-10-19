@@ -4,7 +4,8 @@ use crate::harness::*;
 
 #[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("sum", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("reduceRight")).end_call(|| {
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("sum", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("reduceRight")).end_call(&rt, || {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
@@ -13,7 +14,7 @@ pub fn run<A: IStaticFunction>() {
         }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any();
         Ok([c0].to_array().to_any())
     }), f64_any(0x4018000000000000));
-    check::<A>("order", Any::dot([string_any("a"), string_any("b"), string_any("c")].to_array().to_any(), string_any("reduceRight")).end_call(|| {
+    check::<A>("order", Any::dot([string_any("a"), string_any("b"), string_any("c")].to_array().to_any(), string_any("reduceRight")).end_call(&rt, || {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
@@ -22,7 +23,7 @@ pub fn run<A: IStaticFunction>() {
         }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any();
         Ok([c0].to_array().to_any())
     }), string_any("cba"));
-    check::<A>("initial", Any::dot([string_any("a"), string_any("b")].to_array().to_any(), string_any("reduceRight")).end_call(|| {
+    check::<A>("initial", Any::dot([string_any("a"), string_any("b")].to_array().to_any(), string_any("reduceRight")).end_call(&rt, || {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
@@ -31,7 +32,7 @@ pub fn run<A: IStaticFunction>() {
         }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any();
         Ok([c0, string_any(">")].to_array().to_any())
     }), string_any(">ba"));
-    check::<A>("emptyUndefinedInitial", Any::dot(Array::default().to_any(), string_any("reduceRight")).end_call(|| {
+    check::<A>("emptyUndefinedInitial", Any::dot(Array::default().to_any(), string_any("reduceRight")).end_call(&rt, || {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
@@ -40,14 +41,14 @@ pub fn run<A: IStaticFunction>() {
         }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any();
         Ok([c0, Nullish::Undefined.to_any()].to_array().to_any())
     }), Nullish::Undefined.to_any());
-    check::<A>("arguments", Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any(), string_any("reduceRight")).end_call(|| {
+    check::<A>("arguments", Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any(), string_any("reduceRight")).end_call(&rt, || {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.rest(0);
             Ok(rest.clone().to_any())
         }, 0, Array::default(), Some("(...$0)=>$0")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x4034000000000000), f64_any(0x4024000000000000), f64_any(0x0000000000000000), [f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any()].to_array().to_any());
-    check_throws::<A>("empty", Any::dot(Array::default().to_any(), string_any("reduceRight")).end_call(|| {
+    check_throws::<A>("empty", Any::dot(Array::default().to_any(), string_any("reduceRight")).end_call(&rt, || {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
@@ -56,5 +57,5 @@ pub fn run<A: IStaticFunction>() {
         }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any();
         Ok([c0].to_array().to_any())
     }));
-    check_throws::<A>("notAFunction", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("reduceRight")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
+    check_throws::<A>("notAFunction", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("reduceRight")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
 }

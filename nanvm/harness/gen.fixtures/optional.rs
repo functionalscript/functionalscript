@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Object, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any();
     let c1: Any<A> = A::static_function(|_self, args| {
         let rest = args.rest(0);
@@ -20,9 +20,9 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c9: Any<A> = Any::option_dot(c8, || Ok(string_any("b"))).end()?;
     let c10: Any<A> = (Any::nullish_coalescing(c9, || Ok(f64_any(0x0000000000000000))))?;
     let c11 = || Ok([f64_any(0x4000000000000000)].to_array().to_any());
-    let c12: Any<A> = Any::dot(c2.clone(), string_any("f")).option_call(c11).end()?;
+    let c12: Any<A> = Any::dot(c2.clone(), string_any("f")).option_call(&runtime, c11).end()?;
     let c13 = || Ok([f64_any(0x4008000000000000)].to_array().to_any());
-    let c14: Any<A> = Any::dot(c4.clone(), string_any("f")).option_call(c13).end()?;
+    let c14: Any<A> = Any::dot(c4.clone(), string_any("f")).option_call(&runtime, c13).end()?;
     let c15: Any<A> = (Any::nullish_coalescing(c14, || Ok(f64_any(0x0000000000000000))))?;
     let c16: Any<A> = Any::option_dot(c2.clone(), || Ok(string_any("a"))).end()?;
     let c17: Any<A> = Any::dot(c16, string_any("b")).end()?;

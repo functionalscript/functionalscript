@@ -25,6 +25,8 @@ const classifications = [
     [['=>', 0, [], 0], true, 'function'],
     [['entry'], true, 'function'],
     [['hasEntry'], true, 'function'],
+    [['slice'], true, 'function'],
+    [['charCodeAt'], true, 'function'],
     [['Object.entries'], true, 'function'],
     [['Object.is'], true, 'function'],
 ]

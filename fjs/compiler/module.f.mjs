@@ -418,7 +418,8 @@ export const compileFile = load => (inputFileName, outputFileName) => step(
  * initialization code; the EDAG output is
  * that graph, including the module's complete export object, as a DataJS
  * document; and the `.rs` output prints it as `let`
- * bindings and a `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`.
+ * bindings and a `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>`,
+ * of the runtime value it is given.
  *
  * The output's directory is created first, so a compile can write into a
  * directory that does not exist yet — a deleted `gen.*` directory, say.

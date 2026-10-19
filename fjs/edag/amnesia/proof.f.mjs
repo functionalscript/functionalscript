@@ -137,13 +137,14 @@ export const proof = {
         assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'slice', ['|?.()', [['throw', 'evaluated']]]])), 'resolving')
         assertEq(assertError(vm({ frame: [], args: [], runtime })(['.', 'abc', 'startsWith', ['|()', [['throw', 'evaluated']]]])), 'evaluated')
     },
-    // `Object.is` answers from the runtime's `static` section, in the
+    // `Object.is` answers from the runtime's `static`, a function of the
+    // id over a table, in the
     // expression and in a function it calls, and as a value passed and
     // compared: the same function on every read, in one invocation or two.
     // With no runtime, or one without the path, it fails naming it.
     objectIs: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         /** @type {Exp} */
         const direct = ['()', ['Object.is'], ['a', 'a']]
         /** @type {Exp} */
@@ -159,11 +160,16 @@ export const proof = {
         assertEq(assertOk(ev(['String', ['Object.is']])), 'function is() { [native code] }')
         assertEq(assertOk(ev(['.', ['Object.is'], 'length'])), 2)
         /** @type {import('../value/types.ts').Runtime} */
-        const selfRuntime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 0, [], ['===', ['self'], ['Object.is']]]]]]]]]]]]
+        const selfRuntime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 0, [], ['===', ['self'], ['Object.is']]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         assertEq(assertOk(vm({ frame: [], args: [], runtime: selfRuntime })(['()', ['Object.is'], []])), true)
         const missing = 'no binding for the static Object.is'
         assertEq(assertError(vm({ frame: [], args: [] })(direct)), missing)
-        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['{}', []]]]] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [['{}', []]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]] })(['Object.is'])), missing)
+        // a runtime without `static`, and a `static` that is no function,
+        // answer no body; a `static` that throws is the read's throw
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', []] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [], 1]]]] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]] })(['Object.is'])), 'boom')
     },
     // `self` is the invoked function itself, by identity, in every reading
     // of the body; at the module's scope there is none to read
@@ -313,6 +319,16 @@ export const proof = {
         eq(has(['{}', [[':', '1', 42]]], 1), true)
         eq(['.', ['hasEntry'], 'length'], 2)
         eq(['typeof', ['hasEntry']], 'function')
+        // an intrinsic, `slice`, the member call on its first argument with
+        // the rest, answered natively or by an own property
+        eq(['()', ['slice'], ['abcdef', 1, 3]], 'bc')
+        same(['()', ['slice'], [['[]', [7, 8, 9]], 1, 2]], [8])
+        eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 'own']]]], 0, 1]], 'own')
+        eq(['.', ['slice'], 'length'], 3)
+        eq(['typeof', ['slice']], 'function')
+        // the second, `charCodeAt`: the code unit at the position
+        eq(['()', ['charCodeAt'], ['abc', 1]], 0x62)
+        eq(['.', ['charCodeAt'], 'length'], 2)
         // and nullish receivers fail before the key is read at all
         fails(entry(null, 'a'))
         fails(entry(['undefined'], boom))
@@ -801,6 +817,10 @@ export const proof = {
         // does so under a receiver that is not nullish.
         entryNullReceiver: () => fails(['()', ['entry'], [null, 'a']]),
         hasEntryNullReceiver: () => fails(['()', ['hasEntry'], [null, 'a']]),
+        // an intrinsic on a nullish receiver, or on one without the member,
+        // is the member call's throw
+        sliceNullReceiver: () => fails(['()', ['slice'], [null, 0, 1]]),
+        sliceNoMember: () => fails(['()', ['slice'], [5, 0, 1]]),
         hasEntryKeyConversion: () => fails(['()', ['hasEntry'], [['{}', []], ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]]]], 'key'),
         entryKeyConversion: () => fails(['()', ['entry'], [['{}', []], ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]]]], 'key'),
         // A non-function returns an implicit represented failure.

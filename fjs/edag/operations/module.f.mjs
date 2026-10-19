@@ -13,7 +13,7 @@
  *
  * @module
  * @import { ExpOp, StepOver, ItemsOver, Over } from '../types.ts'
- * @import { EdagValue, Values, Property, Array as ValueArray, Closure, Runtime, Static } from '../value/types.ts'
+ * @import { EdagValue, Values, Property, Array as ValueArray, Closure, Intrinsic, Runtime, Static } from '../value/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Invoke, Outcome } from '../value/call/types.ts'
  * @import { Evaluation, Evaluator, Tail } from './types.ts'
@@ -24,7 +24,7 @@ import { error, ok, okThen } from '../../types/result/module.f.js'
 import { array } from '../value/array/module.f.mjs'
 import { object } from '../value/object/module.f.mjs'
 import { func } from '../value/function/module.f.mjs'
-import { bind, prepare, settle } from '../value/call/module.f.mjs'
+import { bind, call, prepare, settle } from '../value/call/module.f.mjs'
 import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.mjs'
 import { throwValue } from '../value/control/module.f.mjs'
 import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
@@ -32,8 +32,9 @@ import { unary as numericUnary, binary as numericBinary } from '../value/numeric
 import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
+import { staticBody } from '../value/property/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.mjs'
-import { noStatic, staticPath } from '../module.f.mjs'
+import { noStatic } from '../module.f.mjs'
 
 /** Propagate failures without running the continuation.
  * @template S
@@ -77,25 +78,43 @@ export const hasEntryCall = ([receiver, key], invoke) =>
     nullish(receiver) ? error(['undefined']) : okThen(name => hasEntry(receiver, name))(toString(key, invoke))
 
 /**
+ * An intrinsic called, `['slice']`'s body: the member call of the name on
+ * the receiver, `s.slice(a, b)`, as an executor answers it with no
+ * runtime — the receiver's own property, else the native, else the
+ * `TypeError` of calling `undefined` — so the runtime's bodies reach a
+ * native through it without naming what the runtime defines
+ * (`fjs/js/runtime/README.md`, "Two invariants"). The receiver is the helper's first
+ * fixed argument and the native's arguments the rest, as its `length`
+ * binds them, `undefined` where the call passed none, as the helper
+ * itself passes them on.
+ *
+ * @type {(fn: Intrinsic, fixed: Values, invoke: Invoke) => ValueResult}
+ */
+export const intrinsicCall = ([name], [receiver, ...args], invoke) => {
+    const own = isArray(receiver) && receiver[0] === '{}' ? findProperty(receiver, name) : undefined
+    return own === undefined ? method(receiver, name, args, invoke, undefined) : call(ok(own[2]), args.map(v => () => ok(v)), invoke)
+}
+
+/**
  * A static function called, for the executors that invoke one, its
  * arguments all in `args`, since the call binds none for a static:
  * `Object.entries`, which no body defines, on its first argument,
- * `ownEntries`; every other the body the runtime's `static` section holds
- * at its path, its arguments bound to the body's `length` as a call
- * binds a closure's, and `run` with the static as its `self`, since the
- * function the body is called as is the built-in, as NaNVM's item answers
- * its own accessor; and, with no runtime or none at the path, the failure
- * naming the static.
+ * `ownEntries`; every other the body the runtime's `static` answers for
+ * the id, asked through `invoke`, its arguments bound to the body's
+ * `length` as a call binds a closure's, and `run` with the static as its
+ * `self`, since the function the body is called as is the built-in; and,
+ * with no runtime or no body for the id, the failure naming the static.
  *
- * @type {(runtime: Runtime | undefined, fn: Static, args: ValueArray, run: (body: Closure, fixed: Values, rest: ValueArray, self: Static) => Outcome) => Outcome}
+ * @type {(runtime: Runtime | undefined, fn: Static, args: ValueArray, run: (body: Closure, fixed: Values, rest: ValueArray, self: Static) => Outcome, invoke: Invoke) => Outcome}
  */
-export const staticCall = (runtime, fn, args, run) => {
+export const staticCall = (runtime, fn, args, run, invoke) => {
     const [, values] = args
     if (fn[0] === 'Object.entries') { return ownEntries(values.length === 0 ? ['undefined'] : values[0]) }
-    const body = /** @type {Closure | undefined} */ (functionAt(runtime, ['static', ...staticPath(fn[0])]))
-    if (body === undefined) { return error(noStatic(fn[0])) }
-    const [fixed, rest] = bind(body[1], values)
-    return run(body, fixed, rest, fn)
+    const body = staticBody(runtime, fn, invoke)
+    if (body[0] === 'error') { return body }
+    if (body[1] === undefined) { return error(noStatic(fn[0])) }
+    const [fixed, rest] = bind(body[1][1], values)
+    return run(body[1], fixed, rest, fn)
 }
 
 /** A node in tail position: its value, or the call it leaves for the executor.
@@ -156,7 +175,7 @@ export const operation = evaluator => {
         // EDAG indices are string/number literals or an explicit Number
         // operand. Its evaluation has already performed any conversion.
         const name = String(/** @type {string | number} */ (key))
-        const value = read(ok(receiver), name, runtime)
+        const value = read(ok(receiver), name, runtime, invoke)
         if (step === undefined) { return [state, value] }
         const [tag, arg, continuation] = step
         if (tag === '|.') { return then([state, value], (v, next) => continueValue(v, step, next)) }
@@ -230,20 +249,25 @@ export const operation = evaluator => {
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
             case 'hasEntry': { return [state, ok(['hasEntry'])] }
+            // an intrinsic as a value: the node, fresh as `entry` is, its
+            // call `intrinsicCall`'s; named here as the statics are below
+            case 'slice': case 'charCodeAt': { return [state, ok(/** @type {Intrinsic} */ ([node[0]]))] }
             // a static function as a value: the node, the built-in by its
             // name, one function however often it is read, whose call and
-            // `length` the body the runtime's `static` section holds at
-            // its path answers — `Object.entries`, which no body defines,
-            // is answered natively — and with none — no runtime, or one
-            // without the path — the executor fails naming it at the read,
-            // never `undefined` and never a plausible value. Named here,
+            // `length` the body the runtime's `static` answers for its id
+            // — `Object.entries`, which no body defines, is answered
+            // natively — and with none — no runtime, or no body for the id
+            // — the executor fails naming it at the read, never `undefined`
+            // and never a plausible value; a throw of `static` is the
+            // read's. Named here,
             // unlike everywhere else a node is read, since `Op0` is one
             // tuple whatever its tag: a static `isStatic` turned away would
             // still reach `binary` below as far as `tsc` can tell, and a
             // tag missing here is a type error for the same reason
             case 'Object.is': case 'Object.entries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': {
-                const bound = node[0] === 'Object.entries' || functionAt(runtime, ['static', ...staticPath(node[0])]) !== undefined
-                return [state, bound ? ok(/** @type {Static} */ ([node[0]])) : error(noStatic(node[0]))]
+                if (node[0] === 'Object.entries') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
+                const body = staticBody(runtime, [node[0]], invoke)
+                return [state, body[0] === 'error' ? body : body[1] === undefined ? error(noStatic(node[0])) : ok(/** @type {Static} */ ([node[0]]))]
             }
             case '[]': { return items(node[1], state) }
             case '{}': { return properties(node[1], state) }

@@ -14,15 +14,18 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { argNamed, atomExpr, braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsBeyondFirst, readsFrame, readsRest, scope, scopeTagged, statementsOf, statementsWith, useLines, useLinesTagged } from './module.f.mjs'
+import { braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, needsRuntime, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, scopeTagged, statementsOf, useLines, useLinesTagged, helperExpr } from './module.f.mjs'
 import { fromTagged, toText, untagged } from '../../text/marked/module.f.mjs'
 import { unmarkedWords } from './unmarked/module.f.js'
 
-/** @type {(e: Exp) => string} */
+/** A node as a value in a scope whose runtime value is `runtime`, a compiled module's. @type {(e: Exp) => string} */
 const printed = e => {
-    complete(unwrap(expExprTagged([])(e)))
-    return unwrap(nodeExpr(e))
+    complete(unwrap(expExprTagged([], 'runtime')(e)))
+    return unwrap(expExpr([], 'runtime')(e))
 }
+
+/** A node as a value in a scope with no runtime, the runtime module's own. @type {(e: Exp) => Result<string, readonly unknown[]>} */
+const printedWithout = e => nodeExpr(e)
 
 /**
  * That the printer marked every word it marks: the tagged text has no plain
@@ -36,12 +39,12 @@ const complete = tagged => assertEq(JSON.stringify(unmarkedWords(unwrap(fromTagg
 
 /** The lines of a scope over `e`: what a compiled module's body holds. @type {(e: Exp) => readonly string[]} */
 const scoped = e => {
-    complete(unwrap(scopeTagged(e)).lines.join('\n'))
-    return unwrap(scope(e)).lines
+    complete(unwrap(scopeTagged(e, undefined, 'runtime')).lines.join('\n'))
+    return unwrap(scope(e, 'runtime')).lines
 }
 
 /** The names a scope over `e` spells. @type {(e: Exp) => Uses} */
-const usedBy = e => unwrap(scope(e)).uses
+const usedBy = e => unwrap(scope(e, 'runtime')).uses
 
 /** `self(NEXT)`. @type {(next: Exp) => Exp} */
 const call = next => ['()', ['self'], [next]]
@@ -54,8 +57,8 @@ const counting = loop(['<', ['arg', 0], 10], call(['+', ['arg', 0], 1]))
 
 /** @type {(shared: readonly (readonly [Exp, string])[]) => (e: Exp) => string} */
 const printedWith = shared => e => {
-    complete(unwrap(expExprTagged(shared)(e)))
-    return unwrap(expExpr(shared)(e))
+    complete(unwrap(expExprTagged(shared, 'runtime')(e)))
+    return unwrap(expExpr(shared, 'runtime')(e))
 }
 
 /**
@@ -75,48 +78,6 @@ const refusalReason = e => {
 }
 
 export const proof = {
-    /**
-     * A body whose frame and self the caller resolves, the static runtime's
-     * item (`fjs/compiler/rust/runtime`): slot `i` and `self` print as the
-     * caller says, with the names the caller spells, where a closure would
-     * read `A::frame(self_)[i]` and wrap `self_` — a nested function's body
-     * keeps its own frame. The lines are split as `scope`'s are, and
-     * `atomExpr` prints what a slot resolved to a literal is: `undefined`,
-     * or the primitive's literal. `readsRest` is a scope's own read of
-     * `rest`, a nested body's left out. With `arg`, a fixed argument prints
-     * as the caller says — `argNamed`, the first by a name of its own and
-     * the rest from `args` — and `readsBeyondFirst` is a scope's own read
-     * of any argument but the first.
-     */
-    statementsWith: () => {
-        /** @type {(i: number) => Result<Printed<string>, readonly unknown[]>} */
-        const frame = i => ok([`SLOT${i}`, [['vm', 'Slot']]])
-        /** @type {() => Result<Printed<string>, readonly unknown[]>} */
-        const self_ = () => ok(['SELF', []])
-        const [lines, uses] = unwrap(statementsWith(frame, self_)(['[]', [['frame', 0], ['frame', 1], ['self'], ['&&', true, ['frame', 0]], ['=>', 0, [['frame', 1]], ['frame', 0]]]]))
-        assertStructurallySame(lines.map(untagged), [
-            'let c0: Any<A> = (Any::logical_and(true.to_any(), || Ok(SLOT0)))?;',
-            'let c1: Any<A> = A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [SLOT1].to_array(), Some("()=>$0")).to_any();',
-            'Ok([SLOT0, SLOT1, SELF, c0, c1].to_array().to_any())',
-        ])
-        assert(uses.some(([m, n]) => m === 'vm' && n === 'Slot'))
-        assertEq(untagged(unwrap(atomExpr(['undefined']))[0]), 'Nullish::Undefined.to_any()')
-        assertEq(untagged(unwrap(atomExpr(1))[0]), 'f64_any(0x3ff0000000000000)')
-        assertEq(untagged(unwrap(atomExpr('s'))[0]), 'string_any("s")')
-        assertEq(readsRest(['rest']), true)
-        assertEq(readsRest(['=>', 0, [], ['rest']]), false)
-        assertEq(readsRest(['args']), false)
-        const [named] = unwrap(statementsWith(frame, self_, argNamed('self_'))(['[]', [['arg', 0], ['arg', 1], ['=>', 1, [], ['arg', 0]]]]))
-        assertStructurallySame(named.map(untagged), [
-            'let c0: Any<A> = A::static_function(|_self, args| { Ok(args.argument(0)) }, 1, Array::default(), Some("($0)=>$0")).to_any();',
-            'Ok([self_.clone(), args.argument(1), c0].to_array().to_any())',
-        ])
-        assertEq(readsBeyondFirst(['arg', 0]), false)
-        assertEq(readsBeyondFirst(['[]', [['arg', 0], ['arg', 1]]]), true)
-        assertEq(readsBeyondFirst(['args']), true)
-        assertEq(readsBeyondFirst(['rest']), true)
-        assertEq(readsBeyondFirst(['=>', 2, [], ['[]', [['args'], ['rest'], ['arg', 1]]]]), false)
-    },
     // `self` is the closure's `self_` parameter as the `Function` it is,
     // so a body reading it names that parameter, as a frame read does
     self: () => {
@@ -499,6 +460,21 @@ export const proof = {
         ])
         // past rustfmt's 100 columns the braced names wrap as it wraps them:
         // on lines of their own, filled to the width
+        // the boundary rustfmt draws: a braced `use` of 99 columns wraps,
+        // one of 98 stays, and a continuation line reaches 99 at most
+        assertStructurallySame(useLines({ vm: [], unstable: ['bigint_any', 'f64_any', 'static_read', 'strict_eq', 'string_any', 'string_key'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    bigint_any, f64_any, static_read, strict_eq, string_any, string_key,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        assertStructurallySame(useLines({ vm: [], unstable: ['bigint_any', 'f64_any', 'static_read', 'strict_eq', 'string_any', 'string_ke'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{bigint_any, f64_any, static_read, strict_eq, string_any, string_ke};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        const long = 'b'.repeat(87)
+        assertStructurallySame(useLines({ vm: [], unstable: ['aaaa', long, 'cc'] }, 'IVm'), ['use nanvm_lib::vm::unstable::{', `    aaaa, ${long},`, '    cc,', '};', 'use nanvm_lib::vm::{Any, IVm};'])
+        assertStructurallySame(useLines({ vm: [], unstable: ['aaaa', `${long}bb`, 'cc'] }, 'IVm'), ['use nanvm_lib::vm::unstable::{', '    aaaa,', `    ${long}bb, cc,`, '};', 'use nanvm_lib::vm::{Any, IVm};'])
         assertStructurallySame(useLines({ vm: [], unstable: ['f64_any', 'spread_array', 'spread_call', 'spread_item', 'string_any', 'string_key', 'value_item'] }, 'IVm'), [
             'use nanvm_lib::vm::unstable::{',
             '    f64_any, spread_array, spread_call, spread_item, string_any, string_key, value_item,',
@@ -616,6 +592,29 @@ export const proof = {
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
     },
     /**
+     * A helper as a value with the names it spells, what a frame slot
+     * holding one prints as in the static runtime: tagged, as
+     * `scopeTagged`'s lines are.
+     */
+    helperExpr: () => {
+        const [text, uses] = unwrap(helperExpr(['slice']))
+        assertEq(untagged(text), printed(['slice']))
+        assertStructurallySame([...new Set(uses.map(([m, n]) => `${m}::${n}`))].toSorted(), ['unstable::string_any', 'vm::Array', 'vm::ToAny', 'vm::ToArray'])
+        assertEq(unwrap(helperExpr(['entry']))[1].some(([, n]) => n === 'Array'), true)
+    },
+    /**
+     * A caller's text for a function node, in place of the writer's, where
+     * it gives one — the static runtime's built-ins — and the writer's
+     * where it gives none, nested functions included.
+     */
+    givenText: () => {
+        const given = /** @type {Exp} */ (['=>', 0, [], 1])
+        const text = unwrap(scopeTagged(['[]', [given, ['=>', 0, [], ['=>', 0, [], 2]]]], e => e === given ? 'function f() { [native code] }' : undefined)).lines.map(untagged).join('\n')
+        assert(text.includes('Some("function f() { [native code] }")'))
+        assert(text.includes('Some("()=>()=>2")') && text.includes('Some("()=>2")'))
+        assert(!unwrap(scopeTagged(['[]', [given]])).lines.map(untagged).join('\n').includes('native code'))
+    },
+    /**
      * The `entry` helper as a value: the static function every function
      * is, its body `Any::entry` of its two fixed arguments, under the text
      * the writer gives the helper.
@@ -625,35 +624,107 @@ export const proof = {
         assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')
         // `hasEntry` the same, its `bool` made an `Any`
         assertEq(printed(['hasEntry']), 'A::static_function(|_self, args| Any::has_entry(args.argument(0), args.argument(1)).map(|b| b.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any()')
+        // an intrinsic: the closure answering the member call of the name
+        // on its first argument with the rest, the library's call step
+        assertEq(printed(['charCodeAt']), 'A::static_function(|_self, args| Any::dot(args.argument(0), string_any("charCodeAt")).end_call_native(|| Ok([args.argument(1)].to_array().to_any())), 2, Array::default(), Some("($0,$1)=>$0.charCodeAt($1)")).to_any()')
+        assertEq(printed(['slice']), 'A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call_native(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any()')
     },
     /**
-     * A static function as a value — `Object.is` — is its accessor's,
-     * `Function::from(object_is::<A>()).to_any()`: an item of
-     * `nanvm_lib::vm` the compiled runtime defines, spelled by
-     * `builtInIdentifier`, one function by its name however often it is
-     * read. A value, not an operation: no `?`, and a thunk over it is
+     * A shared operation established inside a lazy region — read eagerly
+     * there, in a condition, and again as an arm of that condition — is a
+     * temporary of the region's block, bound once before the condition
+     * as the `const` it lowers from is, and the arm answers it by name;
+     * a region nested in that one reads the same binding and binds nothing
+     * again. At the scope's own level the same shape binds the same way.
+     * A body's early return leaves this shape: everything after the
+     * return is one arm, and a `const` after it is established inside.
+     */
+    sharedInRegion: () => {
+        /** @type {Exp} */
+        const x = ['-', 5, 2]
+        assertStructurallySame(scoped(['?:', true, ['?:', ['<', x, 1], x, 2], 3]), [
+            'let c0 = || {',
+            '    let c1: Any<A> = (f64_any(0x4014000000000000) - f64_any(0x4000000000000000))?;',
+            '    let c2: Any<A> = (Any::lt(c1.clone(), f64_any(0x3ff0000000000000)))?;',
+            '    Any::conditional(c2, || Ok(c1.clone()), || Ok(f64_any(0x4000000000000000)))',
+            '};',
+            'Any::conditional(true.to_any(), c0, || Ok(f64_any(0x4008000000000000)))',
+        ])
+        /** @type {Exp} */
+        const y = ['-', 7, 1]
+        assertStructurallySame(scoped(['?:', true, ['?:', ['<', y, 1], ['?:', ['>', y, 0], y, 4], 2], 3]), [
+            'let c0 = || {',
+            '    let c1: Any<A> = (f64_any(0x401c000000000000) - f64_any(0x3ff0000000000000))?;',
+            '    let c2: Any<A> = (Any::lt(c1.clone(), f64_any(0x3ff0000000000000)))?;',
+            '    let c3 = || {',
+            '        let c4: Any<A> = (Any::gt(c1.clone(), f64_any(0x0000000000000000)))?;',
+            '        Any::conditional(c4, || Ok(c1.clone()), || Ok(f64_any(0x4010000000000000)))',
+            '    };',
+            '    Any::conditional(c2, c3, || Ok(f64_any(0x4000000000000000)))',
+            '};',
+            'Any::conditional(true.to_any(), c0, || Ok(f64_any(0x4008000000000000)))',
+        ])
+        /** @type {Exp} */
+        const z = ['-', 9, 1]
+        assertStructurallySame(scoped(['?:', ['<', z, 1], z, 2]), [
+            'let c0: Any<A> = (f64_any(0x4022000000000000) - f64_any(0x3ff0000000000000))?;',
+            'let c1: Any<A> = (Any::lt(c0.clone(), f64_any(0x3ff0000000000000)))?;',
+            'Any::conditional(c1, || Ok(c0.clone()), || Ok(f64_any(0x4000000000000000)))',
+        ])
+    },
+    /**
+     * A static function as a value — `Object.is` — is read from the
+     * runtime value by its path, `static_read(&runtime, "Object.is")?`,
+     * the one closure the value holds, so every read is the same
+     * function. An atom with a `?` of its own: a thunk over it is
      * `|| Ok(…)`; shared, it is one temporary.
      */
     objectIs: () => {
-        assertEq(printed(['Object.is']), 'Function::from(object_is::<A>()).to_any()')
+        assertEq(printed(['Object.is']), 'static_read(&runtime, "Object.is")?')
         assertStructurallySame(scoped(['()', ['Object.is'], [1, 2]]), [
-            'let c0: Any<A> = Function::from(object_is::<A>()).to_any();',
+            'let c0: Any<A> = static_read(&runtime, "Object.is")?;',
             'Any::call(c0, [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())',
         ])
         /** @type {Exp} */
         const is = ['Object.is']
         assertStructurallySame(scoped(['[]', [is, is]]), [
-            'let c0: Any<A> = Function::from(object_is::<A>()).to_any();',
+            'let c0: Any<A> = static_read(&runtime, "Object.is")?;',
             'Ok([c0.clone(), c0.clone()].to_array().to_any())',
         ])
-        assertStructurallySame(usedBy(['()', ['Object.is'], [1, 2]]), { vm: ['Function', 'ToAny', 'ToArray', 'object_is'], unstable: ['f64_any'] })
-        assertStructurallySame(scoped(['Object.is']), ['Ok(Function::from(object_is::<A>()).to_any())'])
-        assertStructurallySame(scoped(['=>', 0, [], ['Object.is']]), ['Ok(A::static_function(|_self, _args| { Ok(Function::from(object_is::<A>()).to_any()) }, 0, Array::default(), Some("()=>Object.is")).to_any())'])
-        assertStructurallySame(scoped(['&&', true, ['Object.is']]), ['let c0 = || Ok(Function::from(object_is::<A>()).to_any());', 'Any::logical_and(true.to_any(), c0)'])
+        assertStructurallySame(usedBy(['()', ['Object.is'], [1, 2]]), { vm: ['ToAny', 'ToArray'], unstable: ['f64_any', 'static_read'] })
+        assertStructurallySame(scoped(['Object.is']), ['static_read(&runtime, "Object.is")'])
+        // a function reading a static holds the runtime in its frame, one
+        // slot after its own, and reads the static through it
+        assertStructurallySame(scoped(['=>', 0, [], ['Object.is']]), ['Ok(A::static_function(|self_, _args| { static_read(&A::frame(self_)[0], "Object.is") }, 0, [runtime.clone()].to_array(), Some("()=>Object.is")).to_any())'])
+        assertStructurallySame(scoped(['&&', true, ['Object.is']]), ['let c0 = || static_read(&runtime, "Object.is");', 'Any::logical_and(true.to_any(), c0)'])
+        // a thunk's answer is the static's read where the scope binds
+        // nothing, or binds other temporaries; a shared static bound before
+        // the thunk is read once, and the thunk answers the temporary
+        assertStructurallySame(scoped(['&&', ['Object.is'], ['&&', true, ['Number.isNaN']]]), [
+            'let c0: Any<A> = static_read(&runtime, "Object.is")?;',
+            'let c1 = || {',
+            '    let c2 = || static_read(&runtime, "Number.isNaN");',
+            '    Any::logical_and(true.to_any(), c2)',
+            '};',
+            'Any::logical_and(c0, c1)',
+        ])
+        assertStructurallySame(scoped(['&&', is, ['&&', true, is]]), [
+            'let c0: Any<A> = static_read(&runtime, "Object.is")?;',
+            'let c1 = || Any::logical_and(true.to_any(), || Ok(c0.clone()));',
+            'Any::logical_and(c0.clone(), c1)',
+        ])
+        // with no runtime in scope, the runtime module's own, a static is
+        // refused, and a member call with it: the core may not use what it
+        // defines. The one native static the core lists as itself,
+        // `Object.entries`, is the closure over `Any::entries`, under the
+        // built-in's text.
+        assertStructurallySame(printedWithout(['Object.is']), ['error', ['a static function read with no runtime in scope; the core may not use what it defines', 'Object.is']])
+        assertStructurallySame(printedWithout(['.', ['{}', []], 'b', ['|()', []]]), ['error', ['a member call with no runtime in scope; the core may not use what it defines', ['|()', []]]])
+        assertStructurallySame(printedWithout(['Object.entries']), ok('A::static_function(|_self, args| Any::entries(args.argument(0)), 1, Array::default(), Some("function entries() { [native code] }")).to_any()'))
         // every static is its accessor, named as Rust spells the name
-        assertEq(printed(['Number.isSafeInteger']), 'Function::from(number_is_safe_integer::<A>()).to_any()')
+        assertEq(printed(['Number.isSafeInteger']), 'static_read(&runtime, "Number.isSafeInteger")?')
         assertStructurallySame(scoped(['()', ['Number.isInteger'], [1]]), [
-            'let c0: Any<A> = Function::from(number_is_integer::<A>()).to_any();',
+            'let c0: Any<A> = static_read(&runtime, "Number.isInteger")?;',
             'Any::call(c0, [f64_any(0x3ff0000000000000)].to_array().to_any())',
         ])
     },
@@ -1305,6 +1376,8 @@ export const proof = {
         holdsFunction: () => {
             assertEq(holdsFunction(['entry']), true)
             assertEq(holdsFunction(['hasEntry']), true)
+            assertEq(holdsFunction(['slice']), true)
+            assertEq(holdsFunction(['charCodeAt']), true)
             assertEq(holdsFunction(['[]', [['entry']]]), true)
             assertEq(holdsFunction(['=>', 0, [], 1]), true)
             assertEq(holdsFunction(['=>', 0, [1], 1]), true)
@@ -1315,6 +1388,25 @@ export const proof = {
             assertEq(holdsFunction(['=>', 0, [], ['undefined']]), true)
             assertEq(holdsFunction(['[]', [1, 'static_function(']]), false)
             assertEq(holdsFunction(1), false)
+        },
+        /**
+         * A scope needs the runtime value for a static, read from it, or a
+         * member call, dispatched through it — after the `.` or `?.` a
+         * chain opens with or a `|.` step, where a call step on a plain
+         * value, the state a call or a `?.()` left, asks nothing of it. A
+         * function's body counts: its closure holds the value in its frame.
+         */
+        needsRuntime: () => {
+            assertEq(needsRuntime(['Object.is']), true)
+            assertEq(needsRuntime(['[]', [1, ['Number.isNaN']]]), true)
+            assertEq(needsRuntime(['=>', 0, [], ['Object.is']]), true)
+            assertEq(needsRuntime(['.', ['{}', []], 'b', ['|()', []]]), true)
+            assertEq(needsRuntime(['?.', ['{}', []], 'b', ['|?.()', []]]), true)
+            assertEq(needsRuntime(['?.()', ['undefined'], [], ['|()', [], ['|.', 'd', ['|()', []]]]]), true)
+            assertEq(needsRuntime(['.', ['{}', []], 'b']), false)
+            assertEq(needsRuntime(['?.()', ['undefined'], [], ['|()', []]]), false)
+            assertEq(needsRuntime(['()', ['=>', 0, [], ['[]', []]], []]), false)
+            assertEq(needsRuntime(1), false)
         },
         /**
          * Every question asked of a graph walks it once per distinct node:
@@ -1501,13 +1593,13 @@ export const proof = {
         methodCall: () => {
             assertEq(
                 printed(['.', ['{}', []], 'b', ['|()', []]]),
-                'Any::dot(Object::default().to_any(), string_any("b")).end_call(|| Ok(Array::default().to_any()))')
+                'Any::dot(Object::default().to_any(), string_any("b")).end_call(&runtime, || Ok(Array::default().to_any()))')
         },
         /** `a.b?.(...c)`: `|?.()` opens a region the chain goes on inside, and `.end()` closes. */
         propertyOptionCall: () => {
             assertEq(
                 printed(['.', ['{}', []], 'b', ['|?.()', []]]),
-                'Any::dot(Object::default().to_any(), string_any("b")).option_call(|| Ok(Array::default().to_any())).end()')
+                'Any::dot(Object::default().to_any(), string_any("b")).option_call(&runtime, || Ok(Array::default().to_any())).end()')
         },
         /**
          * `a?.b`, `a?.[0]`, `a?.b.c`, `a?.b(...c)`, `a?.b?.(...c)` and
@@ -1522,9 +1614,9 @@ export const proof = {
                 printed(['?.', ['{}', []], 0]),
                 'Any::option_dot(Object::default().to_any(), || Ok(f64_any(0x0000000000000000))).end()')
             assertEq(printed(['?.', ['{}', []], 'b', ['|.', 'c']]), `${open}.dot(|| Ok(string_any("c"))).end()`)
-            assertEq(printed(['?.', ['{}', []], 'b', ['|()', []]]), `${open}.call(${args}).end()`)
-            assertEq(printed(['?.', ['{}', []], 'b', ['|?.()', []]]), `${open}.option_call(${args}).end()`)
-            assertEq(printed(['?.', ['{}', []], 'b', ['|!()', []]]), `${open}.end_call(${args})`)
+            assertEq(printed(['?.', ['{}', []], 'b', ['|()', []]]), `${open}.call(&runtime, ${args}).end()`)
+            assertEq(printed(['?.', ['{}', []], 'b', ['|?.()', []]]), `${open}.option_call(&runtime, ${args}).end()`)
+            assertEq(printed(['?.', ['{}', []], 'b', ['|!()', []]]), `${open}.end_call(&runtime, ${args})`)
         },
         /**
          * `a?.(...c)`, `a?.(...c).d`, `a?.(...c)(...d)`, and the README's
@@ -1539,7 +1631,7 @@ export const proof = {
             assertEq(printed(['?.()', ['undefined'], [], ['|()', []]]), `${open}.call(${args}).end()`)
             assertEq(
                 printed(['?.', ['{}', []], 'b', ['|()', [], ['|.', 'd', ['|()', []]]]]),
-                `Any::option_dot(Object::default().to_any(), || Ok(string_any("b"))).call(${args}).dot(|| Ok(string_any("d"))).call(${args}).end()`)
+                `Any::option_dot(Object::default().to_any(), || Ok(string_any("b"))).call(&runtime, ${args}).dot(|| Ok(string_any("d"))).call(&runtime, ${args}).end()`)
         },
         /** Atomic as an operand: a method chain binds tighter than any infix operator. */
         operand: () => {
@@ -1551,7 +1643,7 @@ export const proof = {
         opaqueBase: () => {
             assertEq(
                 printed(['.', ['.', ['{}', []], 'y', ['|()', []]], 'z']),
-                'Any::dot(Any::dot(Object::default().to_any(), string_any("y")).end_call(|| Ok(Array::default().to_any())), string_any("z")).end()')
+                'Any::dot(Any::dot(Object::default().to_any(), string_any("y")).end_call(&runtime, || Ok(Array::default().to_any())), string_any("z")).end()')
         },
         /**
          * A nullish base: `?.` and `?.()` guard it, `undefined` at run
@@ -1567,7 +1659,7 @@ export const proof = {
                 'Any::option_call(Nullish::Undefined.to_any(), || Ok(Array::default().to_any())).end()')
             assertEq(
                 printed(['.', null, 'a', ['|()', []]]),
-                'Any::dot(Nullish::Null.to_any(), string_any("a")).end_call(|| Ok(Array::default().to_any()))')
+                'Any::dot(Nullish::Null.to_any(), string_any("a")).end_call(&runtime, || Ok(Array::default().to_any()))')
         },
         /**
          * Arguments are a lazy position: an operation inside them is the
@@ -1584,7 +1676,7 @@ export const proof = {
             ].join('\n')
             assertEq(
                 printed(['.', ['{}', []], 'b', ['|()', [['/', 1n, 0n]]]]),
-                `Any::dot(Object::default().to_any(), string_any("b")).end_call(${thunk})`)
+                `Any::dot(Object::default().to_any(), string_any("b")).end_call(&runtime, ${thunk})`)
             assertStructurallySame(
                 scoped(['.', ['{}', []], 'b', ['|()', [['/', 1n, 0n]]]]),
                 [
@@ -1592,7 +1684,7 @@ export const proof = {
                     '    let c1: Any<A> = (bigint_any(1) / bigint_any(0))?;',
                     '    Ok([c1].to_array().to_any())',
                     '};',
-                    'Any::dot(Object::default().to_any(), string_any("b")).end_call(c0)',
+                    'Any::dot(Object::default().to_any(), string_any("b")).end_call(&runtime, c0)',
                 ])
             assertStructurallySame(
                 scoped(['?.()', ['undefined'], [['-', 1]]]),
@@ -1610,7 +1702,7 @@ export const proof = {
                     '    let c1: Any<A> = (-(f64_any(0x3ff0000000000000)))?;',
                     '    Ok([c1].to_array().to_any())',
                     '};',
-                    'Any::option_dot(Object::default().to_any(), || Ok(string_any("b"))).dot(|| Ok(string_any("c"))).call(c0).end()',
+                    'Any::option_dot(Object::default().to_any(), || Ok(string_any("b"))).dot(|| Ok(string_any("c"))).call(&runtime, c0).end()',
                 ])
         },
         /** In a scope a chain temporary follows its `let` with `?` as it is, a method chain needing no parentheses. */
@@ -1728,7 +1820,7 @@ export const proof = {
         thunks: () => {
             assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [['...', 'ab']]]]), [
                 'let c0 = || spread_array([spread_item(string_any("ab"))]);',
-                'Any::dot(args.clone().to_any(), string_any("at")).end_call(c0)',
+                'Any::dot(args.clone().to_any(), string_any("at")).end_call(&runtime, c0)',
             ])
             assertEq(
                 printed(['?.()', ['undefined'], [['...', 'ab']]]),
@@ -1773,7 +1865,7 @@ export const proof = {
                 '    let c1: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
                 '    spread_array([spread_item(c1.clone()), spread_item(c1.clone())])',
                 '};',
-                'Any::dot(args.clone().to_any(), string_any("at")).end_call(c0)',
+                'Any::dot(args.clone().to_any(), string_any("at")).end_call(&runtime, c0)',
             ])
             /** @type {Property} */
             const p = [':', 'k', a]

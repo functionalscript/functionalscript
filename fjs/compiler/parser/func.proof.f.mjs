@@ -586,6 +586,39 @@ export const proof = {
             expect(`${has} export default hasEntry({ k: 1 }, "k");`, '[[],[["hasEntry"],["object",[[":","default",["()",["cref",0],[["object",[[":","k",1]]],"k"]]]]]]]')
             expect('export default (o, p) => {\n const d = Object["getOwnPropertyDescriptor"](o, p)\n return d?.enumerable === true\n}', '[[],[["object",[[":","default",["hasEntry"]]]]]]')
             expect(`${helper} ${has} export default [entry, hasEntry];`, '[[],[["entry"],["hasEntry"],["object",[[":","default",["array",[["cref",0],["cref",1]]]]]]]]')
+            // an intrinsic's helper, the one member call of its name on the
+            // first of as many names as its `length`, under any names and
+            // either key spelling: the AST's `['slice']`
+            expect('export default (s, a, b) => s.slice(a, b);', '[[],[["object",[[":","default",["slice"]]]]]]')
+            expect('export default (x, y, z) => x["slice"](y, z);', '[[],[["object",[[":","default",["slice"]]]]]]')
+            expect('export default (s, a, b) => (s.slice)(a, b);', '[[],[["object",[[":","default",["slice"]]]]]]')
+            expect('const slice = (s, a, b) => s.slice(a, b); export default slice("abc", 1, 2);', '[[],[["slice"],["object",[[":","default",["()",["cref",0],["abc",1,2]]]]]]]')
+            // the second intrinsic, of `length` `2`
+            expect('export default (s, i) => s.charCodeAt(i);', '[[],[["object",[[":","default",["charCodeAt"]]]]]]')
+            // a step from the shape is an ordinary function with an ordinary
+            // member call, which the AST spells as a call of an access
+            for (const other of [
+                '(s, a) => s.slice(a)',
+                '(s, a, b, c) => s.slice(a, b)',
+                '(s, a, b) => s.slice(b, a)',
+                '(s, a, b) => s.slice(a, a)',
+                '(s, a, b) => a.slice(s, b)',
+                '(s, a, b) => s.slice(a, ...b)',
+                '(s, a, b) => s.slice(a, b, 1)',
+                '(s, a, b) => s.substring(a, b)',
+                '(s, a, b) => s?.slice(a, b)',
+                '(s, a, b) => s.slice?.(a, b)',
+                '(s, a, b) => s.slice(a)',
+                '(s, a, b) => { return s.slice(a, b); }',
+                '(s, [a], b) => s.slice(a, b)',
+                '(s, a, ...b) => s.slice(a, b)',
+            ]) {
+                const [tag, value] = parseFromTokens(tokenizeString(`export default ${other};`))
+                assertEq(tag, 'ok', other)
+                assert(!JSON.stringify(value).includes('["slice"]'), other)
+            }
+            const [, three] = parseFromTokens(tokenizeString('export default (s, i, j) => s.charCodeAt(i);'))
+            assert(!JSON.stringify(three).includes('["charCodeAt"]'))
         },
         // Not the helper: a body that departs from the helper's by a step is
         // an ordinary function, which is where `Object` — a reserved global,
@@ -659,6 +692,11 @@ export const proof = {
             refused('export default (a, b) => { const Array = Object.getOwnPropertyDescriptor(a, b); return Array?.enumerable ? [Array.value] : []; };', 'reserved word', 34)
             refused('export default (a, a) => { const x = Object.getOwnPropertyDescriptor(a, a); return x?.enumerable ? x.value : undefined; };', 'duplicate id', 20)
             refused('export default (a, b) => { const a = Object.getOwnPropertyDescriptor(a, b); return a?.enumerable ? [a.value] : []; };', 'duplicate id', 34)
+            // and so are they among an intrinsic's helper's
+            refused('export default (Array, a, b) => Array.slice(a, b);', 'reserved word', 17)
+            refused('export default (s, s, b) => s.slice(s, b);', 'duplicate id', 20)
+            // a computed key is no helper's, and no call's
+            refused('export default (s, a, b) => s[a](a, b);', 'computed key is not Number(...)', 31)
             // and the line rules every block keeps: a statement without its
             // `;` ends at a newline, and `return` and its value share a line
             refused('export default (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b) return x?.enumerable ? x.value : undefined; };', 'unexpected token', 76)

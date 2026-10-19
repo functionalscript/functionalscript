@@ -30,6 +30,8 @@ export const proof = {
         assertStructurallySame(operandsOf(['arg', 0]), [])
         assertStructurallySame(operandsOf(['entry']), [])
         assertStructurallySame(operandsOf(['hasEntry']), [])
+        assertStructurallySame(operandsOf(['slice']), [])
+        assertStructurallySame(operandsOf(['charCodeAt']), [])
         // the constructor's name is no operand
         assertStructurallySame(operandsOf(['instanceof', c, 'Array']), [c])
         // a list is read as a list, whatever its first item spells

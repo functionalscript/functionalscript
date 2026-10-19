@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{bigint_any, strict_eq, strict_ne, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = (bigint_any(3) * bigint_any(4000000000))?;
     let c1: Any<A> = (bigint_any(5) * bigint_any(1000000007))?;
     let c2: Any<A> = (-(c1))?;

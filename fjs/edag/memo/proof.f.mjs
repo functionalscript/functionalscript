@@ -78,7 +78,7 @@ export const proof = {
     // the named failure without a runtime, as `amnesia`'s.
     objectIs: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         /** @type {Exp} */
         const nested = ['()', ['=>', 0, [], ['()', ['Object.is'], [1, 1]]], []]
         const run = memo(assertOk(analysis(nested)))
@@ -274,6 +274,18 @@ export const proof = {
         eq(['()', ['hasEntry'], [['{}', [[':', 'k', 9]]], 'k']], true)
         eq(['()', ['hasEntry'], [['[]', [7, 8]], 'length']], false)
         eq(['.', ['hasEntry'], 'length'], 2)
+        // an intrinsic, `slice`: the member call on its first argument with
+        // the rest — a string's, an array's, an own property's — of `length`
+        // `3`, fresh per node
+        eq(['()', ['slice'], ['abcdef', 1, 3]], 'bc')
+        eq(['()', ['slice'], ['abcdef', 4]], 'ef')
+        assertStructurallySame(run(['()', ['slice'], [['[]', [7, 8, 9]], 1, 2]]), [8])
+        eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 'own']]]], 0, 1]], 'own')
+        eq(['.', ['slice'], 'length'], 3)
+        eq(['typeof', ['slice']], 'function')
+        eq(['===', ['slice'], ['slice']], false)
+        eq(['()', ['charCodeAt'], ['abc', 1]], 0x62)
+        eq(['.', ['charCodeAt'], 'length'], 2)
         eq(['===', ['entry'], ['entry']], false)
         eq(['()', ['=>', 0, [], ['===', ['entry'], ['entry']]], []], false)
         const helper = /** @type {Exp} */ (['entry'])

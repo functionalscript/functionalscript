@@ -34,8 +34,8 @@ impl<A: IVm> Any<A> {
     ///
     /// The code of the static function no FunctionalScript body defines,
     /// enumerating keys being what the language has no other way to do:
-    /// [`object_entries`](crate::vm::object_entries), the built-in
-    /// identified by its name, calls it.
+    /// `Object.entries` in the runtime value is a closure over it
+    /// (`fjs/js/runtime/README.md`, "How NaNVM finds it").
     pub fn entries(self) -> Result<Self, Self> {
         non_nullish_receiver(self.clone())?;
         Ok(self

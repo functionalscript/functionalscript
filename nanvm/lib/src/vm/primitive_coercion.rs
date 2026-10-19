@@ -559,7 +559,9 @@ mod tests {
     /// The members the call reads: `("slice", [1])` is `a.slice(1)`.
     fn call(recv: Any<A>, name: &str, args: Vec<Any<A>>) -> Result<Any<A>, Any<A>> {
         recv.dot(name.into())
-            .end_call(|| Ok(args.to_array().to_any()))
+            .end_call(&crate::vm::runtime::<A>().unwrap(), || {
+                Ok(args.to_array().to_any())
+            })
     }
 
     /// `ToNumeric` keeps a `BigInt` answer of `valueOf`, so the operators

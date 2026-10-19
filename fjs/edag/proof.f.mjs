@@ -43,6 +43,7 @@ import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
     exp, fromValue, isStatic, op0Id, op1Id, op12Id, op2Id, op3Id,
+    intrinsicIds, intrinsicLength, intrinsics, isIntrinsic,
     noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText,
 } from './module.f.mjs'
 
@@ -97,7 +98,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -232,6 +233,18 @@ export const proof = {
     // Each static tag is its path's keys joined by `.`, and the test a
     // reader dispatches a static node on is the node of one tag of the
     // list: a tag's own spelling and nothing near it, alone.
+    // The intrinsics: `slice`, its helper of `length` `3`, and `charCodeAt`,
+    // of `2`; a node is
+    // one by its one tag, and nothing else is — a helper, a static, a tag
+    // with an operand, the bare tag.
+    intrinsics: () => {
+        assertStructurallySame(intrinsics, [['slice', 3], ['charCodeAt', 2]])
+        assertStructurallySame(intrinsicIds, ['slice', 'charCodeAt'])
+        assertEq(intrinsicLength('slice'), 3)
+        assertEq(intrinsicLength('charCodeAt'), 2)
+        for (const id of intrinsicIds) { assert(isIntrinsic([id]), id) }
+        for (const node of [['entry'], ['hasEntry'], ['Object.is'], ['slice', 1], ['charCodeAt', 1], 'slice', [], null]) { assert(!isIntrinsic(node), node) }
+    },
     staticIds: () => {
         assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])
         assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }'])

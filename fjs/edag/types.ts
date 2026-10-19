@@ -15,6 +15,7 @@ import type {
     _exp,
     _optionLambda,
     _optionPropertyLambda,
+    intrinsics,
     array,
     arg,
     func,
@@ -238,7 +239,10 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | StaticId
+    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | IntrinsicId | StaticId
+
+/** An intrinsic's tag, the member's name: `'slice'`, `'charCodeAt'`. The list is `intrinsics` in `module.f.mjs`. */
+export type IntrinsicId = (typeof intrinsics)[number][0]
 
 /** A static function's tag, its path's keys joined by `.`: `'Object.is'`, `'Number.isInteger'`. */
 export type StaticId = 'Object.is' | 'Object.entries' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite'

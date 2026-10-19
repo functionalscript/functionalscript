@@ -62,7 +62,7 @@ an admission of its own ([built-ins](../todo/2360-built-in.md)).
 Each read reaches the graph as the node of its name, `['Object.is']` or
 `['Number.isInteger']`, and a call of it as the ordinary call,
 `['()', ['Object.is'], [a, b]]` ([`fjs/edag`](../../fjs/edag/README.md)). Each
-body is written once, in the `static` section of
+body is written once, in the `statics` table of
 [`fjs/js/runtime`](../../fjs/js/runtime/README.md), a VM's and no module's —
 a module calls the built-in — and checked there against the host's own;
 every executor answers the node from it, and an executor with no binding

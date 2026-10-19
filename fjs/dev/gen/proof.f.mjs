@@ -74,7 +74,7 @@ const root = {
         },
     },
     'nanvm': { 'harness': { 'fixtures': {} } },
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = {};')] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } } },
 }
 
 /** A program that logs `s` and exits `0`. @type {(s: string) => NodeProgram} */

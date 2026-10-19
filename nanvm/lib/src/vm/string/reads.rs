@@ -1,7 +1,4 @@
-use super::{
-    String,
-    code_unit::{is_high_surrogate, is_low_surrogate},
-};
+use super::String;
 use crate::{
     common::sized_index::SizedIndex,
     vm::{Any, IVm, Number, ToAny, ToString, position::relative},
@@ -34,20 +31,6 @@ impl<A: IVm> String<A> {
     pub(crate) fn char_code_at(&self, pos: Any<A>) -> Result<Number, Any<A>> {
         let unit = self.unit_at(pos.to_integer_or_infinity()?);
         Ok(Number::from(unit.map_or(f64::NAN, f64::from)))
-    }
-
-    /// `String.prototype.codePointAt(pos)`
-    /// (<https://tc39.es/ecma262/#sec-string.prototype.codepointat>): the code
-    /// point of a surrogate pair starting at that position, else the code
-    /// unit there — a lone surrogate included — or `None` out of range.
-    pub(crate) fn code_point_at(&self, pos: Any<A>) -> Result<Option<u32>, Any<A>> {
-        let k = pos.to_integer_or_infinity()?;
-        Ok(self.unit_at(k).map(|first| match self.unit_at(k + 1.0) {
-            Some(second) if is_high_surrogate(first) && is_low_surrogate(second) => {
-                0x1_0000 + ((u32::from(first) - 0xD800) << 10) + (u32::from(second) - 0xDC00)
-            }
-            _ => u32::from(first),
-        }))
     }
 
     /// `String.prototype.isWellFormed()`
@@ -106,16 +89,6 @@ mod tests {
         let abc: String<A> = "abc".into();
         assert_eq!(f64::from(abc.char_code_at(n(0.0)).unwrap()), 97.0);
         assert!(f64::from(abc.char_code_at(n(3.0)).unwrap()).is_nan());
-    }
-
-    #[test]
-    fn code_point_at() {
-        let pair = s(&[0xD83D, 0xDE00, 0x61]);
-        assert_eq!(pair.code_point_at(n(0.0)), Ok(Some(0x1_F600)));
-        assert_eq!(pair.code_point_at(n(1.0)), Ok(Some(0xDE00)));
-        assert_eq!(pair.code_point_at(n(2.0)), Ok(Some(0x61)));
-        assert_eq!(pair.code_point_at(n(3.0)), Ok(None));
-        assert_eq!(s(&[0xD83D]).code_point_at(n(0.0)), Ok(Some(0xD83D)));
     }
 
     #[test]

@@ -4,36 +4,36 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
     let c1 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
-    let c2: Any<A> = Any::dot(c0.clone(), string_any("slice")).end_call(c1)?;
+    let c2: Any<A> = Any::dot(c0.clone(), string_any("slice")).end_call(&runtime, c1)?;
     let c3 = || Ok([f64_any(0xc000000000000000), f64_any(0xbff0000000000000)].to_array().to_any());
-    let c4: Any<A> = Any::dot(c0.clone(), string_any("slice")).end_call(c3)?;
+    let c4: Any<A> = Any::dot(c0.clone(), string_any("slice")).end_call(&runtime, c3)?;
     let c5 = || {
         let c6: Any<A> = [f64_any(0x4010000000000000)].to_array().to_any();
         Ok([c6, f64_any(0x4014000000000000)].to_array().to_any())
     };
-    let c7: Any<A> = Any::dot(c0.clone(), string_any("concat")).end_call(c5)?;
+    let c7: Any<A> = Any::dot(c0.clone(), string_any("concat")).end_call(&runtime, c5)?;
     let c8: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
     let c9: Any<A> = [f64_any(0x4008000000000000)].to_array().to_any();
     let c10: Any<A> = [f64_any(0x4000000000000000), c9].to_array().to_any();
     let c11: Any<A> = [c8, c10].to_array().to_any();
-    let c12: Any<A> = Any::dot(c11, string_any("flat")).end_call(|| Ok(Array::default().to_any()))?;
+    let c12: Any<A> = Any::dot(c11, string_any("flat")).end_call(&runtime, || Ok(Array::default().to_any()))?;
     let c13 = || Ok([f64_any(0x4000000000000000)].to_array().to_any());
-    let c14: Any<A> = Any::dot(c0.clone(), string_any("includes")).end_call(c13)?;
+    let c14: Any<A> = Any::dot(c0.clone(), string_any("includes")).end_call(&runtime, c13)?;
     let c15 = || Ok([f64_any(0x4000000000000000)].to_array().to_any());
-    let c16: Any<A> = Any::dot(c0.clone(), string_any("indexOf")).end_call(c15)?;
+    let c16: Any<A> = Any::dot(c0.clone(), string_any("indexOf")).end_call(&runtime, c15)?;
     let c17 = || Ok([f64_any(0x4022000000000000)].to_array().to_any());
-    let c18: Any<A> = Any::dot(c0.clone(), string_any("lastIndexOf")).end_call(c17)?;
+    let c18: Any<A> = Any::dot(c0.clone(), string_any("lastIndexOf")).end_call(&runtime, c17)?;
     let c19 = || Ok([f64_any(0x3ff0000000000000), f64_any(0x401c000000000000)].to_array().to_any());
-    let c20: Any<A> = Any::dot(c0.clone(), string_any("with")).end_call(c19)?;
-    let c21: Any<A> = Any::dot(c0.clone(), string_any("toReversed")).end_call(|| Ok(Array::default().to_any()))?;
-    let c22: Any<A> = Any::dot(c0.clone(), string_any("toSorted")).end_call(|| Ok(Array::default().to_any()))?;
+    let c20: Any<A> = Any::dot(c0.clone(), string_any("with")).end_call(&runtime, c19)?;
+    let c21: Any<A> = Any::dot(c0.clone(), string_any("toReversed")).end_call(&runtime, || Ok(Array::default().to_any()))?;
+    let c22: Any<A> = Any::dot(c0.clone(), string_any("toSorted")).end_call(&runtime, || Ok(Array::default().to_any()))?;
     let c23 = || Ok([f64_any(0x3ff0000000000000), f64_any(0x3ff0000000000000), f64_any(0x4020000000000000), f64_any(0x4022000000000000)].to_array().to_any());
-    let c24: Any<A> = Any::dot(c0.clone(), string_any("toSpliced")).end_call(c23)?;
+    let c24: Any<A> = Any::dot(c0.clone(), string_any("toSpliced")).end_call(&runtime, c23)?;
     let c25 = || Ok([string_any("-")].to_array().to_any());
-    let c26: Any<A> = Any::dot(c0.clone(), string_any("join")).end_call(c25)?;
+    let c26: Any<A> = Any::dot(c0.clone(), string_any("join")).end_call(&runtime, c25)?;
     let c27: Any<A> = [c2, c4, c7, c12, c14, c16, c18, c20, c21, c22, c24, c26].to_array().to_any();
     Ok([(string_key("default"), c27)].to_object().to_any())
 }

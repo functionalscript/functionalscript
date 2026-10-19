@@ -27,7 +27,7 @@
  * @import { Exp } from '../types.ts'
  */
 
-import { lazyOp2Id } from '../module.f.mjs'
+import { isIntrinsic, lazyOp2Id } from '../module.f.mjs'
 
 /**
  * The operations that establish every operand after the first only
@@ -134,7 +134,7 @@ export const visit = operands => visited => root => {
 export const operandsOf = node => {
     const [id] = node
     return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
-        : id === 'arg' || id === 'entry' || id === 'hasEntry' ? []
+        : id === 'arg' || id === 'entry' || id === 'hasEntry' || isIntrinsic(node) ? []
         // the constructor name is metadata, not a string-literal operand
         : id === 'instanceof' ? [node[1]]
         : id === ',' ? /** @type {readonly unknown[]} */ (node[1])

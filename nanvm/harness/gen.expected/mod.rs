@@ -19,6 +19,8 @@ pub mod entry;
 pub mod escapes;
 pub mod function_scope;
 pub mod guarded_calls;
+pub mod intrinsic;
+pub mod intrinsic_throws;
 pub mod lazy;
 pub mod length;
 pub mod method;
@@ -78,6 +80,8 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "escapes", fixture: crate::fixtures::escapes::module::<Naive>, expected: escapes::module::<Naive>, json: escapes::JSON, throws: escapes::THROWS },
     crate::Case { name: "function_scope", fixture: crate::fixtures::function_scope::module::<Naive>, expected: function_scope::module::<Naive>, json: function_scope::JSON, throws: function_scope::THROWS },
     crate::Case { name: "guarded_calls", fixture: crate::fixtures::guarded_calls::module::<Naive>, expected: guarded_calls::module::<Naive>, json: guarded_calls::JSON, throws: guarded_calls::THROWS },
+    crate::Case { name: "intrinsic", fixture: crate::fixtures::intrinsic::module::<Naive>, expected: intrinsic::module::<Naive>, json: intrinsic::JSON, throws: intrinsic::THROWS },
+    crate::Case { name: "intrinsic_throws", fixture: crate::fixtures::intrinsic_throws::module::<Naive>, expected: intrinsic_throws::module::<Naive>, json: intrinsic_throws::JSON, throws: intrinsic_throws::THROWS },
     crate::Case { name: "lazy", fixture: crate::fixtures::lazy::module::<Naive>, expected: lazy::module::<Naive>, json: lazy::JSON, throws: lazy::THROWS },
     crate::Case { name: "length", fixture: crate::fixtures::length::module::<Naive>, expected: length::module::<Naive>, json: length::JSON, throws: length::THROWS },
     crate::Case { name: "method", fixture: crate::fixtures::method::module::<Naive>, expected: method::module::<Naive>, json: method::JSON, throws: method::THROWS },
