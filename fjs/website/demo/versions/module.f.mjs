@@ -17,6 +17,11 @@
  * nothing and left nothing behind changed nothing, and says so — whether
  * the structure answered the same version or an equal one.
  *
+ * **A click on a key moves it**: removes it and inserts it again, a step
+ * that keeps the keys and may change the shape. A move whose version is
+ * drawn as the one before it changed nothing, however many nodes it built
+ * on the way, and answers the version it was given.
+ *
  * **A preset loads a version and a key, and takes no step.** Its version is
  * both versions, so nothing is coloured, and its hint names the button to
  * press: the reader makes the change and sees it happen.
@@ -24,7 +29,7 @@
  * @module
  *
  * @import { Census, Keys, Layout, Options, Preset, Row, Shape, State, Step, Structure, Versions, VersionsDemo } from './types.ts'
- * @import { Edge, Graph } from '../graph/types.ts'
+ * @import { Click, Edge, Graph } from '../graph/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  */
 
@@ -68,6 +73,40 @@ const nodesOfBoth = ({ root, shape }) => versions => {
 }
 
 /**
+ * Whether two versions are drawn the same: the same titles and rows, node
+ * by node, a value's parts included, whether or not the nodes are the same
+ * objects.
+ *
+ * @type {<V, N>(structure: Structure<V, N>) => (versions: Versions<V>) => boolean}
+ */
+export const sameShape = ({ root, shape }) => versions => {
+    const { rows, title } = shape(versions)
+    /** @typedef {Parameters<typeof rows>[0]} N */
+    /** @type {(a: N | null) => (b: N | null) => boolean} */
+    const same = a => b => {
+        if (a === b) { return true }
+        if (a === null || b === null) { return false }
+        const [ra, rb] = [rows(a), rows(b)]
+        return title(a) === title(b) && ra.length === rb.length && ra.every((x, i) => {
+            const y = rb[i]
+            return 'to' in x
+                ? 'to' in y && x.corner === y.corner && same(x.to)(y.to)
+                : !('to' in y) && x.label === y.label && x.inline === y.inline
+                    && JSON.stringify(x.parts) === JSON.stringify(y.parts)
+        })
+    }
+    return same(root(versions.before))(root(versions.after))
+}
+
+/**
+ * What a click on a key row does: moves the key, and says so.
+ *
+ * @type {(row: { readonly inline: string, readonly key?: number }) => Click | undefined}
+ */
+const clickOf = ({ inline, key }) =>
+    key === undefined ? undefined : { name: `move:${key}`, label: `Remove ${inline} and insert it again` }
+
+/**
  * The new version as a graph: one node per distinct node, an arrow into
  * its root, and each column in the shape's `order`.
  *
@@ -95,7 +134,7 @@ export const graphOf = structure => versions => {
         entries: newRoot === null ? [] : [{ to: all.indexOf(newRoot) }],
         edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => 'to' in row
             ? { from, to: all.indexOf(row.to), label: '', corner: row.corner }
-            : { from, to: { inline: row.inline, parts: row.parts }, label: row.label }))),
+            : { from, to: { inline: row.inline, parts: row.parts, click: clickOf(row) }, label: row.label }))),
     }
 }
 
@@ -112,13 +151,25 @@ export const census = structure => versions => {
 }
 
 /**
+ * Why a step that built nothing and left nothing behind changed nothing,
+ * by what it tried.
+ *
+ * @type {(noun: string) => Record<Step['op'], string>}
+ */
+const unchanged = noun => ({
+    insert: `the key is already in the ${noun}`,
+    remove: `the key is not in the ${noun}`,
+    move: 'the key went back where it was',
+})
+
+/**
  * What the last step did, or, if it built nothing and left nothing behind,
- * why: the key was already there, or was not.
+ * why: the key was already there, or was not, or went back where it was.
  *
  * @type {(noun: string) => (show: Keys['show']) => (step: Step) => (c: Census) => string}
  */
 export const stepLine = noun => show => ({ op, key }) => ({ built, shared, replaced }) => built === 0 && replaced === 0
-    ? `Last step, ${op} ${show(key)}: nothing changed, the key is ${op === 'insert' ? 'already' : 'not'} in the ${noun}.`
+    ? `Last step, ${op} ${show(key)}: nothing changed, ${unchanged(noun)[op]}.`
     : `Last step, ${op} ${show(key)}: ${built} new (blue), ${shared} shared with the ${noun} before, ${replaced} only in the ${noun} before.`
 
 /**
@@ -132,6 +183,7 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
     const graph = graphOf(structure)
     const count = census(structure)
     const line = stepLine(noun)(show)
+    const same = sameShape(structure)
     /** @typedef {Parameters<typeof structure.root>[0]} V */
     /** @type {(name: string) => State<V>} */
     const load = presetName => {
@@ -141,21 +193,33 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
         const version = keys.reduce((v, k) => structure.insert(k)(v), structure.empty)
         return { key: show(key), versions: { before: version, after: version }, status: { preset: presetName, hint }, error: null }
     }
-    /** @type {(op: Step['op']) => (state: State<V>) => State<V>} */
+    /** @type {(op: 'insert' | 'remove') => (state: State<V>) => State<V>} */
     const press = op => state => {
         const key = parse(state.key.trim())
         if (key === null) { return { ...state, error: `"${state.key}" is not a key: type ${accepts}.` } }
         const { after } = state.versions
         return { key: state.key, versions: { before: after, after: structure[op](key)(after) }, status: { step: { op, key } }, error: null }
     }
+    /** @type {(key: number) => (state: State<V>) => State<V>} */
+    const move = key => state => {
+        const before = state.versions.after
+        const moved = structure.insert(key)(structure.remove(key)(before))
+        const after = same({ before, after: moved }) ? before : moved
+        return { key: show(key), versions: { before, after }, status: { step: { op: 'move', key } }, error: null }
+    }
+    /** @type {(name: string) => number | null} */
+    const movedKey = eventName => eventName.startsWith('move:') ? decimal.parse(eventName.slice(5)) : null
     /** @type {(versions: Versions<V>) => Element} */
     const drawing = versions => structure.root(versions.after) === null
         ? ['p', `The ${noun} is empty.`]
         : graphSvg(graph(versions))
+    /** @type {(key: number | null) => (state: State<V>) => State<V>} */
+    const clicked = key => state => key === null ? state : move(key)(state)
     const keyId = `${name}-key`
     return {
         load,
         press,
+        move,
         graphOf: graph,
         census: count,
         demo: {
@@ -164,6 +228,7 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
                 event.kind === 'input' && event.name === 'key' ? { ...state, key: event.value }
                 : event.kind === 'input' && event.name === exampleName ? load(event.value)
                 : event.kind === 'click' && (event.name === 'insert' || event.name === 'remove') ? press(event.name)(state)
+                : event.kind === 'click' ? clicked(movedKey(event.name))(state)
                 : state),
             view: ({ key, versions, status, error }) => ['div',
                 ['p', intro],
