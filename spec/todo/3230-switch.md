@@ -237,8 +237,11 @@ implementation's pull request:
   guard's follow-ups; and the `st.break-continue` row naming this record
   too
 - [ ] the standard modules whose `switch` the form refuses — a case block
-  that does not terminate, a case without braces — rewritten or waiting on
-  a follow-up, each named
+  that does not terminate, a case without braces, and a `switch` without
+  a `default` that is the last statement of its body, which the form
+  reads as a body a terminator short, the outer `switch` of `find` in
+  `fjs/types/btree/find` among them — rewritten or waiting on a
+  follow-up, each named
 
 ### Later
 
