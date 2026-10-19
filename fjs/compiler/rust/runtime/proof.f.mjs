@@ -155,6 +155,11 @@ pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1
         assertEq(assertOk(generateRuntime(module([['dot', fn(2, [], ['undefined'])]]))), none)
         assertEq(refusal(module([['dot', 'x']])), 'a `dot` section that is no function: x')
         assertEq(refusal(module([['dot', object([])]])), 'a `dot` section that is no function: {},')
+        // and no built-in may name the very function `dot` is: refused by
+        // the built-in's name, never a table naming an item that is not there
+        const shared = fn(2, [], ['undefined'])
+        assertEq(refusal(module([['static', object([['Object', object([['is', shared]])]])], ['dot', shared]])), 'a built-in naming the `dot` dispatcher; the dispatcher is no built-in: Object.is')
+        assertEq(refusal(module([['member', object([['startsWith', shared]])], ['dot', shared]])), 'a built-in naming the `dot` dispatcher; the dispatcher is no built-in: startsWith')
         const lazy = assertOk(generateRuntime(module([['static', object([['Number', object([['f', fn(1, [], ['&&', ['arg', 0], ['+', ['arg', 0], 1]])]])]])]])))
         assert(lazy.includes('    let c0 = || args.argument(0) + f64_any(0x3ff0000000000000);\n    Any::logical_and(args.argument(0), c0)\n'))
     },

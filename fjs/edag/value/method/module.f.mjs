@@ -59,7 +59,7 @@ const typeName = receiver => typeof receiver === 'string' ? 'String'
  *
  * @type {(runtime: Runtime | undefined, key: string, receiver: EdagValue, invoke: Invoke) => Result<EdagValue | undefined, EdagValue>}
  */
-const callee = (runtime, key, receiver, invoke) => {
+export const callee = (runtime, key, receiver, invoke) => {
     const dot = functionAt(runtime, ['dot'])
     if (dot === undefined) { return ok(undefined) }
     const answer = call(ok(dot), [() => ok(receiver), () => ok(key)], invoke)

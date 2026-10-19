@@ -65,6 +65,13 @@ export const proof = {
         const run = memo(assertOk(analysis(nested)))
         assertEq(assertOk(run({ args: [], runtime })), 'abc')
         assertStructurallySame(assertError(run({ args: [] })), ['undefined'])
+        // the callee before the arguments, as in `amnesia`: a `dot` that
+        // throws fails the call before an argument that would
+        /** @type {import('../value/types.ts').Runtime} */
+        const throwing = ['{}', [[':', 'dot', ['=>', 2, [], ['throw', 'resolving']]]]]
+        const argued = memo(assertOk(analysis(['.', 'abc', 'slice', ['|()', [['throw', 'evaluated']]]])))
+        assertEq(assertError(argued({ args: [], runtime: throwing })), 'resolving')
+        assertEq(assertError(argued({ args: [], runtime })), 'evaluated')
     },
     // `Object.is` under memoization: the runtime's body in a function the
     // module calls, a function returning it read twice as one value, and

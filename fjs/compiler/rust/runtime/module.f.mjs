@@ -194,7 +194,8 @@ const table = root => {
  * keeps `isNaN` and `Number.isNaN` apart however alike; and two items
  * printing one Rust name, {@link printedNames} — a static and a member of
  * one type and key, or a member whose key ends in `Code`, say. The `dot`
- * dispatcher is no item: the one function no built-in reaches by design.
+ * dispatcher is no item: the one function no built-in reaches by design,
+ * so a built-in naming the very function `dot` is, is refused.
  *
  * @type {(root: Exp, table: _Table) => Result<readonly _Item[], readonly unknown[]>}
  */
@@ -203,6 +204,8 @@ const items = (root, { builtIns, dot }) => {
     const stray = nodes.find(n => !['=>', '{}', '.', 'undefined', 'entry', 'hasEntry'].includes(n[0]))
     if (stray !== undefined) { return refused(/** @type {Exp} */ (stray)) }
     return okThen(/** @type {() => Result<readonly _Item[], readonly unknown[]>} */ () => {
+        const shared = builtIns.find(b => b.node === dot)
+        if (shared !== undefined) { return error(['a built-in naming the `dot` dispatcher; the dispatcher is no built-in', shared.name]) }
         const functions = nodes.filter(n => n[0] === '=>' && n !== dot)
         const reached = reach(builtIns.map(b => b.node), [])
         const dropped = functions.find(n => !reached.includes(n))

@@ -127,6 +127,15 @@ export const proof = {
         const none = dispatching(['=>', 1, [], ['undefined']])
         assertStructurallySame(assertOk(vm({ frame: [], args: [], runtime: none })(optional)), ['undefined'])
         assertStructurallySame(assertError(vm({ frame: [], args: [], runtime: none })(direct)), ['undefined'])
+        // a plain call reads its callee before its arguments, as `a.f(x)`
+        // reads `a.f` before `x`: a `dot` that throws is the failure, not
+        // an argument that would throw after it — and a native name alike
+        /** @type {import('../value/types.ts').Runtime} */
+        const throwing = ['{}', [[':', 'dot', ['=>', 2, [], ['throw', 'resolving']]]]]
+        assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'startsWith', ['|()', [['throw', 'evaluated']]]])), 'resolving')
+        assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'slice', ['|()', [['throw', 'evaluated']]]])), 'resolving')
+        assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'slice', ['|?.()', [['throw', 'evaluated']]]])), 'resolving')
+        assertEq(assertError(vm({ frame: [], args: [], runtime })(['.', 'abc', 'startsWith', ['|()', [['throw', 'evaluated']]]])), 'evaluated')
     },
     // `Object.is` answers from the runtime's `static` section, in the
     // expression and in a function it calls, and as a value passed and

@@ -31,7 +31,7 @@ import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticB
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
 import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
-import { admits, hasMethod, method } from '../value/method/module.f.mjs'
+import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.mjs'
 import { noStatic, staticPath } from '../module.f.mjs'
 
@@ -171,14 +171,21 @@ export const operation = evaluator => {
                 : prepare(ok(callee), values.map(v => () => ok(v)))
             return continued([afterArgs, result], continuation)
         })
-        return then([state, value], (callee, next) => {
-            if (tag !== '|?.()') { return proceed(callee, next) }
+        return then([state, value], (own, next) => {
+            if (tag !== '|?.()') {
+                // the callee is read before the arguments, as `a.f` is
+                // before `x` in `a.f(x)`: a built-in's is what the runtime's
+                // `dot` answers, which may throw, and is asked again by the
+                // call, a body being pure
+                const resolved = builtin ? okThen(() => ok(own))(callee(runtime, name, receiver, invoke)) : ok(own)
+                return then([next, resolved], (_, after) => proceed(own, after))
+            }
             // the guard, before the arguments: an own property that is
             // nullish skips, and so does a built-in no implementation is
             // bound for, which the runtime's body decides for its receiver
             // and may throw deciding
-            const guard = builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!nullish(callee))
-            return then([next, guard], (has, after) => has ? proceed(callee, after) : skip(continuation, after))
+            const guard = builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!nullish(own))
+            return then([next, guard], (has, after) => has ? proceed(own, after) : skip(continuation, after))
         })
     }
 
