@@ -283,11 +283,13 @@ cycle:
   body by
   reading it as a value, never by its name: the core may not use what it
   defines, and the whole module is the core, which the proof checks on the
-  compiled EDAG — no chain step and no static node anywhere in it. This is
-  what lets NaNVM hold the runtime as a value its bodies never name: the
-  runtime printer prints the module with no runtime in scope, so a member
-  call or a static read anywhere in it, body or initializer, is the
-  backend's refusal, by name ("How NaNVM finds it").
+  compiled EDAG — no chain step anywhere in it, and no static node but the
+  natives the table lists as themselves, `Object.entries`, which every
+  executor binds and no body reads. This is what lets NaNVM hold the
+  runtime as a value its bodies never name: the runtime printer prints the
+  module with no runtime in scope, so a member call or a static read of a
+  body anywhere in it, body or initializer, is the backend's refusal, by
+  name, and a native static is the built-in itself ("How NaNVM finds it").
 
 ## Giving a name its body
 
