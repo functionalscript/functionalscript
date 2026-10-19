@@ -155,6 +155,43 @@ export const proof = {
         assertStructurallySame(last[1].value, ['primitive', 2])
         assertEq(last[1].start.metadata.column, 46)
     },
+    // A switch ends a block's list, tagged `switch`: the token it begins with,
+    // its discriminant, its cases — each its labels and its block, read as a
+    // body's — and its `default` block, `null` where it has none, the rest of
+    // the block then following it in the same list, as the statements after
+    // a guard do. It records no `;`, as a guard does not.
+    switch: () => {
+        const { exported } = unwrap(parseSyntax(tokenizeString('export default (a) => { switch (a) { case 1: case 2: { return 1; } case 3: { throw 3; } } return 0; };')))
+        assert(exported !== null && exported.value[0] === '=>')
+        const body = exported.value[2]
+        assert(body[0] === 'block')
+        const [sw, last] = body[1]
+        assert(sw[0] === 'switch' && last[0] === 'return')
+        assertEq(sw[1].start.metadata.column, 25)
+        assert(sw[1].discriminant[0] === 'ref')
+        assertEq(sw[1].discriminant[1].metadata.column, 33)
+        assertEq(sw[1].default, null)
+        const [first, second] = sw[1].cases
+        assertStructurallySame(first.labels, [['primitive', 1], ['primitive', 2]])
+        assertStructurallySame(second.labels, [['primitive', 3]])
+        const [one] = first.block[1]
+        assert(one[0] === 'return')
+        assertStructurallySame(one[1].value, ['primitive', 1])
+        const [three] = second.block[1]
+        assert(three[0] === 'throw')
+        assertStructurallySame(last[1].value, ['primitive', 0])
+        assertEq(last[1].start.metadata.column, 91)
+        const defaulted = unwrap(parseSyntax(tokenizeString('export default (a) => { switch (a) { case 1: { return 1; } default: { return 0; } } };')))
+        assert(defaulted.exported !== null && defaulted.exported.value[0] === '=>')
+        const block = defaulted.exported.value[2]
+        assert(block[0] === 'block')
+        assertEq(block[1].length, 1)
+        const [end] = block[1]
+        assert(end[0] === 'switch' && end[1].default !== null)
+        const [zero] = end[1].default[1]
+        assert(zero[0] === 'return')
+        assertStructurallySame(zero[1].value, ['primitive', 0])
+    },
     // A module ending in `throw` records it where its default would be, the
     // declarations before it kept with their export markers.
     thrownModule: () => {

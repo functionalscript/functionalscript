@@ -458,6 +458,12 @@ export const _graphOf = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast)
  *   `?:` node, the statements after a guard its alternate, so the drawing
  *   has no `if` in it — the statement is sugar over the conditional, and
  *   the graph is the one `n < 0 ? -1 : n > 0 ? 1 : 0` draws.
+ * - **Switch** is a body that is one `switch` over three cases: a `?:`
+ *   node per case, its condition the `===` of the discriminant — one node,
+ *   read by every test — and a label, two labels under `||`, the next
+ *   case its alternate and the `default` block the last, a `throw` node,
+ *   so the drawing has no `switch` in it either — the statement is sugar
+ *   over the same conditional a chain of guards is.
  * - **Hex escape** and **Parse error** do not parse, because an error is
  *   something this demo shows too.
  *

@@ -39,8 +39,9 @@ import type {
 /**
  * The words a rule requires in some position — six framing a module,
  * `return` and `throw` ending a function's block body, `throw` a module
- * too, `if` opening a guard in one, `let` and `while` a loop, `as` an
- * import alias, and `typeof` a prefix opening a value — which the
+ * too, `if` opening a guard in one, `let` and `while` a loop, `switch`
+ * and `case` a switch, `as` an import alias, and `typeof` a prefix
+ * opening a value — which the
  * grammar has to tell apart from an ordinary identifier.
  *
  * The tokenizer emits these words as `{ kind: 'id' }` with the word in `value`, so
@@ -50,7 +51,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'as' | 'typeof' | 'instanceof'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
@@ -484,11 +485,44 @@ export type ConstStatement = readonly [number, BindingTarget, number, Value, End
 /** A loop's `let`: `let`, the one variable's name — a name and never a pattern, the loop having one variable — `=`, the initial value, and {@link End}. */
 export type LetStatement = readonly [number, typeof identifierName, number, Value, End]
 
-/** The statement a block ends with: `return` or `throw`, its value, and {@link End}. */
+/**
+ * The statement a block ends with: `return` or `throw`, its value, and
+ * {@link End}; or a switch — `switch`, `(`, the discriminant, `)`, `{`,
+ * then `case`, the first label, `:`, and the rest of the switch,
+ * {@link CaseTail}.
+ */
 export type Terminator = {
     readonly return: readonly [number, Value, End]
     readonly throw: readonly [number, Value, End]
+    readonly switch: readonly [number, number, Value, number, number, number, Value, number, CaseTail]
 }
+
+/**
+ * What follows a case's label: another label, `case`, a value, `:` and
+ * this rule again, or the case's {@link Block} and what follows the case,
+ * {@link AfterCase}. A thunk, and a variant: the block names the
+ * terminator, the terminator this rule, and this rule the block, and a
+ * cycle keeps a finite `Ast` only through a variant — `_Branch` in
+ * `fjs/ebnf/ast` defers a branch where a tuple's element is built with
+ * the tuple — as {@link Statement}'s does for the guard.
+ */
+export type CaseTail = () => readonly ['const', {
+    readonly case: readonly [number, Value, number, CaseTail]
+    readonly block: readonly [Block, AfterCase]
+}]
+
+/**
+ * What follows a case's block: the next case, `case`, its first label,
+ * `:` and its {@link CaseTail}; `default`, `:`, a {@link Block} and the
+ * `}` of the block the switch stands in; or that `}` and the rest of that
+ * block, its statements and its terminator. A thunk and a variant, as
+ * {@link CaseTail} is.
+ */
+export type AfterCase = () => readonly ['const', {
+    readonly case: readonly [number, Value, number, CaseTail]
+    readonly default: readonly [number, number, Block, number]
+    readonly rest: readonly [number, RepeatFrom<0, Statement>, Terminator]
+}]
 
 /**
  * The one rest parameter, when a function has one: `...` and the

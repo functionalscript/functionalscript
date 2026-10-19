@@ -45,7 +45,7 @@ const nodeShapeOf = (exp, msg) => {
 }
 
 /** The default export's computation through the front end and lowering, a parse refusal thrown. @type {(source: string) => Unresolved} */
-const compile = source => {
+export const compile = source => {
     const { imports, edag } = unresolved(unwrap(parse('')(source)))
     return { imports, edag: _defaultExport(edag) }
 }
@@ -70,7 +70,7 @@ const linkRefusal = root => path => {
 }
 
 /** An EDAG the schema admits, and structurally the one expected. @type {(edag: Exp, expected: Exp) => void} */
-const expectEdag = (edag, expected) => {
+export const expectEdag = (edag, expected) => {
     assertEq(validate(exp)(edag)[0], 'ok')
     assertStructurallySame(edag, expected)
 }
@@ -142,13 +142,13 @@ const expectElseChain = depth => exp => {
 const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':', 'default', ['cref', 0]]]]]]).edag)
 
 /** Interpret before choosing an output boundary. @type {(graph: Exp) => EdagValue} */
-const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
+export const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
 
 /** Ordinary data comparisons erase reflection explicitly. @type {(graph: Exp) => unknown} */
 const execute = graph => assertOk(toData(value(graph)))
 
 /** Call represented functions without manufacturing host wrappers. @type {(fn: EdagValue, args: Values) => EdagValue} */
-const apply = (fn, args) => assertOk(call(ok(fn), args.map(arg => () => ok(arg)), invoke))
+export const apply = (fn, args) => assertOk(call(ok(fn), args.map(arg => () => ok(arg)), invoke))
 
 export const proof = {
     namedImports: {
