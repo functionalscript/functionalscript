@@ -1,11 +1,12 @@
 /**
  * @import { DemoEvent } from '../types.ts'
- * @import { Keys, Layout, State, Structure } from './types.ts'
+ * @import { Keys, Layout, Row, State, Structure } from './types.ts'
  * @import { _Cell, _List } from './private.ts'
  */
 
-import { census, decimal, graphOf, stepLine, versionsDemo } from './module.f.mjs'
+import { census, decimal, graphOf, sameShape, stepLine, versionsDemo } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
+import { graphSvg } from '../graph/module.f.mjs'
 import { runPure } from '../../../effects/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
@@ -35,7 +36,7 @@ const chain = layout => ({
     remove,
     root: list => list,
     shape: () => ({
-        rows: cell => [{ label: '', inline: String(cell.key) }, ...(cell.next === null ? [] : [/** @type {const} */ ({ to: cell.next, corner: 'bottom' })])],
+        rows: cell => [{ label: '', inline: String(cell.key), key: cell.key }, ...(cell.next === null ? [] : [/** @type {const} */ ({ to: cell.next, corner: 'bottom' })])],
         title: cell => cell.key === 1 ? 'first' : '',
         order: cell => cell.key,
         layout,
@@ -66,7 +67,7 @@ const nibble = {
     accepts: 'up to four binary digits',
 }
 
-const { demo, load, press } = versionsDemo({
+const { demo, load, press, move } = versionsDemo({
     structure: chain('depth'),
     name: 'chain',
     noun: 'list',
@@ -157,6 +158,62 @@ export const proof = {
             assertEq(JSON.stringify(census(chain('depth'))({ before: ofThree, after: null })), '{"built":0,"shared":0,"replaced":3}')
         },
     },
+    // Two versions are drawn the same when their rows are, node by node,
+    // whatever objects hold them.
+    sameShape: {
+        list: () => {
+            const same = sameShape(chain('depth'))
+            assert(same({ before: ofThree, after: ofThree }), '')
+            assert(same({ before: ofThree, after: listOf([1, 2, 3]) }), '')
+            assert(same({ before: nil, after: nil }), '')
+            assert(!same({ before: ofThree, after: listOf([1, 2]) }), '')
+            assert(!same({ before: ofThree, after: listOf([1, 2, 4]) }), '')
+            assert(!same({ before: ofThree, after: nil }), '')
+            assert(!same({ before: nil, after: ofThree }), '')
+        },
+        // A row is an edge in one and a value in the other, edges leave
+        // from different corners, values have different labels or are
+        // drawn in different parts, or nodes have different titles.
+        rows: () => {
+            /** @type {Record<string, readonly Row<string>[]>} */
+            const table = {
+                edge: [{ to: 'leaf', corner: 'top' }],
+                bottom: [{ to: 'leaf', corner: 'bottom' }],
+                value: [{ label: '', inline: 'leaf' }],
+                named: [{ label: 'a', inline: 'leaf' }],
+                split: [{ label: '', inline: 'leaf', parts: [['le', 'prior'], ['af', 'current']] }],
+                resplit: [{ label: '', inline: 'leaf', parts: [['l', 'prior'], ['eaf', 'current']] }],
+                titled: [],
+                leaf: [],
+            }
+            /** @type {Structure<string, string>} */
+            const named = {
+                empty: 'leaf',
+                insert: () => v => v,
+                remove: () => v => v,
+                root: v => v,
+                shape: () => ({ rows: node => table[node], title: node => node === 'titled' ? 'T' : '', order: () => 0, layout: 'depth' }),
+            }
+            /** @type {(before: string, after: string) => boolean} */
+            const same = (before, after) => sameShape(named)({ before, after })
+            assert(!same('edge', 'value'), '')
+            assert(!same('value', 'edge'), '')
+            assert(!same('edge', 'bottom'), '')
+            assert(!same('value', 'named'), '')
+            assert(!same('value', 'split'), '')
+            assert(!same('split', 'resplit'), '')
+            assert(same('split', 'split'), '')
+            assert(!same('leaf', 'titled'), '')
+        },
+    },
+    // A key row is a control that moves its key; any other row is not.
+    clicks: () => {
+        const g = graphOf(chain('depth'))({ before: ofThree, after: ofThree })
+        assertEq(JSON.stringify(g.edges.flatMap(e => typeof e.to === 'number' ? [] : [e.to.click])),
+            '[{"name":"move:1","label":"Remove 1 and insert it again"},{"name":"move:2","label":"Remove 2 and insert it again"},{"name":"move:3","label":"Remove 3 and insert it again"}]')
+        const h = htmlToString(graphSvg(g))
+        assertEq(count(h)('data-demo-click="move:'), 3)
+    },
     stepLine: {
         counts: () => assertEq(stepLine('list')(String)({ op: 'insert', key: 4 })({ built: 1, shared: 3, replaced: 0 }),
             'Last step, insert 4: 1 new (blue), 3 shared with the list before, 0 only in the list before.'),
@@ -165,6 +222,10 @@ export const proof = {
             'Last step, insert 2: nothing changed, the key is already in the list.'),
         notThere: () => assertEq(stepLine('list')(String)({ op: 'remove', key: 7 })({ built: 0, shared: 3, replaced: 0 }),
             'Last step, remove 7: nothing changed, the key is not in the list.'),
+        wentBack: () => assertEq(stepLine('list')(String)({ op: 'move', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
+            'Last step, move 2: nothing changed, the key went back where it was.'),
+        moved: () => assertEq(stepLine('list')(String)({ op: 'move', key: 2 })({ built: 2, shared: 1, replaced: 2 }),
+            'Last step, move 2: 2 new (blue), 1 shared with the list before, 2 only in the list before.'),
     },
     demo: {
         // The first preset, loaded: its keys as both versions, the key in
@@ -193,6 +254,32 @@ export const proof = {
             // The step line spells the key the same way.
             assert(h.includes('Last step, insert 0100:'), h)
             assert(h.includes('Custom'), h)
+        },
+        // A move that rebuilds the same shape answers the version it was
+        // given: the list copies the cells before the key and builds them
+        // again, and the drawing says nothing changed. The field takes the
+        // moved key, as the format spells it.
+        move: () => {
+            const s = move(2)(demo.init)
+            assertEq(s.versions.before, demo.init.versions.after)
+            assertEq(s.versions.after, demo.init.versions.after)
+            assertEq(JSON.stringify(s.status), '{"step":{"op":"move","key":2}}')
+            assertEq(s.key, '0010')
+            assert(html(s).includes('Last step, move 0010: nothing changed, the key went back where it was.'), '')
+        },
+        // A move that changes the shape is a step like any other. In a
+        // list that inserts at its front, moving its last key brings it
+        // there, and copies the cells before it on the way out.
+        moveToFront: () => {
+            /** @type {(key: number) => (list: _List) => _List} */
+            const has = key => list => list !== null && (list.key === key || has(key)(list.next) !== null) ? list : null
+            const front = versionsDemo({
+                structure: { ...chain('depth'), insert: key => list => has(key)(list) ?? { key, next: list } },
+                name: 'front', noun: 'list', intro: '', presets: [['Three', [3, 2, 1], 3, '']],
+            })
+            const s = front.move(3)(front.demo.init)
+            assertEq(JSON.stringify(s.versions.after), '{"key":3,"next":{"key":1,"next":{"key":2,"next":null}}}')
+            assert(htmlToString(front.demo.view(s)).includes('Last step, move 3: 3 new (blue), 0 shared with the list before, 3 only in the list before.'), '')
         },
         // A field the format cannot read changes nothing, and says what it
         // takes.
@@ -228,6 +315,8 @@ export const proof = {
             assertEq(JSON.stringify(update({ kind: 'click', name: 'insert' })(typed).status), '{"step":{"op":"insert","key":6}}')
             assertEq(JSON.stringify(update({ kind: 'click', name: 'remove' })(typed).status), '{"step":{"op":"remove","key":6}}')
             assertEq(update({ kind: 'input', name: 'example', value: 'Empty' })(typed).key, '0101')
+            assertEq(JSON.stringify(update({ kind: 'click', name: 'move:3' })(typed).status), '{"step":{"op":"move","key":3}}')
+            assertEq(update({ kind: 'click', name: 'move:x' })(typed), typed)
             assertEq(update({ kind: 'click', name: 'other' })(typed), typed)
             assertEq(update({ kind: 'input', name: 'other', value: '1' })(typed), typed)
             assertEq(update({ kind: 'start' })(typed), typed)
