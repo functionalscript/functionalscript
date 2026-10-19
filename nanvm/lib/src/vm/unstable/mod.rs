@@ -67,15 +67,20 @@ pub fn f64_any<A: IVm>(v: u64) -> Any<A> {
 /// `static_read(&runtime, "Object.is")?` — the value's `static` section,
 /// then each key — the one closure the value holds at the path, so two
 /// reads are one function, as `Object.is === Object.is` is in JavaScript.
-/// A path the value holds no function at — nothing, or a namespace — is
-/// refused ([`error::no_static_function`]): the parser admitted the path,
-/// so the value is incomplete, and `undefined` would be a plausible wrong
-/// answer.
+/// A path the value holds no function at — nothing, a namespace, or a
+/// namespace missing on the way — is refused
+/// ([`error::no_static_function`]): the parser admitted the path, so the
+/// value is incomplete, and `undefined` would be a plausible wrong answer,
+/// as would the `TypeError` of reading a key of the missing namespace.
 pub fn static_read<A: IVm>(runtime: &Any<A>, path: &str) -> Result<Any<A>, Any<A>> {
     let statics = runtime.clone().dot(string_any("static")).end()?;
-    let value = path
-        .split('.')
-        .try_fold(statics, |value, key| value.dot(string_any(key)).end())?;
+    let value = path.split('.').try_fold(statics, |value, key| {
+        if value.is_nullish() {
+            Err(error::no_static_function(path))
+        } else {
+            value.dot(string_any(key)).end()
+        }
+    })?;
     match Function::try_from(value) {
         Ok(f) => Ok(f.to_any()),
         Err(_) => Err(error::no_static_function(path)),
