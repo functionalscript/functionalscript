@@ -44,16 +44,6 @@ Presence has no other spelling: `in` is refused
 `a.hasOwnProperty(b)` are not in the language, each asking a different
 question — a non-enumerable own property, or the prototype chain.
 
-Two helpers, rather than the one option `[value]` or `[]` that answered
-both questions in one scan, is a decision
-([has-entry](../todo/2345-has-entry.md)): the common read is one call with
-no tail, `entry(a, b)`, and the own-property read of the runtime's
-dispatcher, written in the language, builds nothing per read where the
-option built an array; a default that respects an entry holding
-`undefined` costs the second scan, as it does in JavaScript, and the
-option stays available as an ordinary function over the two for a caller
-that wants it.
-
 The helpers are exactly what they spell. The compiler recognizes each
 function whole — its two parameters, the `const` the descriptor binds and
 the `return`, under any three distinct names a module may bind, so no
@@ -84,6 +74,45 @@ be a number, the spelling is `a[Number(i)]`
 ([property access](README.md)); `a[+i]`, where no `bigint` can reach
 it, is [property-accessor](../todo/2330-property-accessor.md)'s still, and
 `entry` is the read for a key of any type.
+
+## Why two helpers
+
+The language first answered both questions with one helper, the option
+`[value]` or `[]`, chosen for one scan per question: value, presence, or a
+default that respects an entry holding `undefined`, each one call, where
+the pair spends two scans on the third. That argument held until the
+runtime's dispatcher, `dot`, was written in the language
+([runtime-members](../../fjs/js/todo/runtime-members.md),
+[DESIGN.md §13](../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)),
+and the language designer decided for the pair:
+
+- **The common read has no tail.** `entry(a, b)` is the value, as `a[k]`
+  is, where the option made every read `entry(a, b)[0]`.
+- **Nothing is built on a member call.** `dot` reads the receiver and
+  then the member table, and with the option each read built a
+  one-element array to carry one bit, on the path of every compiled
+  `a.map(f)`; with the pair, `hasEntry(self, key) ? entry(self, key)`
+  then the body, it allocates nothing.
+- **The shape is in the source, not in a rule.** A backend could print
+  the option's presence test without the array, but that is a
+  substitution keyed on a body's text, which §13 says is a sign the
+  source should expose the shape instead. `hasEntry` is the shape.
+- **The floor is simpler.** The core of the runtime may not use what it
+  defines, and with the option it read `[0]` of `entry`'s answer, a
+  property read, to get at the value. With the pair presence is a
+  boolean and the value is the value.
+
+The price: two scans where presence and value are both wanted on a
+receiver that owns the key, each one lookup, against the option's one
+lookup and one allocation — which of the two is dearer is not measured,
+and the decision does not rest on it; an own `undefined` invisible to
+`entry` alone, which `hasEntry` tells apart, as JavaScript's `in` and
+`Object.hasOwn` callers do; and two recognized bodies, two nodes and two
+native answers on each executor where the option had one of each. The
+option stays available as an ordinary function over the two,
+`hasEntry(a, b) ? [entry(a, b)] : []`, for a caller that wants it. The
+decision was recorded in `spec/todo/2345-has-entry.md`, its three tasks
+done by #3037, #3038 and #3031.
 
 ## Examples
 

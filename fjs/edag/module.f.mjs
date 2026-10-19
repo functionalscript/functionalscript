@@ -643,7 +643,7 @@ export const noStatic = name => `no binding for the static ${name}`
  *
  * `hasEntry` is the helper beside it, the presence as a boolean, `true`
  * for an entry holding `undefined`: `['()', ['hasEntry'], [a, b]]`
- * ([spec: has-entry](../../spec/todo/2345-has-entry.md)).
+ * ([spec: why two helpers](../../spec/property-access/entries.md#why-two-helpers)).
  *
  * The rest are the static functions, {@link staticId}.
  */

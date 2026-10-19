@@ -65,7 +65,7 @@ export const runtime = {
   `entry` is the language's own-property read, the value or `undefined`,
   and `hasEntry` the presence beside it
   ([`../../types/object/entry`](../../types/object/entry/module.f.js),
-  [has-entry](../../../spec/todo/2345-has-entry.md)), so an own property
+  [why two helpers](../../../spec/property-access/entries.md#why-two-helpers)), so an own property
   wins whatever it holds, as it does in JavaScript —
   `{ toString: f }` calls `f`, `{ x: undefined }.x()` throws, `[1][0]()`
   throws for the element — and a receiver that owns nothing enumerable
@@ -160,13 +160,13 @@ export const runtime = {
   its dispatcher in `value/method`. The core — `dot`, `optionDot`,
   `optionCall` and the resolution — uses the primitive surface and plain
   calls of function values alone, no member call and no `?.`, and the
-  printer refuses a chain node inside it: the `?.()` in `dot`'s sketch
-  becomes a conditional on `entry`'s answer, and `body[0](self)` is bound
-  to `f` and called as `f(self)`, since `a[k](...)` is a member call. A
-  property read, `a[k]`, is primitive — the backend's own-property read,
-  the `end` of a property step, which `entry` is built over — so the core
-  reads `own[0]` and `body.length` freely: a read defined in the source
-  would read its own definition.
+  printer refuses a chain node inside it: `dot` asks `hasEntry` and reads
+  `entry`, two helpers the backend answers, and calls the body as a value,
+  `body(self)`, never as `a[k](...)`, which is a member call. A property
+  read, `a[k]`, is primitive — the backend's own-property read, the `end`
+  of a property step, which the two helpers are built over — so the core
+  may read one freely: a read defined in the source would read its own
+  definition.
 
 ### Tasks
 

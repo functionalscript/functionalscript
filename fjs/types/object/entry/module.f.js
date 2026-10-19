@@ -9,7 +9,7 @@
  * `undefined` `a` throws, as reading a property of one does, and so does a
  * key whose conversion throws. An entry holding `undefined` reads as none
  * here; `hasEntry` beside it tells the two apart
- * ([spec: has-entry](../../../../spec/todo/2345-has-entry.md)).
+ * ([spec: why two helpers](../../../../spec/property-access/entries.md#why-two-helpers)).
  *
  * Written once here and imported: the compiler reads this very text as the
  * EDAG's `['entry']`, the helper as a value, and a module that spells its
@@ -39,7 +39,7 @@ export const entry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
  * an enumerable own property `b` names, `true` for one holding
  * `undefined`, which `entry` reads as none, the key converted as `entry`
  * converts it, a nullish `a` throwing as there. Recognized whole by the compiler as the EDAG's
- * `['hasEntry']`, as `entry` is ([spec: has-entry](../../../../spec/todo/2345-has-entry.md)).
+ * `['hasEntry']`, as `entry` is ([spec: why two helpers](../../../../spec/property-access/entries.md#why-two-helpers)).
  *
  * @type {HasEntry}
  */
