@@ -33,10 +33,15 @@ What differs per host is what it reads off the response besides the body:
 refusal; `github-runtime.mjs` reads the body of a rejected
 `/auth/github/token` exchange through `exchangeFailureSchema`, so that its
 fixed `reason` becomes the message `exchangeFailureMessage` words, and no
-other provider text reaches the page; the worker reads only the status. A
-shared boundary that hid the headers would stop pagination after the first
-page, and one that dropped a rejected body would turn every refused exchange
-into the generic message.
+other provider text reaches the page; `github-worker.mjs` reads GitHub's
+answer through `providerErrorSchema` before it looks at the status at all,
+since GitHub answers an OAuth error as JSON under HTTP 200 as readily as
+under 400 — `github-worker.proof.mjs` pins both — and only then a token
+through `providerTokenSchema`. A shared boundary that hid the headers would
+stop pagination after the first page; one that dropped a rejected body would
+turn every refused exchange into the generic message; one that chose the
+reader by the status would admit an error answered as 200 as a token and
+refuse it on shape.
 
 ### Proposal
 
@@ -46,21 +51,23 @@ shared-browser-boundary role:
 
 ```ts
 admittedFetch: (fetchRequest: typeof fetch) =>
-    (url: string, init: RequestInit, read: Reader, readRejected?: Reader) =>
-        Promise<Result<Admitted, FetchRefusal>>
+    (url: string, init: RequestInit, read: Reader) =>
+        Promise<Result<{ status: number, headers: Headers, value: Admitted }, FetchRefusal>>
 ```
 
-with the fixed defaults, the JSON step and the rtti admission in one place.
-On success it answers the admitted value together with the response's
-headers; on failure a tagged refusal — transport, status, not JSON, not the
-schema — carrying the status and the same headers, which the caller maps to
-its own message or its retry note. A status refusal also carries what
-`readRejected` admitted of the body, where the caller gave one and the body
-admitted, and nothing of the body otherwise: that is the login host's
-exchange failure, read through the same admission as a success and never as
-raw provider text, so "fixed errors keep provider bodies out of the page"
-stays true at the one boundary rather than in one host's `try`. And
-`once(start)`: the bind-once rule
+with the fixed defaults, the JSON step and the rtti admission in one place,
+and the status not a branch: whatever the status, a JSON body is read by
+the one `read` the caller gave, and the admitted value is answered with the
+status and the headers, which the caller reads as it needs — `Link` and the
+rate-limit headers on the PR page, the status against the shape on the
+login page and in the worker. The refusal is for what no caller can read:
+transport, a redirect where none is allowed, a body that is not JSON, a
+body no shape admits. A caller that accepts more than one shape gives one
+`read` over their `or`: the login's `tokenSchema` or `exchangeFailureSchema`,
+the worker's `providerTokenSchema` or `providerErrorSchema`, so the error
+GitHub answers under 200 is admitted as what it is, and "fixed errors keep
+provider bodies out of the page" stays true at the one boundary rather than
+in each host's `try`. And `once(start)`: the bind-once rule
 over a `WeakMap` of roots, one memo per initializer, so that the PR page,
 which runs `startGitHubLogin(root)` and then `startPrs(root, …)` on the same
 element, binds both. The hosts import it; the worker passes `redirect:
