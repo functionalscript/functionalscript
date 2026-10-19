@@ -45,11 +45,12 @@
  * builds no module: a malformed suffix is found before any name is
  * resolved. `./README.md` holds the argument.
  *
- * The `entry` helper is the fold's to recognize, {@link entryFunction}: the
- * one function whose body names a property at run time, matched whole on
- * the syntax tree with its names resolved as every other body's are, and
- * the one place `Object` stands but `Object.is` — outside the two the fold
- * refuses the word, as it refuses every reserved global.
+ * The `entry` helper and the `hasEntry` helper beside it are the fold's to
+ * recognize, {@link entryFunction}: the two functions whose bodies name a
+ * property at run time, the value and the presence, matched whole on the
+ * syntax tree with their names resolved as every other body's are, and
+ * the one place `Object` stands but `Object.is` — outside the three the
+ * fold refuses the word, as it refuses every reserved global.
  *
  * A static function — `Object.is`, and the four `Number` predicates,
  * `Number.isInteger` — is a value, the AST's `['Object.is']`, in every
