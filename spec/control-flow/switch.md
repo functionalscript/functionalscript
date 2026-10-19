@@ -101,8 +101,11 @@ export default node => {
     terminates, so the position says nothing, and last is the one
     spelling.
   - A `switch` with no case, `switch (e) {}`, refused at its `}`, and one
-    with a `default` alone, refused at the `default`: a statement that
-    dispatches on nothing is a mistake rather than a form.
+    with a `default` alone, refused at the `default`: either is the block
+    it abbreviates, a `const` nothing reads and then the statements, which
+    the language spells as that, and a switch that tests nothing is what
+    deleting the last case leaves behind. Admitting both as that block is
+    a follow-up.
   - A statement after a `switch` that has a `default`, refused at the
     statement: unreachable, as one after `return` is.
   - A `;` after the `}`: the empty statement, refused as it is after a
