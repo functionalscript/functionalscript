@@ -31,6 +31,7 @@ let state = [null, start, ok(toEnter(value))]
 while (true) {
     const [stack, walk, next] = state
     if (next[0] === 'error') { return next }
+    const todo = next[1]
     if (todo[0] === 'enter') { state = enterWith(stack, walk, todo[1]) }
     else if (stack === null) { return ok([walk, todo]) }
     else {
