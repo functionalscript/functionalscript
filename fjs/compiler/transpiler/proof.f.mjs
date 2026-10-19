@@ -39,7 +39,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
  */
 const withRuntime = root => ({
     ...root,
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { startsWith: self => s => self.slice(0, s.length) === s } };")] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("const startsWith = self => s => self.slice(0, s.length) === s; export const runtime = { member: { startsWith }, dot: (self, key) => key === 'startsWith' ? startsWith(self) : undefined };")] } } },
 })
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
@@ -86,7 +86,7 @@ export const proof = {
     // call fails the dependency's initialization.
     interpret: () => {
         /** @type {Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
+        const runtime = ['{}', [[':', 'dot', ['=>', 2, [], ['?:', ['===', ['arg', 1], 'startsWith'], ['()', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]], [['arg', 0]]], ['undefined']]]]]]
         const root = {
             'main.f.js': [utf8("import d from './dep.f.js'; export default [d, 'xy'.startsWith('x')];")],
             'dep.f.js': [utf8("export default 'abc'.startsWith('b');")],

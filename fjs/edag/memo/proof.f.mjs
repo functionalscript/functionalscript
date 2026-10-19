@@ -59,12 +59,19 @@ export const proof = {
     // every function it calls, as `amnesia`'s does.
     runtime: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
+        const runtime = ['{}', [[':', 'dot', ['=>', 2, [], ['?:', ['===', ['arg', 1], 'startsWith'], ['()', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]], [['arg', 0]]], ['undefined']]]]]]
         /** @type {Exp} */
         const nested = ['()', ['=>', 0, [], ['.', 'abc', 'startsWith', ['|()', ['b']]]], []]
         const run = memo(assertOk(analysis(nested)))
         assertEq(assertOk(run({ args: [], runtime })), 'abc')
         assertStructurallySame(assertError(run({ args: [] })), ['undefined'])
+        // the callee before the arguments, as in `amnesia`: a `dot` that
+        // throws fails the call before an argument that would
+        /** @type {import('../value/types.ts').Runtime} */
+        const throwing = ['{}', [[':', 'dot', ['=>', 2, [], ['throw', 'resolving']]]]]
+        const argued = memo(assertOk(analysis(['.', 'abc', 'slice', ['|()', [['throw', 'evaluated']]]])))
+        assertEq(assertError(argued({ args: [], runtime: throwing })), 'resolving')
+        assertEq(assertError(argued({ args: [], runtime })), 'evaluated')
     },
     // `Object.is` under memoization: the runtime's body in a function the
     // module calls, a function returning it read twice as one value, and
@@ -274,6 +281,13 @@ export const proof = {
         assertStructurallySame(run(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [undefined, undefined])
         eq(['String', ['entry']], '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
         fails(['.', ['{}', [[':', 'toString', 0]]], 'toString', ['|()', []]])
+        // `length` is own and not enumerable: no entry, no member name and
+        // no function, so a call through it throws, optional or not — the
+        // runtime's `dot` is asked for admitted member names alone
+        fails(['.', ['[]', [1]], 'length', ['|()', []]])
+        fails(['.', ['[]', [1]], 'length', ['|?.()', []]])
+        fails(['.', 'ab', 'length', ['|?.()', []]])
+        fails(['.', ['=>', 0, [], 1], 'length', ['|?.()', []]])
         eq(['.', ['[]', [2, 3]], 'at', ['|()', [1]]], 3)
         // `Object.entries`: a function no body defines, called and read as
         // one, and one function however often the node is established,

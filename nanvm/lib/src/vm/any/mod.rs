@@ -177,7 +177,7 @@ impl<A: IVm> Any<A> {
     /// names is there, `true` for an entry holding `undefined`, which
     /// [`Any::entry`] reads as none, the receiver and the key treated as
     /// `entry` treats them, so a nullish receiver throws and a key converts
-    /// first (`spec/todo/2345-has-entry.md`).
+    /// first (`spec/property-access/entries.md`).
     pub fn has_entry(self, key: Self) -> Result<bool, Self> {
         Ok(self.own_entry(key)?.is_some())
     }

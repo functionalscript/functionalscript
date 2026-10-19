@@ -1440,7 +1440,7 @@ const isHasEntryOf = (node, x) => {
  * The `entry` helper, recognized whole
  * ([spec: entry](../../../spec/property-access/entries.md)), and the
  * `hasEntry` helper beside it, the same but for its `return`
- * ([spec: has-entry](../../../spec/todo/2345-has-entry.md)):
+ * ([spec: why two helpers](../../../spec/property-access/entries.md#why-two-helpers)):
  *
  * ```js
  * (a, b) => {

@@ -1,5 +1,6 @@
 /**
- * The built-in functions, defined once, in two sections. `member` holds,
+ * The built-in functions, defined once, in two sections and the dispatcher
+ * over them. `member` holds,
  * by name, the member functions whose body is written, `startsWith`: each
  * a FunctionalScript function of the receiver alone, answering `undefined`
  * for a receiver the name is no member of, or the function of the
@@ -23,13 +24,25 @@
  * executor reads this one table — the represented
  * interpreter runs a body as EDAG through the runtime its executor is
  * given, and NaNVM binds the module compiled to Rust by `npm run gen` — so
- * a built-in function is written here and nowhere else. The README says how
- * each binds it and how a name gets its body.
+ * a built-in function is written here and nowhere else. `dot` is the
+ * dispatcher a call step asks, the one place the resolution of a callee is
+ * written ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)):
+ * the callee of `a[key](...)` on a non-nullish receiver — the receiver's
+ * own enumerable property under the key, whatever it holds, which shadows
+ * a built-in as it does in JavaScript, else what the `member` body of the
+ * name answers for the receiver, else `undefined`, which the executor
+ * calls and throws for, or skips under `?.()`. The interpreter asks it
+ * before its natives; NaNVM's call step is native until the
+ * static-runtime printer compiles the table `dot` reads, and the printer
+ * leaves `dot` out until then
+ * ([`../todo/runtime-members.md`](../todo/runtime-members.md)). The README
+ * says how each binds it and how a name gets its body.
  *
  * @module
  */
 
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
@@ -123,30 +136,59 @@ const found = (self, s, start) => {
     return end > self.length ? false : self.slice(start, end) === s
 }
 
+/** The member section: a name, then the body. */
+const member = {
+    /**
+     * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith),
+     * a string's and no other type's: whether `ToString(search)` occurs
+     * at `position`, clamped into the string. The search string is
+     * converted before the position, as the algorithm orders them, and
+     * either conversion can throw — a search whose own `toString`
+     * throws, a bigint position — so the order is observable. The two
+     * are a call's arguments, which every executor evaluates left to
+     * right; two `const`s would be evaluated as the result demands
+     * them, the position first.
+     *
+     * @type {(self: unknown) => undefined | ((search: unknown, at: unknown) => boolean)}
+     */
+    startsWith: self => typeof self !== 'string' ? undefined
+        : (search, at) => found(self, String(search), position(at, self.length)),
+}
+
 /**
- * The table: `static`, then a static path's keys, then the body; and
- * `member`, then a name, then the body.
+ * The table: `static`, then a static path's keys, then the body; `member`,
+ * then a name, then the body; and `dot`, the dispatcher over `member`.
  */
 export const runtime = {
     static: {
         Object: { is },
         Number: { isInteger, isSafeInteger, isNaN: isNaN_, isFinite: isFinite_ },
     },
-    member: {
-        /**
-         * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith),
-         * a string's and no other type's: whether `ToString(search)` occurs
-         * at `position`, clamped into the string. The search string is
-         * converted before the position, as the algorithm orders them, and
-         * either conversion can throw — a search whose own `toString`
-         * throws, a bigint position — so the order is observable. The two
-         * are a call's arguments, which every executor evaluates left to
-         * right; two `const`s would be evaluated as the result demands
-         * them, the position first.
-         *
-         * @type {(self: unknown) => undefined | ((search: unknown, at: unknown) => boolean)}
-         */
-        startsWith: self => typeof self !== 'string' ? undefined
-            : (search, at) => found(self, String(search), position(at, self.length)),
+    member,
+    /**
+     * The callee of `self[key](...)`, the receiver not nullish: the
+     * receiver's own enumerable property under the key — an object's
+     * field, an array's or a string's element, its presence asked by
+     * `hasEntry` so that an own `undefined` is found, its value read by
+     * `entry` — else what the `member` body of the name answers for the
+     * receiver, the function of the arguments or `undefined`, else
+     * `undefined`. An own property wins whatever it holds, as it does in
+     * JavaScript: `{ toString: f }` calls `f`, `{ x: undefined }.x()`
+     * throws, and `[1][0]()` throws for the element. `entry(member, key)`
+     * reads the table as the object literal it is, so no inherited name
+     * answers, and nothing is built on the way: a receiver that owns
+     * nothing under the key costs one scan, an object that owns it two.
+     * A body's throw is the call's, or the guard's. The core rule of
+     * DESIGN.md §13 holds here: no member call and no optional chain,
+     * only the two helpers, a conditional and a plain call of a function
+     * value, since an executor runs this to answer a member call. The
+     * runtime's proof pins the shape on the EDAG.
+     *
+     * @type {(self: unknown, key: string) => unknown}
+     */
+    dot: (self, key) => {
+        if (hasEntry(self, key)) { return entry(self, key) }
+        const body = /** @type {undefined | ((self: unknown) => unknown)} */ (entry(member, key))
+        return body === undefined ? undefined : body(self)
     },
 }

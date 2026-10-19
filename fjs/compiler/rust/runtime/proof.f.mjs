@@ -151,6 +151,19 @@ pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1
         assert(tail.includes('fn object_tail_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {\n    let rest = args.rest(1);\n    Ok(rest.clone().to_any())\n}'))
         const none = assertOk(generateRuntime(module([])))
         assert(none.includes('Accessor<A>); 1]') && none.includes('MemberCode<A>); 0]'))
+        // the `dot` dispatcher is not printed, and must be a function
+        assertEq(assertOk(generateRuntime(module([['dot', fn(2, [], ['undefined'])]]))), none)
+        assertEq(refusal(module([['dot', 'x']])), 'a `dot` section that is no function: x')
+        assertEq(refusal(module([['dot', object([])]])), 'a `dot` section that is no function: {},')
+        // and no built-in may name the very function `dot` is: refused by
+        // the built-in's name, never a table naming an item that is not there
+        const shared = fn(2, [], ['undefined'])
+        assertEq(refusal(module([['static', object([['Object', object([['is', shared]])]])], ['dot', shared]])), 'a built-in naming the `dot` dispatcher; the dispatcher is no built-in: Object.is')
+        assertEq(refusal(module([['member', object([['startsWith', shared]])], ['dot', shared]])), 'a built-in naming the `dot` dispatcher; the dispatcher is no built-in: startsWith')
+        // nor may a built-in's body capture it, directly or through a
+        // function it captures: refused, never an item the table lacks
+        assertEq(refusal(module([['static', object([['Object', object([['f', fn(0, [shared], ['frame', 0])]])]])], ['dot', shared]])), 'a body capturing the `dot` dispatcher; no built-in reaches it: dot')
+        assertEq(refusal(module([['member', object([['startsWith', fn(1, [fn(0, [shared], ['frame', 0])], ['frame', 0])]])], ['dot', shared]])), 'a body capturing the `dot` dispatcher; no built-in reaches it: dot')
         const lazy = assertOk(generateRuntime(module([['static', object([['Number', object([['f', fn(1, [], ['&&', ['arg', 0], ['+', ['arg', 0], 1]])]])]])]])))
         assert(lazy.includes('    let c0 = || args.argument(0) + f64_any(0x3ff0000000000000);\n    Any::logical_and(args.argument(0), c0)\n'))
     },
@@ -179,6 +192,11 @@ pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1
         assert(capturing(/** @type {Exp} */ (/** @type {unknown} */ (['.', object([['x', 1]]), 'x', ['|.', 'y']]))).startsWith(prefix))
         assert(capturing(['{}', [['...', object([])]]]).startsWith(prefix))
         assert(capturing(['{}', [[':', ['+', 1, 2], 1]]]).startsWith(prefix))
+        // the two helpers are module-level values, for `dot`, and no printed
+        // item may capture one: refused, naming the item, never printed as
+        // the `undefined` an unprinted atom would be
+        assertEq(capturing(['entry']), 'a body capturing a helper; `entry` and `hasEntry` are `dot`\'s to read: Object.f')
+        assertEq(capturing(['hasEntry']), 'a body capturing a helper; `entry` and `hasEntry` are `dot`\'s to read: Object.f')
         // an import read off an object that is no literal of named properties
         assert(capturing(['.', ['{}', [['...', object([])]]], 'x']).startsWith(prefix))
         assert(capturing(['.', ['{}', [[':', ['+', 1, 2], 1]]], 'x']).startsWith(prefix))

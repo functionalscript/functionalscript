@@ -101,12 +101,14 @@ const constMethods = ['=>', 0, [], methods]
 
 export const proof = {
     // A context's runtime reaches a member call in the expression and in
-    // every function it calls: the body under `member.String.startsWith`, which
-    // answers its receiver, is what `'abc'.startsWith('b')` calls at both
-    // depths; without a runtime the same call throws.
+    // every function it calls: the callee its `dot` answers for the
+    // receiver under `startsWith`, a function answering the receiver, is
+    // what `'abc'.startsWith('b')` calls at both depths; without a runtime
+    // the same call throws.
     runtime: () => {
-        /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
+        /** @type {(body: Exp) => import('../value/types.ts').Runtime} */
+        const dispatching = body => ['{}', [[':', 'dot', ['=>', 2, [], ['?:', ['===', ['arg', 1], 'startsWith'], ['()', body, [['arg', 0]]], ['undefined']]]]]]
+        const runtime = dispatching(['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]])
         /** @type {Exp} */
         const direct = ['.', 'abc', 'startsWith', ['|()', ['b']]]
         /** @type {Exp} */
@@ -122,10 +124,18 @@ export const proof = {
         const optional = ['.', 'abc', 'startsWith', ['|?.()', [['throw', 'evaluated']]]]
         assertStructurallySame(assertOk(vm({ frame: [], args: [] })(optional)), ['undefined'])
         assertStructurallySame(assertError(vm({ frame: [], args: [], runtime })(optional)), 'evaluated')
-        /** @type {import('../value/types.ts').Runtime} */
-        const none = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['undefined']]]]]]]]
+        const none = dispatching(['=>', 1, [], ['undefined']])
         assertStructurallySame(assertOk(vm({ frame: [], args: [], runtime: none })(optional)), ['undefined'])
         assertStructurallySame(assertError(vm({ frame: [], args: [], runtime: none })(direct)), ['undefined'])
+        // a plain call reads its callee before its arguments, as `a.f(x)`
+        // reads `a.f` before `x`: a `dot` that throws is the failure, not
+        // an argument that would throw after it — and a native name alike
+        /** @type {import('../value/types.ts').Runtime} */
+        const throwing = ['{}', [[':', 'dot', ['=>', 2, [], ['throw', 'resolving']]]]]
+        assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'startsWith', ['|()', [['throw', 'evaluated']]]])), 'resolving')
+        assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'slice', ['|()', [['throw', 'evaluated']]]])), 'resolving')
+        assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'slice', ['|?.()', [['throw', 'evaluated']]]])), 'resolving')
+        assertEq(assertError(vm({ frame: [], args: [], runtime })(['.', 'abc', 'startsWith', ['|()', [['throw', 'evaluated']]]])), 'evaluated')
     },
     // `Object.is` answers from the runtime's `static` section, in the
     // expression and in a function it calls, and as a value passed and
