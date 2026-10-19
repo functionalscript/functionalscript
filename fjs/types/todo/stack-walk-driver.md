@@ -40,8 +40,9 @@ while (true) {
 }
 ```
 
-A fourth is in [`fjs/compiler/parser`](../../compiler/parser/module.f.mjs),
-and [deep-nesting](../../ebnf/data/todo/deep-nesting.md) schedules a fifth,
+[`fjs/compiler/parser`](../../compiler/parser/module.f.mjs) has one of its
+own, and [deep-nesting](../../ebnf/data/todo/deep-nesting.md) schedules the
+next,
 "over an explicit stack … the ll1 machine is the shape to follow" — a pattern
 to imitate where a function would do.
 

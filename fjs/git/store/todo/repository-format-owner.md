@@ -1,4 +1,4 @@
-## The repository-format reader lives in `store`, which never calls it
+## The repository-format reader lives in `store`, whose object readers never call it
 
 **Priority:** P3
 **Status:** open
@@ -10,7 +10,7 @@ object it names, checked": `objectsDirs`, `readIn`, `tryRead`, `objectPath`.
 About a third of the module is something else — the policy Git applies to
 `core.repositoryformatversion` and `extensions.*`: the tables `v0Extensions`,
 `v1OnlyExtensions`, `knownExtensions` and `booleanExtensions`, `noVersion`,
-the subsection rule in `extensionAt`, `extensionValuesRead`, and the five
+the subsection rule in `extensionAt`, `extensionValuesRead`, and the
 version rules in `tryOidBytes`, which `oidBytes` runs over the `config` file.
 
 None of the object readers call any of it. The format rules call one

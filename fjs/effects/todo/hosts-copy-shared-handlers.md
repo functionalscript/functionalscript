@@ -41,7 +41,11 @@ loop and one with `Array.from`; the Node host builds the `FileStat` literal
 - `all` answered by the runner itself: `asyncRun` and `asyncPartialRun` in
   [`module.mjs`](../module.mjs) build the loop that dispatches an operation,
   so they are the one place that holds the runner `all` maps over, and they
-  add the `all` handler to the map they are given. No host writes it, and
+  add the `all` handler to the map they are given — `asyncRun` always,
+  `asyncPartialRun` only where its `commands` name `all`, so that a partial
+  runner's vocabulary stays what its commands say and a stray `all` node
+  still asserts as the command it is not: the demo runtime's runner, over
+  `Sandbox | Catch | RandomInt`, answers no `all`. No host writes it, and
   the browser runner, which [node-module-layering](./node-module-layering.md)
   names as the next host, gets it rather than a third copy. The knot is what
   rules out the plainer `commonOperationMapFor(runNodeEffect)`: each host's
