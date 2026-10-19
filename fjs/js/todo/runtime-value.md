@@ -176,14 +176,15 @@ detail to settle in the first task.
 - [x] Approval of the shape, the primitives as recognized helpers and the
       strengthened invariant, by the language designer, before the next
       task.
-- [ ] The primitives, each with its first consumer: `slice` as a
+- [x] The first primitive with its first consumer: `slice` as a
       recognized helper body with a node, the interpreter's answer, the
       serialized text and the Rust spelling, listed in `fjs/edag`'s
       `intrinsics` — the code's word for a primitive, since `Primitive` is
       the EDAG's name for a literal value — and called as a function by
-      `found`; `charCodeAt` the same way with the first body that reads a
-      code unit.
-- [ ] The runtime module holds no member call and no static read; the
+      `found` (`fjs/js/intrinsic`).
+- [ ] `charCodeAt` the same way, with the first body that reads a code
+      unit.
+- [x] The runtime module holds no member call and no static read; the
       README's invariant says so for bodies as it does for initializers;
       the proof checks it on the EDAG, as it pins `dot`'s shape.
 - [ ] `runtime::<A>()` printed by the ordinary backend, every function the

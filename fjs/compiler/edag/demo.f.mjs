@@ -89,7 +89,7 @@
  * @import { _Chain, _Child } from './private.ts'
  */
 
-import { lazyOp2Id, staticIds } from '../../edag/module.f.mjs'
+import { intrinsicIds, lazyOp2Id, staticIds } from '../../edag/module.f.mjs'
 import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
@@ -105,7 +105,7 @@ import { chunksText } from '../../text/marked/module.f.mjs'
 // flat list of strings simple enough to check against the type file by eye.
 // The static functions are the one group a later row grows, so they are
 // the EDAG's own list.
-const op0 = new Set(['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', ...staticIds])
+const op0 = new Set(['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', ...intrinsicIds, ...staticIds])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
     '===', '!==', '>', '>=', '<', '<=',

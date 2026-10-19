@@ -131,6 +131,10 @@ export const proof = {
         eq(['()', ['hasEntry'], [object, 1]], false)
         eq(['()', ['hasEntry'], [['{}', [[':', 'u', ['undefined']]]], 'u']], true)
         failure(['()', ['hasEntry'], [null, 'a']])
+        eq(['()', ['slice'], ['abc', 1]], 'bc')
+        eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 7]]]], 1]], 7)
+        failure(['()', ['slice'], [null, 1]])
+        failure(['()', ['slice'], [['{}', []], 1]])
         failure(['.', null, 'a', ['|()', []]])
     },
     // A static function is a value whether called or not, the node, one

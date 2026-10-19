@@ -13,7 +13,7 @@
  *
  * @module
  * @import { ExpOp, StepOver, ItemsOver, Over } from '../types.ts'
- * @import { EdagValue, Values, Property, Array as ValueArray, Closure, Runtime, Static } from '../value/types.ts'
+ * @import { EdagValue, Values, Property, Array as ValueArray, Closure, Intrinsic, Runtime, Static } from '../value/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Invoke, Outcome } from '../value/call/types.ts'
  * @import { Evaluation, Evaluator, Tail } from './types.ts'
@@ -24,7 +24,7 @@ import { error, ok, okThen } from '../../types/result/module.f.js'
 import { array } from '../value/array/module.f.mjs'
 import { object } from '../value/object/module.f.mjs'
 import { func } from '../value/function/module.f.mjs'
-import { bind, prepare, settle } from '../value/call/module.f.mjs'
+import { bind, call, prepare, settle } from '../value/call/module.f.mjs'
 import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.mjs'
 import { throwValue } from '../value/control/module.f.mjs'
 import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
@@ -33,7 +33,7 @@ import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.mjs'
-import { noStatic, staticPath } from '../module.f.mjs'
+import { isIntrinsic, noStatic, staticPath } from '../module.f.mjs'
 
 /** Propagate failures without running the continuation.
  * @template S
@@ -75,6 +75,24 @@ export const entryCall = ([receiver, key], invoke) =>
  */
 export const hasEntryCall = ([receiver, key], invoke) =>
     nullish(receiver) ? error(['undefined']) : okThen(name => hasEntry(receiver, name))(toString(key, invoke))
+
+/**
+ * An intrinsic called, `['slice']`'s body: the member call of the name on
+ * the receiver, `s.slice(a, b)`, as an executor answers it with no
+ * runtime — the receiver's own property, else the native, else the
+ * `TypeError` of calling `undefined` — so the runtime's bodies reach a
+ * native through it without naming what the runtime defines
+ * (`fjs/js/todo/runtime-value.md`). The receiver is the helper's first
+ * fixed argument and the native's arguments the rest, as its `length`
+ * binds them, `undefined` where the call passed none, as the helper
+ * itself passes them on.
+ *
+ * @type {(fn: Intrinsic, fixed: Values, invoke: Invoke) => ValueResult}
+ */
+export const intrinsicCall = ([name], [receiver, ...args], invoke) => {
+    const own = isArray(receiver) && receiver[0] === '{}' ? findProperty(receiver, name) : undefined
+    return own === undefined ? method(receiver, name, args, invoke, undefined) : call(ok(own[2]), args.map(v => () => ok(v)), invoke)
+}
 
 /**
  * A static function called, for the executors that invoke one, its
@@ -230,6 +248,9 @@ export const operation = evaluator => {
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
             case 'hasEntry': { return [state, ok(['hasEntry'])] }
+            // an intrinsic as a value: the node, fresh as `entry` is, its
+            // call `intrinsicCall`'s; named here as the statics are below
+            case 'slice': { return [state, ok(/** @type {Intrinsic} */ ([node[0]]))] }
             // a static function as a value: the node, the built-in by its
             // name, one function however often it is read, whose call and
             // `length` the body the runtime's `static` section holds at

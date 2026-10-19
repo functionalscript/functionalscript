@@ -21,9 +21,11 @@
  * name, so a read of one costs nothing and holds nothing: no evaluation,
  * no holder, no `thread_local!`.
  *
- * What the runtime's module scope may hold is **functions and literals**,
- * and an import's read of its export object, `{ f }.f`, which the lowering
- * spells an import as and which folds to `f`. Anything else a body would
+ * What the runtime's module scope may hold is **functions, literals and
+ * the helpers** — `entry`, `hasEntry` and the intrinsics, `slice`, each
+ * printed as its value where a body captures it — and an import's read of
+ * its export object, `{ f }.f`, which the lowering spells an import as and
+ * which folds to `f`. Anything else a body would
  * capture — an object, an array, an operation — is refused, naming the
  * node, as is a function a static's body makes at call time, which would
  * need the VM's `IStaticFunction` where a static is bound on `IVm` alone;
@@ -47,12 +49,13 @@
  */
 
 import { error, mapOk, ok, okList, okThen } from '../../../types/result/module.f.js'
-import { argNamed, atomExpr, holdsFunction, readsArgs, readsBeyondFirst, readsRest, restLine, statementsWith, useLinesTagged } from '../../../edag/rust/module.f.mjs'
+import { argNamed, atomExpr, helperExpr, holdsFunction, readsArgs, readsBeyondFirst, readsRest, restLine, statementsWith, useLinesTagged } from '../../../edag/rust/module.f.mjs'
 import { operandsOf, visit } from '../../../edag/sharing/module.f.mjs'
 import { builtInIdentifier } from '../../../media/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { isNative, natives } from '../../../js/static/module.f.js'
+import { isIntrinsic } from '../../../edag/module.f.mjs'
 
 const kw = tagged('keyword')
 const lit = tagged('literal')
@@ -68,12 +71,13 @@ const bound = kind => kind === 'member' ? 'IStaticFunction' : 'IVm'
 
 /**
  * A module-level node resolved at compile time: a function, which becomes
- * an item; a literal, inlined where a body reads it; a helper, `entry` or
- * `hasEntry`, which the module scope holds for `dot` and which no printed
- * item may capture ({@link itemLines}); or the refusal of anything else,
- * since the runtime's module scope holds functions, literals and the two
- * helpers. An import is read off its export object by a literal key,
- * `{ f }.f`, and folds to the property's value, resolved in turn.
+ * an item; a literal, inlined where a body reads it; a helper — `entry`,
+ * `hasEntry` or an intrinsic, `['slice']` — which `dot` and the bodies
+ * read and a printed item captures as its value ({@link itemLines}); or
+ * the refusal of anything else, since the runtime's module scope holds
+ * functions, literals and the helpers. An import is read off its export
+ * object by a literal key, `{ f }.f`, and folds to the property's value,
+ * resolved in turn.
  *
  * @type {(node: Exp) => Result<_Resolved, readonly unknown[]>}
  */
@@ -82,7 +86,7 @@ const resolve = node => {
     const [id, a, key] = /** @type {readonly any[]} */ (node)
     if (id === '=>') { return ok(/** @type {const} */ (['function', node])) }
     if (id === 'undefined') { return ok(/** @type {const} */ (['literal', node])) }
-    if (id === 'entry' || id === 'hasEntry') { return ok(/** @type {const} */ (['helper', node])) }
+    if (id === 'entry' || id === 'hasEntry' || isIntrinsic(node)) { return ok(/** @type {const} */ (['helper', node])) }
     if (id === '.' && node.length === 3 && typeof key === 'string') {
         const property = literalProperties(a)?.find(p => p[1] === key)
         return property === undefined ? refused(node) : resolve(/** @type {Exp} */ (property[2]))
@@ -183,8 +187,8 @@ const table = root => {
  * table where a built-in resolves to it — a member's identifier its name,
  * `starts_with` — and a helper, `f` with its index among
  * them, otherwise, the module's own. Refused: a module-level node that is
- * no function, no object, no import's read, no `undefined` and not the
- * `entry` helper, which `dot` reads and no item may hold — an
+ * no function, no object, no import's read, no `undefined` and no helper —
+ * `entry`, `hasEntry`, an intrinsic — an
  * operation the lifting would drop unevaluated; an import's read that
  * resolves to nothing an item may hold, wherever it stands, since one a
  * property written twice left behind would otherwise go unchecked; a
@@ -202,7 +206,7 @@ const table = root => {
  */
 const items = (root, { builtIns, dot }) => {
     const nodes = visit(operandsOf)([])(root).map(([n]) => n).filter(n => n instanceof Array)
-    const stray = nodes.find(n => !['=>', '{}', '.', 'undefined', 'entry', 'hasEntry'].includes(n[0]))
+    const stray = nodes.find(n => !['=>', '{}', '.', 'undefined', 'entry', 'hasEntry'].includes(n[0]) && !isIntrinsic(n))
     if (stray !== undefined) { return refused(/** @type {Exp} */ (stray)) }
     return okThen(/** @type {() => Result<readonly _Item[], readonly unknown[]>} */ () => {
         const shared = builtIns.find(b => b.node === dot)
@@ -279,11 +283,12 @@ const reference = ident => [`Function::from(${ident}::<A>()).to_any()`, [['vm', 
  * list, the rest, or a second fixed argument — which a function of the
  * receiver alone has no spelling for; a function a static's or a
  * helper's body makes at call time, since those are bound on `IVm` alone;
- * a member read as a value, which has no descriptor to read; a slot that
- * holds `entry` or `hasEntry`, which `dot` alone reads and the printer
- * leaves out with it, so no printed item has a spelling for them; and a
- * slot that resolves to nothing an item may hold. A slot that resolves to
- * a function names an item, since every module-level function is one.
+ * a member read as a value, which has no descriptor to read; and a slot
+ * that resolves to nothing an item may hold. A slot that resolves to a
+ * function names an item, since every module-level function is one, and
+ * one that holds a helper — `entry`, `hasEntry` or an intrinsic, the
+ * `slice` that `found` calls — prints the helper's value where the body
+ * reads the slot, as the ordinary backend prints it.
  *
  * @type {(all: readonly _Item[]) => (item: _Item) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
@@ -300,7 +305,7 @@ const itemLines = all => ({ node, name, ident, kind }) => {
     const frame = i => okThen(
         /** @type {(resolved: _Resolved) => Result<Printed<string>, readonly unknown[]>} */
         (resolved) => resolved[0] === 'function' ? itemReference(resolved[1])
-            : resolved[0] === 'helper' ? error(['a body capturing a helper; `entry` and `hasEntry` are `dot`\'s to read', name])
+            : resolved[0] === 'helper' ? helperExpr(resolved[1])
             : atomExpr(resolved[1]))(resolve(slots[i]))
     return okThen((/** @type {Printed<readonly string[]>} */ [statements, uses]) => {
         const rest = readsRest(body) ? [restLine(length)] : []

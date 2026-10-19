@@ -14,8 +14,8 @@
 
 import { isArray } from '../../types/array/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
-import { isStatic } from '../module.f.mjs'
-import { entryCall, hasEntryCall, operation, staticCall } from '../operations/module.f.mjs'
+import { isIntrinsic, isStatic } from '../module.f.mjs'
+import { entryCall, hasEntryCall, intrinsicCall, operation, staticCall } from '../operations/module.f.mjs'
 import { invoker, settle } from '../value/call/module.f.mjs'
 
 /**
@@ -33,6 +33,7 @@ export const invokeWith = runtime => {
     /** @type {Body} */
     const body = (fn, fixed, rest) => fn[0] === 'entry' ? entryCall(fixed, invoke)
         : fn[0] === 'hasEntry' ? hasEntryCall(fixed, invoke)
+        : isIntrinsic(fn) ? intrinsicCall(fn, fixed, invoke)
         : isStatic(fn) ? staticCall(runtime, fn, rest, run)
         : run(fn, fixed, rest, fn)
     const invoke = invoker(body)

@@ -1,6 +1,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { allowedCalls } from '../prototype/module.f.js'
-import { isNative, isStatic, statics } from '../static/module.f.js'
+import { isNative, isStatic, statics as staticPaths } from '../static/module.f.js'
+import { isStatic as isStaticNode } from '../../edag/module.f.mjs'
 import { runtime } from './module.f.js'
 import edag from './gen.edag.data.mjs'
 
@@ -21,6 +22,16 @@ const host = /** @type {typeof section} */ (/** @type {unknown} */ ({ Object, Nu
 const array = /** @type {readonly unknown[]} */ ([])
 const object = {}
 const f = () => 1
+
+/** The chain steps a node holds, anywhere in it: a member call, a guarded step, an optional call. @type {(node: unknown) => readonly unknown[]} */
+const steps = node => node instanceof Array
+    ? [...(['|()', '|?.()', '|!()', '|.', '?.', '?.()'].includes(/** @type {string} */ (node[0])) ? [node[0]] : []), ...node.flatMap(steps)]
+    : []
+
+/** The static-function nodes a node holds, anywhere in it. @type {(node: unknown) => readonly unknown[]} */
+const statics = node => node instanceof Array
+    ? [...(isStaticNode(node) ? [node[0]] : []), ...node.flatMap(statics)]
+    : []
 
 /**
  * Every type, with the values the static functions part on: the zeros and
@@ -88,7 +99,7 @@ export const proof = {
     // (`../static/module.f.js`), and a built-in that reads `this` throws
     // here on every engine the suite runs on.
     host: () => {
-        for (const [global, name] of statics.filter(path => !isNative(path))) {
+        for (const [global, name] of staticPaths.filter(path => !isNative(path))) {
             const body = section[global][name]
             const namespace = host[global]
             const detached = namespace[name]
@@ -110,7 +121,7 @@ export const proof = {
     natives: () => {
         /** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
         const bodies = runtime.static
-        for (const [global, name] of statics.filter(isNative)) {
+        for (const [global, name] of staticPaths.filter(isNative)) {
             assertEq(bodies[global]?.[name], undefined, [global, name])
             const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[global])
             const detached = namespace[name]
@@ -189,12 +200,7 @@ export const proof = {
         // the core rule of DESIGN.md §13, on the compiled EDAG: the body of
         // `dot` holds no chain step — no member call, no optional chain —
         // since an executor runs it to answer those; the two helpers and a
-        // `()` of a function value are what it uses. Its slots, the
-        // `member` table and the bodies in it, are not the core.
-        /** @type {(node: unknown) => readonly unknown[]} */
-        const steps = node => node instanceof Array
-            ? [...(['|()', '|?.()', '|!()', '|.', '?.', '?.()'].includes(/** @type {string} */ (node[0])) ? [node[0]] : []), ...node.flatMap(steps)]
-            : []
+        // `()` of a function value are what it uses.
         const sections = /** @type {readonly (readonly [string, string, readonly unknown[]])[]} */ (/** @type {readonly any[]} */ (edag)[1][0][2][1])
         const compiled = sections.find(([, name]) => name === 'dot')
         assert(compiled !== undefined)
@@ -202,7 +208,18 @@ export const proof = {
         assertEq(`${tag}/${length}`, '=>/2')
         assertEq(steps(body).join(), '')
         assertEq(JSON.stringify(body).includes('["()"'), true)
-        assertEq(steps(sections.find(([, name]) => name === 'member')).length > 0, true)
+    },
+    // The core may not use what it defines, and the whole module is the
+    // core: no body and no initializer holds a member call, an optional
+    // chain or a static function — a native is reached through an
+    // intrinsic, `slice` in `found`, called as a function — so the module
+    // can be evaluated with no runtime, and NaNVM can hold it as a value
+    // whose bodies never name it (`../todo/runtime-value.md`). The
+    // intrinsic is there, as a node, where the member call was.
+    core: () => {
+        assertEq(steps(edag).join(), '')
+        assertEq(statics(edag).join(), '')
+        assertEq(JSON.stringify(edag).includes('["slice"]'), true)
     },
     throw: {
         // The detached call `host` makes is a real one: a built-in that

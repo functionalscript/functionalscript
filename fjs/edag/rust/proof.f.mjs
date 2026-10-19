@@ -625,6 +625,9 @@ export const proof = {
         assertEq(printed(['()', ['entry'], [1, 2]]), 'Any::call(A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any(), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())')
         // `hasEntry` the same, its `bool` made an `Any`
         assertEq(printed(['hasEntry']), 'A::static_function(|_self, args| Any::has_entry(args.argument(0), args.argument(1)).map(|b| b.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any()')
+        // an intrinsic: the closure answering the member call of the name
+        // on its first argument with the rest, the library's call step
+        assertEq(printed(['slice']), 'A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any()')
     },
     /**
      * A static function as a value — `Object.is` — is its accessor's,
@@ -1305,6 +1308,7 @@ export const proof = {
         holdsFunction: () => {
             assertEq(holdsFunction(['entry']), true)
             assertEq(holdsFunction(['hasEntry']), true)
+            assertEq(holdsFunction(['slice']), true)
             assertEq(holdsFunction(['[]', [['entry']]]), true)
             assertEq(holdsFunction(['=>', 0, [], 1]), true)
             assertEq(holdsFunction(['=>', 0, [1], 1]), true)

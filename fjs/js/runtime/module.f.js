@@ -43,6 +43,7 @@
 
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
+import { slice } from '../intrinsic/module.f.js'
 
 /**
  * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
@@ -128,12 +129,15 @@ const position = (value, length) => {
 /**
  * Whether `s` is the substring of `self` at `start`, a position already
  * clamped into it. An empty `s` is found anywhere, past the end included.
+ * The substring is the intrinsic `slice`, called as a function: a member
+ * call would name what the runtime defines
+ * ([`../intrinsic`](../intrinsic/module.f.js)).
  *
  * @type {(self: string, s: string, start: number) => boolean}
  */
 const found = (self, s, start) => {
     const end = start + s.length
-    return end > self.length ? false : self.slice(start, end) === s
+    return end > self.length ? false : slice(self, start, end) === s
 }
 
 /** The member section: a name, then the body. */

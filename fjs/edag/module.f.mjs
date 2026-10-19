@@ -1,7 +1,7 @@
 /**
  * @module
  *
- * @import { Exp, OptionLambda, OptionPropertyLambda, Plain, StaticId } from './types.ts'
+ * @import { Exp, IntrinsicId, OptionLambda, OptionPropertyLambda, Plain, StaticId } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
 
@@ -601,13 +601,55 @@ export const staticText = id => `function ${staticPath(id).at(-1)}() { [native c
  */
 export const noStatic = name => `no binding for the static ${name}`
 
+/**
+ * The intrinsics: the member functions no body can define — the
+ * primitives of `fjs/js/runtime/README.md`, under the code's word for
+ * them, since `Primitive` is the EDAG's name for a literal value — which
+ * every executor binds natively, and which a module calls as a function
+ * through a helper the parser recognizes whole, `(s, a, b) => s.slice(a, b)`
+ * ([`../js/intrinsic`](../js/intrinsic/module.f.js)): each the helper's
+ * tag, the member's name, and the helper's `length`, the receiver and the
+ * native's arguments. A call of the node, `['()', ['slice'], [s, a, b]]`,
+ * is the member call `s.slice(a, b)` as an executor answers it with no
+ * runtime — the receiver's own property, else the native, else the
+ * `TypeError` of calling `undefined` — which is how the runtime's own
+ * bodies reach a native without naming what the runtime defines
+ * (`fjs/js/todo/runtime-value.md`). As a value the node is fresh where it
+ * is established, as `entry` is and every `=>` is.
+ */
+export const intrinsics = /** @type {const} */ ([['slice', 3]])
+
+/** The intrinsics' tags, {@link intrinsics}: `slice`. */
+export const intrinsicIds = intrinsics.map(([id]) => id)
+
+/** An intrinsic as a value, `['slice']`: one tag of {@link intrinsicIds}. */
+export const intrinsicId = or(...intrinsicIds)
+
+/**
+ * Whether a node — the EDAG's, or the AST's, which shares it — is an
+ * intrinsic, `['slice']`: one tag of {@link intrinsicIds} and nothing
+ * else, asked as {@link isStatic} is, before a `switch` on the tag.
+ *
+ * @param {unknown} node
+ * @returns {node is readonly [IntrinsicId]}
+ */
+export const isIntrinsic = node => node instanceof Array && node.length === 1 && intrinsicIds.some(id => id === node[0])
+
+/**
+ * The `length` of an intrinsic's helper, {@link intrinsics}: `3` for
+ * `slice`, the receiver and the native's two positions.
+ *
+ * @type {(id: IntrinsicId) => number}
+ */
+export const intrinsicLength = id => intrinsics.filter(([i]) => i === id)[0][1]
+
 
 /**
  * `op0`/`op1`/`op2` group operation nodes by their `exp`-operand count —
  * zero, one, or two. `undefined`, module imports (`args`), invocation
  * rest (`rest`), the owning function itself (`self`), the `entry`
- * helper (`entry`) and the static functions ({@link staticId}) have no
- * expression operands. `self` is the function whose body holds it, as a value — the
+ * helper (`entry`), the intrinsics ({@link intrinsicId}) and the static
+ * functions ({@link staticId}) have no expression operands. `self` is the function whose body holds it, as a value — the
  * same value every read, so recursion is `['()', ['self'], args]` and a
  * nested function captures its parent's `self` as a slot — and it is what
  * keeps a recursive function an acyclic graph: without it a function would
@@ -645,9 +687,12 @@ export const noStatic = name => `no binding for the static ${name}`
  * for an entry holding `undefined`: `['()', ['hasEntry'], [a, b]]`
  * ([spec: why two helpers](../../spec/property-access/entries.md#why-two-helpers)).
  *
+ * The intrinsics, {@link intrinsicId}, are the helpers calling a member
+ * function no body defines, `['slice']`.
+ *
  * The rest are the static functions, {@link staticId}.
  */
-export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', staticId)
+export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', intrinsicId, staticId)
 
 
 export const op0 = /** @type {const} */ ([op0Id])

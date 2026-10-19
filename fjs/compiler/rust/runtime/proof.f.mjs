@@ -56,9 +56,11 @@ export const proof = {
             assert(rust.includes(line), line)
         }
         // no static evaluates anything or reads a frame: a closure is made
-        // in the one member alone, and no member has a descriptor
+        // in the one member alone — and for the intrinsic `found` captures,
+        // `slice`, its value where the slot is read — and no member has a
+        // descriptor
         const statics = rust.slice(0, rust.indexOf('/// `startsWith`'))
-        assert(!statics.includes('static_function'))
+        assertEq(statics.split('static_function').length, statics.split('A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice"))').length)
         assert(!statics.includes('A::frame'))
         assert(!rust.includes('String.prototype'))
     },
@@ -192,11 +194,15 @@ pub(crate) fn members<A: IStaticFunction>() -> [(&'static str, MemberCode<A>); 1
         assert(capturing(/** @type {Exp} */ (/** @type {unknown} */ (['.', object([['x', 1]]), 'x', ['|.', 'y']]))).startsWith(prefix))
         assert(capturing(['{}', [['...', object([])]]]).startsWith(prefix))
         assert(capturing(['{}', [[':', ['+', 1, 2], 1]]]).startsWith(prefix))
-        // the two helpers are module-level values, for `dot`, and no printed
-        // item may capture one: refused, naming the item, never printed as
-        // the `undefined` an unprinted atom would be
-        assertEq(capturing(['entry']), 'a body capturing a helper; `entry` and `hasEntry` are `dot`\'s to read: Object.f')
-        assertEq(capturing(['hasEntry']), 'a body capturing a helper; `entry` and `hasEntry` are `dot`\'s to read: Object.f')
+        // a helper a body captures — `entry`, `hasEntry`, an intrinsic —
+        // prints as its value where the slot is read, never as the
+        // `undefined` an unprinted atom would be
+        /** @type {(slot: Exp) => string} */
+        const captured = slot => assertOk(generateRuntime(module([['static', object([['Object', object([['f', fn(0, [slot], ['frame', 0])]])]])]])))
+        assert(captured(['entry']).includes('Ok(A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some('))
+        assert(captured(['hasEntry']).includes('Any::has_entry(args.argument(0), args.argument(1))'))
+        assert(captured(['slice']).includes('Ok(A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any())'))
+        assert(captured(['slice']).includes('use nanvm_lib::vm::unstable::string_any;'))
         // an import read off an object that is no literal of named properties
         assert(capturing(['.', ['{}', [['...', object([])]]], 'x']).startsWith(prefix))
         assert(capturing(['.', ['{}', [[':', ['+', 1, 2], 1]]], 'x']).startsWith(prefix))

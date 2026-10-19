@@ -75,7 +75,7 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { isStatic } from '../module.f.mjs'
+import { isIntrinsic, isStatic } from '../module.f.mjs'
 import { sharedNodesOf } from '../sharing/module.f.mjs'
 
 /** A walk that has added nothing, and merges twins where `merges` says. @type {(merges: boolean) => _State} */
@@ -103,6 +103,7 @@ const same = (a, b) => a instanceof Array
  * @type {(node: Node) => boolean}
  */
 export const mergeable = node => {
+    if (isIntrinsic(node)) { return false }
     switch (node[0]) {
         case '[]': case '{}': case '=>': case 'entry': case 'hasEntry': case '()': case '?.()': { return false }
         case '.': case '?.': { return node.length === 3 }
@@ -269,6 +270,8 @@ const handlers = {
     self: o0,
     entry: o0,
     hasEntry: o0,
+    // the intrinsics, a row each, as the static functions below
+    slice: o0,
     // the static functions, a row each, so a new one is a `tsc` error here
     // until it has its row
     'Object.is': o0,
@@ -392,8 +395,9 @@ const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
  * @type {(node: Node) => readonly Operand[]}
  */
 export const operandsOf = node => {
-    // a static function, as `entry`, is a function of its parameters alone
-    if (isStatic(node)) { return [] }
+    // a static function and an intrinsic, as `entry`, are functions of
+    // their parameters alone
+    if (isStatic(node) || isIntrinsic(node)) { return [] }
     switch (node[0]) {
         case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': case 'hasEntry': { return [] }
         case '[]': { return node[1].map(itemOperand) }
