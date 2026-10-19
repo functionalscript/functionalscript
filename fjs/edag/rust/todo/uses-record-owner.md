@@ -19,23 +19,20 @@ const names = uses => module => [...new Set(uses.filter(([m]) => m === module).m
 ```
 
 each followed by the two-key record and the same `useLinesTagged(record,
-bound)` call. The runtime generator also re-declares `kw` and `lit` and
-re-implements `reasonText` from
-[`fjs/compiler/rust`](../../../compiler/rust/module.f.mjs).
+bound)` call. The runtime generator also re-declares the `kw` and `lit`
+marks `edag/rust` declares.
 
 ### Proposal
 
 `useLinesTagged` takes the flat `readonly Use[]` and sorts and dedupes
 itself, or `edag/rust` exports `usesOf(uses): Uses` and both callers pass
-the list; `reasonText` is exported by `compiler/rust` and imported. The
-runtime printer is being reshaped by the static-runtime work; this lands
-after it.
+the list; `kw` and `lit` are exported by `edag/rust` and imported.
 
 ### Tasks
 
 - [ ] `useLinesTagged` over `Use[]`, or `usesOf`; `scopeTagged` and the
       runtime generator use it.
-- [ ] `reasonText` exported once.
+- [ ] `kw` and `lit` exported once.
 
 ### Related
 
