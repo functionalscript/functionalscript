@@ -101,6 +101,18 @@ feedback as pure decisions with co-located proofs. The browser adapter reads
 responses, performs requests and DOM updates, and supplies browser clock and
 date-formatting results to that policy.
 
+## The playground
+
+[`playground/`](./playground/README.md) holds games, one subdirectory each,
+each a demo. The shared header links it as **Playground**.
+
+It needs no page of its own. **Every directory gets a page**, so the
+playground's page lists its games, and **a directory says it holds a demo**,
+so each game carries a play mark there: a new game is a new subdirectory, and
+nothing else changes. A game is an application of the modules it plays
+with, not part of them, which is why it lives here rather than beside them:
+a module's own demo explains the module, a game is played with it.
+
 ## The Rust API reference
 
 `/cargo.doc/` is rustdoc's output for the workspace's crates. Each crate's
@@ -710,8 +722,8 @@ scheme it would have picked.
 
 ## Every page opens with the same header
 
-The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases** and
-**GitHub**.
+The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases**,
+**Playground** and **GitHub**.
 It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
 every page carries it — the root, a directory's page, the PR queue, and the
 changelog's.
@@ -735,8 +747,8 @@ and no other page had either.
   header only, a framed box, GitHub-style tabs with icons, and bordered
   buttons — and the box won, then went full width.
 - **It wraps rather than hiding behind a menu button.** In a monospace face a
-  phone has no room for the name and all four links on one line; a line break
-  costs no script, on a site that is otherwise static files. The four links are
+  phone has no room for the name and all five links on one line; a line break
+  costs no script, on a site that is otherwise static files. The five links are
   one group, so they wrap together under the name rather than one beside it
   and one below.
 - **A header link is not underlined.** Its place in the header is what says it
