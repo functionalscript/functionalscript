@@ -214,20 +214,21 @@ implementation's pull request:
 
 ### Tasks
 
-- [ ] `switch` and `case` among the framing keywords; the three grammar
-  rules in `fjs/compiler/parser/grammar`, with the register's refusals
-  pinned in its proof
-- [ ] the fold in `fjs/compiler/parser`: the discriminant as an entry of
+- [x] `switch` and `case` among the framing keywords; the grammar rules in
+  `fjs/compiler/parser/grammar` — the switch a terminator that holds the
+  rest of its block, its cases recursive through variants, which is what
+  keeps the rule's type finite — with the refusals pinned in its proof
+- [x] the fold in `fjs/compiler/parser`: the discriminant as an entry of
   the body, each label entered in order, each block an arm as a guard's,
   the chain closed from the last case back
-- [ ] `spec/control-flow/switch.md`, a `switch` program in the control-flow
+- [x] `spec/control-flow/switch.md`, a `switch` program in the control-flow
   demo module with its real output, and the same graph and hash asserted
   against the hand-written chain of guards
-- [ ] the pages and rows that say a block ends in `return` or `throw`
+- [x] the pages and rows that say a block ends in `return` or `throw`
   naming the third terminator, a switch with a `default`:
   [guards](../control-flow/guards.md), and the `st.guard`, `st.body-end`
   and `st.unreachable` rows of [refused constructs](./refused-constructs.md)
-- [ ] the `st.switch` row of [refused constructs](./refused-constructs.md)
+- [x] the `st.switch` row of [refused constructs](./refused-constructs.md)
   narrowed to every form this record refuses — a case without braces, a
   case block that does not terminate, `break` in a case, a `default` that
   is not last, a label stacked with the `default`, a switch with no case

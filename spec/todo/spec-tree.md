@@ -178,7 +178,7 @@ of pages with a status line, an Examples section and a Reference
 | `conversions/` | `Number`, `String` |
 | `property-access/` | access, optional chaining, entries |
 | `functions/` | functions, parameters, captures, calls, names and identity, outputs |
-| `control-flow/` | guards, loops |
+| `control-flow/` | guards, loops, switch |
 | `built-ins/` | member functions, static functions |
 | `command-line/` | command line, checking, source text, file types, JSON input, output |
 

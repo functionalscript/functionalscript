@@ -112,20 +112,21 @@ describes:
 | ID | Construct | Why |
 |---|---|---|
 | `st.let-while` | a `let` or `while` outside the one-variable loop, or its block holding a statement that is no `const` and no assignment to the loop variable | planned ([let](./3220-let.md)) |
-| `st.guard` | `else`, an unbraced `if`, a guard block that does not end in `return` or `throw`, a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
+| `st.guard` | `else`, an unbraced `if`, a guard block that does not terminate (in `return`, `throw`, or a switch with a `default`), a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
 | `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
 | `st.do-while` | `do { } while (c)` | open |
-| `st.break-continue` | `break`, `continue` | planned ([let](./3220-let.md), "Later") |
-| `st.switch` | `switch` | planned ([switch](./3230-switch.md)) |
+| `st.break-continue` | `break`, `continue` | planned ([let](./3220-let.md) and [switch](./3230-switch.md), "Later") |
+| `st.switch` | a case without braces, a case block that does not terminate (in `return`, `throw`, or a switch with a `default`), `break` in a case, a label stacked with the `default`, a switch with no case or of a `default` alone, a switch at module level or in a loop's block | planned ([switch](./3230-switch.md), "Later": follow-ups, each additive on the one form [switch](../control-flow/switch.md) has) |
+| `st.switch-default` | a `default` that is not last | design ([switch](../control-flow/switch.md): last is the one spelling, the position saying nothing once every branch terminates) |
 | `st.try` | `try`, `catch`, `finally` | open |
 | `st.debugger` | `debugger` | open |
 | `st.label` | `x: while (c) { }` | open |
 | `st.var` | `var a = 1` | design ([constants](../bindings/constants.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) |
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md)) |
 | `st.expression` | an expression statement (a body statement that is no `const`, `if`, `throw`, `return` or admitted `let`/`while` loop) | design ([functions](../functions/README.md)) |
-| `st.body-end` | a body that does not end in `return` or `throw`, `{}` | design ([functions](../functions/README.md)) |
-| `st.unreachable` | a statement after `return` or `throw` | design ([functions](../functions/README.md)) |
+| `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch.md)) — `{}` | design ([functions](../functions/README.md)) |
+| `st.unreachable` | a statement after `return`, `throw`, or a switch with a `default` | design ([functions](../functions/README.md)) |
 
 ### Declarations and members
 

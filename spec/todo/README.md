@@ -171,9 +171,11 @@ information — see [serialization](../design/serialization.md) and
    open in the record
 3. [x] `while` — with `let` above; `while` over several variables, and
    `break` and `continue` in its block, are open there
-4. [ ] [switch](./3230-switch.md) — the terminating `switch`, every case a
-   guard's block and `default` last, proposed; surface syntax over `?:`
-   and `===`, no new EDAG node
+4. [x] [switch](./3230-switch.md) — the terminating `switch`, every case a
+   guard's block and `default` last, is in the language
+   ([switch](../control-flow/switch.md)); surface syntax over `?:` and
+   `===`, no new EDAG node. The brace-less case, `break` and the
+   module-level `switch` are open in the record
 5. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
    ([mutability](../design/mutability.md)), **not** for I/O: effects keep I/O state in
    the runner ([io-effects](../design/io-effects.md)).
