@@ -14,6 +14,6 @@ mark on each game, so adding a game is adding a directory.
 
 ## Games
 
-None yet. The first is planned in
-[`types/btree/todo/compaction-game.md`](../../types/btree/todo/compaction-game.md):
-make a random B-tree perfect by removing keys and inserting them again.
+- [`btree`](./btree/module.f.mjs) — the B-tree compaction game: make a
+  random B-tree perfect, every node full, by removing keys and inserting
+  them again, in as few moves as its par.
