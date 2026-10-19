@@ -39,7 +39,7 @@ export const entry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
  * an enumerable own property `b` names, `true` for one holding
  * `undefined`, which `entry` reads as none, the key converted as `entry`
  * converts it, a nullish `a` throwing as there. Recognized whole by the compiler as the EDAG's
- * `['hasEntry']`, as `entry` is ([spec: has-entry](../../../spec/todo/2345-has-entry.md)).
+ * `['hasEntry']`, as `entry` is ([spec: has-entry](../../../../spec/todo/2345-has-entry.md)).
  *
  * @type {HasEntry}
  */

@@ -9,8 +9,8 @@
  *
  * This is the lookup kernel for admitted property reads, `read`, and for
  * a call of the `entry` helper, `entry`: the same lookup less what a value
- * owns without enumerating it, a `length` and whatever a function has,
- * answered as an option.
+ * owns without enumerating it, a `length` and whatever a function has —
+ * and for a call of `hasEntry`, `hasEntry`, the presence alone.
  * The caller owns operand evaluation order, key conversion to a string and
  * source-name admission. Reads do not traverse prototypes or expose storage
  * tuple fields; findProperty supplies stored object-property presence to
