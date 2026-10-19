@@ -47,9 +47,9 @@ preserved.
 
 A standalone descriptor expression may be represented in the JavaScript-subset
 AST but is refused by FJS admission outside a complete approved pattern.
-Removing `Object.hasOwn` does not erase the helper's observation: answering
-`[]` instead of `[undefined]` because the VM calls the entry absent would
-change a successful result.
+Removing `Object.hasOwn` does not erase the helper's observation: `hasEntry`
+answering `false` instead of `true` because the VM calls the entry absent
+would change a successful result.
 
 [Undefined properties](./1010-undefined-property.md) carries the spread and
 insertion-order counterexamples. Only a normalization proven equivalent for
