@@ -41,13 +41,20 @@ loop and one with `Array.from`; the Node host builds the `FileStat` literal
 - `all` answered by the runner itself: `asyncRun` and `asyncPartialRun` in
   [`module.mjs`](../module.mjs) build the loop that dispatches an operation,
   so they are the one place that holds the runner `all` maps over, and they
-  add the `all` handler to the map they are given — `asyncRun` always,
-  `asyncPartialRun` only where its `commands` name `all`, so that a partial
-  runner's vocabulary stays what its commands say and a stray `all` node
-  still asserts as the command it is not: the demo runtime's runner, over
-  `Sandbox | Catch | RandomInt`, answers no `all`. No host writes it, and
-  the browser runner, which [node-module-layering](./node-module-layering.md)
-  names as the next host, gets it rather than a third copy. The knot is what
+  add the `all` handler to the map they are given — only where the runner
+  declares `All`. A partial runner declares its vocabulary in its
+  `commands`, so `asyncPartialRun` adds `all` where they name it and not
+  otherwise: the demo runtime's runner, over `Sandbox | Catch | RandomInt`,
+  answers no `all`, and a stray `all` node still asserts as the command it
+  is not. A whole runner declares it in its type alone, which the loop
+  cannot read, so the declaration is a builder: `asyncRunAll(map)` is
+  `asyncRun` with `all` tied over its own loop, and the Node and
+  SpiderMonkey hosts take it; the browser's two runners, over `Catch |
+  Sandbox | _BrowserReport` and `Import | _BrowserReport`, declare no `All`
+  — [node-module-layering](./node-module-layering.md) records that its
+  loading walk is a sequential fold again and `All` has no second
+  implementer — and stay on `asyncRun`. No host writes the handler. The knot
+  is what
   rules out the plainer `commonOperationMapFor(runNodeEffect)`: each host's
   runner is a `const` whose initializer is the map, so passing the runner
   into the map reads it in its own temporal dead zone, where the inline
@@ -67,8 +74,8 @@ does not mention.
 
 ### Tasks
 
-- [ ] `all` in `asyncRun` and `asyncPartialRun`, with proof; both hosts drop
-      theirs.
+- [ ] `asyncRunAll`, and `all` in `asyncPartialRun` where its commands name
+      it, with proof; the Node and SpiderMonkey hosts drop theirs.
 - [ ] The browser `import` through `io`; one phrase for the unreadable value,
       pinned on every host's report.
 - [ ] `maxFileSizeBytes` and the windowing shared; `fileStat` in the Node host.

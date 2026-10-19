@@ -23,9 +23,11 @@ DataJS adding `nan`, `undefined` and `id` to the seven.
 
 - `entry` exported from `lib/json` beside `items`, typed by the rule as
   `items` is; the two destructures go.
-- The dispatch as an algebra in `parser`: `valueCases({ array, object,
-  string, number, word })` answering the handler, so `toJson` is one
-  application and `toNode` spreads it and adds its three arms.
+- The dispatch as an algebra in `lib/json`, beside `items` and `entry`,
+  since the tags it switches over are `createValue`'s and the grammar owns
+  them: `valueCases({ array, object, string, number, word })` answering
+  the handler, so `toJson` is one application and `toNode` spreads it and
+  adds its three arms, and neither reader imports the other for it.
 
 The first alone is worth doing; the second is the fuller fix.
 

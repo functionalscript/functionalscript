@@ -1,7 +1,8 @@
 ## The token layer re-lexes the escapes the grammar already parsed
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [mapping-precheck](../../../ebnf/ll1/todo/mapping-precheck.md)
 
 ### Problem
 
@@ -46,9 +47,18 @@ DataJS parser imports from it. The layer that moves is the whole of it —
 `tagged` and the `Text` tag, `textAt`, the three string mappings — into
 `lib/json` or a module beside it, so that `json/parser`, `datajs/parser`
 and the tokenizer each import the grammar's reader of its own strings and
-none imports another reader. That is the one owner
-[parser-meta-accessors](../../../media/todo/parser-meta-accessors.md) is
-already giving the tagged-symbol accessors, and this lands on it. The layer
+none imports another reader. That is the move
+[parser-meta-accessors](../../../media/todo/parser-meta-accessors.md)
+anticipates and holds back: it made `json/parser` the owner of `tagged`
+and `textAt` for now, because the first library reader of `meta.id` is
+reserved for [mapping-precheck](../../../ebnf/ll1/todo/mapping-precheck.md),
+and it names moving `tagged` into `fjs/ebnf/ast` as the one-line follow-up
+once the precheck lands. This issue is that follow-up and goes one step
+further, so it waits on the precheck: after it, `tagged` and `Tagged` go
+to `fjs/ebnf/ast` as parser-meta-accessors says, and the `Text` tag,
+`textAt` and the string mappings, which are the JSON grammar's own, to
+`lib/json` beside the rules they map. Until then `json/parser` stays the
+owner and nothing here moves. The layer
 is written over an alphabet, and the two grammars run over different ones:
 the JSON grammar over UTF-16 units, so `characterMapping` is a
 `Mapping<Utf16, Text>` that reads a plain symbol with
@@ -72,10 +82,11 @@ then become one grammar branch plus one mapping arm each.
 
 ### Tasks
 
-- [ ] The text-tag layer — `tagged`, the `Text` tag, `textAt` and the string
-      mappings, over a character reader given — in `lib/json` or beside it,
-      on parser-meta-accessors' owner; `json/parser` and `datajs/parser`
-      import it over UTF-16 units, `lib/js` over code points.
+- [ ] After mapping-precheck: `tagged` and `Tagged` into `fjs/ebnf/ast`, as
+      parser-meta-accessors says; the `Text` tag, `textAt` and the string
+      mappings, over a character reader given, into `lib/json`;
+      `json/parser` and `datajs/parser` import them over UTF-16 units,
+      `lib/js` over code points.
 - [ ] Mappings for `singleQuoteEscape` and `templateEscape` in `lib/js`.
 - [ ] `toJsToken` over the mapped nodes; the scanners and their state types
       go.
