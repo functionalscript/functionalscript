@@ -25,7 +25,6 @@
 
 import http from 'node:http'
 import childProcess from 'node:child_process'
-import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import { relative, sep } from 'node:path'
@@ -39,7 +38,7 @@ import { normalize, toPosix } from '../../path/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { asyncRun, io } from '../module.mjs'
 import { asyncMemoryOperationMap } from './memory/module.mjs'
-import { commonOperationMap } from '../common/module.mjs'
+import { commonOperationMap, randomIntOperationMap } from '../common/module.mjs'
 import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage,
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
@@ -717,10 +716,6 @@ export const readFlags = O_RDONLY | O_NONBLOCK
  */
 const asFileHandle = handle => /** @type {FileHandle} */ (asBase(handle))
 
-const randomMax = Number(1n << 32n)
-
-const { randomInt } = crypto
-
 /** @type {<T, E>(effect: Effect<NodeOp, T, E>) => Promise<Result<T, E>>} */
 export const runNodeEffect = asyncRun({
     ...asyncMemoryOperationMap(),
@@ -869,7 +864,6 @@ export const runNodeEffect = asyncRun({
         }
         return toVec(buffer)
     }),
-    randomInt: async () => ok(randomInt(randomMax)),
     access: path => io(() => access(path)),
     createExclusive: path => io(async () => {
         const fh = await open(path, 'wx')
@@ -1077,9 +1071,11 @@ export const runNodeEffect = asyncRun({
     })),
     forever: () => new Promise(() => {}),
     now: async () => ok(now()),
-    // `sandbox` and `catch` are every host's, so node spreads them rather than
-    // writing a second copy: `../common/module.mjs`.
+    // `sandbox` and `catch` are every host's, and `randomInt` is the browser
+    // page's too, so node spreads them rather than writing a second copy:
+    // `../common/module.mjs`.
     ...commonOperationMap,
+    ...randomIntOperationMap,
     await: async p => ok(await awaitPromise(p)),
     write: async (stream, data) => ok(await writeAll(streams[stream], fromVec(data))),
     read: async () => ok(await readStdinByte()),
