@@ -16,12 +16,17 @@ resultStep(readUtf8File(path), read => pureOk(read))                        // w
 const foundAt = path => resultStep(access(path), found => pureOk(found))    // website
 resultStep(import_(source), loaded => pureOk(loaded))                       // emergent_testing/browser loadOne
 resultMapStep(result(t, sr, set.throws), ok)                                // emergent_testing runEntries
-resultStep(catch_(f), r => pureOk(r[0] === 'ok' ? r[1] : error(r[1])))     // emergent_testing/browser attempt
 ```
 
-The last one is the identity on its `Result`, written out. `resultMapStep(e,
-ok)` is the shortest spelling and the one that explains the rest; a reader
-meets a spelling per site and checks each for a difference that is not there.
+`resultMapStep(e, ok)` is the shortest spelling and the one that explains
+the rest; a reader meets a spelling per site and checks each for a
+difference that is not there. One site that looks the same is not one:
+`attempt` in [`fjs/emergent_testing/browser`](../../emergent_testing/browser/module.f.mjs),
+`resultStep(catch_(f), r => pureOk(r[0] === 'ok' ? r[1] : error(r[1])))`,
+wraps `catch_`, which already answers a `Result` as its value and never
+fails, so it is `catch_(f)` under a narrowed type, as its doc says, and not
+a `Result` carried. `attemptStep` over it would add a second `ok` layer, and
+it stays as it is.
 
 One instance of the shape has a policy of its own and is decided at every
 site, with differing answers. "Is `path` there" is `access` read as a value: `ENOENT` is

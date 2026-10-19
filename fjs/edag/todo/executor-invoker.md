@@ -36,15 +36,19 @@ difference is buried in the copy.
 
 ### Proposal
 
-`value/call` exports `invokerWith(run)`: given `run(fn, context) => Outcome`,
-it builds the context, writes `body`'s dispatch once over `entryCall`,
-`hasEntryCall` and `staticCall`, and ties `invoker`, answering the
-`runtime => Invoke` both modules export. Each executor states only its
-`run`, and `invoke = invokeWith(undefined)` is derived there too.
+`operations` exports `invokerWith(run)`: given `run(fn, context) =>
+Outcome`, it builds the context, writes `body`'s dispatch once over its own
+`entryCall`, `hasEntryCall` and `staticCall`, and ties `invoker`, answering
+the `runtime => Invoke` both modules export. Each executor states only its
+`run`, and `invoke = invokeWith(undefined)` is derived there too. The owner
+is `operations` and not `value/call`: `operations` already imports `bind`,
+`prepare` and `settle` from `value/call`, and `value/call` is stateless call
+preparation, so the dispatch over the operations belongs beside them, and
+the dependency keeps its direction.
 
 ### Tasks
 
-- [ ] `invokerWith` in `value/call`, with proof.
+- [ ] `invokerWith` in `operations`, with proof.
 - [ ] `amnesia` and `memo` reduce to their `run`.
 
 ### Related

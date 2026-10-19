@@ -61,8 +61,10 @@ the one `read` the caller gave, and the admitted value is answered with the
 status and the headers, which the caller reads as it needs — `Link` and the
 rate-limit headers on the PR page, the status against the shape on the
 login page and in the worker. The refusal is for what no caller can read:
-transport, a redirect where none is allowed, a body that is not JSON, a
-body no shape admits — and every refusal but transport carries the status
+transport, which says whether the request timed out, since the PR page
+words a timeout apart from a lost connection through `transportFailure`; a
+redirect where none is allowed; a body that is not JSON; a body no shape
+admits — and every refusal but transport carries the status
 and the headers too, since the PR page decides `onUnauthorized` on a 401
 and its retry note on a 403 or 429 from the status and the rate-limit
 headers alone, over a body its success readers do not admit. A caller that
