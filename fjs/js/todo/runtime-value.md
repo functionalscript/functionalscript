@@ -139,9 +139,9 @@ so a read cannot reach the runtime; `entry` could not replace it anyway,
 since `length` is non-enumerable. The runtime keeps `self.length`.
 
 **What goes.** The lifting printer and its tests; `RuntimeFunction`,
-`Accessor`, `MemberCode`, `runtime_static` and `runtime_method` in
-`nanvm/lib/src/vm/runtime.rs`; the `IVm`/`IStaticFunction` split per
-item; the name-identity rule and its paragraph in the README;
+`Accessor` and `MemberCode` in `nanvm/lib/src/vm/function/mod.rs`,
+`runtime_static` and `runtime_method` in `nanvm/lib/src/vm/runtime.rs`;
+the `IVm`/`IStaticFunction` split per item; the name-identity rule and its paragraph in the README;
 [`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md),
 whose direct call is what the runtime module now always prints.
 
