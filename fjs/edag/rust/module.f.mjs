@@ -367,10 +367,10 @@ const mutable = next => isArg0(next) ? '' : `${kw('mut')} `
  * prints a read of the loop's state, `slot` one of a slot of its frame,
  * and `base` numbers the round's temporaries.
  *
- * @type {(parts: _LoopParts, name: string, variable: (k: number) => Printed<string>, slot: (i: number) => Result<Printed<string>, readonly unknown[]>, base: number) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ * @type {(parts: _LoopParts, name: string, variable: (k: number) => Printed<string>, slot: (i: number) => Result<Printed<string>, readonly unknown[]>, base: number, textOf: (e: Exp) => string | undefined) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
-const loopLines = ({ condition, arm, next }, name, variable, slot, base) => {
-    const round = printer(false, variable, slot, base)([])
+const loopLines = ({ condition, arm, next }, name, variable, slot, base, textOf) => {
+    const round = printer(false, variable, slot, base, selfRead, textOf)([])
     const test = okThen(p => map2((/** @type {readonly string[]} */ lines, /** @type {string} */ c) =>
         [...lines, `${kw('if')} !${c}.to_boolean() { ${kw('break')} }`])(p.lets(condition), p.value(condition)))(round(condition))
     const step = okThen(p => map2((/** @type {readonly string[]} */ lines, /** @type {string} */ n) =>
@@ -386,12 +386,22 @@ const loopLines = ({ condition, arm, next }, name, variable, slot, base) => {
  * writer refuses. `None` is not a guess: the VM refuses the function's
  * `ToPrimitive` (`FUNCTION_TEXT`) rather than answer a text.
  *
- * @type {(e: Exp) => string}
+ * `text` is the text a caller gives a function node in place of the
+ * writer's, where it gives one: the static runtime's built-ins, each the
+ * NativeFunction text of its path (`fjs/compiler/rust/runtime`), since a
+ * runtime function is the built-in, not its body.
+ *
+ * @type {(text: (e: Exp) => string | undefined) => (e: Exp) => string}
  */
-const textExpr = e => {
+const textExpr = text => e => {
+    const given = text(e)
+    if (given !== undefined) { return `Some(${str(unwrap(stringLiteral(given)))})` }
     const t = tryFunctionText(e)
     return t[0] === 'ok' ? `Some(${str(unwrap(stringLiteral(t[1])))})` : 'None'
 }
+
+/** No text given a function: every function's is the writer's, {@link textExpr}. @type {(e: Exp) => string | undefined} */
+const noText = () => undefined
 
 /**
  * The same for a bigint: `bigint_any` over an `i64` literal where the value
@@ -618,9 +628,11 @@ export const restLine = length => cat([`${kw('let')} rest = args.rest(`, num(`${
  * {@link selfRead} unless the scope holds the function by a name of its
  * own, a static runtime's item ({@link statementsWith}).
  *
- * @type {(nested: boolean, arg?: (k: number) => Printed<string>, frame?: (i: number) => Result<Printed<string>, readonly unknown[]>, base?: number, self_?: () => Result<Printed<string>, readonly unknown[]>) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
+ * `textOf` is the text a caller gives a function node, {@link textExpr}.
+ *
+ * @type {(nested: boolean, arg?: (k: number) => Printed<string>, frame?: (i: number) => Result<Printed<string>, readonly unknown[]>, base?: number, self_?: () => Result<Printed<string>, readonly unknown[]>, textOf?: (e: Exp) => string | undefined) => (shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printer, readonly unknown[]>}
  */
-const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = selfRead) => shared => root => {
+const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = selfRead, textOf = noText) => shared => root => {
     /** @type {(e: Exp) => boolean} */
     const isBound = e => shared.some(([n]) => n === e)
     /**
@@ -892,12 +904,12 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
         // gives the helper, {@link textExpr}, the one every function's
         // `ToPrimitive` answers with.
         if (id === 'entry') {
-            return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
+            return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(textOf)(e)})`, toAny]))
         }
         // The `hasEntry` helper as a value, the same closure over
         // `Any::has_entry`, its `bool` made an `Any`.
         if (id === 'hasEntry') {
-            return ok(cat(['A::static_function(|_self, args| Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|b| b', toAny, '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
+            return ok(cat(['A::static_function(|_self, args| Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|b| b', toAny, '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(textOf)(e)})`, toAny]))
         }
         // An intrinsic as a value, `['slice']`: the same closure, of the
         // helper's `length`, answering the member call of the name on its
@@ -907,7 +919,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
         if (isIntrinsic(e)) {
             const length = intrinsicLength(e[0])
             const arguments_ = indices(length - 1).map(k => argRead(k + 1))
-            return ok(cat(['A::static_function(|_self, args| Any::dot(', argRead(0), ', ', stringCall('string_any')(e[0]), ').end_call(|| Ok([', ...arguments_.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, ')), ', num(`${length}`), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
+            return ok(cat(['A::static_function(|_self, args| Any::dot(', argRead(0), ', ', stringCall('string_any')(e[0]), ').end_call(|| Ok([', ...arguments_.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, ')), ', num(`${length}`), ', ', vm('Array'), `::default(), ${textExpr(textOf)(e)})`, toAny]))
         }
         // Slot `i` of the frame the function was built with, `frame`:
         // {@link frameRead} unless the scope is a loop in place's round.
@@ -961,7 +973,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
             // through the VM, including `() => undefined`.
             if (nested && a === 0 && isSmallestLambda(b, c)) { return plain('function_any()') }
             const parts = loopParts(/** @type {readonly unknown[]} */ (e))
-            return parts === null ? closure(a, c, textExpr(e))(frameExpr(b)) : loopClosure(parts, c, textExpr(e))(frameExpr(b))
+            return parts === null ? closure(a, c, textExpr(textOf)(e))(frameExpr(b)) : loopClosure(parts, c, textExpr(textOf)(e))(frameExpr(b))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
@@ -1056,7 +1068,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
         return flat(map3((/** @type {readonly string[]} */ round, /** @type {string} */ fr, /** @type {string} */ first) => cat([
             `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, args| ${braced([first, `${kw('loop')} ${braced(round)}`, 'Ok(r)'])}, ${num('1')}, ${fr}, ${text})`,
             toAny,
-        ]))(loopLines(parts, 'r', variable, frameRead, 0), frame, ok(init)))
+        ]))(loopLines(parts, 'r', variable, frameRead, 0, textOf), frame, ok(init)))
     }
     /**
      * A call of a loop function where it stands, as the loop,
@@ -1078,7 +1090,7 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
         const variable = k => k === 0 ? code(`${name}.clone()`) : undefinedAny
         const init = map1(s => `${kw('let')} ${mutable(parts.next)}${name}: Any<A> = ${s};`)(f(/** @type {readonly any[]} */ (call)[2][0]))
         return map2((/** @type {string} */ first, /** @type {readonly string[]} */ round) =>
-            `${first}\n${kw('loop')} ${braced(round)}`)(init, loopLines(parts, name, variable, i => f(slotsOf[i]), base + named.length))
+            `${first}\n${kw('loop')} ${braced(round)}`)(init, loopLines(parts, name, variable, i => f(slotsOf[i]), base + named.length, textOf))
     }
     /**
      * A function's frame as the `Array<A>` its construction takes: the
@@ -1571,9 +1583,11 @@ export const eagerNodesOf = root => reach([], root)
  * The statements of one scope over the caller's own bindings, with the
  * names they spell.
  *
- * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ * `text` is the text a caller gives a function node, {@link textExpr}.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[], text?: (e: Exp) => string | undefined) => (root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
-const blockOf = shared => root => okThen(p => p.block(root))(printer(false)(shared)(root))
+const blockOf = (shared, text = noText) => root => okThen(p => p.block(root))(printer(false, argRead, frameRead, 0, selfRead, text)(shared)(root))
 
 /**
  * The statements of a function's body whose frame and self the scope
@@ -1603,11 +1617,12 @@ export const statementsOf = shared => root => mapOk((/** @type {Printed<readonly
 
 /**
  * The statements of a scope's block — a compiled module's body, or a
- * function's — over no bindings but its own, with the names they spell.
+ * function's — over no bindings but its own, with the names they spell;
+ * `text` the text a caller gives a function node, {@link textExpr}.
  *
- * @type {(root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ * @type {(root: Exp, text?: (e: Exp) => string | undefined) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
-const statements = blockOf([])
+const statements = (root, text) => blockOf([], text)(root)
 
 /**
  * `true` when an operation stands in an eager position under `root`, a
@@ -1670,10 +1685,13 @@ export const scope = root => mapOk(
  * {@link scope} with its lines tagged, the text a producer of marked text
  * resolves its runs from (`fromTagged` in `fjs/text/marked`).
  *
- * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
+ * `text` is the text a caller gives a function node in place of the
+ * writer's, where it gives one, {@link textExpr}.
+ *
+ * @type {(root: Exp, text?: (e: Exp) => string | undefined) => Result<Scope, readonly unknown[]>}
  */
-export const scopeTagged = root => mapOk((/** @type {Printed<readonly string[]>} */ [s, uses]) =>
-    ({ lines: lines(s), uses: { vm: namesIn(uses)('vm'), unstable: namesIn(uses)('unstable') } }))(statements(root))
+export const scopeTagged = (root, text = noText) => mapOk((/** @type {Printed<readonly string[]>} */ [s, uses]) =>
+    ({ lines: lines(s), uses: { vm: namesIn(uses)('vm'), unstable: namesIn(uses)('unstable') } }))(statements(root, text))
 
 /**
  * The `use` lines for a scope's names, {@link scope}'s `uses`, inside a
