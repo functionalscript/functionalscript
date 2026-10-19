@@ -44,11 +44,12 @@ export const proof = {
     // The `entry` helper is a value as any function is, in its one text,
     // under names of its own after the value's.
     entry: () => {
-        const text = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?[$3.value]:[];}'
+        const text = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?$3.value:undefined;}'
         assertEq(stringify(['entry']), `const $0=${text};export default $0;`)
         assertEq(factoryStringify(['entry']), `export default()=>{const $0=${text};return $0;};`)
         const helper = /** @type {const} */ (['entry'])
         assertEq(stringify(['[]', [helper, helper]]), `const $0=${text};const $4=[$0,$0];export default $4;`)
+        assertEq(stringify(['hasEntry']), 'const $0=($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable===true;};export default $0;')
     },
     // A static function is the built-in, not its body, so there is none
     // to write: the module reads the host's own, one function however

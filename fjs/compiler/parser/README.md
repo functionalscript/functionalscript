@@ -302,17 +302,18 @@ the fold's:
   list instead of the read rule, so `a.at(0)` and `a.toString()` are calls
   like any other while `a.at` stays a refused read: a detached built-in is a
   function that only fails;
-- the `entry` helper, which is matched whole rather than resolved
-  ([spec: entry](../../../spec/property-access/entries.md)): a
+- the `entry` and `hasEntry` helpers, which are matched whole rather than
+  resolved ([spec: entry](../../../spec/property-access/entries.md)): a
   function of two parameters whose block body binds the descriptor
-  `Object.getOwnPropertyDescriptor` answers for them and returns the option
-  of the value an enumerable one holds, `[x.value]` or `[]` — under any
-  three distinct names, the keys in
-  either spelling, with or without its semicolons where JavaScript inserts
-  them — is the AST's `['entry']`; `Object` is reserved, so no scope binds
-  the word and the shape alone decides. A function that is not the helper,
-  by shape or by its names, is resolved as every function is, where
-  `Object` is refused as the reserved word it is.
+  `Object.getOwnPropertyDescriptor` answers for them and returns the value
+  an enumerable one holds, `x?.enumerable ? x.value : undefined`, or its
+  presence, `x?.enumerable === true` — under any three distinct names, the
+  keys in either spelling, with or without its semicolons where JavaScript
+  inserts them — is the AST's `['entry']` or `['hasEntry']`; `Object` is
+  reserved, so no scope binds the word and the shape alone decides. A
+  function that is neither helper, by shape or by its names, is resolved
+  as every function is, where `Object` is refused as the reserved word it
+  is.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar

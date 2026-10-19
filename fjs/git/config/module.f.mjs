@@ -262,9 +262,9 @@ const tryDigits = (digits, radix) => {
 const tryInt = value => {
     const text = afterCSpace(value)
     const signed = text[0] === '+' || text[0] === '-' ? text.slice(1) : text
-    const [unit] = objectEntry(factors, signed.slice(-1).toLowerCase())
+    const unit = objectEntry(factors, signed.slice(-1).toLowerCase())
     const body = unit === undefined ? signed : signed.slice(0, -1)
-    const [marked] = body[0] === '0' ? objectEntry(prefixes, body[1]?.toLowerCase()) : []
+    const marked = body[0] === '0' ? objectEntry(prefixes, body[1]?.toLowerCase()) : undefined
     // A leading `0` is an octal digit as well as the mark of the base, so
     // where no letter follows it, it stays in the digits and `0` alone is
     // the number it spells.
@@ -315,7 +315,7 @@ const escapes = {
 const valueStep = (acc, c) => {
     if (acc.bad || acc.done) { return acc }
     if (acc.escape) {
-        const [e] = objectEntry(escapes, c)
+        const e = objectEntry(escapes, c)
         return e === undefined
             ? { ...acc, bad: true }
             : { ...acc, value: acc.value + acc.pending + e, pending: '', escape: false }

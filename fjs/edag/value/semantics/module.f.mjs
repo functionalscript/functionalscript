@@ -31,7 +31,7 @@ export const truthy = value => Boolean(untagUndefined(value))
  *
  * @type {(value: EdagValue) => value is ValueFunction}
  */
-export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'entry' || isStatic(value))
+export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'entry' || value[0] === 'hasEntry' || isStatic(value))
 
 /** JavaScript typeof of the represented value. @type {(value: EdagValue) => string} */
 export const typeOf = value => isFunction(value) ? 'function' : typeof untagUndefined(value)

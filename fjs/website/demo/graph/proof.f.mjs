@@ -223,6 +223,21 @@ export const proof = {
             assert(html.includes('data-graph-value-label=""><tspan data-graph-part="prior">01</tspan><tspan data-graph-part="current">01</tspan></text>'), html)
             assert(html.includes('data-graph-value-label="">7</text>'), html)
         },
+        // A value with a click is a control on its cell, and its text lets
+        // the pointer through to it; a value without one is neither.
+        inlineClick: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '', rank: 0 }],
+                edges: [
+                    { from: 0, to: { inline: '5', click: { name: 'move:5', label: 'Move 5' } }, label: '' },
+                    { from: 0, to: { inline: '7' }, label: '' },
+                ],
+            }))
+            assert(html.includes('data-demo-click="move:5" tabindex="0" role="button" aria-label="Move 5" pointer-events="all" cursor="pointer"'), html)
+            assert(html.includes('pointer-events="none">5</text>'), html)
+            assert(html.includes('data-graph-value-label="">7</text>'), html)
+            assertEq(html.split('data-demo-click').length - 1, 1)
+        },
         // An empty label is no column when a node has ports: each node is
         // its rows alone, and the edge runs from the middle of the first row
         // to the middle of the second's. A node with no ports keeps its

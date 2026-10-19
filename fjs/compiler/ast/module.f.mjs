@@ -319,7 +319,8 @@ const refsOfOperand = lazy => ast => {
         case 'arg':
         case 'rest':
         case 'self':
-        case 'entry': { return empty }
+        case 'entry':
+        case 'hasEntry': { return empty }
         // a slot of its frame is a reference too, one the sweep of the body
         // ignores and the sweep of a scope the body is inlined into follows
         // into the capture the slot holds ({@link inlinedRefs})

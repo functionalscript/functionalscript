@@ -27,7 +27,7 @@ import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { isStatic } from '../../../edag/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { _entryText, _renderSymbolic } from '../function_text/module.f.mjs'
+import { _entryText, _hasEntryText, _renderSymbolic } from '../function_text/module.f.mjs'
 import { _name as symbol, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 import { chunksText, chunkText } from '../../../text/marked/module.f.mjs'
 
@@ -47,6 +47,7 @@ const entry = (a, i, n) => {
         case '[]': { return `[${n[1].map(operand).join(',')}]` }
         case '{}': { return `{${n[1].map(([, key, value]) => `[${operand(key)}]:${operand(value)}`).join(',')}}` }
         case 'entry': { return _entryText(`value${i}/function`) }
+        case 'hasEntry': { return _hasEntryText(`value${i}/function`) }
         default: {
             const slots = n[2]
             const frame = slots.map((_, k) => symbol(`value${i}/frame${k}`))

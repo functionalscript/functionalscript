@@ -183,7 +183,7 @@ import { isIdentifier } from '../../js/identifier/module.f.mjs'
 import { chunkStrings, chunksMarked, chunkText, chunksText, keyword, literal, withNames } from '../../text/marked/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.js'
-import { _entryChunks as entryChunks, _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
+import { _entryChunks as entryChunks, _entryText as entryText, _hasEntryChunks as hasEntryChunks, _hasEntryText as hasEntryText, renderFunction } from './function_text/module.f.mjs'
 import { keepsRecursion, loopOf } from '../../edag/loop/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve, _arg as argName, _rest as restName, _parameters as parameters } from './names/module.f.mjs'
 
@@ -320,7 +320,7 @@ const kindOf = (s, v) => {
  *
  * @type {(kind: string | null) => boolean}
  */
-const arrowKind = kind => kind === '=>' || kind === 'entry'
+const arrowKind = kind => kind === '=>' || kind === 'entry' || kind === 'hasEntry'
 
 /**
  * The operators by level, loosest first, JavaScript's own ladder
@@ -1059,6 +1059,7 @@ const entry = (s0, path) => i => {
         // the `entry` helper, in its one spelling, under names of this
         // function's own as every function's parameters are
         case 'entry': { return ok(entryChunks(`${path}/function${i}`)) }
+        case 'hasEntry': { return ok(hasEntryChunks(`${path}/function${i}`)) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map((v, k) => item(s, `${path}/item${k}`)(v)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map((p, k) => property(s, `${path}/property${k}`)(p)))) }
@@ -1662,6 +1663,7 @@ export const tryStringify = e => mapOk(
  */
 export const functionText = (a, i) => {
     if (a.nodes[i][0] === 'entry') { return chunksText(resolve([entryText('function')], [], [])) }
+    if (a.nodes[i][0] === 'hasEntry') { return chunksText(resolve([hasEntryText('function')], [], [])) }
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
     const frame = slots.map((_, k) => name(`external${k}`))
     const [kind, text] = lambda(a, 'function', i, length, frame, true, null)(body)
@@ -1700,7 +1702,7 @@ export const functionText = (a, i) => {
  * @type {(e: Exp) => Result<string, string>}
  */
 export const tryFunctionText = e => {
-    if (!(e instanceof Array) || (e[0] !== '=>' && e[0] !== 'entry')) { return error('not a function') }
+    if (!(e instanceof Array) || (e[0] !== '=>' && e[0] !== 'entry' && e[0] !== 'hasEntry')) { return error('not a function') }
     const result = identityAnalysis(e)
     const [kind, a] = result
     if (kind === 'error') { return result }

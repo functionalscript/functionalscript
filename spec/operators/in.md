@@ -8,10 +8,9 @@ asks whether a property exists anywhere on the prototype chain, so
 prototype chain to consult, and answering for own entries only would give
 accepted text a different successful result than JavaScript gives it. Neither
 is acceptable, so the operator is refused rather than approximated. To read an
-entry, or to ask whether there is one, use
-[`entry`](../property-access/entries.md), which answers an option: `[value]`
-for an enumerable own entry and `[]` for an absent key, so
-`entry(o, k).length === 1` is the presence test. The reasons, the
+entry, use [`entry`](../property-access/entries.md), and to ask whether
+there is one, `hasEntry` beside it: `true` for an enumerable own entry and
+`false` for an absent key. The reasons, the
 alternatives rejected and what a migration does are in
 [the `in` decision](../todo/2346-in-operator.md).
 
