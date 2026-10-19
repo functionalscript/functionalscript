@@ -1,0 +1,215 @@
+## Switch statement
+
+**Priority:** P2
+**Status:** open — awaiting the language designer's approval
+([Approval](#approval))
+
+Introducing `switch`, in one form first: the terminating `switch`, the
+guard's sibling.
+
+```js
+export const kind = node => {
+    switch (node[0]) {
+        case 'array': case 'object': { return 'container'; }
+        case 'string': { return 'text'; }
+        default: { throw ['unknown', node[0]]; }
+    }
+};
+```
+
+### Problem
+
+FunctionalScript dispatches on a value one way: a chain of guards, each
+`if (d === a) { … }`, or the conditional it lowers to. JavaScript spells
+that dispatch as `switch`, and the standard modules do: at `658e8da3`, 48
+`.f.mjs` modules under `fjs/` hold 106 `switch` statements, with 73
+`default` labels and 58 stacked labels (`case 0: case 2:`), from the
+JSON parser's dispatch on a node's tag (`fjs/media/json/parser`) to the
+B-tree's dispatch on a node's width (`fjs/types/btree`). None of them
+can go through the compiler until the statement exists, and the register
+lists it as open, no record proposing it
+([refused constructs](./refused-constructs.md), `st.switch`). Rewriting
+each as a chain of guards would compile, and would lose the one thing
+`switch` says that the chain does not: that every branch tests the same
+value.
+
+### Proposal
+
+A statement of a block body, standing where a `const` may, that the
+compiler reads as a chain of guards over one shared value — surface
+syntax over `?:` and `===`, no new node:
+
+```
+statement ::= const | 'if' '(' value ')' block
+            | 'let' id '=' value end | 'while' '(' value ')' loopBlock
+            | 'switch' '(' value ')' '{' case* default? '}'
+case ::= ('case' value ':')+ block
+default ::= 'default' ':' block
+```
+
+- `switch (e)` evaluates the discriminant once, eagerly, where the
+  statement stands, as JavaScript evaluates it before any label.
+- A `case` is one or more labels and then a block — the guard's own
+  block: any number of statements and then a `return` or a
+  `throw`, so every branch terminates. Stacked labels, `case a: case b:`,
+  share the one block, as in JavaScript. A label is any expression,
+  evaluated where it stands and only when every label before it has not
+  matched, in source order, as JavaScript evaluates them; a match is
+  strict equality, `===`, as JavaScript's is, so `NaN` matches no label
+  and an object matches itself alone.
+- `default:` is optional and last; its block runs when no label matched.
+  With a `default`, the `switch` is the body's terminating statement, and
+  nothing follows it: a statement after it is unreachable, as one after a
+  `return` is. Without one, the statements after the `switch`, up to and
+  including the body's own terminator, are what runs when no label
+  matched — exactly as the statements after a guard run when its condition
+  is falsy.
+- No `;` follows the `}`, as none follows a guard's.
+- This is the one form: braces around every case block, no `break`, no
+  fallthrough from a block into the next case, `default` last, and the
+  statement in a function body only. Each other form is a later step,
+  additive on this one, under [Later](#later).
+
+**Lowering.** The statement is syntactic sugar and adds no node:
+`switch (e) { case a: case b: B1  case c: B2 } rest` denotes
+
+```js
+d === a || d === b ? (() => B1)() : d === c ? (() => B2)() : (() => rest)()
+```
+
+where `d` is the discriminant's value, shared as a body `const` is — one
+node however many labels read it, evaluated where the statement stands
+whether or not a label is reached, so that `switch (null.x) {}` throws
+here as in JavaScript — and each block and the statements after the
+`switch` are the body of a parameterless function called where it stands,
+inlined as a guard's arms are
+([bodies and guards](../control-flow/guards.md)). A `default` block is the
+last alternate in place of `rest`. The `||` over a stacked group evaluates
+the second label only when the first did not match, which is JavaScript's
+order, and the `?:` chain nests as a chain of guards nests, so a
+hand-written chain of guards, `if (d === a || d === b) { B1 } if (d === c)
+{ B2 } rest` over a `const d = e;`, is the same graph and the same hash.
+The `===`, `||` and `?:` nodes are the operators the language has; nothing
+is added to the EDAG, its validators, interpreters or hash.
+
+**Writers.** None changes. As with `if`, the writer never spells `switch`:
+it spells the conditional, and the compiled module runs the same chain in
+every output. Round-tripping through the writer keeps the graph, not the
+text, as a guard's round trip does.
+
+**Refusals.** Programs JavaScript admits that are refused rather than
+read another way, each by name
+([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)):
+
+- A case block that does not terminate. In JavaScript the statements fall
+  through into the next case, which is the mistake `switch` is known for:
+  a forgotten `break`. The block rule prevents it the way the guard's does,
+  by requiring every branch to say where it ends
+  ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+  The standard modules hold the mistake already: in `fjs/types/btree/find`,
+  `find` has a `case 3:` whose block ends in an inner `switch` with no
+  `default`, so a value no inner label matches falls through into
+  `case 5:`; only TypeScript's narrowing makes that unreachable. Under
+  this form the block is refused until it terminates.
+- A `default` that is not last. JavaScript admits it anywhere, with the
+  same meaning once every branch terminates, so the position says nothing
+  and a reader has to check that it does not; last is the one spelling.
+- A `switch` with no case, `switch (e) {}`. JavaScript evaluates `e` and
+  goes on; here it would be a `const` nothing reads, and a statement that
+  dispatches on nothing is a mistake rather than a form.
+- A statement after a `switch` that has a `default`: unreachable, as one
+  after `return` is.
+- A `const` outside a case block — between the `{` and the first label, or
+  in a case written without braces — has no place in the grammar. In
+  JavaScript such a declaration lives in the scope of the whole `switch`,
+  visible to every case and in its temporal dead zone for the ones before
+  it, which is the statement's other known mistake; the braces make each
+  block's scope its own, as a guard's is.
+- `break` and `continue`, as everywhere ([let](./3220-let.md), "Later").
+
+A case block is a block of JavaScript's own, so it may bind what the body
+has bound or read, shadowing it as a guard's block may; and the
+statements after a `switch` without `default` are the body's one block
+with the ones before it, so what that block has bound, or read from
+outside — in the discriminant, a label or a case block — is not theirs to
+bind (`duplicate id`, `capture shadowed`), exactly as after a guard.
+
+#### Benefits
+
+- The dispatch the standard modules already write, in the spelling every
+  JavaScript reader knows, compiles: the biggest single construct keeping
+  the `.f.mjs` tree out of the compiler, at `658e8da3`.
+- No new node: the EDAG, its validators, interpreters, writers and hash
+  are untouched, and a chain of guards over a shared `const` and the
+  `switch` are one graph.
+- The terminating block rules out the two mistakes `switch` is known for,
+  fallthrough and the shared declaration scope, by the same rule the guard
+  already has, rather than by a new one.
+- The grammar reads it in one symbol, as `const`, `if` and `let` are
+  decided, and the fold builds it from the guard's own `arm`: one more
+  frame, the discriminant's entry, and the `||` over a stacked group.
+
+#### Drawbacks
+
+- The form is narrow. A case written without braces, `case 'x': return
+  v;`, which the standard modules also use, is refused until its follow-up
+  lands; so is a `break` that continues with the statements after the
+  `switch`, and a `switch` at module level.
+- A `default` is required wherever a case block does not terminate on its
+  own — a nested `switch` without `default` as the last statement of a
+  block, as in `fjs/types/btree/find` — so a few standard modules change
+  before they compile. Each such site is a latent fallthrough in
+  JavaScript, so the change is a fix.
+- Two keywords, three grammar rules, and one frame in the fold.
+- Duplicate labels, `case 1: … case 1: …`, are not refused: JavaScript
+  admits them, the second is unreachable, and telling two labels apart in
+  general is analysis the compiler does not do. A proof may pin that the
+  first wins, as in JavaScript.
+
+### Approval
+
+A new language feature needs the formal, explicit approval of the language
+designer, `sergey-shandar`, distinct from the proposer, before it is
+implemented
+([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+Not yet approved.
+
+### Tasks
+
+- [ ] `switch` and `case` among the framing keywords; the three grammar
+  rules in `fjs/compiler/parser/grammar`, with the register's refusals
+  pinned in its proof
+- [ ] the fold in `fjs/compiler/parser`: the discriminant as an entry of
+  the body, each label entered in order, each block an arm as a guard's,
+  the chain closed from the last case back
+- [ ] `spec/control-flow/switch.md`, a `switch` program in the control-flow
+  demo module with its real output, and the same graph and hash asserted
+  against the hand-written chain of guards
+- [ ] the `st.switch` row deleted from [refused constructs](./refused-constructs.md),
+  and the `st.break-continue` row naming this record too
+- [ ] the standard modules whose `switch` the form refuses — a case block
+  that does not terminate, a case without braces — rewritten or waiting on
+  a follow-up, each named
+
+### Later
+
+- A case without braces, `case 'x': return v;` and `case 'x': throw w;`:
+  a block of one terminator, admitted where the block holds no `const`,
+  which is where JavaScript's switch scope cannot bite.
+- `break` as a case block's terminator: the arm is then the statements
+  after the `switch`, one shared graph with the alternate, and the
+  `switch` no longer needs a `default` to terminate the body.
+- A `switch` at the module level, the module being a function too, with
+  the guard's own module-level follow-up.
+- A `switch` whose every case is a `return` of an expression, as the one
+  spelling of a pure dispatch; and `match`/`when`
+  ([new-pl](../../todo/new-pl.md)), which the proposal there chose for
+  not conflicting with this statement.
+
+### Related
+
+- [refused constructs](./refused-constructs.md) — `st.switch`, the row
+  this record turns from open to planned
+- [bodies and guards](../control-flow/guards.md) — the guard whose block,
+  arms and scoping rules the case block takes
+- [let](./3220-let.md) — the loop, whose "Later" holds `break`
