@@ -1018,8 +1018,9 @@ export const constStatement = [sym('const'), bindingTarget, sym('='), value, end
  * What follows a case's label: another label, `case`, a value, `:` and
  * this rule again — so a case stacks any number of labels over its one
  * block, `case a: case b: { … }`, as in JavaScript — or the case's
- * {@link block}, the guard's own, so the case ends in `return` or `throw`
- * and never falls through into the next
+ * {@link block}, the guard's own, so the case ends as every block does,
+ * in `return`, `throw` or a switch with a `default`, and never falls
+ * through into the next
  * ([spec: switch](../../../../spec/control-flow/switch.md)), and then
  * what follows the case, {@link afterCase}. `case` and `{` decide the
  * two in one symbol. A case without braces, and `break`, are follow-ups.
@@ -1085,7 +1086,7 @@ export const terminator = /** @type {const} */ ({
 /**
  * A statement of a function's block body before its {@link terminator}: a
  * `const`, or a guard, `if (condition) block` — its block this same
- * {@link block}, so the branch always ends in `return` or `throw`, and the
+ * {@link block}, so the branch always ends in a terminator, and the
  * statements after the guard are what runs when the condition is falsy
  * ([spec: functions](../../../../spec/functions/README.md)). No {@link end}
  * follows the guard's `}`: a block statement takes no `;` in JavaScript,

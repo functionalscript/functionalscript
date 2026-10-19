@@ -19,8 +19,9 @@ export default node => {
   evaluated once, eagerly, where the statement stands, as JavaScript
   evaluates it before any label. A case is one or more labels, each `case`,
   any expression and `:`, and then a block — the guard's own: any number of
-  statements and then a `return` or a `throw`, so every case terminates
-  and none falls through into the next. The labels are evaluated where
+  statements and then the one statement every block ends with, a `return`,
+  a `throw`, or a switch with a `default`, whose every branch ends so in
+  turn — so every case terminates and none falls through into the next. The labels are evaluated where
   they stand, in source order, each only when every label before it did
   not match, as JavaScript evaluates them; a match is strict equality,
   `===`, as JavaScript's is, so `NaN` matches no label and an object

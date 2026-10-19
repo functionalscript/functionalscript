@@ -74,7 +74,8 @@ export type Node =
 /**
  * The block syntax: zero or more statements — `const` declarations and
  * guards, {@link BlockStatement} — followed by the one statement that ends
- * it, a `return` or a `throw` with its value. The grammar enforces this
+ * it, a `return` or a `throw` with its value, or a switch with a `default`,
+ * {@link BlockEnd}. The grammar enforces this
  * order; a bare `return`, a bare `throw` and a statement after the last are
  * unsupported.
  */
@@ -108,7 +109,7 @@ export type Switch = {
     readonly default: Block | null
 }
 
-/** A case of a switch: its labels, one or more values, each the `case` of a `case value:`, and its block, which ends in `return` or `throw` as every block does. */
+/** A case of a switch: its labels, one or more values, each the `case` of a `case value:`, and its block, which ends as every block does, {@link BlockEnd}. */
 export type Case = {
     readonly labels: readonly Node[]
     readonly block: Block
@@ -153,7 +154,7 @@ export type Assignment = Statement & {
 
 /**
  * A guard, `if (condition) block`: the token it begins with, its condition,
- * and its block, which ends in `return` or `throw` as every block does. It
+ * and its block, which ends as every block does, {@link BlockEnd}. It
  * records no `;`: a block statement ends at its `}`, and JavaScript inserts
  * no semicolon after one, so the statement after a guard may share its
  * line. The statements after the guard, up to and including the body's own
