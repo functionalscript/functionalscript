@@ -260,10 +260,12 @@ adds it to the native table, which a call step asks first.
 holds `runtime::<A>()`, this module's `runtime` export printed by the
 ordinary backend as any module is — a scope that evaluates, a closure
 with a frame for every function — answering the object with its `static`,
-`member` and `dot` sections. Every function a section names carries the
-NativeFunction text of its path in place of its body's, since a runtime
-function is the built-in, not its body, and `Object.entries` is the
-built-in itself, so every admitted static path holds a value. Nothing
+`member` and `dot` sections. Every function the `static` and `member`
+sections name carries the NativeFunction text of its path in place of its
+body's, since a runtime function is the built-in, not its body; `dot`,
+which no program reaches, keeps its body's as a helper does; and
+`Object.entries` is the built-in itself, so every admitted static path
+holds a value. Nothing
 reads it yet: it is the replacement built beside what it replaces
 ([DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)),
 for a compiled module to take as a parameter and reach every built-in
