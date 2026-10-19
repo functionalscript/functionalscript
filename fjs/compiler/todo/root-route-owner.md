@@ -30,13 +30,18 @@ root, a third statement of the same route.
 ### Proposal
 
 In `source`: `_jsonModule(value)`, the `{ default }` module both loads build;
-the empty walk context as a constant; and `_program(loader)(path)`, the route
-— a JSON root parsed, a module root walked with the `_Load` the `loader`
-effect yields, so the transpiler's runtime is loaded only when a module needs
-it. `resolve` is `mapStep(_program(pureOk(linking))(path), ({ exports }) =>
-exports)`; `interpret` is `_program(mapStep(load, interpreting))`;
-`interpretSource` and `interpretLoaded` go, and neither caller names
-`_parseJson` or the context.
+the empty walk context as a constant; and `_program(loader, finish)(path)`,
+the route — a JSON root parsed to the document, a module root walked with the
+`_Load` the `loader` effect yields and the walked module passed through
+`finish`. The two roots answer different shapes today and keep doing so: the
+linker's walk yields `{ exports, bindings }` and its callers want `exports`,
+so that projection is the linker's `finish`, applied on the module branch
+alone; the interpreter's `finish` is the identity. A JSON root is the
+document either way, and neither caller destructures it. `resolve` is
+`_program(pureOk(linking), ({ exports }) => exports)`; `interpret` is
+`_program(mapStep(load, interpreting), identity)`, which loads the runtime
+only when a module needs it; `interpretSource` and `interpretLoaded` go, and
+neither caller names `_parseJson` or the context.
 
 ### Tasks
 

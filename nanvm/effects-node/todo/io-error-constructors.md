@@ -1,4 +1,4 @@
-## `IoError` is built by two private helpers and three literals
+## `IoError` is built by private helpers and inline literals
 
 **Priority:** P5
 **Status:** open

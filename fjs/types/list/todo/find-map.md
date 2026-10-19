@@ -1,4 +1,4 @@
-## "First non-null answer" is folded four ways
+## "First non-null answer" is folded by hand at each site
 
 **Priority:** P4
 **Status:** open
@@ -25,11 +25,11 @@ find(null)(p => p !== null)(map(([k, x]) => walk([...path, k])(x))(children))
 
 `findMap = f => compose(filterMap(f))(first(null))` in `fjs/types/list`:
 `filterMap` drops the `null`s lazily, so it stops at the first answer. The
-four sites use it; `nix`'s indexed form is `findMap` over the indexed items.
+sites above use it; `nix`'s indexed form is `findMap` over the indexed items.
 
 ### Tasks
 
-- [ ] `findMap` with proof; the four sites import it.
+- [ ] `findMap` with proof; `nix`, `html`, `media` and `revision` import it.
 
 ### Related
 

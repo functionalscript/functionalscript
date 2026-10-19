@@ -10,7 +10,7 @@
 in `vm/impls/into_iterator.rs`. `IteratorRecord::Array { array, next }` in
 `vm/iterator_record.rs` and `ObjectSpread::Array` and `ObjectSpread::String`
 in `vm/object_spread.rs` keep their own `next: u32` and write the bounds
-check and the step again, three times, each with its own `size_hint` from
+check and the step again, once per variant, each with its own `size_hint` from
 `length().saturating_sub(*next)` — a hint `IndexIter` does not implement, so
 `Array::into_iter()` gives none where the hand copies do.
 

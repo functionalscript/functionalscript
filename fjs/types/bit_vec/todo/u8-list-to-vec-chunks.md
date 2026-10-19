@@ -36,7 +36,7 @@ const chunked = bytes => {
 
 [chunk-gathering](../../../git/oid/todo/chunk-gathering.md) shows the first
 one pays a whole chunk's walk however few bytes there are. A fix made there is
-a fix for one of two copies.
+a fix for one copy and not the other.
 
 ### Proposal
 

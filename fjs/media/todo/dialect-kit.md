@@ -29,7 +29,7 @@ definition of a match — `dialectEntry` goes, or `jsonDialect` builds its
 
 ### Tasks
 
-- [ ] The three dialect modules destructure the kit.
+- [ ] `note`, `lock` and `revision` destructure the kit.
 - [ ] One `DialectEntry` constructor.
 
 ### Related

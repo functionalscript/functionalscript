@@ -1,4 +1,4 @@
-## `Primitive` is narrowed out of `Unpacked` by hand in three places
+## `Primitive` is narrowed out of `Unpacked` by hand wherever it is needed
 
 **Priority:** P3
 **Status:** open
@@ -25,7 +25,7 @@ Primitive::Nullish(n) => Numeric::Number(NumberCoercion.nullish(n)?),
 Primitive::Boolean(b) => Numeric::Number(NumberCoercion.bool(b)?),
 ```
 
-A new primitive variant is three edits that must agree.
+A new primitive variant is one edit per copy, and the copies must agree.
 
 ### Proposal
 

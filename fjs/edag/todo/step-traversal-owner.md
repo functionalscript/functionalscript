@@ -1,4 +1,4 @@
-## The chain-step fold and map are written in five modules
+## The chain-step fold and map are written module by module
 
 **Priority:** P3
 **Status:** open
@@ -7,8 +7,9 @@
 
 A chain step is `[tag, x, next]`: `|.` carries a key, a call step carries an
 item list, and `next` is the rest. Folding its operands and mapping over it
-are the same recursion wherever they appear, and they appear in five modules.
-[`sharing`](../sharing/module.f.mjs) has the parameterized fold, private:
+are the same recursion wherever they appear, and at `4f44c5d8` they appear
+in five modules. [`sharing`](../sharing/module.f.mjs) has the parameterized
+fold, private:
 
 ```js
 const stepOperands = (key, args) => k => {
@@ -36,8 +37,8 @@ already has the shapes: `StepOver<E, I>`, `ItemsOver<E>`, `Over<T, E, I>`.
 In [`module.f.mjs`](../module.f.mjs), beside the schema that defines the
 shapes: `stepOperands(key, args)` moved out of `sharing`'s private scope, its
 map twin `mapSteps(key, items)`, and `mapItems(f)`. `analysis.stepOperands`
-and `ast.stepOperands` become one-line applications or go; the two maps
-become `mapSteps` calls; the four item maps become `mapItems`. `analysis.step`
+and `ast.stepOperands` become one-line applications or go; the maps become
+`mapSteps` calls; the item maps become `mapItems`. `analysis.step`
 threads a state and stays. If
 [bodies-from-analysis](../memo/todo/bodies-from-analysis.md) lands first,
 `memo`'s map is gone and `compiler/edag` is `mapSteps`'s one user — still

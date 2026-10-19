@@ -1,4 +1,4 @@
-## Three hosts spell the same guarded `fetch`
+## Every website host spells the same guarded `fetch`
 
 **Priority:** P3
 **Status:** open
@@ -24,8 +24,14 @@ response = await fetchRequest('https://github.com/login/oauth/access_token', { /
 ```
 
 The defaults are the security-relevant part — no credentials, no cache, a
-timeout — and they are stated three times, so they can drift per host, and
-three proofs cover the same boundary.
+timeout — and they are stated once per host, so they can drift per host, and
+each host's proof covers the same boundary.
+
+What differs per host is what it reads off the response besides the body:
+`prs-runtime.mjs` reads `Link` to decide whether a next page exists, and
+`retry-after`, `x-ratelimit-remaining` and `x-ratelimit-reset` to word a
+refusal; the other two read only the status. A shared boundary that hid the
+headers would stop pagination after the first page.
 
 ### Proposal
 
@@ -38,16 +44,20 @@ admittedFetch: (fetchRequest: typeof fetch) =>
     (url: string, init: RequestInit, read: Reader) => Promise<Result<Value, FetchRefusal>>
 ```
 
-with the fixed defaults, the JSON step and the rtti admission in one place,
-answering a tagged refusal — transport, status, not JSON, not the schema —
-that the caller maps to its own message; and `once(root, start)` for the
-`WeakMap` memo. The three hosts import it; the worker passes `redirect:
+with the fixed defaults, the JSON step and the rtti admission in one place.
+On success it answers the admitted value together with the response's
+headers; on failure a tagged refusal — transport, status, not JSON, not the
+schema — carrying the status and the same headers, which the caller maps to
+its own message or its retry note. And `once(start)`: the bind-once rule
+over a `WeakMap` of roots, one memo per initializer, so that the PR page,
+which runs `startGitHubLogin(root)` and then `startPrs(root, …)` on the same
+element, binds both. The hosts import it; the worker passes `redirect:
 'manual'` as its one override.
 
 ### Tasks
 
 - [ ] `fetch-runtime.mjs` with `admittedFetch` and `once`, and its proof.
-- [ ] The three hosts import it; their private `request`s and memos go.
+- [ ] The hosts import it; their private `request`s and memos go.
 
 ### Related
 

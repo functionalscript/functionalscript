@@ -11,8 +11,8 @@ the prefix test Git's binary formats are read with": `u32be`, `u64be`,
 spelled in the module that needed it first, then again in the next one.
 
 **A field ends at its first NUL.** Git hands several values on as C strings,
-and five private helpers cut at the NUL with the same two lines, each with its
-own paragraph explaining why: `typeOf` in [`tag`](../tag/module.f.mjs) and
+and a private helper in each reader cuts at the NUL with the same two lines,
+each with its own paragraph explaining why: `typeOf` in [`tag`](../tag/module.f.mjs) and
 `traitsOf` in [`ref`](../ref/module.f.mjs) over bytes, `read` in
 [`repo`](../repo/module.f.mjs) over bytes, `tryValue` in
 [`config`](../config/module.f.mjs) and `untilNul` in
@@ -74,7 +74,8 @@ A generic `lexicographic(cmpItem)` in `fjs/types/array` would serve `cmp` too;
 
 ### Tasks
 
-- [ ] `cString` and `untilNul` in `bytes`; the five sites import them.
+- [ ] `cString` and `untilNul` in `bytes`; `tag`, `ref`, `repo`, `config` and
+      `alternates` import them.
 - [ ] `cmp` in `bytes`; `tree` and `ref` import it.
 - [ ] `oidAt` in `bytes`; `packidx`, `pack` and `packstore` import it.
 

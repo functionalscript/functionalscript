@@ -1,4 +1,4 @@
-## Three explicit-stack walkers share one driver loop
+## The explicit-stack walkers share one driver loop
 
 **Priority:** P3
 **Status:** open

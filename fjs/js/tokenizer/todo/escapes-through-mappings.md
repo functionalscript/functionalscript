@@ -28,7 +28,7 @@ case 'unicode': {
 }
 ```
 
-so `\uXXXX` is decoded three times, and
+so `\uXXXX` is decoded once per reader, and
 [`fjs/compiler/tokenizer`](../../../compiler/tokenizer/module.f.mjs)'s
 `templateSourceAccepted` scans template text a fourth time. The scanner's
 totality is argued from the grammar it duplicates — "the grammar's `string`

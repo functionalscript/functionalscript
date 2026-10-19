@@ -9,7 +9,7 @@
 demo", but its `pointermove` handler does arithmetic the demo owns: it reads
 `data-demo-x-min`, `-max`, `-left` and `-right` off the SVG, maps the
 pointer's x through the affine map, clamps to the input's `min`/`max`, rounds
-with `toFixed(3)`, and only then sends the `input` event. The four attribute
+with `toFixed(3)`, and only then sends the `input` event. The attribute
 names and the mapping are a contract between one producer — `realGraph` in
 [`fjs/crypto/secp/demo.f.mjs`](../../../crypto/secp/demo.f.mjs) — and the
 runtime, named on neither side and proven nowhere.

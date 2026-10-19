@@ -1,4 +1,4 @@
-## The temp-directory guard is written twice and skipped four times
+## The temp-directory guard is copied, and skipped where it is not
 
 **Priority:** P4
 **Status:** open
@@ -10,7 +10,7 @@ Scratch(PathBuf)` with a `Drop` that removes the directory, differing only in
 the name prefix. The four `*_through_perform` tests in `native.rs` build a
 temp directory by hand and end with `remove_dir_all(&dir).unwrap()`, which a
 failed assertion skips, so a red run leaves its directory behind. `native.rs`
-also redefines a `member` closure three times and `members` once, where
+also redefines a `member` closure in several tests and `members` once, where
 `codec::member` is `pub` in the same crate.
 
 ### Proposal
@@ -21,8 +21,7 @@ One `#[cfg(test)] pub(crate) mod scratch` with the guard, used by `files.rs`,
 
 ### Tasks
 
-- [ ] The `scratch` module; the two copies and the four hand-built
-      directories go.
+- [ ] The `scratch` module; the copies and the hand-built directories go.
 - [ ] `native.rs` through `codec::member`.
 
 ### Related

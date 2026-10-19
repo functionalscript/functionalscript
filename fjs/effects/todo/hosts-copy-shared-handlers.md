@@ -8,7 +8,7 @@
 [`common/module.mjs`](../common/module.mjs) is "host implementations of the
 operations more than one host implements", kept there so that "the second
 host [does not write] a second copy"; [`module.mjs`](../module.mjs)'s `io` is
-"shared by the Node host and the SpiderMonkey host". Three hosts still carry
+"shared by the Node host and the SpiderMonkey host". The hosts still carry
 copies of what those two own.
 
 **`all`.** `All` is declared in `common/types.ts`, but its handler is not in
@@ -59,7 +59,7 @@ does not mention.
 
 - [ ] `commonOperationMapFor`; both hosts spread it and drop their `all`.
 - [ ] The browser `import` through `io`; one phrase for the unreadable value,
-      pinned on all three hosts' reports.
+      pinned on every host's report.
 - [ ] `maxFileSizeBytes` and the windowing shared; `fileStat` in the Node host.
 
 ### Related

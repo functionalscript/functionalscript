@@ -30,7 +30,7 @@ hold "its body's nodes as the graph has them".
 `identityAnalysis` answers the original node per index alongside the table —
 `exps: readonly ExpOp[]`, one line next to `sharedByIdentity`, typed as the
 identity analysis's own field. `evaluate` reads
-`expression: v => isArray(v) ? a.exps[v[1]] : v`, and the four restorers and
+`expression: v => isArray(v) ? a.exps[v[1]] : v`, and the restorers and
 the per-call `reduce` go. The body a function value carries is then the
 graph's node, not its copy.
 

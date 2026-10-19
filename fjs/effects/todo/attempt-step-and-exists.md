@@ -21,10 +21,10 @@ resultStep(catch_(f), r => pureOk(r[0] === 'ok' ? r[1] : error(r[1])))     // em
 
 The last one is the identity on its `Result`, written out. `resultMapStep(e,
 ok)` is the shortest spelling and the one that explains the rest; a reader
-meets four spellings and checks each for a difference that is not there.
+meets a spelling per site and checks each for a difference that is not there.
 
-One instance of the shape has a policy of its own and is decided three times,
-with three answers. "Is `path` there" is `access` read as a value: `ENOENT` is
+One instance of the shape has a policy of its own and is decided at every
+site, with differing answers. "Is `path` there" is `access` read as a value: `ENOENT` is
 the answer `false`, any other failure is the failure it is. `foundAt` plus
 `isNotFound` in [`fjs/website`](../../website/module.f.mjs) and `list` in
 [`fjs/cas`](../../cas/module.f.mjs) say so. `ci` in
@@ -43,8 +43,8 @@ export const attemptStep: <O, T, E>(e: Effect<O, T, E>) => Effect<O, Result<T, E
     = e => resultMapStep(e, ok)
 ```
 
-documented in the README's table as the "both branches, as a value" form; the
-five sites use it. In [`node/module.f.mjs`](../node/module.f.mjs):
+documented in the README's table as the "both branches, as a value" form;
+the sites above use it. In [`node/module.f.mjs`](../node/module.f.mjs):
 
 ```ts
 export const exists: (path: string) => Effect<Access, boolean, IoChannel>
@@ -56,7 +56,8 @@ and `ci` stops swallowing what is not a missing file.
 
 ### Tasks
 
-- [ ] `attemptStep` with its proof and README row; the five sites import it.
+- [ ] `attemptStep` with its proof and README row; `website`,
+      `emergent_testing` and its browser runner import it.
 - [ ] `exists` with its proof; `website`, `cas` and `ci` import it.
 - [ ] A `ci` proof for an `access` failure that is not `ENOENT`.
 
