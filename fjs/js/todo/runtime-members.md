@@ -21,17 +21,19 @@ same dispatch is written twice more, in the represented interpreter's
 
 ### Proposal
 
-The runtime defines one function per member name, taking any receiver, and
-the function dispatches on its receiver itself:
+The runtime module defines one function per member name, taking any
+receiver, and the function dispatches on its receiver itself; the table is
+the module's `member` export, which `dot` reads, and the runtime value is
+its two functions, `static` and `dot`:
 
 ```js
-export const runtime = {
-    member: {
-        map: self => self instanceof Array
-            ? f => /* the array's map */
-            : undefined,
-    },
+export const member = {
+    map: self => self instanceof Array
+        ? f => /* the array's map */
+        : undefined,
 }
+
+export const runtime = { static: id => entry(statics, id), dot }
 ```
 
 - The `member` table is keyed by name alone, and a body is a function
