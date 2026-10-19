@@ -255,8 +255,12 @@ export const proof = {
     // the native static `Object.entries` is listed as itself — so the module
     // can be evaluated with no runtime, and NaNVM can hold it as a value
     // whose bodies never name it (`../todo/runtime-value.md`). The
-    // intrinsic is there, as a node, where the member call was.
+    // intrinsic is there, as a node, where the member call was. An
+    // absence is a finding only of a detector that sees: each is shown a
+    // node it is for, first.
     core: () => {
+        assertEq(steps([['|()', ['=>', 0, [], 1], []]]).join(), '|()')
+        assertEq(statics([['Object.is']]).join(), 'Object.is')
         assertEq(steps(edag).join(), '')
         assertEq(statics(edag).join(), '')
         assertEq(JSON.stringify(edag).includes('["slice"]'), true)
