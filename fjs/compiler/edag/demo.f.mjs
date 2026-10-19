@@ -389,7 +389,11 @@ const drawn = module => {
 
 /**
  * `text` as the EDAG its module lowers to, or the parser's own error if it
- * does not compile.
+ * does not compile. An operand drawn beside a value names the node it
+ * leads to, its key in the values' key column, so a node's operands line
+ * up whether they are constants or nodes. A shared node is still drawn
+ * once: its label in the rows of the edges into it reads as a reference to
+ * the one box the edges reach.
  *
  * @type {(text: string) => Result<Graph, string>}
  */
