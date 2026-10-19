@@ -37,7 +37,7 @@ import {
     circuitTail, conditionalTail, constStatement, djsModule, eagerTail, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren,
-    parenGroup, parenGroupOperand, parenthesized, primitive, statement, template, terminator, unary, unaryOperand,
+    parenGroup, parenGroupOperand, parenthesized, primitive, statement, afterCase, caseTail, template, terminator, unary, unaryOperand,
     value, values,
 } from './module.f.mjs'
 import { eagerLayers } from '../../ast/module.f.mjs'
@@ -80,6 +80,8 @@ export const diagrams = [
     ['block', block],
     ['statement', statement],
     ['terminator', terminator],
+    ['caseTail', caseTail],
+    ['afterCase', afterCase],
     ['paren', paren],
     ['parenthesized', parenthesized],
     ['func', func],

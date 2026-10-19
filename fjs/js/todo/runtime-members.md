@@ -182,7 +182,9 @@ export const runtime = {
       `value/method` going (`left`, the names the natives lack, stays as
       what the guard asks without running a native); the printer accepting
       the `dot` section and leaving it out, named, until it compiles it.
-- [ ] The printer compiling `dot`: an object literal of functions read
+- [ ] The printer compiling `dot` — superseded by
+      [`runtime-value.md`](./runtime-value.md), which prints it as any
+      function of a module the backend evaluates: an object literal of functions read
       through `entry` by a key as a `match` on the name, `instanceof` and
       `typeof` tests as `Unpacked` matches; `Member::call` over the
       compiled `dot`, the native scan, `runtime_method` and the two-step
@@ -204,6 +206,8 @@ export const runtime = {
 
 - [`runtime.md`](./runtime.md) — the bodies written once, which this
   extends to the dispatch.
+- [`runtime-value.md`](./runtime-value.md) — the runtime as a value the
+  module receives, which compiles `dot` as an ordinary function.
 - [`runtime-static.md`](./runtime-static.md) — the static runtime the
   bodies compile into.
 - [`../../../nanvm/lib/todo/static-runtime-calls.md`](../../../nanvm/lib/todo/static-runtime-calls.md)

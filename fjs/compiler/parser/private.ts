@@ -10,10 +10,10 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstStatic, AstSelf, BinaryTag, UnaryTag } from '../ast/types.ts'
+import type { AstCall, AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstStatic, AstSelf, BinaryTag, UnaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item, Key, Let, LoopBlock, Node, While } from './syntax/types.ts'
+import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item, Key, Let, LoopBlock, Node, Switch, While } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
@@ -363,6 +363,30 @@ export type _GuardFrame = {
 }
 
 /**
+ * A switch whose cases are being evaluated, in order, each label in the
+ * scope of the block the switch stands in and each block the body of a
+ * parameterless function called where it stands, as a guard's arms are:
+ * `switch` is the statement, `body` the block body's frame at the switch
+ * with the discriminant made its next entry, which `discriminant` reads;
+ * the case at `index` is under way — its label at `label` being
+ * evaluated, or its block once `label` has passed its labels, and
+ * `condition` the `||` of the tests of the labels resolved so far, `null`
+ * before the first; and `arms` holds the cases closed, newest first, each
+ * its condition and the call of its block's function. Past the last case
+ * the tail is under way, the `default` block or the statements after the
+ * switch, an arm as the others are.
+ */
+export type _SwitchFrame = {
+    readonly switch: Switch
+    readonly body: _BodyFrame
+    readonly discriminant: AstConst
+    readonly index: number
+    readonly label: number
+    readonly condition: AstConst | null
+    readonly arms: List<readonly [AstConst, AstCall]>
+}
+
+/**
  * A unary operator whose operand is being evaluated: its tag, which is all
  * the node adds to the operand's value. A conversion, `Number(x)` or
  * `String(x)`, is entered from a call rather than from a prefix, and
@@ -407,6 +431,7 @@ export type _Frame =
     | _LateFrame
     | _BodyFrame
     | _GuardFrame
+    | _SwitchFrame
     | _LetFrame
     | _LoopFrame
     | _LoopCallFrame
