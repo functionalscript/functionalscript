@@ -90,7 +90,7 @@ output; the others say under *Examples* that theirs are still to come
 | Containers | Dense arrays, object literals, shorthand members, constant and computed keys, trailing commas, array/call spread and object spread |
 | Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
-| Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `let`/`while` loops over one variable, `return`, `throw`, ordinary and method calls |
+| Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `let`/`while` loops over one variable, the terminating `switch`, `return`, `throw`, ordinary and method calls |
 | Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](./built-ins/member-functions.md)); `Object.is`, `Object.entries` and the `Number` predicates `isInteger`, `isSafeInteger`, `isNaN`, `isFinite` ([static functions](./built-ins/static-functions.md)) |
 | Compiler | JSON/DataJS evaluation; FunctionalScript, EDAG and Rust graph output; import linking and the authored `.f.js` check |
 
