@@ -48,8 +48,19 @@ DataJS parser imports from it. The layer that moves is the whole of it —
 and the tokenizer each import the grammar's reader of its own strings and
 none imports another reader. That is the one owner
 [parser-meta-accessors](../../../media/todo/parser-meta-accessors.md) is
-already giving the tagged-symbol accessors, and this lands on it. `lib/js`
-adds one mapping for
+already giving the tagged-symbol accessors, and this lands on it. The layer
+is written over an alphabet, and the two grammars run over different ones:
+the JSON grammar over UTF-16 units, so `characterMapping` is a
+`Mapping<Utf16, Text>` that reads a plain symbol with
+`fromCharCode(unitAt(…))`, and `lib/js` over code points, which the
+tokenizer's proofs pin for a character outside the BMP. Reused as it
+stands, the mapping would read U+1F600 as U+F600. So the moved layer takes
+its character reader as a parameter — `unitAt` with `fromCharCode` for the
+JSON grammar, the code point with `fromCodePoint` for `lib/js` — and each
+grammar's `character` mapping is that one instantiation; the escape
+mappings compute from hex digits and `\u{…}` answers a code point, so the
+text a string's characters join to is built by code point on the
+tokenizer's side. `lib/js` adds one mapping for
 `singleQuoteEscape` and one for `templateEscape` — `\x`, `\u{…}`, line
 continuation, `\0`, with the `valid` flag as the mapping's result.
 `toJsToken` reads the cooked value and the `source` provenance off the node.
@@ -62,8 +73,9 @@ then become one grammar branch plus one mapping arm each.
 ### Tasks
 
 - [ ] The text-tag layer — `tagged`, the `Text` tag, `textAt` and the string
-      mappings — in `lib/json` or beside it, on parser-meta-accessors'
-      owner; `json/parser` and `datajs/parser` import it.
+      mappings, over a character reader given — in `lib/json` or beside it,
+      on parser-meta-accessors' owner; `json/parser` and `datajs/parser`
+      import it over UTF-16 units, `lib/js` over code points.
 - [ ] Mappings for `singleQuoteEscape` and `templateEscape` in `lib/js`.
 - [ ] `toJsToken` over the mapped nodes; the scanners and their state types
       go.
