@@ -2,7 +2,9 @@
 
 **Priority:** P4
 **Status:** open — the optimizations the static runtime left for a
-measurement, from its design review
+measurement, from its design review; superseded by
+[`fjs/js/todo/runtime-value.md`](../../../fjs/js/todo/runtime-value.md),
+under which the runtime module prints the direct call only
 
 ### Problem
 
