@@ -1,7 +1,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, isStatic, statics as staticPaths } from '../static/module.f.js'
-import { isStatic as isStaticNode, staticPath } from '../../edag/module.f.mjs'
+import { isStatic as isStaticNode } from '../../edag/module.f.mjs'
 import { runtime } from './module.f.js'
 import edag from './gen.edag.data.mjs'
 
@@ -28,10 +28,13 @@ const steps = node => node instanceof Array
     ? [...(['|()', '|?.()', '|!()', '|.', '?.', '?.()'].includes(/** @type {string} */ (node[0])) ? [node[0]] : []), ...node.flatMap(steps)]
     : []
 
-/** The static-function nodes a node holds, anywhere in it, but the natives, which the runtime lists as themselves. @type {(node: unknown) => readonly unknown[]} */
+/** The static-function nodes a node holds, anywhere in it. @type {(node: unknown) => readonly unknown[]} */
 const statics = node => node instanceof Array
-    ? [...(isStaticNode(node) && !isNative(staticPath(node[0])) ? [node[0]] : []), ...node.flatMap(statics)]
+    ? [...(isStaticNode(node) ? [node[0]] : []), ...node.flatMap(statics)]
     : []
+
+/** The node an object node holds under a key. @type {(node: unknown, key: string) => unknown} */
+const at = (node, key) => Object.fromEntries(/** @type {readonly (readonly [string, string, unknown])[]} */ (/** @type {readonly any[]} */ (node)[1]).map(([, k, v]) => [k, v]))[key]
 
 /**
  * Every type, with the values the static functions part on: the zeros and
@@ -251,10 +254,11 @@ export const proof = {
     // core: no body and no initializer holds a member call, an optional
     // chain or a static function the runtime defines — a native is reached
     // through an intrinsic, `slice` in `found` and `charCodeAt` in
-    // `codePointAt`, called as a function, and
-    // the native static `Object.entries` is listed as itself — so the module
-    // can be evaluated with no runtime, and NaNVM can hold it as a value
-    // whose bodies never name it (`../runtime/README.md`, "How NaNVM finds
+    // `codePointAt`, called as a function, and the native static
+    // `Object.entries` is the built-in itself at its own table entry, the
+    // one static node anywhere, so no body reads it — so the module can be
+    // evaluated with no runtime, and NaNVM can hold it as a value whose
+    // bodies never name it (`../runtime/README.md`, "How NaNVM finds
     // it"). The intrinsic is there, as a node, where the member call was.
     // An absence is a finding only of a detector that sees: each is shown
     // a node it is for, first.
@@ -262,10 +266,13 @@ export const proof = {
         assertEq(steps([['|()', ['=>', 0, [], 1], []]]).join(), '|()')
         assertEq(statics([['Object.is']]).join(), 'Object.is')
         assertEq(steps(edag).join(), '')
-        assertEq(statics(edag).join(), '')
+        const natives = staticPaths.filter(isNative)
+        assertEq(statics(edag).join(), natives.map(path => path.join('.')).join())
+        for (const path of natives) {
+            assertEq(JSON.stringify(path.reduce(at, at(at(edag, 'runtime'), 'static'))), JSON.stringify([path.join('.')]))
+        }
         assertEq(JSON.stringify(edag).includes('["slice"]'), true)
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
-        assertEq(JSON.stringify(edag).includes('["Object.entries"]'), true)
     },
     throw: {
         // The detached call `host` makes is a real one: a built-in that
