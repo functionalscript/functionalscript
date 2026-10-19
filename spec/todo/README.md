@@ -93,6 +93,9 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 10. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
    by design; open for designer approval
    (its file says P3, not this list's P2).
+11. [ ] [`entry` and `hasEntry`](./2345-has-entry.md) — the value and the
+    presence as two helpers, replacing the option; approved, implementation
+    open.
 
 ### 2.3. Syntactic Sugar
 
