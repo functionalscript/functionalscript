@@ -25,7 +25,7 @@
 import { arrayIndex } from '../../../js/array_index/module.f.js'
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
-import { isStatic, noStatic, staticPath } from '../../module.f.mjs'
+import { intrinsicLength, isIntrinsic, isStatic, noStatic, staticPath } from '../../module.f.mjs'
 import { isFunction } from '../semantics/module.f.mjs'
 
 /**
@@ -96,6 +96,8 @@ export const read = (receiver, key, runtime) => {
     if (typeof value === 'string') { return indexed(value, key) }
     if (!isArray(value)) { return ok(['undefined']) }
     if (isStatic(value)) { return key === 'length' ? staticLength(value, runtime) : ok(['undefined']) }
+    // an intrinsic owns the `length` every function does, its helper's
+    if (isIntrinsic(value)) { return ok(key === 'length' ? intrinsicLength(value[0]) : ['undefined']) }
     switch (value[0]) {
         case '[]': { return indexed(value[1], key) }
         case '{}': { return field(value, key) }

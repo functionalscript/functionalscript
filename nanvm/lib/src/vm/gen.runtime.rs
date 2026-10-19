@@ -117,9 +117,8 @@ fn f1_code<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
     let c2: Any<A> = Any::dot(args.argument(0), string_any("length")).end()?;
     let c3: Any<A> = (Any::gt(c1.clone(), c2))?;
     let c4 = || {
-        let c5 = || Ok([args.argument(2), c1.clone()].to_array().to_any());
-        let c6: Any<A> = Any::dot(args.argument(0), string_any("slice")).end_call(c5)?;
-        strict_eq(c6, args.argument(1))
+        let c5: Any<A> = Any::call(A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any(), [args.argument(0), args.argument(2), c1.clone()].to_array().to_any())?;
+        strict_eq(c5, args.argument(1))
     };
     Any::conditional(c3, || Ok(false.to_any()), c4)
 }

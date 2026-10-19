@@ -50,6 +50,7 @@ export const proof = {
         const helper = /** @type {const} */ (['entry'])
         assertEq(stringify(['[]', [helper, helper]]), `const $0=${text};const $4=[$0,$0];export default $4;`)
         assertEq(stringify(['hasEntry']), 'const $0=($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable===true;};export default $0;')
+        assertEq(stringify(['slice']), 'const $0=($1,$2,$3)=>$1.slice($2,$3);export default $0;')
     },
     // A static function is the built-in, not its body, so there is none
     // to write: the module reads the host's own, one function however

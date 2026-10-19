@@ -276,6 +276,8 @@ export const proof = {
         // the `entry` helper mints a function, as `=>` does: two are two
         assertEq(nodesOf(['[]', [['entry'], ['entry']]]).length, 3)
         assertEq(nodesOf(['[]', [['hasEntry'], ['hasEntry']]]).length, 3)
+        // and so does an intrinsic's helper
+        assertEq(nodesOf(['[]', [['slice'], ['slice']]]).length, 3)
     },
     // Inputs are the same by `Object.is`: `0` and `-0` are different inputs,
     // so `1 / 0` and `1 / -0` stay two entries, `Infinity` and `-Infinity`;

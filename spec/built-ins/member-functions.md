@@ -25,6 +25,17 @@ locale-sensitive operations, regular-expression methods and namespace APIs
 such as `Array.isArray` remain outside this set. The complete name-by-name
 admission rationale is in [prototype names](../../fjs/js/prototype/README.md).
 
+A member function no body can define — `slice` on a string, the substring
+read — is an **intrinsic**: every executor binds it natively, and a module
+may call it as a function through a helper whose body is the one member
+call, `(s, a, b) => s.slice(a, b)`, which the compiler recognizes whole as
+it recognizes `entry` ([entries](../property-access/entries.md)), under any
+names. The call means exactly what the member call means with no runtime:
+the receiver's own property, else the native, else the `TypeError`. The
+runtime's own bodies reach a native this way, so the runtime names nothing
+it defines ([`fjs/js/intrinsic`](../../fjs/js/intrinsic/module.f.js);
+[runtime-value](../../fjs/js/todo/runtime-value.md)).
+
 Native execution has these limits:
 
 - Number and bigint `toString` accept radices 2–36. Bigints and integral

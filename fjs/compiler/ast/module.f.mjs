@@ -9,7 +9,7 @@
  */
 
 import { concat, empty, flat, map, toArray } from '../../types/list/module.f.mjs'
-import { isStatic, lazyOp2Id } from '../../edag/module.f.mjs'
+import { isIntrinsic, isStatic, lazyOp2Id } from '../../edag/module.f.mjs'
 
 /**
  * Every binary operator's tag, {@link BinaryTag} at run time — pinned to it
@@ -289,7 +289,7 @@ const refsOfOperand = lazy => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
     // a static function names nothing, as the `entry` helper below: a
     // function of its parameters alone
-    if (isStatic(ast)) { return empty }
+    if (isStatic(ast) || isIntrinsic(ast)) { return empty }
     switch (ast[0]) {
         // a spread's operand is reached where the spread stands
         case 'array': { return flat(ast[1].map(itemOperand).map(refsOf(lazy))) }

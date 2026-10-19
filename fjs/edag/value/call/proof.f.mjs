@@ -151,6 +151,8 @@ export const proof = {
         // it finds
         assertStructurallySame(prepare(ok(['entry']), [() => ok(data)]), ['call', ['entry'], [data, ['undefined']], ['[]', []]])
         assertStructurallySame(prepare(ok(['hasEntry']), [() => ok(data)]), ['call', ['hasEntry'], [data, ['undefined']], ['[]', []]])
+        // an intrinsic takes its helper's `length`, three for `slice`
+        assertStructurallySame(prepare(ok(['slice']), [() => ok(data)]), ['call', ['slice'], [data, ['undefined'], ['undefined']], ['[]', []]])
         assertStructurallySame(prepare(ok(['Object.entries']), [() => ok(data), () => ok(record)]), ['call', ['Object.entries'], [], ['[]', [data, record]]])
         assertStructurallySame(prepare(ok(['Object.is']), [() => ok(data)]), ['call', ['Object.is'], [], ['[]', [data]]])
     },

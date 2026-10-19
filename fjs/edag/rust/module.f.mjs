@@ -51,7 +51,7 @@
 import { builtInIdentifier, f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { isStatic } from '../module.f.mjs'
+import { intrinsicLength, isIntrinsic, isStatic } from '../module.f.mjs'
 import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, visit } from '../sharing/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
@@ -312,6 +312,9 @@ const stringCall = name => v => {
  */
 const argRead = k => cat(['args.argument(', num(`${k}`), ')'])
 
+/** `0` to `n - 1`, in order. @type {(n: number) => readonly number[]} */
+const indices = n => n <= 0 ? [] : [...indices(n - 1), n - 1]
+
 /**
  * Slot `i` of the frame the function was built with, read through the
  * closure's `self_` parameter, {@link closure}: the `Array<A>`
@@ -511,7 +514,7 @@ const hasSpread = items => items.some(x => x instanceof Array && x[0] === '...')
  *
  * @type {(e: Exp) => boolean}
  */
-const isOperation = e => e instanceof Array && !isStatic(e)
+const isOperation = e => e instanceof Array && !isStatic(e) && !isIntrinsic(e)
     && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', 'entry', 'hasEntry', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
         || (e[0] === '[]' && hasSpread(/** @type {readonly unknown[]} */ (e[1]))))
 
@@ -895,6 +898,16 @@ const printer = (nested, arg = argRead, frame = frameRead, base = 0, self_ = sel
         // `Any::has_entry`, its `bool` made an `Any`.
         if (id === 'hasEntry') {
             return ok(cat(['A::static_function(|_self, args| Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|b| b', toAny, '), ', num('2'), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
+        }
+        // An intrinsic as a value, `['slice']`: the same closure, of the
+        // helper's `length`, answering the member call of the name on its
+        // first argument with the rest — the library's call step, the
+        // receiver's own property else the native, which asks the runtime
+        // nothing for a name no body defines (`fjs/js/todo/runtime-value.md`).
+        if (isIntrinsic(e)) {
+            const length = intrinsicLength(e[0])
+            const arguments_ = indices(length - 1).map(k => argRead(k + 1))
+            return ok(cat(['A::static_function(|_self, args| Any::dot(', argRead(0), ', ', stringCall('string_any')(e[0]), ').end_call(|| Ok([', ...arguments_.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, ')), ', num(`${length}`), ', ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
         }
         // Slot `i` of the frame the function was built with, `frame`:
         // {@link frameRead} unless the scope is a loop in place's round.
@@ -1343,6 +1356,16 @@ export const expExpr = shared => e => mapOk(untagged)(expExprTagged(shared)(e))
 export const expExprTagged = shared => e => mapOk((/** @type {Printed<string>} */ [text]) => text)(okThen(p => p.f(e))(printer(true)(shared)(e)))
 
 /**
+ * A node nothing shares, as a value, tagged, with the `nanvm_lib` names it
+ * spells: what a frame slot holding a helper — `entry`, `hasEntry`, an
+ * intrinsic — prints as in the static runtime (`fjs/compiler/rust/runtime`),
+ * where {@link atomExpr} prints a literal.
+ *
+ * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
+ */
+export const helperExpr = e => okThen(p => p.f(e))(printer(true)([])(e))
+
+/**
  * `true` for the operands of `() => undefined`: no slots and the
  * `undefined` node — the corpus helper's function shape.
  *
@@ -1486,7 +1509,7 @@ const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : o
  * @type {(root: Exp) => boolean}
  */
 export const holdsFunction = root => visit(withBodies)([])(root)
-    .some(([node]) => tagOf(node) === '=>' || tagOf(node) === 'entry' || tagOf(node) === 'hasEntry')
+    .some(([node]) => tagOf(node) === '=>' || tagOf(node) === 'entry' || tagOf(node) === 'hasEntry' || isIntrinsic(node))
 
 /** A position left out. @type {(x: unknown) => readonly unknown[]} */
 const none = () => []

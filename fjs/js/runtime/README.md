@@ -44,7 +44,11 @@ Two kinds, and both are each VM's to bind natively:
   what no body can do otherwise, which [`../static`](../static/module.f.js)
   lists as `natives`; `length` is a property each value owns and is on no
   list, and an array element is read by a runtime number index, which the
-  language has;
+  language has. A member primitive a body needs is an **intrinsic**
+  ([`../intrinsic`](../intrinsic/module.f.js)): a function the body calls,
+  `slice(self, start, end)` in `found`, whose own body is the one member
+  call and which the compiler recognizes whole as a node every executor
+  answers natively, so no body of this module makes a member call;
 - the names whose body **waits on a primitive the language has not
   admitted** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, `String.fromCharCode`, over which the Unicode case tables are
@@ -268,17 +272,25 @@ cycle:
   runtime as an input, as the executors do, and folds nothing a body
   answers when given none, so the runtime is always compiled with no
   runtime, whatever the pass does elsewhere.
-- **No initializer in the runtime's closure calls a member function or
-  reads a static function.** The module builds closures and nothing else,
-  and so does every module it imports, transitively — a helper shared with
-  the rest of `fjs/` must hold this too, or be inlined — so the runtime can
-  be interpreted from nothing. Loading it from source relies on exactly
-  that: `runtimeAt` interprets it under `noRuntime`, so a member call or a
-  static read in any initializer of the closure fails the load rather than
-  passing unnoticed. NaNVM holds it as a stronger rule: the static-runtime
-  printer lifts the module at compile time, so its scope holds functions
-  and literals, and an initializer that computes anything cannot be lifted
-  and is refused.
+- **Nothing in the runtime calls a member function or reads a static
+  function: no initializer, and no body.** The module builds closures and
+  nothing else, and so does every module it imports, transitively — a
+  helper shared with the rest of `fjs/` must hold this too, or be inlined —
+  so the runtime can be interpreted from nothing. Loading it from source
+  relies on exactly that: `runtimeAt` interprets it under `noRuntime`, so a
+  member call or a static read in any initializer of the closure fails the
+  load rather than passing unnoticed. A body reaches a native through an
+  intrinsic, `slice` in `found`, called as a function
+  ([`../intrinsic`](../intrinsic/module.f.js)), and another body by
+  reading it as a value, never by its name: the core may not use what it
+  defines, and the whole module is the core, which the proof checks on the
+  compiled EDAG — no chain step and no static node anywhere in it. This is
+  what lets a VM hold the runtime as a value its bodies never name
+  ([`../todo/runtime-value.md`](../todo/runtime-value.md)). NaNVM holds
+  the initializer rule as a stronger one still: the static-runtime printer
+  lifts the module at compile time, so its scope holds functions, literals
+  and the helpers, and an initializer that computes anything cannot be
+  lifted and is refused.
 
 ## Giving a name its body
 
