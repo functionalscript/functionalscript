@@ -56,14 +56,17 @@ export const runtime = {
 
   ```js
   export const dot = (self, key) => {
-      const f = entry(self, key)
-      return f.length === 1 ? f[0] : entry(member, key)[0]?.(self)
+      if (hasEntry(self, key)) { return entry(self, key) }
+      const body = entry(member, key)
+      return body === undefined ? undefined : body(self)
   }
   ```
 
-  `entry` is the language's own-property read, answering `[value]` or
-  `[]` ([`../../types/object/entry`](../../types/object/entry/module.f.js)),
-  so an own property wins whatever it holds, as it does in JavaScript —
+  `entry` is the language's own-property read, the value or `undefined`,
+  and `hasEntry` the presence beside it
+  ([`../../types/object/entry`](../../types/object/entry/module.f.js),
+  [has-entry](../../../spec/todo/2345-has-entry.md)), so an own property
+  wins whatever it holds, as it does in JavaScript —
   `{ toString: f }` calls `f`, `{ x: undefined }.x()` throws, `[1][0]()`
   throws for the element — and a receiver that owns nothing enumerable
   under the key, every array, string, number, boolean, bigint and
