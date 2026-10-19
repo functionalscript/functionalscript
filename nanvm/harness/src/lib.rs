@@ -102,10 +102,10 @@ impl<A: IVm> PartialEq for RunError<A> {
 /// and renders that one value as JSON. Nothing else in the export object is
 /// called or serialized.
 ///
-/// `module` is exactly the shape `mvp-roadmap.md`'s Rust code generator
-/// section says generated modules expose: `pub fn module<A: IVm>() ->
-/// Result<Any<A>, Any<A>>`, returning the object of all exports, or the
-/// value the module threw. Any other result is a generator bug, not an
+/// `module` is the shape generated modules expose, [`Module<A>`]:
+/// `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>`,
+/// taking the runtime value and returning the object of all exports, or
+/// the value the module threw. Any other result is a generator bug, not an
 /// input, and panics. A module holding a function bounds `A` on
 /// `IStaticFunction`, which `naive` implements.
 ///
