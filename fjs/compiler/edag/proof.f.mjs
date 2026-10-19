@@ -511,28 +511,28 @@ export const proof = {
     // holding it; called as any function is, and read as one — and the
     // graph runs, the executors answering the call themselves.
     entry: () => {
-        const helper = 'const entry = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };'
+        const helper = 'const entry = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [x.value] : []; };'
         expectEdag(compile(`${helper} export default entry;`).edag, ['entry'])
         const shared = compile(`${helper} export default [entry, entry];`).edag
         expectEdag(shared, ['[]', [['entry'], ['entry']]])
         assert(shared instanceof Array && shared[0] === '[]' && shared[1][0] === shared[1][1], shared)
-        const two = compile('export default [(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }, (c, d) => { const e = Object.getOwnPropertyDescriptor(c, d); return e?.enumerable ? e.value : undefined; }];').edag
+        const two = compile('export default [(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [x.value] : []; }, (c, d) => { const e = Object.getOwnPropertyDescriptor(c, d); return e?.enumerable ? [e.value] : []; }];').edag
         expectEdag(two, ['[]', [['entry'], ['entry']]])
         assert(two instanceof Array && two[0] === '[]' && two[1][0] !== two[1][1], two)
         expectEdag(compile(`${helper} export default entry({ k: 1 }, "k");`).edag, ['()', ['entry'], [['{}', [[':', 'k', 1]]], 'k']])
         expectEdag(compile(`${helper} export default [entry.length, typeof entry];`).edag, ['[]', [['.', ['entry'], 'length'], ['typeof', ['entry']]]])
         // an unreached helper is anchored as any entry is
         expectEdag(compile(`${helper} export default 1;`).edag, [',', [['entry'], 1]])
-        assertStructurallySame(execute(compile(`${helper} export default [entry({ k: 1 }, "k"), entry([7, 8], 1), entry([7, 8], "length"), entry("ab", 0), entry(entry, "length"), entry.length, typeof entry, entry({ "1": 9 }, 1)];`).edag),
-            [1, 8, undefined, 'a', undefined, 2, 'function', 9])
+        assertStructurallySame(execute(compile(`${helper} export default [entry({ k: 1 }, "k"), entry([7, 8], 1), entry([7, 8], "length"), entry("ab", 0), entry(entry, "length"), entry.length, typeof entry, entry({ "1": 9 }, 1), entry({ u: undefined }, "u")];`).edag),
+            [[1], [8], [], ['a'], [], 2, 'function', [9], [undefined]])
         // the helper passed as a value, and called from where it was passed
-        assertStructurallySame(execute(compile(`${helper} const call = (f, o) => f(o, "x"); export default call(entry, { x: 3 });`).edag), 3)
-        assertStructurallySame(execute(compile(`${helper} export default [10, 20].map(entry);`).edag), [undefined, undefined])
+        assertStructurallySame(execute(compile(`${helper} const call = (f, o) => f(o, "x"); export default call(entry, { x: 3 });`).edag), [3])
+        assertStructurallySame(execute(compile(`${helper} export default [10, 20].map(entry);`).edag), [[], []])
         const fn = value(compile(`${helper} export default entry;`).edag)
-        assertStructurallySame(assertOk(toData(apply(fn, [['{}', [[':', 'y', 4]]], 'y']))), 4)
-        assertStructurallySame(assertOk(toData(apply(fn, [['[]', [5]], 0]))), 5)
+        assertStructurallySame(assertOk(toData(apply(fn, [['{}', [[':', 'y', 4]]], 'y']))), [4])
+        assertStructurallySame(assertOk(toData(apply(fn, [['[]', [5]], 0]))), [5])
         // and the helper's text is the helper, in the writer's spelling
-        assertStructurallySame(execute(compile(`${helper} export default entry.toString();`).edag), '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
+        assertStructurallySame(execute(compile(`${helper} export default entry.toString();`).edag), '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}')
     },
     // `Object.is` is the EDAG's own node for it, `['Object.is']`, in every
     // spelling and through destructuring, which reads the namespace's
@@ -1363,16 +1363,17 @@ export const proof = {
                 },
             },
             dot: {
-                // A string index folds into the node's own label; nothing
-                // about it needs a child edge to say what it is.
+                // A literal key is a value of the `.` node, not part of its
+                // label: a name in its `key` port, an index in its `idx`.
                 literalString: () => {
                     const shape = nodeShapeOf(['.', ['a'], 'x'], 'expected a shape')
-                    assertEq(shape.label, '.x')
-                    assertStructurallySame(shape.children, [['obj', ['a']]])
+                    assertEq(shape.label, '.')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['key', 'x']])
                 },
                 literalNumber: () => {
-                    const shape = nodeShapeOf(['.', ['a'], 0], 'expected a shape')
-                    assertEq(shape.label, '[0]')
+                    const shape = nodeShapeOf(['.', ['a'], 5], 'expected a shape')
+                    assertEq(shape.label, '.')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['idx', 5]])
                 },
                 // A computed index — `Number(x)`, the one shape `Index`
                 // allows beyond a bare literal — is an `Exp`, so it gets a
@@ -1565,11 +1566,11 @@ export const proof = {
             },
             lambda: () => {
                 const shape = nodeShapeOf(['=>', 0, [], ['rest']], 'expected a shape')
-                assertEq(shape.label, '=> (0)')
-                assertStructurallySame(shape.children, [['body', ['rest'], 'lazy']])
+                assertEq(shape.label, '=>')
+                assertStructurallySame(shape.children, [['length', 0], ['body', ['rest'], 'lazy']])
                 // one port per slot, named as the body reads it
                 const captures = nodeShapeOf(['=>', 0, [['[]', []], ['args']], ['frame', 1]], 'expected a shape')
-                assertStructurallySame(captures.children, [['frame 0', ['[]', []]], ['frame 1', ['args']], ['body', ['frame', 1], 'lazy']])
+                assertStructurallySame(captures.children, [['length', 0], ['frame 0', ['[]', []]], ['frame 1', ['args']], ['body', ['frame', 1], 'lazy']])
             },
             // Every Op0 name draws inline, and the three part
             // by meaning where `Op0Id` groups them by operand count:
@@ -1679,19 +1680,20 @@ export const proof = {
         sharing: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('>+<').length - 1, 1) // one `+` node, however many edges reach it
-            // Every edge ends at its target's left side, level with its
-            // label, so the lines that end at the `+` box's left edge and
-            // the `+` label's height are the ones that reach it: `a.x`'s
-            // `obj`, `0`, `1`, `a * 3`'s and `a < 4`'s `left`, and
+            // Every edge ends at the middle of its target's left side, level
+            // with its label, so the lines that end at the `+` box's left
+            // edge and the `+` label's height are the ones that reach it:
+            // `a.x`'s `obj`, `0`, `1`, `a * 3`'s and `a < 4`'s `left`, and
             // `a < 4 && a`'s `right`, each from a port of its own. The box
-            // is the one whose centre is the label's and whose top is 13px
-            // above it, half the 26px header.
+            // is the one whose left starts the label's column and whose
+            // middle is the label's height: the `+` box has ports, so its
+            // label is a 24px column, 12px left of the label's centre.
             const [before] = html.split('" text-anchor="middle" data-graph-label="">+<')
             const at = before.slice(before.lastIndexOf('<text x="') + '<text x="'.length)
             const [x, y] = at.split('" y="').map(Number)
             const box = html.split('<rect x="').slice(1)
                 .map(r => r.split('"'))
-                .find(([rx, , ry, , w]) => Number(ry) === y - 13 && Number(rx) + Number(w) / 2 === x)
+                .find(([rx, , ry, , , , h]) => Number(ry) + Number(h) / 2 === y && Number(rx) + 12 === x)
             const left = assertNotNullish(box, html)[0]
             assertEq(html.split(`L${left},${y}" data-graph-edge=""`).length - 1, 6)
         },
@@ -1712,9 +1714,9 @@ export const proof = {
             assert(html.includes('data-graph-value="" data-graph-value-kind="terminal" data-graph-edge-kind="lazy">'), html)
             assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">rest<'), html)
             assert(html.includes('data-graph-value-label="">undefined<'), html)
-            // `1`, `2`, `3`, `4` and `undefined`, and `rest`, each in a
-            // cell; only the input is a terminal.
-            assertEq(html.split('data-graph-value=""').length - 1, 6)
+            // `1`, `2`, `3`, `4`, `undefined`, the key `"x"`, the length
+            // `0`, and `rest`, each in a cell; only the input is a terminal.
+            assertEq(html.split('data-graph-value=""').length - 1, 8)
             assertEq(html.split('data-graph-value="" data-graph-value-kind="terminal"').length - 1, 1)
             assert(!html.includes('>frame'), html)
             assert(html.includes('>body<'), html)
@@ -1772,7 +1774,7 @@ export const proof = {
             const html = htmlToString(demo.view(
                 'const a = {x: 1}; const f = a.x; export default [f(2), a.x === 1];'))
             assert(html.includes('>()<'), html)
-            assert(html.includes('>.x<'), html)
+            assert(html.includes('>&quot;x&quot;<'), html)
             assert(html.includes('>===<'), html)
         },
         // A primitive with no user to sit in — the whole export — is still

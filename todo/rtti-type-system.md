@@ -370,7 +370,7 @@ That is one more reason the regime follows what the compiler can read
 
 Where mutability is planned it stays outside RTTI's reach by design: local
 mutable objects with ownership tracking
-([mutability](../spec/todo/mutability.md)) become immutable at the point they
+([mutability](../spec/design/mutability.md)) become immutable at the point they
 escape, and it is the escaped, immutable value that a schema describes.
 Tracking ownership is the compiler's job; RTTI never sees a mutable value.
 
@@ -831,7 +831,7 @@ so that issue's open question is answered yes by this stage.
 - **Describing mutable values.** RTTI has no writable member and is not getting
   one. A value becomes describable when it becomes immutable, which for
   ownership-tracked locals is the point it escapes
-  ([mutability](../spec/todo/mutability.md)).
+  ([mutability](../spec/design/mutability.md)).
 - **Typing `.mjs` with RTTI.** Ordinary JavaScript keeps TypeScript and JSDoc,
   and its mutation is exactly why.
 - **Replacing `tsc` soon.** `tsc` and the standard toolchain are the checker
@@ -1557,7 +1557,7 @@ are stated instead:
       merely *documented* establishes nothing, since an ordinary JavaScript
       caller can keep an alias and TypeScript accepts a mutable value where a
       readonly input is expected. Either the language gains the ownership
-      tracking [mutability](../spec/todo/mutability.md) already contemplates —
+      tracking [mutability](../spec/design/mutability.md) already contemplates —
       which is the only mechanism in sight that could make a transfer
       checkable — or the remedy is reconstruction or recursive freezing, which
       do not depend on the caller's cooperation. The closed-struct policy and 668's call-validating wrapper are the same
@@ -1717,7 +1717,7 @@ are stated instead:
    module imported from. Anchoring settles the legality, not the cost: dropping
    an anchored root additionally needs it proven total.
 7. **Ownership-tracked locals.** A local mutable object
-   ([mutability](../spec/todo/mutability.md)) has no RTTI type while it is still
+   ([mutability](../spec/design/mutability.md)) has no RTTI type while it is still
    mutable. Whether it may be annotated at all — with the schema its escaped
    form will satisfy — or simply cannot be, is undecided, and it is the one
    place the two designs touch.
@@ -1784,7 +1784,7 @@ splits around inference, so the runnable order is 668's representation half
   are freely movable and droppable", the rule a schema node satisfies **when
   its whole initializer is total**, which the RTTI constructors are and an
   arbitrary call is not.
-- [serialization](../spec/todo/serialization.md) and
+- [serialization](../spec/design/serialization.md) and
   [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md) — code
   as an FJS value, and the rollout that brings the above from DataJS values to
   modules.
@@ -1809,7 +1809,7 @@ splits around inference, so the runnable order is 668's representation half
   repository's own `.f.mjs` sources are not yet input the parser accepts.
 - [namespace-import](../spec/todo/2220-namespace-import.md) — open question 1
   turns on it.
-- [mutability](../spec/todo/mutability.md) — not a dependency: RTTI describes
+- [mutability](../spec/design/mutability.md) — not a dependency: RTTI describes
   the immutable values that ownership tracking produces, never the mutable ones
   it tracks. Open question 7 is where the two meet.
 

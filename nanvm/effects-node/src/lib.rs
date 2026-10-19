@@ -15,6 +15,7 @@
 mod codec;
 mod common;
 mod files;
+mod inflate;
 mod native;
 mod resolve;
 
@@ -60,7 +61,7 @@ mod test {
     use nanvm_lib::{
         naive::Naive,
         vm::{
-            Array, Function, IStaticFunction, Nullish, Number, StaticCode, ToObject,
+            Array, Function, IVm, Nullish, Number, StaticCode, ToObject,
             unstable::{f64_any, string_any, string_key},
         },
     };

@@ -11,7 +11,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("none", Any::dot(string_any("ab"), string_any("replaceAll")).end_call(|| Ok([string_any("z"), string_any("-")].to_array().to_any())), string_any("ab"));
     check::<A>("positions", Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.clone().into_iter().to_array();
+            let rest = args.rest(0);
             Ok(rest.clone().to_any())
         }, 0, Array::default(), Some("(...$0)=>$0")).to_any();
         Ok([string_any("X"), c0].to_array().to_any())

@@ -172,8 +172,10 @@ export type ReadBytes = readonly['readBytes', (path: string, offset: number, siz
  * is refused with an error rather than cut short: the host decompresses,
  * and only a bound it can name keeps that from being a way to fill memory.
  * A loose Git object is one such stream, and its decoder is pure over the
- * inflated bytes; this is the one host effect between the two until a
- * FunctionalScript inflater exists.
+ * inflated bytes. Git no longer asks for this: `fjs/zlib/inflate` is a
+ * FunctionalScript inflater over chunks, so it reads a stream of any length
+ * where this answers one `Vec`. The effect stays for a program that would
+ * rather spend a host's native decoder.
  */
 export type Inflate = readonly['inflate', (data: Vec) => IoResult<Vec>]
 

@@ -76,8 +76,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    ([optional chaining](../property-access/optional-chaining.md)), open for linked
    designer approval,
 3. [ ] [operators](./2340-operators.md),
-4. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
-   `Object.hasOwn`; propose a separate `hasEntity` AST pattern,
+4. [x] enumerable presence — prohibit `Object.hasOwn`; [`entry`](../property-access/entries.md)
+   answers an option, `[value]` or `[]`,
 5. [ ] [built-in](./2360-built-in.md),
 6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; each name is reserved no later
@@ -132,7 +132,7 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 ## 3. Functions
 
 A function cannot be serialized as data without additional run-time
-information — see [serialization](./serialization.md) and
+information — see [serialization](../design/serialization.md) and
 [functions](../functions/README.md).
 
 ### 3.1. Required
@@ -172,8 +172,8 @@ information — see [serialization](./serialization.md) and
 3. [x] `while` — with `let` above; `while` over several variables, and
    `break` and `continue` in its block, are open there
 4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
-   ([mutability](./mutability.md)), **not** for I/O: effects keep I/O state in
-   the runner ([io-effects](./io-effects.md)).
+   ([mutability](../design/mutability.md)), **not** for I/O: effects keep I/O state in
+   the runner ([io-effects](../design/io-effects.md)).
 5. [x] `throw` — a panic as a statement, in a function body and at module
    level ([functions](../functions/README.md),
    [module structure](../modules/README.md)); with `if` it is what
@@ -187,7 +187,7 @@ information — see [serialization](./serialization.md) and
 3. [ ] [type inference](./3370-type-inference.md)
 4. [ ] [promise](./3380-promise.md). Needed for JavaScript interop only —
    I/O is done with effects and requires no promises
-   ([io-effects](./io-effects.md)).
+   ([io-effects](../design/io-effects.md)).
 5. [ ] [class](./3390-class.md)
 6. [ ] [arity and complete arguments](./arity-complete-arguments.md) — an
    alternative for arbitrary length/full-argument construction; not a
@@ -244,19 +244,9 @@ Wish list:
 
 ## Design documents
 
-Design decisions and sketches for the unimplemented parts of the system. The
-numbered ones moved here from the main spec README and keep their old section
-numbers:
+Design decisions and sketches for the unimplemented parts of the system live
+in [`spec/design/`](../design/README.md): they are not open work, so they are
+not here. The one design that is still an open task stays:
 
-|Document|Topic|
-|--------|-----|
-|[io-effects](./io-effects.md)|§5 — I/O with effects: `Effect`, operations, runners|
-|[content-addressable-vm](./content-addressable-vm.md)|§6 — content-addressable VM, hashing|
-|[cavm-function-to-string](./cavm-function-to-string.md)|function text in the CAVM: a call forwarding to the function's own hash|
-|[object-identity](./object-identity.md)|§7 — object identity, custom dictionaries, `Map`|
-|[mutability](./mutability.md)|§8 — mutable objects and ownership tracking|
-|[serialization](./serialization.md)|§9 — EDAG as data, CBOR, bytecode as VM-internal|
-|[vm-command-format](./vm-command-format.md)|NPN command format of the VM|
-|[design-principles](./design-principles.md)|design principles of the "ideal" FJS 0.*|
-|[function-frame](./3111-function-frame.md)|NaNVM function objects: frames and captured values, VM-internal|
-|[call-like-instructions](./9100-call-like-instructions.md)|VM-internal bytecode for calls|
+1. [ ] [cavm-function-to-string](./cavm-function-to-string.md) — function
+   text in the CAVM: a call forwarding to the function's own hash.

@@ -20,7 +20,7 @@
  */
 
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
-import { chunksText, keyword, literal } from '../../../text/marked/module.f.mjs'
+import { chunksText, keyword } from '../../../text/marked/module.f.mjs'
 import { keepsRecursion, loopOf, reaches } from '../../../edag/loop/module.f.mjs'
 import { scopeHolds } from '../../../edag/analysis/module.f.mjs'
 import { isStatic } from '../../../edag/module.f.mjs'
@@ -39,7 +39,7 @@ const selfName = path => name(`${path}/self`)
  * and the descriptor `const`.
  *
  * ```js
- * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}
+ * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}
  * ```
  *
  * @type {(path: string) => string}
@@ -47,8 +47,8 @@ const selfName = path => name(`${path}/self`)
 export const _entryText = path => chunksText(_entryChunks(path))
 
 /**
- * {@link _entryText} as chunks: its keywords and its `undefined` carry their
- * kind, so the one text has one spelling for the plain and the marked writer.
+ * {@link _entryText} as chunks: its keywords carry their kind, so the one
+ * text has one spelling for the plain and the marked writer.
  *
  * @type {(path: string) => readonly Chunk[]}
  */
@@ -61,9 +61,7 @@ export const _entryChunks = path => {
         keyword('const'),
         ` ${binding(x)}=Object.getOwnPropertyDescriptor(${a},${b});`,
         keyword('return'),
-        ` ${x}?.enumerable?${x}.value:`,
-        literal('undefined'),
-        ';}',
+        ` ${x}?.enumerable?[${x}.value]:[];}`,
     ]
 }
 

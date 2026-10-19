@@ -51,7 +51,7 @@ export const proof = {
             '            let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
             '            Ok([c1.clone(), c1.clone()].to_array().to_any())',
             '        };',
-            '        Any::conditional(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0, || Ok(f64_any(0x0000000000000000)))',
+            '        Any::conditional(args.argument(0), c0, || Ok(f64_any(0x0000000000000000)))',
         ].join('\n')))
         assertEq(jsonRefused('export default (a) => { if (a) { return 1; } return 2; };'), 'output.json - error: callable materialization requires a target compile/load boundary')
     },
@@ -939,7 +939,7 @@ export const proof = {
             assertEq(compileSource(source)('output.js'), 'export default ($0,...$1)=>[$0,$1[0]===undefined?$0:$1[0],$1.slice(1)];')
             assertEq(compileSource(source)('output.edag.data.js'),
                 'const $0=["rest"];export default ["{}",[[":","default",["=>",1,[],["[]",[["arg",0],["?:",["===",[".",$0,0],["undefined"]],["arg",0],[".",$0,0]],[".",$0,"slice",["|()",[1]]]]]]]]];')
-            assert(compileSource(source)('output.rs').includes('Any::conditional(c2, || Ok(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any())), c3)'))
+            assert(compileSource(source)('output.rs').includes('Any::conditional(c2, || Ok(args.argument(0)), c3)'))
             assertEq(compileSource('export default (a = 1) => { const b = [a]; return [b, b]; };')('output.js'), 'export default (...$0)=>{const $1=[$0[0]===undefined?1:$0[0]];return [$1,$1];};')
             assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), 'const $0={};export default ($1,...$2)=>[$1,$2[0]===undefined?$0:$2[0],$2.slice(1)];')
         },

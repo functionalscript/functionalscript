@@ -232,6 +232,15 @@ What we plan to do. Omit if no design yet.
 - link — relationship note
 ```
 
+**Every `.md` file under a `todo/` directory but `README.md` is an issue and
+carries this header** — the title, a priority and a status, at any depth:
+`todo/blocked/` is issues like the rest. A `README.md` documents its
+directory, and a document that is not open work — a design, a plan, notes —
+lives outside `todo/` (`spec/design/`, `doc/plan/`); files that are not
+Markdown are not issues. Each header field is one value from its table,
+optionally followed by ` — ` and a note, which may run on to the following
+lines: `**Status:** open — needs a decision` is `open`.
+
 Done issues: delete the file immediately in the same PR that fixes the issue.
 Before deleting, ensure design decisions are captured in the relevant
 `README.md` or JSDoc.
@@ -249,6 +258,11 @@ exception, not a way to keep finished work around: if the rationale can move
 into a `README.md` or JSDoc, move it and delete the file.
 
 ## Priority scale
+
+The values are the ones [`fjs/website/issue`](../fjs/website/issue/module.f.mjs)'s
+`priorities` and `statuses` hold, in the order the website lists issues by; a
+new value is added there and here in one pull request, or the site build
+refuses the issue that uses it.
 
 | Level | Meaning |
 |-------|---------|

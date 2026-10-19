@@ -39,6 +39,13 @@
  * to, and the canonical data form both are printed from — the outputs a
  * consumer gets from the one declaration besides the two readers.
  *
+ * **Code is coloured by what wrote it.** The JSON Schema, the canonical form
+ * and the readers' answers are marked by the writers that print them; the
+ * schema's source and the value a reader types have no writer behind them,
+ * so they go through the highlighter's tokenizer. The TypeScript type is
+ * marked by its printer. The comparison's lines, `equal → true`, stay plain:
+ * they are a summary rather than code.
+ *
  * **A schema compares with any other.** The shown schema is compared with one
  * the reader picks, through the data form's `equal` and `subset`, so "two
  * spellings, one set" is a verdict the page computes rather than a claim. A
@@ -58,25 +65,27 @@
  * @import { Unknown } from '../media/datajs/types.ts'
  * @import { List } from '../types/list/types.ts'
  * @import { Const, DemoExample, DemoSchema, DemoState, Type, _Answer } from './types.ts'
+ * @import { Marked, Run } from '../text/marked/types.ts'
  */
 
-import { codeMarker, resultMarker } from '../website/style/module.f.js'
+import { captionMarker, codeMarker, resultMarker, verdictMarker } from '../website/style/module.f.js'
 import { array, boolean, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 import { structSchemaEntries, tupleSchemaEntries } from './common/module.f.mjs'
 import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
 import { equal, subset, toData } from './data/module.f.mjs'
-import { dataToTs } from './ts/module.f.mjs'
+import { dataToTsMarked } from './ts/module.f.mjs'
 import { dataToJsonSchema } from '../media/json/schema/module.f.mjs'
-import { stringify } from '../media/json/module.f.mjs'
+import { marked } from '../media/json/module.f.mjs'
 import { identity } from '../types/function/module.f.js'
-import { tryParse, trySerialize } from '../media/datajs/module.f.mjs'
+import { tryMarked, tryParse } from '../media/datajs/module.f.mjs'
 import { leafSerialize } from '../media/datajs/serializer/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { concat } from '../types/string/module.f.mjs'
 import { dropWhile, first, flat, intersperse, map, stateScan, takeWhile, toArray } from '../types/list/module.f.mjs'
 import { graphOf, graphSvg } from '../website/demo/graph/module.f.mjs'
-import { caption } from '../website/demo/module.f.mjs'
+import { caption, textField } from '../website/demo/module.f.mjs'
+import { highlight, render } from '../website/demo/highlight/module.f.mjs'
 import { pureOk } from '../effects/module.f.mjs'
 import { pageHref } from '../website/page/module.f.mjs'
 import { request } from '../protocol/json_rpc/module.f.mjs'
@@ -94,7 +103,7 @@ import { op1Id } from '../edag/module.f.mjs'
 import { value as edagValue } from '../edag/value/module.f.mjs'
 import { dirent } from '../effects/schema/module.f.mjs'
 import { fundingSchema } from '../website/funding/module.f.mjs'
-import { chunksText } from '../text/marked/module.f.mjs'
+import { chunksMarked, chunksText, keyword } from '../text/marked/module.f.mjs'
 
 const person = /** @type {const} */ ({ name: string, age: number })
 
@@ -351,13 +360,16 @@ const partnerOf = (e, shown) => e.schemas.length === 2 ? schemaKey(e, shown === 
 const constShape = c => c === null || typeof c !== 'object'
     ? { inline: chunksText(leafSerialize(c)) }
     : c instanceof Array
-        ? { kind: 'tuple', label: '[ ]', children: tupleSchemaEntries(c) }
-        : { kind: 'struct', label: '{ }', children: structSchemaEntries(c) }
+        ? { kind: 'tuple', label: '[]', children: tupleSchemaEntries(c) }
+        : { kind: 'struct', label: '{}', children: structSchemaEntries(c) }
 
 /**
  * What a thunk returns, as a shape, its label led by `name` when the thunk
  * has one. A built-in draws inline; `open(c)` is `rest(c, unknown)` and
- * draws as `open`.
+ * draws as `open`. The ports of an `array`, a `record`, an `or` and an
+ * `open` have empty keys: the node's label already says what each of them
+ * is, so an inline member fills its row and an edge's row stays empty. A
+ * `rest` keeps `declared` and `extra`, which tell its two ports apart.
  *
  * @type {(name: string) => (info: ReturnType<Exclude<Type, Const>>) => Shape<Type>}
  */
@@ -369,18 +381,18 @@ const infoShape = name => info => {
             const s = constShape(info[1])
             return 'inline' in s ? s : { ...s, label: named(s.label) }
         }
-        case 'array': { return { kind: 'array', label: named('array'), children: [['item', info[1]]] } }
-        case 'record': { return { kind: 'record', label: named('record'), children: [['value', info[1]]] } }
+        case 'array': { return { kind: 'array', label: named('array'), children: [['', info[1]]] } }
+        case 'record': { return { kind: 'record', label: named('record'), children: [['', info[1]]] } }
         case 'or': {
             const [, ...members] = info
             return members.length === 0
                 ? { inline: 'never' }
-                : { kind: 'or', label: named('or'), children: members.map(/** @type {(m: Type) => readonly [string, Type]} */ m => ['|', m]) }
+                : { kind: 'or', label: named('or'), children: members.map(/** @type {(m: Type) => readonly [string, Type]} */ m => ['', m]) }
         }
         case 'rest': {
             const [, c, r] = info
             return r === unknown
-                ? { kind: 'rest', label: named('open'), children: [['declared', c]] }
+                ? { kind: 'rest', label: named('open'), children: [['', c]] }
                 : { kind: 'rest', label: named('rest'), children: [['declared', c], ['extra', r]] }
         }
         default: { return { inline: info[0] } }
@@ -405,10 +417,10 @@ const shapeOf = t => typeof t !== 'function' ? constShape(t)
  * @type {(schema: Type) => Graph}
  */
 export const _graphOf = schema => {
-    if (typeof schema !== 'function' || schema.name === '') { return graphOf(shapeOf)(schema) }
+    if (typeof schema !== 'function' || schema.name === '') { return { ...graphOf(shapeOf)(schema), targets: true } }
     const info = schema()
     const root = infoShape(schema.name)(info)
-    return graphOf(/** @type {(t: Type) => Shape<Type>} */ (t => t === info ? root : shapeOf(t)))(info)
+    return { ...graphOf(/** @type {(t: Type) => Shape<Type>} */ (t => t === info ? root : shapeOf(t)))(info), targets: true }
 }
 
 // ── readers ──────────────────────────────────────────────────────────────────
@@ -417,16 +429,21 @@ export const _graphOf = schema => {
 const pathText = path => path.length === 0 ? 'the root' : path.join('.')
 
 /**
- * A value as the DataJS document that denotes it, one statement per line, so
- * a `const` a value shares stands on a line of its own above the
+ * A value as the marked DataJS document that denotes it, one statement per
+ * line, so a `const` a value shares stands on a line of its own above the
  * `export default` that uses it. The serializer emits each statement's
- * closing `;` as a chunk of its own — a `;` inside a string is part of that
- * string's chunk — so the lines break there.
+ * closing `;` as a plain run of its own — a `;` inside a string is part of
+ * that string's run — so the lines break there, after every statement but
+ * the last.
  *
- * @type {(value: Unknown) => string}
+ * @type {(value: Unknown) => Marked}
  */
-const documentText = value =>
-    toArray(unwrap(trySerialize(value))).map(c => c === ';' ? ';\n' : c).join('').trimEnd()
+const documentMarked = value => {
+    const runs = unwrap(tryMarked(value))
+    return runs.map((run, i) => run[0] === ';' && run[1] === undefined && i < runs.length - 1
+        ? /** @type {Run} */ ([';\n'])
+        : run)
+}
 
 /**
  * One reader's answer: whether it succeeded, and the value it succeeded with
@@ -436,7 +453,7 @@ const documentText = value =>
  * @type {(r: readonly ['ok', unknown] | readonly ['error', { readonly path: readonly (string | number)[], readonly message: string }]) => _Answer}
  */
 const answerOf = r => r[0] === 'ok'
-    ? { ok: true, text: documentText(/** @type {Unknown} */ (r[1])) }
+    ? { ok: true, marked: documentMarked(/** @type {Unknown} */ (r[1])) }
     : { ok: false, text: `at ${pathText(r[1].path)}: ${r[1].message}`, path: r[1].path }
 
 /**
@@ -528,20 +545,20 @@ export const _marked = path => value => {
 // ── outputs and comparison ───────────────────────────────────────────────────
 
 /**
- * What rtti derives from `schema` besides its readers, each as text: the
- * TypeScript type the printer writes — its recursive definitions first, as
- * `type` aliases, then the type itself — the JSON Schema, and the canonical
- * data form both are printed from.
+ * What rtti derives from `schema` besides its readers: the TypeScript type
+ * the printer writes — its recursive definitions first, as `type` aliases,
+ * then the type itself — the JSON Schema, and the canonical data form both
+ * are printed from. Each is marked by the writer that prints it.
  *
- * @type {(schema: Type) => { readonly ts: string, readonly jsonSchema: string, readonly data: string }}
+ * @type {(schema: Type) => { readonly ts: Marked, readonly jsonSchema: Marked, readonly data: Marked }}
  */
 export const _outputsOf = schema => {
     const data = toData(schema)
-    const [definitions, entry] = dataToTs()(data)
+    const [definitions, entry] = dataToTsMarked()(data)
     return {
-        ts: [...definitions.map(([name, type]) => `type ${name} = ${type}`), entry].join('\n'),
-        jsonSchema: stringify(identity)(dataToJsonSchema(data)),
-        data: documentText(/** @type {Unknown} */ (data)),
+        ts: chunksMarked([...definitions.flatMap(([name, type]) => [keyword('type'), ' ', ...name, ' = ', ...type, '\n']), ...entry]),
+        jsonSchema: marked(identity)(dataToJsonSchema(data)),
+        data: documentMarked(/** @type {Unknown} */ (data)),
     }
 }
 
@@ -573,16 +590,24 @@ export const _compare = (a, b) => {
 /**
  * A reader's answer: its verdict on the label line — `parse · ok`,
  * `validate · error` — and under it a block holding only the value or the
- * failure, marked so the stylesheet colours it green or red. The verdict is
- * a word as well as a colour, and the block holds nothing but what a reader
- * could paste back into the value box.
+ * failure. The verdict is a word as well as a colour: the word is coloured
+ * green or red, and so are the block's tint and edge, while the block's text
+ * keeps the text colour, so a value it holds reads in the token colours of
+ * every other code block. The block holds nothing but what a reader could
+ * paste back into the value box.
  *
- * @type {(label: string, ok: boolean, text: string) => readonly Element[]}
+ * @type {(label: string, ok: boolean, nodes: readonly Node[]) => readonly Element[]}
  */
-const answerView = (label, ok, text) => [
-    caption(`${label} · ${ok ? 'ok' : 'error'}`),
-    ['pre', { [resultMarker]: ok ? 'ok' : 'error' }, text],
-]
+const answerView = (label, ok, nodes) => {
+    const verdict = ok ? 'ok' : 'error'
+    return [
+        ['p', { [captionMarker]: '' }, `${label} · `, ['span', { [verdictMarker]: verdict }, verdict]],
+        ['pre', { [codeMarker]: '', [resultMarker]: verdict }, ...nodes],
+    ]
+}
+
+/** A reader's answer as the nodes its block holds: the value coloured, or the failure. @type {(a: _Answer) => readonly Node[]} */
+const answerNodes = a => a.ok ? render(a.marked) : [a.text]
 
 /** @type {(e: DemoExample, picked: DemoExample) => Element} */
 const exampleOption = (e, picked) =>
@@ -608,7 +633,7 @@ const exampleGroups = picked => [
 const schemaChoice = (s, i, shown) =>
     ['button', { type: 'button', name: `schema-${i}`, 'aria-pressed': String(i === shown) },
         ['span', { 'data-pick-dot': '' }],
-        ['span', { 'data-pick-code': '' }, s.source],
+        ['span', { 'data-pick-code': '' }, ...highlight(s.source)],
     ]
 
 /**
@@ -631,9 +656,9 @@ const packageName = 'functionalscript'
  * @type {(s: DemoSchema) => Element}
  */
 const codeView = s => s.module === undefined
-    ? ['pre', { [codeMarker]: '' }, s.source]
+    ? ['pre', { [codeMarker]: '' }, ...highlight(s.source)]
     : ['pre', { [codeMarker]: '' },
-        `import { ${s.source} } from `,
+        ...highlight(`import { ${s.source} } from `),
         ['a', { href: pageHref(s.module) }, `'${packageName}/${s.module}/module.f.mjs'`],
     ]
 
@@ -658,10 +683,10 @@ const outputsView = s => {
     const o = _outputsOf(s.schema)
     return [
         caption('TypeScript:'),
-        ['pre', { [codeMarker]: '' }, o.ts],
+        ['pre', { [codeMarker]: '' }, ...render(o.ts)],
         caption('JSON Schema:'),
-        ['pre', { [codeMarker]: '' }, o.jsonSchema],
-        ['details', ['summary', 'Canonical form (toData)'], ['pre', { [codeMarker]: '' }, o.data]],
+        ['pre', { [codeMarker]: '' }, ...render(o.jsonSchema)],
+        ['details', ['summary', 'Canonical form (toData)'], ['pre', { [codeMarker]: '' }, ...render(o.data)]],
     ]
 }
 
@@ -707,16 +732,13 @@ const compareView = (s, compare) => {
 const valueView = (s, text) => {
     const r = _readersOf(s.schema)(text)
     return [
-        ['p',
-            ['label', { for: 'value' }, 'Value (DataJS) '],
-            ['textarea', { id: 'value', name: 'value', rows: '4' }, text],
-        ],
+        textField({ name: 'value', label: 'Value (DataJS)', rows: 4, highlight }, text),
         .../** @type {readonly Element[]} */ ('error' in r
-            ? answerView('DataJS', false, r.error)
+            ? answerView('DataJS', false, [r.error])
             : [
-                ...answerView('parse', r.parse.ok, r.parse.text),
-                ...answerView('validate', r.validate.ok, r.validate.text),
-                ...(r.validate.path === undefined ? [] : /** @type {readonly Element[]} */ ([
+                ...answerView('parse', r.parse.ok, answerNodes(r.parse)),
+                ...answerView('validate', r.validate.ok, answerNodes(r.validate)),
+                ...(r.validate.ok ? [] : /** @type {readonly Element[]} */ ([
                     caption('Where:'),
                     ['pre', { [codeMarker]: '' }, ..._marked(r.validate.path)(r.value)],
                 ])),

@@ -45,7 +45,8 @@
  * @import { Effect, IoChannel, IoResult } from '../effects/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
- * @import { _DemoPaths, _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
+ * @import { _DemoPaths, _Demos, _Graph, _Imports, _Walked } from './private.ts'
+ * @import { Header } from './issue/types.ts'
  * @import { OrderedMap } from '../types/ordered_map/types.ts'
  * @import { Build, Dir, PageDemo, Proof } from './page/types.ts'
  * @import { Element } from '../media/html/types.ts'
@@ -74,6 +75,7 @@ import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isAuthored, isThirdParty } from '../dev/module.f.mjs'
+import { header, isIssue } from './issue/module.f.mjs'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**
@@ -534,20 +536,6 @@ const prerenderDemos = paths => foldStep(
     ([dir, path]) => demos => mapStep(prerender(path), demo => setReplace(dir)(demo)(demos)))
 
 /**
- * Whether a name in a `todo/` directory is an issue.
- *
- * An issue is a markdown file — [`todo/README.md`](../../todo/README.md) says
- * so, one file per issue — and a `todo/` may hold something else: the
- * repository root's holds `proof.f.mjs`, an authored module the suite runs,
- * which the page listed as an issue because it was there rather than because
- * it is one. The list says what it means instead of showing whatever the
- * folder happens to contain.
- *
- * @type {(name: string) => boolean}
- */
-const isIssue = name => name.endsWith('.md')
-
-/**
  * Whether a directory's contents belong on its parent's page rather than on
  * one of its own.
  *
@@ -592,6 +580,26 @@ const crateDirs = tree => crates => tree
     .map(walked => walked.path)
 
 /**
+ * Every issue under a `todo/`, at any depth, with its header, in the walk's
+ * order: a `todo/`'s own issues, then each subfolder's.
+ *
+ * **An issue whose header cannot be read stops the build**, naming the file,
+ * rather than being listed without a status or left out — the same answer
+ * {@link writeChangelog} gives a release file that does not parse.
+ *
+ * @type {(tree: readonly _Walked[]) => Effect<ReadFile, readonly { readonly path: string, readonly header: Header }[], IoChannel>}
+ */
+const readIssues = tree => foldStep(
+    pureOk(tree.filter(walked => isTodoDir(walked.path)).flatMap(walked => walked.files.filter(isIssue).map(inDir(walked)))),
+    /** @type {readonly { readonly path: string, readonly header: Header }[]} */ ([]),
+    path => read => step(readUtf8File(path), text => {
+        const found = header(text)
+        return found[0] === 'error'
+            ? pureError(ioError({ message: `${path}: ${found[1]}` }))
+            : pureOk([...read, { path, header: found[1] }])
+    }))
+
+/**
  * What a page needs about one directory, from what the walk found in it and
  * in its `todo/`.
  *
@@ -607,19 +615,22 @@ const crateDirs = tree => crates => tree
  * all three — so a reader finds the reference from either. `crates` is
  * {@link crateDirs}'s answer.
  *
- * @type {(tree: _Tree) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
+ * **Its issues are every one under its `todo/`**, a subfolder's included, each
+ * named by its path inside the `todo/`: `todo/blocked/` is issues like the
+ * rest, and the folder is part of the name rather than a page of its own.
+ *
+ * @type {(issues: readonly { readonly path: string, readonly header: Header }[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
  */
-const toDir = tree => crates => proofs => demos => walked => {
+const toDir = issues => crates => proofs => demos => walked => {
     const dirs = walked.dirs.filter(name => name !== 'todo')
+    const todo = `${pathConcat(walked.path)('todo')}/`
     return {
         path: walked.path,
         files: walked.files.filter(name => !generatedName(name)),
         dirs,
         demoDirs: dirs.filter(name => holdsDemo(demos)(pathConcat(walked.path)(name))),
-        todo: at(pathConcat(walked.path)('todo'))(tree)
-            ?.files
-            ?.filter(isIssue)
-            ?? [],
+        todo: issues.flatMap(({ path, header }) =>
+            path.startsWith(todo) ? [{ name: path.slice(todo.length), ...header }] : []),
         proofs: subtree(walked.path)(proofs),
         demo: at(walked.path)(demos),
         api: crates.includes(walked.path) ? crateHref(crateOf(walked.path)) : null,
@@ -798,21 +809,18 @@ const writeCargoDocIndex = build => crates => {
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(build: Build) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<ReadFile | Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
-const writePages = build => tree => crates => proofs => demos => {
-    const byPath = tree.reduce(
-        (map, walked) => setReplace(walked.path)(walked)(map),
-        /** @type {_Tree} */ (emptyMap))
+const writePages = build => tree => crates => proofs => demos => step(readIssues(tree), issues => {
     const dirs = tree
         .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
-        .map(toDir(byPath)(crateDirs(tree)(crates))(proofs)(demos))
+        .map(toDir(issues)(crateDirs(tree)(crates))(proofs)(demos))
     return step(
         forEachStep(pureOk(dirs), dir => writeUtf8File(
             pagePath(dir.path),
             dir.path === '.' ? rootPage(build)(dir) : page(build)(dir))),
-        () => log(`directory pages: ${dirs.length}`))
-}
+        () => log(`directory pages: ${dirs.length}, issues: ${issues.length}`))
+})
 
 /**
  * The commit this build is of, as the lowercase hex GitHub links it by, or

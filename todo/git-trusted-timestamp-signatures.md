@@ -350,9 +350,9 @@ verification/UI behavior.
 
 ### Related
 
-- [DISOT vision](./plan/vision.md) — signatures and trusted timestamps are core
+- [DISOT vision](../doc/plan/vision.md) — signatures and trusted timestamps are core
   provenance primitives.
-- [DISOT roadmap](./plan/roadmap.md) — includes Git-like commit blocks and
+- [DISOT roadmap](../doc/plan/roadmap.md) — includes Git-like commit blocks and
   signed content.
 - [Git cryptographic signature formats](https://git-scm.com/docs/gitformat-signature)
   — existing `gpgsig` semantics.

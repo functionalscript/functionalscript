@@ -1685,7 +1685,7 @@ export const functionText = (a, i) => {
  * one text, as it has in JavaScript — `make(0)` and `make(1)` alike, for
  * `const make = x => () => [x];` read as `()=>[$0]`. That answers the
  * serialization spec's question 2 as code-only
- * ([`spec/todo/serialization.md`](../../../spec/todo/serialization.md#open-questions));
+ * ([`spec/design/serialization.md`](../../../spec/design/serialization.md#open-questions));
  * rendering the captured values instead is a text for the same node with
  * each name replaced, which this spelling leaves room for.
  *

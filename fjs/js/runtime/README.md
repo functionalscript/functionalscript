@@ -1,11 +1,13 @@
 # The runtime
 
 The built-in functions, defined once. [`module.f.js`](./module.f.js)
-exports `runtime`, in two sections keyed by the name of a global. Its
-`member` section holds, for a receiver's type — `String`, `Array`,
-`Number` — the names whose **body** is written, each a FunctionalScript
-function of the receiver and then the arguments as the call passed them,
-`undefined` past the end. Its `static` section holds the static
+exports `runtime`, in two sections. Its `member` section holds, by name,
+the member functions whose **body** is written, `startsWith`: each a
+FunctionalScript function of the receiver alone, answering `undefined`
+for a receiver the name is no member of, or the function of the arguments
+as the call passed them, `undefined` past the end — the body dispatches on
+its receiver's type itself, and an executor asks it in two steps, the
+first before any argument exists. Its `static` section holds the static
 functions at the path [`../static`](../static/module.f.js) admits each
 under — `Object.is` at `static.Object.is` — each a function of the
 arguments alone, written here and exported nowhere else: a module calls
@@ -23,14 +25,14 @@ table. The proposal and the steps still to take are
 Which names a module may call stays
 [`../prototype`](../prototype/module.f.js)'s: the prototype name lists and
 `prohibitedCalls` for the parser, `allowedCalls` for every executor.
-[`types.ts`](./types.ts) pins every key here to that set — `member` is
-the one section, each type it keys is a receiver type by its global's
-name, each key under it an allowed name on that type's prototype — so a
-body for a name the language does not admit, or
-on the wrong type, fails `tsc`, and [`proof.f.mjs`](./proof.f.mjs) checks
-the same at run time. The keys are not the admitted set and need not be:
-a table keying every admitted name with a marker in place of a body would
-only duplicate the parser's list.
+[`types.ts`](./types.ts) pins every key of `member` to that set, and
+every entry to a body of the receiver alone, so a body for a name the
+language does not admit fails `tsc`, and [`proof.f.mjs`](./proof.f.mjs)
+checks the same at run time. Which types a name is a member of is the
+body's own first step, `typeof self === 'string'`, not a key of the
+table: one function per name, for every receiver. The keys are not the
+admitted set and need not be: a table keying every admitted name with a
+marker in place of a body would only duplicate the parser's list.
 
 ## The names without a body
 
@@ -57,7 +59,12 @@ the string and array names are the next batches.
 
 A VM answers a call on a receiver it does not own in this order: the
 receiver's own property, then its **native** implementation of the name,
-then the **runtime's body**, then the `TypeError` for calling `undefined`.
+then the **runtime's body**, asked for the receiver alone — the function
+of the arguments, which the VM then calls, or `undefined` — then the
+`TypeError` for calling `undefined`. The guard of an optional call,
+`a.startsWith?.(x)`, asks the same three before it evaluates `x`, the
+body's first step among them; a body is pure, so a guard and a call ask
+it twice at no cost but the call.
 A native implementation may stand beside a body where the VM measures the
 gain; the body is the reference, and the corpus in
 [`../../nanvm/member`](../../nanvm/member/module.f.js) checks the native
@@ -86,9 +93,10 @@ body, and no other pair is.
   `nanvm/lib/src/vm/gen.runtime.rs` through the compiler's static-runtime
   printer, the compiler being the generator: every body a static Rust
   function, a static built-in's with an accessor answering its descriptor
-  and a member's the code alone, and two tables, which `nanvm-lib`'s
-  `runtime_method` and `runtime_static` search for every VM. Nothing is
-  evaluated and no VM holds a runtime. The native
+  and a member's the code alone, bound on `IStaticFunction` since its
+  answer is a closure over the receiver, and two tables by name, which
+  `nanvm-lib`'s `runtime_method` and `runtime_static` search for every
+  VM. Nothing is evaluated and no VM holds a runtime. The native
   tables in `vm/lambda` keep every name without a body.
 
 The generator also writes the module's EDAG as
@@ -153,20 +161,24 @@ sequenceDiagram
     L->>L: own property? none on an array
     L->>T: method(receiver, "map")
     T-->>L: None, once map has a body
-    L->>R: members(): ("Array", "map", code)
+    L->>R: members(): ("map", code)
     R-->>L: the body, a static function
-    L->>L: code([receiver, ...args])
+    L->>R: code(receiver)
+    R-->>L: the function of the arguments, or undefined
+    L->>L: f.call(args), or the TypeError
     L-->>M: the answer, or Err(thrown)
 ```
 
 `Member::call` in `vm/lambda/member.rs` resolves in that order — the
 receiver's own property, the native table in `vm/lambda/method.rs`, the
-runtime's body through `runtime_method`, the `TypeError` for calling
-`undefined` — and the `?.()` guard asks the same lookup to decide whether
-a callee exists. A member's body is a Rust function of the receiver and
-the arguments and nothing more: the language never reads a member as a
-value, so none has a descriptor, a `length` or a text, and a call step
-calls the code the table holds.
+runtime's body through `runtime_method`, asked for the receiver and then
+called, the `TypeError` for calling `undefined` — and the `?.()` guard
+asks the same lookups, the body's first step included, to decide whether
+a callee exists, before any argument is evaluated. A member's body is a
+Rust function of the receiver answering a function value or `undefined`,
+and nothing more: the language never reads a member as a value, so none
+has a descriptor, a `length` or a text, and a call step asks the code the
+table holds.
 
 **A static function is a value with no receiver.** The EDAG spells
 `Object.is` as the value `['Object.is']`, and `Number.isInteger` as
@@ -201,24 +213,28 @@ reads this module at compile time rather than printing a scope that
 evaluates it: every module-level function becomes a static `fn` of its
 arguments alone — a static built-in and a helper a body reads as a value
 with an accessor answering its descriptor, the built-in's name, code,
-length and text, as a promoted constant; a member the `fn` alone, which a
-body may not read as a value — a frame slot resolves to another
-function's accessor or to an inlined literal; an
+length and text, as a promoted constant; a member the `fn` alone, bound
+on `IStaticFunction` since its answer is the function of the arguments, a
+closure over the receiver, which a body may not read as a value — a frame
+slot resolves to another function's accessor or to an inlined literal; an
 import's read of its export object, `{ isNegativeZero }.isNegativeZero`,
 folds to the function it holds; and the `runtime` export object is read as
 the table of built-ins, a static one named `Object.is` and a member one
-`String.prototype.startsWith`, and printed nowhere. So this module's scope
+`startsWith`, and printed nowhere. So this module's scope
 holds **functions and literals**: an object or an array a body would
-capture is refused, naming the node, and so is a function a body makes at
-call time, since every item is bound on `IVm` alone. A body may call
+capture is refused, naming the node, and so is a function a static's body
+makes at call time, since a static is bound on `IVm` alone. A body may call
 another body, through a member call or by reading it as a value — `is`
 reads `isNaN_` — and both resolve to static functions. `gen.runtime.rs`
 is included into the crate by `#[path]`, which is why it says
 `use nanvm_lib::…` and the crate declares `extern crate self as nanvm_lib`.
-A built-in's text, `String(f)`, is the compiler's rendering of its body,
-as the interpreter answers it; the NativeFunction text ECMA-262 requires
-is [`../todo/runtime-static.md`](../todo/runtime-static.md)'s open task
-for both executors, and one line in the printer when it is taken.
+A built-in's text, `String(f)`, is the NativeFunction text ECMA-262
+requires of one, `function is() { [native code] }`, never its body's: a
+runtime function is the built-in, not its body. NaNVM forms it from the
+descriptor's name, `Function::text`, so no descriptor carries a text, and
+the represented interpreter from the static node, `staticText` in
+`fjs/edag`; `nanvm/harness/fixtures/object-is.mjs` and
+`number-predicates.mjs` hold the two to one text.
 
 Nothing is held, so nothing is initialized and no VM binds anything: a
 VM is a value representation, and the runtime reaches it as library code
@@ -257,8 +273,10 @@ cycle:
 
 ## Giving a name its body
 
-1. Write the body here, with its proof case by case, and `npm start
-   compile` accepting the module.
+1. Write the body here — a function of the receiver, `undefined` for a
+   receiver the name is no member of and the function of the arguments
+   otherwise — with its proof case by case, and `npm start compile`
+   accepting the module.
 2. Remove the interpreter's native case in `edag/value/method`, so the
    body is what answers it there.
 3. Remove NaNVM's entry in `vm/lambda` and the typed method under it, or

@@ -39,7 +39,7 @@ pub fn run<A: IStaticFunction>() {
     check_throws::<A>("objectOwnToStringThrows", [(string_key("toString"), A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default(), Some("()=>1n/0n")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()));
     check::<A>("function", function_any().to_string().map(|v| v.to_any()), string_any("()=>undefined"));
     check::<A>("callback", A::static_function(|_self, args| {
-        let rest = args.clone().into_iter().to_array();
+        let rest = args.rest(0);
         let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
         c0 * f64_any(0x4000000000000000)
     }, 0, Array::default(), Some("(...$0)=>$0[0]*2")).to_any().to_string().map(|v| v.to_any()), string_any("(...$0)=>$0[0]*2"));

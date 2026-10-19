@@ -200,7 +200,7 @@ required. Persist the grammar using the data layer's DJS representation;
 ordinary JSON cannot preserve an unbounded repetition's `Infinity`.
 
 General function serialization is separate work under the
-[EDAG serialization design](../../../spec/todo/serialization.md#function-text-and-serialization),
+[EDAG serialization design](../../../spec/design/serialization.md#function-text-and-serialization),
 not a recognizer dependency. [new-pl.md](../../../todo/new-pl.md) explores a
 separate language; its function-introspection and identity sketches do not
 approve FJS APIs. This correction selects no `String(f)`, frame or `self` strategy.
@@ -371,7 +371,7 @@ Bigger automata are built from BNF pieces in two complementary ways:
   values, not an external syntax (JSX)
 - [`../data`](../data/README.md) — grammar-specific lowering and the serializable
   `RuleSet` consumed by recognizer and DFA builders.
-- [EDAG serialization](../../../spec/todo/serialization.md#function-text-and-serialization)
+- [EDAG serialization](../../../spec/design/serialization.md#function-text-and-serialization)
   — separate function-rendering work, not a prerequisite for this backend.
 - `fjs/media/type` `detectStream` — first concrete consumer (streaming MIME/UTF-8
   recognizer), shipped with hand-rolled `A_magic`/`A_utf8` factors that this

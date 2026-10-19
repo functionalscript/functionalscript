@@ -15,8 +15,9 @@
  * solid box, so a demo with more than one kind of container is one CSS rule
  * away from telling them apart too.
  *
- * An empty `label` draws no title row on a node with edges, for a demo
- * whose rows already say what the node is.
+ * A node with edges draws its `label` as a column left of its rows. An
+ * empty `label` draws no column, for a demo whose rows already say what
+ * the node is.
  */
 export type Node = {
     readonly id: number
@@ -30,8 +31,8 @@ export type Ranked = Node & { readonly rank: number }
 /**
  * One edge, from a node's id to another's, labeled with the index or key
  * that reaches it. The label is drawn in a port of the source node — a
- * row of its own under the node's label, which the edge leaves from — and
- * a node's ports follow the order its edges are given in.
+ * row of its own right of the node's label, which the edge leaves from —
+ * and a node's ports follow the order its edges are given in.
  *
  * `kind` is the demo's own vocabulary, as a {@link Node}'s is, and is
  * absent where a demo draws one kind of edge. `"lazy"` draws dashed by the
@@ -39,6 +40,12 @@ export type Ranked = Node & { readonly rank: number }
  *
  * **An edge ends at a node, or at an {@link Inline} value** drawn in its
  * port, right of the label, rather than as a node of its own.
+ *
+ * **Beside values, in a {@link Graph} with `targets`, an edge's row
+ * shows the label of the node it leads to** in the value's place, its key in the key column, marked
+ * `data-graph-value-ref` so the stylesheet draws it as part of the edge.
+ * So does a row with an empty label beside other edges. In a node whose
+ * rows are all edges with empty labels, no row is drawn at all.
  *
  * **An edge's kind is about the edge, not about what it points at.** The
  * EDAG demo marks an operand a node may never evaluate — `&&`'s right, an
@@ -58,7 +65,10 @@ export type Edge = {
  * the bottom corner of its right side, or the middle of it. For a node
  * whose children are ordered and need no names — a tree's left and right,
  * and a B-tree's middle — the corner says which child it is. Such an edge
- * ends at a node, not a value, and has no label.
+ * ends at a node, not a value, and has no label. A node whose arrows leave
+ * from its corners has rows for values only: an arrow from a row beside
+ * them is refused, since a `middle` corner starts where the middle of an
+ * odd number of rows does.
  */
 export type Corner = 'top' | 'middle' | 'bottom'
 
@@ -98,11 +108,18 @@ export type Entry = {
 /**
  * A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every
  * edge named, and the {@link Entry} arrows into it, if it has any.
+ *
+ * `targets` names, in an edge's row, the node the edge leads to, where
+ * the row would otherwise differ from its neighbours: see {@link Edge}.
+ * It is the demo's choice, and off by default: a demo whose lesson is that
+ * one node is reached by many edges would only blur it by writing that
+ * node's label at every one of them.
  */
 export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
     readonly entries?: readonly Entry[] | undefined
+    readonly targets?: boolean | undefined
 }
 
 /**

@@ -3,7 +3,7 @@
 Formerly §8 of the main [spec README](../README.md); the section numbers are
 kept so older references such as "§8.1" still resolve.
 
-The zero stage is to support [`let`](./3220-let.md).
+The zero stage is to support [`let`](../todo/3220-let.md).
 
 The first stage is to support mutable objects only as a local variable:
 

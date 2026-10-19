@@ -16,6 +16,7 @@ use crate::{
     },
     common,
     files::{self, Dirent, IoError, Stat},
+    inflate,
     resolve::{FileModule, resolve_file_module},
 };
 use nanvm_lib::vm::{
@@ -246,6 +247,11 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 let size = decode_number(argument(payload, 2, "size")?)?;
                 Ok(answer(files::read_bytes(&path, offset, size), encode_bytes))
             }
+            "inflate" => {
+                arity(payload, 1)?;
+                let data = decode_bytes(argument(payload, 0, "data")?)?;
+                Ok(answer(inflate::inflate(&data), encode_bytes))
+            }
             "createExclusive" => {
                 arity(payload, 1)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
@@ -474,6 +480,27 @@ mod test {
         expected.extend([0xff; 8]);
         expected.push(0x80);
         assert_eq!(h.stdout().as_slice(), expected);
+    }
+
+    /// `inflate` answers the bytes of one zlib stream, and a stream it refuses
+    /// as the error zlib gives, through the continuation; a payload that is not
+    /// bytes is thrown.
+    #[test]
+    fn inflate() {
+        let stored = encode_bytes::<Naive>(vec![
+            0x78, 0x01, 0x01, 0x03, 0x00, 0xfc, 0xff, 0x61, 0x62, 0x63, 0x02, 0x4d, 0x01, 0x27,
+        ]);
+        let answer = host(b"").perform(string_any("inflate"), array([stored]));
+        assert_eq!(decode_bytes(ok(answer)).unwrap(), b"abc");
+        let bad = encode_bytes::<Naive>(vec![0x78, 0x9d]);
+        assert_eq!(
+            host(b"").perform(string_any("inflate"), array([bad])).unwrap().to_json(),
+            Ok("[\"error\",[\"ioError\",{\"code\":\"Z_DATA_ERROR\",\"message\":\"incorrect header check\"}]]".into())
+        );
+        let thrown = host(b"")
+            .perform(string_any("inflate"), array([string_any("x")]))
+            .unwrap_err();
+        assert_eq!(decode_string(thrown).unwrap(), "not a bit vector");
     }
 
     /// A command the host lacks is answered through the continuation as
@@ -852,7 +879,7 @@ mod test {
     }
 
     fn thunk(code: nanvm_lib::vm::StaticCode<Naive>) -> V {
-        use nanvm_lib::vm::IStaticFunction;
+        use nanvm_lib::vm::IVm;
         Naive::static_function(code, 0, [].to_array(), None).to_any()
     }
 
