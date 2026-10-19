@@ -2,8 +2,9 @@
 
 **Priority:** P2
 **Status:** wip — the one form below is implemented
-([switch](../control-flow/switch.md)); the approval is owed
-([Approval](#approval))
+([switch](../control-flow/switch.md)) in
+[#3045](https://github.com/functionalscript/functionalscript/pull/3045);
+the approval is owed ([Approval](#approval))
 
 Introducing `switch`, in one form first: the terminating `switch`, the
 guard's sibling.
