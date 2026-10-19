@@ -16,8 +16,9 @@ read its positions:
 const [key, , , , v] = unmapped(node)
 ```
 
-Both then switch over the tags `createValue` produces with the same arms,
-DataJS adding `nan`, `undefined` and `id` to the seven.
+Both then switch over the tags `createValue` produces — the array, the
+object, the string, the number and the words — with the same arms, DataJS
+adding its own, `nan`, `undefined` and `id`.
 
 ### Proposal
 
@@ -27,7 +28,8 @@ DataJS adding `nan`, `undefined` and `id` to the seven.
   since the tags it switches over are `createValue`'s and the grammar owns
   them: `valueCases({ array, object, string, number, word })` answering
   the handler, so `toJson` is one application and `toNode` spreads it and
-  adds its three arms, and neither reader imports the other for it.
+  adds `nan`, `undefined` and `id`, and neither reader imports the other
+  for it.
 
 The first alone is worth doing; the second is the fuller fix.
 
