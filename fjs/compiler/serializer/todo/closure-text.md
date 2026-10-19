@@ -31,10 +31,14 @@ this spelling, and today they agree by copy.
 ### Proposal
 
 `function_text` exports `_closure(a, i, path, slotTexts)`: the frame named
-from `path`, the lambda rendered, the application to the slot texts given.
-`value`'s case is `_closure(a, i, \`value${i}/function\`, slots.map(operand))`;
-`function_text`'s own wraps it in parentheses. `_renderSymbolic` may then
-become private.
+from `path`, the lambda rendered, the application to the slot texts given,
+and for no slots the bare lambda. `value`'s case is
+`_closure(a, i, \`value${i}/function\`, slots.map(operand))` as it stands;
+`function_text`'s case parenthesizes the answer only where there are no
+slots, which is the one place the two spellings differ today — a bare
+lambda inside an expression needs the parentheses, an applied arrow
+already has its own — so the applied form reads the same from both
+callers. `_renderSymbolic` may then become private.
 
 ### Tasks
 
