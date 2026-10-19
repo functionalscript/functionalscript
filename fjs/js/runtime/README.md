@@ -80,11 +80,13 @@ of an optional call, `a.startsWith?.(x)`, asks the
 same steps before it evaluates `x`, the body's first step among them; a
 body is pure, so a guard and a call ask it twice at no cost but the
 call.
-A native implementation may stand beside a body where the VM measures the
-gain; the body is the reference, and the corpus in
-[`../../nanvm/member`](../../nanvm/member/module.f.js) checks the native
-answer against it. A name without a body keeps the host engine as its
-oracle there, as every name had before, until its body lands. The completeness table
+A native beside a body is unreachable, since `dot` answers first; a VM
+that measures a gain in a native substitutes it for the body in its
+dispatch ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)),
+never as an entry in the table. The corpus in
+[`../../nanvm/member`](../../nanvm/member/module.f.js) checks every body
+against the host engine, which stays the oracle for a name without one,
+as it was for every name before. The completeness table
 [`../../nanvm/methods`](../../nanvm/methods/module.f.mjs) generates counts
 a body as an answer: every admitted pair is answered, natively or by a
 body, and no other pair is.

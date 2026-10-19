@@ -7,11 +7,12 @@ use crate::vm::{
 /// A property step's live state: the receiver and the key, the read
 /// deferred to the exit that needs it. `end` reads the property; a call
 /// exit resolves the callee — an object's own property or an array's
-/// element first, then the receiver type's built-in member function — and
-/// the guard of `|?.()` asks the same resolution whether there is a callee
-/// at all. Holding the key rather than the value is what lets a call reach
-/// a built-in the receiver does not own, `[1].at(0)`, and what keeps the
-/// receiver for it.
+/// element first, then the body the runtime value's `dot` answers for the
+/// name, then the receiver type's native member function for a name
+/// without a body — and the guard of `|?.()` asks the same resolution
+/// whether there is a callee at all. Holding the key rather than the
+/// value is what lets a call reach a built-in the receiver does not own,
+/// `[1].at(0)`, and what keeps the receiver for it.
 ///
 /// The receiver is never nullish: [`Member::new`] throws for one, before
 /// the arguments of any step, and a live chain is one that got past it.
@@ -209,6 +210,38 @@ mod tests {
             Ok(7.0.to_any())
         );
         assert_eq!(one.dot("at".into()).end_call(&rt(), zero), Ok(1.0.to_any()));
+    }
+
+    /// The guard of `?.()` asks `dot` before the native table too, and
+    /// before any argument: for `[1].at?.(x)` on a runtime whose `dot`
+    /// throws, the answer is that throw and `x` is never evaluated, where
+    /// the native table alone would call `at` with `x`. The call asks in
+    /// the same order.
+    #[test]
+    fn guard_asks_body_first() {
+        let throwing: Any<A> = [(
+            "dot".into(),
+            A::static_function(|_, _| Err("boom".into()), 2, [].to_array(), None).to_any(),
+        )]
+        .to_object()
+        .to_any();
+        let one: Any<A> = [1.0.to_any()].to_array().to_any();
+        assert_eq!(
+            one.clone()
+                .dot("at".into())
+                .option_call(&throwing, || panic!("the argument is not evaluated"))
+                .end(),
+            Err("boom".into())
+        );
+        let zero = || Ok([0.0.to_any()].to_array().to_any());
+        assert_eq!(
+            one.clone().dot("at".into()).option_call(&rt(), zero).end(),
+            Ok(1.0.to_any())
+        );
+        assert_eq!(
+            one.dot("at".into()).end_call(&throwing, zero),
+            Err("boom".into())
+        );
     }
 
     /// `[f][0](...)` calls the element; `[1][0](...)` throws for it.
