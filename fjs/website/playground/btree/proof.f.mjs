@@ -2,10 +2,10 @@
  * @import { DemoEvent } from '../../demo/types.ts'
  * @import { RandomInt } from '../../../effects/common/types.ts'
  * @import { RunInstance } from '../../../effects/mock/types.ts'
- * @import { Game } from './types.ts'
+ * @import { Game, Par, Search } from './types.ts'
  */
 
-import { demo, depthOf, goalNodes, keyCount, move, nodeCount, start, statusLine } from './module.f.mjs'
+import { demo, depthOf, goalNodes, keyCount, move, nodeCount, parSearch, searchStep, searchTurn, start, statusLine } from './module.f.mjs'
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
 import { values } from '../../../types/btree/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
@@ -39,7 +39,20 @@ const html = game => htmlToString(demo.view(game))
 const inOrder = tensUpTo(8).reduce((t, k) => structure.insert(k)(t), structure.empty)
 
 /** @type {Game} */
-const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, moves: 0, last: null, error: null }
+const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, moves: 0, par: null, last: null, error: null }
+
+/** A search, asserted to be one. @type {(par: Par) => Search} */
+const searchOf = par => {
+    assert(typeof par === 'object' && par !== null, par)
+    return par
+}
+
+/**
+ * A search run to its end, `budget` trees a turn.
+ *
+ * @type {(keys: readonly number[]) => (budget: number) => (par: Par) => Par}
+ */
+const finish = keys => budget => par => par === null || typeof par === 'number' ? par : finish(keys)(budget)(searchStep(keys)(budget)(par))
 
 /** @type {(game: Game) => readonly number[]} */
 const keysOf = game => toArray(values(assertNotNullish(game.versions).after))
@@ -124,6 +137,68 @@ export const proof = {
         startedPerfect: () => {
             const perfect = assertNotNullish(move(50)(move(10)(move(40)(level2))).versions).after
             assertEq(statusLine({ ...level2, versions: { before: perfect, after: perfect } })(perfect), 'This tree started perfect. Press New tree for another.')
+        },
+    },
+    par: {
+        // The in-order tree's par is 3, the winning moves 40, 10 and 50:
+        // the search tries every tree one move away, then two, then finds
+        // a perfect one at three.
+        inOrder: () => {
+            const keys = tensUpTo(8)
+            const begun = searchOf(parSearch(keys)(inOrder))
+            assertEq(JSON.stringify([begun.distance, begun.frontier.length, begun.next.length]), '[0,1,0]')
+            assertEq(finish(keys)(50)(begun), 3)
+            // One tree a turn: the search keeps its place in a frontier
+            // between turns, and finds the same par.
+            const one = searchOf(searchStep(keys)(1)(begun))
+            assertEq(one.distance, 1)
+            const two = searchOf(searchStep(keys)(1)(one))
+            assertEq(JSON.stringify([two.distance, two.frontier.length === one.frontier.length - 1]), '[1,true]')
+            assertEq(finish(keys)(1)(two), 3)
+        },
+        // A perfect start has par 0, and nothing to search.
+        perfect: () => {
+            const perfect = assertNotNullish(move(50)(move(10)(move(40)(level2))).versions).after
+            assertEq(parSearch(tensUpTo(8))(perfect), 0)
+        },
+        // Seven keys cannot fill every node, so the search meets every tree
+        // there is and ends with no par.
+        none: () => {
+            const keys = tensUpTo(7)
+            const tree = keys.reduce((t, k) => structure.insert(k)(t), structure.empty)
+            assertEq(finish(keys)(50)(parSearch(keys)(tree)), null)
+        },
+        // A level starts its search at depths 2 and 3, and has none at 4.
+        levels: () => {
+            const [, r3] = counter(0)(start(3)(level2))
+            assert(r3[0] === 'ok', '')
+            assertEq(searchOf(r3[1].par).distance, 0)
+            const [, r4] = counter(0)(start(4)(level2))
+            assert(r4[0] === 'ok', '')
+            assertEq(r4[1].par, null)
+        },
+        // The board says the par once known, and that it is being worked
+        // out until then; a level without one says nothing of it.
+        status: () => {
+            const searching = { ...level2, par: parSearch(tensUpTo(8))(inOrder) }
+            assertEq(statusLine(searching)(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4. Par: working it out…')
+            assertEq(statusLine({ ...level2, par: 3 })(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4. Par: 3 moves.')
+            const won = move(50)(move(10)(move(40)({ ...level2, par: 3 })))
+            assertEq(statusLine(won)(assertNotNullish(won.versions).after), 'Perfect, in 3 moves! Par: 3 moves.')
+            assertEq(statusLine({ ...level2, par: 1 })(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4. Par: 1 move.')
+        },
+        // A running search asks for another turn, and a turn moves it on;
+        // with none running, there is no turn to ask for, and one changes
+        // nothing.
+        turns: () => {
+            const searching = { ...level2, par: parSearch(tensUpTo(8))(inOrder) }
+            assertEq(JSON.stringify(assertNotNullish(demo.nextEvent)(searching)), '{"kind":"click","name":"par"}')
+            assertEq(searchOf(update({ kind: 'click', name: 'par' })(searching).par).distance, 1)
+            assertEq(assertNotNullish(demo.nextEvent)(level2), null)
+            assertEq(assertNotNullish(demo.nextEvent)({ ...level2, par: 3 }), null)
+            assertEq(searchTurn(level2), level2)
+            const known = { ...level2, par: 3 }
+            assertEq(searchTurn(known), known)
         },
     },
     demo: {

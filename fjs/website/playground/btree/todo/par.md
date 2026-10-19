@@ -1,32 +1,31 @@
-## Par for the B-tree compaction game
+## Par for the B-tree compaction game's depth-4 level
 
 **Priority:** P3
 **Status:** open
 
 ### Problem
 
-The [game](../module.f.mjs) counts a player's moves but cannot say how good a
-count is. A level's **par** — the fewest moves that make its starting tree
-perfect — would say it, and the game has none yet.
+The [game](../module.f.mjs) shows a par — the fewest moves from the start to
+a perfect tree — at depths 2 and 3, and none at depth 4.
 
-### What is known
+Its par is a breadth-first search over the move, which lists every tree
+reachable from the start until one is perfect. At depth 3 that is thousands
+of trees, searched in about a second, a few dozen trees a turn. At depth 4,
+with 80 keys, the trees are too many to list, and the level is offered
+without a par.
 
-- **Depths 2 and 3 can have an exact par.** A breadth-first search over the
-  move, from a start, lists every shape it reaches and stops at the first
-  perfect one. At depth 2 a start reaches a handful of shapes; at depth 3
-  thousands, which take most of a second in Node. In a page that is a long
-  turn, so the search would run in steps, through a demo's `nextEvent`.
-- **Every random start searched so far reached the perfect tree** at depths
-  2 and 3, so a par exists there in practice; a proof that one always does
-  is not known.
-- **Depth 4 has no par, and maybe no win.** Its shapes are too many to list,
-  and a random search from a start did not reach the perfect tree: whether a
-  random 80-key start can always be made perfect is open. The game offers the
-  level anyway, since winning is checked rather than promised.
+### What is not known
+
+- **Whether a depth-4 start can always be made perfect.** At depths 2 and 3
+  every random start searched reached the perfect tree. At depth 4 a random
+  search from one start did not, which proves nothing either way. The game
+  offers the level anyway, since a win is checked, not promised.
+- **A method short of listing every tree:** a lower bound on the moves
+  left (each move can fill at most so many nodes), a constructive sequence
+  of moves that always reaches the perfect tree, or a search guided by such
+  a bound instead of a blind one.
 
 ### Open questions
 
-- Is the search worth its cost per level, or should par be shown only once
-  the player has won?
-- At depth 4, is there a method short of listing every shape — a bound, or a
-  constructive sequence of moves — or does the level stay without par?
+- Is a bound or a known-good sequence enough to show as par, or should the
+  level show none until the exact fewest moves can be found?
