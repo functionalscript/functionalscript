@@ -19,9 +19,10 @@ runtime, named on neither side and proven nowhere.
 A pure `dragValue` in [`module.f.mjs`](../module.f.mjs), beside `DemoEvent`:
 `({ min, max, left, right }, range, x) => string`, and the attribute names as
 an exported record the `secp` demo spreads into its SVG. The host reads the
-attributes and the `getScreenCTM` transform, then calls `dragValue`. One use
-site today; the arithmetic and the clamp get a proof, and the vocabulary stops
-being two string literals that must agree.
+attributes and the `getScreenCTM` transform, then calls `dragValue`. The
+`secp` demo is the producer it serves today; the arithmetic and the clamp
+get a proof, and the vocabulary stops being two string literals that must
+agree.
 
 ### Tasks
 
