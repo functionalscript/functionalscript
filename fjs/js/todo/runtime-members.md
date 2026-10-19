@@ -1,9 +1,9 @@
 ## One member function per name, and `dot`, the dispatcher, in FunctionalScript
 
 **Priority:** P3
-**Status:** wip — the member shape and the inventory have landed,
-**sergey-shandar**'s decisions below taken; `dot`, its compilation and the
-natives remain
+**Status:** wip — the member shape, the inventory, `dot` and its
+compilation have landed, **sergey-shandar**'s decisions below taken; the
+chain in the runtime and the natives remain
 
 ### Problem
 
