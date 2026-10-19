@@ -528,6 +528,8 @@ export const proof = {
         const slice = 'const slice = (s, a, b) => s.slice(a, b);'
         expectEdag(compile(`${slice} export default slice;`).edag, ['slice'])
         expectEdag(compile(`${slice} export default slice("abc", 1, 2);`).edag, ['()', ['slice'], ['abc', 1, 2]])
+        const charCodeAt = 'const charCodeAt = (s, i) => s.charCodeAt(i);'
+        expectEdag(compile(`${charCodeAt} export default charCodeAt("abc", 1);`).edag, ['()', ['charCodeAt'], ['abc', 1]])
         expectEdag(compile(`${helper} export default [entry.length, typeof entry];`).edag, ['[]', [['.', ['entry'], 'length'], ['typeof', ['entry']]]])
         // an unreached helper is anchored as any entry is
         expectEdag(compile(`${helper} export default 1;`).edag, [',', [['entry'], 1]])
@@ -1594,6 +1596,7 @@ export const proof = {
                     ['entry', { inline: 'entry', kind: 'terminal' }],
                     ['hasEntry', { inline: 'hasEntry', kind: 'terminal' }],
                     ['slice', { inline: 'slice', kind: 'terminal' }],
+                    ['charCodeAt', { inline: 'charCodeAt', kind: 'terminal' }],
                 ]) {
                     assertStructurallySame(_shapeOf([tag]), shape, tag)
                 }

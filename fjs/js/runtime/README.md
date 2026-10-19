@@ -48,9 +48,10 @@ Two kinds, and both are each VM's to bind natively:
   list, and an array element is read by a runtime number index, which the
   language has. A member primitive a body needs is an **intrinsic**
   ([`../intrinsic`](../intrinsic/module.f.js)): a function the body calls,
-  `slice(self, start, end)` in `found`, whose own body is the one member
-  call and which the compiler recognizes whole as a node every executor
-  answers natively, so no body of this module makes a member call;
+  `slice(self, start, end)` in `found` and `charCodeAt(self, at)` in
+  `codePointAt`, whose own body is the one member call and which the
+  compiler recognizes whole as a node every executor answers natively, so
+  no body of this module makes a member call;
 - the names whose body **waits on a primitive the language has not
   admitted** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, `String.fromCharCode`, over which the Unicode case tables are
@@ -274,8 +275,9 @@ cycle:
   relies on exactly that: `runtimeAt` interprets it under `noRuntime`, so a
   member call or a static read in any initializer of the closure fails the
   load rather than passing unnoticed. A body reaches a native through an
-  intrinsic, `slice` in `found`, called as a function
-  ([`../intrinsic`](../intrinsic/module.f.js)), and another body by
+  intrinsic, `slice` in `found` or `charCodeAt` in `codePointAt`, called
+  as a function ([`../intrinsic`](../intrinsic/module.f.js)), and another
+  body by
   reading it as a value, never by its name: the core may not use what it
   defines, and the whole module is the core, which the proof checks on the
   compiled EDAG — no chain step anywhere in it, and no static node but the
@@ -299,4 +301,5 @@ cycle:
 4. `npm run gen`, then the corpus: the name's cases in `nanvm/member` run
    the body through `amnesia` and on NaNVM.
 
-`startsWith` is the first.
+`startsWith` is the first; `codePointAt`, over the intrinsic `charCodeAt`,
+the second.

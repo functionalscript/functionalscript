@@ -593,6 +593,8 @@ export const proof = {
             expect('export default (x, y, z) => x["slice"](y, z);', '[[],[["object",[[":","default",["slice"]]]]]]')
             expect('export default (s, a, b) => (s.slice)(a, b);', '[[],[["object",[[":","default",["slice"]]]]]]')
             expect('const slice = (s, a, b) => s.slice(a, b); export default slice("abc", 1, 2);', '[[],[["slice"],["object",[[":","default",["()",["cref",0],["abc",1,2]]]]]]]')
+            // the second intrinsic, of `length` `2`
+            expect('export default (s, i) => s.charCodeAt(i);', '[[],[["object",[[":","default",["charCodeAt"]]]]]]')
             // a step from the shape is an ordinary function with an ordinary
             // member call, which the AST spells as a call of an access
             for (const other of [
@@ -615,6 +617,8 @@ export const proof = {
                 assertEq(tag, 'ok', other)
                 assert(!JSON.stringify(value).includes('["slice"]'), other)
             }
+            const [, three] = parseFromTokens(tokenizeString('export default (s, i, j) => s.charCodeAt(i);'))
+            assert(!JSON.stringify(three).includes('["charCodeAt"]'))
         },
         // Not the helper: a body that departs from the helper's by a step is
         // an ordinary function, which is where `Object` — a reserved global,

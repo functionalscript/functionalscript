@@ -26,7 +26,7 @@ such as `Array.isArray` remain outside this set. The complete name-by-name
 admission rationale is in [prototype names](../../fjs/js/prototype/README.md).
 
 A member function no body can define — `slice` on a string, the substring
-read — is an **intrinsic**: every executor binds it natively, and a module
+read, and `charCodeAt`, the code-unit read — is an **intrinsic**: every executor binds it natively, and a module
 may call it as a function through a helper whose body is the one member
 call, `(s, a, b) => s.slice(a, b)`, which the compiler recognizes whole as
 it recognizes `entry` ([entries](../property-access/entries.md)), under any

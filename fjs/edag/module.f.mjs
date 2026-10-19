@@ -628,9 +628,9 @@ export const noStatic = name => `no binding for the static ${name}`
  * (`fjs/js/todo/runtime-value.md`). As a value the node is fresh where it
  * is established, as `entry` is and every `=>` is.
  */
-export const intrinsics = /** @type {const} */ ([['slice', 3]])
+export const intrinsics = /** @type {const} */ ([['slice', 3], ['charCodeAt', 2]])
 
-/** The intrinsics' tags, {@link intrinsics}: `slice`. */
+/** The intrinsics' tags, {@link intrinsics}: `slice`, `charCodeAt`. */
 export const intrinsicIds = intrinsics.map(([id]) => id)
 
 /** An intrinsic as a value, `['slice']`: one tag of {@link intrinsicIds}. */
@@ -648,7 +648,8 @@ export const isIntrinsic = node => node instanceof Array && node.length === 1 &&
 
 /**
  * The `length` of an intrinsic's helper, {@link intrinsics}: `3` for
- * `slice`, the receiver and the native's two positions.
+ * `slice`, the receiver and the native's two positions, `2` for
+ * `charCodeAt`, the receiver and the position.
  *
  * @type {(id: IntrinsicId) => number}
  */

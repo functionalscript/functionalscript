@@ -250,7 +250,7 @@ export const operation = evaluator => {
             case 'hasEntry': { return [state, ok(['hasEntry'])] }
             // an intrinsic as a value: the node, fresh as `entry` is, its
             // call `intrinsicCall`'s; named here as the statics are below
-            case 'slice': { return [state, ok(/** @type {Intrinsic} */ ([node[0]]))] }
+            case 'slice': case 'charCodeAt': { return [state, ok(/** @type {Intrinsic} */ ([node[0]]))] }
             // a static function as a value: the node, the built-in by its
             // name, one function however often it is read, whose call and
             // `length` the body the runtime's `static` section holds at

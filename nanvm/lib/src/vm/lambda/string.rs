@@ -2,19 +2,18 @@
 //! `method` consults for a string receiver, and one adapter per built-in
 //! reading the call's arguments into the typed method it calls, under
 //! `vm/string/`. The contracts are `vm/string/README.md`'s. A name the
-//! runtime defines — `startsWith` — has no entry here: the call step
-//! finds its body through `vm/runtime.rs`.
+//! runtime defines — `startsWith`, `codePointAt` — has no entry here: the
+//! call step finds its body through the runtime value (`vm/runtime.rs`).
 
 use super::method::{Method, ToAnyResult, index_or_minus_one};
-use crate::vm::{Any, Array, IVm, Number, String, ToAny};
+use crate::vm::{Any, Array, IVm, String, ToAny};
 
 /// `String.prototype`'s.
-pub(super) fn string<A: IVm>() -> [(&'static str, Method<A>); 24] {
+pub(super) fn string<A: IVm>() -> [(&'static str, Method<A>); 23] {
     [
         ("at", at),
         ("charAt", char_at),
         ("charCodeAt", char_code_at),
-        ("codePointAt", code_point_at),
         ("concat", concat),
         ("endsWith", ends_with),
         ("includes", includes),
@@ -52,16 +51,6 @@ fn char_code_at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     String::try_from(s)?
         .char_code_at(args.argument(0))
         .to_any_result()
-}
-
-/// The code point as a number, or `undefined` out of range.
-fn code_point_at<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    Ok(String::try_from(s)?
-        .code_point_at(args.argument(0))?
-        .map_or_else(
-            || crate::vm::Any::undefined(),
-            |c| Number::from(f64::from(c)).to_any(),
-        ))
 }
 
 fn is_well_formed<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {

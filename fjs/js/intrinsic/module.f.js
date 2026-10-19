@@ -12,7 +12,8 @@
  * the native, else the `TypeError` of calling `undefined`. That is how the
  * runtime's bodies reach a native without naming what the runtime defines
  * ([`../todo/runtime-value.md`](../todo/runtime-value.md)): the runtime
- * holds no member call, and `found` calls `slice` as a function.
+ * holds no member call: `found` calls `slice` as a function, and
+ * `codePointAt` calls `charCodeAt`.
  *
  * The list is `intrinsics` in [`fjs/edag`](../../edag/module.f.mjs), each
  * with its helper's `length`, which the proof pins to the functions here.
@@ -22,7 +23,7 @@
  *
  * @module
  *
- * @import { Slice } from './types.ts'
+ * @import { CharCodeAt, Slice } from './types.ts'
  */
 
 /**
@@ -36,3 +37,16 @@
  * @type {Slice}
  */
 export const slice = (s, start, end) => s.slice(start, end)
+
+/**
+ * [`String.prototype.charCodeAt`](https://tc39.es/ecma262/#sec-string.prototype.charcodeat)
+ * as a function of its receiver: the code unit at `at`, the position
+ * `ToIntegerOrInfinity` of the argument, or `NaN` outside the string; the
+ * position is given, since every body reading a code unit has one. The
+ * code-unit read is the primitive every string body that looks at one
+ * character stands on, `codePointAt` first; the type is the string's,
+ * as `slice`'s is.
+ *
+ * @type {CharCodeAt}
+ */
+export const charCodeAt = (s, at) => s.charCodeAt(at)

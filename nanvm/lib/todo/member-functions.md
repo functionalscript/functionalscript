@@ -191,7 +191,8 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 - [x] `at` — `vm/string/reads.rs`
 - [x] `charAt` — `vm/string/reads.rs`
 - [x] `charCodeAt` — `vm/string/reads.rs`
-- [x] `codePointAt` — `vm/string/reads.rs`
+- [x] `codePointAt` — `fjs/js/runtime/module.f.js`, the runtime's body,
+      bound through `vm/runtime.rs`
 - [x] `concat` — `vm/string/building.rs`
 - [x] `endsWith` — `vm/string/search.rs`
 - [x] `includes` — `vm/string/search.rs`

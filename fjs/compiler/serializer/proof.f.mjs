@@ -488,6 +488,7 @@ export const proof = {
         // an intrinsic's helper in its one spelling, the member call of the
         // name on its first parameter with the rest
         writes(['slice'], 'export default ($0,$1,$2)=>$0.slice($1,$2);')
+        writes(['charCodeAt'], 'export default ($0,$1)=>$0.charCodeAt($1);')
         writes(['()', ['slice'], ['abc', 1, 2]], 'const $0=($1,$2,$3)=>$1.slice($2,$3);export default $0("abc",1,2);')
         writes(['.', ['slice'], 'length'], 'const $0=($1,$2,$3)=>$1.slice($2,$3);export default $0.length;')
         // an operand of an operator, a prefix's and a conditional's
