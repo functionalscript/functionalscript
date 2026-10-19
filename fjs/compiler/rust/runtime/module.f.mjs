@@ -40,6 +40,12 @@
  * A literal written twice under one key is its last value, as the EDAG
  * means it.
  *
+ * Beside the items and the tables, the same output holds the runtime **as
+ * a value**, `runtime::<A>()`: the `runtime` export object printed by the
+ * ordinary backend as any module is ({@link valueLines}), every built-in a
+ * closure carrying the NativeFunction text of its path, the replacement
+ * built beside the lifting it will retire (`fjs/js/todo/runtime-value.md`).
+ *
  * @module
  *
  * @import { Exp } from '../../../edag/types.ts'
@@ -55,7 +61,8 @@ import { builtInIdentifier } from '../../../media/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { isNative, natives } from '../../../js/static/module.f.js'
-import { isIntrinsic } from '../../../edag/module.f.mjs'
+import { isIntrinsic, isStatic, nativeFunctionText, staticPath } from '../../../edag/module.f.mjs'
+import { itemTagged } from '../module.f.mjs'
 
 const kw = tagged('keyword')
 const lit = tagged('literal')
@@ -87,6 +94,13 @@ const resolve = node => {
     if (id === '=>') { return ok(/** @type {const} */ (['function', node])) }
     if (id === 'undefined') { return ok(/** @type {const} */ (['literal', node])) }
     if (id === 'entry' || id === 'hasEntry' || isIntrinsic(node)) { return ok(/** @type {const} */ (['helper', node])) }
+    // a static function read as a value: the native, `Object.entries`,
+    // which the `static` section lists as itself and a body may capture as
+    // the helpers; any other names what the runtime defines
+    if (isStatic(node)) {
+        return isNative(staticPath(node[0])) ? ok(/** @type {const} */ (['helper', node]))
+            : error(['a static function read in the runtime; the core may not use what it defines', node[0]])
+    }
     if (id === '.' && node.length === 3 && typeof key === 'string') {
         const property = literalProperties(a)?.find(p => p[1] === key)
         return property === undefined ? refused(node) : resolve(/** @type {Exp} */ (property[2]))
@@ -116,20 +130,22 @@ const literalProperties = node => {
 
 /**
  * The built-ins an object of the table holds, each resolving to a function
- * node, named by `name` from its key, `member` for the `member` section's;
- * or the refusal of a value that is no object literal, as `refused` says,
- * or of an entry that is no function.
+ * node, named by `name` from its key, `member` for the `member` section's —
+ * a native static the section lists as itself, `Object.entries`, is no
+ * built-in of the module's, since `nanvm-lib` writes it, and is passed
+ * over; or the refusal of a value that is no object literal, as `refused`
+ * says, or of an entry that is no function.
  *
  * @type {(name: (key: string) => string, member: boolean) => (functions: unknown, refused: readonly unknown[]) => Result<readonly _BuiltIn[], readonly unknown[]>}
  */
 const builtIns = (name, member) => (functions, refused) => {
     const properties = literalProperties(functions)
     if (properties === null) { return error(refused) }
-    return okList(properties.map(([, key, node]) => okThen(
-        /** @type {(resolved: _Resolved) => Result<_BuiltIn, readonly unknown[]>} */
-        (resolved) => resolved[0] === 'function'
-            ? ok({ name: name(key), node: resolved[1], member })
-            : error(['a built-in that is no function', name(key)]))(resolve(node))))
+    return mapOk((/** @type {readonly (readonly _BuiltIn[])[]} */ lists) => lists.flat())(okList(properties.map(([, key, node]) => okThen(
+        /** @type {(resolved: _Resolved) => Result<readonly _BuiltIn[], readonly unknown[]>} */
+        (resolved) => resolved[0] === 'function' ? ok([{ name: name(key), node: resolved[1], member }])
+            : isStatic(node) ? ok([])
+            : error(['a built-in that is no function', name(key)]))(resolve(node)))))
 }
 
 /**
@@ -167,7 +183,8 @@ const table = root => {
     const others = exports.filter(p => p[1] !== 'runtime').map(p => p[1])
     if (others.length !== 0) { return error(['the runtime module exports `runtime` alone; the lifting would drop an export', others]) }
     const runtime = exports.find(p => p[1] === 'runtime')
-    const sections = runtime === undefined ? null : literalProperties(runtime[2])
+    if (runtime === undefined) { return error(['no `runtime` export of objects', root]) }
+    const sections = literalProperties(runtime[2])
     if (sections === null) { return error(['no `runtime` export of objects', root]) }
     /** @type {(name: string) => unknown} */
     const section = name => sections.find(p => p[1] === name)?.[2] ?? ['{}', []]
@@ -176,7 +193,7 @@ const table = root => {
     return okThen((/** @type {readonly _BuiltIn[]} */ bodies) => {
         const native = bodies.find(b => isNative(b.name.split('.')))
         if (native !== undefined) { return error(['a body for a static every executor binds natively', native.name]) }
-        return mapOk((/** @type {readonly _BuiltIn[]} */ members) => /** @type {_Table} */ ({ builtIns: [...bodies, ...members], dot }))(
+        return mapOk((/** @type {readonly _BuiltIn[]} */ members) => /** @type {_Table} */ ({ builtIns: [...bodies, ...members], dot, value: /** @type {Exp} */ (runtime[2]) }))(
             builtIns(key => key, true)(section('member'), ['a section of the runtime that is no object', section('member')]))
     })(statics(section('static')))
 }
@@ -206,7 +223,7 @@ const table = root => {
  */
 const items = (root, { builtIns, dot }) => {
     const nodes = visit(operandsOf)([])(root).map(([n]) => n).filter(n => n instanceof Array)
-    const stray = nodes.find(n => !['=>', '{}', '.', 'undefined', 'entry', 'hasEntry'].includes(n[0]) && !isIntrinsic(n))
+    const stray = nodes.find(n => !['=>', '{}', '.', 'undefined', 'entry', 'hasEntry'].includes(n[0]) && !isIntrinsic(n) && !isStatic(n))
     if (stray !== undefined) { return refused(/** @type {Exp} */ (stray)) }
     return okThen(/** @type {() => Result<readonly _Item[], readonly unknown[]>} */ () => {
         const shared = builtIns.find(b => b.node === dot)
@@ -227,7 +244,7 @@ const items = (root, { builtIns, dot }) => {
         const names = all.flatMap(i => printedNames(i).map(n => /** @type {const} */ ([n, i])))
         const clash = names.find(([n], index) => names.findIndex(([m]) => m === n) !== index)
         return clash === undefined ? ok(all) : error(['two items of one Rust name', `${clash[0]} of ${clash[1].name}`])
-    })(okList(nodes.filter(n => n[0] === '.').map(n => resolve(/** @type {Exp} */ (n)))))
+    })(okList(nodes.filter(n => n[0] === '.' || isStatic(n)).map(n => resolve(/** @type {Exp} */ (n)))))
 }
 
 /** An item, its identifier `builtInIdentifier`'s of `spelled`. @type {(node: readonly unknown[], name: string, spelled: string, kind: _Item['kind']) => _Item} */
@@ -393,16 +410,47 @@ const tables = (builtIns, all) => {
 }
 
 /**
+ * The runtime as a value, tagged, with the names it spells: the `runtime`
+ * export object printed by the ordinary backend as any module is,
+ * `pub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>>`
+ * ([`../module.f.mjs`](../module.f.mjs)'s `itemTagged`), every function a
+ * section names carrying the NativeFunction text of its path in place of
+ * its body's, since a runtime function is the built-in, not its body, and
+ * `Object.entries` the built-in itself. Built once by its caller and read
+ * by nothing yet: the replacement built beside the tables it will replace
+ * (`fjs/js/todo/runtime-value.md`).
+ *
+ * @type {(sections: _Table) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ */
+const valueLines = ({ builtIns, value }) => {
+    /** @type {(node: Exp) => string | undefined} */
+    const text = node => {
+        const named = builtIns.find(b => b.node === node)
+        return named === undefined ? undefined : nativeFunctionText(`${named.name.split('.').at(-1)}`)
+    }
+    return mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: { readonly vm: readonly string[], readonly unstable: readonly string[] }, readonly bound: string }} */ { lines, uses, bound }) => /** @type {Printed<readonly string[]>} */ ([
+        [
+            tagged('comment')('/// The runtime as a value: the `runtime` export of `fjs/js/runtime`, its `static`, `member` and `dot`'),
+            tagged('comment')('/// sections, as the ordinary backend prints any module — every built-in a closure carrying the'),
+            tagged('comment')('/// NativeFunction text of its path, `Object.entries` the built-in itself. Built once by its caller,'),
+            tagged('comment')('/// and read by nothing yet (`fjs/js/todo/runtime-value.md`).'),
+            ...lines,
+        ],
+        [...uses.vm.map(n => /** @type {Use} */ (['vm', n])), ...uses.unstable.map(n => /** @type {Use} */ (['unstable', n])), ['vm', bound]],
+    ]))(itemTagged('runtime', text)(value))
+}
+
+/**
  * The static runtime of the module `root`, tagged, or the refusal: the
  * generated header, the `use` lines for every name the items spell, each
- * item, and the tables.
+ * item, the tables, and the runtime as a value, {@link valueLines}.
  *
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
-export const generateRuntimeTagged = root => okThen((/** @type {_Table} */ sections) => okThen((/** @type {readonly _Item[]} */ all) =>
-    mapOk((/** @type {readonly Printed<readonly string[]>[]} */ printed) => {
+export const generateRuntimeTagged = root => okThen((/** @type {_Table} */ sections) => okThen((/** @type {readonly _Item[]} */ all) => okThen((/** @type {readonly Printed<readonly string[]>[]} */ printed) =>
+    mapOk((/** @type {Printed<readonly string[]>} */ [valueItem, valueUses]) => {
         const [tableLines, tableUses] = tables(sections.builtIns, all)
-        const uses = [...printed.flatMap(([, u]) => u), ...tableUses, ...skeletonUses]
+        const uses = [...printed.flatMap(([, u]) => u), ...tableUses, ...valueUses, ...skeletonUses]
         return [
             tagged('comment')(generatedHeader('`npm run gen` from `fjs/js/runtime/module.f.js`', 'change the runtime and regenerate')),
             '',
@@ -411,8 +459,10 @@ export const generateRuntimeTagged = root => okThen((/** @type {_Table} */ secti
             ...printed.flatMap(([lines]) => [...lines, '']),
             ...tableLines,
             '',
+            ...valueItem,
+            '',
         ].join('\n')
-    })(okList(all.map(itemLines(all)))))(items(root, sections)))(table(root))
+    })(valueLines(sections)))(okList(all.map(itemLines(all)))))(items(root, sections)))(table(root))
 
 /** The names the two tables spell: their rows' types and the members' bound. @type {readonly Use[]} */
 const skeletonUses = [['vm', 'Accessor'], ['vm', 'MemberCode'], ['vm', bound('member')]]

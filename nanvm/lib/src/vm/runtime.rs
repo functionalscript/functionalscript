@@ -16,6 +16,16 @@
 //! implementation. [`object_entries`] is the one static function no body
 //! can define, written here and listed in the compiled table beside the
 //! bodies. The design: `fjs/js/runtime/README.md`, "How NaNVM finds it".
+//!
+//! Beside the tables, the same file holds the runtime **as a value**,
+//! [`runtime`]: the module printed by the ordinary backend, as any module
+//! is, answering the `runtime` export object — `static`, `member` and
+//! `dot` — built once by whoever calls it, every built-in in it a closure
+//! carrying the NativeFunction text of its path, and `Object.entries`
+//! listed as the built-in itself. Nothing reads it yet: it is the
+//! replacement built beside the tables it will replace
+//! (`fjs/js/todo/runtime-value.md`), so that a compiled module can take it
+//! as a parameter and reach every built-in through it.
 
 use crate::vm::{Any, Array, IVm, MemberCode, RuntimeFunction};
 
@@ -77,7 +87,10 @@ pub fn object_entries<A: IVm>() -> &'static RuntimeFunction<A> {
 
 #[cfg(test)]
 mod tests {
-    use super::{MemberCode, compiled::object_is, object_entries, runtime_method, runtime_static};
+    use super::{
+        MemberCode, compiled::object_is, compiled::runtime, object_entries, runtime_method,
+        runtime_static,
+    };
     use crate::{
         naive::Naive,
         vm::{Any, BigInt, Function, IVm, ToAny, ToArray, ToObject},
@@ -170,6 +183,81 @@ mod tests {
             .unwrap();
         assert_eq!(pairs.to_json(), Ok(r#"[["0","a"],["1","b"]]"#.into()));
         assert!(entries.call([].to_array().to_any()).is_err());
+    }
+
+    /// A property of the runtime value, by its key: `static`, `Object`, `is`.
+    fn at(value: &Any<A>, key: &str) -> Any<A> {
+        Any::dot(value.clone(), key.into()).end().unwrap()
+    }
+
+    /// The runtime as a value: the export object with its three sections.
+    /// A static read from it is the body as a function — `Object.is`,
+    /// SameValue, with the NativeFunction text of its path and the
+    /// `length` of its body — one value however often it is read, as the
+    /// language's own identity has it; `Object.entries` is the built-in
+    /// itself; a member read from it is the body of the receiver; and
+    /// `dot` is the dispatcher, answering an own property, a member's
+    /// function of the arguments, or `undefined`.
+    #[test]
+    fn value() {
+        let rt: Any<A> = runtime::<A>().unwrap();
+        let statics = at(&rt, "static");
+        let is = at(&at(&statics, "Object"), "is");
+        assert_eq!(
+            is.clone().to_string(),
+            Ok("function is() { [native code] }".into())
+        );
+        assert_eq!(
+            Any::dot(is.clone(), "length".into()).end(),
+            Ok(2.0.to_any())
+        );
+        let call = |a: Any<A>, b: Any<A>| is.clone().call([a, b].to_array().to_any());
+        assert_eq!(call((-0.0).to_any(), 0.0.to_any()), Ok(false.to_any()));
+        assert_eq!(
+            call(f64::NAN.to_any(), f64::NAN.to_any()),
+            Ok(true.to_any())
+        );
+        let again = at(&at(&at(&rt, "static"), "Object"), "is");
+        assert_eq!(is, again);
+        assert!(is.same_value(&again));
+        let is_nan = at(&at(&statics, "Number"), "isNaN");
+        assert_eq!(
+            is_nan.clone().to_string(),
+            Ok("function isNaN() { [native code] }".into())
+        );
+        assert_ne!(is, is_nan);
+        assert_eq!(
+            at(&at(&statics, "Object"), "entries"),
+            Function::from(object_entries::<A>()).to_any()
+        );
+        let starts_with = at(&at(&rt, "member"), "startsWith");
+        assert_eq!(
+            starts_with.clone().to_string(),
+            Ok("function startsWith() { [native code] }".into())
+        );
+        let on_abc = starts_with
+            .call(["abc".into()].to_array().to_any())
+            .unwrap();
+        assert_eq!(
+            on_abc.call(["ab".into()].to_array().to_any()),
+            Ok(true.to_any())
+        );
+        let dot = at(&rt, "dot");
+        let dispatch = |receiver: Any<A>, key: &str| {
+            dot.clone()
+                .call([receiver, key.into()].to_array().to_any())
+                .unwrap()
+        };
+        assert!(dispatch(1.0.to_any(), "startsWith").is_nullish());
+        assert!(dispatch("abc".into(), "slice").is_nullish());
+        let f = A::static_function(|_, _| Ok(7.0.to_any()), 0, [].to_array(), None).to_any();
+        let own: Any<A> = [("startsWith".into(), f.clone())].to_object().to_any();
+        assert_eq!(dispatch(own, "startsWith"), f);
+        assert_eq!(
+            dispatch("abc".into(), "startsWith")
+                .call(["bc".into(), 1.0.to_any()].to_array().to_any()),
+            Ok(true.to_any())
+        );
     }
 
     /// The code asked as a call step asks it: with the receiver alone

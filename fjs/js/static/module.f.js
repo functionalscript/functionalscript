@@ -49,7 +49,8 @@ export const statics = /** @type {const} */ ([
 
 /**
  * The admitted paths no body can define, each a primitive every executor
- * binds natively and the runtime holds nothing at: `Object.entries`, since
+ * binds natively and the runtime lists as the built-in itself, not as a
+ * body: `Object.entries`, since
  * enumerating keys is exactly what the language has no other way to do
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)).
  * Every other path of {@link statics} has its body in the runtime.

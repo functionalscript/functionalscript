@@ -160,12 +160,15 @@ const member = {
 }
 
 /**
- * The table: `static`, then a static path's keys, then the body; `member`,
- * then a name, then the body; and `dot`, the dispatcher over `member`.
+ * The table: `static`, then a static path's keys, then the body — or, at a
+ * path every executor binds natively, `Object.entries`, the built-in
+ * itself, so that every admitted static path holds a value and the table
+ * is complete as a value; `member`, then a name, then the body; and `dot`,
+ * the dispatcher over `member`.
  */
 export const runtime = {
     static: {
-        Object: { is },
+        Object: { is, entries: Object.entries },
         Number: { isInteger, isSafeInteger, isNaN: isNaN_, isFinite: isFinite_ },
     },
     member,

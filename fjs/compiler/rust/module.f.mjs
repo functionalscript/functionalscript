@@ -64,15 +64,45 @@ const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
  * printed as a name nothing binds; a module has no frame either, and a
  * `['frame', i]` in its own scope is `checked`'s refusal.
  *
- * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
+ * `text` is the text a caller gives a function node in place of the
+ * writer's, where it gives one: the static runtime's built-ins
+ * ([`./runtime`](./runtime/module.f.mjs)), each the NativeFunction text of
+ * its path.
+ *
+ * @type {(root: Exp, text?: (e: Exp) => string | undefined) => Result<Scope, readonly unknown[]>}
  */
-const body = root => {
+const body = (root, text) => {
     const [kind, a] = okThen(checked)(analysis(root))
     if (kind === 'error') { return error([a, root]) }
     return readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
-    : mapOk((/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(l => `${indent}${l}`), uses }))(scopeTagged(root))
+    : mapOk((/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(l => `${indent}${l}`), uses }))(scopeTagged(root, text))
 }
+
+/**
+ * A module's scope as one Rust function item, tagged, with the names it
+ * spells and the bound on its VM parameter:
+ * `pub fn <name><A: bound>() -> Result<Any<A>, Any<A>>` under
+ * `#[rustfmt::skip]`, {@link generateTagged}'s `module` and the static
+ * runtime's `runtime`, the runtime as a value
+ * ([`./runtime`](./runtime/module.f.mjs)), which gives its built-ins their
+ * texts through `text`.
+ *
+ * @type {(name: string, text?: (e: Exp) => string | undefined) => (root: Exp) => Result<{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }, readonly unknown[]>}
+ */
+export const itemTagged = (name, text) => root => mapOk((/** @type {Scope} */ { lines, uses }) => {
+    const bound = vmBound(root)
+    return {
+        lines: [
+            '#[rustfmt::skip]',
+            `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} ${name}<A: ${bound}>() -> Result<Any<A>, Any<A>> {`,
+            ...lines,
+            '}',
+        ],
+        uses,
+        bound,
+    }
+})(body(root, text))
 
 /**
  * The EDAG as a generated Rust module, or the refusal: a node shape this
@@ -92,20 +122,14 @@ const body = root => {
  *
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
-const generateTagged = root => mapOk((/** @type {Scope} */ { lines, uses }) => {
-    const bound = vmBound(root)
-    return [
-        tagged('comment')(generatedHeader('`fjs compile`', 'recompile the source module instead')),
-        '',
-        ...useLinesTagged(uses, bound),
-        '',
-        '#[rustfmt::skip]',
-        `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} module<A: ${bound}>() -> Result<Any<A>, Any<A>> {`,
-        ...lines,
-        '}',
-        '',
-    ].join('\n')
-})(body(root))
+const generateTagged = root => mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }} */ { lines, uses, bound }) => [
+    tagged('comment')(generatedHeader('`fjs compile`', 'recompile the source module instead')),
+    '',
+    ...useLinesTagged(uses, bound),
+    '',
+    ...lines,
+    '',
+].join('\n'))(itemTagged('module')(root))
 
 /**
  * {@link generateTagged} as plain text, the form every caller before marked
