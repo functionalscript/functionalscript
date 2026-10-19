@@ -27,16 +27,26 @@
  * [`oid`'s chunk-gathering.md](../oid/todo/chunk-gathering.md), and neither is a
  * question about what a read *answers*.
  *
- * **An entry's window has to be exact.** A pack entry carries no length: its
+ * **An entry is read up to where the index says the next begins, and the
+ * inflater finds where its stream ends.** A pack entry carries no length: its
  * header says what the object inflates to and says nothing about how many bytes
- * of the file the zlib stream after it takes. `inflate` refuses bytes after the
- * end of a stream, so a reader that hands the host a generous window hands it
- * the beginning of the next entry and is refused. The index is what closes the
- * window — see `after` in [`fjs/git/packidx`](../packidx/module.f.mjs) — and the
- * last entry in a pack ends at the file's length less its trailing checksum,
- * which is why a read `stat`s the pack. Measured on a pack of six objects, two
- * of them deltas: every entry's window taken this way inflated with nothing left
- * over.
+ * of the file the zlib stream after it takes. The host's `inflate` refused bytes
+ * after the end of a stream, so the window handed to it had to end exactly there
+ * and the index closed it; the inflater here
+ * ([`fjs/zlib/inflate`](../../zlib/inflate/module.f.mjs)) knows where a stream
+ * ends, so the window is only an upper bound, and it is read in pieces of a
+ * `Vec` each, however long the entry is. See `after` in
+ * [`fjs/git/packidx`](../packidx/module.f.mjs); the last entry in a pack ends at
+ * the file's length less its trailing checksum, which is why a read `stat`s the
+ * pack. Bytes between the end of the stream and the next entry are still
+ * refused, as Git does — measured on a pack of six objects, two of them deltas:
+ * every entry's stream ended exactly where the next began.
+ *
+ * **No object is refused for its length, but a delta chain is bounded.** An
+ * object stored whole is read to a list over the chunks it inflated to, a byte
+ * a byte, however long it is. A delta, and the base it is applied to, are dense
+ * arrays, a number a byte, so those are held to
+ * [`maxDeltaBytes`](../pack/module.f.mjs).
  *
  * **A delta chain is walked, not recursed.** Each link reads one entry, and a
  * delta's base is the next item of the same walk rather than a nested read, for
@@ -92,7 +102,7 @@
  *
  * @module
  *
- * @import { Dirent, Inflate, IoChannel, ReadBytes, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, IoChannel, ReadBytes, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
@@ -101,17 +111,19 @@
  * @import { Entry } from '../pack/types.ts'
  * @import { Idx } from '../packidx/types.ts'
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
+ * @import { Progress, Refusal } from '../inflater/types.ts'
  * @import { _Chain, _Delta } from './private.ts'
  * @import { Held } from './types.ts'
  */
 
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
-import { inflate, leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
-import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
-import { headerBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
+import { bytesOf, feedWithin, finish, malformed, sizeOf, start } from '../inflater/module.f.mjs'
+import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
 import { hexText, ofWidth } from '../oid/module.f.mjs'
 
@@ -173,27 +185,6 @@ const refusePackEntry = refuse(packEntryCode)
 
 /** @type {(path: string) => string} */
 const idxMessage = path => `${path} is no pack index`
-
-/**
- * What a channel error says, for a message that carries it on.
- *
- * The host's own diagnosis is kept rather than replaced: `Z_DATA_ERROR` and a
- * missing `inflate` handler are different repairs, and a refusal that said only
- * "does not inflate" would make them one. Git keeps both halves too — measured
- * on Git 2.43.0 with a byte flipped inside a pack entry's zlib stream, it prints
- * `error: inflate: data stream error (incorrect header check)` and then `fatal:
- * packed object … (stored in …pack) is corrupt`, the inflater's words and the
- * file's.
- *
- * The other channel names the operation it is missing, not just itself: a
- * runner without an `inflate` handler and one without a `readBytes` handler are
- * different runners to fix, and `notImplemented` alone says neither.
- *
- * @type {(c: IoChannel) => string}
- */
-const channelText = c => c[0] === 'ioError'
-    ? c[1].code === undefined ? c[1].message : `${c[1].code} ${c[1].message}`
-    : `${c[0]} ${c[1]}`
 
 /**
  * A refusal about the entry at an offset, as the channel error it becomes.
@@ -343,24 +334,6 @@ const endOf = (idx, oidBytes, packLength, at) => {
 }
 
 /**
- * One entry of a pack, framed, with the stream after its header inflated — the
- * entry and the bytes as a pair, since the kind decides what the bytes are and
- * both are read from the one window.
- *
- * @type {(oidBytes: OidBytes, path: string, at: number, window: readonly number[]) => Effect<Inflate, readonly [Entry, readonly number[]], IoChannel>}
- */
-const framedAt = (oidBytes, path, at, window) => {
-    const e = tryEntry(oidBytes)(window)
-    return e === null
-        ? entryRefusal(path, at)('is no pack entry')
-        : catchStep(
-            mapStep(
-                inflate(u8ListToVecMsb(window.slice(e.dataAt))),
-                v => /** @type {const} */ ([e, denseBytes(v)])),
-            c => entryRefusal(path, at)(`does not inflate: ${channelText(c)}`))
-}
-
-/**
  * {@link applied}'s fold, which stops at the first delta that does not apply.
  *
  * @type {(acc: Nullable<readonly number[]>, d: readonly number[]) => Nullable<readonly number[]>}
@@ -422,15 +395,26 @@ const missingBase = (e, at) =>
  * all — an object read whole is answered as it is, and the hash check above this
  * is what would refuse it.
  *
- * @type {(idx: Idx, path: string, at: number, chain: _Chain, e: Entry, data: readonly number[]) => Effect<never, readonly [_Chain, List<number>], IoChannel>}
+ * **An object read whole is a list over the chunks it inflated to**, about a byte
+ * a byte, and has no ceiling. A delta, and the base it is applied to, are dense
+ * arrays, a number a byte, so those are held together to {@link maxDeltaBytes} —
+ * by the sizes their entries declare, before anything is inflated (see
+ * {@link linkOf}).
+ *
+ * @type {(idx: Idx, path: string, at: number, chain: _Chain, e: Entry, data: List<Vec>) => Effect<never, readonly [_Chain, List<number>], IoChannel>}
  */
 const advance = (idx, path, at, chain, e, data) => {
     const refused = entryRefusal(path, at)
-    if (data.length !== e.size) {
-        return refused(`inflates to ${data.length} bytes, not the ${e.size} its header declares`)
+    const size = sizeOf(data)
+    if (size !== e.size) {
+        return refused(`inflates to ${size} bytes, not the ${e.size} its header declares`)
     }
+    if (e.kind === 'object' && chain.deltas === null) {
+        return pureOk(/** @type {const} */ ([{ ...chain, found: { type: e.type, payload: bytesOf(data) } }, null]))
+    }
+    const dense = byteArray(bytesOf(data))
     if (e.kind === 'object') {
-        const payload = applied(chain.deltas, data)
+        const payload = applied(chain.deltas, dense)
         return payload === null
             ? refused('holds a delta that does not apply to its base')
             : pureOk(/** @type {const} */ ([{ ...chain, found: { type: e.type, payload } }, null]))
@@ -442,30 +426,99 @@ const advance = (idx, path, at, chain, e, data) => {
     return base === null
         ? refused(missingBase(e, at))
         : pureOk(/** @type {const} */ ([
-            { deltas: concat([data])(chain.deltas), links: chain.links + 1, found: null },
+            { deltas: concat([dense])(chain.deltas), links: chain.links + 1, held: chain.held + e.size, found: null },
             [base],
         ]))
 }
 
 /**
- * One link of the chain: the entry at `at`, read through its exact window,
- * framed, inflated, and either the answer or the base to read next.
+ * How much of an entry one read takes: what a `Vec` holds, so that an entry of
+ * any length is read in as few as it takes, and a small one in one.
+ */
+const windowBytes = Number(maxLengthBytes)
+
+/**
+ * The offsets of the windows that read `from` up to `end`, one read each. Lazy:
+ * a pack file can be as long as a disk, and the index decides how far an entry
+ * reaches, so no array of the offsets is built before the first read.
+ *
+ * @type {(from: number, end: number) => List<number>}
+ */
+const windowsOf = (from, end) => () => from >= end ? null : { first: from, tail: windowsOf(from + windowBytes, end) }
+
+/**
+ * The refusal of a stream that does not inflate, with what the inflater says: the
+ * code of the host's `inflate`, which a caller tells apart by, and its words.
+ * Git keeps both halves too — measured on Git 2.43.0 with a byte flipped inside a
+ * pack entry's zlib stream, it prints `error: inflate: data stream error
+ * (incorrect header check)` and then `fatal: packed object … (stored in …pack) is
+ * corrupt`, the inflater's words and the file's.
+ *
+ * @type {(path: string, at: number) => (r: Refusal) => Effect<never, never, IoChannel>}
+ */
+const inflateRefusal = (path, at) => ({ code, message }) =>
+    entryRefusal(path, at)(`does not inflate: ${code} ${message}`)
+
+/**
+ * One link of the chain: the entry at `at`, read through the windows up to where
+ * the index says the next one begins, framed, inflated, and either the answer or
+ * the base to read next.
+ *
+ * **The window is bounded by the index, and the stream ends where it ends.** The
+ * entry's header says what the stream inflates to and not how long it is, so the
+ * read goes to the next entry's offset and the inflater finds the end; bytes
+ * between the two are refused, as the host's `inflate` refused bytes after a
+ * stream. A stream that has not closed by then is truncated.
  *
  * Everything the link needs is a leading parameter, so it closes over nothing
  * the walk carries.
  *
- * @type {(path: string, oidBytes: OidBytes, idx: Idx, packLength: number) => (at: number) => (chain: _Chain) => Effect<ReadBytes | Inflate, readonly [_Chain, List<number>], IoChannel>}
+ * @type {(path: string, oidBytes: OidBytes, idx: Idx, packLength: number) => (at: number) => (chain: _Chain) => Effect<ReadBytes, readonly [_Chain, List<number>], IoChannel>}
  */
 const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
     const end = endOf(idx, oidBytes, packLength, at)
     if (end === null) { return entryRefusal(path, at)('is not where an entry begins') }
-    const window = history(mapStep(readBytes(path, at, end - at), denseBytes))
-    const got = historyStep(window, w => framedAt(oidBytes, path, at, w))
-    return step(got, ([[e, data]]) => advance(idx, path, at, chain, e, data))
+    const firstBytes = Math.min(windowBytes, end - at)
+    const first = mapStep(readBytes(path, at, firstBytes), denseBytes)
+    const refusal = inflateRefusal(path, at)
+    return step(first, window => {
+        const e = tryEntry(oidBytes)(window)
+        if (e === null) {
+            // An entry's header is read from its first window. Git's own reader
+            // refuses a size that runs past 64 bits, so no entry it wrote has a
+            // header near a window; one that does is refused, and said to be.
+            return entryRefusal(path, at)(firstBytes < end - at ? `has no entry header in its first ${firstBytes} bytes` : 'is no pack entry')
+        }
+        // A delta, and a base it is applied to, are held as dense arrays, and every
+        // delta of the chain is held until its base is reached, so what they declare
+        // together decides before a byte of an entry is inflated.
+        if ((e.kind !== 'object' || chain.deltas !== null) && chain.held + e.size > maxDeltaBytes) {
+            return entryRefusal(path, at)(`declares ${e.size} bytes, more than the ${maxDeltaBytes - chain.held} a delta chain is built from`)
+        }
+        // And a stream that has made more than its header declares is not read on:
+        // one window of a stream can inflate to a thousand times its length.
+        /** @type {(next: Nullable<Progress>) => Effect<never, Progress, IoChannel>} */
+        const checked = next =>
+            next === null ? refusal(malformed)
+            : next.size > e.size ? entryRefusal(path, at)(`inflates to more than the ${e.size} its header declares`)
+            : pureOk(next)
+        const read = step(
+            checked(feedWithin(e.size)(u8ListToVecMsb(window.slice(e.dataAt)))(start)),
+            opened => foldStep(
+                pureOk(windowsOf(at + firstBytes, end)),
+                opened,
+                offset => progress => step(
+                    readBytes(path, offset, Math.min(windowBytes, end - offset)),
+                    v => checked(feedWithin(e.size)(v)(progress)))))
+        return step(read, progress => {
+            const done = finish(progress)
+            return done[0] === 'error' ? refusal(done[1]) : advance(idx, path, at, chain, e, done[1])
+        })
+    })
 }
 
 /** A chain with nothing read yet. */
-const chainStart = /** @type {_Chain} */ ({ deltas: null, links: 0, found: null })
+const chainStart = /** @type {_Chain} */ ({ deltas: null, links: 0, held: 0, found: null })
 
 /**
  * The code a `.pack` is refused with when it is not the pack its index belongs
@@ -549,7 +602,7 @@ const framingOf = (path, oidBytes, idx) => {
  * last entry's window needs: a pack ends in its own checksum, so the file's
  * length less an id's width is where the entries stop.
  *
- * @type {(path: string, oidBytes: OidBytes, idx: Idx, at: number) => Effect<Stat | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
+ * @type {(path: string, oidBytes: OidBytes, idx: Idx, at: number) => Effect<Stat | ReadBytes, Nullable<Envelope>, IoChannel>}
  */
 const objectAt = (path, oidBytes, idx, at) => {
     const checked = framingOf(path, oidBytes, idx)
@@ -569,7 +622,7 @@ const objectAt = (path, oidBytes, idx, at) => {
  * `.idx` under another suffix, which is how Git names the pair and the only way
  * to find one from the other.
  *
- * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Held>) => Effect<ReadWhole | Stat | ReadBytes | Inflate, readonly [Nullable<Held>, List<string>], IoChannel>}
+ * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Held>) => Effect<ReadWhole | Stat | ReadBytes, readonly [Nullable<Held>, List<string>], IoChannel>}
  */
 const packOf = (pd, oidBytes, id) => name => {
     // Both paths are the pack pair's and neither depends on what the index says,
@@ -613,7 +666,7 @@ const packOf = (pd, oidBytes, id) => name => {
  * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
  * id that is not `oidBytes` wide.
  *
- * @type {(od: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Held>, IoChannel>}
+ * @type {(od: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadWhole | ReadBytes, Nullable<Held>, IoChannel>}
  */
 export const tryRead = (od, oidBytes) => {
     const pd = packsIn(od)

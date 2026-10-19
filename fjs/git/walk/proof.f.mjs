@@ -1,5 +1,5 @@
 /**
- * @import { Inflate, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
  * @import { Bytes, ObjectType, Oid } from '../types.ts'
@@ -11,6 +11,7 @@ import { ioError, pureOk } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { write as writeEnvelope } from '../object/module.f.mjs'
@@ -236,27 +237,26 @@ const files = Object.fromEntries([
 const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
 
 /**
- * The host the store reads through: the objects above, uncompressed, with
- * `inflate` handing every buffer back as it is, and a log of the ids read
- * so a proof can see which objects the walk asked for.
+ * The host the store reads through: the objects above, each as a stored zlib
+ * stream, which is a stream like any other, and a log of the ids read so a proof
+ * can see which objects the walk asked for.
  *
  * This repository keeps no packs, which is what the three commands a pack read
  * uses answer here — the store asks its packs for an object no loose file holds,
  * and a directory that is not there is the ordinary way to have none. They log
  * nothing, so the log stays the list of objects the walk asked for.
  *
- * @type {MemOperationMap<ReadFile | Readdir | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>}
+ * @type {MemOperationMap<ReadFile | Readdir | Stat | ReadWhole | ReadBytes, readonly string[]>}
  */
 const host = {
-    readFile: path => log => {
-        const f = files[path]
-        return [[...log, path], f === undefined ? error(noFile(path)) : ok(u8ListToVecMsb(f))]
-    },
+    readFile: path => log => [log, error(noFile(path))],
     readdir: path => log => [log, error(noFile(path))],
     stat: path => log => [log, error(noFile(path))],
     readBytes: path => log => [log, error(noFile(path))],
-    readWhole: path => log => [log, error(noFile(path))],
-    inflate: data => log => [log, ok(data)],
+    readWhole: path => log => {
+        const f = files[path]
+        return [[...log, path], f === undefined ? error(noFile(path)) : ok([u8ListToVecMsb(storedBytes(f))])]
+    },
 }
 
 const runHost = run(host)([])

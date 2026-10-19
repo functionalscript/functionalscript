@@ -40,7 +40,7 @@ what a grammar can and cannot do for the formats.
 - [`pack/`](pack/module.f.mjs) — a packfile's framing and the delta
   instructions inside one, with no effects: an entry's payload is a zlib
   stream, so nothing can say where one entry ends without inflating it, and
-  walking the file belongs to the reader that has `inflate`. Three different
+  walking the file belongs to the reader that inflates. Three different
   varints appear in a pack and two of them look alike — the odd one is an
   `ofsDelta`'s distance back, most significant group first with a `+ 1` per
   continuation byte, which is what makes its spelling unique and what decides
@@ -91,17 +91,22 @@ what a grammar can and cannot do for the formats.
   raw bytes a tree entry holds and the hex text a header holds, and `of`,
   the id an object has at the repository's width: SHA-1 at 20 bytes,
   SHA-256 at 32.
-- [`loose/`](loose/module.f.mjs) — a loose object file read through the
-  host's `inflate` effect and past its envelope. One of the two places a real
-  repository meets the decoder; [`packstore/`](packstore/module.f.mjs) below
-  is the other, and is the one a clone actually takes.
+- [`inflater/`](inflater/module.f.mjs) — [`fjs/zlib/inflate`](../zlib/inflate/module.f.mjs),
+  the pure inflater, fed the chunks a read gives, and what comes of it as the
+  refusals the host's `inflate` effect used to give, so a caller that tells them
+  apart by code is told nothing new.
+- [`loose/`](loose/module.f.mjs) — a loose object file read whole, inflated by
+  that and past its envelope. One of the two places a real repository meets the
+  decoder; [`packstore/`](packstore/module.f.mjs) below is the other, and is the
+  one a clone actually takes.
 - [`packstore/`](packstore/module.f.mjs) — the same for the other place an
   object lives: from an id to the object a pack below `objects/pack/` holds,
   through the `.idx` beside it. Two rules here are the effects' and not the
   format's. An entry carries no length — its header says what the object
   inflates to and nothing about how many bytes of the file its zlib stream
-  takes — so the window handed to `inflate` has to end exactly where the next
-  entry begins, which is the index's question and `packidx`'s `after`; and a
+  takes — so the entry is read up to where the next one begins, which is the
+  index's question and `packidx`'s `after`, and the inflater finds the end of the
+  stream inside it; and a
   delta chain is walked rather than recursed, for the reason
   [`walk/`](walk/module.f.mjs) walks. A `refDelta` names its base by id and may
   name one stored *after* it, which is where `index-pack --fix-thin` appends
@@ -291,7 +296,7 @@ payload.
 | tree payload | SP, NUL, then `times(n)(byte)` | grammar, parameterized by the id width |
 | loose envelope | NUL, then a size that describes the rest | grammar up to the NUL; the reader slices the rest and checks the size |
 | blob | none | none |
-| zlib stream | bit-level, length-framed | the host's `inflate`, until [`todo/inflate.md`](../../todo/inflate.md) |
+| zlib stream | bit-level, length-framed | a decoder, [`fjs/zlib/inflate`](../zlib/inflate/module.f.mjs), fed chunks and read over the effects by [`inflater/`](inflater/module.f.mjs) |
 | packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.mjs) and [`packidx/`](packidx/module.f.mjs), read over the effects by [`packstore/`](packstore/module.f.mjs) |
 
 **The alphabet is bytes, not Unicode.** A Git object is not text: the id in
@@ -428,13 +433,6 @@ is decided when one is met, as an issue naming the object.
 
 Each is a limit stated, refused where it is crossed, and none approximated:
 
-- **An inflater.** The parser is pure over the inflated bytes whatever
-  supplies them; today `inflate` in [`fjs/effects/node`](../effects/node/module.f.mjs)
-  supplies them from `node:zlib` at the host boundary. Two modules call it:
-  [`loose/`](loose/module.f.mjs) once per object, and
-  [`packstore/`](packstore/module.f.mjs) once per *link* — a base and every
-  delta above it — which is the path a clone takes for most of its objects. A
-  FunctionalScript inflater is [`todo/inflate.md`](../../todo/inflate.md).
 - **The common directory.** `repo` finds the repository a worktree belongs to,
   and `store` and `walk` read at the directory they are given, so a caller puts
   the two together. What the id check means
@@ -478,19 +476,18 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   ([`refstore/todo/packed-head.md`](refstore/todo/packed-head.md)).
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
   128 KiB, and nothing the format leaves unbounded is safe from it, which
-  is why every unbounded field is a byte list. Where it binds today is the
-  boundary: the host's `inflate` takes a `Vec` and gives one, so an object
-  is refused on either side of its stream — too large going in, or
-  inflating past the bound — and never cut short. That is **both** readers
-  and not the loose path's alone: [`loose/`](loose/module.f.mjs) hands
-  `inflate` a `readFile`'s `Vec`, which is where the going-in bound is that
-  path's, and [`packstore/`](packstore/module.f.mjs) hands it an entry's
-  window as one, per *link* of a delta chain. A delta's *output* has a third
-  bound of the same size: [`pack/`](pack/module.f.mjs)'s `tryApplyDelta`
-  refuses a declared target over 128 KiB, since a hundred bytes of copy
-  instructions against a 64 KiB base can honestly name 6.5 MB. The inflater
-  issue lifts all three — [`todo/inflate.md`](../../todo/inflate.md) says so
-  in the same words.
+  is why every unbounded field is a byte list. It used to bind at the host's
+  `inflate`, which took a `Vec` and gave one, so an object was refused on either
+  side of its stream; the inflater here ([`fjs/zlib/inflate`](../zlib/inflate/module.f.mjs))
+  is fed chunks and answers chunks, so an object read whole — loose, or stored
+  whole in a pack — is refused for no length: a blob of 300 000 bytes is read
+  through three windows and answered as a list over the chunks it inflated to.
+  One bound of the same family remains, on a **delta chain**: a delta, the base
+  it is applied to and the object it builds are dense arrays, a number a byte,
+  and [`pack/`](pack/module.f.mjs) holds them to `maxDeltaBytes`, 8 MiB, by the
+  size their entries declare, before anything is inflated. A representation of
+  those that is not a number a byte lifts it
+  ([`pack/todo/dense-delta.md`](pack/todo/dense-delta.md)).
 
   A *whole file* is not bound by it any more, which is the half that used to
   fail on ordinary repositories rather than extreme ones.
