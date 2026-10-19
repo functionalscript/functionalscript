@@ -17,12 +17,13 @@
  *
  * **Generate builds a random tree**: the keys 10, 20, … up to the count,
  * inserted in an order the browser picks — how a level of the
- * [game](./todo/compaction-game.md) starts.
+ * [compaction game](../../website/playground/btree/module.f.mjs) starts.
  *
  * **A click on a key removes it and inserts it again.** The keys stay the
  * same, but the shape may not: a remove that empties a leaf merges or
  * borrows, and the insert that follows can split somewhere else. It is the
- * one move of a [game](./todo/compaction-game.md) to come.
+ * one move of the [compaction game](../../website/playground/btree/module.f.mjs),
+ * which draws its tree with this {@link structure}.
  *
  * @module
  *
@@ -75,7 +76,7 @@ const average = node => {
 }
 
 /** @type {Structure<Tree<number>, TNode<number>>} */
-const structure = {
+export const structure = {
     empty: null,
     insert: key => set(cmp(key))(() => key),
     remove: key => remove(cmp(key)),
@@ -89,7 +90,7 @@ const structure = {
  *
  * @type {(n: number) => readonly number[]}
  */
-const tensUpTo = n => Array.from({ length: n }, (_, i) => (i + 1) * 10)
+export const tensUpTo = n => Array.from({ length: n }, (_, i) => (i + 1) * 10)
 
 /**
  * The presets the drop-down offers, each one press from what its name
