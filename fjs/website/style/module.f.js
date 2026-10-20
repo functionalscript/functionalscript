@@ -115,6 +115,12 @@ export const resultMarker = 'data-result'
  */
 export const verdictMarker = 'data-verdict'
 
+/** The attribute shared by a long listing in a code box, such as a WASM
+ * module's WAT, and the rule that caps its height and scrolls it.
+ * @type {string}
+ */
+export const listingMarker = 'data-listing'
+
 /** The attribute shared by the PoW verdict row and its layout rules.
  * @type {string}
  */
@@ -782,6 +788,9 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [${codeMarker}][${resultMarker}] { color: var(--text) }
 [${codeMarker}][${resultMarker}="ok"] { border-left: 4px solid var(--pass) }
 [${codeMarker}][${resultMarker}="error"] { border-left: 4px solid var(--fail) }
+/* A listing too long to read whole, a WASM module's WAT: a box of its own
+   height that scrolls, its lines kept unbroken so the indentation reads. */
+[${listingMarker}] { max-height: 24rem; overflow: auto; overflow-wrap: normal; white-space: pre }
 [${verdictMarker}="ok"] { color: var(--pass) }
 [${verdictMarker}="error"] { color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows

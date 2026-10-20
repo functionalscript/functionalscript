@@ -4,6 +4,10 @@
  * the WebAssembly it compiles to, and a Run button that runs it as
  * JavaScript and then as WebAssembly, showing each run's output and stats.
  *
+ * **The disassembly is a scrolling box, not a disclosure.** A `details` the
+ * reader opened is closed again by the next render, which puts its markup
+ * back, so pressing Run would hide the WAT the reader was reading.
+ *
  * **The page loads before the reader asks.** The source, the disassembly and
  * the module are fetched on `start`, so the times Run shows hold the entry
  * call alone: no fetch, compile or instantiation. The module's startup is
@@ -38,7 +42,7 @@ import { error, ok } from '../../../types/result/module.f.js'
 import { caption, refusal } from '../../../website/demo/module.f.mjs'
 import { codeBlock } from '../../../website/demo/code/module.f.js'
 import { highlight } from '../../../website/demo/highlight/module.f.mjs'
-import { codeMarker } from '../../../website/style/module.f.js'
+import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 
 /** A sample's source, repository-relative. @type {(name: string) => string} */
 export const samplePath = name => `fjs/nanvm/demos/${name}/sample.f.mjs`
@@ -225,9 +229,8 @@ export const view = name => state => ['div', {},
         'Run calls each in turn and shows what it wrote to standard output and how long the call took.'],
     caption('FunctionalScript source:'),
     ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text))]),
-    ['details', {},
-        ['summary', {}, 'WebAssembly text (WAT) of the whole module, NaNVM included'],
-        ...loadedView(state.wat, text => [['div', { [codeMarker]: '' }, ['pre', text]]])],
+    caption('WebAssembly text (WAT) of the whole module, NaNVM included:'),
+    ...loadedView(state.wat, text => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', text]]]),
     ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
     ...startupView(state),
     ...(state.runs === null ? [] : runsView(state.runs)),

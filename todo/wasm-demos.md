@@ -84,9 +84,9 @@ built:
   `instantiate`.
 - **The deployment build** adds the `wasm32-unknown-unknown` target, builds
   `nanvm-demos`, and `nanvm-demos-publish` copies the module to
-  `nanvm/demos/_build/`, which git ignores and the site serves.
-- **Not yet:** the WAT (waiting on the disassembler's approval), the
-  JavaScript memory figure, and the sample's use of `log` and `utf8`, which
+  `nanvm/demos/_build/`, which git ignores and the site serves, and prints
+  its WAT beside it with the `wasmprinter` crate, which Sasha approved.
+- **Not yet:** the JavaScript memory figure, and the sample's use of `log` and `utf8`, which
   `fjs compile` cannot compile yet, so the sample builds its `write` command
   by hand.
 
@@ -104,9 +104,6 @@ alternative.
 - **What "second run" means.** This design reads it as the WASM run, which
   follows the JavaScript one. If it means a warm-up run before a measured one,
   the Run button runs each route twice and reports the second.
-- **The disassembler.** Printing WAT in the deployment build needs a tool or
-  crate (for example `wasmprinter` or `wasm-tools`), which needs approval
-  before it is added ([AGENTS.md §6](../AGENTS.md#6-external-tools)).
 - **Disassembly size.** The module carries the NaNVM runtime as well as the
   sample. The page may need to show the sample's own functions first, with the
   rest collapsed.
@@ -118,7 +115,7 @@ alternative.
       that builds the `.wasm`.
 - [x] Build the demo page: source, disassembly, Run button and stats, with
       one sample, `hello`.
-- [ ] Print the WAT in the deployment build, once its tool is approved.
+- [x] Print the WAT in the deployment build.
 - [ ] Report the JavaScript run's memory, where the browser measures it.
 - [ ] Choose two or three more samples that print to the console and that
       `fjs compile … .rs` accepts today, and add one page each.
