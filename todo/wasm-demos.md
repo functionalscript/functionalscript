@@ -68,13 +68,15 @@ beside the site code, and the site consumes its committed output:
 - **What "second run" means.** This design reads it as the WASM run, which
   follows the JavaScript one. If it means a warm-up run before a measured one,
   the Run button runs each route twice and reports the second.
-- **Reproducible `.wasm`.** The stale-file check needs the pinned toolchain to
-  build the same bytes every time. If it does not, a fresh build cannot be
-  compared with the committed module, so the module records what it was built
-  from instead: a hash of its inputs (the generated `.rs`, the wrapper,
-  `Cargo.lock` and the toolchain pin) in a committed `gen.*` file beside it.
-  CI recomputes the hash and fails when it differs, which still catches a
-  sample edited without a rebuild.
+- **Reproducible `.wasm`.** Committing the module works only if the pinned
+  toolchain builds the same bytes every time: `npm run gen` deletes every
+  `gen.*` file and rebuilds it, so a module that differs from build to build
+  fails CI's drift check on every run. A hash of the inputs beside the module
+  does not rescue that. The rebuild still rewrites the module, and the hash
+  would have to cover every input, NaNVM's sources and the build
+  configuration included. If the build is not reproducible, the module is
+  built by the deployment build instead and never committed, which is the
+  question under review.
 - **The disassembler.** Printing WAT needs a tool or crate (for example
   `wasmprinter` or `wasm-tools`), which needs approval before it is added
   ([AGENTS.md §6](../AGENTS.md#6-external-tools)).
