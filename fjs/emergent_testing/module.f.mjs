@@ -29,7 +29,7 @@ import { catch_, sandbox } from '../effects/common/module.f.mjs'
 import {
     catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
     resultMapStep, resultStep, step,
-    walkStep,
+    unreadableThrownValue, walkStep,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert, ok } from '../types/result/module.f.js'
@@ -644,18 +644,10 @@ const fmtResultEnd = ({ duration }, color, label) =>
     `${color}${label}${reset}, ${terminalDuration(duration)}`
 
 /**
- * What a value that cannot be read is called.
- *
- * A value reaches a report by being described, and describing runs the value's
- * own code — a `toString`, a getter, a proxy trap — which can throw in its
- * turn. Every route that meets one says this, so a reader meets one phrase
- * rather than a spelling per runner.
- */
-export const unknownValue = 'Unknown thrown value'
-
-/**
  * The text of a value that may not want to be read. `String` runs user code, so
- * it is attempted rather than called.
+ * it is attempted rather than called, and a value whose own code throws is
+ * named by `fjs/effects`' `unreadableThrownValue`, the phrase every runner and
+ * host says for one.
  *
  * **A runner that cannot `catch` gets the same phrase**, which is why the
  * refusal is folded in here rather than propagated: there is no reader for whom
@@ -669,7 +661,7 @@ export const text = value => resultStep(
     catch_(() => String(value)),
     r => pureOk(r[0] === 'ok' && r[1][0] === 'ok'
         ? /** @type {string} */ (r[1][1])
-        : unknownValue))
+        : unreadableThrownValue))
 
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through

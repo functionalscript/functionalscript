@@ -26,7 +26,7 @@ import { demo } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { ioError } from '../../effects/module.f.mjs'
+import { ioError, unreadableThrownValue } from '../../effects/module.f.mjs'
 
 /**
  * The handlers a working page supplies. `catch` cannot really catch — a pure
@@ -364,7 +364,7 @@ export const proof = {
         assertEq(rows.length, 2)
         assertEq(rows[0]?.module, 'a')
         assertEq(rows[0]?.status, 'failed')
-        assertEq(rows[0]?.message, 'Unknown thrown value')
+        assertEq(rows[0]?.message, unreadableThrownValue)
         assertEq(rows[1]?.module, 'b')
     },
     // Announcing a module failure is itself a report, so a runner that cannot

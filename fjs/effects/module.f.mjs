@@ -94,6 +94,16 @@ import { error, mapOk, ok } from '../types/result/module.f.js'
 import { at } from '../types/object/module.f.mjs'
 
 /**
+ * What a thrown value that cannot be read is called: one whose own code — a
+ * `toString`, a getter, a proxy trap — throws when it is read. Every route
+ * that meets one says this, a host's I/O (`_describeThrown` in
+ * `./module.mjs`) and a test report (`text` in
+ * [`fjs/emergent_testing`](../emergent_testing/module.f.mjs)) alike, so a
+ * reader meets one phrase rather than a spelling per runner.
+ */
+export const unreadableThrownValue = 'thrown value could not be read'
+
+/**
  * Builds a normalized host error. The constructor exists so the shape is
  * written once: every runner reports its failures through it, and a consumer
  * matching on `'ioError'` knows what the payload holds.

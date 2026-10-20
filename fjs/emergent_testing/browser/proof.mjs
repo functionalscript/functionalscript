@@ -19,6 +19,7 @@ import { fmtImport, testResult } from '../module.f.mjs'
 import { groupByModule, runnerSource } from './module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { asyncRun } from '../../effects/module.mjs'
+import { unreadableThrownValue } from '../../effects/module.f.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
@@ -247,7 +248,7 @@ export const proof = {
     arbitraryThrow: async () => {
         const report = await run({ fail: () => { throw Object.create(null) } })
         assertEq(report.status, 'failed')
-        assertEq(report.results[0]?.message, 'Unknown thrown value')
+        assertEq(report.results[0]?.message, unreadableThrownValue)
     },
     errorFields: async () => {
         const error = new Proxy(new Error(), {
@@ -266,15 +267,15 @@ export const proof = {
         })
         const report = await run({ fail: () => { throw error } })
         assertEq(report.status, 'failed')
-        assertEq(report.results[0]?.message, 'Unknown thrown value')
-        assertEq(report.results[0]?.stack, 'Unknown thrown value')
+        assertEq(report.results[0]?.message, unreadableThrownValue)
+        assertEq(report.results[0]?.stack, unreadableThrownValue)
     },
     revokedErrorProxy: async () => {
         const { proxy, revoke } = Proxy.revocable(new Error('revoked'), {})
         revoke()
         const report = await run({ fail: () => { throw proxy } })
         assertEq(report.status, 'failed')
-        assertEq(report.results[0]?.message, 'Unknown thrown value')
+        assertEq(report.results[0]?.message, unreadableThrownValue)
     },
     crossRealmError: async () => {
         // An Error from another realm is not `instanceof Error` here, and its
@@ -865,7 +866,7 @@ export const proof = {
             dataModule('throw { toString() { throw new Error("hostile") } }'),
         ])
         assertEq(report.status, 'infrastructure-error')
-        assertEq(report.results[0]?.message, 'Unknown thrown value')
+        assertEq(report.results[0]?.message, unreadableThrownValue)
         assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
         assertEq(p.view.events.length, 1)
     },

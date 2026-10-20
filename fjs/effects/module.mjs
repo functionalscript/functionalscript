@@ -8,15 +8,9 @@
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { ioError, match, notImplemented, partialMatch, toIoError } from './module.f.mjs'
+import { ioError, match, notImplemented, partialMatch, toIoError, unreadableThrownValue } from './module.f.mjs'
 import { asyncTryCatch } from '../types/result/module.mjs'
 import { error } from '../types/result/module.f.js'
-
-/**
- * The message of a thrown value that could not be read: one whose own code
- * throws when {@link _readThrown} reads it.
- */
-export const _unreadableThrownValue = 'thrown value could not be read'
 
 /**
  * Reads a thrown value into data FunctionalScript can build, before
@@ -48,7 +42,7 @@ export const _readThrown = e => {
 
 /**
  * Describes a thrown value as an {@link IoError}, whatever it is: read by
- * {@link _readThrown}, or named by {@link _unreadableThrownValue} when reading
+ * {@link _readThrown}, or named by `unreadableThrownValue` when reading
  * it throws.
  *
  * @type {(e: unknown) => IoError}
@@ -59,7 +53,7 @@ export const _describeThrown = e => {
     try {
         return toIoError(_readThrown(e))
     } catch {
-        return ioError({ message: _unreadableThrownValue })
+        return ioError({ message: unreadableThrownValue })
     }
 }
 
