@@ -262,9 +262,11 @@ the fold's:
   `Number` predicates, `Number.isInteger` — beside `Number`'s conversion
   and `Object` in the `entry` helper below
   ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)).
-  The read of a static function, in either key spelling and guarded or
-  not, is the AST's value of its name, `['Object.is']`, a chain's steps
-  after it going on over that value; an object pattern over the bare word
+  The read of a static function, in either key spelling, is the AST's
+  value of its name, `['Object.is']`, a chain's steps after it going on
+  over that value; a guard on the namespace, `Object?.is`, is refused at
+  the word, a namespace being no value to guard; an object pattern over
+  the bare word
   reads each key as that access does, so `const { is } = Object;` is
   `const is = Object.is;` and the namespace, no value, is never resolved.
   Which members a namespace has is the EDAG's `staticIds`. Any other
