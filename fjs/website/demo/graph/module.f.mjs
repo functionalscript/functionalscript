@@ -54,7 +54,7 @@
 import { stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /**
  * Every node's rank: the longest path from the root, so every edge points
