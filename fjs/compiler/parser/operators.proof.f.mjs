@@ -1,5 +1,5 @@
 /**
- * The proof of the parser's operators, the prefix `-` and Stage A and B of `spec/todo/2340-operators.md`, split off `./proof.f.mjs` when that file
+ * The proof of the parser's operators, the prefix `-` and Stage A and B of `spec/operators/README.md`, split off `./proof.f.mjs` when that file
  * outgrew what the website's build accepts in one file — 128 KiB, which it
  * passed at `e15e2ea` — along the seam its own sections drew. It reads the
  * parser as that proof does, through the helpers it exports.
@@ -73,7 +73,7 @@ export const proof = {
             expect('export default (...b) => - -(...a) => 1;', 30)
         },
     },
-    // Stage A of `spec/todo/2340-operators.md`: arithmetic, strict
+    // Stage A of `spec/operators/README.md`: arithmetic, strict
     // comparison, and bitwise, each read as `[tag, left, right]` — the
     // binary `-` told from `neg`'s own unary one by length, `**`
     // right-associative, and every operator above `unary` — never a value
@@ -338,7 +338,7 @@ export const proof = {
     },
     // Operators JavaScript has and the language refuses *by design*, not for
     // want of work: the specification names each and the reason
-    // (`spec/todo/2346-in-operator.md`, `spec/todo/2340-operators.md`). A
+    // (`spec/todo/2346-in-operator.md`, `spec/operators/README.md`). A
     // refusal is pinned as an accepted form is, with the message and the
     // column it is reported at, so that admitting one by accident, or moving
     // its error, fails a proof.

@@ -35,7 +35,7 @@ export const binaryTags = /** @type {const} */ ([
  * with the negation prefix, {@link AstNeg}. `instanceof` is a relational
  * operator, one level with `<` and left-associative as it is, though its
  * node is {@link AstInstanceOf}, not a binary one. `==` and `!=` are not
- * this language's, per `spec/todo/2340-operators.md`. `**` is in
+ * this language's, per `spec/operators/README.md`. `**` is in
  * no layer: it is right-associative and read inside the operand, so each
  * side places it, tightest of all, where it builds its own structure.
  * Pinned beside {@link binaryTags} in `./types.ts`.
@@ -542,9 +542,9 @@ const resolved = (imports, nodes) => ref =>
  * eager path in; and an unreached entry excuses another's anchor only when
  * it reaches it eagerly — `const d = null.x; const c = a && d; export
  * default b && c;` anchors both, since anchoring `c` establishes `a && d`
- * and not `d`. The rule is
- * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)'s
- * subtraction, the comma's to generalize.
+ * and not `d`. The rule is the anchoring rule of
+ * [`spec/operators/README.md`](../../../spec/operators/README.md), a
+ * subtraction, a comma's operands among its eager positions.
  *
  * Counted by node, not by entry, since it is the graph that holds or lacks
  * a node: a `const` that is a bare reference is the node it names and is

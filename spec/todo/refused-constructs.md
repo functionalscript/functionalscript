@@ -67,7 +67,7 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `op.loose-equality` | `a == b`, `a != b` | design ([operators](./2340-operators.md)) |
+| `op.loose-equality` | `a == b`, `a != b` | design ([operators](../operators/README.md)) |
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md)) |
 | `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
@@ -81,8 +81,8 @@ describes:
 | `op.arguments` | `arguments` | open |
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) |
 | `op.conversion-call-shape` | `Number(1, 2)`, `Number(...a)`, `String(1, 2)`, `String(...[])` | design ([operators and functions](../principles/README.md#operators-and-functions): a conversion is an operator, with a fixed set of operands) |
-| `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | open ([number](../conversions/number.md) and [string](../conversions/string.md) conversion refuse the guard at the word; no record plans reading it away) |
-| `op.unary-plus` | `+1`, `+a` | open ([operators](./2340-operators.md) leaves unary `+` on the other side of the line; no record plans it) |
+| `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | design ([operators and functions](../principles/README.md#operators-and-functions): an operator is no value, so it has no nullishness to guard) |
+| `op.unary-plus` | `+1`, `+a` | open ([operators](../operators/README.md) leaves unary `+` out of the language; no record plans it) |
 | `op.import-call` | `import("m")` | open |
 | `op.import-meta` | `import.meta` | open |
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) |
