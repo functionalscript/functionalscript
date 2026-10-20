@@ -21,7 +21,7 @@
  *
  * `order`, when given, is the node's place in an animation, drawn as
  * `data-graph-order`: the site's stylesheet fades a `new` node in and a
- * `leaving` one out, a second after the order before it, so a change can
+ * `leaving` one out, half a second after the order before it, so a change can
  * appear node by node.
  *
  * `key`, when given, names the node across drawings: its box and its text

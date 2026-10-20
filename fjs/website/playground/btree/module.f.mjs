@@ -23,8 +23,9 @@
  * replaces fade out, from the leaf up; the nodes it built fade in, from the
  * root down — a leaf merged or borrowed from; then the same for the insert
  * — a leaf split. Each node takes {@link orderGap} after the one before
- * it, and a frame is held until its last node is done. A move that changes
- * nothing has nothing to show, and lands at once.
+ * it, and a frame is held until its last node is done. A key that goes back
+ * where it was is shown the same way: its leaf fades out without it, and in
+ * with it again.
  *
  * **Par is the fewest moves from the start to a perfect tree**, found by a
  * breadth-first search over the move: every tree one move from the start,
@@ -92,9 +93,9 @@ export const parDepths = [2, 3]
 /**
  * How long, in milliseconds, a node of a move takes to fade, and how long
  * after the node before it it starts: the site's stylesheet fades each
- * `data-graph-order` a second after the one before.
+ * `data-graph-order` half a second after the one before.
  */
-export const orderGap = 1000
+export const orderGap = 500
 
 /** How many trees one turn of the search tries. */
 export const turnBudget = 50
@@ -202,11 +203,10 @@ export const land = game => {
 }
 
 /**
- * The move: `key` removed and inserted again, and counted. A move that
- * comes back drawn as before shows the tree it was given, at once, so
- * nothing fades. Any other shows its four frames, the first now and the
- * rest through {@link step}: the remove's nodes leave and enter, then the
- * insert's. A move made while another is showing lands that one first.
+ * The move: `key` removed and inserted again, and counted. It shows four
+ * frames, the first now and the rest through {@link step}: the remove's
+ * nodes leave and enter, then the insert's — even for a key that goes back
+ * where it was. A move made while another is showing lands that one first.
  *
  * @type {(key: number) => (game: Game) => Game}
  */
@@ -218,7 +218,6 @@ export const move = key => game => {
     const moved = structure.insert(key)(removed)
     const changed = !same({ before, after: moved })
     const counted = { ...landed, moves: landed.moves + 1, last: { key, changed }, error: null }
-    if (!changed) { return showing({ versions: { before, after: before }, mode: 'enter', note: null })([])(counted) }
     /** @type {readonly [Frame, ...Frame[]]} */
     const [first, ...rest] = [
         { versions: { before: removed, after: before }, mode: 'leave', note: `${key} comes out of the tree.` },
@@ -309,7 +308,7 @@ export const ordered = mode => g => {
 const drawn = ({ versions, mode }) => versions === null ? null : ordered(mode)(graph(versions))
 
 /**
- * How long the frame on the board is held: a second for each order of its
+ * How long the frame on the board is held: half a second for each order of its
  * moving nodes, so the last has faded before the next frame.
  *
  * @type {(game: Game) => number}

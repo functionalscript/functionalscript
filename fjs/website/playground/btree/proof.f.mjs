@@ -143,13 +143,14 @@ export const proof = {
             assertEq(JSON.stringify(assertNotNullish(game.versions).after), JSON.stringify(assertNotNullish(played(40)(level2).versions).after))
             assertEq(JSON.stringify([game.moves, game.last, game.note]), '[2,{"key":10,"changed":true},"10 comes out of the tree."]')
         },
-        // A key that goes back where it was: counted too, the tree it was
-        // given kept, and said.
+        // A key that goes back where it was: counted too, shown out and in
+        // again like any other, and said once it lands.
         goesBack: () => {
             const game = move(10)(level2)
-            assertEq(JSON.stringify([game.moves, game.last, game.pending.length, game.note]), '[1,{"key":10,"changed":false},0,null]')
-            assertEq(assertNotNullish(game.versions).after, inOrder)
-            assertEq(statusLine(game)(inOrder), '1 move. Depth 3, goal 2. 7 nodes, goal 4. 10 went back where it was.')
+            assertEq(JSON.stringify([game.moves, game.last, game.pending.length, game.note]), '[1,{"key":10,"changed":false},3,"10 comes out of the tree."]')
+            const landed = land(game)
+            assertEq(JSON.stringify(assertNotNullish(landed.versions).after), JSON.stringify(inOrder))
+            assertEq(statusLine(landed)(inOrder), '1 move. Depth 3, goal 2. 7 nodes, goal 4. 10 went back where it was.')
         },
         // Before the first tree there is nothing to move.
         noTree: () => {
@@ -259,7 +260,7 @@ export const proof = {
             assertEq(JSON.stringify(assertNotNullish(nextEvent)(last)), '{"kind":"click","name":"par"}')
             assertEq(assertNotNullish(nextDelay)(last), 0)
         },
-        // A frame is held a second for each order of its moving nodes, and
+        // A frame is held half a second for each order of its moving nodes, and
         // one with none moving, or no tree, is not held at all.
         frameTime: () => {
             assertEq(frameTime(demo.init), 0)
@@ -287,8 +288,7 @@ export const proof = {
             assertEq(JSON.stringify(enter.nodes.map(n => [n.kind, n.order ?? null])),
                 '[["new",1],["shared",null],["new",2],["new",2]]')
             assertEq(enter.edgeOrder, 1)
-            // With nothing new, nothing waits: a first tree, or a move that
-            // changed nothing.
+            // With nothing new, nothing waits: a first tree.
             assertEq(ordered('enter')({ ...g, nodes: [node('shared', 0, 0)] }).edgeOrder, undefined)
         },
         // The drawing's container alternates from frame to frame, so the
