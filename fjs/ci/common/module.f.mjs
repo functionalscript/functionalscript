@@ -1,7 +1,7 @@
 /**
  * Shared CI types and helpers: GitHub Actions step/job RTTI schemas, the
  * `MetaStep` representation used by tool-specific modules, and assemblers like
- * `install`, `test`, `job`, `ubuntu`, and `toSteps`. See `./types.ts` for the
+ * `install`, `npmGlobalInstall`, `test`, `job`, `ubuntu`, and `toSteps`. See `./types.ts` for the
  * `Os`/`Architecture`/`Image`/`Step`/`Job`/`Jobs`/`GitHubAction`/`StepType`/
  * `MetaStep` type-level API.
  *
@@ -108,6 +108,16 @@ export const uses = (name, w) => ({
 
 /** @type {(step: Step) => MetaStep} */
 export const install = step => ({ type: 'install', step })
+
+/**
+ * Installs the `version` release of the npm package `pkg` globally: the one
+ * shape every pinned npm tool a job needs takes. Curried, so a job that
+ * always installs the same package can bind it once.
+ *
+ * @type {(pkg: string) => (version: string) => MetaStep}
+ */
+export const npmGlobalInstall = pkg => version =>
+    install({ run: `npm install -g ${pkg}@${version}` })
 
 /** @type {(step: Step) => MetaStep} */
 export const test = step => ({ type: 'test', step })

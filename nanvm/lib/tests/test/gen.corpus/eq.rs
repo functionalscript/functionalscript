@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     let empty_array: Any<A> = Array::default().to_any();
     let string_array: Any<A> = [string_any("0")].to_array().to_any();

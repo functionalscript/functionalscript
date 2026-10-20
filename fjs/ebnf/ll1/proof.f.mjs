@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { eof, join, literals, option, range, repeat, repeatFrom0, repeatFrom1, times } from '../module.f.mjs'
@@ -275,7 +275,7 @@ const integers = text => {
 const word = node =>
     typeof node === 'string' ? '' :
     node instanceof Array ? node.map(word).join('') :
-    String.fromCodePoint(node.symbol)
+    codePointToString(node.symbol)
 
 /** The punctuators of JavaScript. */
 const punctuators = [

@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("ascii", Any::dot(string_any("abc"), string_any("codePointAt")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), f64_any(0x4058800000000000));
