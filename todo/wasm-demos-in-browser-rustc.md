@@ -5,12 +5,11 @@
 
 ### Problem
 
-[WASM demo pages](./wasm-demos.md) builds each sample's WASM ahead of time,
-which leaves two questions open: where the build runs (committed `gen.*`
-files, or the Cloudflare deployment build), and how a committed module is
-kept in step with its sample. Either way the page can only show a module that
-already exists, so a visitor cannot change the source and see what the change
-does to the code.
+[WASM demo pages](./wasm-demos.md) builds each sample's WASM ahead of time
+and commits it, with a check that keeps it in step with its sample. The page
+can only show a module that already exists, so a visitor cannot change the
+source and see what the change does to the code, and the IR between the Rust
+and the WASM is gone by the time the page loads.
 
 This is an alternative: compile in the visitor's browser, with a Rust
 compiler that runs as WASM, and show each stage of the compilation, not only
