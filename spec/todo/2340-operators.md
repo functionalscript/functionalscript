@@ -102,6 +102,16 @@ be discarded to invent a successful result, and skipped failures cannot be
 introduced on an otherwise successful path. Different memory/time thresholds
 and fail-fast schedules do not distinguish failure outcomes.
 
+**Language-design approval.** **sergey-shandar** directed "Implement the
+comma operator in the compiler" in
+[the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC),
+before implementation began, and recorded "The design is approved." on
+[#3075](https://github.com/functionalscript/functionalscript/pull/3075#issuecomment-6292543966),
+the pull request implementing it. What that pull request settled beyond
+this record — the comma in parentheses only, the cover read up to the `)`,
+and the lowering that drops a discarded operand that is no code — is
+[the specification](../operators/comma.md)'s.
+
 Asserts express **internal contract breaches**, not input validation: untrusted input must be validated with values (`Result` / `Nullable`), since a program that throws on user input can be crashed by any user.
 
 This does not weaken the position on mutation: [let](./3220-let.md) remains the only case where an object can be mutated, and keeping its life-time tracking simple is unaffected by a comma operator whose operands are pure.
