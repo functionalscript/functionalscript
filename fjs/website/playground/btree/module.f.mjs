@@ -94,9 +94,9 @@ export const parDepths = [2, 3]
 /**
  * How long, in milliseconds, a node of a move takes to fade, and how long
  * after the node before it it starts: the site's stylesheet fades each
- * `data-graph-order` half a second after the one before.
+ * `data-graph-order` a quarter of a second after the one before.
  */
-export const orderGap = 500
+export const orderGap = 250
 
 /** How many trees one turn of the search tries. */
 export const turnBudget = 50
@@ -349,8 +349,8 @@ const drawn = ({ versions, mode, last, base }) => versions === null ? null
     : marked(mode)(last)(coloured(base)(versions.after)(ordered(mode)(graph(versions))))
 
 /**
- * How long the frame on the board is held: half a second for each order of its
- * moving nodes, so the last has faded before the next frame.
+ * How long the frame on the board is held: a quarter of a second for each
+ * order of its moving nodes, so the last has faded before the next frame.
  *
  * @type {(game: Game) => number}
  */

@@ -391,6 +391,33 @@ export const proof = {
      * new key is inserted before the node after it: the nodes around it
      * stay where they are.
      */
+    /**
+     * **A key that comes back as another tag leaves before anything is
+     * placed**, so its old node is not left in the way of the next keyed
+     * node, which stays where it is and is never moved.
+     */
+    patchRemovesRetaggedKeysFirst: () => {
+        const document = dom()
+        const target = built(document, ['svg', ['g', { 'data-key': 'a' }], ['g', { 'data-key': 'b' }]])
+        const [, b] = target.children
+        const before = document.log.length
+        patch(target, ['svg', ['rect', { 'data-key': 'a' }], ['g', { 'data-key': 'b' }]])
+        assertStructurallySame(document.log.slice(before), ['remove', 'set data-key', 'insert'])
+        assertEq(target.children[0].localName, 'rect')
+        assertEq(target.children[1], b)
+    },
+    /**
+     * **A child that is not an element, a comment, has no key to read**: it
+     * is matched by position, as text is, and replaced.
+     */
+    patchReadsNoKeyOffAComment: () => {
+        const document = dom()
+        const target = built(document, ['div', ['p']])
+        target.children = [{ nodeType: 8 }, ...target.children]
+        patch(target, ['div', ['p', { 'data-key': 'a' }]])
+        assertEq(target.children.length, 1)
+        assertEq(target.children[0].getAttribute('data-key'), 'a')
+    },
     patchKeepsKeyedNodesInPlace: () => {
         const document = dom()
         const target = built(document, ['g', ['g', { 'data-key': 'a' }], ['g', { 'data-key': 'b' }], ['g', { 'data-key': 'c' }]])

@@ -261,8 +261,8 @@ export const proof = {
             assertEq(JSON.stringify(assertNotNullish(nextEvent)(last)), '{"kind":"click","name":"par"}')
             assertEq(assertNotNullish(nextDelay)(last), 0)
         },
-        // A frame is held half a second for each order of its moving nodes, and
-        // one with none moving, or no tree, is not held at all.
+        // A frame is held a quarter of a second for each order of its moving
+        // nodes, and one with none moving, or no tree, is not held at all.
         frameTime: () => {
             assertEq(frameTime(demo.init), 0)
             assertEq(frameTime(level2), 0)

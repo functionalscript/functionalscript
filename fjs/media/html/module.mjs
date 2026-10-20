@@ -232,6 +232,9 @@ const childrenFor = (tag, children) => {
  */
 const textNode = 3
 
+/** `Node.ELEMENT_NODE`, spelled out for the same reason. */
+const elementNode = 1
+
 /**
  * Brings an existing DOM element into line with a `media/html` element of
  * the same tag, in place, and answers the DOM element.
@@ -294,12 +297,16 @@ export const patch = (target, element) => {
         const key = keyOf(n)
         return key === null ? [] : [[key, /** @type {Element} */ (n)]]
     }))
-    const wantedKeys = new Set(next.flatMap(child => {
+    /** @type {Map<string, HtmlElement>} */
+    const wantedKeys = new Map(next.flatMap(child => {
         const key = typeof child === 'string' ? undefined : parseElement(child)[1]['data-key']
-        return key === undefined ? [] : [key]
+        return key === undefined ? [] : [[key, /** @type {HtmlElement} */ (child)]]
     }))
+    // A keyed node goes first if its key is gone or comes back as another
+    // tag, so none is left in the way of the nodes that stay.
     for (const [key, node] of keyed) {
-        if (!wantedKeys.has(key)) {
+        const child = wantedKeys.get(key)
+        if (child === undefined || !fits(target, node, child[0])) {
             parent.removeChild(node)
             keyed.delete(key)
         }
@@ -311,13 +318,12 @@ export const patch = (target, element) => {
             const [childTag] = /** @type {HtmlElement} */ (child)
             const found = keyed.get(childKey)
             keyed.delete(childKey)
-            const rules = rulesFor(target, childTag)
-            if (found !== undefined && found.localName === childTag && found.namespaceURI === namespaceFor(rules, childTag)) {
+            if (found !== undefined) {
                 if (found !== at) { parent.insertBefore(found, at ?? null) }
                 patch(found, /** @type {HtmlElement} */ (child))
                 return
             }
-            parent.insertBefore(create(target.ownerDocument, rules, /** @type {HtmlElement} */ (child)), at ?? null)
+            parent.insertBefore(create(target.ownerDocument, rulesFor(target, childTag), /** @type {HtmlElement} */ (child)), at ?? null)
             return
         }
         // An element with a key is never taken for a child without one: the
@@ -340,10 +346,7 @@ export const patch = (target, element) => {
         }
         const [childTag] = child
         const rules = rulesFor(target, childTag)
-        const same = node !== undefined
-            && /** @type {Element} */ (node).localName === childTag
-            && /** @type {Element} */ (node).namespaceURI === namespaceFor(rules, childTag)
-        if (same) {
+        if (node !== undefined && fits(target, /** @type {Element} */ (node), childTag)) {
             patch(/** @type {Element} */ (node), child)
             return
         }
@@ -355,11 +358,20 @@ export const patch = (target, element) => {
 }
 
 /**
- * A node's `data-key`, or `null` for a text node or an element without one.
+ * A node's `data-key`, or `null` for an element without one or a node that
+ * is not an element — text, or a comment.
  *
  * @type {(node: ChildNode) => string | null}
  */
-const keyOf = node => node.nodeType === textNode ? null : /** @type {Element} */ (node).getAttribute('data-key')
+const keyOf = node => node.nodeType !== elementNode ? null : /** @type {Element} */ (node).getAttribute('data-key')
+
+/**
+ * Whether `node`, a child of `target`, can be patched into an element
+ * `tag`: the same tag, in the namespace `target` gives it.
+ *
+ * @type {(target: Element, node: Element, tag: string) => boolean}
+ */
+const fits = (target, node, tag) => node.localName === tag && node.namespaceURI === namespaceFor(rulesFor(target, tag), tag)
 
 /**
  * The name an attribute is stored under on `target`: ASCII lowercase on an

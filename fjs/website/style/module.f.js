@@ -630,8 +630,8 @@ svg text { font: inherit }
 [data-graph-value][data-graph-value-kind="added"] { fill: var(--graph-added-bg) }
 /* A change node by node: a node with an order fades out if it is leaving
    and in otherwise — new, or entering, a node a step built that its demo
-   draws plain — over half a second, half a second after the order before
-   it.
+   draws plain — over a quarter of a second, a quarter of a second after
+   the order before it.
    Only where the reader has not asked for less motion: then the drawing
    changes at once. The page updates its elements in place, and an
    animation runs again only when its name changes, so the drawing's
@@ -639,22 +639,22 @@ svg text { font: inherit }
    name has a twin. Seven orders are delayed, as many as a tree of 80
    keys is deep; an order past them fades with the seventh. */
 @media (prefers-reduced-motion: no-preference) {
-  [data-graph-order] { animation-duration: .5s; animation-fill-mode: both; animation-timing-function: ease }
+  [data-graph-order] { animation-duration: .25s; animation-fill-mode: both; animation-timing-function: ease }
   /* A keyed node that stays but moves slides to its new place. */
-  [data-graph] [data-key] { transition: transform .5s ease }
+  [data-graph] [data-key] { transition: transform .25s ease }
   /* A key about to be removed turns red, through order 0, before anything
      fades. */
-  [data-graph-value-kind="removed"] { animation: graph-redden .5s ease both }
+  [data-graph-value-kind="removed"] { animation: graph-redden .25s ease both }
   [data-graph-replay="a"] [data-graph-order]:not([data-graph-in-kind="leaving"]) { animation-name: graph-in-a }
   [data-graph-replay="b"] [data-graph-order]:not([data-graph-in-kind="leaving"]) { animation-name: graph-in-b }
   [data-graph-replay="a"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-a }
   [data-graph-replay="b"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-b }
-  [data-graph-order="1"] { animation-delay: .5s }
-  [data-graph-order="2"] { animation-delay: 1s }
-  [data-graph-order="3"] { animation-delay: 1.5s }
-  [data-graph-order="4"] { animation-delay: 2s }
-  [data-graph-order="5"] { animation-delay: 2.5s }
-  [data-graph-order="6"] { animation-delay: 3s }
+  [data-graph-order="1"] { animation-delay: .25s }
+  [data-graph-order="2"] { animation-delay: .5s }
+  [data-graph-order="3"] { animation-delay: .75s }
+  [data-graph-order="4"] { animation-delay: 1s }
+  [data-graph-order="5"] { animation-delay: 1.25s }
+  [data-graph-order="6"] { animation-delay: 1.5s }
 }
 @keyframes graph-redden { from { fill-opacity: 0 } }
 @keyframes graph-in-a { from { opacity: 0 } }
