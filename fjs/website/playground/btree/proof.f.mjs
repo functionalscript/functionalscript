@@ -268,8 +268,8 @@ export const proof = {
             const time = frameTime(move(40)(level2))
             assert(time > 0 && time % orderGap === 0, time)
         },
-        // Leaving, the nodes the next tree does not share fade out from the
-        // leaves up; entering, after the slide (order 0), the new ones fade
+        // Leaving, the nodes the next tree does not share turn red (order 0)
+        // and fade out from the leaves up from order 1; entering, after the slide (order 0), the new ones fade
         // in from the root down from order 1, and the edges between nodes
         // that stay with them. A rank fades as one, and a shared node not
         // at all. Every node is keyed by its keys.
@@ -282,7 +282,7 @@ export const proof = {
             }
             const leave = ordered('leave')(g)
             assertEq(JSON.stringify(leave.nodes.map(n => [n.kind, n.order ?? null, n.key])),
-                '[["leaving",1,""],["shared",null,"30,40"],["leaving",0,""],["leaving",0,""]]')
+                '[["leaving",2,""],["shared",null,"30,40"],["leaving",1,""],["leaving",1,""]]')
             assertEq(leave.edgeOrder, undefined)
             const enter = ordered('enter')(g)
             assertEq(JSON.stringify(enter.nodes.map(n => [n.kind, n.order ?? null])),
@@ -300,7 +300,7 @@ export const proof = {
             const first = move(40)(level2)
             const h = html(first)
             assert(h.includes('data-graph-replay="b"'), h)
-            assert(h.includes('data-graph-in-kind="leaving" data-graph-order="0"'), h)
+            assert(h.includes('data-graph-in-kind="leaving" data-graph-order="1"'), h)
             assert(html(step(first)).includes('data-graph-replay="a"'), '')
         },
     },

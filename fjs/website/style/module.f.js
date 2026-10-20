@@ -219,8 +219,8 @@ const railroadLabel = kind => `[${railroadLabelMarker}="${kind}"]`
  * Named because two stylesheets declare them: {@link stylesheet} on every
  * page, and {@link rustdocStylesheet} on rustdoc's.
  */
-const lightTokens = '--graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
-const darkTokens = '--graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
+const lightTokens = '--graph-new-bg: #aecbfa; --graph-added-bg: #a8dab5; --graph-removed-bg: #f6aea9; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
+const darkTokens = '--graph-new-bg: #1c2d4d; --graph-added-bg: #1c3d27; --graph-removed-bg: #4d1c1c; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
 
 /**
  * The rules for the site's two bars, the header and the funding footer,
@@ -610,6 +610,11 @@ svg text { font: inherit }
    before it holds too is plain. Blue, not green: a new node is not a
    passed test, so it is not --pass-bg. */
 [data-graph-kind="new"] { fill: var(--graph-new-bg) }
+/* A drawing shown frame by frame, as the B-tree game's moves are: a node
+   added is green and a node about to be removed red, so a move reads as
+   what it takes away and what it puts back. */
+[data-graph-replay] [data-graph-kind="new"] { fill: var(--graph-added-bg) }
+[data-graph-replay] [data-graph-kind="leaving"] { fill: var(--graph-removed-bg) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
@@ -633,6 +638,8 @@ svg text { font: inherit }
   [data-graph-order] { animation-duration: .5s; animation-fill-mode: both; animation-timing-function: ease }
   /* A keyed node that stays but moves slides to its new place. */
   [data-graph] [data-key] { transition: transform .5s ease }
+  /* A node about to be removed turns red, through order 0, before it fades. */
+  [data-graph-replay] [data-graph-kind="leaving"] { animation: graph-redden .5s ease both }
   [data-graph-replay="a"] [data-graph-in-kind="new"][data-graph-order] { animation-name: graph-in-a }
   [data-graph-replay="b"] [data-graph-in-kind="new"][data-graph-order] { animation-name: graph-in-b }
   [data-graph-replay="a"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-a }
@@ -644,6 +651,7 @@ svg text { font: inherit }
   [data-graph-order="5"] { animation-delay: 2.5s }
   [data-graph-order="6"] { animation-delay: 3s }
 }
+@keyframes graph-redden { from { fill: var(--bg) } }
 @keyframes graph-in-a { from { opacity: 0 } }
 @keyframes graph-in-b { from { opacity: 0 } }
 @keyframes graph-out-a { to { opacity: 0 } }

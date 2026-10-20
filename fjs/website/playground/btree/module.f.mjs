@@ -17,12 +17,13 @@
  * **A level starts from its keys inserted in random order**, one
  * `randomInt` per key, as the B-tree demo's Generate does; the first tree is
  * built when the page starts. The tree is drawn by the B-tree demo's
- * {@link structure}, so each move shows the nodes it built in blue.
+ * {@link structure}; each move shows the nodes it removes in red, and the
+ * nodes it built in green.
  *
  * **A move is shown node by node, in four frames**: the nodes the remove
- * replaces fade out, from the leaf up; the nodes it built fade in, from the
- * root down — a leaf merged or borrowed from; then the same for the insert
- * — a leaf split. Each node takes {@link orderGap} after the one before
+ * replaces turn red, then fade out from the leaf up; the nodes it built
+ * fade in green, from the root down — a leaf merged or borrowed from; then
+ * the same for the insert — a leaf split. Each node takes {@link orderGap} after the one before
  * it, and a frame is held until its last node is done. A key that goes back
  * where it was is shown the same way: its leaf fades out without it, and in
  * with it again.
@@ -271,8 +272,8 @@ const levelOf = value => depths.find(d => String(d) === value)
 
 /**
  * A frame's graph, its moving nodes in order. Leaving, the nodes the next
- * tree does not share — new, against it — are `leaving`, and fade out from
- * the leaves up. Entering, the nodes that stay slide first to where the new
+ * tree does not share — new, against it — are `leaving`: they turn red
+ * together, through order 0, then fade out from the leaves up, from order 1. Entering, the nodes that stay slide first to where the new
  * tree puts them, through order 0; then the nodes it built fade in from
  * the root down, one rank at a time, from order 1, and so do the edges
  * between nodes that stay, which waited hidden while they slid.
@@ -286,7 +287,6 @@ const levelOf = value => depths.find(d => String(d) === value)
 export const ordered = mode => g => {
     if (mode === 'still') { return g }
     const ranks = [...new Set(g.nodes.flatMap(n => n.kind === 'new' ? [n.rank] : []))].toSorted((a, b) => mode === 'enter' ? a - b : b - a)
-    const first = mode === 'enter' ? 1 : 0
     /** @type {(id: number) => string} */
     const keyOf = id => g.edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : []).join(',')
     return {
@@ -294,7 +294,7 @@ export const ordered = mode => g => {
         nodes: g.nodes.map(n => ({
             ...n,
             key: keyOf(n.id),
-            ...(n.kind !== 'new' ? {} : { kind: mode === 'enter' ? 'new' : 'leaving', order: first + ranks.indexOf(n.rank) }),
+            ...(n.kind !== 'new' ? {} : { kind: mode === 'enter' ? 'new' : 'leaving', order: 1 + ranks.indexOf(n.rank) }),
         })),
         ...(mode === 'enter' && ranks.length > 0 ? { edgeOrder: 1 } : {}),
     }
