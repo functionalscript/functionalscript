@@ -36,7 +36,7 @@
 
 import { sandbox } from '../../../effects/common/module.f.mjs'
 import { fetchText, instantiate } from '../../../effects/browser/module.f.mjs'
-import { errorMessage, history, historyStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
+import { errorMessage, history, historyStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
@@ -167,20 +167,22 @@ export const runWasm = name => ({ exports }) => {
     const live = /** @type {{ readonly buffer: { readonly byteLength: number } }} */ (memory)
     const loaded = resultStep(sandbox(() => /** @type {() => number} */ (load)()), r => {
         const t = timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
-        /** @type {Result<null, string>} */
-        const status = t[0] === 'error' ? t : t[1].value < 0 ? error('the sample threw while loading') : ok(null)
-        return pureOk(status)
+        return pure(t[0] === 'error' ? t : t[1].value < 0 ? error('the sample threw while loading') : ok(null))
     })
-    return step(loaded, status => status[0] === 'error' ? pureOk(status) : resultStep(sandbox(() => /** @type {() => number} */ (runSample)()), r => {
-        const t = timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
+    const ran = step(loaded, () => sandbox(() => /** @type {() => number} */ (runSample)()))
+    return resultMapStep(ran, r => {
+        /** @type {Result<{ readonly value: number, readonly time: number }, string>} */
+        const t = r[0] === 'error' && typeof r[1] === 'string'
+            ? error(r[1])
+            : timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
         /** @type {(value: number) => Result<string, string>} */
         const output = value => value < 0
             ? error('the sample threw')
             : decode(Array.from({ length: value }, (_, i) => /** @type {(i: number) => number} */ (outputByte)(i)))
         /** @type {Result<WasmRun, string>} */
         const run = t[0] === 'error' ? t : ok({ run: { output: output(t[1].value), time: t[1].time }, memory: live.buffer.byteLength })
-        return pureOk(run)
-    }))
+        return ok(run)
+    })
 }
 
 /**
