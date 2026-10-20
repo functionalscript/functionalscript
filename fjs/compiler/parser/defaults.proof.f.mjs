@@ -36,6 +36,9 @@ export const proof = {
             // and a pattern before the first default its argument, as before
             expectModule('export default ({ a }, [b] = [], { c } = {}) => [a, b, c];',
                 '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["array",[["...",["?:",["===",[".",["rest"],0],undefined],["array",[]],[".",["rest"],0]]]]],[".",["cref",2],0],["?:",["===",[".",["rest"],1],undefined],["object",[]],[".",["rest"],1]],[".",["cref",4],"c"],["array",[["cref",1],["cref",3],["cref",5]]]]]]]]]]')
+            // a trailing comma after a default is the list without it
+            expectModule('export default (a = 1,) => a;',
+                '[[],[["object",[[":","default",["=>",0,[["?:",["===",[".",["rest"],0],undefined],1,[".",["rest"],0]],["cref",0]]]]]]]]')
             // a list with no default is unchanged
             expectModule('export default (a, ...r) => [a, r];', '[[],[["object",[[":","default",["=>",1,[["array",[["arg",0],["rest"]]]]]]]]]]')
         },

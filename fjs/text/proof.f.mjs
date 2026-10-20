@@ -1,4 +1,4 @@
-import { assertEq, assertNotNullish } from '../asserts/module.f.mjs'
+import { assertEq, assertNotNullish } from '../asserts/module.f.js'
 import { utf8, tryUtf8 } from './module.f.mjs'
 import { utf8ToString } from './utf8/module.f.mjs'
 import { empty, maxLengthBytes } from '../types/bit_vec/module.f.mjs'

@@ -2,7 +2,7 @@
  * @import { Event, File, Thresholds } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { quiet as quietIn } from './module.f.js'
 
 const quiet = quietIn('/repo')

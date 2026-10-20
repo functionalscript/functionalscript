@@ -3,7 +3,7 @@
  */
 
 import { asBase, asNominal } from "./module.f.js"
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 
 export const proof = {
     pre: () => {

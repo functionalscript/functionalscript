@@ -9,7 +9,7 @@ import { ci, main as builtIn } from '../module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 /**
  * The `gen.ci.yml` a program writes over an empty project — no `Cargo.toml`, no

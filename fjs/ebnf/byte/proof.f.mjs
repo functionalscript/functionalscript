@@ -8,7 +8,7 @@
  * @import { Byte } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { fromArrayLike } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'

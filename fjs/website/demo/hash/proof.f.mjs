@@ -3,7 +3,7 @@ import { vec } from '../../../types/bit_vec/module.f.mjs'
 import { sha1 } from '../../../crypto/sha1/module.f.mjs'
 import { sha256 } from '../../../crypto/sha2/module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 
 const sha1Output = hashOutput({ name: 'SHA-1', hash: sha1, openssl: 'sha1' })
 const sha256Output = hashOutput({ name: 'SHA-256', hash: sha256, openssl: 'sha256' })

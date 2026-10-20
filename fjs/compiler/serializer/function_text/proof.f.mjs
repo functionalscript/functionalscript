@@ -4,7 +4,7 @@
  * @import { Exp, Function as FunctionExp, Op2Id } from '../../../edag/types.ts'
  */
 
-import { assertEq, assertOk } from '../../../asserts/module.f.mjs'
+import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { staticIds } from '../../../edag/module.f.mjs'
 import { renderFunction, _closure } from './module.f.mjs'

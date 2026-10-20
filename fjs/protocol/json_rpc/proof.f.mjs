@@ -2,7 +2,7 @@
  * @import { Handlers } from './types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { ok, error } from '../../types/result/module.f.js'
 import { parse } from '../../rtti/parse/module.f.mjs'
 import {

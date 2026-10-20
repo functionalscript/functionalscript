@@ -10,7 +10,7 @@
 
 import { parseFromTokens } from './module.f.mjs'
 import { stringifyDjsModule, tokenizeString } from './proof.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
     // The one prefix operator. `-` is a token the grammar reads, so what it
@@ -342,6 +342,66 @@ export const proof = {
     // refusal is pinned as an accepted form is, with the message and the
     // column it is reported at, so that admitting one by accident, or moving
     // its error, fails a proof.
+    // The comma operator, in parentheses (`spec/operators/comma.md`): every
+    // operand kept, in order, as written — which ones the graph anchors is
+    // the lowering's to say. A list in parentheses is a comma where no `=>`
+    // follows its `)` and a function's parameters where one does.
+    comma: {
+        forms: () => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
+            }
+            expect('export default (1, 2);', '[[],[["object",[[":","default",[",",[1,2]]]]]]]')
+            expect('export default (1, 2, 3);', '[[],[["object",[[":","default",[",",[1,2,3]]]]]]]')
+            // a comma nests as written, in either operand
+            expect('export default ((1, 2), 3);', '[[],[["object",[[":","default",[",",[[",",[1,2]],3]]]]]]]')
+            expect('export default (1, (2, 3));', '[[],[["object",[[":","default",[",",[1,[",",[2,3]]]]]]]]]')
+            // a group of it takes steps, a prefix and an operator's place
+            expect('export default (1, 2).x;', '[[],[["object",[[":","default",[".",[",",[1,2]],"x"]]]]]]')
+            expect('export default -(1, 2);', '[[],[["object",[[":","default",["-",[",",[1,2]]]]]]]]')
+            expect('export default 1 + (2, 3) * 4;', '[[],[["object",[[":","default",["+",1,["*",[",",[2,3]],4]]]]]]]')
+            // `=>` after the `)` makes the same list parameters
+            expect('export default (a, b) => a;', '[[],[["object",[[":","default",["=>",2,[["arg",0]]]]]]]]')
+            expect('export default (a, b) => (a, b);', '[[],[["object",[[":","default",["=>",2,[[",",[["arg",0],["arg",1]]]]]]]]]]')
+            // a comma as the callee is no access: the call is the plain one,
+            // where a group keeps the method call
+            expect('const o = { f: 1 }; export default (0, o.f)(1);', '[[],[["object",[[":","f",1]]],["object",[[":","default",["()",[",",[0,[".",["cref",0],"f"]]],[1]]]]]]]')
+            expect('const o = { f: 1 }; export default (o.f)(1);', '[[],[["object",[[":","f",1]]],["object",[[":","default",["()",[".",["cref",0],"f"],[1]]]]]]]')
+        },
+        refused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            // what only a parameter list holds, where no `=>` follows: a
+            // default at its `=`, a rest at its `...`, and a trailing comma
+            // at the `)`, the first of them in the list
+            expect('export default (a, b = 1);', 'unexpected token', 22)
+            expect('export default (a, b = 1, c);', 'unexpected token', 22)
+            expect('export default (a, ...b);', 'unexpected token', 20)
+            expect('export default (a, b,);', 'unexpected token', 22)
+            expect('export default (a,);', 'unexpected token', 19)
+            // where `=>` follows, an item that is no binding target, at it
+            expect('export default (a, b + 1) => 1;', 'invalid destructuring target', 20)
+            expect('export default (a, (b)) => 1;', 'invalid destructuring target', 20)
+            // an operand is a read: a prototype's member is refused by the
+            // read rule, the comma's callee being no method's
+            expect('export default (0, [].at)(0);', 'prohibited property name', 23)
+            // each operand is resolved, in order
+            expect('export default (missing, 1);', 'const not found', 17)
+            expect('export default (1, missing);', 'const not found', 20)
+            // a comma JavaScript reads with no parentheses of its own is
+            // refused at it (`op.comma`), as JavaScript's own errors are
+            expect('export default (...a) => { return a, a; };', 'unexpected token', 36)
+            expect('export default 1, 2;', 'unexpected token', 17)
+        },
+    },
     refusedByDesign: {
         in: () => {
             /** @type {(source: string, column: number) => void} */

@@ -1,7 +1,7 @@
 import { installNode, platformNodeSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { actions, node } from '../config/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 const version = /** @type {const} */ ('9.9.9')
 

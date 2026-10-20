@@ -6,7 +6,7 @@
  */
 
 import { sloth, p } from './module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
 import { concat as stringConcat } from '../../types/string/module.f.mjs'

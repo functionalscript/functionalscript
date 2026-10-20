@@ -20,7 +20,7 @@
  * @import { _Ctx } from './private.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { assoc, dedup } from '../../types/array/module.f.mjs'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'

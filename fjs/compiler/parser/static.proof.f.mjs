@@ -11,7 +11,7 @@
  */
 
 import { expectModule, expectRefused } from './proof.f.mjs'
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { isReservedGlobal } from '../../js/keywords/module.f.js'
 import { staticIds, staticPath } from '../../edag/module.f.mjs'
 

@@ -1,4 +1,4 @@
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { percentDecode, percentEncodePath } from './module.f.mjs'
 
 export const proof = {

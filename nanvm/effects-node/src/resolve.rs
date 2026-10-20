@@ -26,15 +26,6 @@ pub struct FileModule {
     pub path: String,
 }
 
-/// A refusal that is not the file system's: a specifier or URL Node rejects,
-/// with the code it gives where it gives one.
-fn refusal(code: Option<&str>, message: &str) -> IoError {
-    IoError {
-        code: code.map(str::to_string),
-        message: message.to_string(),
-    }
-}
-
 /// `%XX` escapes read as the bytes they are, and the bytes as UTF-8; `None`
 /// where an escape is cut short or not hexadecimal, or the bytes are not UTF-8.
 pub fn percent_decode(text: &str) -> Option<String> {
@@ -138,17 +129,17 @@ pub fn decode_specifier(specifier: &str) -> Option<(bool, String)> {
 /// the URL names one on this machine.
 pub fn file_url_to_path(url: &str) -> Result<String, IoError> {
     let Some(rest) = url.strip_prefix("file://") else {
-        return Err(refusal(None, "only file modules are supported"));
+        return Err(IoError::message("only file modules are supported"));
     };
     if !rest.starts_with('/') {
-        return Err(refusal(
-            Some("ERR_INVALID_FILE_URL_HOST"),
+        return Err(IoError::refusal(
+            "ERR_INVALID_FILE_URL_HOST",
             "File URL host must be \"localhost\" or empty",
         ));
     }
     let invalid = || {
-        refusal(
-            Some("ERR_INVALID_FILE_URL_PATH"),
+        IoError::refusal(
+            "ERR_INVALID_FILE_URL_PATH",
             if cfg!(windows) {
                 "File URL path must not include encoded \\ or / characters"
             } else {
@@ -315,7 +306,7 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
     let loading = match parent {
         None => name.to_string(),
         Some(parent) => {
-            let invalid = || refusal(None, "invalid module specifier");
+            let invalid = || IoError::message("invalid module specifier");
             // An authority is not a path segment: `//host/../../x` must not
             // lose its host during dot reduction and turn into a local import.
             // Empty and localhost authorities remain unsupported too; see
@@ -349,8 +340,7 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
     let loading = absolute_path(&loading)
         .map_err(|e| crate::files::failure(&e, "resolveFileModule", &loading))?;
     if parent.is_none() && entry_path_needs_url_preprocessing(&loading) {
-        return Err(refusal(
-            None,
+        return Err(IoError::message(
             "entry paths with terminal C0 controls are not supported",
         ));
     }
@@ -758,62 +748,39 @@ mod test {
     #[cfg(unix)]
     mod files {
         use super::*;
+        use crate::scratch::Scratch;
         use std::os::unix::fs::symlink;
-
-        struct Scratch(std::path::PathBuf);
-
-        impl Scratch {
-            fn new(name: &str) -> Self {
-                let base = std::env::temp_dir().join(format!(
-                    "nanvm-effects-node-resolve-{name}-{}",
-                    std::process::id()
-                ));
-                let _ = fs::remove_dir_all(&base);
-                fs::create_dir_all(&base).unwrap();
-                // The system's temporary directory may itself be a link.
-                Self(fs::canonicalize(base).unwrap())
-            }
-            fn path(&self, name: &str) -> String {
-                format!("{}/{name}", self.0.to_string_lossy())
-            }
-        }
-
-        impl Drop for Scratch {
-            fn drop(&mut self) {
-                let _ = fs::remove_dir_all(&self.0);
-            }
-        }
 
         #[test]
         fn from_a_path_and_from_a_parent() {
-            let dir = Scratch::new("tree");
-            fs::create_dir_all(dir.path("src/lib")).unwrap();
-            fs::write(dir.path("src/main.f.js"), "").unwrap();
-            fs::write(dir.path("src/lib/a b.f.js"), "").unwrap();
-            fs::write(dir.path("top.f.js"), "").unwrap();
-            let main = resolve_file_module(&dir.path("src/./lib/../main.f.js"), None).unwrap();
-            assert_eq!(main.path, dir.path("src/main.f.js"));
+            let dir = Scratch::new("resolve-tree");
+            fs::create_dir_all(dir.at("src/lib")).unwrap();
+            fs::write(dir.at("src/main.f.js"), "").unwrap();
+            fs::write(dir.at("src/lib/a b.f.js"), "").unwrap();
+            fs::write(dir.at("top.f.js"), "").unwrap();
+            let main = resolve_file_module(&dir.at("src/./lib/../main.f.js"), None).unwrap();
+            assert_eq!(main.path, dir.at("src/main.f.js"));
             assert_eq!(main.id, path_to_file_url(&main.path));
             let ids = |name: &str| resolve_file_module(name, Some(&main.id)).unwrap();
-            assert_eq!(ids("./lib/a%20b.f.js").path, dir.path("src/lib/a b.f.js"));
+            assert_eq!(ids("./lib/a%20b.f.js").path, dir.at("src/lib/a b.f.js"));
             assert_eq!(
                 ids("./lib/a%20b.f.js").id,
-                format!("file://{}", percent_encode(&dir.path("src/lib/a b.f.js")))
+                format!("file://{}", percent_encode(&dir.at("src/lib/a b.f.js")))
             );
-            assert_eq!(ids("../top.f.js").path, dir.path("top.f.js"));
-            assert_eq!(ids("./lib/../../top.f.js").path, dir.path("top.f.js"));
-            assert_eq!(ids(".//lib/a%20b.f.js").path, dir.path("src/lib/a b.f.js"));
-            assert_eq!(ids(&dir.path("top.f.js")[..]).path, dir.path("top.f.js"));
+            assert_eq!(ids("../top.f.js").path, dir.at("top.f.js"));
+            assert_eq!(ids("./lib/../../top.f.js").path, dir.at("top.f.js"));
+            assert_eq!(ids(".//lib/a%20b.f.js").path, dir.at("src/lib/a b.f.js"));
+            assert_eq!(ids(&dir.at("top.f.js")[..]).path, dir.at("top.f.js"));
             assert_eq!(ids("").path, main.path);
             assert_eq!(ids("%2e/main.f.js").path, main.path);
         }
 
         #[test]
         fn trailing_separators_do_not_turn_files_into_directories() {
-            let dir = Scratch::new("trailing");
-            fs::write(dir.path("dep.f.js"), "").unwrap();
-            fs::create_dir(dir.path("folder")).unwrap();
-            let parent = path_to_file_url(&dir.path("main.f.js"));
+            let dir = Scratch::new("resolve-trailing");
+            fs::write(dir.at("dep.f.js"), "").unwrap();
+            fs::create_dir(dir.at("folder")).unwrap();
+            let parent = path_to_file_url(&dir.at("main.f.js"));
             for name in [
                 "./dep.f.js/",
                 "./dep.f.js//",
@@ -821,14 +788,14 @@ mod test {
                 "./dep.f.js/%2e",
                 "./dep.f.js/child/..",
             ] {
-                for specifier in [name.to_string(), dir.path(name)] {
+                for specifier in [name.to_string(), dir.at(name)] {
                     let error = resolve_file_module(&specifier, Some(&parent)).unwrap_err();
                     assert_eq!(error.code.as_deref(), Some("ENOTDIR"), "{specifier:?}");
                 }
             }
-            let error = resolve_file_module(&dir.path("dep.f.js/"), None).unwrap_err();
+            let error = resolve_file_module(&dir.at("dep.f.js/"), None).unwrap_err();
             assert_eq!(error.code.as_deref(), Some("ENOTDIR"));
-            let folder = resolve_file_module(&dir.path("folder"), None).unwrap();
+            let folder = resolve_file_module(&dir.at("folder"), None).unwrap();
             assert_eq!(
                 resolve_file_module("./folder/", Some(&parent)).unwrap(),
                 folder
@@ -838,14 +805,14 @@ mod test {
                 folder
             );
             // The directory check follows a link, but keeps missing-path errors.
-            symlink(dir.path("folder"), dir.path("folder-link")).unwrap();
+            symlink(dir.at("folder"), dir.at("folder-link")).unwrap();
             assert_eq!(
                 resolve_file_module("./folder-link/", Some(&parent)).unwrap(),
                 folder
             );
             let missing = resolve_file_module("./missing/", Some(&parent)).unwrap_err();
             assert_eq!(missing.code.as_deref(), Some("ENOENT"));
-            let root = resolve_file_module(&dir.path(""), None).unwrap();
+            let root = resolve_file_module(&dir.at(""), None).unwrap();
             assert_eq!(resolve_file_module(".", Some(&parent)).unwrap(), root);
             assert_eq!(
                 resolve_file_module("./folder/..", Some(&parent)).unwrap(),
@@ -855,20 +822,20 @@ mod test {
 
         #[test]
         fn posix_backslashes_do_not_alias_path_separators() {
-            let dir = Scratch::new("backslash");
+            let dir = Scratch::new("resolve-backslash");
             for tree in [r"a\b", "a/b"] {
-                fs::create_dir_all(dir.path(tree)).unwrap();
-                fs::write(dir.path(&format!("{tree}/main.f.js")), "").unwrap();
-                fs::write(dir.path(&format!("{tree}/dep.f.js")), "").unwrap();
+                fs::create_dir_all(dir.at(tree)).unwrap();
+                fs::write(dir.at(&format!("{tree}/main.f.js")), "").unwrap();
+                fs::write(dir.at(&format!("{tree}/dep.f.js")), "").unwrap();
             }
-            let literal = resolve_file_module(&dir.path(r"a\b/main.f.js"), None).unwrap();
-            let separated = resolve_file_module(&dir.path("a/b/main.f.js"), None).unwrap();
-            assert_eq!(literal.path, dir.path(r"a\b/main.f.js"));
+            let literal = resolve_file_module(&dir.at(r"a\b/main.f.js"), None).unwrap();
+            let separated = resolve_file_module(&dir.at("a/b/main.f.js"), None).unwrap();
+            assert_eq!(literal.path, dir.at(r"a\b/main.f.js"));
             assert_ne!(literal.id, separated.id);
             assert!(literal.id.ends_with("/a%5Cb/main.f.js"));
             assert_eq!(file_url_to_path(&literal.id).unwrap(), literal.path);
             let dep = resolve_file_module("./dep.f.js", Some(&literal.id)).unwrap();
-            assert_eq!(dep.path, dir.path(r"a\b/dep.f.js"));
+            assert_eq!(dep.path, dir.at(r"a\b/dep.f.js"));
             assert_eq!(
                 resolve_file_module("./main.f.js", Some(&dep.id)).unwrap(),
                 literal
@@ -877,13 +844,13 @@ mod test {
 
         #[test]
         fn escaped_drive_bar_names_remain_literal() {
-            let dir = Scratch::new("drive-bar");
-            fs::create_dir(dir.path("C|")).unwrap();
-            fs::write(dir.path("C|/dep.f.js"), "").unwrap();
+            let dir = Scratch::new("resolve-drive-bar");
+            fs::create_dir(dir.at("C|")).unwrap();
+            fs::write(dir.at("C|/dep.f.js"), "").unwrap();
             // An entry is a literal path, not an import specifier.
-            let literal = resolve_file_module(&dir.path("C|/dep.f.js"), None).unwrap();
+            let literal = resolve_file_module(&dir.at("C|/dep.f.js"), None).unwrap();
             assert!(literal.id.ends_with("/C%7C/dep.f.js"));
-            let parent = path_to_file_url(&dir.path("main.f.js"));
+            let parent = path_to_file_url(&dir.at("main.f.js"));
             for name in ["./%43|/dep.f.js", "./C%7C/dep.f.js", "./%43%7c/dep.f.js"] {
                 assert_eq!(resolve_file_module(name, Some(&parent)).unwrap(), literal);
             }
@@ -897,13 +864,13 @@ mod test {
 
         #[test]
         fn entry_dot_segments_are_reduced_before_following_symlinks() {
-            let dir = Scratch::new("lexical");
-            fs::create_dir_all(dir.path("target/nested")).unwrap();
-            fs::write(dir.path("main.f.js"), "").unwrap();
-            fs::write(dir.path("target/main.f.js"), "").unwrap();
-            symlink(dir.path("target/nested"), dir.path("link")).unwrap();
-            let module = resolve_file_module(&dir.path("link/../main.f.js"), None).unwrap();
-            assert_eq!(module.path, dir.path("main.f.js"));
+            let dir = Scratch::new("resolve-lexical");
+            fs::create_dir_all(dir.at("target/nested")).unwrap();
+            fs::write(dir.at("main.f.js"), "").unwrap();
+            fs::write(dir.at("target/main.f.js"), "").unwrap();
+            symlink(dir.at("target/nested"), dir.at("link")).unwrap();
+            let module = resolve_file_module(&dir.at("link/../main.f.js"), None).unwrap();
+            assert_eq!(module.path, dir.at("main.f.js"));
         }
 
         // APFS rejects non-UTF-8 names at creation; use Linux for the real
@@ -912,22 +879,22 @@ mod test {
         #[test]
         fn non_utf8_targets_do_not_alias_replacement_characters() {
             use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
-            let dir = Scratch::new("non-utf8");
-            let raw = dir.0.join(OsStr::from_bytes(b"bad-\xff"));
+            let dir = Scratch::new("resolve-non-utf8");
+            let raw = dir.path().join(OsStr::from_bytes(b"bad-\xff"));
             fs::create_dir(&raw).unwrap();
             fs::write(raw.join("dep.f.js"), "original").unwrap();
-            fs::create_dir(dir.path("bad-\u{fffd}")).unwrap();
-            let replacement = dir.path("bad-\u{fffd}/dep.f.js");
+            fs::create_dir(dir.at("bad-\u{fffd}")).unwrap();
+            let replacement = dir.at("bad-\u{fffd}/dep.f.js");
             fs::write(&replacement, "replacement").unwrap();
-            symlink(raw.join("dep.f.js"), dir.path("link.f.js")).unwrap();
-            symlink(&raw, dir.path("link-dir")).unwrap();
+            symlink(raw.join("dep.f.js"), dir.at("link.f.js")).unwrap();
+            symlink(&raw, dir.at("link-dir")).unwrap();
             assert_eq!(
                 path_text(&raw).unwrap_err().kind(),
                 std::io::ErrorKind::InvalidData
             );
-            let parent = path_to_file_url(&dir.path("main.f.js"));
+            let parent = path_to_file_url(&dir.at("main.f.js"));
             for name in ["link.f.js", "link-dir/dep.f.js"] {
-                let entry = resolve_file_module(&dir.path(name), None).unwrap_err();
+                let entry = resolve_file_module(&dir.at(name), None).unwrap_err();
                 let import = resolve_file_module(name, Some(&parent)).unwrap_err();
                 for error in [entry, import] {
                     assert!(
@@ -941,22 +908,22 @@ mod test {
             assert_eq!(valid.path, replacement);
             assert_eq!(file_url_to_path(&valid.id).unwrap(), valid.path);
             assert_eq!(fs::read(&valid.path).unwrap(), b"replacement");
-            assert_eq!(fs::read(dir.path("link.f.js")).unwrap(), b"original");
+            assert_eq!(fs::read(dir.at("link.f.js")).unwrap(), b"original");
         }
 
         #[test]
         fn escaped_whitespace_names_remain_literal() {
-            let dir = Scratch::new("url-whitespace");
-            let parent = path_to_file_url(&dir.path("main.f.js"));
+            let dir = Scratch::new("resolve-url-whitespace");
+            let parent = path_to_file_url(&dir.at("main.f.js"));
             for (name, encoded, plain) in [
                 ("dep ", "dep%20", "dep"),
                 ("a\tb", "a%09b", "ab"),
                 ("a\nb", "a%0Ab", "ab"),
                 ("a\rb", "a%0Db", "ab"),
             ] {
-                fs::write(dir.path(name), "literal").unwrap();
-                fs::write(dir.path(plain), "plain").unwrap();
-                let literal = resolve_file_module(&dir.path(name), None).unwrap();
+                fs::write(dir.at(name), "literal").unwrap();
+                fs::write(dir.at(plain), "plain").unwrap();
+                let literal = resolve_file_module(&dir.at(name), None).unwrap();
                 let other = resolve_file_module(plain, Some(&parent)).unwrap();
                 assert_ne!(literal.id, other.id);
                 assert_eq!(file_url_to_path(&literal.id).unwrap(), literal.path);
@@ -968,22 +935,22 @@ mod test {
                 assert_eq!(error.message, "invalid module specifier");
             }
             for name in ["a b", "dep\u{a0}"] {
-                fs::write(dir.path(name), "literal").unwrap();
-                let literal = resolve_file_module(&dir.path(name), None).unwrap();
+                fs::write(dir.at(name), "literal").unwrap();
+                let literal = resolve_file_module(&dir.at(name), None).unwrap();
                 assert_eq!(resolve_file_module(name, Some(&parent)).unwrap(), literal);
             }
         }
 
         #[test]
         fn terminal_entry_controls_do_not_load_a_different_file() {
-            let dir = Scratch::new("entry-controls");
-            fs::write(dir.path("dep"), "plain").unwrap();
-            let plain = resolve_file_module(&dir.path("dep"), None).unwrap();
-            let parent = path_to_file_url(&dir.path("main.f.js"));
+            let dir = Scratch::new("resolve-entry-controls");
+            fs::write(dir.at("dep"), "plain").unwrap();
+            let plain = resolve_file_module(&dir.at("dep"), None).unwrap();
+            let parent = path_to_file_url(&dir.at("main.f.js"));
             for (name, encoded) in [("dep\u{1}", "dep%01"), ("dep\u{1f}", "dep%1F")] {
-                fs::write(dir.path(name), "literal").unwrap();
+                fs::write(dir.at(name), "literal").unwrap();
                 for suffix in ["", "/.", "/child/.."] {
-                    let entry = dir.path(&format!("{name}{suffix}"));
+                    let entry = dir.at(&format!("{name}{suffix}"));
                     let error = resolve_file_module(&entry, None).unwrap_err();
                     assert_eq!(error.code, None);
                     assert_eq!(
@@ -992,20 +959,20 @@ mod test {
                     );
                 }
                 let literal = resolve_file_module(encoded, Some(&parent)).unwrap();
-                assert_eq!(literal.path, dir.path(name));
+                assert_eq!(literal.path, dir.at(name));
                 assert_ne!(literal.id, plain.id);
                 assert_eq!(file_url_to_path(&literal.id).unwrap(), literal.path);
                 assert_eq!(fs::read(&literal.path).unwrap(), b"literal");
             }
             // Refusal does not depend on the plain lookalike existing.
             fs::remove_file(&plain.path).unwrap();
-            let error = resolve_file_module(&dir.path("dep\u{1}"), None).unwrap_err();
+            let error = resolve_file_module(&dir.at("dep\u{1}"), None).unwrap_err();
             assert_eq!(
                 error.message,
                 "entry paths with terminal C0 controls are not supported"
             );
             for name in ["dep ", "dep\t", "dep\n", "dep\r", "de\u{1}p", "dep%01"] {
-                let path = dir.path(name);
+                let path = dir.at(name);
                 fs::write(&path, "literal").unwrap();
                 assert_eq!(resolve_file_module(&path, None).unwrap().path, path);
             }
@@ -1013,12 +980,12 @@ mod test {
 
         #[test]
         fn a_link_resolves_to_its_target() {
-            let dir = Scratch::new("link");
-            fs::create_dir_all(dir.path("real")).unwrap();
-            fs::write(dir.path("real/m.f.js"), "").unwrap();
-            symlink(dir.path("real"), dir.path("link")).unwrap();
-            let via = resolve_file_module(&dir.path("link/m.f.js"), None).unwrap();
-            assert_eq!(via.path, dir.path("real/m.f.js"));
+            let dir = Scratch::new("resolve-link");
+            fs::create_dir_all(dir.at("real")).unwrap();
+            fs::write(dir.at("real/m.f.js"), "").unwrap();
+            symlink(dir.at("real"), dir.at("link")).unwrap();
+            let via = resolve_file_module(&dir.at("link/m.f.js"), None).unwrap();
+            assert_eq!(via.path, dir.at("real/m.f.js"));
             // Imports are resolved from the importer's real directory.
             let next = resolve_file_module("./m.f.js", Some(&via.id)).unwrap();
             assert_eq!(next, via);
@@ -1026,19 +993,19 @@ mod test {
 
         #[test]
         fn a_missing_module_is_enoent() {
-            let dir = Scratch::new("missing");
-            let Err(info) = resolve_file_module(&dir.path("none.f.js"), None) else {
+            let dir = Scratch::new("resolve-missing");
+            let Err(info) = resolve_file_module(&dir.at("none.f.js"), None) else {
                 panic!("a missing module resolved")
             };
             assert_eq!(info.code, Some("ENOENT".into()));
             assert!(
                 info.message
-                    .ends_with(&format!("realpath '{}'", dir.path("none.f.js"))),
+                    .ends_with(&format!("realpath '{}'", dir.at("none.f.js"))),
                 "{}",
                 info.message
             );
             let Err(info) =
-                resolve_file_module("./none.f.js", Some(&path_to_file_url(&dir.path("a.f.js"))))
+                resolve_file_module("./none.f.js", Some(&path_to_file_url(&dir.at("a.f.js"))))
             else {
                 panic!("a missing module resolved")
             };

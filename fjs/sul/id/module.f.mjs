@@ -13,7 +13,7 @@
 
 import { toArray } from '../../types/list/module.f.mjs'
 import { length, msb, uint, uintChunkList, unpack, vec } from '../../types/bit_vec/module.f.mjs'
-import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { secp256r1 } from '../../crypto/secp/module.f.mjs'
 import { base32 } from '../../crypto/sha2/module.f.mjs'

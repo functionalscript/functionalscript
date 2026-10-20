@@ -23,7 +23,7 @@
  * @import { TreeEntry } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
 import {

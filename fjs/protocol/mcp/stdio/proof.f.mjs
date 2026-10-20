@@ -6,7 +6,7 @@
  * @import { Read, Write } from '../../../effects/node/types.ts'
  */
 
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 import { pure } from '../../../effects/module.f.mjs'
 import { pureOk } from '../../../effects/module.f.mjs'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'

@@ -13,7 +13,7 @@
  */
 
 import { mask as bigintMask } from '../bigint/module.f.mjs'
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { isUintUpTo } from '../number/module.f.mjs'
 
 /**

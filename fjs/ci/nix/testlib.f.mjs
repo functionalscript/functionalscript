@@ -16,7 +16,7 @@
 
 import { toSteps } from '../common/module.f.mjs'
 import { runPath } from './module.f.mjs'
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 
 /**
  * The commands a job runs, in order.

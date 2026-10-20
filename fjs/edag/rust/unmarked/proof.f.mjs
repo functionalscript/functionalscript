@@ -1,5 +1,5 @@
 import { unmarkedWords, wordsOf } from './module.f.js'
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.js'
 
 export const proof = {
     wordsOf: () => {

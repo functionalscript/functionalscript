@@ -1,6 +1,6 @@
 /** @import { EdagValue, Array as ValueArray } from '../types.ts' */
 
-import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ownEntries } from './module.f.mjs'
 
 /** @type {(receiver: EdagValue, expected: EdagValue) => void} */

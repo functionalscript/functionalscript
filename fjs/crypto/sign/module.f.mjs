@@ -11,7 +11,7 @@
  * @import { Rfc6979, Signer, _Signature } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { bitLength } from '../../types/bigint/module.f.mjs'
 import { empty, length, msb, repeat, unpack, vec8, wholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'

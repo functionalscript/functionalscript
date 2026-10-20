@@ -11,7 +11,7 @@ import {
 } from './module.f.mjs'
 import { run as mockRun } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
-import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.js'
 
 /**
  * Asserts that `e` reaches `expected` without performing a command.

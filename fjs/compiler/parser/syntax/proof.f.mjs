@@ -9,7 +9,7 @@ import { tokenizeString } from '../proof.f.mjs'
 import { _valueKinds } from '../grammar/module.f.mjs'
 import { fromEntries } from '../../../types/object/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 
 /** @type {(kind: 'null' | 'true' | 'false' | 'undefined' | 'eof' | ';', line: number) => DjsTokenWithMetadata} */
 const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 }, newline: false })

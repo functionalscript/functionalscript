@@ -20,7 +20,7 @@ import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
 import { nonEmpty, empty } from '../effects/list/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 
 const testDir = './test-cas-cli'
 

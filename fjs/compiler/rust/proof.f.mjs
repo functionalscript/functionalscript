@@ -5,7 +5,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { generate, itemTagged, toRust } from './module.f.mjs'

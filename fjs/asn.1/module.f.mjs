@@ -24,7 +24,7 @@ import {
     vec8,
     wholeBytes,
 } from '../types/bit_vec/module.f.mjs'
-import { assert } from '../asserts/module.f.mjs'
+import { assert } from '../asserts/module.f.js'
 import { identity } from '../types/function/module.f.js'
 import { toArray } from '../types/list/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
