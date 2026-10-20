@@ -88,7 +88,6 @@ pub fn all<A: IStaticFunction>() {
 `],
     ['eq.rs', `${header}use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     let empty_array: Any<A> = Array::default().to_any();
     check::<A>("itself", strict_eq(empty_array.clone(), empty_array.clone()), true.to_any());
@@ -99,14 +98,12 @@ pub fn run<A: IStaticFunction>() {
 `],
     ['unary_plus.rs', `${header}use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check_throws::<A>("bigint", Any::unary_plus(bigint_any(0)));
 }
 `],
     ['conditional.rs', `${header}use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check::<A>("pick", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
     check::<A>("skip", Any::conditional(false.to_any(), || bigint_any(1) / bigint_any(0), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
@@ -118,7 +115,6 @@ pub fn run<A: IStaticFunction>() {
 `],
     ['mul.rs', `${header}use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check::<A>("oneByTwo", f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000), f64_any(0x4000000000000000));
     check::<A>("oneByTwoSwapped", f64_any(0x4000000000000000) * f64_any(0x3ff0000000000000), f64_any(0x4000000000000000));
@@ -126,7 +122,6 @@ pub fn run<A: IStaticFunction>() {
 `],
     ['method_at.rs', `${header}use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("last", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())), f64_any(0x4000000000000000));

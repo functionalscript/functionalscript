@@ -9,7 +9,7 @@
  * @import { Entry, OrderedMap } from './types.ts'
  */
 
-import { value, find } from '../btree/find/module.f.mjs'
+import { findValue } from '../btree/find/module.f.mjs'
 import { set } from '../btree/set/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { values } from '../btree/module.f.mjs'
@@ -28,8 +28,7 @@ const keyCmp = a => ([b]) => cmp(a)(b)
 const entryValue = nullableMap(([, v]) => v)
 
 /** @type {(name: string) => <T>(map: OrderedMap<T>) => T | null} */
-export const at = name => map =>
-    map === null ? null : entryValue(value(find(keyCmp(name))(map).first))
+export const at = name => map => entryValue(findValue(keyCmp(name))(map))
 
 /** @type {<T>(reduce: Reduce<T>) => (entry: Entry<T>) => (map: OrderedMap<T>) => OrderedMap<T>} */
 const setReduceEntry = reduce => entry =>

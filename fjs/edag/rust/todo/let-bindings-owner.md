@@ -22,10 +22,11 @@ bindings before it — is still written by `fjs/nanvm/rust`:
         expExpr(used.slice(0, i).map(binding))(node)};`),
 ```
 
-Both callers also emit `'#[rustfmt::skip]'` immediately before a
-`fn …<A: IVm>` line and document at length why, and both open with the
-`generatedHeader` of
-[`fjs/media/rust/item`](../../../media/rust/item/module.f.js).
+Both callers open with the `generatedHeader` of
+[`fjs/media/rust/item`](../../../media/rust/item/module.f.js). Only
+`fjs/compiler/rust` still emits `'#[rustfmt::skip]'` before its
+`fn …<A: IVm>` line; the corpus's skip is declared once, on
+`#[rustfmt::skip] mod generated;` in `nanvm/lib/tests/test/main.rs`.
 `fjs/media/rust` deliberately stops at literals. The current binding printer
 takes an `Exp` and lives in `edag/rust`; string-only item wrappers and headers
 belong in the EDAG-free item module.
@@ -57,20 +58,10 @@ keyword and initializer token kinds, import-use metadata, thunk typing,
 operation `?` handling, and equality of demarked and plain output.
 These do not require retaining the `scopeTagged` API or its graph traversal.
 
-If retained after the formatting-policy decision
-below, `skipFn(signature, lines)` — the `#[rustfmt::skip]` item wrapper —
-lives in `fjs/media/rust/item`, and the printers import it.
-
-**Open question:**
-[generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
-proposes the opposite for the corpus printer: `fjs/nanvm/rust` stops emitting
-`#[rustfmt::skip]` per function, and one `#[rustfmt::skip] mod generated;`
-in `nanvm/lib/tests/test/main.rs` covers the generated file. If that lands,
-`fjs/compiler/rust`'s module alone may not justify a `skipFn` helper.
-Which policy the corpus follows is undecided. The retained helper's owner
-is settled: it consumes strings and already-rendered lines, so it belongs
-in the item module, `fjs/media/rust/item`, which already owns `indent`
-below this printer.
+The corpus no longer emits `#[rustfmt::skip]` per function: one
+`#[rustfmt::skip] mod generated;` in `nanvm/lib/tests/test/main.rs` covers
+the generated module. `fjs/compiler/rust`'s single `pub fn` is then the only
+per-function skip left, which does not justify a shared `skipFn` helper.
 
 ### Tasks
 
@@ -84,9 +75,6 @@ below this printer.
       Preserve import-use metadata, thunk typing, operation `?` handling
       and the compiler demo's highlighting without retaining a separate
       temporary-placement algorithm.
-- [ ] If retained after the formatting-policy decision, implement and
-      prove `skipFn` in `fjs/media/rust/item`; the printers using the
-      per-function wrapper import it from there.
 - [ ] Regenerate Rust and update output expectations to the common FAST
       policy. Prove preserved sharing, supplied bindings, dependency order and
       eager/lazy semantics; run the checks required by the implementation diff.
@@ -97,10 +85,7 @@ below this printer.
   `stringLiteral` — the same principle for string literals, done; this is
   the item layer.
 - [`fjs/media/rust/item`](../../../media/rust/item/module.f.js) — owns
-  `indent`, and the string-only `skipFn` wrapper if retained.
-- [generated-rust-module-rustfmt-skip](../../../../nanvm/lib/todo/generated-rust-module-rustfmt-skip.md)
-  — proposes the corpus stop emitting `#[rustfmt::skip]` per function, which
-  `skipFn` would keep; see the open question above.
+  `indent`.
 - [Compiler vocabulary and modularization](../../../todo/compiler-vocabulary-and-modularization.md)
   — the common FAST path and binding ownership that govern this migration.
 - [`../../todo/identity-shared-walks.md`](../../todo/identity-shared-walks.md) —
