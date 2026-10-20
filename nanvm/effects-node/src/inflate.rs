@@ -33,18 +33,14 @@ enum Fail {
 
 impl From<Fail> for IoError {
     fn from(fail: Fail) -> IoError {
-        let (code, message) = match fail {
-            Fail::Data(message) => ("Z_DATA_ERROR", message.to_string()),
-            Fail::Short => ("Z_BUF_ERROR", "unexpected end of file".to_string()),
-            Fail::NeedDict => ("Z_NEED_DICT", "Missing dictionary".to_string()),
-            Fail::TooLarge => (
+        match fail {
+            Fail::Data(message) => IoError::refusal("Z_DATA_ERROR", message),
+            Fail::Short => IoError::refusal("Z_BUF_ERROR", "unexpected end of file"),
+            Fail::NeedDict => IoError::refusal("Z_NEED_DICT", "Missing dictionary"),
+            Fail::TooLarge => IoError::refusal(
                 "ERR_BUFFER_TOO_LARGE",
                 format!("Cannot create a Buffer larger than {MAX_FILE_SIZE_BYTES} bytes"),
             ),
-        };
-        IoError {
-            code: Some(code.to_string()),
-            message,
         }
     }
 }
@@ -69,10 +65,10 @@ pub fn inflate(data: &[u8]) -> Result<Vec<u8>, IoError> {
     }
     let trailing = data.len() - input.pos;
     if trailing != 0 {
-        return Err(IoError {
-            code: Some("ERR_TRAILING_BYTES".to_string()),
-            message: format!("{trailing} bytes after the end of the zlib stream"),
-        });
+        return Err(IoError::refusal(
+            "ERR_TRAILING_BYTES",
+            format!("{trailing} bytes after the end of the zlib stream"),
+        ));
     }
     Ok(out)
 }

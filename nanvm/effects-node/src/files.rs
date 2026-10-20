@@ -19,6 +19,25 @@ pub struct IoError {
     pub message: String,
 }
 
+impl IoError {
+    /// A failure that is not the host's, with the code Node gives for it: an
+    /// argument the host would reject.
+    pub fn refusal(code: &str, message: impl Into<String>) -> IoError {
+        IoError {
+            code: Some(code.to_string()),
+            message: message.into(),
+        }
+    }
+
+    /// A failure with no code: the message alone.
+    pub fn message(message: impl Into<String>) -> IoError {
+        IoError {
+            code: None,
+            message: message.into(),
+        }
+    }
+}
+
 /// An entry of a directory, as Node's `Dirent`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dirent {
@@ -118,14 +137,6 @@ pub(crate) fn failure(error: &io::Error, call: &str, path: &str) -> IoError {
             .or_else(|| code(error.kind()))
             .map(str::to_string),
         message: format!("{error}, {call} '{path}'"),
-    }
-}
-
-/// A failure that is not the host's: an argument the host would reject.
-fn refusal(code: &str, message: String) -> IoError {
-    IoError {
-        code: Some(code.to_string()),
-        message,
     }
 }
 
@@ -242,12 +253,9 @@ pub fn read_file(path: &str) -> Result<Vec<u8>, IoError> {
         .map_err(|e| failure(&e, "stat", path))?
         .len();
     if size > MAX_FILE_SIZE_BYTES {
-        return Err(IoError {
-            code: None,
-            message: format!(
-                "File size {size} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
-            ),
-        });
+        return Err(IoError::message(format!(
+            "File size {size} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
+        )));
     }
     let file = File::open(path).map_err(|e| failure(&e, "open", path))?;
     read_bounded(path, file)
@@ -262,12 +270,9 @@ fn read_bounded(path: &str, reader: impl Read) -> Result<Vec<u8>, IoError> {
         .read_to_end(&mut bytes)
         .map_err(|e| failure(&e, "read", path))?;
     if bytes.len() as u64 > MAX_FILE_SIZE_BYTES {
-        return Err(IoError {
-            code: None,
-            message: format!(
-                "File exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
-            ),
-        });
+        return Err(IoError::message(format!(
+            "File exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
+        )));
     }
     Ok(bytes)
 }
@@ -279,7 +284,7 @@ fn read_bounded(path: &str, reader: impl Read) -> Result<Vec<u8>, IoError> {
 pub fn read_whole(path: &str) -> Result<Vec<Vec<u8>>, IoError> {
     let metadata = fs::metadata(path).map_err(|e| failure(&e, "stat", path))?;
     if !metadata.is_file() {
-        return Err(refusal(
+        return Err(IoError::refusal(
             "ERR_NOT_A_FILE",
             format!("{path} is not a regular file"),
         ));
@@ -352,7 +357,7 @@ pub fn write_file(path: &str, data: &[u8]) -> Result<(), IoError> {
 /// does not seek or write, as the Node runner skips its write loop.
 pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
     let Some(at) = offset(at) else {
-        return Err(refusal(
+        return Err(IoError::refusal(
             "ERR_OUT_OF_RANGE",
             format!("The value of \"position\" is out of range: {at}"),
         ));
@@ -424,7 +429,7 @@ fn read_window(mut file: &File, at: f64, size: f64, what: &str) -> Result<Vec<u8
 
 /// What a handle's operation answers for one that is closed.
 pub fn bad_descriptor() -> IoError {
-    refusal("EBADF", "bad file descriptor".to_string())
+    IoError::refusal("EBADF", "bad file descriptor")
 }
 
 /// `open` of `fjs/effects/node/types.ts`: the file `path` names, for reading.
@@ -436,7 +441,7 @@ pub fn open(path: &str) -> Result<File, IoError> {
     {
         use std::os::unix::fs::FileTypeExt;
         if fs::metadata(path).is_ok_and(|m| m.file_type().is_fifo()) {
-            return Err(refusal(
+            return Err(IoError::refusal(
                 "ERR_NOT_A_FILE",
                 format!("{path} is a FIFO, which cannot be opened without blocking"),
             ));
@@ -450,11 +455,7 @@ pub fn fstat(file: &File) -> Result<Stat, IoError> {
     let metadata = file
         .metadata()
         .map_err(|e| failure(&e, "fstat", "handle"))?;
-    Ok(Stat {
-        size: metadata.len(),
-        is_file: metadata.is_file(),
-        is_directory: metadata.is_dir(),
-    })
+    Ok(metadata.into())
 }
 
 /// `pread`: the window `read_bytes` reads, through an open file. The window
@@ -467,10 +468,7 @@ pub fn pread(file: &File, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
 /// Whether `size` bytes at `at` is a window a read may ask for.
 pub fn check_window(at: f64, size: f64) -> Result<(), IoError> {
     match window_refusal(at, size) {
-        Some(message) => Err(IoError {
-            code: None,
-            message,
-        }),
+        Some(message) => Err(IoError::message(message)),
         None => Ok(()),
     }
 }
@@ -534,7 +532,7 @@ fn write_exclusive_with(
 pub fn rm(path: &str) -> Result<(), IoError> {
     let metadata = fs::symlink_metadata(path);
     if metadata.as_ref().is_ok_and(|m| m.is_dir()) {
-        return Err(refusal(
+        return Err(IoError::refusal(
             "ERR_FS_EISDIR",
             format!("Path is a directory: rm returned EISDIR (is a directory) {path}"),
         ));
@@ -560,13 +558,19 @@ pub struct Stat {
     pub is_directory: bool,
 }
 
+impl From<fs::Metadata> for Stat {
+    fn from(metadata: fs::Metadata) -> Stat {
+        Stat {
+            size: metadata.len(),
+            is_file: metadata.is_file(),
+            is_directory: metadata.is_dir(),
+        }
+    }
+}
+
 pub fn stat(path: &str) -> Result<Stat, IoError> {
     let metadata = fs::metadata(path).map_err(|e| failure(&e, "stat", path))?;
-    Ok(Stat {
-        size: metadata.len(),
-        is_file: metadata.is_file(),
-        is_directory: metadata.is_dir(),
-    })
+    Ok(metadata.into())
 }
 
 /// Whether the path exists, as `access` with no mode asks: a link is followed.
