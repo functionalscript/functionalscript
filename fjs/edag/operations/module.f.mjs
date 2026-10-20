@@ -13,10 +13,10 @@
  *
  * @module
  * @import { ExpOp, StepOver, ItemsOver, Over } from '../types.ts'
- * @import { EdagValue, Values, Property, Array as ValueArray, Closure, Intrinsic, Runtime, Static } from '../value/types.ts'
+ * @import { EdagValue, Values, Property, Array as ValueArray, Closure, Function as ValueFunction, Intrinsic, Runtime, Static } from '../value/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
- * @import { Invoke, Outcome } from '../value/call/types.ts'
- * @import { Evaluation, Evaluator, Tail } from './types.ts'
+ * @import { Body, Invoke, Outcome } from '../value/call/types.ts'
+ * @import { Context, Evaluation, Evaluator, Tail } from './types.ts'
  */
 
 import { isArray } from '../../types/array/module.f.mjs'
@@ -24,7 +24,7 @@ import { error, ok, okThen } from '../../types/result/module.f.js'
 import { array } from '../value/array/module.f.mjs'
 import { object } from '../value/object/module.f.mjs'
 import { func } from '../value/function/module.f.mjs'
-import { bind, call, prepare, settle } from '../value/call/module.f.mjs'
+import { bind, call, invoker, prepare, settle } from '../value/call/module.f.mjs'
 import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.mjs'
 import { throwValue } from '../value/control/module.f.mjs'
 import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
@@ -34,7 +34,7 @@ import { toPrimitive, toString } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
 import { staticBody } from '../value/property/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.mjs'
-import { noStatic } from '../module.f.mjs'
+import { isIntrinsic, isStatic, noStatic } from '../module.f.mjs'
 
 /** Propagate failures without running the continuation.
  * @template S
@@ -115,6 +115,32 @@ export const staticCall = (runtime, fn, args, run, invoke) => {
     if (body[1] === undefined) { return error(noStatic(fn[0])) }
     const [fixed, rest] = bind(body[1][1], values)
     return run(body[1], fixed, rest, fn)
+}
+
+/**
+ * The invoker of an executor given `runtime`, the executor naming only
+ * `run`, how it walks a closure's body under the context of an
+ * invocation: a represented function run with itself as its `self`; a
+ * static function's body found in the runtime by `staticCall` and run
+ * with the static as its `self`; the `entry` and `hasEntry` helpers and
+ * an intrinsic, which have no body, answered in place — and every call a
+ * body leaves in tail position, made in its place by `invoker`. The
+ * context carries the closure's frame, its bindings and the runtime, so
+ * every invocation under this one sees the same runtime.
+ *
+ * @type {(run: (fn: Closure, context: Context) => Outcome) => (runtime: Runtime | undefined) => Invoke}
+ */
+export const invokerWith = run => runtime => {
+    /** @type {(fn: Closure, fixed: Values, rest: ValueArray, self: ValueFunction) => Outcome} */
+    const closure = (fn, fixed, rest, self) => run(fn, { frame: fn[2], args: [], fixed, rest, self, runtime })
+    /** @type {Body} */
+    const body = (fn, fixed, rest) => fn[0] === 'entry' ? entryCall(fixed, invoke)
+        : fn[0] === 'hasEntry' ? hasEntryCall(fixed, invoke)
+        : isIntrinsic(fn) ? intrinsicCall(fn, fixed, invoke)
+        : isStatic(fn) ? staticCall(runtime, fn, rest, closure, invoke)
+        : closure(fn, fixed, rest, fn)
+    const invoke = invoker(body)
+    return invoke
 }
 
 /** A node in tail position: its value, or the call it leaves for the executor.
