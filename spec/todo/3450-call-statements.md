@@ -167,9 +167,11 @@ a silent wrong one.
   `export`) are not. In a loop's block it shares its start with the loop
   variable's assignment, `x = value;`, which stays the statement it is.
 - **Fold.** An expression statement whose node is a call, a guarded call
-  or a chain ending in one, read through groups, enters as a `const` that
-  binds no name. Any other expression is refused at its first token, as
-  `st.expression` is now.
+  or a chain ending in one enters as a `const` that binds no name. The
+  statement begins with a name, so no group stands around its value, and
+  `(f(x));` never reaches the fold: the grammar refuses it at the `(`. Any
+  other expression is refused at its first token, as `st.expression` is
+  now.
 - **No line rule changes.** A statement begins with a name, and a name
   continues no value before it: on a new line it begins a statement, as
   JavaScript inserts the `;` there, and on the same line it is refused, as
@@ -208,7 +210,8 @@ a silent wrong one.
       requires.
 - [ ] Grammar and fold, with proofs in every block that takes a `const`,
       for each call shape above, and for each refusal: an operator's
-      result, a conversion, a string literal.
+      result, a conversion, a string literal, and a statement opening with
+      `(`, `[` or a backtick, `(f(x));` among them.
 - [ ] The specification:
       - [functions](../functions/README.md), [module structure](../modules/README.md),
         [bodies and guards](../control-flow/guards.md),
