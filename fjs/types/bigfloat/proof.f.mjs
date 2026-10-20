@@ -1,5 +1,5 @@
 import { binary64, decToBin, tryDecToFormat } from './module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { abs, bitLength } from '../bigint/module.f.mjs'
 
 /**

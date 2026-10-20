@@ -7,7 +7,7 @@
  * two bytes of `é` and `\x80` is the one byte no UTF-8 starts with.
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
 import { latin1 } from '../../testlib.f.mjs'
 import { askable, head, headName, isUnderRefs, nameBytes, nameForMessage, nameKey, nameText, refsPrefix } from './module.f.mjs'

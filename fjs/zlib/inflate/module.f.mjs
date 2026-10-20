@@ -25,7 +25,7 @@
  * @import { Output, State } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { bytesIn, isWholeBytes, length, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { reverse, toArray } from '../../types/list/module.f.mjs'
 import { appendBytes as adler, init as adlerInit } from '../adler32/module.f.mjs'

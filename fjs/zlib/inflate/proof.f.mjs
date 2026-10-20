@@ -1,4 +1,4 @@
-import { assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { bytes, bytesOf, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.mjs'
 import { append, end, init } from './module.f.mjs'

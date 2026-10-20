@@ -1,7 +1,4 @@
-use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Number, Object, String, Unpacked, dispatch::Dispatch, error,
-    nullish::Nullish, primitive::Primitive,
-};
+use crate::vm::{Any, Array, Function, IVm, Object, Unpacked, error, primitive::Primitive};
 
 use std::result::Result;
 
@@ -86,67 +83,34 @@ fn obj_method<A: IVm>(o: &Object<A>, (name, stock): ConversionMethod) -> MethodR
 
 /// The value as a primitive, or `None` for an object, an array or a function.
 fn to_primitive_value<A: IVm>(v: Any<A>) -> Option<Primitive<A>> {
-    match v.into() {
-        Unpacked::Nullish(n) => Some(Primitive::Nullish(n)),
-        Unpacked::Boolean(b) => Some(Primitive::Boolean(b)),
-        Unpacked::Number(n) => Some(Primitive::Number(n)),
-        Unpacked::String(s) => Some(Primitive::String(s)),
-        Unpacked::BigInt(i) => Some(Primitive::BigInt(i)),
-        Unpacked::Object(_) | Unpacked::Array(_) | Unpacked::Function(_) => None,
-    }
+    Primitive::try_from(Unpacked::from(v)).ok()
 }
 
-/// Coerces the value to a primitive type `Primitive<A>`, possibly producing an error result.
-/// <https://tc39.es/ecma262/#sec-toprimitive>
-#[allow(dead_code)]
-pub struct PrimitiveCoercionOp(pub Option<ToPrimitivePreferredType>);
-
-impl PrimitiveCoercionOp {
-    /// The hint `OrdinaryToPrimitive` gets.
-    fn preferred_type(&self) -> ToPrimitivePreferredType {
+impl<A: IVm> Any<A> {
+    /// Coerces the value to a primitive type `Primitive<A>`, possibly producing an error result.
+    /// <https://tc39.es/ecma262/#sec-toprimitive>
+    pub fn to_primitive(
+        self,
+        preferred_type: Option<ToPrimitivePreferredType>,
+    ) -> Result<Primitive<A>, Any<A>> {
         // https://tc39.es/ecma262/#sec-ordinarytoprimitive - point 2 defaults to number preference
-        self.0.unwrap_or(ToPrimitivePreferredType::Number)
-    }
-}
-
-impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
-    type Result = std::result::Result<Primitive<A>, Any<A>>;
-
-    fn nullish(self, v: Nullish) -> Self::Result {
-        Ok(Primitive::Nullish(v))
-    }
-
-    fn bool(self, v: bool) -> Self::Result {
-        Ok(Primitive::Boolean(v))
-    }
-
-    fn number(self, v: Number) -> Self::Result {
-        Ok(Primitive::Number(v))
-    }
-
-    fn string(self, v: String<A>) -> Self::Result {
-        Ok(Primitive::String(v))
-    }
-
-    fn bigint(self, v: BigInt<A>) -> Self::Result {
-        Ok(Primitive::BigInt(v))
-    }
-
-    fn object(self, o: Object<A>) -> Self::Result {
-        ordinary_to_primitive(self.preferred_type(), [VALUE_OF, TO_STRING], |m| {
-            obj_method(&o, m)
-        })
-    }
-
-    fn array(self, a: Array<A>) -> Self::Result {
-        ordinary_to_primitive(self.preferred_type(), [value_of, arr_to_string], |m| m(&a))
-    }
-
-    fn function(self, f: Function<A>) -> Self::Result {
-        // https://tc39.es/ecma262/#sec-function.prototype.tostring: the
-        // stock `valueOf` answers the function itself, so every hint ends at
-        // the function's text, and one without a text is refused.
-        f.text().map(Primitive::String)
+        let preferred_type = preferred_type.unwrap_or(ToPrimitivePreferredType::Number);
+        match Primitive::try_from(Unpacked::from(self)) {
+            Ok(p) => Ok(p),
+            Err(Unpacked::Object(o)) => {
+                ordinary_to_primitive(preferred_type, [VALUE_OF, TO_STRING], |m| obj_method(&o, m))
+            }
+            Err(Unpacked::Array(a)) => {
+                ordinary_to_primitive(preferred_type, [value_of, arr_to_string], |m| m(&a))
+            }
+            // https://tc39.es/ecma262/#sec-function.prototype.tostring: the
+            // stock `valueOf` answers the function itself, so every hint ends at
+            // the function's text, and one without a text is refused.
+            Err(Unpacked::Function(f)) => f.text().map(Primitive::String),
+            Err(_) => {
+                unreachable!("`Primitive::try_from` refuses only an object, an array or a function")
+            }
+        }
     }
 }
 

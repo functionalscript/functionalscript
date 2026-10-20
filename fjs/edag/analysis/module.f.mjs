@@ -71,7 +71,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'

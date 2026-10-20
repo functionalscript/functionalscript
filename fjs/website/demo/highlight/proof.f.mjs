@@ -1,6 +1,6 @@
 import { codeOutput, disagreement, highlight, render, spansOf } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 
 /** @type {(nodes: readonly import('../../../media/html/types.ts').Node[]) => string} */

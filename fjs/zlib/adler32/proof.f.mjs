@@ -1,4 +1,4 @@
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { fold } from '../../types/list/module.f.mjs'
 import { append, appendBytes, end, init } from './module.f.mjs'

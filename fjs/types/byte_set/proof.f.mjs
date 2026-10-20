@@ -1,7 +1,7 @@
 import { has, empty, set, setRange, unset, universe, complement, toRangeMap } from './module.f.mjs'
 import { every, countdown, map, toArray } from '../list/module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
     has: [

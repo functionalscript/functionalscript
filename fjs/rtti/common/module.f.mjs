@@ -45,7 +45,7 @@
  * @import { Finish, Fits, Validate, Visitor, IsContainer, Reader, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { isArray as commonIsArray } from '../../types/array/module.f.mjs'
 import { isObject as commonIsObject } from '../../types/object/module.f.mjs'

@@ -1,4 +1,4 @@
-import { assert } from '../../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.js'
 import { structurallySame } from './module.f.js'
 
 /** @type {(a: unknown, b: unknown) => void} */

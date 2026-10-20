@@ -13,7 +13,7 @@ import { commandsOf } from '../../../effects/module.f.mjs'
 import { partialRun, run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 
 /**
  * A host whose `randomInt` answers 0, 1, 2, … in turn.

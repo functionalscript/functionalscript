@@ -49,7 +49,7 @@ import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { toData } from '../../../ebnf/data/module.f.mjs'
 import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 const boxHalf = 11
 const arc = 10

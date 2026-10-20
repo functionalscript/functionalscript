@@ -13,7 +13,7 @@
 
 import { parseFromTokens } from './module.f.mjs'
 import { expectModule, expectRefused, tokenizeString } from './proof.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 
 /** An array pattern nested as deep as the parser's bar, binding `a` at the bottom. */
 const deep = `${'['.repeat(20000)}a${']'.repeat(20000)}`

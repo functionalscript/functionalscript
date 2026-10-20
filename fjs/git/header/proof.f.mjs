@@ -3,7 +3,7 @@
  * @import { Payload } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, headerOnlyTagPayload, hole, latin1 } from '../testlib.f.mjs'

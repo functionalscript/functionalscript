@@ -3,10 +3,11 @@ import {
     assertEq,
     assertError,
     assertErrorPath,
+    assertNotNullish,
     assertOk,
     assertStructurallySame,
     todo,
-} from './module.f.mjs'
+} from './module.f.js'
 
 export const proof = {
     assertPassesOnTrue: () => {
@@ -21,6 +22,11 @@ export const proof = {
         // the case `assertEq` cannot do: two separately built values
         assertStructurallySame({ a: 1, b: [2, { c: 3 }] }, { b: [2, { c: 3 }], a: 1 })
         assertStructurallySame(1, 1, 'with message')
+    },
+    assertNotNullishReturnsTheValue: () => {
+        // a falsy value is no nullish one
+        assertEq(assertNotNullish(0), 0)
+        assertEq(assertNotNullish('', 'with message'), '')
     },
     assertOkReturnsTheValue: () => {
         assertEq(assertOk(['ok', 1]), 1)
@@ -40,6 +46,8 @@ export const proof = {
             () => assertStructurallySame({ a: 1 }, { a: 2 }, 'message'),
         assertThrowsDefaultMsg: () => assert(false),
         assertThrowsCustomMsg: () => assert(false, 'oops'),
+        assertNotNullishThrowsOnNull: () => assertNotNullish(null, 'oops'),
+        assertNotNullishThrowsOnUndefined: () => assertNotNullish(undefined),
         assertOkThrowsOnError: () => assertOk(['error', 'e']),
         assertErrorThrowsOnOk: () => assertError(['ok', 1]),
         assertErrorPathThrowsOnOk: () => assertErrorPath([])(['ok', 1]),

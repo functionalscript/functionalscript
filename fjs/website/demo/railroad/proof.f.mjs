@@ -4,10 +4,10 @@
 
 import { anchor, codePointGuide, grammarDemo, railroadDemo, railroadSection, railroadSvg } from './module.f.mjs'
 import { codePoints, tokens } from '../../../ebnf/railroad/module.f.mjs'
-import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
+import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { range, set } from '../../../ebnf/module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { runPure } from '../../../effects/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 

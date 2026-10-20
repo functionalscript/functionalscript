@@ -22,7 +22,7 @@
  * @import { Dirs } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'

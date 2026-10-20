@@ -5,7 +5,7 @@
  * @import { EdagValue } from '../types.ts'
  */
 
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
 import { validateClosure } from '../closure/module.f.mjs'

@@ -6,7 +6,7 @@
  * @import { Oid, OidBytes } from '../types.ts'
  */
 
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { normalize } from '../../path/module.f.mjs'

@@ -12,7 +12,7 @@
  * @import { Dir } from '../effects/node/virtual/types.ts'
  */
 
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq } from '../asserts/module.f.js'
 import { pureOk, step } from '../effects/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, or, string as rttiString } from '../rtti/module.f.mjs'

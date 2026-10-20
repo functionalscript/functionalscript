@@ -75,7 +75,7 @@
  * @import { _Frame, _Stack, _State, _Step, _Todo, _Walk } from './private.ts'
  */
 
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 import { serialize as bigintSerialize } from '../../../types/bigint/module.f.mjs'
 import { empty, flat, toArray } from '../../../types/list/module.f.mjs'
 import { cmp } from '../../../types/number/module.f.mjs'

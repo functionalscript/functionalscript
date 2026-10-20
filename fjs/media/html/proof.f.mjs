@@ -3,7 +3,7 @@
  */
 
 import { htmlToString, htmlUtf8, isRawText, isVoidTag, pageRefusal, parseElement, rawTextContent, scriptRefusal } from "./module.f.mjs"
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 
 export const proof = {

@@ -11,7 +11,7 @@
  * @import { Element as HtmlElement } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { fill, macrotask, patch, toDom } from './module.mjs'
 
 const xhtml = 'http://www.w3.org/1999/xhtml'

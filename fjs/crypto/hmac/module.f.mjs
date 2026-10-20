@@ -21,7 +21,7 @@
  * @import { Hash } from '../sha2/types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { length, msb, vec, vec8, repeat } from '../../types/bit_vec/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
 
