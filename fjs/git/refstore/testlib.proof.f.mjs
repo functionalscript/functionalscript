@@ -8,7 +8,7 @@
  * No `@module`: a proof's documentation reaches no reader of the published API.
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { mkdir } from '../../effects/node/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'

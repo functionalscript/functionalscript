@@ -2,7 +2,7 @@
  * Proofs for Rust source literals.
  */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { builtInIdentifier, f64Bits, i64Literal, snakeCase, stringLiteral, u64WordItems, u64Words, utf16Literal, utf16Units } from './module.f.mjs'
 

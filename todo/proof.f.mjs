@@ -1,4 +1,4 @@
-import { assertEq } from '../fjs/asserts/module.f.mjs'
+import { assertEq } from '../fjs/asserts/module.f.js'
 
 /** @type {(a: unknown) => (i: any) => unknown} */
 const at = a => i => Object.getOwnPropertyDescriptor(a, i)?.value

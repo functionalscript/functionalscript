@@ -13,7 +13,7 @@
  * @import { List } from '../types/list/types.ts'
  */
 
-import { assert } from '../asserts/module.f.mjs'
+import { assert } from '../asserts/module.f.js'
 import { fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.mjs'
 import { join as listJoin, concat as stringConcat } from '../types/string/module.f.mjs'
 

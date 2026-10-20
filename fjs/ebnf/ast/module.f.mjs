@@ -16,7 +16,7 @@
  * @import { Meta } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 
 /**
  * The node at a position no mapping filled: an array the machine built, so

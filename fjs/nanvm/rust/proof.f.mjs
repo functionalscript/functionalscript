@@ -9,7 +9,7 @@
  * @import { Data, Value } from '../types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { callback, casesOf, data, functionValue, lambdaExp, ref, returns, throws, unreached, valueExp } from '../module.f.mjs'
 import { directory, fnName, generate, nodeExpr, rustName } from './module.f.mjs'
 

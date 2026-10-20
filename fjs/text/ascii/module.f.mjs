@@ -12,7 +12,7 @@
  * @import { Range } from '../../types/range/types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { contains } from '../../types/range/module.f.js'
 
 /** @type {(s: string) => (i: number) => number} */

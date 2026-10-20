@@ -6,7 +6,7 @@
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
  */
 
-import { assert } from '../asserts/module.f.mjs'
+import { assert } from '../asserts/module.f.js'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { anchor } from '../website/demo/railroad/module.f.mjs'
 

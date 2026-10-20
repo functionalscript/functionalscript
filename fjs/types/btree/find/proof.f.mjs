@@ -7,7 +7,7 @@
 import { find as btreeFind } from './module.f.mjs'
 import { map, toArray } from '../../list/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { squares } from '../testlib.f.mjs'
 

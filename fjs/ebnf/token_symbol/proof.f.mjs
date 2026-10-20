@@ -1,4 +1,4 @@
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { parser } from '../ll1/module.f.mjs'
 import { encoding, start } from './module.f.mjs'
 

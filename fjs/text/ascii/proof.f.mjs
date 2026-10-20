@@ -1,6 +1,6 @@
 import { digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, lowerHexDigitValue, one, range } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 
 /** The code points of a string. @type {(s: string) => readonly number[]} */
 const codePoints = s => [...s].map(one)

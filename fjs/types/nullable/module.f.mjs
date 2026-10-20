@@ -7,7 +7,7 @@
  * @import { Nullable } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { fn } from '../function/module.f.js'
 
 /**

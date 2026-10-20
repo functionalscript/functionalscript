@@ -15,7 +15,7 @@ import {
 } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 
 /** @type {(a: readonly Unknown[]) => string} */
 const stringify = a =>

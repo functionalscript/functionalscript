@@ -42,7 +42,7 @@
  * @import { Bytes } from '../types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import {
     commercialAt as at, fullStop as dot, leftCurlyBracket as brace, solidus as slash, space,

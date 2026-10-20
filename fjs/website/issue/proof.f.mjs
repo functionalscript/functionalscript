@@ -2,7 +2,7 @@
  * @import { DemoEvent } from '../demo/types.ts'
  */
 
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { header, isIssue, priorities, statuses } from './module.f.js'
 import { demo, everyPriority, everyStatus, shown } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'

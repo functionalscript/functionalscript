@@ -1,5 +1,5 @@
 import { fn, iterate } from './module.f.js'
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = () => {
     /** @type {(x: string) => readonly [string]} */

@@ -10,7 +10,7 @@
  * @module
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 
 /** What a read answers where the input ends before the bits do. */
 export const more = 'more'

@@ -8,7 +8,7 @@
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { notImplemented, runPure } from '../../../effects/module.f.mjs'
 import { partialRun, run } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'

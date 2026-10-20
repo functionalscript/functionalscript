@@ -22,7 +22,7 @@
  * @import { Utf16 } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { listToString, stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { isUintUpTo } from '../../types/number/module.f.mjs'

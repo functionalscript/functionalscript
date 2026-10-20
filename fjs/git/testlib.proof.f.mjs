@@ -13,7 +13,7 @@
  * API, which is the case that rule names outright.
  */
 
-import { assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { hexBytes, latin1 } from './testlib.f.mjs'
 
 export const proof = {

@@ -20,7 +20,7 @@
  * @import { Encoding } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { fromUndefined } from '../../types/nullable/module.f.mjs'
 
 /**

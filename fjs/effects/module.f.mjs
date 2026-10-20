@@ -88,7 +88,7 @@
  * @import { CommandSet, Commands, Effect, ErrOf, Func, IoChannel, IoError, IoErrorInfo, MatchResult, NotImplemented, OkOf, Operation, OperationMap, PartialOperationMap } from './types.ts'
  */
 
-import { assert } from '../asserts/module.f.mjs'
+import { assert } from '../asserts/module.f.js'
 import { concat, next } from '../types/list/module.f.mjs'
 import { error, mapOk, ok } from '../types/result/module.f.js'
 import { at } from '../types/object/module.f.mjs'

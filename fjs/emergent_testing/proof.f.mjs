@@ -11,7 +11,7 @@
 import { exitCode } from '../effects/node/module.f.mjs'
 import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
-import { assert, assertEq, todo } from '../asserts/module.f.mjs'
+import { assert, assertEq, todo } from '../asserts/module.f.js'
 import {
     testAll, fmtPath, fmtImport, ghEscape,
     registerModule, parseTestSet,

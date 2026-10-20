@@ -19,7 +19,7 @@ import {
     none,
 } from '../../types/list/module.f.mjs'
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { isUintUpTo } from '../../types/number/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
 import { concat } from '../../types/string/module.f.mjs'

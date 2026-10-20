@@ -16,7 +16,7 @@
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { sha1 } from '../../crypto/sha1/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'

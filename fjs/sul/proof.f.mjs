@@ -3,7 +3,7 @@
  * @import { Add } from './level/hash/types.ts'
  */
 
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq } from '../asserts/module.f.js'
 import { compress } from './id/module.f.mjs'
 import { encode, emptyEncodeState } from './module.f.mjs'
 

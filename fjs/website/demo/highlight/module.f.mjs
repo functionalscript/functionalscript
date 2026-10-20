@@ -42,7 +42,7 @@
 
 import { isTrivia } from '../../../ebnf/lib/js/module.f.mjs'
 import { _positions, tokenize } from '../../../js/tokenizer/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { fromSpans, toText } from '../../../text/marked/module.f.mjs'

@@ -8,7 +8,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { _positions, tokenize } from './module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 /**
  * The tokens of a text, positions left out — `error` where the text does not

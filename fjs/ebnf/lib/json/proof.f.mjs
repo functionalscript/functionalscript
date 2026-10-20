@@ -8,7 +8,7 @@
  * @import { Container, ContainerNode } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { simpleEscapes } from '../../../js/string_escape/module.f.mjs'
 import { codePointListToString } from '../../../text/utf16/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'

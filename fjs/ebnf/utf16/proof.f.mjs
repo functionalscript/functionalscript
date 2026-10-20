@@ -1,4 +1,4 @@
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { lexeme, unitAt, units, utf16 } from './module.f.mjs'
 
 const [a, b, c] = units('abc')

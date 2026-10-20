@@ -6,7 +6,7 @@
 
 import { bitGroupDemo, bitGroups } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { runPure } from '../../../effects/module.f.mjs'
 import { length, maxLengthBytes, uint } from '../../../types/bit_vec/module.f.mjs'

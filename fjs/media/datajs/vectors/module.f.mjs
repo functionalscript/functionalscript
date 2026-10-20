@@ -40,7 +40,7 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 import { lowerHexDigitValue } from '../../../text/ascii/module.f.mjs'
 
 const { is, keys } = Object

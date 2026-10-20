@@ -11,7 +11,7 @@
  * @import { Base, Framed, Framing, FramingInit, Hash, Sha2, V16, V8 } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { divUp8, mask } from '../../types/bigint/module.f.mjs'
 import {
     vec,

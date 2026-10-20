@@ -12,7 +12,7 @@
  */
 
 import { apply, compile, expectEdag, value } from './proof.f.mjs'
-import { assert, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {
     // A switch, `switch (d) { case a: case b: { … } … }`, is sugar as the

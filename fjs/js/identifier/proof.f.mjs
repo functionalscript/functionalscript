@@ -1,4 +1,4 @@
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { isIdentifier, isInteger } from './module.f.mjs'
 
 export const proof = {

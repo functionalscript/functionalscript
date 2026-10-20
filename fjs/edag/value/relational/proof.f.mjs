@@ -5,7 +5,7 @@
  * @import { Primitive } from '../types.ts'
  */
 
-import { assertEq, assertOk } from '../../../asserts/module.f.mjs'
+import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { binary } from './module.f.mjs'
 
 const undefinedValue = /** @type {const} */ (['undefined'])

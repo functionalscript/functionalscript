@@ -1,5 +1,5 @@
 /** @import { Exp } from '../../../edag/types.ts' */
-import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { fromTagged } from '../../../text/marked/module.f.mjs'
 import runtime from '../../../js/runtime/gen.edag.data.mjs'
 import { generateRuntime, generateRuntimeTagged } from './module.f.mjs'

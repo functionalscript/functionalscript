@@ -5,7 +5,7 @@
  * @import { DetectMeta } from './types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { u8ListToVecMsb, vec8, repeat, empty } from '../../types/bit_vec/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { nonEmpty, empty as emptyList } from '../../effects/list/module.f.mjs'

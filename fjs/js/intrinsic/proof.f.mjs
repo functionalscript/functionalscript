@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { intrinsics } from '../../edag/module.f.mjs'
 import { charCodeAt, slice } from './module.f.js'
 

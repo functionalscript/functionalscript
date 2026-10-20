@@ -6,7 +6,7 @@ import { consumerDirectory, packageCheckSteps } from './module.f.mjs'
 import { typescript } from '../config/module.f.js'
 import { generatedDirectory } from '../nix/module.f.mjs'
 import { packageConsumer } from '../self/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 const steps = packageCheckSteps(packageConsumer)
 

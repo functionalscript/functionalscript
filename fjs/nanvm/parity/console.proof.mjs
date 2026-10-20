@@ -12,7 +12,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { withTemporary } from '../../effects/node/testlib.mjs'
 import * as console_ from '../../../nanvm/harness/fixtures/console.mjs'
 
