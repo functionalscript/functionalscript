@@ -1,7 +1,14 @@
 ## Call statements
 
 **Priority:** P2
-**Status:** open — language-design approval pending
+**Status:** open — approved, implementation pending
+
+**Language-design approval.** **sergey-shandar** asked for the proposal in
+[the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC)
+and recorded "[The design is approved!](https://github.com/functionalscript/functionalscript/pull/3095#issuecomment-6296293233)"
+on the pull request that proposed it, as
+[DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
+requires.
 
 ```js
 import { assert } from '../asserts/module.f.js'
@@ -177,7 +184,7 @@ a silent wrong one.
 
 ### Tasks
 
-- [ ] Language-design approval of the syntax, the lowering and the
+- [x] Language-design approval of the syntax, the lowering and the
       refusals above, recorded here with its link, as
       [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
       requires.
@@ -190,7 +197,9 @@ a silent wrong one.
         [loops](../control-flow/loops.md) and [switch](../control-flow/switch.md)
         take the statement;
       - the [register](./refused-constructs.md)'s `st.call` row is deleted,
-        and `st.expression` is left with the other expression statements;
+        `st.expression` is left with the other expression statements, and
+        `st.let-while` no longer counts a call statement among what a
+        loop's block may not hold;
       - an example program in the compiler demo.
 - [ ] [CONVERTING.md rule 10](../../doc/CONVERTING.md#10-a-call-made-for-its-failure)
       becomes "a call statement converts as written", and the comma rewrite
