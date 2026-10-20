@@ -27,7 +27,7 @@ import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { isIntrinsic, isStatic } from '../../../edag/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { _entryText, _hasEntryText, _intrinsicText, _renderSymbolic } from '../function_text/module.f.mjs'
+import { _closure, _entryText, _hasEntryText, _intrinsicText } from '../function_text/module.f.mjs'
 import { _name as symbol, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 import { chunksText, chunkText } from '../../../text/marked/module.f.mjs'
 
@@ -50,13 +50,7 @@ const entry = (a, i, n) => {
         case '{}': { return `{${n[1].map(([, key, value]) => `[${operand(key)}]:${operand(value)}`).join(',')}}` }
         case 'entry': { return _entryText(`value${i}/function`) }
         case 'hasEntry': { return _hasEntryText(`value${i}/function`) }
-        default: {
-            const slots = n[2]
-            const frame = slots.map((_, k) => symbol(`value${i}/frame${k}`))
-            const text = _renderSymbolic(a, i, `value${i}/function`, frame)
-            return slots.length === 0 ? text
-                : `((${frame.map(binding).join(',')})=>(${text}))(${slots.map(operand).join(',')})`
-        }
+        default: { return _closure(a, i, `value${i}/function`, n[2].map(operand)) }
     }
 }
 
