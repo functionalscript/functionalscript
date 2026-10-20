@@ -230,15 +230,13 @@ const reservedWord = foldError('reserved word')
 
 /**
  * The call of `Number` or `String` with more than one argument, or a spread,
- * at the word: `Number(a, b)` and `Number(...a)`, JavaScript's and not recognized
- * yet, for want of a representation
- * ([spec: number conversion](../../../spec/conversions/number.md)):
- * `Number(a, b)` is the comma's `(a, b, Number(a))` with `a` evaluated
- * once, which the comma alone cannot spell without a binding for `a`, and
- * `Number(...a)` converts the first value a spread yields, which no node
- * expresses while a call's arity is the callee's to split. Refused by name
- * rather than answered wrongly; `Number()` is `0`, and is read as the
- * literal, {@link conversion}, as `String()` is the empty string.
+ * at the word: `Number(a, b)` and `Number(...a)`, refused by design. A
+ * conversion is an operator, whose fixed set of operands the compiler
+ * checks, and an extra or spread argument says more than the conversion
+ * does — `Number(s, 16)` reads as a radix JavaScript ignores
+ * ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)).
+ * `Number()` is `0`, and is read as the literal, {@link conversion}, as
+ * `String()` is the empty string.
  *
  * @type {(name: 'Number' | 'String') => (token: DjsTokenWithMetadata) => ParseError}
  */
