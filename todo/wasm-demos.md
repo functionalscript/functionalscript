@@ -85,7 +85,12 @@ built:
 - **The deployment build** adds the `wasm32-unknown-unknown` target, builds
   `nanvm-demos`, and `nanvm-demos-publish` copies the module to
   `nanvm/demos/_build/`, which git ignores and the site serves, and prints
-  its WAT beside it with the `wasmprinter` crate, which Sasha approved.
+  each sample's WAT beside it with the `wasmprinter` crate, which Sasha
+  approved. The WAT holds only the functions Rust compiled from the sample's
+  module, picked by their names in the module's name section, read with
+  `wasmparser` and demangled with `rustc-demangle`, which Sasha also
+  approved. NaNVM and `std` are most of the module, the same for every
+  sample, and left out.
 - **Not yet:** the JavaScript memory figure, and the sample's use of `log` and `utf8`, which
   `fjs compile` cannot compile yet, so the sample builds its `write` command
   by hand.
@@ -104,9 +109,6 @@ alternative.
 - **What "second run" means.** This design reads it as the WASM run, which
   follows the JavaScript one. If it means a warm-up run before a measured one,
   the Run button runs each route twice and reports the second.
-- **Disassembly size.** The module carries the NaNVM runtime as well as the
-  sample. The page may need to show the sample's own functions first, with the
-  rest collapsed.
 
 ### Tasks
 

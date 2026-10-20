@@ -48,6 +48,8 @@ dependencies = [
 name = "nanvm-demos-publish"
 version = "0.1.0"
 dependencies = [
+ "rustc-demangle",
+ "wasmparser",
  "wasmprinter",
 ]
 
@@ -69,6 +71,12 @@ dependencies = [
 [[package]]
 name = "nanvm-lib"
 version = "0.1.0"
+
+[[package]]
+name = "rustc-demangle"
+version = "0.1.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b74b56ffa8bb2830709a538c2cbcae9aa062db0d2a42563bfb09bdaae44020eb"
 
 [[package]]
 name = "termcolor"

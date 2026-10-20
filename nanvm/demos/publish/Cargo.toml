@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rustc-demangle = "0.1"
+wasmparser = { version = "0.262.0", default-features = false, features = ["std"] }
 wasmprinter = { version = "0.262.0", default-features = false }

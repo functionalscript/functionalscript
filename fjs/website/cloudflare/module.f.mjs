@@ -22,7 +22,8 @@
 import { rust } from '../../ci/config/module.f.js'
 import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
-import { wasmPath, watPath } from '../../nanvm/demos/page/module.f.mjs'
+import { samples } from '../../nanvm/demos/module.f.mjs'
+import { buildDirectory, wasmPath } from '../../nanvm/demos/page/module.f.mjs'
 
 /**
  * The generated directory, beside `gen.nix/` at the repository root, where
@@ -58,8 +59,8 @@ export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
  * ([`todo/wasm-demos.md`](../../../todo/wasm-demos.md)): the `wasm32` target
  * added to the toolchain just installed, `nanvm-demos` built for it, and
  * `nanvm-demos-publish` copying the module out of `target/`, which the site
- * does not serve, to where the page fetches it, and printing its WAT beside
- * it. Built here, and never committed, so nothing can go stale.
+ * does not serve, to where the page fetches it, and printing each sample's WAT
+ * beside it. Built here, and never committed, so nothing can go stale.
  *
  * **Then the site's bars, `cargo doc`, and the site** — the order
  * [`../README.md`](../README.md#the-rust-api-reference) gives.
@@ -88,7 +89,7 @@ sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-
 export PATH="$HOME/.cargo/bin:$PATH"
 rustup target add ${wasmTarget}
 cargo build -p nanvm-demos --release --target ${wasmTarget}
-cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${watPath}
+cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${buildDirectory} ${samples.join(' ')}
 npm run rustdoc-bars
 RUSTDOCFLAGS="--html-in-header $PWD/${rustdocHeadPath} --html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
 npm run website

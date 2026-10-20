@@ -56,8 +56,13 @@ export const buildDirectory = 'nanvm/demos/_build'
 /** The module every sample is in, as `cargo build` names it. */
 export const wasmPath = `${buildDirectory}/nanvm_demos.wasm`
 
-/** Its disassembly. */
-export const watPath = `${buildDirectory}/nanvm_demos.wat`
+/**
+ * A sample's disassembly: the functions Rust compiled from its module alone,
+ * without NaNVM or `std`.
+ *
+ * @type {(name: string) => string}
+ */
+export const watPath = name => `${buildDirectory}/${name}.wat`
 
 /** @type {State} */
 export const init = { source: ['loading'], wat: ['loading'], wasm: ['loading'], runs: null }
@@ -73,7 +78,7 @@ const loaded = r => r[0] === 'ok' ? r : error(errorMessage(r[1]))
  */
 export const load = name => {
     const source = resultStep(fetchText(`/${samplePath(name)}`), r => pureOk(/** @type {State} */ ({ ...init, source: loaded(r) })))
-    const wat = step(source, state => resultStep(fetchText(`/${watPath}`), r => pureOk({ ...state, wat: loaded(r) })))
+    const wat = step(source, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loaded(r) })))
     return step(wat, state => resultStep(instantiate(`/${wasmPath}`), r => pureOk({ ...state, wasm: loaded(r) })))
 }
 
@@ -229,7 +234,7 @@ export const view = name => state => ['div', {},
         'Run calls each in turn and shows what it wrote to standard output and how long the call took.'],
     caption('FunctionalScript source:'),
     ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text))]),
-    caption('WebAssembly text (WAT) of the whole module, NaNVM included:'),
+    caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
     ...loadedView(state.wat, text => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', text]]]),
     ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
     ...startupView(state),

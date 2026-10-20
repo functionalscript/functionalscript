@@ -72,7 +72,7 @@ const perform = map => effect => {
     return result[1]
 }
 
-const files = { '/fjs/nanvm/demos/hi/sample.f.mjs': 'export default 1', [`/${watPath}`]: '(module)' }
+const files = { '/fjs/nanvm/demos/hi/sample.f.mjs': 'export default 1', [`/${watPath('hi')}`]: '(module)' }
 
 /** Every loaded state. @type {State} */
 const ready = perform(page(files, instance([0x68, 0x69])))(load('hi'))
@@ -84,7 +84,7 @@ export const proof = {
     paths: () => {
         assertEq(samplePath('hello'), 'fjs/nanvm/demos/hello/sample.f.mjs')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
-        assertEq(watPath, `${buildDirectory}/nanvm_demos.wat`)
+        assertEq(watPath('hello'), `${buildDirectory}/hello.wat`)
     },
     load: () => {
         assertStructurallySame(ready.source, ok('export default 1'))
