@@ -50,7 +50,7 @@
  * @import { _LiteralId, _Member, _OnlyKey, Json, NumberPolicy, Out, ParseUnknown, Tagged, Text } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { hexDigitsValue } from '../../../text/ascii/module.f.mjs'
 import { codeUnitToString } from '../../../text/utf16/module.f.mjs'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'

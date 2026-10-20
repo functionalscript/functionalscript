@@ -16,7 +16,7 @@ import {
     assert,
     assertEq,
     assertStructurallySame,
-} from '../../asserts/module.f.mjs'
+} from '../../asserts/module.f.js'
 import { pure } from '../../effects/module.f.mjs'
 import { pureError } from '../../effects/module.f.mjs'
 import { ioError } from '../../effects/node/module.f.mjs'

@@ -23,7 +23,7 @@
  * @import { Ident } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { ascii, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
 import {

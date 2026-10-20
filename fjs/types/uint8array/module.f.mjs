@@ -13,7 +13,7 @@
  * @import { List } from '../list/types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { length, maxLengthBytes, msb, vec } from '../bit_vec/module.f.mjs'

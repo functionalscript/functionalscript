@@ -21,7 +21,7 @@ import { anchors, commaOperands, isBinary, isInlinedCall, isLazy, isSpread, isUn
 import { fromValue, isIntrinsic, isStatic } from '../../edag/module.f.mjs'
 import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
 import { mapStep, step } from '../../effects/module.f.mjs'
-import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
+import { assertNotNullish, todo } from '../../asserts/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])

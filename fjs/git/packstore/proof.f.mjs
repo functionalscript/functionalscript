@@ -10,7 +10,7 @@
  * @import { Held } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { inflateTrailingCode, inflateTrailingMessage, notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'

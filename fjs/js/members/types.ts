@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/js/members/module.f.mjs`: the shape of the
+ * Type-level API for `fjs/js/members/module.f.js`: the shape of the
  * table, which keeps it complete — every type's keys are exactly the
  * names its prototype has and `allowedCalls` admits, a key added or
  * missing failing `tsc` at the value — and every entry a function of the
@@ -23,7 +23,7 @@ import type {
     objectPrototype,
     stringPrototype,
 } from '../prototype/module.f.js'
-import type { members } from './module.f.mjs'
+import type { members } from './module.f.js'
 
 /**
  * A member function of a type: the receiver, typed as the type it is

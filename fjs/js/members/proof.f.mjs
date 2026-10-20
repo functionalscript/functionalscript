@@ -1,11 +1,11 @@
 /**
- * Proof of `fjs/js/members/module.f.mjs`: the table holds the seven types,
+ * Proof of `fjs/js/members/module.f.js`: the table holds the seven types,
  * each with exactly the admitted names of its prototype, every entry a
  * function, and an entry not yet written throws `not implemented`.
  */
 
-import { assertEq, todo } from '../../asserts/module.f.mjs'
-import { members } from './module.f.mjs'
+import { assertEq, todo } from '../../asserts/module.f.js'
+import { members } from './module.f.js'
 import { allowedCalls, arrayPrototype, bigintPrototype, booleanPrototype, functionPrototype, numberPrototype, objectPrototype, stringPrototype } from '../prototype/module.f.js'
 
 /** @type {(prototype: readonly string[]) => readonly string[]} */

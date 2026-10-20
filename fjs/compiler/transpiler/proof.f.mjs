@@ -30,7 +30,7 @@ import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 /**
  * The package's runtime at its path beside a root's files: `fjs compile` interprets a data output under it, and the virtual root is the package.

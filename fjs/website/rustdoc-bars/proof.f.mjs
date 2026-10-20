@@ -4,7 +4,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'

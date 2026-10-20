@@ -4,7 +4,7 @@
  * @import { Entry } from './types.ts'
  */
 
-import { assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { initConfig } from '../testlib.f.mjs'
 import { lastBool, lastInt, lastValue, tryEntries, values } from './module.f.mjs'

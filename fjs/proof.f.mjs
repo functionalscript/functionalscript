@@ -5,7 +5,7 @@
  */
 
 import { exitCode } from './effects/node/module.f.mjs'
-import { assert, assertEq } from './asserts/module.f.mjs'
+import { assert, assertEq } from './asserts/module.f.js'
 import { pureError, pureOk } from './effects/module.f.mjs'
 import { nodeProgramOptions, virtualAt } from './effects/node/virtual/module.f.mjs'
 import { main } from './module.f.mjs'

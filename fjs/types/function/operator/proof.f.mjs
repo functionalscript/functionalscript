@@ -4,7 +4,7 @@
  * @import { StateScan } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import {
     join,
     concat,

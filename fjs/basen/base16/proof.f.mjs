@@ -1,4 +1,4 @@
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { decode, decodeCodePoints, decodeLower, encode, encodeCodePoints } from './module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
 

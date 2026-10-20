@@ -51,7 +51,7 @@
  * @import { _Cell } from './private.ts'
  */
 
-import { assertNotNullish } from '../../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../../asserts/module.f.js'
 import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
 import { errorExit, exitStep, readFile, writeFiles } from '../../../../effects/node/module.f.mjs'
 import { fromVec } from '../../../../text/utf8/module.f.mjs'

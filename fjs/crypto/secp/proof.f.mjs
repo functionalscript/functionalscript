@@ -2,7 +2,7 @@
  * @import { Point, Curve, Init } from './types.ts'
  */
 
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, transition } from './demo.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.mjs'

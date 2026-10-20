@@ -14,7 +14,7 @@
  * @import { Info, Join, Set, Rule, Repeat, Option, RepeatFrom, Times } from './types.ts'
  */
 
-import { assert } from "../asserts/module.f.mjs"
+import { assert } from "../asserts/module.f.js"
 import { unmapped } from "./ast/module.f.mjs"
 import { codePoints, isRepeatBounds, isSymbol } from "./data/module.f.mjs"
 import { codePointListToString } from "../text/utf16/module.f.mjs"

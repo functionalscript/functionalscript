@@ -2,7 +2,7 @@
  * Proofs for the corpus constructors: each thunk answers its own tag.
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { callback, functionValue, ref, returns, throws, unreached } from './module.f.js'
 
 export const proof = {

@@ -51,7 +51,7 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _TemplateContext, _TemplateDecode, _Trivia } from './private.ts'
  */
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { items, variant } from '../../ebnf/ast/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.mjs'

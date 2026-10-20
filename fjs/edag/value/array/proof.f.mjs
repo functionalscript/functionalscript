@@ -9,7 +9,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { primitiveToString } from '../coercion/module.f.mjs'
 import { array, join } from './module.f.mjs'

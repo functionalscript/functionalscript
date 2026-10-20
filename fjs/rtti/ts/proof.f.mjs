@@ -3,7 +3,7 @@
  * @import { Data } from '../data/types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { absentBit, toData, unitBit } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../module.f.mjs'
 import { dataToTs, dataToTsMarked, printer } from './module.f.mjs'

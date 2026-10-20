@@ -1,6 +1,6 @@
 /** @import { Window } from './types.ts' */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { copy, empty, last, push, pushAll } from './module.f.mjs'
 
 /** @type {(bytes: number) => readonly number[]} */

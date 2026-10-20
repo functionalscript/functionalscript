@@ -3,7 +3,7 @@
  * @import { SerializerAccept } from '../../../../fjs/media/datajs/vectors/types.ts'
  */
 
-import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
+import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
 import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.mjs'
 import { stringToCodePointList } from '../../../../fjs/text/utf16/module.f.mjs'

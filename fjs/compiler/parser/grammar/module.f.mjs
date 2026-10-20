@@ -139,7 +139,7 @@
  * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
-import { assert } from '../../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.js'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
 import { literalWords } from '../../../js/keywords/module.f.js'

@@ -19,7 +19,7 @@ import {
     assertErrorPath,
     assertOk,
     assertStructurallySame,
-} from '../../asserts/module.f.mjs'
+} from '../../asserts/module.f.js'
 
 /** Both readers with their payload type erased, so a table can hold rows of mixed schemas. */
 

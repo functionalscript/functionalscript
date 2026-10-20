@@ -1,6 +1,6 @@
 import { anchors, binaryTags, commaOperands, eagerLayers, isBinary, isInlinedCall, isLazy, isUnary, lazyLayers, readCaptures, unaryTags } from './module.f.mjs'
 import { definedValues } from '../../types/object/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 const a = { specifier: './a', json: false, name: 'default' }
 

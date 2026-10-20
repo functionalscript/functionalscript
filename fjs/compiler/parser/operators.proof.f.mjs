@@ -10,7 +10,7 @@
 
 import { parseFromTokens } from './module.f.mjs'
 import { stringifyDjsModule, tokenizeString } from './proof.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
     // The one prefix operator. `-` is a token the grammar reads, so what it

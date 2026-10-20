@@ -8,7 +8,7 @@
  * @import { RangeSet } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { bsearch } from '../function/compare/module.f.mjs'
 import { toArray } from '../list/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'

@@ -7,7 +7,7 @@
  * @import { Primitive } from '../types.ts'
  */
 
-import { assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { objectToPrimitive } from '../coercion/module.f.mjs'
 import { func } from '../function/module.f.mjs'

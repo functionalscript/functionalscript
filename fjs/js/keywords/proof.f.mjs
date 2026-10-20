@@ -4,7 +4,7 @@
  * @import { restrictedNames, strictModeReservedWords } from './module.f.js'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { isKeyword, isReservedGlobal, keywords, literalGlobals, literalWords, reservedGlobals, reservedWords } from './module.f.js'
 
 export const proof = {

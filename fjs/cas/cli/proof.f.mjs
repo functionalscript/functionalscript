@@ -5,7 +5,7 @@ import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { dispatch } from '../../cli/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 const main = dispatch(commands)
 

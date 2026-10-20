@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocHead, rustdocHeadPath, rustdocFooter, rustdocHeader } from './module.f.mjs'
 
 const local = /** @type {const} */ ({ commit: null, branch: null, funding: [] })

@@ -4,7 +4,7 @@
  * @import { Ast, Meta } from './types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { items, symbolAt, unmapped, variant } from './module.f.mjs'
 
 /** @type {Meta<{ readonly id: 'i' }, 42>} */

@@ -8,7 +8,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { diagramPage } from '../../../ebnf/testlib.f.mjs'
 import { railroadLabelMarker } from '../../../website/style/module.f.js'
 import { demo, diagrams } from './demo.f.mjs'

@@ -1,4 +1,4 @@
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { entry, hasEntry } from './module.f.js'
 
 /** @type {(a: unknown, b: any) => unknown} */

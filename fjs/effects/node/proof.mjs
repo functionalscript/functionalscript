@@ -33,7 +33,7 @@ import { lstat, mkdir, readFile, readdir, realpath, symlink, writeFile } from 'n
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError, pureError, pureOk, resultMapStep, resultStep, step } from '../module.f.mjs'
 import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
 import { byteLength, length, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'

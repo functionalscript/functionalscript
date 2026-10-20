@@ -4,7 +4,7 @@
  */
 
 import { fromUndefined, map, match, toOption } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = [
     () => {

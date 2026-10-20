@@ -3,7 +3,7 @@
  * @import { EdagValue, Values, Function as ValueFunction } from '../types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { error } from '../../../types/result/module.f.js'
 import { invoke } from '../../memo/module.f.mjs'
 import { toData } from '../to_unknown/module.f.mjs'
