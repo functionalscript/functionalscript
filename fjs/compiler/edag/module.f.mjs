@@ -11,17 +11,15 @@
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
- * @import { EdagValue } from '../../edag/value/types.ts'
- * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { _Entries, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
 import { anchors, commaOperands, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
-import { fromValue, isIntrinsic, isStatic } from '../../edag/module.f.mjs'
-import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
-import { mapStep, step } from '../../effects/module.f.mjs'
-import { assertNotNullish, todo } from '../../asserts/module.f.js'
+import { isIntrinsic, isStatic } from '../../edag/module.f.mjs'
+import { _jsonModule, _program } from '../source/module.f.mjs'
+import { pureOk } from '../../effects/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])
@@ -661,21 +659,6 @@ export const _defaultExport = module => {
 
 // ── resolution ────────────────────────────────────────────────────────────────
 
-/** JSON has no function leaves, so the function hook is unreachable. */
-const jsonLiteral = fromValue(todo)
-
-/**
- * A JSON document's value as an EDAG: a tree with JSON's leaves, its
- * members in the order the reader built them. `transpile` reads a `.json`
- * import as a value, so the linker does too.
- *
- * `fromValue` allows arbitrary hook expressions. JSON never reaches its hook,
- * so only literal value nodes are constructed and the narrower cast holds.
- *
- * @type {(value: JsonUnknown) => EdagValue}
- */
-export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
-
 /** A module's EDAG and its bindings, each export selected as an import reads it. @type {(edag: Exp) => _Resolved} */
 const resolved = edag => ({
     exports: edag,
@@ -692,7 +675,7 @@ const resolved = edag => ({
  * @type {_Load<_Resolved, Exp, never>}
  */
 const linking = {
-    json: value => resolved(['{}', [[':', 'default', jsonValue(value)]]]),
+    json: value => resolved(_jsonModule(value)),
     select: ({ exports, bindings }, name) => name === null ? exports : bindings.find(([key]) => key === name)?.[1],
     module: (_, imports, module) => ok(resolved(lowered(imports)(module))),
 }
@@ -713,8 +696,4 @@ const linking = {
  *
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Exp, ParseError>}
  */
-export const resolve = path => step(_rootSource(path), source => source.json
-    // The CLI extension selects JSON input even when realpath follows an alias
-    // to a differently named file. Import attributes still use the target path.
-    ? mapStep(_parseJson(source.path), jsonValue)
-    : mapStep(_walk(linking)(source)({ complete: null, stack: null }), ([, { exports }]) => exports))
+export const resolve = _program(pureOk(linking), ({ exports }) => exports)

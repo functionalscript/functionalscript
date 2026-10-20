@@ -1,6 +1,12 @@
 /** Shared reader behavior stays independent of module execution. */
 
-import { _attributeError, _importSources, _missingExport, _parseJson, _parseModule, _rootSource, parse } from './module.f.mjs'
+/**
+ * @import { _Load } from './types.ts'
+ */
+
+import { _attributeError, _importSources, _jsonModule, _missingExport, _parseJson, _parseModule, _program, _rootSource, jsonValue, parse } from './module.f.mjs'
+import { pureError, pureOk } from '../../effects/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { nodeCommands } from '../../effects/node/module.f.mjs'
@@ -41,6 +47,34 @@ export const proof = {
         const [, missingHost] = partialRun(nodeCommands)({})(null)(_rootSource('main.f.js'))
         assertEq(missingHost[0], 'error')
         if (missingHost[0] === 'error') { assert(missingHost[1].message.startsWith('module resolution failed:')) }
+    },
+    // A JSON document imported as a module is its value under `default`.
+    jsonModule: () => {
+        assertStructurallySame(_jsonModule({ x: [1] }), ['{}', [[':', 'default', jsonValue({ x: [1] })]]])
+        assertStructurallySame(jsonValue({ x: [1] }), ['{}', [[':', 'x', ['[]', [1]]]]])
+    },
+    // The root route: a `.json` root is its document's value and never runs
+    // the loader; a module root is walked with the loaded `_Load`, and the
+    // walked module passed through `finish`.
+    program: () => {
+        /** @type {_Load<readonly unknown[], readonly unknown[], never>} */
+        const load = {
+            json: value => ['json', value],
+            select: module => module,
+            module: ({ path }, imports) => ok(['module', path, imports]),
+        }
+        const run = virtualAt({
+            'main.f.js': [utf8('import d from "./data.json" with { type: "json" }; export default d;')],
+            'data.json': [utf8('{"x":[1]}')],
+        })
+        /** @type {(module: readonly unknown[]) => unknown} */
+        const finish = module => ['finished', module]
+        assertStructurallySame(run(_program(pureOk(load), finish)('main.f.js'))[1],
+            ['ok', ['finished', ['module', 'main.f.js', [['json', { x: [1] }]]]]])
+        assertStructurallySame(run(_program(pureOk(load), finish)('data.json'))[1], ['ok', jsonValue({ x: [1] })])
+        // The loader runs for a module root alone.
+        assertStructurallySame(run(_program(pureError('no loader'), finish)('data.json'))[1], ['ok', jsonValue({ x: [1] })])
+        assertStructurallySame(run(_program(pureError('no loader'), finish)('main.f.js'))[1], ['error', 'no loader'])
     },
     imports: () => {
         const run = virtual(emptyState)
