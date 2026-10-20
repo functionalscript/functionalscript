@@ -12,24 +12,13 @@
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { inputField, caption, refusal } from '../../website/demo/module.f.mjs'
+import { inputField, caption, refusal, radios } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.mjs'
 
 /** @type {(name: string, label: string, options: readonly string[], value: string) => Element} */
 const select = (name, label, options, value) => ['p', ['label', { for: `secp-${name}` }, `${label} `],
     ['select', { id: `secp-${name}`, name }, ...options.map(/** @returns {Element} */ o => ['option', { value: o, ...(o === value ? { selected: '' } : {}) }, o])]]
-
-/** Two choices stay visible, with native radio-group keyboard behavior.
- * @type {(name: string, label: string, options: readonly { readonly value: string, readonly label: string }[], value: string) => Element}
- */
-const radios = (name, label, options, value) => ['fieldset', { 'data-secp-radios': '' },
-    ['legend', label],
-    ['div', ...options.map(/** @returns {Element} */ option => ['label', { for: `secp-${name}-${option.value}` },
-        ['input', { type: 'radio', id: `secp-${name}-${option.value}`, name, value: option.value, ...(option.value === value ? { checked: '' } : {}) }],
-        option.label,
-    ])],
-]
 
 /** @type {(name: string, label: string, disabled?: boolean) => Element} */
 const button = (name, label, disabled = false) => ['button', { type: 'button', name, ...(disabled ? { disabled: '' } : {}) }, label]
