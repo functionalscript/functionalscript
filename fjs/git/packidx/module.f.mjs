@@ -341,17 +341,6 @@ export const offsetOf = ({ oidBytes, ids, offsets }) => {
 }
 
 /**
- * {@link after}'s fold: the least of the offsets past the one asked about.
- *
- * A leading parameter rather than a capture, so the step has an identity of its
- * own (§3.3).
- *
- * @type {(offset: number) => (best: Nullable<number>, v: number) => Nullable<number>}
- */
-const nextStep = offset => (best, v) =>
-    v > offset && (best === null || v < best) ? v : best
-
-/**
  * Where the entry beginning at `offset` ends: the least offset in the index
  * greater than it, or `null` where no entry begins after it and what follows is
  * the pack's trailing checksum.
@@ -381,7 +370,10 @@ const nextStep = offset => (best, v) =>
  * @type {(idx: Idx) => (offset: number) => Nullable<number>}
  */
 export const after = ({ offsets }) => offset =>
-    offsets.reduce(nextStep(offset), /** @type {Nullable<number>} */ (null))
+    offsets.reduce(
+        // the least of the offsets past the one asked about
+        (best, v) => v > offset && (best === null || v < best) ? v : best,
+        /** @type {Nullable<number>} */ (null))
 
 /**
  * Whether an entry of the pack begins at this offset.
