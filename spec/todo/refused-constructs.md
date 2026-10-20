@@ -124,7 +124,8 @@ describes:
 | `st.label` | `x: while (c) { }` | open |
 | `st.var` | `var a = 1` | design ([constants](../bindings/constants.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) |
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md)) |
-| `st.expression` | an expression statement that is no call statement and no assignment to a loop's variable in its block: one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with anything but a name, `(0, f)(x);`, `[a].at(0);`, `"use strict";` | design ([call statements](../functions/call-statements.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(` or `[` would continue the one before it) |
+| `st.expression` | an expression statement that is no call statement and no assignment to a loop's variable in its block: one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with anything but a name, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it) |
+| `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](../functions/call-statements.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
 | `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch.md)) — `{}` | design ([functions](../functions/README.md)) |
 | `st.unreachable` | a statement after `return`, `throw`, or a switch with a `default` | design ([functions](../functions/README.md)) |
 
