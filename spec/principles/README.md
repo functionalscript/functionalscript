@@ -140,8 +140,11 @@ A **function** is a value: `Object.is`, `Number.isSafeInteger`, the
 [`entry` helper](../property-access/entries.md), any arrow. A value can be
 bound, passed and cached, `const f = Number.isSafeInteger;`, so the compiler
 cannot see every call of it, and **no call's argument count is checked at
-compile time**. Every argument is evaluated, and the function's parameter
-list binds them, as in JavaScript: a rest parameter collects the extra ones,
+compile time**. Where the call is made — a guarded call on a nullish callee,
+`f?.(x)`, makes none and evaluates no argument
+([optional chaining](../property-access/optional-chaining.md)) — every
+argument is evaluated, and the function's parameter list binds them, as in
+JavaScript: a rest parameter collects the extra ones,
 `((...xs) => xs.length)(1, 2)` being `2`, a default fills a missing one
 ([parameters](../functions/parameters.md)), and otherwise a missing one is
 `undefined` and an extra one is ignored, `Number.isInteger(1, 2)` being
@@ -152,7 +155,12 @@ conversions `Number(x)` and `String(x)`. It is no value, so the compiler sees
 every use, and each use takes **a fixed set of operands**, checked at compile
 time; any other set is a compilation error. `Number` takes none or one,
 `Number()` being `0`, so `Number(a, b)` and `Number(...a)` are refused by
-design (`Number takes one argument`), and so are `String`'s. Nor is an
+design (`Number takes one argument`), and so are `String`'s. The mistake
+the fixed set prevents is a quiet one: `Number(s, 16)` reads as a radix, as
+`parseInt(s, 16)`'s is, where JavaScript evaluates the `16` and ignores it,
+and `Number(...a)` converts whichever value happens to come first, or
+answers `0` where there is none — each a call whose written arguments say
+more than the conversion does. Nor is an
 operator guarded: `Number?.(x)` asks whether `Number` is nullish, a question
 about a value, and is refused by design (`reserved word`).
 
@@ -169,9 +177,11 @@ functions where it reads the members the language admits
 ([built-in static functions](../built-ins/static-functions.md)).
 
 **Adopted:** the language designer, **sergey-shandar**, stated the principle in
-[the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC):
-"`Number` and other complex objects, like `String` are operators, not
-functions."
+[the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC),
+the fixed set of operands included: "If we introduce a command as an
+operator, like a language construction (e.g. `Number`, `+`, `*`) then we
+require a specific set of arguments at compiler level. … So `Number` and
+other complex objects, like `String` are operators, not functions."
 
 ## Examples
 
