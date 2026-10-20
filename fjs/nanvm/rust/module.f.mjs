@@ -25,9 +25,12 @@
  * because `snakeCase` over a punctuation tag such as `*` produces nothing
  * usable.
  *
- * Every emitted function carries `#[rustfmt::skip]`: the line layout here is
- * one statement per case, and `cargo fmt -- --check` runs in CI, so the
- * printer would otherwise have to reproduce rustfmt's wrapping exactly.
+ * No emitted item carries `#[rustfmt::skip]`: the line layout here is one
+ * statement per case, and `cargo fmt -- --check` runs in CI, so the
+ * formatting policy is declared once for the whole module, as
+ * `#[rustfmt::skip]` on its `mod generated;` in the hand-written
+ * `nanvm/lib/tests/test/main.rs`. Not as an inner `#![rustfmt::skip]` here:
+ * a custom inner tool attribute is unstable on stable Rust.
  *
  * @module
  *
@@ -267,7 +270,6 @@ const groupFile = shared => g => {
         ...header,
         'use crate::harness::*;',
         '',
-        '#[rustfmt::skip]',
         'pub fn run<A: IStaticFunction>() {',
         ...(reaches ? [`${indent}let ${runtimeName}: Any<A> = runtime::<A>().unwrap();`] : []),
         // An initializer is printed against the bindings established before
@@ -288,7 +290,8 @@ const groupFile = shared => g => {
 /**
  * The directory's `mod.rs`: a module per group, then `all`, which runs them
  * in the corpus's order. The declarations are sorted, the order `rustfmt`
- * keeps them in, since this file is formatted like any other.
+ * would keep them in, though the module-wide skip leaves this file as
+ * printed too.
  *
  * @type {(data: Data) => string}
  */

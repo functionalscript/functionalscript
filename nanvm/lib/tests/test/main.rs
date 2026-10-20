@@ -10,6 +10,11 @@
 //! array/object/function comes back as the very same object, since it lowers
 //! every operand to a node of its own and compares by value, not identity.
 
+// The whole generated module keeps the generator's layout, one statement
+// per case: rustfmt skips it here, once, rather than at every generated
+// function. An inner `#![rustfmt::skip]` in `gen.corpus/` would not do, a
+// custom inner tool attribute being unstable.
+#[rustfmt::skip]
 #[path = "gen.corpus/mod.rs"]
 mod generated;
 mod harness;

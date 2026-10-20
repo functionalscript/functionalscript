@@ -9,7 +9,7 @@
  */
 
 import { assert } from '../asserts/module.f.mjs'
-import { hexDigitValue } from '../text/ascii/module.f.mjs'
+import { decode } from '../basen/base16/module.f.mjs'
 
 /**
  * The bytes a Latin-1 string spells, one per code unit: how a fixture is
@@ -338,13 +338,9 @@ export const sha256Tree = latin1([
  * @type {(s: string) => readonly number[]}
  */
 export const hexBytes = s => {
-    assert(s.length % 2 === 0, ['odd hex length', s.length])
-    return Array.from({ length: s.length / 2 }, (_, i) => {
-        const hi = hexDigitValue(s.charCodeAt(i * 2))
-        const lo = hexDigitValue(s.charCodeAt(i * 2 + 1))
-        assert(hi !== null && lo !== null, ['not hex', s.slice(i * 2, i * 2 + 2)])
-        return hi * 16 + lo
-    })
+    const bytes = decode(s)
+    assert(bytes !== null, ['not hex', s])
+    return bytes
 }
 
 /**

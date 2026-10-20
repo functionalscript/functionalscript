@@ -15,12 +15,10 @@ import { map, flatMap, flat, concat as listConcat } from '../../types/list/modul
 import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
-import { stringToList } from '../../text/utf16/module.f.mjs'
+import { codeUnitToString, stringToList } from '../../text/utf16/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../text/ascii/module.f.mjs'
-
-const { fromCharCode } = String
 
 /**
  * Void Elements
@@ -65,7 +63,7 @@ const escapeTable = /** @type {const} */ ({
 
 /** @type {(code: number) => string} */
 const escapeCharCode = code =>
-    escapeTable[code] ?? fromCharCode(code)
+    escapeTable[code] ?? codeUnitToString(code)
 
 const escape = compose(stringToList)(map(escapeCharCode))
 

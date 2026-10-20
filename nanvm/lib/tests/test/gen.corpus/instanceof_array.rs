@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check::<A>("emptyArray", Any::instanceof_(Array::default().to_any(), Constructor::Array), true.to_any());
     check::<A>("array", Any::instanceof_([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), Constructor::Array), true.to_any());
