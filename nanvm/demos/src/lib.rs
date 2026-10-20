@@ -1,9 +1,10 @@
 //! The WASM demo pages' samples (`todo/wasm-demos.md`), compiled by `fjs
 //! compile` into `gen.samples/` and built for `wasm32-unknown-unknown` by the
-//! deployment build. A page calls a sample's export and then reads what the
-//! sample wrote to standard output, one byte at a time, with
-//! [`output_byte`]: the page is FunctionalScript, which can call a function
-//! but cannot construct a view of the module's memory.
+//! deployment build. A page loads a sample with its export, runs it with
+//! [`run_sample`], and then reads what the sample wrote to standard output,
+//! one byte at a time, with [`output_byte`]: the page is FunctionalScript,
+//! which can call a function but cannot construct a view of the module's
+//! memory.
 
 use nanvm_effects_node::{Native, run};
 use nanvm_lib::{
@@ -21,17 +22,21 @@ pub mod samples;
 /// the runtime value, on the VM the samples run on.
 pub type Module = fn(Any<Naive>) -> Result<Any<Naive>, Any<Naive>>;
 
-/// Performs a sample: initializes it with the runtime value, calls its
-/// `default` export with no arguments, and performs the effect it answers
-/// with an empty standard input. Answers what the sample wrote to standard
-/// output, or what it threw.
-pub fn perform(module: Module) -> Result<Vec<u8>, Any<Naive>> {
+/// Loads a sample: initializes its module with the runtime value, and answers
+/// its `default` export, or what it threw.
+pub fn load(module: Module) -> Result<Function<Naive>, Any<Naive>> {
     let exports = Object::try_from(module(nanvm_lib::vm::runtime::<Naive>()?)?)
         .map_err(|_| Any::from("module is not an object"))?;
-    let entry = exports
+    exports
         .own_property(&"default".into())
         .and_then(|value| Function::try_from(value).ok())
-        .ok_or_else(|| Any::from("module has no default function"))?;
+        .ok_or_else(|| Any::from("module has no default function"))
+}
+
+/// Performs a sample's entry: calls it with no arguments, and performs the
+/// effect it answers with an empty standard input. Answers what the sample
+/// wrote to standard output, or what it threw.
+pub fn perform(entry: &Function<Naive>) -> Result<Vec<u8>, Any<Naive>> {
     let effect = entry.call([].to_array())?;
     let mut host = Native::new(std::io::empty(), Vec::new(), Vec::new());
     let result = run(effect, |command, payload| host.perform(command, payload))?;
@@ -53,20 +58,34 @@ fn output(result: Any<Naive>, stdout: Vec<u8>) -> Result<Vec<u8>, Any<Naive>> {
 }
 
 thread_local! {
+    /// The entry of the sample loaded last, for [`run_sample`] to call.
+    static ENTRY: RefCell<Option<Function<Naive>>> = const { RefCell::new(None) };
     /// What the last sample run wrote, for [`output_byte`] to read.
     static OUTPUT: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
 }
 
-/// Performs `module`, keeps its output, and answers its length in bytes, or
-/// `-1` if the sample threw.
+/// Loads `module` and keeps its entry for [`run_sample`]: `0`, or `-1` if
+/// the module threw. Apart from the run, so that a page times the entry call
+/// alone, as it does the JavaScript one, whose module the page imported.
 fn export(module: Module) -> i32 {
-    match perform(module) {
-        Ok(bytes) => {
+    let entry = load(module);
+    let status = if entry.is_ok() { 0 } else { -1 };
+    ENTRY.with(|kept| *kept.borrow_mut() = entry.ok());
+    status
+}
+
+/// Runs the sample loaded last and keeps its output. Answers the output's
+/// length in bytes, or `-1` if no sample is loaded or the sample threw.
+#[unsafe(no_mangle)]
+pub extern "C" fn run_sample() -> i32 {
+    let ran = ENTRY.with(|kept| kept.borrow().as_ref().map(perform));
+    match ran {
+        Some(Ok(bytes)) => {
             let length = bytes.len() as i32;
             OUTPUT.with(|output| *output.borrow_mut() = bytes);
             length
         }
-        Err(_) => -1,
+        _ => -1,
     }
 }
 
@@ -76,7 +95,7 @@ pub extern "C" fn output_byte(index: u32) -> u32 {
     OUTPUT.with(|output| output.borrow()[index as usize].into())
 }
 
-/// Runs the "hello, world" sample.
+/// Loads the "hello, world" sample.
 #[unsafe(no_mangle)]
 pub extern "C" fn hello() -> i32 {
     export(samples::hello::module::<Naive>)
@@ -90,7 +109,7 @@ mod tests {
     #[test]
     fn hello_writes_its_greeting() {
         assert_eq!(
-            perform(samples::hello::module::<Naive>).unwrap(),
+            perform(&load(samples::hello::module::<Naive>).unwrap()).unwrap(),
             b"hello, world\n"
         );
     }
@@ -103,8 +122,10 @@ mod tests {
     }
 
     #[test]
-    fn the_export_keeps_the_output() {
-        assert_eq!(hello(), 13);
+    fn the_exports_load_run_and_keep_the_output() {
+        assert_eq!(run_sample(), -1);
+        assert_eq!(hello(), 0);
+        assert_eq!(run_sample(), 13);
         assert_eq!(output_byte(0), u32::from(b'h'));
         assert_eq!(output_byte(12), u32::from(b'\n'));
     }

@@ -77,9 +77,10 @@ built:
 - **The entry point** is the sample's `default` export, called with no
   arguments, answering the effect the page performs. The JavaScript run
   performs it in memory with `effects/mock`, keeping standard output; the
-  WASM run calls the sample's export in `nanvm-demos`, which performs it on
-  `nanvm-effects-node`'s host and keeps standard output for the page to read
-  back with `output_byte`.
+  WASM run loads the sample with its export in `nanvm-demos`, untimed, as the
+  JavaScript module was imported before the run, then times `run_sample`,
+  which performs it on `nanvm-effects-node`'s host and keeps standard output
+  for the page to read back with `output_byte`.
 - **The page** is [`fjs/nanvm/demos/page`](../fjs/nanvm/demos/page/module.f.mjs),
   a demo over two new browser operations,
   [`effects/browser`](../fjs/effects/browser/types.ts)'s `fetchText` and

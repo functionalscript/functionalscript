@@ -36,15 +36,27 @@ const hi = {
     }),
 }
 
-/** A module whose `hi` export writes `bytes`, or answers `-1` for none. @type {(bytes: readonly number[] | null) => WasmInstance} */
-const instance = bytes => ({
+/**
+ * A module whose `hi` export loads, or throws for `loads` false, and whose
+ * run writes `bytes`, or throws for none.
+ *
+ * @type {(bytes: readonly number[] | null, loads?: boolean) => WasmInstance}
+ */
+const instance = (bytes, loads = true) => ({
     exports: {
-        hi: () => bytes === null ? -1 : bytes.length,
+        hi: () => loads ? 0 : -1,
+        run_sample: () => bytes === null ? -1 : bytes.length,
         output_byte: (/** @type {number} */ i) => bytes === null ? 0 : bytes[i],
         memory: { buffer: { byteLength: 0x1_0000 } },
     },
     startup: 2,
 })
+
+/** What a mock export answers to stand for a throw. */
+const throws = {}
+
+/** A thunk's answer as `sandbox` reports it. @type {(value: unknown) => Result<unknown, unknown>} */
+const thrown = value => value === throws ? error('boom') : ok(value)
 
 /**
  * The page's operations. A path in `files` is a text, `wasm` is the module,
@@ -62,7 +74,7 @@ const page = (files, wasm, sandbox = 'ok') => ({
     sandbox: f => s => [s,
         sandbox === 'notImplemented' ? error(notImplemented('sandbox'))
         : sandbox === 'thrown' ? ok({ result: error('boom'), duration: 0 })
-        : /** @type {any} */ (ok({ result: ok(f()), duration: 1 }))],
+        : /** @type {any} */ (ok({ result: thrown(f()), duration: 1 }))],
 })
 
 /** @type {<T>(map: MemOperationMap<FetchText | Instantiate | Sandbox, null>) => (effect: Effect<FetchText | Instantiate | Sandbox, T, never>) => T} */
@@ -121,10 +133,16 @@ export const proof = {
         const threw = perform(page({}, null))(runWasm('hi')(instance(null)))
         assert(threw[0] === 'ok')
         assertStructurallySame(threw[1].run.output, error('the sample threw'))
+        assertStructurallySame(perform(page({}, null))(runWasm('hi')(instance([], false))), error('the sample threw while loading'))
+        // A throw while loading, and one while running.
         assertStructurallySame(perform(page({}, null, 'thrown'))(runWasm('hi')(instance([]))), error('it threw: boom'))
+        const running = instance([])
+        assertStructurallySame(
+            perform(page({}, null))(runWasm('hi')({ ...running, exports: { ...running.exports, run_sample: () => throws } })),
+            error('it threw: boom'))
         assertStructurallySame(
             perform(page({}, null))(runWasm('other')(instance([]))),
-            error('the module does not export other, output_byte and memory'))
+            error('the module does not export other, run_sample, output_byte and memory'))
     },
     runBoth: () => {
         const both = perform(page({}, null))(runBoth(hi)(ready))

@@ -10,14 +10,15 @@
  * back, so pressing Run would hide the WAT the reader was reading.
  *
  * **The page loads before the reader asks.** The source, the Rust, the
- * disassembly and the module are fetched on `start`, so the times Run shows hold the entry
- * call alone: no fetch, compile or instantiation. The module's startup is
- * shown on its own line.
+ * disassembly and the module are fetched on `start`, so the times Run shows
+ * hold the entry call alone: no fetch, compile or instantiation. The
+ * module's startup is shown on its own line.
  *
  * **The JavaScript run performs the program in memory**, through the mock
  * runner, keeping what it writes to standard output; the WebAssembly run
- * calls the sample's export in `nanvm-demos`, which performs the same
- * program on the NaNVM host and keeps its output for the page to read back.
+ * loads the sample with its export in `nanvm-demos` and then calls
+ * `run_sample`, which performs the same program on the NaNVM host and keeps
+ * its output for the page to read back.
  *
  * @module
  *
@@ -78,8 +79,8 @@ export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], 
 const loaded = r => r[0] === 'ok' ? r : error(errorMessage(r[1]))
 
 /**
- * Fetches the source, the Rust, the disassembly and the module, each in turn; a file
- * that does not arrive is the reason it is not shown.
+ * Fetches the source, the Rust, the disassembly and the module, each in
+ * turn; a file that does not arrive is the reason it is not shown.
  *
  * @type {(name: string) => Effect<FetchText | Instantiate, State, never>}
  */
@@ -146,22 +147,31 @@ export const runJs = program => resultStep(sandbox(() => jsPerform(program)), r 
 })
 
 /**
- * Calls the sample's export, then reads back what it wrote, one byte at a
- * time: the export answers the byte count, or `-1` for a sample that threw.
+ * Loads the sample with its export, untimed, as the JavaScript run's module
+ * was imported before it; then times `run_sample` alone, and reads back what
+ * the sample wrote, one byte at a time. Each export answers `-1` for a
+ * sample that threw, and `run_sample` otherwise the byte count.
  * The memory's size is read after the run, from its current buffer: a
  * memory that grows detaches the buffer it had, whose size then reads `0`.
  *
  * @type {(name: string) => (instance: WasmInstance) => Effect<Sandbox, Result<WasmRun, string>, never>}
  */
 export const runWasm = name => ({ exports }) => {
-    const entry = exports[name]
+    const load = exports[name]
+    const runSample = exports['run_sample']
     const outputByte = exports['output_byte']
     const memory = /** @type {{ readonly buffer?: { readonly byteLength: number } } | undefined} */ (exports['memory'])
-    if (typeof entry !== 'function' || typeof outputByte !== 'function' || memory?.buffer === undefined) {
-        return pureOk(error(`the module does not export ${name}, output_byte and memory`))
+    if (typeof load !== 'function' || typeof runSample !== 'function' || typeof outputByte !== 'function' || memory?.buffer === undefined) {
+        return pureOk(error(`the module does not export ${name}, run_sample, output_byte and memory`))
     }
     const live = /** @type {{ readonly buffer: { readonly byteLength: number } }} */ (memory)
-    return resultStep(sandbox(() => /** @type {() => number} */ (entry)()), r => {
+    const loaded = resultStep(sandbox(() => /** @type {() => number} */ (load)()), r => {
+        const t = timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
+        /** @type {Result<null, string>} */
+        const status = t[0] === 'error' ? t : t[1].value < 0 ? error('the sample threw while loading') : ok(null)
+        return pureOk(status)
+    })
+    return step(loaded, status => status[0] === 'error' ? pureOk(status) : resultStep(sandbox(() => /** @type {() => number} */ (runSample)()), r => {
         const t = timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
         /** @type {(value: number) => Result<string, string>} */
         const output = value => value < 0
@@ -170,7 +180,7 @@ export const runWasm = name => ({ exports }) => {
         /** @type {Result<WasmRun, string>} */
         const run = t[0] === 'error' ? t : ok({ run: { output: output(t[1].value), time: t[1].time }, memory: live.buffer.byteLength })
         return pureOk(run)
-    })
+    }))
 }
 
 /**
