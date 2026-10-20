@@ -40,7 +40,7 @@ const html = game => htmlToString(demo.view(game))
 const inOrder = tensUpTo(8).reduce((t, k) => structure.insert(k)(t), structure.empty)
 
 /** @type {Game} */
-const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, mode: 'enter', note: null, base: null, pending: [], moves: 0, par: null, last: null, error: null }
+const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, mode: 'enter', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null }
 
 /** A move made and landed. @type {(key: number) => (game: Game) => Game} */
 const played = key => game => land(move(key)(game))
@@ -131,10 +131,10 @@ export const proof = {
             assertEq(JSON.stringify(fourth.versions), JSON.stringify({ before: removed, after: moved }))
             assertEq(JSON.stringify(keysOf(fourth)), JSON.stringify(tensUpTo(8)))
             // With no frame to come, a step and a landing change nothing;
-            // a landing is the last frame at once.
+            // a landing is the last frame at once, not counted as shown.
             assertEq(step(fourth), fourth)
             assertEq(land(fourth), fourth)
-            assertEq(JSON.stringify(land(first)), JSON.stringify(fourth))
+            assertEq(JSON.stringify(land(first)), JSON.stringify({ ...fourth, shown: first.shown }))
             assertEq(land(demo.init), demo.init)
         },
         // A move made while another is showing lands that one first: 40 is
@@ -303,6 +303,13 @@ export const proof = {
             assert(h.includes('data-graph-replay="b"'), h)
             assert(h.includes('data-graph-in-kind="leaving" data-graph-order="1"'), h)
             assert(html(step(first)).includes('data-graph-replay="a"'), '')
+            // A click during the first or third frame lands that move and
+            // shows the next one's first frame, and the flag still flips.
+            /** @type {(game: Game) => string} */
+            const flag = game => html(game).split('data-graph-replay="')[1].slice(0, 1)
+            const third = step(step(first))
+            assert(flag(move(10)(first)) !== flag(first), '')
+            assert(flag(move(10)(third)) !== flag(third), '')
         },
         // No node is blue until the key is back: the remove's nodes fade
         // in plain, and the last frame draws blue every node the move

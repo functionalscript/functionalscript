@@ -70,6 +70,11 @@ export type Frame = {
  *
  * A move is four frames: the nodes the remove replaces leave, its new ones
  * enter, the nodes the insert replaces leave, and its new ones enter.
+ *
+ * `shown` counts the frames put on the board, one per update that shows
+ * one: a move landed by the next one's click is not counted, so each
+ * update that shows a frame changes the count's parity, which restarts
+ * the drawing's fades.
  */
 export type Game = {
     readonly depth: number
@@ -78,6 +83,7 @@ export type Game = {
     readonly note: string | null
     readonly base: Tree<number> | null
     readonly pending: readonly Frame[]
+    readonly shown: number
     readonly moves: number
     readonly par: Par
     readonly last: Last | null

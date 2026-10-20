@@ -171,7 +171,7 @@ export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(dept
     const tree = r[1].reduce((t, k) => structure.insert(k)(t), structure.empty)
     const par = parDepths.includes(depth) ? parSearch(tensUpTo(keyCount(depth)))(tree) : null
     /** @type {Game} */
-    const started = { depth, versions: { before: tree, after: tree }, mode: 'still', note: null, base: null, pending: [], moves: 0, par, last: null, error: null }
+    const started = { depth, versions: { before: tree, after: tree }, mode: 'still', note: null, base: null, pending: [], shown: game.shown + 1, moves: 0, par, last: null, error: null }
     return pureOk(started)
 })
 
@@ -183,13 +183,20 @@ export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(dept
 const showing = ({ versions, mode, note, base }) => pending => game => ({ ...game, versions, mode, note, base, pending })
 
 /**
+ * The game showing `frame` as a new frame on the board, counted in `shown`.
+ *
+ * @type {(frame: Frame) => (pending: readonly Frame[]) => (game: Game) => Game}
+ */
+const shownNext = frame => pending => game => showing(frame)(pending)({ ...game, shown: game.shown + 1 })
+
+/**
  * The next frame of a move, or the game as it was when none is to come.
  *
  * @type {(game: Game) => Game}
  */
 export const step = game => {
     const [next, ...rest] = game.pending
-    return next === undefined ? game : showing(next)(rest)(game)
+    return next === undefined ? game : shownNext(next)(rest)(game)
 }
 
 /**
@@ -226,7 +233,7 @@ export const move = key => game => {
         { versions: { before: moved, after: removed }, mode: 'leave', note: `${key} goes back in.`, base: null },
         { versions: { before: removed, after: moved }, mode: 'enter', note: null, base: before },
     ]
-    return showing(first)(rest)(counted)
+    return shownNext(first)(rest)(counted)
 }
 /** @type {(n: number) => string} */
 const movesText = n => n === 1 ? '1 move' : `${n} moves`
@@ -356,7 +363,8 @@ export const frameTime = game => {
 /**
  * The board: its status and the frame drawn. The drawing's container
  * alternates `data-graph-replay` from frame to frame, by how many frames
- * are still to come, which restarts its fades: the page updates its
+ * have been shown, which restarts its fades — a click that lands a move
+ * and starts the next one still shows one new frame: the page updates its
  * elements in place, and an animation runs again only when its name does.
  *
  * @type {(game: Game) => Element}
@@ -366,12 +374,12 @@ const board = game => {
     return game.versions === null || g === null
         ? ['p', 'Building a random tree…']
         : ['div', ['p', statusLine(game)(game.versions.after)],
-            ['div', { 'data-graph-replay': game.pending.length % 2 === 0 ? 'a' : 'b' }, graphSvg(g)]]
+            ['div', { 'data-graph-replay': game.shown % 2 === 0 ? 'a' : 'b' }, graphSvg(g)]]
 }
 
 /** @type {Demo<Game, DemoEvent, RandomInt>} */
 export const demo = {
-    init: { depth: depths[0], versions: null, mode: 'still', note: null, base: null, pending: [], moves: 0, par: null, last: null, error: null },
+    init: { depth: depths[0], versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null },
     nextEvent: ({ pending, par }) => pending.length > 0 ? { kind: 'click', name: 'step' }
         : par === null || typeof par === 'number' ? null
         : { kind: 'click', name: 'par' },
