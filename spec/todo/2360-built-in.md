@@ -81,7 +81,9 @@ object — `structurallySame`, `definedEntries`, every `.f.mjs` that writes
 
 **Proposal.** Admit `Object.entries` as a static function beside
 `Object.is`: a value in every spelling of the read, `Object.entries`,
-`Object["entries"]` and the guarded forms, and through
+`Object["entries"]` and the guarded forms — which a later decision refuses,
+a namespace being no value to guard
+([built-in static functions](../built-ins/static-functions.md)) — and through
 `const { entries } = Object`; the EDAG node `['Object.entries']`; `length`
 `1`; one function however often it is read. Its answer is JavaScript's: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -194,7 +196,9 @@ reads the member cannot be renamed `.f.js` as written.
 **Proposal.** Admit the four as static functions, as `Object.is` is
 ([built-in static functions](../built-ins/static-functions.md)): each
 a value in every spelling of the read, `Number.isInteger`,
-`Number["isInteger"]` and the guarded forms, and through
+`Number["isInteger"]` and the guarded forms — which a later decision
+refuses, a namespace being no value to guard
+([built-in static functions](../built-ins/static-functions.md)) — and through
 `const { isInteger } = Number`; each the EDAG node of its name,
 `['Number.isInteger']`; each body the existing helper the runtime's `static`
 section imports — `isInteger`, `isSafeInteger`, `isNaN_` and `isFinite_` of
