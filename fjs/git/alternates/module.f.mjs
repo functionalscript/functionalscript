@@ -17,30 +17,7 @@
 
 import { isDriveLetter, isDriveRoot, root, under } from '../../path/module.f.mjs'
 import { codeUnitToString } from '../../text/utf16/module.f.mjs'
-
-/**
- * An entry as the host will be given it: a path ends at its first `NUL`, because
- * a path is a `NUL`-terminated byte string everywhere this runs.
- *
- * **Not doing this is a refusal and not a miss**, which is why it is worth a
- * function. Node will not carry a `NUL` to the system call at all — every `fs`
- * operation throws `TypeError [ERR_INVALID_ARG_VALUE]`, "must be a string …
- * without null bytes" — and `fjs/effects/node` turns a thrown failure into a
- * channel error carrying that code. `ERR_INVALID_ARG_VALUE` is not `ENOENT`, so
- * `fjs/git/store` reads it as a store that holds the object and cannot give it
- * up, and the whole read is refused. Git meanwhile reads the donor behind the `NUL`.
- * Ending the path here is what keeps a repository Git reads readable.
- *
- * A `\000` escape is the only way into a quoted line; a raw `0x00` byte is the
- * other road, through a file whose own bytes hold one. Both arrive here as the
- * same character.
- *
- * @type {(entry: string) => string}
- */
-const untilNul = entry => {
-    const i = entry.indexOf('\u0000')
-    return i === -1 ? entry : entry.slice(0, i)
-}
+import { untilNul } from '../bytes/module.f.js'
 
 /**
  * One line of an `objects/info/alternates`, unquoted where it is quoted and cut
@@ -82,6 +59,17 @@ const untilNul = entry => {
  * module's rule but the one both hosts obey — measured on Git 2.43.0, a line of
  * `"<donor>/objects\000x"` read the donor's blob at exit 0, where the controls
  * `"<donor>/objectsx"` and `"<donor>/objects\001x"` both exited 128.
+ *
+ * **Not cutting there is a refusal and not a miss.** Node will not carry a
+ * `NUL` to the system call at all — every `fs` operation throws
+ * `TypeError [ERR_INVALID_ARG_VALUE]`, "must be a string … without null
+ * bytes" — and `fjs/effects/node` turns a thrown failure into a channel error
+ * carrying that code. `ERR_INVALID_ARG_VALUE` is not `ENOENT`, so
+ * `fjs/git/store` reads it as a store that holds the object and cannot give it
+ * up, and the whole read is refused, where Git reads the donor behind the
+ * `NUL`. A `\000` escape is the only way into a quoted line; a raw `0x00` byte
+ * is the other road, through a file whose own bytes hold one. Both arrive at
+ * the cut as the same character.
  *
  * @type {(line: string) => Nullable<string>}
  */

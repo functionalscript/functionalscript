@@ -7,7 +7,7 @@
 import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { staticIds } from '../../../edag/module.f.mjs'
-import { renderFunction, _renderSymbolic } from './module.f.mjs'
+import { renderFunction, _closure } from './module.f.mjs'
 import { _resolve as resolve } from '../names/module.f.mjs'
 
 /** @type {(e: FunctionExp) => string} */
@@ -68,9 +68,16 @@ export const proof = {
         assertEq(render(['=>', 1, [], ['?:', ['()', ['=>', 0, [['[]', [1]]], ['frame', 0]], []], call(0), ['arg', 0]]]),
             '($0)=>{let $1=$0;while(((0,(($2)=>(()=>($2)))(([(1)])))())){$1=(0);}return $1;}')
     },
+    // a function with slots is an arrow over its frame applied to the
+    // slot texts given, and with none the bare lambda
+    closure: () => {
+        const a = assertOk(analysis(['=>', 0, [1, 2], ['frame', 1]]))
+        const i = /** @type {readonly ['#', number]} */ (a.root)[1]
+        assertEq(resolve([_closure(a, i, 'test', ['(1)', '(2)'])]).join(''), '(($0,$1)=>(()=>($1)))((1),(2))')
+    },
     names: () => {
         const a = assertOk(analysis(['=>', 0, [], 1]))
-        assertEq(resolve([_renderSymbolic(a, /** @type {readonly ['#', number]} */ (a.root)[1], 'test', [])]).join(''), '()=>(1)')
+        assertEq(resolve([_closure(a, /** @type {readonly ['#', number]} */ (a.root)[1], 'test', [])]).join(''), '()=>(1)')
         assertEq(render(['=>', 2, [], ['arg', 1]]), '($0,$1)=>($1)')
         assertEq(text(['rest']), '(...$0)=>($0)')
         assertEq(text(['undefined']), '()=>(undefined)')

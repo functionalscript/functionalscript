@@ -163,11 +163,10 @@ const entry = (s, i) => {
         case '{}': { return `({${n[1].map(p => p[0] === '...'
             ? `...${operand(s, p[1])}` : `[${operand(s, p[1])}]:${operand(s, p[2])}`).join(',')}})` }
         case '=>': {
-            const path = `${s.path}/function${i}`
-            const frame = n[2].map((_, k) => name(`${path}/frame${k}`))
-            const text = lambda(s.a, i, path, frame)
-            return n[2].length === 0 ? `(${text})`
-                : `((${frame.map(binding).join(',')})=>(${text}))(${n[2].map(v => operand(s, v)).join(',')})`
+            // a bare lambda inside an expression needs the parentheses an
+            // applied arrow already has
+            const text = _closure(s.a, i, `${s.path}/function${i}`, n[2].map(v => operand(s, v)))
+            return n[2].length === 0 ? `(${text})` : text
         }
         case '.': case '?.': {
             const start = `${operand(s, n[1])}${n[0] === '?.' ? '?.' : ''}[${operand(s, n[2])}]`
@@ -278,5 +277,21 @@ export const renderFunction = (a, i) => {
     return chunksText(resolve([lambda(a, i, 'function', frame)], [], frame))
 }
 
-/** Compose a function into a larger symbolic document before allocating names. @type {(a: Analysis, i: number, path: string, frame: readonly string[]) => string} */
-export const _renderSymbolic = (a, i, path, frame) => lambda(a, i, path, frame)
+/**
+ * The text of the function that is entry `i`, at `path`, closed over its
+ * slots, given as their texts: an arrow over the frame, named from `path`,
+ * applied to the slots, and for no slots the bare lambda — the one
+ * spelling of a closure, so that `String(f)` and an emitted value module
+ * agree. The names stay symbolic, for the caller's document to allocate.
+ *
+ * ```js
+ * (($0)=>(()=>($0)))((1))
+ * ```
+ *
+ * @type {(a: Analysis, i: number, path: string, slots: readonly string[]) => string}
+ */
+export const _closure = (a, i, path, slots) => {
+    const frame = slots.map((_, k) => name(`${path}/frame${k}`))
+    const text = lambda(a, i, path, frame)
+    return slots.length === 0 ? text : `((${frame.map(binding).join(',')})=>(${text}))(${slots.join(',')})`
+}

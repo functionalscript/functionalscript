@@ -52,8 +52,9 @@
 
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
-import { lf, nul as nulByte, space as traitSeparator } from '../../text/ascii/module.f.js'
+import { lf, space as traitSeparator } from '../../text/ascii/module.f.js'
 import { concat, sameItems } from '../../types/list/module.f.mjs'
+import { cmp, cString } from '../bytes/module.f.js'
 import { ofWidth, toHex, tryFromHexOf } from '../oid/module.f.mjs'
 import { isWholeName } from '../refname/module.f.mjs'
 
@@ -484,25 +485,11 @@ const sortedTrait = ascii('sorted')
  *
  * @type {(rest: readonly number[]) => readonly (readonly number[])[]}
  */
-const traitsOf = rest => {
-    const end = rest.indexOf(nulByte)
-    return (end === -1 ? rest : rest.slice(0, end)).reduce(
-        (words, b) => b === traitSeparator
-            ? [...words, []]
-            : [...words.slice(0, -1), [...words[words.length - 1], b]],
-        /** @type {readonly (readonly number[])[]} */ ([[]]))
-}
-
-/**
- * Whether `a` sorts no later than `b`, byte by byte and unsigned — the order Git
- * writes refnames in, and the one its bisection assumes.
- *
- * @type {(a: readonly number[]) => (b: readonly number[]) => boolean}
- */
-const notAfter = a => b => {
-    const i = a.findIndex((x, k) => k >= b.length || x !== b[k])
-    return i === -1 || (i < b.length && a[i] < b[i])
-}
+const traitsOf = rest => cString(rest).reduce(
+    (words, b) => b === traitSeparator
+        ? [...words, []]
+        : [...words.slice(0, -1), [...words[words.length - 1], b]],
+    /** @type {readonly (readonly number[])[]} */ ([[]]))
 
 /**
  * `packed-refs` without the entries named `name` — each one's line and the `^`
@@ -554,7 +541,7 @@ export const tryPackedWithout = oidBytes => {
         if (!read.every(e => e !== null)) { return ['malformed'] }
         const names = read.map(e => byteArray(/** @type {PackedRef} */ (e).name))
         const claimsSorted = head.some(([, rest]) => traitsOf(symbolsOf(rest)).some(sameItems(sortedTrait)))
-        if (claimsSorted && !names.every((n, i) => i === 0 || notAfter(names[i - 1])(n))) {
+        if (claimsSorted && !names.every((n, i) => i === 0 || cmp(names[i - 1], n) <= 0)) {
             return ['unsorted']
         }
         const kept = entries.filter((_, i) => !sameItems(names[i])(name))

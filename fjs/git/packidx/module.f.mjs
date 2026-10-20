@@ -56,20 +56,17 @@
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
+import { uint } from '../../types/bit_vec/module.f.mjs'
 import { bsearch, cmp } from '../../types/function/compare/module.f.mjs'
 import { take } from '../../types/list/module.f.mjs'
 import { startsWith, u32be, u64be } from '../bytes/module.f.js'
-import { digestOf, ofWidth } from '../oid/module.f.mjs'
+import { digestOf, ofWidth, oidAt } from '../oid/module.f.mjs'
 
 /** The four bytes a version 2 index begins with: `\377tOc`. */
 const magic = /** @type {const} */ ([0xFF, 0x74, 0x4F, 0x63])
 
 /** How many entries the fanout table has, one per possible first byte. */
 const fanout = /** @type {const} */ (256)
-
-/** @type {(b: readonly number[], at: number, width: number) => Oid} */
-const oidAt = (b, at, width) => u8ListToVecMsb(b.slice(at, at + width))
 
 /**
  * The first byte position at which the ids at `x` and `y` differ, or `width`
