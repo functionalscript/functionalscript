@@ -171,7 +171,7 @@ export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(dept
     const tree = r[1].reduce((t, k) => structure.insert(k)(t), structure.empty)
     const par = parDepths.includes(depth) ? parSearch(tensUpTo(keyCount(depth)))(tree) : null
     /** @type {Game} */
-    const started = { depth, versions: { before: tree, after: tree }, mode: 'still', note: null, pending: [], moves: 0, par, last: null, error: null }
+    const started = { depth, versions: { before: tree, after: tree }, mode: 'still', note: null, base: null, pending: [], moves: 0, par, last: null, error: null }
     return pureOk(started)
 })
 
@@ -180,7 +180,7 @@ export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(dept
  *
  * @type {(frame: Frame) => (pending: readonly Frame[]) => (game: Game) => Game}
  */
-const showing = ({ versions, mode, note }) => pending => game => ({ ...game, versions, mode, note, pending })
+const showing = ({ versions, mode, note, base }) => pending => game => ({ ...game, versions, mode, note, base, pending })
 
 /**
  * The next frame of a move, or the game as it was when none is to come.
@@ -221,10 +221,10 @@ export const move = key => game => {
     const counted = { ...landed, moves: landed.moves + 1, last: { key, changed }, error: null }
     /** @type {readonly [Frame, ...Frame[]]} */
     const [first, ...rest] = [
-        { versions: { before: removed, after: before }, mode: 'leave', note: `${key} comes out of the tree.` },
-        { versions: { before, after: removed }, mode: 'enter', note: `${key} is out of the tree.` },
-        { versions: { before: moved, after: removed }, mode: 'leave', note: `${key} goes back in.` },
-        { versions: { before: removed, after: moved }, mode: 'enter', note: null },
+        { versions: { before: removed, after: before }, mode: 'leave', note: `${key} comes out of the tree.`, base: null },
+        { versions: { before, after: removed }, mode: 'enter', note: `${key} is out of the tree.`, base: null },
+        { versions: { before: moved, after: removed }, mode: 'leave', note: `${key} goes back in.`, base: null },
+        { versions: { before: removed, after: moved }, mode: 'enter', note: null, base: before },
     ]
     return showing(first)(rest)(counted)
 }
@@ -302,6 +302,22 @@ export const ordered = mode => g => {
 }
 
 /**
+ * A frame's graph with the nodes a move built drawn blue — `new`, against
+ * `base`, the tree the move started from — once the key is back, and none
+ * before: without a base, a node that fades in is `entering`, which the
+ * site's stylesheet fades in like a new one but draws plain.
+ *
+ * @type {(base: Tree<number> | null) => (after: Tree<number>) => (g: Graph) => Graph}
+ */
+export const coloured = base => after => g => {
+    const built = base === null ? [] : graph({ before: base, after }).nodes.flatMap(n => n.kind === 'new' ? [n.id] : [])
+    return {
+        ...g,
+        nodes: g.nodes.map(n => built.includes(n.id) ? { ...n, kind: 'new' } : n.kind === 'new' ? { ...n, kind: 'entering' } : n),
+    }
+}
+
+/**
  * A frame's graph with the last move's key marked: `removed`, drawn red,
  * in a leaving frame, and `added`, drawn green, in an entering one. A
  * frame without the key, and a tree just built, mark nothing.
@@ -322,7 +338,8 @@ export const marked = mode => last => g => {
  *
  * @type {(game: Game) => Graph | null}
  */
-const drawn = ({ versions, mode, last }) => versions === null ? null : marked(mode)(last)(ordered(mode)(graph(versions)))
+const drawn = ({ versions, mode, last, base }) => versions === null ? null
+    : marked(mode)(last)(coloured(base)(versions.after)(ordered(mode)(graph(versions))))
 
 /**
  * How long the frame on the board is held: half a second for each order of its
@@ -354,7 +371,7 @@ const board = game => {
 
 /** @type {Demo<Game, DemoEvent, RandomInt>} */
 export const demo = {
-    init: { depth: depths[0], versions: null, mode: 'still', note: null, pending: [], moves: 0, par: null, last: null, error: null },
+    init: { depth: depths[0], versions: null, mode: 'still', note: null, base: null, pending: [], moves: 0, par: null, last: null, error: null },
     nextEvent: ({ pending, par }) => pending.length > 0 ? { kind: 'click', name: 'step' }
         : par === null || typeof par === 'number' ? null
         : { kind: 'click', name: 'par' },

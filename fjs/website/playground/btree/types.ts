@@ -50,11 +50,16 @@ export type Mode = 'still' | 'leave' | 'enter'
  * whether its nodes leave or enter, and what the board says meanwhile —
  * `null` for a move's last frame, where the board says where the game
  * stands.
+ *
+ * `base` is the tree the move started from, in its last frame only: every
+ * node the move built, against it, is drawn blue. A frame without one
+ * draws no node blue, so a move's nodes turn blue once the key is back.
  */
 export type Frame = {
     readonly versions: Versions<Tree<number>>
     readonly mode: Mode
     readonly note: string | null
+    readonly base: Tree<number> | null
 }
 
 /**
@@ -71,6 +76,7 @@ export type Game = {
     readonly versions: Versions<Tree<number>> | null
     readonly mode: Mode
     readonly note: string | null
+    readonly base: Tree<number> | null
     readonly pending: readonly Frame[]
     readonly moves: number
     readonly par: Par

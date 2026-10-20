@@ -625,8 +625,9 @@ svg text { font: inherit }
 [data-graph-value][data-graph-value-kind="removed"] { fill: var(--graph-removed-bg) }
 [data-graph-value][data-graph-value-kind="added"] { fill: var(--graph-added-bg) }
 /* A change node by node: a node with an order fades out if it is leaving
-   and in if it is new, over half a second, half a second after the order
-   before it.
+   and in otherwise — new, or entering, a node a step built that its demo
+   draws plain — over half a second, half a second after the order before
+   it.
    Only where the reader has not asked for less motion: then the drawing
    changes at once. The page updates its elements in place, and an
    animation runs again only when its name changes, so the drawing's
@@ -640,8 +641,8 @@ svg text { font: inherit }
   /* A key about to be removed turns red, through order 0, before anything
      fades. */
   [data-graph-value-kind="removed"] { animation: graph-redden .5s ease both }
-  [data-graph-replay="a"] [data-graph-in-kind="new"][data-graph-order] { animation-name: graph-in-a }
-  [data-graph-replay="b"] [data-graph-in-kind="new"][data-graph-order] { animation-name: graph-in-b }
+  [data-graph-replay="a"] [data-graph-order]:not([data-graph-in-kind="leaving"]) { animation-name: graph-in-a }
+  [data-graph-replay="b"] [data-graph-order]:not([data-graph-in-kind="leaving"]) { animation-name: graph-in-b }
   [data-graph-replay="a"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-a }
   [data-graph-replay="b"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-b }
   [data-graph-order="1"] { animation-delay: .5s }

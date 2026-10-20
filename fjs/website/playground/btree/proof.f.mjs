@@ -7,6 +7,7 @@
 
 import { demo, depthOf, frameTime, goalNodes, keyCount, land, marked, move, nodeCount, orderGap, ordered, parSearch, searchStep, searchTurn, start, statusLine, step } from './module.f.mjs'
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
+import { graphOf } from '../../demo/versions/module.f.mjs'
 import { values } from '../../../types/btree/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { commandsOf } from '../../../effects/module.f.mjs'
@@ -39,7 +40,7 @@ const html = game => htmlToString(demo.view(game))
 const inOrder = tensUpTo(8).reduce((t, k) => structure.insert(k)(t), structure.empty)
 
 /** @type {Game} */
-const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, mode: 'enter', note: null, pending: [], moves: 0, par: null, last: null, error: null }
+const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, mode: 'enter', note: null, base: null, pending: [], moves: 0, par: null, last: null, error: null }
 
 /** A move made and landed. @type {(key: number) => (game: Game) => Game} */
 const played = key => game => land(move(key)(game))
@@ -302,6 +303,22 @@ export const proof = {
             assert(h.includes('data-graph-replay="b"'), h)
             assert(h.includes('data-graph-in-kind="leaving" data-graph-order="1"'), h)
             assert(html(step(first)).includes('data-graph-replay="a"'), '')
+        },
+        // No node is blue until the key is back: the remove's nodes fade
+        // in plain, and the last frame draws blue every node the move
+        // built, against the tree it started from.
+        coloured: () => {
+            /** @type {(game: Game) => readonly string[]} */
+            const kinds = game => html(game).split('data-graph-kind="').slice(1).map(t => t.slice(0, t.indexOf('"'))).filter(k => k !== 'shared')
+            const first = move(40)(level2)
+            const second = step(first)
+            assertEq(JSON.stringify(kinds(first).filter(k => k !== 'leaving')), '[]')
+            assert(kinds(second).length > 0 && kinds(second).every(k => k === 'entering'), JSON.stringify(kinds(second)))
+            const last = land(first)
+            assert(kinds(last).length > 0 && kinds(last).every(k => k === 'new'), JSON.stringify(kinds(last)))
+            const after = assertNotNullish(last.versions).after
+            const built = graphOf(structure)({ before: inOrder, after }).nodes.filter(n => n.kind === 'new').length
+            assertEq(kinds(last).length, built)
         },
         // The key moved is red where it comes out and green where it goes
         // back in, and nothing else is marked; a tree just built marks
