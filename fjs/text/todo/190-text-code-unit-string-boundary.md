@@ -18,7 +18,7 @@ built-in directly:
 ```ts
 // fjs/text/ascii/module.f.js, at
 const r = s.codePointAt(i)
-if (r === void 0) { throw s }
+if (r === undefined) { throw s }
 
 // fjs/text/utf16/module.f.mjs, stringToList (and floorCodePointBoundary)
 const first = s.charCodeAt(i)
