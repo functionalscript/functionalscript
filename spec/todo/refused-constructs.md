@@ -126,6 +126,7 @@ describes:
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md)) |
 | `st.call` | a call statement, `assert(a);`, `f(x);` | planned ([call statements](./3450-call-statements.md)) |
 | `st.expression` | any other expression statement (a body statement that is no `const`, `if`, `throw`, `return`, admitted `let`/`while` loop, assignment to a loop's variable in its block, `x = value;`, or call), `x;`, `a.b;`, `Number(x);` | design ([call statements](./3450-call-statements.md): an operator's result is almost always a mistake, and a conversion is an operator) |
+| `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](./3450-call-statements.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
 | `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch.md)) — `{}` | design ([functions](../functions/README.md)) |
 | `st.unreachable` | a statement after `return`, `throw`, or a switch with a `default` | design ([functions](../functions/README.md)) |
 
