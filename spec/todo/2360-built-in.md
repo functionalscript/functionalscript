@@ -59,8 +59,9 @@ name not yet decided, or, where it says so, never admitted.
 #### Fundamental Objects
 
 - [x] `Object` — `Object.is` is implemented, the first static function: a
-      value, read in every spelling of the access and through
-      `const { is } = Object`, its body in the runtime, the word reserved
+      value, read in either key spelling of the unguarded access — the
+      guarded `Object?.is` is refused since, a namespace being no value to
+      guard — and through `const { is } = Object`, its body in the runtime, the word reserved
       ([built-in static functions](../built-ins/static-functions.md),
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
