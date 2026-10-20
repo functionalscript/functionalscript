@@ -22,6 +22,7 @@ import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
 import { forEachStep, pureOk, step } from '../../effects/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
+import { cmp } from '../../types/string/module.f.mjs'
 import { rustDirectory, rustPath, samplePath } from './page/module.f.mjs'
 
 export { rustPath, samplePath }
@@ -34,14 +35,16 @@ export const modulesPath = `${rustDirectory}/mod.rs`
 
 /**
  * The text of `mod.rs`: one `pub mod` per sample, under the header every
- * generated file carries.
+ * generated file carries. Sorted with `string.cmp`, the order `rustfmt` puts
+ * `mod` lines in, so `cargo fmt --check` passes whatever order `samples`
+ * lists them in.
  *
  * @type {(names: readonly string[]) => string}
  */
 export const modules = names => [
     generatedHeader('`fjs run ./fjs/nanvm/demos/module.f.mjs`', 'add or remove a sample instead'),
     '',
-    ...names.map(name => `pub mod ${name};`),
+    ...names.toSorted((a, b) => cmp(a)(b)).map(name => `pub mod ${name};`),
     '',
 ].join('\n')
 
