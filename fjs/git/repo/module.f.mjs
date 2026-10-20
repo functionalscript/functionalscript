@@ -47,6 +47,7 @@ import { isWellFormed } from '../../text/utf16/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { cString } from '../bytes/module.f.js'
 
 /** What a `.git` file says before the directory it names. */
 const gitdir = /** @type {const} */ ('gitdir: ')
@@ -92,11 +93,10 @@ const here = /** @type {const} */ ('.')
 const read = v => {
     const bs = toArray(u8ListMsb(v))
     const end = bs.slice(0, bs.findLastIndex(b => b !== 0x0A && b !== 0x0D) + 1)
-    const nul = end.indexOf(0)
     return {
         raw: bs.length,
         size: end.length,
-        text: fromVec(u8ListToVecMsb(nul === -1 ? end : end.slice(0, nul))),
+        text: fromVec(u8ListToVecMsb(cString(end))),
     }
 }
 
