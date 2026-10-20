@@ -223,15 +223,16 @@ const outputView = output => output[0] === 'ok'
 
 /**
  * How many times as long the WebAssembly run took as the JavaScript one, or
- * "Not available" where either run, or its output, failed, or the
+ * "Not available" unless both runs wrote the same output, or where the
  * JavaScript time reads `0`, which a browser's coarse clock answers for a
- * short run. A run whose output failed did not do the same work as the
- * other, so its time is no comparison.
+ * short run. Runs that failed, or wrote different outputs, did not do the
+ * same work, so their times are no comparison.
  *
  * @type {(runs: Runs) => string}
  */
 export const ratio = ({ js, wasm }) => js[0] === 'ok' && wasm[0] === 'ok'
-    && js[1].output[0] === 'ok' && wasm[1].run.output[0] === 'ok' && js[1].time > 0
+    && js[1].output[0] === 'ok' && wasm[1].run.output[0] === 'ok'
+    && js[1].output[1] === wasm[1].run.output[1] && js[1].time > 0
     ? `${(wasm[1].run.time / js[1].time).toFixed(1)}×`
     : 'Not available'
 

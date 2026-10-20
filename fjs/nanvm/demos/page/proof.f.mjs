@@ -167,6 +167,8 @@ export const proof = {
         // A run whose output failed: the program failed, or wrote no UTF-8.
         assertEq(ratio({ ...runs(4, 10), js: ok({ output: error('the program failed: x'), time: 4 }) }), 'Not available')
         assertEq(ratio({ ...runs(4, 10), wasm: ok({ run: { output: error('the sample threw'), time: 10 }, memory: 0 }) }), 'Not available')
+        // Outputs that differ.
+        assertEq(ratio({ ...runs(4, 10), wasm: ok({ run: { output: ok('other'), time: 10 }, memory: 0 }) }), 'Not available')
     },
     view: () => {
         // Before loading: no startup and no runs.
