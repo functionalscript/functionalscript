@@ -27,8 +27,7 @@ import { assert } from '../../asserts/module.f.js'
  * @type {<T extends readonly unknown[]>(node: T | Meta<unknown>) => T}
  */
 export const unmapped = node => {
-    assert(node instanceof Array)
-    return node
+    return (assert(node instanceof Array), node)
 }
 
 /**
@@ -39,8 +38,7 @@ export const unmapped = node => {
  * @type {(node: unknown) => readonly unknown[]}
  */
 export const items = node => {
-    assert(node instanceof Array)
-    return node
+    return (assert(node instanceof Array), node)
 }
 
 /**
@@ -51,8 +49,7 @@ export const items = node => {
  * @type {(node: unknown) => readonly [string, unknown]}
  */
 export const variant = node => {
-    assert(node instanceof Array && node.length === 2 && typeof node[0] === 'string')
-    return [node[0], node[1]]
+    return (assert(node instanceof Array && node.length === 2 && typeof node[0] === 'string'), [node[0], node[1]])
 }
 
 /**
@@ -62,6 +59,5 @@ export const variant = node => {
  * @type {<M>(node: Meta<M> | readonly unknown[]) => Meta<M>}
  */
 export const symbolAt = node => {
-    assert(!(node instanceof Array))
-    return node
+    return (assert(!(node instanceof Array)), node)
 }

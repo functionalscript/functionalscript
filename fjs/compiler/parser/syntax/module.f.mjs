@@ -46,7 +46,7 @@ import { error, ok } from '../../../types/result/module.f.js'
 import { concat, toArray } from '../../../types/list/module.f.mjs'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
-import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
+import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     afterCase, binaryOpTag, body, callArguments, caseTail, constStatement, djsModule, eagerTail, importBinding, importBindings,

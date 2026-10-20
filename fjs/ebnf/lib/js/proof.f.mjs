@@ -12,7 +12,7 @@ import { parser } from '../../ll1/module.f.mjs'
 import { content, id, isTrivia, mergeTrivia, newLine, number, operator, operators, slash, template, templateAfterDollar, templateContent, templateContinuation, templateEscape, token, ws } from './module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'
 import { diagramPage } from '../../testlib.f.mjs'
-import { items, unmapped, variant } from '../../ast/module.f.mjs'
+import { items, unmapped, variant } from '../../ast/module.f.js'
 
 const cp = /**@type {const}*/({ id: 'cp' })
 

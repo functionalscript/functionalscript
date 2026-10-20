@@ -72,7 +72,7 @@ import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkS
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, under } from '../../path/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
-import { map } from '../../types/nullable/module.f.mjs'
+import { map } from '../../types/nullable/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { alternatesIn } from '../alternates/module.f.mjs'
 import { lastBool, lastInt, lastValue, tryEntries, values } from '../config/module.f.mjs'

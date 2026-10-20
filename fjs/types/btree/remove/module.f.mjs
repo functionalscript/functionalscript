@@ -13,7 +13,7 @@
 import { collapseRoot } from '../types/module.f.js'
 import { find } from '../find/module.f.mjs'
 import { fold, concat, next } from '../../list/module.f.mjs'
-import { map } from '../../nullable/module.f.mjs'
+import { map } from '../../nullable/module.f.js'
 
 /** @type {<T>(tail: Path<T>) => (n: TNode<T>) => readonly[T, _RemovePath<T>]} */
 const path = tail => n => {
