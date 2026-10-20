@@ -25,17 +25,23 @@ bottom:
    module. Each run's console output appears under its own heading. When the
    second run completes, the page shows both runs' stats side by side:
    - running time, from `performance.now`;
-   - memory: the JavaScript heap from `performance.memory` where the browser
-     reports it (Chromium only), and the WASM module's linear memory size;
-     "not available" where a figure is missing, never a guessed value
+   - memory, each figure labelled with what it measures, and not set side by
+     side as a comparison: the two are different quantities. For the
+     JavaScript run, the change in `performance.memory`'s heap across the
+     run, where the browser reports it (Chromium only); that heap is the
+     whole page's, so the label says so. For the WASM run, the module's
+     linear memory size. "Not available" where a figure is missing, never a
+     guessed value
      ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 The audience is newcomers first and talks or pitches second, so the page
 explains nothing it does not show. Contributors measuring performance use the
 same page.
 
-**The site build never runs cargo.** The WASM side lives in a source tree of
-its own, beside the site code, and the site consumes its committed output:
+**The site build never builds the demo WASM.** The deployment build
+(`gen.cloudflare/build.sh`) runs `cargo doc` and then the website generator;
+neither compiles a sample. The WASM side lives in a source tree of its own,
+beside the site code, and the site consumes its committed output:
 
 - **A demo crate** in the Cargo workspace (for example `nanvm/demos/`) holds,
   per sample, the Rust `fjs compile` writes for it and a thin hand-written
@@ -59,8 +65,12 @@ its own, beside the site code, and the site consumes its committed output:
   follows the JavaScript one. If it means a warm-up run before a measured one,
   the Run button runs each route twice and reports the second.
 - **Reproducible `.wasm`.** The stale-file check needs the pinned toolchain to
-  build the same bytes every time. If it does not, CI checks that the
-  committed module builds and runs instead of comparing bytes.
+  build the same bytes every time. If it does not, a fresh build cannot be
+  compared with the committed module, so the module records what it was built
+  from instead: a hash of its inputs (the generated `.rs`, the wrapper,
+  `Cargo.lock` and the toolchain pin) in a committed `gen.*` file beside it.
+  CI recomputes the hash and fails when it differs, which still catches a
+  sample edited without a rebuild.
 - **The disassembler.** Printing WAT needs a tool or crate (for example
   `wasmprinter` or `wasm-tools`), which needs approval before it is added
   ([AGENTS.md §6](../AGENTS.md#6-external-tools)).
