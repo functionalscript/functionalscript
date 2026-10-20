@@ -68,7 +68,10 @@ ended as every statement is, by `;` or where JavaScript inserts one
 It stands wherever a `const` stands: at the module level, in a function
 body, in a guard's block, in a loop's block and in a `switch` case's block.
 
-Every other expression statement stays refused, as today:
+One other expression statement is already in the language and stays as it
+is: the assignment to a loop's variable in the loop's block, `x = value;`
+([loops](../control-flow/loops.md)). Every other expression statement stays
+refused, as today:
 
 - **an operator's result**, `x;`, `a.b;`, `a + f(x);`, `!f(x);` and
   `typeof f(x);`, which is almost always a mistake. A read made only for
@@ -137,7 +140,8 @@ a silent wrong one.
   that takes a `const`. The tokenizer hands every keyword over as an `id`,
   so the alternative has to be read where the keyword statements
   (`const`, `let`, `if`, `while`, `switch`, `return`, `throw`, `import`,
-  `export`) are not.
+  `export`) are not. In a loop's block it shares its start with the loop
+  variable's assignment, `x = value;`, which stays the statement it is.
 - **Fold.** An expression statement whose node is a call, a guarded call
   or a chain ending in one, read through groups, enters as a `const` that
   binds no name. Any other expression is refused at its first token, as
