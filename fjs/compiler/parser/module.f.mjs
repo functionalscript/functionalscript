@@ -53,8 +53,8 @@
  * fold refuses the word, as it refuses every reserved global.
  *
  * A static function — `Object.is`, and the four `Number` predicates,
- * `Number.isInteger` — is a value, the AST's `['Object.is']`, in every
- * spelling JavaScript reads it in, {@link staticRead}; and a destructuring
+ * `Number.isInteger` — is a value, the AST's `['Object.is']`, in either
+ * key spelling and unguarded, {@link staticRead}; and a destructuring
  * is sugar, so an object pattern over a namespace reads each of its keys
  * as that read, `const { is } = Object` being `const is = Object.is`,
  * {@link namespaceOf}.
@@ -1293,14 +1293,16 @@ const enter = (stack, scope, node) => {
             const noted = capturedLoopVariable(scope, word) && !readsOf(reads, word)
             return [stack, noted ? { ...found[0], loopReads: [...reads, [word, loopVariableCaptured(node[1])]] } : found[0], ok(found[1])]
         }
-        case '.': case '?.': {
+        case '.': {
             const member = staticOf(node)
             if (member !== null) { return staticRead(stack, scope, node, member) }
-            return node[0] === '.' && node.length === 3
+            return node.length === 3
                 ? [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]]
                 : chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null })
         }
-        case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
+        // a guarded read of a namespace enters the word, which is refused:
+        // a guard asks whether a value is nullish, and a namespace is none
+        case '?.': case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
         case '()': { return conversion(stack, scope, node) ?? callRound(stack, scope, { call: node, index: 0, done: null }) }
         // the left operand first, as every binary operator's: the right
         // side is checked when the left returns, so a fault in the left is
@@ -1382,40 +1384,28 @@ const staticMember = (global, named) => {
  * enter the word and are refused at it. The word is a reserved global,
  * which no scope binds, so it alone decides.
  *
- * @type {(node: Extract<Node, readonly ['.' | '?.', Node, Key, ...unknown[]]>) => AstStatic | null}
+ * @type {(node: Extract<Node, readonly ['.', Node, Key, ...unknown[]]>) => AstStatic | null}
  */
 const staticOf = ([, base, key]) => base[0] !== 'ref' || key instanceof Array ? null : staticMember(nameOf(base[1]), keyNamed(key))
 
 /**
  * A read of a static function entered, `member`: `Object.is` or
- * `Object['is']`, guarded or not, since a reserved global is never nullish
- * — the AST's `['Object.is']`. The steps a chain goes on with are written
- * over the read as the nodes they are where nothing before them
- * short-circuits, and entered: `Object?.is(a, b)` is `Object.is(a, b)`,
- * and a guarded call among the steps keeps the steps after it as its own
- * chain, which its guard is still the head of. Over an explicit loop, so a
- * chain as long as the input allows costs no call stack.
+ * `Object['is']` — the AST's `['Object.is']`. Unguarded only: a guard asks
+ * whether a value is nullish, and a namespace is no value, so `Object?.is`
+ * is refused at the word, {@link enter}. A guarded call of the read,
+ * `Object.is?.(a, b)`, is the chain over the plain read it is, the read
+ * entered again as its head.
  *
- * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['.' | '?.', Node, Key, ...unknown[]]>, member: AstStatic) => _State}
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['.', Node, Key, ...unknown[]]>, member: AstStatic) => _State}
  */
 const staticRead = (stack, scope, node, member) => {
-    /** @type {Node} */
-    let read = ['.', node[1], node[2]]
-    /** @type {Step | undefined} */
-    let step = node[3]
+    const step = node[3]
     if (step === undefined) { return [stack, scope, ok(member)] }
-    while (step !== undefined) {
-        const [tag, x] = step
-        const next = stepAfter(step)
-        if (tag === '|?.()') { return [stack, scope, ['enter', next === undefined ? ['?.()', read, x] : ['?.()', read, x, next]]] }
-        read = tag === '|.' ? ['.', read, x] : ['()', read, x]
-        step = next
-    }
-    return [stack, scope, ['enter', read]]
+    const [, items, next] = step
+    /** @type {Node} */
+    const read = ['.', node[1], node[2]]
+    return [stack, scope, ['enter', next === undefined ? ['?.()', read, items] : ['?.()', read, items, next]]]
 }
-
-/** The steps a chain goes on with after `step`, where it has any. @type {(step: Step) => Step | undefined} */
-const stepAfter = ([, , next]) => next
 
 /**
  * Whether a word is a namespace an admitted static function is a member

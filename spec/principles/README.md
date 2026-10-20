@@ -148,9 +148,7 @@ conversions `Number(x)` and `String(x)`. It is no value, so the compiler sees
 every use, and each use takes **a fixed set of operands**, checked at compile
 time; any other set is a compilation error. `Number` takes none or one,
 `Number()` being `0`, so `Number(a, b)` and `Number(...a)` are refused by
-design (`Number takes one argument`), and so are `String`'s. Nor is an
-operator guarded: `Number?.(x)` asks whether `Number` is nullish, a question
-about a value, and is refused by design (`reserved word`).
+design (`Number takes one argument`), and so are `String`'s.
 
 **A word naming a JavaScript object with members of its own is never a
 value.** `Number`, `String` and `Object` are such words: in JavaScript each is
@@ -162,7 +160,9 @@ so the call would fail, which the second requirement above forbids. So each
 word is reserved ([global names](../todo/2365-global-names.md)): an operator
 where the language calls it, `Number(x)` and `String(x)`, and a namespace of
 functions where it reads the members the language admits
-([built-in static functions](../built-ins/static-functions.md)).
+([built-in static functions](../built-ins/static-functions.md)). Being no
+value, neither has a nullishness to guard: `Number?.(x)` and `Object?.is`
+ask nothing, and are refused by design (`reserved word`).
 
 **Adopted:** the language designer, **sergey-shandar**, stated the principle in
 [the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC):
