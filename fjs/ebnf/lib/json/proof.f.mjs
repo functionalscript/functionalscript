@@ -5,7 +5,7 @@
  * @import { Rule, Variant } from '../../types.ts'
  * @import { RewriteSet } from '../../ll1/types.ts'
  * @import { Utf16 } from '../../utf16/types.ts'
- * @import { Container, ContainerNode } from './types.ts'
+ * @import { Container, ContainerNode, Entry, EntryNode } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -20,6 +20,7 @@ import {
     character,
     cj,
     createValue,
+    entry,
     escape,
     hex,
     items,
@@ -178,6 +179,22 @@ export const proof = {
     },
     // An object is the same container over `property : value` pairs, with
     // whitespace allowed on both sides of the colon.
+    // The key and the value of each entry of an object, as the machine lays
+    // them out: the colon and the whitespace around it passed over. What a
+    // mapping receives for an entry is a node of the shape `entry` reads.
+    entry: () => {
+        /** @typedef {Assert<Children<Entry<'k', 'v'>, Utf16, 'o'> extends EntryNode<Ast<'k', Utf16, 'o'>, Ast<'v', Utf16, 'o'>> ? true : false>} _Shape */
+        /** @type {RewriteSet<Utf16, never>} */
+        const nothing = []
+        const parse = parser(object('k', 'v'), nothing)
+        /** @type {(text: string) => readonly (readonly [Ast<'k', Utf16>, Ast<'v', Utf16>])[]} */
+        const entriesOf = text => items(unwrap(parse(units(text)))[0]).map(entry)
+        const k = [{ symbol: 0x6b, meta: utf16 }]
+        const v = [{ symbol: 0x76, meta: utf16 }]
+        assertStructurallySame(entriesOf('{}'), [])
+        assertStructurallySame(entriesOf('{k:v}'), [[k, v]])
+        assertStructurallySame(entriesOf('{ k : v , k:v }'), [[k, v], [k, v]])
+    },
     object: () => {
         assertStructurallySame(
             force(object('p', 'v')),

@@ -49,6 +49,19 @@ export type Entry<P extends Rule, V extends Rule> =
     readonly [P, typeof ws, ':', typeof ws, V]
 
 /**
+ * The node an {@link Entry} produces, over the key node `K` and the value
+ * node `V`: the key, the colon with whitespace around it, and the value.
+ * `entry` in `./module.f.mjs` reads the pair back out of it.
+ */
+export type EntryNode<K, V> = Unmapped<readonly [
+    key: K,
+    ws: unknown,
+    colon: unknown,
+    ws: unknown,
+    value: V,
+]>
+
+/**
  * The seven alternatives a value has, as `createValue` builds them from a
  * property rule `P` and a value rule `V`.
  */

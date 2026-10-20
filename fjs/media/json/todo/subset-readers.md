@@ -1,4 +1,4 @@
-## Both readers of the JSON grammar hard-code its member layout and value dispatch
+## Both readers of the JSON grammar hard-code its value dispatch
 
 **Priority:** P4
 **Status:** open
@@ -6,24 +6,18 @@
 ### Problem
 
 [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs) builds two node
-shapes and exports a reader for one of them: `items`, for the list `cj`
-builds. For the other, `object(p, v) = cj('{}', [p, ws, ':', ws, v])`, it
-exports nothing, so [`parser`](../parser/module.f.mjs)'s `entry` and
-[`fjs/media/datajs/parser`](../../datajs/parser/module.f.mjs)'s `member` both
-read its positions:
+shapes and exports a reader for each: `items`, for the list `cj` builds, and
+`entry`, for an object's `[p, ws, ':', ws, v]`, which
+[`parser`](../parser/module.f.mjs)'s `entry` and
+[`fjs/media/datajs/parser`](../../datajs/parser/module.f.mjs)'s `member` read
+through.
 
-```js
-const [key, , , , v] = unmapped(node)
-```
-
-Both then switch over the tags `createValue` produces — the array, the
-object, the string, the number and the words — with the same arms, DataJS
-adding its own, `nan`, `undefined` and `id`.
+Both readers then switch over the tags `createValue` produces — the array,
+the object, the string, the number and the words — with the same arms,
+DataJS adding its own, `nan`, `undefined` and `id`.
 
 ### Proposal
 
-- `entry` exported from `lib/json` beside `items`, typed by the rule as
-  `items` is; the two destructures go.
 - The dispatch as an algebra in `lib/json`, beside `items` and `entry`,
   since the tags it switches over are `createValue`'s and the grammar owns
   them: `valueCases({ array, object, string, number, word })` answering
@@ -31,11 +25,9 @@ adding its own, `nan`, `undefined` and `id`.
   adds `nan`, `undefined` and `id`, and neither reader imports the other
   for it.
 
-The first alone is worth doing; the second is the fuller fix.
-
 ### Tasks
 
-- [ ] `entry` in `lib/json`; both parsers import it.
+- [x] `entry` in `lib/json`; both parsers import it.
 - [ ] `valueCases`; `toJson` and `toNode` through it.
 
 ### Related
