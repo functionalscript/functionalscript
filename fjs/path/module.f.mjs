@@ -16,6 +16,7 @@
 import { assert } from '../asserts/module.f.mjs'
 import { fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.mjs'
 import { join as listJoin, concat as stringConcat } from '../types/string/module.f.mjs'
+import { charIs, isLatinLetter } from '../text/ascii/module.f.mjs'
 
 /**
  * The dot-segment rule, once, for every spelling of a path that has one.
@@ -72,7 +73,7 @@ export const toPosix = path => path.replaceAll('\\', '/')
  *
  * @type {(c: string) => boolean}
  */
-export const isDriveLetter = c => c.length === 1 && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+export const isDriveLetter = charIs(isLatinLetter)
 
 /**
  * A Windows drive root, and only in its absolute spelling: `C:/` roots the

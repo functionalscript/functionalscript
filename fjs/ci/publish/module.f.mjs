@@ -14,7 +14,7 @@
  */
 
 import { typescript } from '../config/module.f.js'
-import { _workflowsDirectory, install, test, ubuntuArm } from '../common/module.f.mjs'
+import { _workflowsDirectory, install, npmGlobalInstall, test, ubuntuArm } from '../common/module.f.mjs'
 import { installNode } from '../node/module.f.mjs'
 
 /**
@@ -66,7 +66,7 @@ const publishSteps = [
     // Nothing checks the version afterwards, unlike the shells that provide
     // it: this step names the release it installs, so a check could only
     // restate the line above it.
-    install({ run: `npm install -g typescript@${typescript.version}` }),
+    npmGlobalInstall('typescript')(typescript.version),
     // `prepack` emits the declarations the package ships and type-checks them,
     // so the install is not optional the way it would be for a package that
     // publishes its sources unchanged — `@types/node` is what the compiler

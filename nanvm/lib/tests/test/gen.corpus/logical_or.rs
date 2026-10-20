@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check::<A>("falseOrTrue", Any::logical_or(false.to_any(), || Ok(true.to_any())), true.to_any());
     check::<A>("trueOrFalse", Any::logical_or(true.to_any(), || Ok(false.to_any())), true.to_any());

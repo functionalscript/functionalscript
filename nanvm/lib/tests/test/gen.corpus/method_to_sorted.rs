@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("asStrings", Any::dot([f64_any(0x4024000000000000), f64_any(0x4022000000000000), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok(Array::default().to_any())), [f64_any(0x3ff0000000000000), f64_any(0x4024000000000000), f64_any(0x4022000000000000)].to_array().to_any());
