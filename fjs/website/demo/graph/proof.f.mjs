@@ -226,14 +226,28 @@ export const proof = {
         // A value with a click is a control on its cell, and its text lets
         // the pointer through to it; a value without one is neither.
         // A node with an order carries it on both of its groups, box and
-        // text; a node without one carries none.
+        // text; a node without one carries none. An edge fades with the
+        // node it leads to if that one has an order, else with the node it
+        // leaves; an entry fades with its node; an edge between two nodes
+        // without one does not fade.
         order: () => {
             const html = htmlToString(graphSvg({
-                nodes: [{ id: 0, kind: 'new', label: 'a', rank: 0, order: 2 }, { id: 1, kind: 'shared', label: 'b', rank: 1 }],
-                edges: [{ from: 0, to: 1, label: '' }],
+                nodes: [
+                    { id: 0, kind: 'new', label: 'a', rank: 0, order: 0 },
+                    { id: 1, kind: 'shared', label: 'b', rank: 1 },
+                    { id: 2, kind: 'new', label: 'c', rank: 1, order: 1 },
+                    { id: 3, kind: 'shared', label: 'd', rank: 2 },
+                ],
+                edges: [{ from: 0, to: 1, label: '' }, { from: 0, to: 2, label: '' }, { from: 1, to: 3, label: '' }],
+                entries: [{ to: 0 }],
             }))
-            assertEq(html.split('data-graph-in-kind="new" data-graph-order="2"').length - 1, 2)
-            assertEq(html.split('data-graph-order').length - 1, 2)
+            assertEq(html.split('<g data-graph-in-kind="new" data-graph-order="0"').length - 1, 2)
+            assertEq(html.split('<g data-graph-in-kind="new" data-graph-order="1"').length - 1, 2)
+            /** @type {(s: string) => readonly string[]} */
+            const paths = s => s.split('<path ').slice(1).flatMap(p => p.includes('data-graph-edge=""') ? [p.slice(0, p.indexOf('>'))] : [])
+            const fades = paths(html).map(p => p.includes('data-graph-order="0"') ? 0 : p.includes('data-graph-order="1"') ? 1 : null)
+            // 0 → 1 with 0, 0 → 2 with 2, 1 → 3 with neither, the entry with 0.
+            assertEq(JSON.stringify(fades.toSorted()), '[0,0,1,null]')
         },
         inlineClick: () => {
             const html = htmlToString(graphSvg({

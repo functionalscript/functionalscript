@@ -54,6 +54,7 @@
 import { stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.mjs'
 
 /**
  * Every node's rank: the longest path from the root, so every edge points
@@ -270,6 +271,23 @@ const inKindOf = p => ({
     'data-graph-in-kind': p.kind,
     ...(p.order === undefined ? {} : { 'data-graph-order': String(p.order) }),
 })
+
+/**
+ * What an edge fades with: the node it leads to, if that one has an order,
+ * or else the node it leaves from — nothing when neither has one. So an
+ * edge into a node appears and goes with it, and an edge out of a node to
+ * one that stays goes with the node it leaves. Its kind and order are the
+ * ones the stylesheet reads off a node's groups.
+ *
+ * @type {(nodes: readonly _Positioned[]) => (from: number, to: number) => { readonly 'data-graph-in-kind'?: string, readonly 'data-graph-order'?: string }}
+ */
+const fadeOf = nodes => (from, to) => {
+    /** @type {(id: number) => _Positioned} */
+    const nodeOf = id => assertNotNullish(nodes.find(n => n.id === id))
+    const target = nodeOf(to)
+    const owner = target.order !== undefined ? target : nodeOf(from)
+    return owner.order === undefined ? {} : inKindOf(owner)
+}
 
 /**
  * A node's ports: one row per outgoing edge, in the order the demo gave
@@ -721,11 +739,13 @@ export const graphSvg = g => {
         ...positioned.map(p => p.y + p.height),
         ...placed.lanes.map(lane => lane.y + laneSize / 2),
     ])
+    const fade = fadeOf(positioned)
     /** @type {readonly Element[]} */
     const edgeEls = routesOf(placed).map(({ edge, points }) => ['path', {
         d: `M${points.map(([x, y]) => `${x},${y}`).join(' L')}`,
         'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
         ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
+        ...(typeof edge.to === 'number' ? fade(edge.from, edge.to) : {}),
     }])
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge
@@ -737,6 +757,7 @@ export const graphSvg = g => {
             d: `M${p.x - entryLength},${y} L${p.x},${y}`,
             'data-graph-edge': '', 'data-graph-entry': '', 'marker-end': 'url(#graph-arrow)',
             ...(kind === undefined ? {} : { 'data-graph-edge-kind': kind }),
+            ...fade(p.id, p.id),
         }])
     }))
     /**
