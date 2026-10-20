@@ -84,13 +84,10 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    than `built-in` admits it, since admitting a name a module may already
    have bound is a breaking change, so the list may land a name at a time
    (its file says P3, not this list's P2),
-7. [ ] [number-spread](./2363-number-spread.md) — `Number(...a)`, refused
-   until a representation is chosen; `Number(...[])` is `0`
-   (its file says P3, not this list's P2),
-8. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
-9. [x] computed property key from an expression — `{ [name]: 0 }`
+7. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+8. [x] computed property key from an expression — `{ [name]: 0 }`
    ([property keys](../values/objects.md#property-keys)).
-10. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
+9. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
    by design; open for designer approval
    (its file says P3, not this list's P2).
 

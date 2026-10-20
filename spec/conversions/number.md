@@ -49,16 +49,13 @@ compilation error (`reserved word`) anywhere else — bare,
 its own ([built-ins](../todo/2360-built-in.md)).
 A key or a property name is not a reference, so `{ Number: 1 }` and
 `o.Number` mean what they mean in JavaScript. `Number()` is `0`, as in
-JavaScript, and reaches the graph as the literal, folded as `-1` is. Two
-call shapes are not recognized yet, and refused by name
-(`Number takes one argument`) rather than answered wrongly: `Number(a, b)`,
-which establishes `a`, then `b`, then converts `a` — the comma operator's
-`(a, b, Number(a))` with `a` evaluated once, which the comma
-([comma](../operators/comma.md)) cannot spell without a binding for `a` —
-and `Number(...a)`, which converts
-the first value the spread yields after yielding them all, or is `0` where it
-yields none, as `Number()` is, a call of a runtime arity no node expresses
-yet ([number-spread](../todo/2363-number-spread.md)). Nor is the guarded call `Number?.(x)`,
+JavaScript, and reaches the graph as the literal, folded as `-1` is. The
+conversion is an operator, not a function
+([operators and functions](../principles/README.md#operators-and-functions)),
+so `Number()` and `Number(x)` are all the call shapes it has: every other is
+refused by design (`Number takes one argument`), `Number(a, b)` and
+`Number(...a)` among them.
+Nor is the guarded call `Number?.(x)`,
 which is `Number(x)` in JavaScript, the word never being nullish: it is
 refused at the word (`reserved word`) as every other spelling of `Number`
 is but the call and the four predicates' reads, until a pull request reads
