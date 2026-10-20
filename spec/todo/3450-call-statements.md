@@ -80,6 +80,12 @@ grammar already refuses a tagged template at its head, so such a line is
 refused, never split into a statement JavaScript would not see. The comma
 spells the detached call where a value stands, `const r = (0, o.f)(x);`.
 
+A call on a literal, `"a".trim();` or `1 .toFixed(2);`, has no such hazard:
+a literal continues nothing before it. It is left out because no module
+calls a member of a constant for its failure, not for a guarantee it would
+break, so admitting it is an open question of its own, under the register
+row `st.literal-call`, and not a decision of this proposal.
+
 It stands wherever a `const` stands: at the module level, in a function
 body, in a guard's block, in a loop's block and in a `switch` case's block.
 
