@@ -3,6 +3,7 @@
  *
  * @module
  *
+ * @import { Nullable } from '../nullable/types.ts'
  * @import { FixedArray, Occurrences } from './types.ts'
  */
 
@@ -180,3 +181,21 @@ export const assoc = key => a => {
     const entry = a.find(([k]) => k === key)
     return entry === undefined ? null : entry[1]
 }
+
+/**
+ * The first answer `f` gives for an item of `items` that is not `null`, or
+ * `null` when it gives none. `f` takes the item's index too, and it is not
+ * called once an answer is found.
+ *
+ * [`fjs/types/list`](../list/module.f.mjs)'s `findMap` is the same over a lazy
+ * list. This one is a plain `reduce` on purpose: a recursive walk over arrays,
+ * one call per level of nesting, spends every frame a level costs out of the
+ * depth it can reach before the stack runs out, and a lazy list's `next` would
+ * spend more of them.
+ *
+ * @template T, O
+ * @param {(item: T, index: number) => Nullable<O>} f
+ * @returns {(items: readonly T[]) => Nullable<O>}
+ */
+export const findMap = f => items =>
+    items.reduce((found, item, index) => found ?? f(item, index), /** @type {Nullable<O>} */ (null))

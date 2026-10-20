@@ -3,7 +3,7 @@
  * @import { List } from './types.ts'
  */
 
-import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, isEmpty, sameItems, tryFold, intersperse, mergeAdjacent } from './module.f.mjs'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, findMap, isEmpty, sameItems, tryFold, intersperse, mergeAdjacent } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { addition, reduceToScan } from '../function/operator/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
@@ -330,6 +330,16 @@ export const proof = {
     flatMap: flatMapTest,
     take: takeTest,
     find: findTest,
+    findMap: [
+        () => assertEq(findMap((/** @type {number} */ x) => x % 2 === 0 ? x * 10 : null)([1, 3, 4, 6]), 40),
+        () => assertEq(findMap(() => null)([1, 2]), null),
+        () => assertEq(findMap(() => 'x')([]), null),
+        // lazy: nothing after the first answer is asked
+        () => assertEq(findMap((/** @type {number} */ x) => {
+            if (x > 2) { throw x }
+            return x === 2 ? 'two' : null
+        })([1, 2, 3]), 'two'),
+    ],
     takeWhile: takeWhileTest,
     dropWhile: dropWhileTest,
     drop: dropTest,
