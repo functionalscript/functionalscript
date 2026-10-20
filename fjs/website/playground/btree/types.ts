@@ -38,18 +38,39 @@ export type Search = {
 export type Par = number | Search | null
 
 /**
- * The game: the level's depth, the tree before and after the last step —
- * `null` until the first random tree is built — the tree a move halfway done
- * lands on, the moves made, the last of them, the start's par, and why the
+ * What a frame of a move does with the nodes the next tree does not share:
+ * `leave` fades them out, and `enter` fades in the nodes the tree before
+ * did not have.
+ */
+export type Mode = 'leave' | 'enter'
+
+/**
+ * One frame of a move: the tree drawn and the tree it is drawn against,
+ * whether its nodes leave or enter, and what the board says meanwhile —
+ * `null` for a move's last frame, where the board says where the game
+ * stands.
+ */
+export type Frame = {
+    readonly versions: Versions<Tree<number>>
+    readonly mode: Mode
+    readonly note: string | null
+}
+
+/**
+ * The game: the level's depth, the frame on the board — its `versions`
+ * `null` until the first random tree is built — the frames of a move still
+ * to come, the moves made, the last of them, the start's par, and why the
  * last request did nothing, if it did nothing.
  *
- * A move is two steps: the remove, which `versions.after` shows while
- * `landing` holds the tree the insert makes, and then the insert.
+ * A move is four frames: the nodes the remove replaces leave, its new ones
+ * enter, the nodes the insert replaces leave, and its new ones enter.
  */
 export type Game = {
     readonly depth: number
     readonly versions: Versions<Tree<number>> | null
-    readonly landing: Tree<number> | null
+    readonly mode: Mode
+    readonly note: string | null
+    readonly pending: readonly Frame[]
     readonly moves: number
     readonly par: Par
     readonly last: Last | null

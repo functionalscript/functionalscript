@@ -225,6 +225,16 @@ export const proof = {
         },
         // A value with a click is a control on its cell, and its text lets
         // the pointer through to it; a value without one is neither.
+        // A node with an order carries it on both of its groups, box and
+        // text; a node without one carries none.
+        order: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'new', label: 'a', rank: 0, order: 2 }, { id: 1, kind: 'shared', label: 'b', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: '' }],
+            }))
+            assertEq(html.split('data-graph-in-kind="new" data-graph-order="2"').length - 1, 2)
+            assertEq(html.split('data-graph-order').length - 1, 2)
+        },
         inlineClick: () => {
             const html = htmlToString(graphSvg({
                 nodes: [{ id: 0, kind: 'a', label: '', rank: 0 }],

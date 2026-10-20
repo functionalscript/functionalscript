@@ -261,11 +261,15 @@ const clickOf = ({ to }) => typeof to === 'number' || to.click === undefined ? {
  * them: the node's kind, so a stylesheet can treat the whole node as one,
  * where `data-graph-kind`, on the box alone, styles the box. They are two
  * names because a rule meant for a box, a fill or a dash, would be wrong
- * on text.
+ * on text. A node with an `order` carries it on both groups too, so its
+ * box and its text fade as one.
  *
- * @type {(p: _Positioned) => { readonly 'data-graph-in-kind': string }}
+ * @type {(p: _Positioned) => { readonly 'data-graph-in-kind': string, readonly 'data-graph-order'?: string }}
  */
-const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
+const inKindOf = p => ({
+    'data-graph-in-kind': p.kind,
+    ...(p.order === undefined ? {} : { 'data-graph-order': String(p.order) }),
+})
 
 /**
  * A node's ports: one row per outgoing edge, in the order the demo gave

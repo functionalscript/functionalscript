@@ -18,11 +18,17 @@
  * A node with edges draws its `label` as a column left of its rows. An
  * empty `label` draws no column, for a demo whose rows already say what
  * the node is.
+ *
+ * `order`, when given, is the node's place in an animation, drawn as
+ * `data-graph-order`: the site's stylesheet fades a `new` node in and a
+ * `leaving` one out, a second after the order before it, so a change can
+ * appear node by node.
  */
 export type Node = {
     readonly id: number
     readonly kind: string
     readonly label: string
+    readonly order?: number | undefined
 }
 
 /** A {@link Node} once `ranked` (`./module.f.mjs`) has placed it. */
