@@ -19,6 +19,12 @@
  * built when the page starts. The tree is drawn by the B-tree demo's
  * {@link structure}, so each move shows the nodes it built in blue.
  *
+ * **A move is shown in two steps**: first the tree with the key removed —
+ * where a leaf merges or borrows — then, {@link landDelay} later, the tree
+ * with it inserted again — where a leaf splits. Each step is drawn against
+ * the one before it, so each shows in blue what it built. A move that
+ * changes nothing has nothing to show, and lands at once.
+ *
  * **Par is the fewest moves from the start to a perfect tree**, found by a
  * breadth-first search over the move: every tree one move from the start,
  * then two, until one is perfect. At depth 3 that meets thousands of trees,
@@ -80,6 +86,9 @@ export const nodeCount = tree => {
 
 /** The levels a par is searched for: depth 4's trees are too many. */
 export const parDepths = [2, 3]
+
+/** How long, in milliseconds, a move shows its key removed before it lands. */
+export const landDelay = 700
 
 /** How many trees one turn of the search tries. */
 export const turnBudget = 50
@@ -154,23 +163,44 @@ export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(dept
     const tree = r[1].reduce((t, k) => structure.insert(k)(t), structure.empty)
     const par = parDepths.includes(depth) ? parSearch(tensUpTo(keyCount(depth)))(tree) : null
     /** @type {Game} */
-    const started = { depth, versions: { before: tree, after: tree }, moves: 0, par, last: null, error: null }
+    const started = { depth, versions: { before: tree, after: tree }, landing: null, moves: 0, par, last: null, error: null }
     return pureOk(started)
 })
 
 /**
- * The move: `key` removed and inserted again, counted, and the tree drawn
- * against the one before it. One that comes back drawn as before answers
- * the tree it was given, so nothing is coloured.
+ * The second step of a move halfway done: the tree with its key inserted
+ * again, drawn against the tree without it. With no move halfway, the game
+ * as it was.
+ *
+ * @type {(game: Game) => Game}
+ */
+export const land = game => game.versions === null || game.landing === null ? game
+    : { ...game, versions: { before: game.versions.after, after: game.landing }, landing: null }
+
+/**
+ * The move: `key` removed and inserted again, and counted. Its first step
+ * shows the tree without the key, drawn against the one before it, and
+ * keeps the tree the insert makes for {@link land}. One that comes back
+ * drawn as before answers the tree it was given, at once, so nothing is
+ * coloured. A move made while another is halfway lands that one first.
  *
  * @type {(key: number) => (game: Game) => Game}
  */
 export const move = key => game => {
-    if (game.versions === null) { return game }
-    const before = game.versions.after
-    const moved = moveTree(key)(before)
+    const landed = land(game)
+    if (landed.versions === null) { return landed }
+    const before = landed.versions.after
+    const removed = structure.remove(key)(before)
+    const moved = structure.insert(key)(removed)
     const changed = !same({ before, after: moved })
-    return { ...game, versions: { before, after: changed ? moved : before }, moves: game.moves + 1, last: { key, changed }, error: null }
+    return {
+        ...landed,
+        versions: { before, after: changed ? removed : before },
+        landing: changed ? moved : null,
+        moves: landed.moves + 1,
+        last: { key, changed },
+        error: null,
+    }
 }
 
 /** @type {(n: number) => string} */
@@ -180,12 +210,15 @@ const movesText = n => n === 1 ? '1 move' : `${n} moves`
 const parText = par => par === null ? '' : typeof par === 'number' ? ` Par: ${movesText(par)}.` : ' Par: working it out…'
 
 /**
- * Where the game stands: a win, or the depth and the node count against the
- * level's, and what the last move did if it changed nothing.
+ * Where the game stands: a move halfway, a win, or the depth and the node
+ * count against the level's, and what the last move did if it changed
+ * nothing. Halfway, the tree is a key short, so its nodes are not counted:
+ * a key short of 8, 7 keys can fill the 4 nodes a win at depth 2 needs.
  *
  * @type {(game: Game) => (tree: Tree<number>) => string}
  */
-export const statusLine = ({ depth, moves, par, last }) => tree => {
+export const statusLine = ({ depth, landing, moves, par, last }) => tree => {
+    if (landing !== null && last !== null) { return `${movesText(moves)}. ${last.key} is out of the tree, and goes back in next.` }
     const nodes = nodeCount(tree)
     if (nodes === goalNodes(depth)) {
         return moves === 0 ? 'This tree started perfect. Press New tree for another.' : `Perfect, in ${movesText(moves)}!${parText(par)}`
@@ -219,10 +252,14 @@ const board = game => game.versions === null
 
 /** @type {Demo<Game, DemoEvent, RandomInt>} */
 export const demo = {
-    init: { depth: depths[0], versions: null, moves: 0, par: null, last: null, error: null },
-    nextEvent: ({ par }) => par === null || typeof par === 'number' ? null : { kind: 'click', name: 'par' },
+    init: { depth: depths[0], versions: null, landing: null, moves: 0, par: null, last: null, error: null },
+    nextEvent: ({ landing, par }) => landing !== null ? { kind: 'click', name: 'land' }
+        : par === null || typeof par === 'number' ? null
+        : { kind: 'click', name: 'par' },
+    nextDelay: ({ landing }) => landing === null ? 0 : landDelay,
     update: game => event => {
         if (event.kind === 'start' || (event.kind === 'click' && event.name === 'new')) { return start(game.depth)(game) }
+        if (event.kind === 'click' && event.name === 'land') { return pureOk(land(game)) }
         if (event.kind === 'click' && event.name === 'par') { return pureOk(searchTurn(game)) }
         const level = event.kind === 'input' && event.name === 'level' ? levelOf(event.value) : undefined
         if (level !== undefined) { return start(level)(game) }

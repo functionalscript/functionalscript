@@ -5,7 +5,7 @@
  * @import { Game, Par, Search } from './types.ts'
  */
 
-import { demo, depthOf, goalNodes, keyCount, move, nodeCount, parSearch, searchStep, searchTurn, start, statusLine } from './module.f.mjs'
+import { demo, depthOf, goalNodes, keyCount, land, landDelay, move, nodeCount, parSearch, searchStep, searchTurn, start, statusLine } from './module.f.mjs'
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
 import { values } from '../../../types/btree/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
@@ -39,7 +39,10 @@ const html = game => htmlToString(demo.view(game))
 const inOrder = tensUpTo(8).reduce((t, k) => structure.insert(k)(t), structure.empty)
 
 /** @type {Game} */
-const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, moves: 0, par: null, last: null, error: null }
+const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, landing: null, moves: 0, par: null, last: null, error: null }
+
+/** A move made and landed. @type {(key: number) => (game: Game) => Game} */
+const played = key => game => land(move(key)(game))
 
 /** A search, asserted to be one. @type {(par: Par) => Search} */
 const searchOf = par => {
@@ -102,21 +105,38 @@ export const proof = {
         },
     },
     move: {
-        // A key that comes back in another place: counted, and drawn
-        // against the tree before it.
+        // A key that comes back in another place, in two steps. The first
+        // shows the tree without it, drawn against the tree before, and is
+        // counted; the second lands it, drawn against the tree without it.
         changes: () => {
-            const game = move(40)(level2)
-            assertEq(JSON.stringify([game.moves, game.last]), '[1,{"key":40,"changed":true}]')
+            const halfway = move(40)(level2)
+            assertEq(JSON.stringify([halfway.moves, halfway.last]), '[1,{"key":40,"changed":true}]')
+            const out = assertNotNullish(halfway.versions)
+            assertEq(out.before, inOrder)
+            assertEq(JSON.stringify(keysOf(halfway)), JSON.stringify(tensUpTo(8).filter(k => k !== 40)))
+            const game = land(halfway)
+            assertEq(JSON.stringify([game.moves, game.landing]), '[1,null]')
             const versions = assertNotNullish(game.versions)
-            assertEq(versions.before, inOrder)
-            assert(versions.after !== inOrder, '')
+            assertEq(versions.before, out.after)
+            assertEq(versions.after, halfway.landing)
             assertEq(JSON.stringify(keysOf(game)), JSON.stringify(tensUpTo(8)))
+            // With nothing halfway, there is nothing to land.
+            assertEq(land(game), game)
+            assertEq(land(demo.init), demo.init)
+        },
+        // A move made while another is halfway lands that one first: 40 is
+        // back in the tree before 10 is lifted out.
+        landsFirst: () => {
+            const game = move(10)(move(40)(level2))
+            assertEq(JSON.stringify(assertNotNullish(game.versions).before), JSON.stringify(assertNotNullish(played(40)(level2).versions).after))
+            assertEq(JSON.stringify(keysOf(game)), JSON.stringify(tensUpTo(8).filter(k => k !== 10)))
+            assertEq(JSON.stringify([game.moves, game.last]), '[2,{"key":10,"changed":true}]')
         },
         // A key that goes back where it was: counted too, the tree it was
         // given kept, and said.
         goesBack: () => {
             const game = move(10)(level2)
-            assertEq(JSON.stringify([game.moves, game.last]), '[1,{"key":10,"changed":false}]')
+            assertEq(JSON.stringify([game.moves, game.last, game.landing]), '[1,{"key":10,"changed":false},null]')
             assertEq(assertNotNullish(game.versions).after, inOrder)
             assertEq(statusLine(game)(inOrder), '1 move. Depth 3, goal 2. 7 nodes, goal 4. 10 went back where it was.')
         },
@@ -129,19 +149,25 @@ export const proof = {
         // The depth and the nodes against the level's, while not perfect.
         playing: () => {
             assertEq(statusLine(level2)(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4.')
-            const game = move(40)(level2)
+            const game = played(40)(level2)
             assertEq(statusLine(game)(assertNotNullish(game.versions).after), '1 move. Depth 3, goal 2. 7 nodes, goal 4.')
+        },
+        // Halfway, the tree is a key short and its nodes are not counted:
+        // the board says the key is out.
+        halfway: () => {
+            const game = move(40)(level2)
+            assertEq(statusLine(game)(assertNotNullish(game.versions).after), '1 move. 40 is out of the tree, and goes back in next.')
         },
         // Three moves make it perfect, and the game says so.
         won: () => {
-            const game = move(50)(move(10)(move(40)(level2)))
+            const game = played(50)(played(10)(played(40)(level2)))
             const tree = assertNotNullish(game.versions).after
             assertEq(JSON.stringify([depthOf(tree), nodeCount(tree)]), '[2,4]')
             assertEq(statusLine(game)(tree), 'Perfect, in 3 moves!')
         },
         // A tree that starts perfect is said to, not counted as a win.
         startedPerfect: () => {
-            const perfect = assertNotNullish(move(50)(move(10)(move(40)(level2))).versions).after
+            const perfect = assertNotNullish(played(50)(played(10)(played(40)(level2))).versions).after
             assertEq(statusLine({ ...level2, versions: { before: perfect, after: perfect } })(perfect), 'This tree started perfect. Press New tree for another.')
         },
     },
@@ -164,7 +190,7 @@ export const proof = {
         },
         // A perfect start has par 0, and nothing to search.
         perfect: () => {
-            const perfect = assertNotNullish(move(50)(move(10)(move(40)(level2))).versions).after
+            const perfect = assertNotNullish(played(50)(played(10)(played(40)(level2))).versions).after
             assertEq(parSearch(tensUpTo(8))(perfect), 0)
         },
         // Seven keys cannot fill every node, so the search meets every tree
@@ -189,7 +215,7 @@ export const proof = {
             const searching = { ...level2, par: parSearch(tensUpTo(8))(inOrder) }
             assertEq(statusLine(searching)(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4. Par: working it out…')
             assertEq(statusLine({ ...level2, par: 3 })(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4. Par: 3 moves.')
-            const won = move(50)(move(10)(move(40)({ ...level2, par: 3 })))
+            const won = played(50)(played(10)(played(40)({ ...level2, par: 3 })))
             assertEq(statusLine(won)(assertNotNullish(won.versions).after), 'Perfect, in 3 moves! Par: 3 moves.')
             assertEq(statusLine({ ...level2, par: 1 })(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4. Par: 1 move.')
         },
@@ -205,6 +231,18 @@ export const proof = {
             assertEq(searchTurn(level2), level2)
             const known = { ...level2, par: 3 }
             assertEq(searchTurn(known), known)
+        },
+        // A move halfway asks for its landing first, after a pause; the
+        // landing comes before a search's next turn, which follows at once.
+        landing: () => {
+            const halfway = move(40)({ ...level2, par: parSearch(tensUpTo(8))(inOrder) })
+            const { nextEvent, nextDelay } = demo
+            assertEq(JSON.stringify(assertNotNullish(nextEvent)(halfway)), '{"kind":"click","name":"land"}')
+            assertEq(assertNotNullish(nextDelay)(halfway), landDelay)
+            const landed = update({ kind: 'click', name: 'land' })(halfway)
+            assertEq(JSON.stringify(landed), JSON.stringify(land(halfway)))
+            assertEq(JSON.stringify(assertNotNullish(nextEvent)(landed)), '{"kind":"click","name":"par"}')
+            assertEq(assertNotNullish(nextDelay)(landed), 0)
         },
     },
     demo: {

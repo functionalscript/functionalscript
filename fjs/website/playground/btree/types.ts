@@ -38,14 +38,18 @@ export type Search = {
 export type Par = number | Search | null
 
 /**
- * The game: the level's depth, the tree before and after the last move —
- * `null` until the first random tree is built — the moves made on it, the
- * last of them, the start's par, and why the last request did nothing, if
- * it did nothing.
+ * The game: the level's depth, the tree before and after the last step —
+ * `null` until the first random tree is built — the tree a move halfway done
+ * lands on, the moves made, the last of them, the start's par, and why the
+ * last request did nothing, if it did nothing.
+ *
+ * A move is two steps: the remove, which `versions.after` shows while
+ * `landing` holds the tree the insert makes, and then the insert.
  */
 export type Game = {
     readonly depth: number
     readonly versions: Versions<Tree<number>> | null
+    readonly landing: Tree<number> | null
     readonly moves: number
     readonly par: Par
     readonly last: Last | null
