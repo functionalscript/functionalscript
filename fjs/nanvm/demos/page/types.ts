@@ -45,6 +45,7 @@ export type Runs = {
 
 export type State = {
     readonly source: Loaded<string>
+    readonly rust: Loaded<string>
     readonly wat: Loaded<string>
     readonly wasm: Loaded<WasmInstance>
     readonly runs: Runs | null

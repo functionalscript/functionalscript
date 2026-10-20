@@ -1,15 +1,16 @@
 /**
  * The WASM demo page ([`todo/wasm-demos.md`](../../../../todo/wasm-demos.md)),
- * one per sample: the sample's FunctionalScript source, the disassembly of
- * the WebAssembly it compiles to, and a Run button that runs it as
+ * one per sample: the sample's FunctionalScript source, the Rust
+ * `fjs compile` writes for it, the disassembly of the WebAssembly that Rust
+ * builds to, and a Run button that runs it as
  * JavaScript and then as WebAssembly, showing each run's output and stats.
  *
  * **The disassembly is a scrolling box, not a disclosure.** A `details` the
  * reader opened is closed again by the next render, which puts its markup
  * back, so pressing Run would hide the WAT the reader was reading.
  *
- * **The page loads before the reader asks.** The source, the disassembly and
- * the module are fetched on `start`, so the times Run shows hold the entry
+ * **The page loads before the reader asks.** The source, the Rust, the
+ * disassembly and the module are fetched on `start`, so the times Run shows hold the entry
  * call alone: no fetch, compile or instantiation. The module's startup is
  * shown on its own line.
  *
@@ -47,6 +48,12 @@ import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 /** A sample's source, repository-relative. @type {(name: string) => string} */
 export const samplePath = name => `fjs/nanvm/demos/${name}/sample.f.mjs`
 
+/** Where the compiled samples go, a `gen.` name `gen:clean` empties. */
+export const rustDirectory = 'nanvm/demos/gen.samples'
+
+/** The Rust `fjs compile` writes for a sample, committed. @type {(name: string) => string} */
+export const rustPath = name => `${rustDirectory}/${name}.rs`
+
 /**
  * Where the deployment build puts the module and its disassembly: a `_` name,
  * which git ignores and the site serves.
@@ -65,20 +72,21 @@ export const wasmPath = `${buildDirectory}/nanvm_demos.wasm`
 export const watPath = name => `${buildDirectory}/${name}.wat`
 
 /** @type {State} */
-export const init = { source: ['loading'], wat: ['loading'], wasm: ['loading'], runs: null }
+export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], runs: null }
 
 /** @type {<T>(r: Result<T, IoChannel>) => Result<T, string>} */
 const loaded = r => r[0] === 'ok' ? r : error(errorMessage(r[1]))
 
 /**
- * Fetches the source, the disassembly and the module, each in turn; a file
+ * Fetches the source, the Rust, the disassembly and the module, each in turn; a file
  * that does not arrive is the reason it is not shown.
  *
  * @type {(name: string) => Effect<FetchText | Instantiate, State, never>}
  */
 export const load = name => {
     const source = resultStep(fetchText(`/${samplePath(name)}`), r => pureOk(/** @type {State} */ ({ ...init, source: loaded(r) })))
-    const wat = step(source, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loaded(r) })))
+    const rust = step(source, state => resultStep(fetchText(`/${rustPath(name)}`), r => pureOk({ ...state, rust: loaded(r) })))
+    const wat = step(rust, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loaded(r) })))
     return step(wat, state => resultStep(instantiate(`/${wasmPath}`), r => pureOk({ ...state, wasm: loaded(r) })))
 }
 
@@ -234,6 +242,8 @@ export const view = name => state => ['div', {},
         'Run calls each in turn and shows what it wrote to standard output and how long the call took.'],
     caption('FunctionalScript source:'),
     ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text))]),
+    caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
+    ...loadedView(state.rust, text => [codeBlock(text, 'Copy the Rust')]),
     caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
     ...loadedView(state.wat, text => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', text]]]),
     ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],

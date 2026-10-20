@@ -22,18 +22,15 @@ import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
 import { forEachStep, pureOk, step } from '../../effects/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
-import { samplePath } from './page/module.f.mjs'
+import { rustDirectory, rustPath, samplePath } from './page/module.f.mjs'
 
-export { samplePath }
+export { rustPath, samplePath }
 
 /** The samples, by the name of the directory beside this module that holds each. */
 export const samples = ['hello']
 
-/** Where the compiled samples go, a `gen.` name `gen:clean` empties. */
-export const directory = 'nanvm/demos/gen.samples'
-
 /** The module file naming every compiled sample, which `src/lib.rs` includes by path. */
-export const modulesPath = `${directory}/mod.rs`
+export const modulesPath = `${rustDirectory}/mod.rs`
 
 /**
  * The text of `mod.rs`: one `pub mod` per sample, under the header every
@@ -55,7 +52,7 @@ export const modules = names => [
  * @type {(names: readonly string[]) => Effect<_CompileOp, void, IoChannel>}
  */
 export const generate = names => step(
-    forEachStep(pureOk(names), name => compileFile(noRuntime)(samplePath(name), `${directory}/${name}.rs`)),
+    forEachStep(pureOk(names), name => compileFile(noRuntime)(samplePath(name), rustPath(name))),
     () => writeFiles([[modulesPath, modules(names)]]))
 
 /** @type {NodeProgram} */

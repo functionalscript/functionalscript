@@ -17,7 +17,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, init, jsOutput, load, milliseconds, runBoth, runJs, runWasm, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
+import { buildDirectory, decode, init, jsOutput, load, milliseconds, runBoth, runJs, runWasm, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
 
 /** @type {(text: string) => Sample['program']} */
 const writes = text => () => ({
@@ -72,7 +72,7 @@ const perform = map => effect => {
     return result[1]
 }
 
-const files = { '/fjs/nanvm/demos/hi/sample.f.mjs': 'export default 1', [`/${watPath('hi')}`]: '(module)' }
+const files = { '/fjs/nanvm/demos/hi/sample.f.mjs': 'export default 1', [`/${rustPath('hi')}`]: 'pub fn module() {}', [`/${watPath('hi')}`]: '(module)' }
 
 /** Every loaded state. @type {State} */
 const ready = perform(page(files, instance([0x68, 0x69])))(load('hi'))
@@ -83,11 +83,13 @@ const text = e => JSON.stringify(e)
 export const proof = {
     paths: () => {
         assertEq(samplePath('hello'), 'fjs/nanvm/demos/hello/sample.f.mjs')
+        assertEq(rustPath('hello'), 'nanvm/demos/gen.samples/hello.rs')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
         assertEq(watPath('hello'), `${buildDirectory}/hello.wat`)
     },
     load: () => {
         assertStructurallySame(ready.source, ok('export default 1'))
+        assertStructurallySame(ready.rust, ok('pub fn module() {}'))
         assertStructurallySame(ready.wat, ok('(module)'))
         assertEq(ready.wasm[0], 'ok')
         assertEq(ready.runs, null)
@@ -149,6 +151,7 @@ export const proof = {
         assert(shown.includes('Running time: 1.0 ms'))
         assert(shown.includes('Linear memory after the run: 65536 bytes'))
         assert(shown.includes('Memory: Not available'))
+        assert(shown.includes('pub fn module() {}'))
         const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0 }), wasm: ok({ run: { output: error('the sample threw'), time: 0 }, memory: 0 }) } }))
         assert(empty.includes('(empty)'))
         assert(empty.includes('the sample threw'))

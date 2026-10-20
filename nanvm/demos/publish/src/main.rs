@@ -6,14 +6,15 @@
 //! with `wasmprinter`.
 //!
 //! A sample's WAT holds only the functions Rust defines in its module,
-//! `nanvm_demos::samples::<sample>`, by their demangled names in the module's
-//! name section: NaNVM and `std` are most of the module and the same for
-//! every sample.
+//! `nanvm_demos::samples::<sample>`, picked by the names in the module's name
+//! section, which this demangles first so the WAT names every function as
+//! Rust does: NaNVM and `std` are most of the module and the same for every
+//! sample.
 //!
 //! `nanvm-demos-publish <built .wasm> <published .wasm> <WAT directory> <sample>...`
 
 use std::{env, fs, io, ops::Range, path::Path, process::ExitCode};
-use wasmparser::{KnownCustom, Name, Parser, Payload, TypeRef};
+use wasmparser::{BinaryReader, KnownCustom, Name, NameMap, Parser, Payload, TypeRef};
 
 /// Makes `path`'s directory.
 fn make_directory(path: &Path) -> io::Result<()> {
@@ -21,6 +22,91 @@ fn make_directory(path: &Path) -> io::Result<()> {
         Some(directory) => fs::create_dir_all(directory),
         None => Ok(()),
     }
+}
+
+/// Appends `value` in unsigned LEB128, as WebAssembly writes sizes.
+fn leb128(out: &mut Vec<u8>, mut value: usize) {
+    loop {
+        let byte = (value & 0x7f) as u8;
+        value >>= 7;
+        if value == 0 {
+            out.push(byte);
+            return;
+        }
+        out.push(byte | 0x80);
+    }
+}
+
+/// Appends a section, or a name subsection: its id, its size and `content`.
+fn section(out: &mut Vec<u8>, id: u8, content: &[u8]) {
+    out.push(id);
+    leb128(out, content.len());
+    out.extend(content);
+}
+
+/// Appends a name, as WebAssembly writes one: its size, then its UTF-8.
+fn name(out: &mut Vec<u8>, text: &str) {
+    leb128(out, text.len());
+    out.extend(text.as_bytes());
+}
+
+/// The contents of a name section, with each function's name demangled and
+/// every other subsection as it was.
+fn demangled_names(data: &[u8], offset: u64) -> wasmparser::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    name(&mut out, "name");
+    let mut reader = BinaryReader::new(data, offset);
+    while !reader.eof() {
+        let id = reader.read_u8()?;
+        let size = reader.read_var_u32()? as usize;
+        let start = reader.original_position();
+        let content = reader.read_bytes(size)?;
+        if id != FUNCTION_NAMES {
+            section(&mut out, id, content);
+            continue;
+        }
+        let functions = NameMap::new(BinaryReader::new(content, start))?
+            .collect::<wasmparser::Result<Vec<_>>>()?;
+        let mut map = Vec::new();
+        leb128(&mut map, functions.len());
+        for naming in functions {
+            leb128(&mut map, naming.index as usize);
+            name(
+                &mut map,
+                &format!("{:#}", rustc_demangle::demangle(naming.name)),
+            );
+        }
+        section(&mut out, id, &map);
+    }
+    Ok(out)
+}
+
+/// The id of the name section's function names subsection.
+const FUNCTION_NAMES: u8 = 1;
+
+/// The module with its functions named as Rust writes them,
+/// `nanvm_demos::samples::hello::module::<…>`, instead of by their mangled
+/// symbols. Every other section is copied as it was.
+fn demangle(bytes: &[u8]) -> wasmparser::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    for payload in Parser::new(0).parse_all(bytes) {
+        let payload = payload?;
+        if let Payload::Version { range, .. } = &payload {
+            out.extend(&bytes[range.start as usize..range.end as usize]);
+        }
+        let Some((id, range)) = payload.as_section() else {
+            continue;
+        };
+        let content = &bytes[range.start as usize..range.end as usize];
+        match payload {
+            Payload::CustomSection(custom) if custom.name() == "name" => {
+                let names = demangled_names(custom.data(), custom.data_offset())?;
+                section(&mut out, id, &names);
+            }
+            _ => section(&mut out, id, content),
+        }
+    }
+    Ok(out)
 }
 
 /// The byte ranges of the bodies of the functions whose names `keep` accepts,
@@ -63,23 +149,20 @@ fn bodies(bytes: &[u8], keep: impl Fn(&str) -> bool) -> wasmparser::Result<Vec<R
         .collect())
 }
 
-/// Whether `symbol` is defined in `sample`'s module.
-fn in_sample(sample: &str) -> impl Fn(&str) -> bool {
-    let path = format!("nanvm_demos::samples::{sample}::");
-    move |symbol| format!("{:#}", rustc_demangle::demangle(symbol)).contains(&path)
-}
-
-/// The WAT of the functions defined in `sample`'s module, or why there is
-/// none. A line belongs to a function when its binary offset is in the
-/// function's body; a line with no offset belongs to the line before it.
+/// The WAT of the functions defined in `sample`'s module, by their demangled
+/// names, or why there is none. A line belongs to a function when its binary
+/// offset is in the function's body; a line with no offset belongs to the
+/// line before it.
 fn wat(bytes: &[u8], sample: &str) -> Result<String, String> {
-    let kept = bodies(bytes, in_sample(sample)).map_err(|e| e.to_string())?;
+    let bytes = demangle(bytes).map_err(|e| e.to_string())?;
+    let path = format!("nanvm_demos::samples::{sample}::");
+    let kept = bodies(&bytes, |name| name.contains(&path)).map_err(|e| e.to_string())?;
     if kept.is_empty() {
         return Err(format!("no functions of the sample `{sample}`"));
     }
     let mut storage = String::new();
     let lines = wasmprinter::Config::new()
-        .offsets_and_lines(bytes, &mut storage)
+        .offsets_and_lines(&bytes, &mut storage)
         .map_err(|e| e.to_string())?;
     let mut text = String::new();
     let mut keeping = false;
@@ -170,7 +253,8 @@ mod tests {
     #[test]
     fn wat_prints_the_sample_alone() {
         let text = wat(&named("other", SAMPLE), "hello").unwrap();
-        assert!(text.contains(SAMPLE));
+        assert!(text.contains("nanvm_demos::samples::hello::module"));
+        assert!(!text.contains(SAMPLE));
         assert!(text.contains("nop"));
         assert!(!text.contains("other"));
         assert!(!text.contains("(import"));
@@ -203,7 +287,7 @@ mod tests {
         assert!(
             fs::read_to_string(wat_to.join("hello.wat"))
                 .unwrap()
-                .contains(SAMPLE)
+                .contains("nanvm_demos::samples::hello::module")
         );
         fs::remove_dir_all(&root).unwrap();
     }

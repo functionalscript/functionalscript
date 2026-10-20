@@ -20,8 +20,10 @@ bottom:
 
 1. **The FJS source** of the sample, highlighted as the other demos highlight
    code.
-2. **The WASM disassembly** of the module the sample compiles to, as WAT text.
-3. **A Run button** that runs the original JavaScript and then the WASM
+2. **The Rust** `fjs compile` writes for it, the committed `.rs` the module is
+   built from.
+3. **The WASM disassembly** of the module the sample compiles to, as WAT text.
+4. **A Run button** that runs the original JavaScript and then the WASM
    module. Each run's console output appears under its own heading. When the
    second run completes, the page shows both runs' stats side by side:
    - running time, from `performance.now`, around the call to the sample's
@@ -90,7 +92,8 @@ built:
   module, picked by their names in the module's name section, read with
   `wasmparser` and demangled with `rustc-demangle`, which Sasha also
   approved. NaNVM and `std` are most of the module, the same for every
-  sample, and left out.
+  sample, and left out. The WAT names every function as Rust does, since
+  the name section is demangled before it is printed.
 - **Not yet:** the JavaScript memory figure, and the sample's use of `log` and `utf8`, which
   `fjs compile` cannot compile yet, so the sample builds its `write` command
   by hand.
