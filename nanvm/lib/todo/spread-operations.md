@@ -141,11 +141,13 @@ What `get_iterator` returns, and what `object_spread` returns beside it:
   a `[[Done]]` flag; this one needs neither, and the name is kept anyway. It implements
   `Iterator<Item = Any<A>>` and is fused.
 - **An enum of the two iterable kinds**, each owning a clone of its value,
-  which is a reference count, and a position:
+  which is a reference count, and a position. An array's is the
+  `IndexIter` that `Array::into_iter` returns; a string's walks code points,
+  one or two code units at a time, and keeps its own:
 
   ```rust
   pub enum IteratorRecord<A: IVm> {
-      Array { array: Array<A>, next: u32 },
+      Array(IndexIter<u32, Array<A>>),
       String { string: String<A>, next: u32 }, // a code-unit index
   }
   ```
@@ -167,8 +169,9 @@ What `get_iterator` returns, and what `object_spread` returns beside it:
 - **`ObjectSpread<A>`** is the object side's counterpart, with
   `Item = (String<A>, Any<A>)`. Its object variant needs the deduplicated
   key order before its first entry, so it computes that order when it is
-  created. Its array and string variants stay index walks, and its empty
-  variant covers everything else.
+  created. Its array and string variants are each an enumerated
+  `IndexIter`, the index giving the key, and its empty variant covers
+  everything else.
 
 **Each code point is a new `String<A>`**, as JavaScript makes it. Sharing
 the parent's buffer is an optimization, and

@@ -26,7 +26,7 @@ One `#[cfg(test)] pub(crate) mod scratch` with the guard, used by `files.rs`,
 
 ### Related
 
-- [parity-test-scaffolding](../../harness/todo/parity-test-scaffolding.md) —
-  the harness's copy of the same guard.
+- [`harness/tests/parity.rs`](../../harness/tests/parity.rs) — the harness's
+  copy of the same guard.
 - [io-error-constructors](./io-error-constructors.md) — the other small
   duplication in `files.rs`.
