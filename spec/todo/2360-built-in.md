@@ -232,8 +232,9 @@ the move in the same session, after the admission.
 - [x] `String` — implemented as `String(exp)`, the string conversion,
       and `String()`, the empty-string literal; the word is reserved
       ([string conversion](../conversions/string.md)). Namespace
-      members, spreads, multiple arguments and guarded global calls remain
-      unrecognized
+      members remain unrecognized; spreads, multiple arguments and guarded
+      calls are refused by design, the conversion being an operator
+      ([operators and functions](../principles/README.md#operators-and-functions))
 - [ ] `RegExp`
 
 ##### String conversion proposal and approval
