@@ -599,7 +599,7 @@ export const demo = {
 export const demo = {
     init: 'still',
     nextEvent: state => state === 'held' ? { kind: 'click', name: 'later' } : null,
-    nextDelay: () => 50,
+    nextDelay: () => 300,
     update: state => event => () => ['ok', event.kind === 'click' ? (event.name === 'hold' ? 'held' : event.name) : state],
     view: state => ['div', ['button', { type: 'button', name: 'hold' }, 'Hold'], ['button', { type: 'button', name: 'other' }, 'Other'], ['pre', state]],
 }
@@ -612,11 +612,12 @@ export const demo = {
         d.click('hold')
         await settle()
         // Still held a while after: a runtime that ignored the delay would
-        // have run the next event by now.
+        // have run the next event by now. The delay is long enough that a
+        // slow host still checks well inside it.
         await sleep(20)
         await settle()
         assert(d.root.innerHTML.includes('<pre>held</pre>'), d.root.innerHTML)
-        await sleep(60)
+        await sleep(400)
         await settle()
         assert(d.root.innerHTML.includes('<pre>later</pre>'), d.root.innerHTML)
         // A reader's click during the wait cancels the automatic event.
@@ -627,7 +628,7 @@ export const demo = {
         await settle()
         e.click('other')
         await settle()
-        await sleep(80)
+        await sleep(400)
         await settle()
         assert(e.root.innerHTML.includes('<pre>other</pre>'), e.root.innerHTML)
     },
