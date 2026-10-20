@@ -141,7 +141,7 @@
 
 import { assert } from '../../../asserts/module.f.js'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
-import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
+import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
 import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
