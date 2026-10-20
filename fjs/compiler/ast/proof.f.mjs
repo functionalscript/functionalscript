@@ -217,10 +217,13 @@ export const proof = {
             assertStructurallySame(commaOperands([',', [access, 1]]), [access, 1])
             assertStructurallySame(commaOperands([',', [1, undefined, null, 'a', ['cref', 0], ['aref', 0], ['fref', 0], ['arg', 0], ['rest'], ['self'], 2]]), [2])
             assertStructurallySame(commaOperands([',', [['=>', 0, [1]], ['entry'], ['hasEntry'], ['Object.is'], ['slice'], access]]), [access])
-            // the last is the value whatever it is, and nested commas are
-            // operands like any other
+            // the last is the value whatever it is, a comma included, and a
+            // discarded comma is its operands, discarded in turn, so its own
+            // inert value is dropped too
             assertStructurallySame(commaOperands([',', [access, ['cref', 0]]]), [access, ['cref', 0]])
-            assertStructurallySame(commaOperands([',', [[',', [access, 1]], 2]]), [[',', [access, 1]], 2])
+            assertStructurallySame(commaOperands([',', [access, [',', [access, 1]]]]), [access, [',', [access, 1]]])
+            assertStructurallySame(commaOperands([',', [[',', [access, 1]], 2]]), [access, 2])
+            assertStructurallySame(commaOperands([',', [[',', [[',', [1, access]], ['=>', 0, [1]]]], 2]]), [access, 2])
         },
         // what a comma keeps it reaches, eagerly, for anchoring; what it
         // drops reaches nothing, so a `const` it names alone is anchored
