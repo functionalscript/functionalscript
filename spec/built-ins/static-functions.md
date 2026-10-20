@@ -26,11 +26,7 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 where the global `isFinite("1")`, which converts and is not admitted, is
 `true`. Each is a value, as in JavaScript — passed,
 compared, read as `Object.is.length` — and one function however often it is
-read, so `Object.is === Object.is`. A value is a function, not an operator,
-so a call of it takes any number of arguments, as in JavaScript —
-`Number.isInteger(1, 2)` is `true`
-([operators and functions](../principles/README.md#operators-and-functions)).
-Every spelling of the read is that value:
+read, so `Object.is === Object.is`. Every spelling of the read is that value:
 `Object.is` and `Object["is"]`, and the guarded `Object?.is` and
 `Object?.["is"]`, since a namespace is never nullish; a call of it, guarded
 or not, is a call of that value, and steps after a guarded read go on as

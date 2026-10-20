@@ -20,7 +20,7 @@
  * function is written with — `(`, `)`, `...`, `=>` — `-`, Stage A's
  * arithmetic, strict-comparison and bitwise operators, Stage B's lazy
  * ones with the conditional's `?`
- * ([`spec/operators/README.md`](../../../spec/operators/README.md))
+ * ([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md))
  * and the optional step's `?.`
  * ([`spec/todo/2335-optional-chaining.md`](../../../spec/todo/2335-optional-chaining.md))
  * is an error, since the language has no other.
@@ -36,10 +36,10 @@
  * the negation of the access and of the call, as JavaScript reads them,
  * rather than an access and a call on a negative literal — recognized is
  * not accepted, and the same is true of every operator token
- * `fjs/js/tokenizer` already carries that this layer does not admit, `==`,
- * `++` and `+=` among them. The four template chunk kinds keep their cooked
- * text, but only when their exact `source` spelling uses the accepted
- * escape subset.
+ * `fjs/js/tokenizer` already carries that this layer does not admit, `,`
+ * and the rest of `spec/todo/2340-operators.md`'s later stages among
+ * them. The four template chunk kinds keep their cooked text, but only
+ * when their exact `source` spelling uses the accepted escape subset.
  * Deferred spellings remain located errors even when their cooked value
  * could also have been written with admitted escapes.
  *
