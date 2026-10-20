@@ -98,7 +98,7 @@ does; `fjs/compiler/parser/proof.f.mjs` holds the refusals and the valid
 `(-2) ** 2` and `-(2 ** 2)`. What is left is the comparison against a native
 JavaScript engine's early errors, and extending that gate to the
 logical/nullish operators and parameter syntax, which have since landed. The
-[operator plan](../spec/todo/2340-operators.md) owns the operators.
+[operators specification](../spec/operators/README.md) owns the operators.
 
 #### Pattern instructions — proposed bypass, rules 1 and 2
 
@@ -315,7 +315,7 @@ randomness and external mutation.
 - [x] Replace the token-bypass design with mandatory statement-aware AST
       recognition and retire the proposed `Object.hasOwn` source pattern.
 - [x] **P1:** apply the settled failure contract to the
-      [operator plan](../spec/todo/2340-operators.md) and align the
+      [operators](../spec/operators/README.md) and align the
       [representation examples](../spec/todo/1015-undefined-property-vm-layer.md)
       with complete proposed patterns or explicitly labeled JavaScript-only
       oracles. Execution/optimization and regression work remains below.

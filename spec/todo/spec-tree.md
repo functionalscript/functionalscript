@@ -137,7 +137,7 @@ which is refused as a read but accepted as a call) is an included page with a
    - `◌` `==` `!=` (refused by design); `◌` [`in`](./2346-in-operator.md)
      (refused); `◌` unary `+`, comma
 7. **Conversions**
-   - `●` `Number(...)`; `○` `String(...)`; `◌` [number spread](./2363-number-spread.md)
+   - `●` `Number(...)`; `○` `String(...)`; `◌` other call shapes ([refused by design](../principles/README.md#operators-and-functions))
 8. **Property access**
    - `●` Own-property read; `●` [optional chaining](./2335-optional-chaining.md)
    - `●` Reading an entry at run time (the `entry` helper, presence included)

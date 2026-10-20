@@ -91,7 +91,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
   free-variable machinery needed,
   `["?:", cond, ["undefined"], ["throw", …]]` ([Operations](#operations),
   subject 10).
-  [operators](../spec/todo/2340-operators.md) allows the comma operator
+  The [comma operator](../spec/operators/comma.md) is in the language
   for exactly this reason: it was rejected as "useful only when we want
   to mutate", and the assert pattern is the counter-example — in a pure
   language the only side effect a discarded operand can have is
@@ -355,7 +355,7 @@ coercion job as `Number(x)` for every type except **bigint**, where it throws
 instead of converting. FunctionalScript does not parse it: `["Number", node]`
 is the language's one numeric-coercion form, spelled by its JS built-in, and
 which EDAG operations the language admits as syntax is
-[operators](../spec/todo/2340-operators.md)'s decision, not the EDAG's. The
+the language's decision ([operators](../spec/operators/README.md)), not the EDAG's. The
 EDAG admits an operation when it is pure — its result a function of its
 operands and nothing else — and unary `+` is.
 
@@ -411,11 +411,11 @@ arity by membership alone.
 
 |Symbols|Arity|JS|Lazy|Notes|
 |-------|-----|--|----|-----|
-|`+` `-`|1|`+a`, `-a`|no|unary plus and negation — the arithmetic tags below at one operand (see above); unary `+` is not FunctionalScript syntax ([operators](../spec/todo/2340-operators.md)), and [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
+|`+` `-`|1|`+a`, `-a`|no|unary plus and negation — the arithmetic tags below at one operand (see above); unary `+` is not FunctionalScript syntax ([operators](../spec/operators/README.md)), and [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
 |`!` `~`|1|`!a`, `~a`|no|unary only|
 |`typeof`|1|`typeof a`|no|implemented FunctionalScript syntax; returns the value's JavaScript type string ([spec: operators](../spec/operators/README.md))|
 |`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
-|`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/todo/2340-operators.md)|
+|`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/operators/README.md)|
 |`&` `\|` `^` `<<` `>>` `>>>`|2|`a & b`|no|bitwise|
 |`&&` `\|\|` `??`|2|`a && b`|**yes**|the right operand is established only if the left does not decide the result|
 |`?:`|3|`c ? t : e`|**yes**|exactly one of the two arms is established|
@@ -857,7 +857,7 @@ not as an implementation prerequisite for the fixed/rest contract.
 
 **Status:** decided (for what stage 1 must guarantee)
 
-`?:`, `&&`, `||`, `??` ([operators](../spec/todo/2340-operators.md)) are
+`?:`, `&&`, `||`, `??` ([operators](../spec/operators/README.md)) are
 lazy, and operations throw — so eager evaluation of both sides is
 observably wrong. Stage 1 ships no branches; it must only keep the door
 open:
