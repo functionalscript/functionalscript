@@ -685,6 +685,28 @@ const lowered = ({ reads, names }, value, base) => ({
  */
 const advanced = (frame, made) => ({ ...frame, index: frame.index + 1, done: concat(frame.done)(made) })
 
+/**
+ * A binding statement's value landed in a frame that counts entries — a
+ * block body's `const`, a loop block's, or a late parameter: a name its
+ * own initializer read from outside, unbound when the statement began and
+ * bound now only by the capture that read took, is refused, `capture
+ * shadowed`; otherwise the frame steps past the entries the statement
+ * lowers to, {@link advanced}, and the names bind to them for what
+ * follows — after the value, keeping them out of their own initializer's
+ * scope — and `round` goes on.
+ *
+ * @type {<F extends _Counted<AstConst> & { readonly entries: number }>(round: (stack: _Stack, scope: _Scope, frame: F) => _State, stack: _Stack, scope: _Scope, frame: F, plan: _Plan, value: AstConst) => _State}
+ */
+const landed = (round, stack, scope, frame, plan, value) => {
+    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+    const { entries, bound } = lowered(plan, value, frame.entries)
+    return round(
+        stack,
+        { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
+        { ...advanced(frame, entries), entries: frame.entries + entries.length })
+}
+
 /** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
 const isCallStep = step => step !== undefined && step[0] !== '|.'
 
@@ -1626,16 +1648,7 @@ const lateRound = (stack, scope, frame) => {
  *
  * @type {(stack: _Stack, scope: _Scope, frame: _LateFrame, value: AstConst) => _State}
  */
-const lateLanded = (stack, scope, frame, value) => {
-    const { plan } = frame.late[frame.index]
-    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
-    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
-    const { entries, bound } = lowered(plan, value, frame.entries)
-    return lateRound(
-        stack,
-        { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-        { ...advanced(frame, entries), entries: frame.entries + entries.length })
-}
+const lateLanded = (stack, scope, frame, value) => landed(lateRound, stack, scope, frame, frame.late[frame.index].plan, value)
 
 /**
  * A value handed to the frame on top: the next round of a container with
@@ -1718,15 +1731,7 @@ const returned = (stack, scope, frame, value) => {
     if ('block' in frame) {
         const [kind, statement] = frame.block[frame.index]
         if (kind === 'const') {
-            const plan = assertNotNullish(frame.plan, ['a const statement with no plan', statement])
-            // a name its own initializer read from outside, as a body's
-            const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
-            if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
-            const { entries, bound } = lowered(plan, value, frame.entries)
-            return loopRound(
-                stack,
-                { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-                { ...advanced(frame, entries), entries: frame.entries + entries.length })
+            return landed(loopRound, stack, scope, frame, assertNotNullish(frame.plan, ['a const statement with no plan', statement]), value)
         }
         // an assignment rebinds the loop's variable, which the block may
         // have read already: a new entry the word names from here on
@@ -1738,19 +1743,7 @@ const returned = (stack, scope, frame, value) => {
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const') {
-            const plan = assertNotNullish(frame.plan, ['a const statement with no plan', statement])
-            // a name its own initializer read from outside: unbound when the
-            // statement began, bound now only by the capture that read took
-            const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
-            if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
-            // the bindings land after the value, keeping the names out of
-            // their own initializer's scope, and name the entries this
-            // statement makes, after the ones the body has made so far
-            const { entries, bound } = lowered(plan, value, frame.entries)
-            return bodyRound(
-                stack,
-                { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-                { ...advanced(frame, entries), entries: frame.entries + entries.length })
+            return landed(bodyRound, stack, scope, frame, assertNotNullish(frame.plan, ['a const statement with no plan', statement]), value)
         }
         // a guard's condition: its block is the first arm, a block of
         // JavaScript's own, so it may bind what the body has bound or read
