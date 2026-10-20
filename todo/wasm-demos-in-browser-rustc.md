@@ -79,8 +79,10 @@ only, so NaNVM gets there one of two ways:
   a pinned Weblings release or another store, with the hashes pinned in the
   repository, as other Weblings users pin them in a `toolchain.lock.json`.
 - **Maturity.** Weblings is experimental, one author's project. One
-  application built on it reports that 80 of 94 Rustlings reference
-  solutions compile and run. NaNVM hits the same kind of gap: the
+  application built on it,
+  [rustlings-web](https://github.com/petreleon/rustlings-web), reported in
+  its README on 2026-10-20 that 80 of 94 Rustlings reference solutions
+  compile and run. NaNVM hits the same kind of gap: the
   [spike](#spike-results) found three operations the backend cannot lower
   yet. Each is small, but until they are fixed upstream NaNVM needs a
   workaround at every site that uses them.

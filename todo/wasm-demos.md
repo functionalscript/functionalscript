@@ -42,19 +42,23 @@ The audience is newcomers first and talks or pitches second, so the page
 explains nothing it does not show. Contributors measuring performance use the
 same page.
 
-**The site build never builds the demo WASM.** The deployment build
-(`gen.cloudflare/build.sh`) runs `cargo doc` and then the website generator;
-neither compiles a sample. The WASM side lives in a source tree of its own,
-beside the site code, and the site consumes its committed output:
+**The website generator never builds the demo WASM.** The WASM side lives
+in a source tree of its own, beside the site code, and the site consumes its
+output:
 
 - **A demo crate** in the Cargo workspace (for example `nanvm/demos/`) holds,
   per sample, the Rust `fjs compile` writes for it and a thin hand-written
   wrapper that calls the module and wires the console to an import the page
   provides.
-- **Its outputs are committed as generated files**: the `.rs` from
-  `fjs compile`, the built `.wasm`, and the WAT the page shows, each named
-  `gen.*`. `npm run gen` rebuilds them in the Nix shell, so CI's stale-file
-  check catches a sample edited without a rebuild.
+- **The generated Rust is committed**: the `.rs` from `fjs compile`, named
+  `gen.*`, which `npm run gen` rebuilds, as NaNVM's other generated Rust is.
+- **Who builds the `.wasm` and its WAT is open**, between two owners:
+  - `npm run gen`, which commits them as `gen.*` files beside the `.rs`, so
+    CI's stale-file check catches a sample edited without a rebuild. This
+    needs a reproducible build (see below).
+  - the deployment build (`gen.cloudflare/build.sh`), which already installs
+    Rust and runs `cargo doc` before the website generator, and would build
+    the demo crate there too. Nothing is committed, and nothing can go stale.
 - **The page fetches** the `.wasm` and the WAT by their repository paths, as
   module pages already load repository files
   ([website/README.md](../fjs/website/README.md)).
@@ -88,8 +92,9 @@ beside the site code, and the site consumes its committed output:
 
 - [ ] Choose two or three samples that print to the console and that
       `fjs compile … .rs` accepts today.
-- [ ] Settle the entry point, and add the demo crate with its wrapper and the
-      `npm run gen` step that writes the `.rs`, `.wasm` and WAT.
+- [ ] Settle the entry point and who builds the `.wasm`, and add the demo
+      crate with its wrapper, the `npm run gen` step that writes the `.rs`,
+      and the step that builds the `.wasm` and WAT.
 - [ ] Build the demo page: source, disassembly, Run button and stats.
 - [ ] Add one page per sample and link them from the website.
 
