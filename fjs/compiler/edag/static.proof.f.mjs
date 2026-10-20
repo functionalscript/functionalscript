@@ -15,7 +15,7 @@ import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { apply, compile, execute, expectEdag, value } from './proof.f.mjs'
 
 export const proof = {

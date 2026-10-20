@@ -3,7 +3,7 @@
  * @import { BitGroups } from '../../website/demo/bits/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.f.mjs'
 import { encode, decode } from './module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'

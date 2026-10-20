@@ -1,6 +1,6 @@
 /** @import { Dir } from '../../effects/node/virtual/types.ts' */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 import { emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'

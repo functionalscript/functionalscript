@@ -5,7 +5,7 @@
  * @import { _DemoState } from './types.ts'
  */
 
-import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.js'
 import { compress } from './id/module.f.mjs'
 import { encode, emptyEncodeState } from './module.f.mjs'
 import { demo, maxBits, stripes, units } from './demo.f.mjs'

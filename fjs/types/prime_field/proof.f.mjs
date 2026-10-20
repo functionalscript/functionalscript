@@ -1,5 +1,5 @@
 import { modSqrt, prime_field, sqrt } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
     throw: {

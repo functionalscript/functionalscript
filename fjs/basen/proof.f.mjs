@@ -1,4 +1,4 @@
-import { assertEq, assertNotNullish } from '../asserts/module.f.mjs'
+import { assertEq, assertNotNullish } from '../asserts/module.f.js'
 import { empty, maxLength, vec, length } from '../types/bit_vec/module.f.mjs'
 import { baseN } from './module.f.mjs'
 

@@ -12,7 +12,7 @@ serialization are separate steps: the parser may accept a program whose
 evaluation fails, or whose result a particular output cannot represent.
 
 Features the parser does not recognize yet — among them the remaining unary
-operator (`+`), the comma operator and type annotations in comments — and the
+operator (`+`) and type annotations in comments — and the
 design documents for the VM, I/O, serialization, and the rest of the roadmap
 live in [`spec/todo/`](./todo/README.md). Loose equality (`== !=`) is not
 waiting: it stays refused ([operators](./operators/README.md)).

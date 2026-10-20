@@ -10,7 +10,7 @@
 
 import { tryU8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
 import { stringToU8List } from './utf8/module.f.mjs'
-import { mapUnwrap } from '../types/nullable/module.f.mjs'
+import { mapUnwrap } from '../types/nullable/module.f.js'
 
 /**
  * Converts a string to an UTF-8, represented as an MSB first bit vector,

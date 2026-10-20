@@ -20,8 +20,8 @@
  * @import { Encoding } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
-import { fromUndefined } from '../../types/nullable/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
+import { fromUndefined } from '../../types/nullable/module.f.js'
 
 /**
  * The symbol of the first registered name: `0x110000`, one past the last
@@ -44,14 +44,14 @@ export const start = 0x11_0000
  *
  * @type {<T extends string>(names: readonly T[]) => Encoding<T>}
  */
-export const encoding = names => {
-    assert(new Set(names).size === names.length, ['duplicate token name', names])
-    return {
+export const encoding = names => (
+    // each name first appears at its own index: no name repeats
+    assert(names.every((n, i) => names.indexOf(n) === i), ['duplicate token name', names]),
+    {
         encode: name => {
             const index = names.indexOf(name)
-            assert(index !== -1, ['unregistered token name', name])
-            return start + index
+            return (assert(index !== -1, ['unregistered token name', name]), start + index)
         },
-        decode: symbol => fromUndefined(names[symbol - start]),
+        decode: symbol => fromUndefined(names[Number(symbol - start)]),
     }
-}
+)

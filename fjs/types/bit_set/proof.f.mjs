@@ -1,5 +1,5 @@
 import { bitSet, bigintOps, numberOps } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 const n = bitSet(numberOps)(8)
 

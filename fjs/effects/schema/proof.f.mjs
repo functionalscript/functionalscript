@@ -2,7 +2,7 @@
  * @import { Type } from '../../rtti/types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { validate } from '../../rtti/validate/module.f.mjs'
 import {
     dirent, fileModule, ioChannel, ioError, makeDirectoryOptions, mkdir, notImplemented, nothing,

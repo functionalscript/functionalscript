@@ -7,7 +7,7 @@ import { boolean, number, string, bigint, never, unknown, array, open, record, o
 import { stringify } from '../module.f.mjs'
 import { dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './module.f.mjs'
 import { absentBit, unitBit } from '../../../rtti/data/module.f.mjs'
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 
 /** @type {(v: JsonSchema) => string} */
 const serialize = v => stringify(e => e)(v)

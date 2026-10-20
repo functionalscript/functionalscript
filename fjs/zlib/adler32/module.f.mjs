@@ -19,7 +19,7 @@
  * @import { Fold } from '../../types/function/operator/types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { isWholeBytes, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 

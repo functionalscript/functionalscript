@@ -27,7 +27,7 @@ import { fromVec, utf8ToString } from '../text/utf8/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
-import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { _compiled, _written, demo, outputs } from './demo.f.mjs'
 import { disagreement } from '../website/demo/highlight/module.f.mjs'
 import { textOfResult } from '../text/marked/module.f.mjs'
@@ -1321,6 +1321,8 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Laziness': 'ooooo',
                 'Laziness: && || ??': 'xxooo',
                 'Laziness: ?:': 'xxooo',
+                'Comma: the assertion form': 'xxooo',
+                'Comma: a detached call': 'ooooo',
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
                 'Recursion': 'ooooo',

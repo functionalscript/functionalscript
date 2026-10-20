@@ -1,4 +1,4 @@
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.js'
 import { isNegativeZero } from './module.f.js'
 
 export const proof = {

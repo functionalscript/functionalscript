@@ -22,7 +22,7 @@
  * @import { _ValueNode } from './private.ts'
  */
 
-import { assertOk } from '../../../asserts/module.f.mjs'
+import { assertOk } from '../../../asserts/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { isIntrinsic, isStatic } from '../../../edag/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'

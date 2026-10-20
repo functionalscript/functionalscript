@@ -16,7 +16,7 @@
  * } from './types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 import { history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { error, unwrap as unwrapResult } from '../../types/result/module.f.js'

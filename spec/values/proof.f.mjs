@@ -1,4 +1,4 @@
-import { assert } from '../../fjs/asserts/module.f.mjs'
+import { assert } from '../../fjs/asserts/module.f.js'
 import { examplePicker } from '../../fjs/website/demo/examples/module.f.js'
 import area from './module.f.js'
 

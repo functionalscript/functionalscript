@@ -1,4 +1,4 @@
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, statics as staticPaths } from '../static/module.f.js'
 import { isStatic as isStaticNode } from '../../edag/module.f.mjs'

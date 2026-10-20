@@ -6,7 +6,7 @@
 
 import { readdirSync, readFileSync } from 'node:fs'
 
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { _transpileDefault } from '../../compiler/transpiler/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'

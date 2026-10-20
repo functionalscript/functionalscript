@@ -10,7 +10,7 @@
  * @import { State, RealPoint, Construction } from '../../website/demo/secp/types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
 import { inputField, caption, refusal, radios } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'

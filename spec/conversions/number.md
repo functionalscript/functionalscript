@@ -53,8 +53,9 @@ JavaScript, and reaches the graph as the literal, folded as `-1` is. Two
 call shapes are not recognized yet, and refused by name
 (`Number takes one argument`) rather than answered wrongly: `Number(a, b)`,
 which establishes `a`, then `b`, then converts `a` — the comma operator's
-`(a, b, Number(a))`, which lands with it
-([operators](../todo/2340-operators.md)) — and `Number(...a)`, which converts
+`(a, b, Number(a))` with `a` evaluated once, which the comma
+([comma](../operators/comma.md)) cannot spell without a binding for `a` —
+and `Number(...a)`, which converts
 the first value the spread yields after yielding them all, or is `0` where it
 yields none, as `Number()` is, a call of a runtime arity no node expresses
 yet ([number-spread](../todo/2363-number-spread.md)). Nor is the guarded call `Number?.(x)`,

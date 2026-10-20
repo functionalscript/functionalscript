@@ -7,7 +7,7 @@
  */
 
 import { toArray, repeat as listRepeat } from '../list/module.f.mjs'
-import { fromUndefined } from '../nullable/module.f.mjs'
+import { fromUndefined } from '../nullable/module.f.js'
 
 /**
  * @type {(value: unknown) => value is readonly unknown[]}

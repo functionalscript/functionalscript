@@ -14,7 +14,7 @@ import {
 import { fromU8List, stringToU8List } from '../utf8/module.f.mjs'
 import { codeUnitToString } from '../utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { unwrap } from '../../types/nullable/module.f.mjs'
+import { unwrap } from '../../types/nullable/module.f.js'
 
 /** @type {(s: string) => readonly number[]} */
 const utf8Bytes = s => toArray(stringToU8List(s))

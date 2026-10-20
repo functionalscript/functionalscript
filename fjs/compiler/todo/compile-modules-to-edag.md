@@ -658,8 +658,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       where `a.toString` is refused
       ([`fjs/js/prototype/README.md`](../../js/prototype/README.md)). Grouping the
       access is no way around either rule: `(a.b)(c)` keeps the receiver and is
-      that same method call, while the detached `(0, a.b)(c)` waits on the comma
-      operator.
+      that same method call, while the detached `(0, a.b)(c)` is the comma
+      operator's, the plain call over the access
+      ([comma](../../../spec/operators/comma.md)).
 - [x] Add proofs for non-capturing nested functions and ordinary/method calls in the
       supported Stage 2 subset, including accepted static/numeric method-call
       properties and rejection of prohibited/runtime-computed string properties. Done:

@@ -4,7 +4,7 @@
 
 import { examplePicker, name } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 
 /** @type {Examples} */
 const examples = [['One', 'export default 1;'], ['Two', 'export default 2;']]

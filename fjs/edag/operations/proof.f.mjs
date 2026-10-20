@@ -8,7 +8,7 @@
  * @import { Context, Evaluator } from './types.ts'
  */
 
-import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { operation, staticCall } from './module.f.mjs'
 import { noStatic, staticIds, staticPath } from '../module.f.mjs'
 import { isNative } from '../../js/static/module.f.js'

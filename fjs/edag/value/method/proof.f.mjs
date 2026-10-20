@@ -6,7 +6,7 @@
  * @import { Invoke } from '../call/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { invoke } from '../../amnesia/module.f.mjs'
 import { admits, hasMethod, method } from './module.f.mjs'

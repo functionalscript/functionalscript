@@ -35,7 +35,7 @@ import { chunkStrings, chunksMarked, chunksText } from '../../../text/marked/mod
 import { definedEntries, isObject } from '../../../types/object/module.f.mjs'
 import { compose, fn } from '../../../types/function/module.f.js'
 import { stringLiteral } from '../../../js/string_escape/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 const jsonStringify = JSON.stringify
 

@@ -2,7 +2,7 @@
  * @import { Accept } from '../../../../fjs/media/datajs/vectors/types.ts'
  */
 
-import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
+import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { isDocument } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
 import accept from './data.f.js'
 

@@ -70,7 +70,7 @@ describes:
 | `op.loose-equality` | `a == b`, `a != b` | design ([operators](./2340-operators.md)) |
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md)) |
 | `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof.md)) |
-| `op.comma` | `(1, 2)` | planned ([operators](./2340-operators.md)) |
+| `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
 | `op.assignment` | `a = 1` outside a loop's block | planned ([let](./3220-let.md), "Later": a `let` outside a loop is a rebinding) |
 | `op.compound-assignment` | `a += 1`, `a **= 2`, `a &&= 2` | planned ([assignments](./3430-assignments.md)) |
 | `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) |

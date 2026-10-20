@@ -30,7 +30,7 @@
  */
 
 import { map, scan, toArray } from '../../types/list/module.f.mjs'
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 
 /**

@@ -15,7 +15,7 @@ import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { values } from '../btree/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'
 import { fold } from '../list/module.f.mjs'
-import { map as nullableMap } from '../nullable/module.f.mjs'
+import { map as nullableMap } from '../nullable/module.f.js'
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
 const keyCmp = a => ([b]) => cmp(a)(b)

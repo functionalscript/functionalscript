@@ -23,7 +23,7 @@
  * @import { Analysis } from '../../../edag/analysis/types.ts'
  */
 
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 import { scopeHolds } from '../../../edag/analysis/module.f.mjs'
 import { chunkText } from '../../../text/marked/module.f.mjs'
 

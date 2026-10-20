@@ -5,7 +5,7 @@
 
 import { runPure } from '../module.f.mjs'
 import { empty, nonEmpty } from './module.f.mjs'
-import { assert, assertEq, assertOk } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk } from '../../asserts/module.f.js'
 
 /**
  * Pulls one cell. Both constructors are pure, so the cell is reached without a
