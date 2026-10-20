@@ -52,18 +52,26 @@ output:
   provides.
 - **The generated Rust is committed**: the `.rs` from `fjs compile`, named
   `gen.*`, which `npm run gen` rebuilds, as NaNVM's other generated Rust is.
-- **Who builds the `.wasm` and its WAT is open**, between two owners:
-  - `npm run gen`, which commits them as `gen.*` files beside the `.rs`, so
-    CI's stale-file check catches a sample edited without a rebuild. This
-    needs a reproducible build (see below), and a `*.wasm binary` line in
-    `.gitattributes`: the file's `* text eol=lf` rule would otherwise rewrite
-    any CRLF bytes in the module, as the `*.ico` line there already prevents.
-  - the deployment build (`gen.cloudflare/build.sh`), which already installs
-    Rust and runs `cargo doc` before the website generator, and would build
-    the demo crate there too. Nothing is committed, and nothing can go stale.
-- **The page fetches** the `.wasm` and the WAT by their repository paths, as
-  module pages already load repository files
-  ([website/README.md](../fjs/website/README.md)).
+- **The deployment build makes the `.wasm` and its WAT.**
+  `gen.cloudflare/build.sh` already installs Rust and runs `cargo doc` before
+  the website generator, so it builds the demo crate for `wasm32` there too.
+  Neither file is committed: they are gitignored output, like the site's
+  `index.html` files, so nothing can go stale and no reproducible build is
+  needed. Committing them was the other option. It would need byte-identical
+  rebuilds, because `npm run gen` deletes and rebuilds every `gen.*` file, and
+  a `*.wasm binary` line in `.gitattributes`.
+- **The page fetches** the `.wasm` and the WAT by the paths the deployment
+  build writes them to, as module pages already load files from the served
+  tree ([website/README.md](../fjs/website/README.md)).
+
+### Alternative
+
+[WASM demo pages with rustc in the browser](./wasm-demos-in-browser-rustc.md)
+compiles each sample in the visitor's browser with Weblings, so the source is
+editable and the page can show the Cranelift IR between the Rust and the
+WASM. A spike compiled NaNVM and every harness fixture that way and recorded
+its costs. This design is the one to build first; that one stays an
+alternative.
 
 ### Open questions
 
@@ -74,18 +82,12 @@ output:
 - **What "second run" means.** This design reads it as the WASM run, which
   follows the JavaScript one. If it means a warm-up run before a measured one,
   the Run button runs each route twice and reports the second.
-- **Reproducible `.wasm`.** Committing the module works only if the pinned
-  toolchain builds the same bytes every time: `npm run gen` deletes every
-  `gen.*` file and rebuilds it, so a module that differs from build to build
-  fails CI's drift check on every run. A hash of the inputs beside the module
-  does not rescue that. The rebuild still rewrites the module, and the hash
-  would have to cover every input, NaNVM's sources and the build
-  configuration included. If the build is not reproducible, the module is
-  built by the deployment build instead and never committed, which is the
-  question under review.
-- **The disassembler.** Printing WAT needs a tool or crate (for example
-  `wasmprinter` or `wasm-tools`), which needs approval before it is added
-  ([AGENTS.md §6](../AGENTS.md#6-external-tools)).
+- **The disassembler.** Printing WAT in the deployment build needs a tool or
+  crate (for example `wasmprinter` or `wasm-tools`), which needs approval
+  before it is added ([AGENTS.md §6](../AGENTS.md#6-external-tools)).
+- **The deployment build's toolchain.** `build.sh` installs Rust with
+  `rustup`, outside the Nix shell, so it also needs the `wasm32` target, at
+  the version CI pins.
 - **Disassembly size.** The module carries the NaNVM runtime as well as the
   sample. The page may need to show the sample's own functions first, with the
   rest collapsed.
@@ -94,16 +96,16 @@ output:
 
 - [ ] Choose two or three samples that print to the console and that
       `fjs compile … .rs` accepts today.
-- [ ] Settle the entry point and who builds the `.wasm`, and add the demo
-      crate with its wrapper, the `npm run gen` step that writes the `.rs`,
-      and the step that builds the `.wasm` and WAT.
+- [ ] Settle the entry point, and add the demo crate with its wrapper, the
+      `npm run gen` step that writes the `.rs`, and the `build.sh` step that
+      builds the `.wasm` and WAT.
 - [ ] Build the demo page: source, disassembly, Run button and stats.
 - [ ] Add one page per sample and link them from the website.
 
 ### Related
 
 - [WASM demo pages with rustc in the browser](./wasm-demos-in-browser-rustc.md)
-  — the alternative: compile in the visitor's browser and show each IR.
+  — the [alternative](#alternative), with the Weblings spike's results.
 - [fjs–nanvm integration](./fjs-nanvm-integration.md) — the FJS → Rust → NaNVM
   pipeline these pages run.
 - [Console program](../nanvm/lib/todo/console-program.md) — the console effect
