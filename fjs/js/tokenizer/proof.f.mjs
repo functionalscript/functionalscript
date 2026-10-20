@@ -1,5 +1,4 @@
 /**
- * @import { Meta } from '../../ebnf/ast/types.ts'
  * @import { JsToken } from '../../ebnf/lib/js/types.ts'
  */
 
@@ -7,6 +6,7 @@ import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.m
 import { toArray } from '../../types/list/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
+import { assertRecognizes, recognizer } from '../../ebnf/testlib.f.mjs'
 import { _positions, tokenize } from './module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
@@ -60,20 +60,10 @@ const parseToken = parser(ebnfToken)
 /**
  * Whether the grammar reads the whole text as tokens — whatever the layers
  * above then make of them, so `2true` is covered, two tokens side by side.
- *
- * @type {(s: string) => boolean}
  */
-const covers = s => {
-    /** @type {readonly Meta<null>[]} */
-    const symbols = toArray(stringToCodePointList(s)).map(symbol => ({ symbol, meta: null }))
-    let pos = 0
-    while (pos < symbols.length) {
-        const match = parseToken(symbols, pos)
-        if (match[0] === 'error') { return false }
-        pos = match[1][1]
-    }
-    return true
-}
+const covers = assertRecognizes(recognizer(
+    parseToken,
+    s => toArray(stringToCodePointList(s)).map(symbol => ({ symbol, meta: null }))))
 
 export const proof = {
     templates: {
@@ -183,41 +173,35 @@ export const proof = {
     // make of the tokens. The token stream itself — kind, text, position —
     // is pinned by every `tokenizeString` and `tokenize` case below, which
     // the descent tokenizer met before the port and this one meets unchanged.
-    isValid: [() => {
-            /** @type {(s: string, expected: boolean) => void} */
-            const expect = (s, expected) => {
-                assertEq(covers(s), expected, s)
-            }
-
-            expect('"', false)
-            expect('   true   ', true)
-            expect('   tr2ue   ', true)
-            expect('   2true   ', true)
-            expect('   true"   ', false)
-            expect('   "Hello"   ', true)
-            expect('   "Hello   ', false)
-            expect('   "Hello\\n\\r\\""   ', true)
-            expect('   56.7e+5  ', true)
-            expect('   -56.7e+5  ', true)
-            expect('   h-56.7e+5   ', true)
-            expect('   -56.7e+5   3', true)
-            expect('   [] ', true)
-            expect('   {} ', true)
-            expect('   [[[]]] ', true)
-            expect('   [1] ', true)
-            expect('   [ 12, false, "a"]  ', true)
-            expect('   [ 12, false2, "a"]  ', true)
-            expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [}], "a"] }  ', true)
-            expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
-            expect('   [{ "q": [ 12, false, [}], "a"] }]  ', true)
-            expect('. + ++ +=', true)
-            expect('//12\n', true)
-            expect('/*12*/', true)
-            expect('/* 1*2 */', true)
-        }
-    ],
+    isValid: () => covers([
+        ['"', false],
+        ['   true   ', true],
+        ['   tr2ue   ', true],
+        ['   2true   ', true],
+        ['   true"   ', false],
+        ['   "Hello"   ', true],
+        ['   "Hello   ', false],
+        ['   "Hello\\n\\r\\""   ', true],
+        ['   56.7e+5  ', true],
+        ['   -56.7e+5  ', true],
+        ['   h-56.7e+5   ', true],
+        ['   -56.7e+5   3', true],
+        ['   [] ', true],
+        ['   {} ', true],
+        ['   [[[]]] ', true],
+        ['   [1] ', true],
+        ['   [ 12, false, "a"]  ', true],
+        ['   [ 12, false2, "a"]  ', true],
+        ['   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true],
+        ['   { "q": [ 12, false, [{}], "a"] }  ', true],
+        ['   { "q": [ 12, false, [}], "a"] }  ', true],
+        ['   [{ "q": [ 12, false, [{}], "a"] }]  ', true],
+        ['   [{ "q": [ 12, false, [}], "a"] }]  ', true],
+        ['. + ++ +=', true],
+        ['//12\n', true],
+        ['/*12*/', true],
+        ['/* 1*2 */', true],
+    ]),
     djs: [
         () => {
             const result = tokenizeString('')
