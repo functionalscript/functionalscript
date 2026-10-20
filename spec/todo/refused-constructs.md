@@ -124,7 +124,8 @@ describes:
 | `st.label` | `x: while (c) { }` | open |
 | `st.var` | `var a = 1` | design ([constants](../bindings/constants.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) |
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md)) |
-| `st.expression` | an expression statement (a body statement that is no `const`, `if`, `throw`, `return` or admitted `let`/`while` loop) | design ([functions](../functions/README.md)) |
+| `st.call` | a call statement, `assert(a);`, `f(x);` | planned ([call statements](./3450-call-statements.md)) |
+| `st.expression` | any other expression statement (a body statement that is no `const`, `if`, `throw`, `return`, admitted `let`/`while` loop or call), `x;`, `a.b;`, `Number(x);` | design ([call statements](./3450-call-statements.md): an operator's result is almost always a mistake, and a conversion is an operator) |
 | `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch.md)) — `{}` | design ([functions](../functions/README.md)) |
 | `st.unreachable` | a statement after `return`, `throw`, or a switch with a `default` | design ([functions](../functions/README.md)) |
 

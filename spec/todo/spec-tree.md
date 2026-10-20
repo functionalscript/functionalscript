@@ -148,7 +148,7 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` Calls; `○` function identity and text
 10. **Control flow**
     - `●` Guards and early `return`; `●` `throw`; `●` the `let`/`while` loop
-    - `◌` other loops and statements
+    - `◌` [call statements](./3450-call-statements.md); `◌` other loops and statements
 11. **Built-ins**
     - `●` Member functions (`at`, `toString`, …); `●` static functions
       (`Object.is`, `Number.isInteger`, …); `◌` [global names](./2365-global-names.md)
