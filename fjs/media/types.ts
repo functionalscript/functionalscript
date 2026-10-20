@@ -1,7 +1,7 @@
 /**
  * Type-level API for `fjs/media/module.f.mjs`: the `DialectEntry` registry
- * shape `detect` and `dialectEntry` share with every registered dialect, and
- * the `JsonDialect` kit `jsonDialect` derives for a `vnd.fjs.*`+json one.
+ * shape `detect` shares with every registered dialect, and the `JsonDialect`
+ * kit `jsonDialect` derives for a `vnd.fjs.*`+json one.
  *
  * @module
  */

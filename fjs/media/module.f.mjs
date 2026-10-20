@@ -30,10 +30,11 @@
  * rather than N parses.
  *
  * A reported `mime_type` is a claim about a blob's *shape*, not a promise that
- * decoding it succeeds: how strict detection is, is the dialect's own call (see
- * {@link dialectEntry}'s `extraValidate`). Never route a decode decision
- * through this verdict — a caller that intends to decode calls its dialect's
- * decoder, which stays the authority.
+ * decoding it succeeds: how strict detection is, is the entry's own call — a
+ * {@link jsonDialect} entry accepts exactly what its decoder does, a
+ * hand-written {@link DialectEntry} whatever its `match` says. Never route a
+ * decode decision through this verdict — a caller that intends to decode calls
+ * its dialect's decoder, which stays the authority.
  *
  * This only classifies an already-buffered `Vec` (`detectVec`'s single-`Vec`
  * form), because dialect validation needs the whole parsed value. A single
@@ -48,8 +49,8 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { DetectMeta } from './type/types.ts'
  * @import { Rest, Struct, Type } from '../rtti/types.ts'
- * @import { Ts, Unknown } from '../rtti/ts/types.ts'
- * @import { Path, ValidateE, ValidationError } from '../rtti/common/types.ts'
+ * @import { Ts } from '../rtti/ts/types.ts'
+ * @import { Path, ValidationError } from '../rtti/common/types.ts'
  * @import { Node, UnionAlgebra, Data } from '../rtti/data/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown as JsonUnknown } from './json/types.ts'
@@ -66,63 +67,22 @@ import { definedEntries, definedValues, isObject } from '../types/object/module.
 import { find, map } from '../types/list/module.f.mjs'
 import { error, ok, okThen } from '../types/result/module.f.js'
 
-/** The default refinement: structural validation alone decides the match. */
-const always = () => true
-
 /**
- * Structural validation followed by the dialect's own refinement.
- *
- * Typed over the **erased** `ValidateE`: a `T extends Type` template would
- * instantiate `Ts<Type>` here and raise TS2589. {@link dialectEntry} states
- * the precise `extraValidate` type its callers are held to.
- *
- * @param {ValidateE} v
- * @returns {(extraValidate: (_: any) => boolean) => (u: Unknown) => boolean}
- */
-const matchWith = v => extraValidate => u => {
-    const [tag, value] = v(u)
-    return tag === 'ok' && extraValidate(value)
-}
-
-/**
- * Registers a dialect for detection: its rtti schema, plus whatever rtti can't
- * say about it.
+ * A dialect schema's container and the `dialect` it pins, asserted to be a
+ * direct string: the first check {@link jsonDialect} makes.
  *
  * The dialect name is read out of the schema's own `dialect` member — that
  * member is a string const in a dialect schema, which is what makes the schema
  * self-discriminating, so a separate name alongside it would be a second copy
  * that can disagree with the first. It follows that no registration can claim
- * one dialect while validating another's blobs. The media type is likewise
- * derived rather than supplied: `application/${dialect}+json`, the mechanical
- * derivation `fjs/media/revision/README.md` documents.
- *
- * `extraValidate` runs *after* structural validation, on the dialect's own
- * decoded type, and closes the gap rtti leaves — "this string is
- * cbase32-decodable", "this number is a non-negative safe integer". It returns
- * `boolean`, so it has no error channel and nothing to report but yes or no,
- * and it never sees the raw bytes: parsing and the schema walk stay with the
- * detector. Omitting it gets classification (what a blob claims to be and
- * structurally looks like); supplying it gets detection as strict as the
- * dialect's own decoder.
- *
- * **The name is neither grammar-checked nor allowlisted.** A schema saying
- * `dialect: 'foo'` yields `application/foo+json`, and that is intended:
- * `vnd.fjs.*` is this repo's convention for its *own* formats, not a constraint
- * on what a caller may detect — another vendor's `vnd.*` blob, or a widely used
- * name not under `vnd.` at all, is a legitimate thing to register. The name is
- * not attacker-controlled either: it comes from a schema a programmer wrote and
- * passed here, never from the blob being classified, so no untrusted string
- * reaches `mime_type` along this path. (A detector that read the name *out of*
- * a blob would need the RFC 6838 grammar check and an allowlist; this one does
- * not.) Registering a name that is not a valid RFC 6838 restricted-name yields
- * a malformed media type in the registrant's own results, and nowhere else.
+ * one dialect while validating another's blobs.
  *
  * The container's constraint is `Struct` — every member must be a real rtti
  * `Type`, which is what rejects a member like `() => 42` at compile time (rtti
  * would read it as a thunk and `match` would *throw* on the first blob rather
  * than return `false`). TypeScript cannot also require a direct string
  * `dialect` member under that constraint, so that half is asserted here
- * instead: loudly, once, when the entry is constructed. A thunk-form `dialect`
+ * instead: loudly, once, when the kit is constructed. A thunk-form `dialect`
  * (`() => ['const', 'x']`) is a perfectly valid rtti schema, it just is not
  * registerable — write the string directly, as `revisionSchema` does.
  *
@@ -132,23 +92,6 @@ const matchWith = v => extraValidate => u => {
  * is precisely the fail-closed misread the additive-extension rule in
  * `./revision/README.md` exists to avoid. Requiring the wrapper here is what
  * makes that a decision a registrant states rather than one they inherit.
- *
- * @template {Struct} S
- * @param {Rest<S, Type>} type
- * @param {(_: Ts<S>) => boolean} [extraValidate]
- * @returns {DialectEntry}
- */
-export const dialectEntry = (type, extraValidate = always) => {
-    const { dialect } = schemaDialect(type)
-    const v = /** @type {ValidateE} */ (rttiParse(type))
-    return { dialect, match: matchWith(v)(extraValidate) }
-}
-
-/**
- * A dialect schema's container and the `dialect` it pins, asserted to be a
- * direct string: the one check {@link dialectEntry} and {@link jsonDialect}
- * both make before anything else, so neither can register a schema the other
- * refuses for it.
  *
  * @template {Struct} S
  * @param {Rest<S, Type>} type
@@ -263,9 +206,9 @@ const unencodableLeaf = refusedLeaf(x =>
  * stated once, so a dialect module states only its format. See
  * {@link JsonDialect} for what each part guarantees.
  *
- * The schema is the one {@link dialectEntry} takes, and refused the same way
- * when its `dialect` is not a direct string. It is also refused, at
- * construction, when a declared member admits a value JSON cannot spell — a
+ * The schema states its own name in its `dialect` member, and is refused when
+ * that member is not a direct string (see {@link schemaDialect}). It is also
+ * refused, at construction, when a declared member admits a value JSON cannot spell — a
  * `bigint`, `undefined`, or `unknown` (which admits both) — so such a schema
  * fails at module load naming the member, not at the first `encodeText`. The
  * `open` rest is not walked: it reaches no member of the value type. The
@@ -280,6 +223,18 @@ const unencodableLeaf = refusedLeaf(x =>
  * through the kit's own `validate`, so detection and decoding are one
  * acceptance rule.
  *
+ * **The name is neither grammar-checked nor allowlisted.** A schema saying
+ * `dialect: 'foo'` yields `application/foo+json`, and that is intended:
+ * `vnd.fjs.*` is this repo's convention for its *own* formats, not a constraint
+ * on what a caller may detect — another vendor's `vnd.*` blob, or a widely used
+ * name not under `vnd.` at all, is a legitimate thing to register. The name is
+ * not attacker-controlled either: it comes from a schema a programmer wrote and
+ * passed here, never from the blob being classified, so no untrusted string
+ * reaches `mime_type` along this path. (A detector that read the name *out of*
+ * a blob would need the RFC 6838 grammar check and an allowlist; this one does
+ * not.) Registering a name that is not a valid RFC 6838 restricted-name yields
+ * a malformed media type in the registrant's own results, and nowhere else.
+ *
  * @template {Struct} S
  * @template [E=never]
  * @param {Rest<S, Type> & ([Ts<S>] extends [JsonUnknown] ? unknown : never)} schema
@@ -290,8 +245,8 @@ export const jsonDialect = (schema, checkReferences = ok) => {
     const { container, dialect } = schemaDialect(schema)
     const nonJson = definedEntries(container).flatMap(([k, t]) => jsonData(toData(t)) ? [] : [k])
     assert(nonJson.length === 0, `jsonDialect: a member admits a value JSON cannot spell: ${nonJson.join(', ')}`)
-    // An erased cast, paid for by the construction checks above, as in
-    // `dialectEntry`: the parsed value is the schema's.
+    // An erased cast, paid for by the construction checks above: the parsed
+    // value is the schema's.
     const shape = /** @type {(value: unknown) => Result<Ts<S>, ValidationError>} */ (rttiParse(schema))
     /** @type {(v: Ts<S>) => Result<Ts<S>, ValidationError>} */
     const exact = v => {
