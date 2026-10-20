@@ -139,9 +139,13 @@ are counted at compile time.**
 A **function** is a value: `Object.is`, `Number.isSafeInteger`, the
 [`entry` helper](../property-access/entries.md), any arrow. A value can be
 bound, passed and cached, `const f = Number.isSafeInteger;`, so the compiler
-cannot see every call of it, and a call takes **any number of arguments**, as
-in JavaScript: a missing one is `undefined`, and an extra one is evaluated and
-ignored. `Number.isInteger(1, 2)` is `true`.
+cannot see every call of it, and **no call's argument count is checked at
+compile time**. Every argument is evaluated, and the function's parameter
+list binds them, as in JavaScript: a rest parameter collects the extra ones,
+`((...xs) => xs.length)(1, 2)` being `2`, a default fills a missing one
+([parameters](../functions/parameters.md)), and otherwise a missing one is
+`undefined` and an extra one is ignored, `Number.isInteger(1, 2)` being
+`true`.
 
 An **operator** is a construction of the language: `+`, `*`, `typeof`, and the
 conversions `Number(x)` and `String(x)`. It is no value, so the compiler sees
