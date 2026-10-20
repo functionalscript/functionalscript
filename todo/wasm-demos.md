@@ -24,7 +24,11 @@ bottom:
 3. **A Run button** that runs the original JavaScript and then the WASM
    module. Each run's console output appears under its own heading. When the
    second run completes, the page shows both runs' stats side by side:
-   - running time, from `performance.now`;
+   - running time, from `performance.now`, around the call to the sample's
+     entry alone. Both routes are loaded before the button is pressed, so the
+     interval holds no import, fetch, compile or instantiation. The WASM
+     module's startup (fetch, compile and instantiate) is shown on its own
+     line, labelled as startup, never added to its running time;
    - memory, each figure labelled with what it measures, and not set side by
      side as a comparison: the two are different quantities. For the
      JavaScript run, the change in `performance.memory`'s heap across the
