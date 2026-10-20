@@ -1,4 +1,4 @@
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { cmp, cString, startsWith, u32be, u64be, untilNul } from './module.f.js'
 
 export const proof = {

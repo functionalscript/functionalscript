@@ -5,7 +5,7 @@
  */
 
 import { error, ok, unwrap, invert, mapOk, okThen, okList } from './module.f.js'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 const example = () => {
     /** @type {Result<number, string>} */

@@ -24,7 +24,7 @@
  * @import { Key, MemCreate, MemOp, MemRead, MemWrite, MemoryState, _MemKeyHash } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { asBase as nominalAsBase, asNominal as nominalAsNominal } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { do_ } from '../module.f.mjs'

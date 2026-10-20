@@ -1,6 +1,6 @@
 /** @import { Dir } from '../../effects/node/virtual/types.ts' */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { nodeProgramOptions, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'

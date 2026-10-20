@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { nodeCommands } from '../../effects/node/module.f.mjs'
 import { generate, path } from './module.f.mjs'
 

@@ -8,7 +8,7 @@
  * @import { Body, Invoke } from './types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { func } from '../function/module.f.mjs'
 import { call, invoker, prepare, settle } from './module.f.mjs'

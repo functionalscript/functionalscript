@@ -17,7 +17,7 @@ import { virtualAt, emptyState, nodeProgramOptions } from '../effects/node/virtu
 import { utf8 } from '../text/module.f.mjs'
 import { isObject } from '../types/object/module.f.mjs'
 import { tryParse as parseDataJs } from '../media/datajs/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.mjs'
 
 /**

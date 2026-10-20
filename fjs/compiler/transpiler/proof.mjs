@@ -10,7 +10,7 @@
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { javascriptOperationMap } from '../../edag/value/to_unknown/module.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { emptyState, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'

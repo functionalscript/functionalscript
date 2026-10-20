@@ -17,7 +17,7 @@ import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubl
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual, virtualAt } from "./virtual/module.f.mjs"
-import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { toArray } from '../../types/list/module.f.mjs'
 import { min } from '../../types/number/min/module.f.js'

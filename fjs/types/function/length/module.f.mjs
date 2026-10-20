@@ -7,7 +7,7 @@
  * @import { Body, Callable, Factory } from './types.ts'
  */
 
-import { assert } from '../../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.js'
 import { isUintUpTo } from '../../number/module.f.mjs'
 
 /**

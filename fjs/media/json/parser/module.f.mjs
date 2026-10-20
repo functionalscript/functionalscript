@@ -50,13 +50,13 @@
  * @import { _LiteralId, _Member, _OnlyKey, Json, NumberPolicy, Out, ParseUnknown, Tagged, Text } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { hexDigitsValue } from '../../../text/ascii/module.f.mjs'
 import { codeUnitToString } from '../../../text/utf16/module.f.mjs'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.js'
 import { eof } from '../../../ebnf/module.f.mjs'
-import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
+import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, unitAt, units } from '../../../ebnf/utf16/module.f.mjs'
 import { character, escape, items, json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'

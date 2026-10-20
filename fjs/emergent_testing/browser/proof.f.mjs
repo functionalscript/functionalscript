@@ -17,7 +17,7 @@
  * @import { Catch, Sandbox } from '../../effects/common/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import {
     countsView, failureOf, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
     pendingView, reportDuration, reportOf, reportView, resultView, runProofs, unreported,

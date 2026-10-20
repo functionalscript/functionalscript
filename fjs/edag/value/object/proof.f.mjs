@@ -6,7 +6,7 @@
  * @import { PropertyThunk, ObjectItems } from './types.ts'
  */
 
-import { assert, assertEq, assertOk } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { object } from './module.f.mjs'
 

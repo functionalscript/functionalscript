@@ -28,7 +28,7 @@
  * @import { Document, Entry, Inline } from './types.ts'
  */
 
-import { unmapped } from '../../ebnf/ast/module.f.mjs'
+import { unmapped } from '../../ebnf/ast/module.f.js'
 import { entry as entryRule } from '../../ebnf/lib/markdown/module.f.mjs'
 import { eof } from '../../ebnf/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'

@@ -10,7 +10,7 @@
 import { throws } from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
 
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { interpret, noRuntime } from '../../transpiler/module.f.mjs'
 import { virtualAt } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'

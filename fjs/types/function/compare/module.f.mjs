@@ -7,7 +7,7 @@
  * @import { Cmp1, Cmp2, Compare, Sign } from './types.ts'
  */
 
-import { assert } from '../../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.js'
 
 /** @type {<T>(cmp: Compare<T>) => (value: T) => Index<3>} */
 export const index3 = cmp => value => {

@@ -9,7 +9,7 @@
  * @import { Add, EncodeState } from './types.ts'
  */
 
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 import { emptyState, patriciaTrie } from '../../../types/patricia_trie/module.f.mjs'
 import { compress } from '../../id/module.f.mjs'
 import { asBase } from '../../../types/nominal/module.f.js'

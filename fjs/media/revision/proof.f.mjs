@@ -3,7 +3,7 @@
  * @import { LockMap, Revision } from './types.ts'
  */
 
-import { assert, assertEq, assertError } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError } from '../../asserts/module.f.js'
 import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences } from './module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 

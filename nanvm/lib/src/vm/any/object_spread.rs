@@ -19,8 +19,8 @@ impl<A: IVm> Any<A> {
     pub fn object_spread(self) -> ObjectSpread<A> {
         match self.into() {
             Unpacked::Object(object) => ObjectSpread::Object(object.own_entries().into_iter()),
-            Unpacked::Array(array) => ObjectSpread::Array { array, next: 0 },
-            Unpacked::String(string) => ObjectSpread::String { string, next: 0 },
+            Unpacked::Array(array) => ObjectSpread::Array(array.into_iter().enumerate()),
+            Unpacked::String(string) => ObjectSpread::String(string.into_iter().enumerate()),
             _ => ObjectSpread::Empty,
         }
     }

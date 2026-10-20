@@ -15,7 +15,7 @@
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  */
 
-import { assertOk } from '../../asserts/module.f.mjs'
+import { assertOk } from '../../asserts/module.f.js'
 import { isArray } from '../../types/array/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { findProperty, read } from '../../edag/value/property/module.f.mjs'

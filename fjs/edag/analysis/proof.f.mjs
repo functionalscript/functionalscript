@@ -7,7 +7,7 @@
  * @import { Analysis, Node, Operand, Ref } from './types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis, checked, identityAnalysis, itemOperand, operandsOf, scopeHolds } from './module.f.mjs'
 import { sharedNodesOf } from '../sharing/module.f.mjs'
 

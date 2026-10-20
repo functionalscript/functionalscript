@@ -2,7 +2,7 @@ import {
     assertEq,
     assertNotNullish,
     assertStructurallySame,
-} from '../../asserts/module.f.mjs'
+} from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/module.f.mjs'
 import {
     bmpMax,

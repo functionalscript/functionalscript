@@ -18,6 +18,8 @@ mod files;
 mod inflate;
 mod native;
 mod resolve;
+#[cfg(all(test, not(target_family = "wasm")))]
+mod scratch;
 
 pub use files::{Dirent, IoError, MAX_FILE_SIZE_BYTES, normalize};
 pub use native::Native;

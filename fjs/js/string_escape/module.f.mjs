@@ -29,7 +29,7 @@
 
 import { map } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { map as nullableMap } from '../../types/nullable/module.f.mjs'
+import { map as nullableMap } from '../../types/nullable/module.f.js'
 import { codePointToString, codeUnitToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { errorMask } from '../../text/code_point/module.f.mjs'
 import {
