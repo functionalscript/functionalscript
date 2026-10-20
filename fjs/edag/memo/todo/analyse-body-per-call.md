@@ -6,8 +6,9 @@
 ### Problem
 
 The memo executor analyses an invoked function's body at every call:
-`invokeWith`'s `body` in [`../module.f.mjs`](../module.f.mjs) builds
-`identityAnalysis(fn)` each time a represented function is invoked. The
+the `run` that `invokeWith` in [`../module.f.mjs`](../module.f.mjs) hands
+`invokerWith` builds `identityAnalysis(fn)` each time a represented function
+is invoked. The
 cost of a call grows with the size of its body's table, and faster than
 linearly.
 
