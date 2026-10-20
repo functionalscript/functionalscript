@@ -43,7 +43,7 @@
  * @import { DataJsValue } from '../../../ebnf/lib/datajs/types.ts'
  * @import { constStatement, property } from '../../../ebnf/lib/datajs/module.f.mjs'
  * @import { Primitive, Unknown } from '../types.ts'
- * @import { _Binding, _Env, _Frame, _Stack, _State } from './private.ts'
+ * @import { _Binding, _Env, _Frame, _Step } from './private.ts'
  * @import { Tagged } from '../../json/parser/types.ts'
  * @import { Container, Entry, Node, Out, Value } from './types.ts'
  */
@@ -51,6 +51,7 @@
 import { concat, toArray } from '../../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../../types/ordered_map/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
+import { walk } from '../../../types/stack_walk/module.f.mjs'
 import { eof } from '../../../ebnf/module.f.mjs'
 import { unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
@@ -180,46 +181,36 @@ const close = (container, done) =>
  *
  * @type {(env: _Env) => (root: Node) => Result<Unknown, string>}
  */
-const evaluate = env => root => {
+const evaluate = env => {
     /**
      * The next item of a container, or the container closed when none is
      * left.
      *
-     * @type {(stack: _Stack, frame: _Frame) => _State}
+     * @type {(frame: _Frame) => _Step}
      */
-    const round = (stack, frame) => {
+    const round = frame => {
         const { container, index, done } = frame
         return index < container[1].length
-            ? [{ top: frame, rest: stack }, ['enter', itemAt(container, index)]]
-            : [stack, ok(close(container, toArray(done)))]
+            ? ['push', frame, itemAt(container, index)]
+            : ok(close(container, toArray(done)))
     }
 
-    /** @type {(stack: _Stack, node: Node) => _State} */
-    const enter = (stack, node) => {
-        if (!(node instanceof Array)) { return [stack, ok(node)] }
-        switch (node[0]) {
-            case 'ref': {
-                const binding = at(node[1])(env)
-                return [stack, binding === null ? error(`unresolved reference ${node[1]}`) : ok(binding[0])]
+    return walk({
+        /** @type {(node: Node) => _Step} */
+        enter: node => {
+            if (!(node instanceof Array)) { return ok(node) }
+            switch (node[0]) {
+                case 'ref': {
+                    const binding = at(node[1])(env)
+                    return binding === null ? error(`unresolved reference ${node[1]}`) : ok(binding[0])
+                }
+                case 'error': { return error(node[1]) }
+                default: { return round({ container: node, index: 0, done: null }) }
             }
-            case 'error': { return [stack, error(node[1])] }
-            default: { return round(stack, { container: node, index: 0, done: null }) }
-        }
-    }
-
-    /** @type {_State} */
-    let state = [null, ['enter', root]]
-    while (true) {
-        const [stack, step] = state
-        if (step[0] === 'enter') {
-            state = enter(stack, step[1])
-        } else if (step[0] === 'error' || stack === null) {
-            return step
-        } else {
-            const { top, rest } = stack
-            state = round(rest, { ...top, index: top.index + 1, done: concat(top.done)([step[1]]) })
-        }
-    }
+        },
+        /** @type {(top: _Frame, value: Unknown) => _Step} */
+        resume: (top, value) => round({ ...top, index: top.index + 1, done: concat(top.done)([value]) }),
+    })
 }
 
 /**
