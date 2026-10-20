@@ -23,10 +23,10 @@ const stepOperands = (key, args) => k => {
 `one` and `xs => xs.map(itemOperand)`;
 [`fjs/compiler/ast`](../../compiler/ast/module.f.mjs)'s exported
 `stepOperands` is it with `keyOperands` and the same items. The maps —
-`codeStep`/`codeItems` in [`memo`](../memo/module.f.mjs),
+`restoreStep`/`restoreItems` in [`analysis`](../analysis/module.f.mjs),
 `lowerStep`/`lazyItem` in [`fjs/compiler/edag`](../../compiler/edag/module.f.mjs)
 — differ only in the key and item functions, and the item lists one level
-down ("map, keeping `['...', x]` a spread") are written in `memo`,
+down ("map, keeping `['...', x]` a spread") are written in `analysis`,
 `compiler/edag`,
 [`serializer/function_text`](../../compiler/serializer/function_text/module.f.mjs)
 and [`operations`](../operations/module.f.mjs). [`types.ts`](../types.ts)
@@ -39,15 +39,12 @@ shapes: `stepOperands(key, args)` moved out of `sharing`'s private scope, its
 map twin `mapSteps(key, items)`, and `mapItems(f)`. `analysis.stepOperands`
 and `ast.stepOperands` become one-line applications or go; the maps become
 `mapSteps` calls; the item maps become `mapItems`. `analysis.step`
-threads a state and stays. If
-[bodies-from-analysis](../memo/todo/bodies-from-analysis.md) lands first,
-`memo`'s map is gone and `compiler/edag` is the map's consumer — still
-worth it, since `sharing` already pays for the fold.
+threads a state and stays.
 
 ### Tasks
 
 - [ ] `stepOperands`, `mapSteps` and `mapItems` in `fjs/edag`, with proof.
-- [ ] `sharing`, `analysis`, `ast`, `memo`, `compiler/edag`, `function_text`
+- [ ] `sharing`, `analysis`, `ast`, `compiler/edag`, `function_text`
       and `operations` import them.
 
 ### Related

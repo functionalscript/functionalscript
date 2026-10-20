@@ -64,7 +64,7 @@
  *
  * @module
  *
- * @import { Arg, Exp, ExpOp, Frame, Index, Items, Op0, Op1, Op2, Op3, Op12, Primitive, Properties, TagMap } from '../types.ts'
+ * @import { Arg, Exp, ExpOp, Frame, Index, Items, ItemsOver, Op0, Op1, Op2, Op3, Op12, Primitive, Properties, StepOver, TagMap } from '../types.ts'
  * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
  * @import { Analysis, IndexOperand, ItemOperand, Node, Operand, PropertyOperand, Ref, Step } from './types.ts'
  * @import { _Entry, _Handlers, _Scope, _State, _Walk } from './private.ts'
@@ -459,6 +459,72 @@ const sharedByIdentity = (e, visited) => {
     return [...visited].flatMap(([n, i]) => shared.includes(n) ? [i] : [])
 }
 
+/** One operand as an expression, from the expressions of the entries before it. @type {(exps: readonly ExpOp[], operand: Operand) => Exp} */
+const restore = (exps, operand) => operand instanceof Array ? exps[operand[1]] : operand
+
+/** @type {(exps: readonly ExpOp[], items: readonly ItemOperand[]) => ItemsOver<Exp>} */
+const restoreItems = (exps, items) => items.map(item => item instanceof Array && item[0] === '...'
+    ? ['...', restore(exps, item[1])] : restore(exps, item))
+
+/** @type {(exps: readonly ExpOp[], step: Step) => StepOver<Exp>} */
+const restoreStep = (exps, step) => {
+    const [tag, operand, continuation] = step
+    if (tag === '|.') {
+        const key = restore(exps, operand)
+        return continuation === undefined ? [tag, key] : [tag, key, restoreStep(exps, continuation)]
+    }
+    const args = restoreItems(exps, operand)
+    if (tag === '|!()') { return [tag, args] }
+    return continuation === undefined ? [tag, args] : [tag, args, restoreStep(exps, continuation)]
+}
+
+/**
+ * An entry as an expression, from the expressions of the entries before it,
+ * which its operands are: the table's sharing restored, an operand named by
+ * one index one node.
+ *
+ * @type {(exps: readonly ExpOp[], node: Node) => ExpOp}
+ */
+const restoreNode = (exps, node) => {
+    switch (node[0]) {
+        case '[]': { return ['[]', restoreItems(exps, node[1])] }
+        case '{}': { return ['{}', node[1].map(p => p[0] === '...'
+            ? ['...', restore(exps, p[1])]
+            : [':', restore(exps, p[1]), restore(exps, p[2])])] }
+        case '=>': { return ['=>', node[1], node[2].map(x => restore(exps, x)), restore(exps, node[3])] }
+        case ',': { return [',', node[1].map(x => restore(exps, x))] }
+        case '()': { return ['()', restore(exps, node[1]), restoreItems(exps, node[2])] }
+        case '?.()': {
+            const [, callee, args, continuation] = node
+            const head = /** @type {const} */ (['?.()', restore(exps, callee), restoreItems(exps, args)])
+            return /** @type {ExpOp} */ (continuation === undefined ? head : [...head, restoreStep(exps, continuation)])
+        }
+        case '.': case '?.': {
+            const [tag, receiver, key, continuation] = node
+            const head = /** @type {const} */ ([tag, restore(exps, receiver), restore(exps, key)])
+            return /** @type {ExpOp} */ (continuation === undefined ? head : [...head, restoreStep(exps, continuation)])
+        }
+        default: {
+            // All remaining tuples contain only metadata, primitives and
+            // operand references, with no lists or continuation productions.
+            return /** @type {ExpOp} */ (/** @type {unknown} */ (node.map(part => part instanceof Array ? restore(exps, part) : part)))
+        }
+    }
+}
+
+/**
+ * The expression each entry stands for. Where nothing merged, an entry is
+ * one node the walk was handed, and the walk added each to `visited` as it
+ * added its entry, so the keys are the entries' nodes in index order. Where
+ * entries merged, one entry stands for several nodes, and its expression is
+ * restored from the table, once.
+ *
+ * @type {(merges: boolean, nodes: readonly Node[], visited: _State['visited']) => readonly ExpOp[]}
+ */
+const expsOf = (merges, nodes, visited) => merges
+    ? nodes.reduce((/** @type {readonly ExpOp[]} */ prefix, node) => [...prefix, restoreNode(prefix, node)], [])
+    : [...visited.keys()]
+
 /**
  * The table of `e`, its twins merged where `merges` says, and its shared
  * entries counted as the table writes them: by places, where twins merge,
@@ -475,6 +541,7 @@ const table = merges => e => {
         nodes,
         scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(visited.get(x.scope))),
         shared: merges ? places(root, nodes).flatMap((n, i) => n > 1 ? [i] : []) : sharedByIdentity(e, visited),
+        exps: expsOf(merges, nodes, visited),
     })
 }
 
