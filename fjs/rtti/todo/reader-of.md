@@ -34,19 +34,28 @@ construction" is true of the kernel and not yet of its instantiation.
 
 ### Proposal
 
-One `readerOf` in `common`: from a `Reader` and a record of four `Finish`
-functions — `array`, `record`, `tuple`, `struct` — it builds the
-instantiations, the `rest` forms, the `or` and the visitor once, with `read`
-tied back to the result. `validate` is `readerOf(validateReader, keepAll)`;
+One `readerOf` in `common`: from a `Reader`, a record of four `Finish`
+functions — `array`, `record`, `tuple`, `struct` — and the data form's
+`emptyRest`, it builds the instantiations, the fit tests, the `rest` forms,
+the `or` and the visitor once, with `read` tied back to the result.
+`emptyRest` is an argument and not an import for the reason
+`containerRead` already takes it as one: it lives in `data`, which imports
+`common`, and `common` must not import `data`. It decides the length rule
+an `array(or())` needs — that schema is the empty array, not any number of
+holes — so the array and `rest` fits are written once inside `readerOf`
+over it, `value.length <= declared || !emptyRest(…)`, rather than once per
+reader. `validate` is `readerOf(validateReader, keepAll, emptyRest)`;
 `parse` is `readerOf(parseReader, { array: arrayRebuild, record:
-recordRebuild, tuple: tupleRebuild, struct: recordRebuild })`. Both modules
+recordRebuild, tuple: tupleRebuild, struct: recordRebuild }, emptyRest)`.
+Both modules
 shrink to their readers and finishes, and a third reader —
 [rtti-parse](../../media/json/todo/rtti-parse.md) wants one over JSON text —
 gets the skeleton.
 
 ### Tasks
 
-- [ ] `readerOf` in `common`, with proof.
+- [ ] `readerOf` in `common`, taking `emptyRest` as an argument, with proof
+      that `array(or())` still admits the empty array alone.
 - [ ] `validate` and `parse` reduce to it; their proofs stay as the behaviour
       pins.
 
