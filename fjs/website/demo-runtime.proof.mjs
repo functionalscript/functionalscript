@@ -631,6 +631,18 @@ export const demo = {
         await sleep(400)
         await settle()
         assert(e.root.innerHTML.includes('<pre>other</pre>'), e.root.innerHTML)
+        // A reader who asked for less motion is not held: the next event
+        // runs at once.
+        const r = dom(source)
+        const view = r.root.ownerDocument.defaultView
+        r.root.ownerDocument.defaultView = { ...view, matchMedia: (/** @type {string} */ query) => ({ matches: query === '(prefers-reduced-motion: reduce)' }) }
+        await startDemo(r.root)
+        await settle()
+        r.click('hold')
+        await settle()
+        await sleep(20)
+        await settle()
+        assert(r.root.innerHTML.includes('<pre>later</pre>'), r.root.innerHTML)
     },
     automaticInputKeepsControls: async () => {
         const d = dom(incremental(20))

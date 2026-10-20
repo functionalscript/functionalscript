@@ -574,7 +574,9 @@ event cancels a scheduled turn; the latest rendered state decides whether to sch
 
 `nextDelay(state)`, when a demo has it, is how many milliseconds the runtime
 waits before that turn: a demo that animates holds each step on screen for
-that long. It is scheduling rather than an operation — the runtime already
+that long. Where the reader has asked for less motion
+(`prefers-reduced-motion: reduce`) the runtime does not wait, and the steps
+pass at once. It is scheduling rather than an operation — the runtime already
 owns when a turn runs — so a demo needs no effect to wait, and a reader's
 event cancels the wait as it cancels any scheduled turn.
 

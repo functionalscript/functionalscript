@@ -377,6 +377,16 @@ const fail = (root, cause) => {
 }
 
 /**
+ * Whether the reader has asked for less motion, as the site's stylesheet
+ * reads it: `prefers-reduced-motion: reduce`. A host without `matchMedia`
+ * has not.
+ *
+ * @type {(root: Element) => boolean}
+ */
+const lessMotion = root =>
+    root.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+
+/**
  * A demo runs one event at a time.
  *
  * An operation is asynchronous, so an event can arrive while an `update` is
@@ -400,7 +410,9 @@ const fail = (root, cause) => {
  * input it cares about.
  *
  * `nextEvent` requests one automatic event on a later turn after the latest
- * state renders, `nextDelay` milliseconds later if the demo says. Reader
+ * state renders, `nextDelay` milliseconds later if the demo says — at once
+ * where the reader has asked for less motion, since a delay only holds a
+ * step of an animation on screen. Reader
  * events cancel the scheduled turn, and automatic updates keep controls
  * available so a Stop button can interrupt the work.
  *
@@ -441,7 +453,7 @@ const stepper = (root, demo) => {
                     const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
                     incremental = next !== null
                     if (next !== null) {
-                        const delay = demo.nextDelay === undefined ? 0 : demo.nextDelay(state)
+                        const delay = demo.nextDelay === undefined || lessMotion(root) ? 0 : demo.nextDelay(state)
                         scheduled = setTimeout(() => step(next, true), delay)
                     }
                 }
