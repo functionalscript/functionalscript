@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("last", Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000)), (string_key("n"), f64_any(0x3ff0000000000000))].to_object().to_any(), [(string_key("x"), f64_any(0x3ff0000000000000)), (string_key("n"), f64_any(0x4000000000000000))].to_object().to_any(), [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any()].to_array().to_any(), string_any("findLast")).end_call(&rt, || {

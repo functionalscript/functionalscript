@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check::<A>("number", f64_any(0x405ec00000000000).to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", f64_any(0xc07c800000000000).to_string().map(|v| v.to_any()), string_any("-456"));

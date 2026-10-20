@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("digits", Any::dot(f64_any(0x40fe240000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("1.23e+5"));
