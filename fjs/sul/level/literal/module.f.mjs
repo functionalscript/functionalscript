@@ -77,6 +77,13 @@ const l1 = level(0n)
 const l2 = level(2n)
 const l3 = level(7n)
 
+/**
+ * The three literal levels, L1 to L3, in the order bits flow through them.
+ *
+ * @type {readonly [Level, Level, Level]}
+ */
+export const levels = [l1, l2, l3]
+
 /** Initial state for the three-level literal pipeline. */
 /** @type {PipelineState} */
 export const emptyPipelineState = [emptyEncodeState, emptyEncodeState, emptyEncodeState]
