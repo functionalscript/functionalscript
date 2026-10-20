@@ -93,6 +93,8 @@ beside the site code, and the site consumes its committed output:
 
 ### Related
 
+- [WASM demo pages with rustc in the browser](./wasm-demos-in-browser-rustc.md)
+  — the alternative: compile in the visitor's browser and show each IR.
 - [fjs–nanvm integration](./fjs-nanvm-integration.md) — the FJS → Rust → NaNVM
   pipeline these pages run.
 - [Console program](../nanvm/lib/todo/console-program.md) — the console effect
