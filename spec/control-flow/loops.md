@@ -16,7 +16,9 @@ export default n => {
   initial value; the `while` runs its block while the condition is truthy,
   tested as `?:` tests its condition, before each round; and from the loop
   on the variable is a `const` of the body holding the value the last round
-  left. The block holds `const`s and assignments to the variable,
+  left. The block holds `const`s, call statements
+  ([call statements](../functions/call-statements.md)) and assignments to
+  the variable,
   `x = value;`, each ended as every statement is; an assignment rebinds the
   variable for the statements after it, in order, as JavaScript reads them,
   and the block's end continues the loop with the variable's last binding

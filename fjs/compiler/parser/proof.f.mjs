@@ -738,10 +738,14 @@ export const proof = {
             assertEq(stringifySorted(arm[3]), '["()",["=>",0,[0]],[]]')
         },
     ],
-    // A syntax error is reported ahead of a semantic one, wherever each sits.
+    // A syntax error the grammar finds is reported ahead of a semantic one,
+    // wherever each sits.
     //
     // The grammar matches the whole module before the fold runs, so a malformed
-    // suffix is found before any name is resolved. The hand-written parser
+    // suffix is found before any name is resolved. A statement run onto the
+    // line of the one before it without a `;` is no grammar error: the fold
+    // refuses it, in statement order, so a semantic error in an earlier
+    // statement comes first. The hand-written parser
     // streamed, so it met an unresolved name first and said so. Both are true
     // of the input; they answer different questions about it. Pinned because
     // the reasoning is not recoverable from the positions alone.
@@ -749,14 +753,15 @@ export const proof = {
         () => {
             /** @type {readonly(readonly[string, string, readonly[number, number]])[]} */
             const cases = [
-                // was: const not found @1:11
-                ['const a = missing x', 'unexpected token', [1, 19]],
+                // was: const not found @1:11; a literal, since a name would
+                // begin a call statement of its own
+                ['const a = missing 1', 'unexpected token', [1, 19]],
                 // was: const not found @1:11
                 ['const a = missing', 'unexpected end', [1, 18]],
                 // was: const not found @1:16
                 ['export default missing 1', 'unexpected token', [1, 24]],
                 // was: duplicate id @2:7
-                ['const a = 1;\nconst a = 2 x', 'unexpected token', [2, 13]],
+                ['const a = 1;\nconst a = 2 1', 'unexpected token', [2, 13]],
             ]
             for (const [source, message, position] of cases) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
@@ -777,6 +782,17 @@ export const proof = {
             assert(tag === 'error', tag)
             assertEq(value.message, 'const not found')
             assertEq(value.metadata?.column, 16)
+        },
+        () => {
+            // a statement run onto the line of the one before is the fold's
+            // to refuse, in statement order — a `const` or a call statement
+            // alike — so the earlier statement's error is the one reported
+            for (const source of ['const a = missing const b = 1; export default 1;', 'const a = missing f(1); export default 1;']) {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'const not found', source)
+                assertEq(value.metadata?.column, 11, source)
+            }
         },
     ],
     // An object's members stand in the order they are written, as JavaScript
@@ -1824,11 +1840,12 @@ export const proof = {
             assertEq(obj[1].message, 'unexpected token')
         },
         () => {
-            // an identifier that is not a statement keyword is no better
+            // an identifier begins a call statement, and a module of
+            // statements alone has no export, as one of constants has not
             const tokenList = tokenizeString('a')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assertEq(obj[1].message, 'unexpected token')
+            assertEq(obj[1].message, 'unexpected end')
         },
         () => {
             // an empty module has no `export default`

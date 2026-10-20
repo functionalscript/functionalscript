@@ -62,11 +62,13 @@ stay opt-in through the `proof.mjs` filename convention.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
-`module.f.js` keeps a `proof.f.mjs` for now: a proof is a run of assertion
-calls written as statements, `assertEq(a, b)`, and a body holds only `const`s
-and guards before its terminating statement
-([`compiler/README.md`](./compiler/README.md),
-[CONVERTING.md rule 10](../doc/CONVERTING.md#10-a-call-made-for-its-failure)).
+`module.f.js` keeps a `proof.f.mjs` for now: a proof's assertion calls are
+call statements the language reads
+([spec: call statements](../spec/functions/call-statements.md)), but each of
+its functions ends without a `return`, which a block body must not
+([CONVERTING.md rule 7](../doc/CONVERTING.md#7-a-body-that-ends-without-return)),
+and many loop with `for`, which the language does not have
+([`compiler/README.md`](./compiler/README.md)).
 `fjs/asserts` itself is an `.f.js`. Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:
