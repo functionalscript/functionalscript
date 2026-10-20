@@ -23,7 +23,7 @@
  * @import { _Assumed, _Ctx, _Key, _Keyed, _NodeMap, _State, _Thunk } from './private.ts'
  */
 
-import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { assoc, dedup } from '../../types/array/module.f.mjs'
 import { cmp as cmpValue } from '../../types/function/compare/module.f.mjs'
 import { strictEqual as strictEqualCurried } from '../../types/function/operator/module.f.js'

@@ -11,7 +11,7 @@
  */
 
 import { repeat } from '../../common/monoid/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 
 /**
  * Creates a prime field with the specified prime modulus and associated operations.

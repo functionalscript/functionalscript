@@ -4,7 +4,7 @@
 
 import { set as setSet } from './module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { expectedSquares, set, squares } from '../testlib.f.mjs'
 

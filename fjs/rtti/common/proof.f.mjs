@@ -22,7 +22,7 @@ import {
 } from './module.f.mjs'
 import { option, or } from '../module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 /** @type {(k: string, v: number) => Result<number, ValidationError>} */
 const item = (k, v) =>

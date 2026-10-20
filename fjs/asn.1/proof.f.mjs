@@ -23,7 +23,7 @@ import {
     decodeObjectIdentifier,
 } from './module.f.mjs'
 
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq } from '../asserts/module.f.js'
 
 const { concat, popFront: pop, listToVec } = msb
 const pop8 = pop(8n)

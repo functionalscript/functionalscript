@@ -1,4 +1,4 @@
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { fundingPath, parse } from './module.f.mjs'
 
 /** @type {(channels: readonly unknown[]) => string} */

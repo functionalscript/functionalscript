@@ -27,6 +27,23 @@ impl<A: IVm> From<Primitive<A>> for Unpacked<A> {
     }
 }
 
+/// The inverse of `From<Primitive<A>> for Unpacked<A>`: an object, an array
+/// or a function is not a primitive and comes back unchanged.
+impl<A: IVm> TryFrom<Unpacked<A>> for Primitive<A> {
+    type Error = Unpacked<A>;
+
+    fn try_from(value: Unpacked<A>) -> Result<Self, Self::Error> {
+        match value {
+            Unpacked::Nullish(n) => Ok(Primitive::Nullish(n)),
+            Unpacked::Boolean(b) => Ok(Primitive::Boolean(b)),
+            Unpacked::Number(n) => Ok(Primitive::Number(n)),
+            Unpacked::String(s) => Ok(Primitive::String(s)),
+            Unpacked::BigInt(i) => Ok(Primitive::BigInt(i)),
+            v @ (Unpacked::Object(_) | Unpacked::Array(_) | Unpacked::Function(_)) => Err(v),
+        }
+    }
+}
+
 impl<A: IVm> From<Primitive<A>> for Any<A> {
     fn from(value: Primitive<A>) -> Self {
         Unpacked::from(value).into()
@@ -37,7 +54,7 @@ impl<A: IVm> From<Primitive<A>> for Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Number, nullish::Nullish, primitive::Primitive},
+        vm::{BigInt, Number, ToArray, Unpacked, nullish::Nullish, primitive::Primitive},
     };
 
     type A = Naive;
@@ -69,5 +86,23 @@ mod tests {
             format!("{:?}", Primitive::<A>::Nullish(Nullish::Null)),
             "Null"
         );
+    }
+
+    /// Each primitive comes back from `Unpacked` as itself; an array, as an
+    /// object or a function would, comes back unchanged as the error.
+    #[test]
+    fn try_from_unpacked() {
+        let bi: BigInt<A> = 7i64.into();
+        for p in [
+            Primitive::<A>::Nullish(Nullish::Undefined),
+            Primitive::Boolean(false),
+            Primitive::Number(Number::from(2.5)),
+            Primitive::String("x".into()),
+            Primitive::BigInt(bi),
+        ] {
+            assert_eq!(Primitive::try_from(Unpacked::from(p.clone())), Ok(p));
+        }
+        let a = Unpacked::<A>::Array([].to_array());
+        assert_eq!(Primitive::try_from(a.clone()), Err(a));
     }
 }

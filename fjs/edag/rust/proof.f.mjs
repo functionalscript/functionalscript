@@ -12,7 +12,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { braced, eagerNodesOf, expExpr, expExprTagged, holdsFunction, needsRuntime, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, scopeTagged, statementsOf, useLines, useLinesTagged, helperExpr } from './module.f.mjs'
 import { fromTagged, toText, untagged } from '../../text/marked/module.f.mjs'

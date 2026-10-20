@@ -3,8 +3,8 @@
  * @import { Equal } from '../ts/types.ts'
  */
 
-import { fromUndefined, map, match, toOption } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { fromUndefined, map, match, toOption } from './module.f.js'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = [
     () => {

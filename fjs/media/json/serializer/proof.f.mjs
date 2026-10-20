@@ -6,7 +6,7 @@ import { arrayWrap, boolSerialize, codec, leafSerialize, nullSerialize, numberSe
 import * as list from '../../../types/list/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { chunksText } from '../../../text/marked/module.f.mjs'
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.js'
 
 const { toArray } = list
 

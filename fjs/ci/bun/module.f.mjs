@@ -18,7 +18,7 @@
 
 import { bun, bunSources } from '../config/module.f.js'
 import { nixInstall, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
-import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
+import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.js'
 
 /**
  * The override the shared flake declares, over the systems it targets.

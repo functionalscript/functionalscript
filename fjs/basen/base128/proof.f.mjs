@@ -3,7 +3,7 @@
  */
 
 import { empty, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { encode, decode } from './module.f.mjs'
 
 //

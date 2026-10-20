@@ -5,7 +5,7 @@
  * @import { EdagValue } from '../types.ts'
  */
 
-import { assertEq, assertError, assertOk } from '../../../asserts/module.f.mjs'
+import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { validateClosure } from './module.f.mjs'
 
 /** @type {(value: EdagValue) => void} */

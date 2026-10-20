@@ -10,8 +10,9 @@ A value may be written in parentheses, and it denotes that value: `(x)` is
 `x`, so the parentheses leave nothing behind — no node of their own and no
 change to which values a module shares — exactly as in JavaScript. A group
 is a value like any other and takes a property access or a call after its
-`)`, and it holds one value: a bare comma inside it waits on the comma
-operator ([operators](../todo/2340-operators.md)).
+`)`, and it holds one value or the operands of a comma, `(a, b)`, which is
+an operator of its own ([comma](comma.md)) and the one that detaches a
+receiver.
 
 Once admitted, parentheses leave no node behind, except for the boundary an
 [optional chain](../property-access/optional-chaining.md) makes of them: they end the region a
@@ -39,8 +40,9 @@ reaches the prefix at all: `-((...a) => 1)` is a value where `-(...a) => 1`
 is a syntax error, there and here.
 
 A parenthesized parameter list, `(a, b) => …`, is distinguished from a group
-by the arrow following `)`. Each parameter must be a binding name; `(a + b)`
-is a group, while `(a + b) => 1` is refused.
+and from a comma by the arrow following `)`. Each parameter must be a binding
+target; `(a + b)` is a group and `(a, b + 1)` a comma, while `(a + b) => 1`
+and `(a, b + 1) => 1` are refused.
 
 ## Examples
 

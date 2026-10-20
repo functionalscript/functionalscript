@@ -19,7 +19,7 @@
  * @import { AnyCase, CallbackName, Group, SharedNode, Value } from './types.ts'
  */
 
-import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.js'
 import { structurallySame } from '../types/object/structurally_same/module.f.js'
 import { exp } from '../edag/module.f.mjs'
 import { vm, invoke } from '../edag/amnesia/module.f.mjs'

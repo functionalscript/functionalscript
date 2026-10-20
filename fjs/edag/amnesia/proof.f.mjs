@@ -8,7 +8,7 @@
  * @import { EdagValue, Values, Array as ValueArray } from '../value/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../asserts/module.f.js'
 import { vm, invoke } from './module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'

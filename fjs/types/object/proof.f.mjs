@@ -4,7 +4,7 @@
 
 import { at, definedEntries, definedValues, fromMap } from './module.f.mjs'
 import { empty, setReplace } from '../ordered_map/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
     // an ordered map as an object: its entries in the map's order, sorted

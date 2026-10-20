@@ -3,7 +3,7 @@
  * @import { Issue } from '../issue/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { demoSection, directoryLayout, footer, header, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'

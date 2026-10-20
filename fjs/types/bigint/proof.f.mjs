@@ -45,7 +45,7 @@ const candidateNames = [
     'string32Log2',
     'mathLog2',
 ]
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { min } from '../function/compare/module.f.mjs'
 
 /** @type {(v: bigint) => bigint} */

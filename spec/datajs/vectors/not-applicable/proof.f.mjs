@@ -2,7 +2,7 @@
  * @import { NotApplicable } from '../../../../fjs/media/datajs/vectors/matrix/types.ts'
  */
 
-import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
+import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import notApplicable from './data.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */

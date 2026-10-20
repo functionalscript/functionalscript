@@ -18,7 +18,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { resultMapStep, step } from '../module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'

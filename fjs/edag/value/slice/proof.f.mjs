@@ -5,7 +5,7 @@
  * @import { Array as ValueArray, Primitive } from '../types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { slice } from './module.f.mjs'
 
 const undefinedValue = /** @type {const} */ (['undefined'])

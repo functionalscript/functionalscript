@@ -32,7 +32,7 @@
  * @import { ReportDemoState, _BrowserTestResult, _TestAndPath } from '../types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { foldStep, mapStep, pureOk, resultStep } from '../../effects/module.f.mjs'
 import { collectTests, defaultTest, testResult } from '../module.f.mjs'
 import { browserResult, countsView, moduleFailure, reportOf, reportView, unreported } from './module.f.mjs'

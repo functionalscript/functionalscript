@@ -1,5 +1,5 @@
 import { isBareInteger, isIntegral, numberLexeme } from './module.f.mjs'
-import { assert, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
 
 /** @type {(value: string) => boolean} */
 const integral = value => isIntegral(numberLexeme(value))

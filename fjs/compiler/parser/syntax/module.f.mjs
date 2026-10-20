@@ -37,20 +37,20 @@
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ParameterNames, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
 import { concat, toArray } from '../../../types/list/module.f.mjs'
-import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
-import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
+import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     afterCase, binaryOpTag, body, callArguments, caseTail, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, entries, entry, loopStatement, member, parameterNames, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, entries, entry, loopStatement, member, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -475,6 +475,50 @@ const parameterWith = (target, init) => {
     return ['=', target, tokenAt(eq), nodeAt(v)]
 }
 
+/**
+ * What a `(` value `,` holds after the comma where nothing follows it: no
+ * item, and the comma trailing.
+ *
+ * @type {(trailing: boolean) => _ParenItems}
+ */
+const noParenItems = trailing => ({ fixed: null, rest: null, operands: null, refusal: null, trailing })
+
+/** @type {(node: _Leaf) => _ParenItems} */
+const parenItemsAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'parenItems')
+    return out
+}
+
+/** The items a `(` value `,` holds after the comma, `[ parenItems ]`: none, a trailing comma, where nothing follows it. @type {(node: _OptionalList) => _ParenItems} */
+const parenItemsOf = node => {
+    const rounds = unmapped(node)
+    return rounds.length === 0 ? noParenItems(true) : parenItemsAt(rounds[0])
+}
+
+/** The items after an item, `[ ',' [ parenItems ] ]`: none where no comma follows it. @type {(node: _ParametersAfterNode) => _ParenItems} */
+const parenItemsAfter = node => {
+    const rounds = unmapped(node)
+    return rounds.length === 0 ? noParenItems(false) : parenItemsOf(unmapped(rounds[0])[1])
+}
+
+/**
+ * A comma's node from its operands and what refuses it, or the one
+ * operand's own where there is no other: a group is no node of its own.
+ *
+ * @type {(operands: readonly Node[], refusal: DjsTokenWithMetadata | null) => Node}
+ */
+const comma = (operands, refusal) => operands.length === 1 && refusal === null ? operands[0] : [',', operands, refusal]
+
+/**
+ * A group's value from the value at its first position and the operands
+ * after it, `value { ',' value }`: the value alone, or the comma over all
+ * of them.
+ *
+ * @type {(v: _Leaf, more: _CommaOperandsNode) => Node}
+ */
+const grouped = (v, more) => comma([nodeAt(v), ...unmapped(more).map(round => nodeAt(unmapped(round)[1]))], null)
+
 /** The entries of a list of entries, its tail already mapped. */
 const entriesOf = listOf(entryAt, entriesAt)
 
@@ -898,9 +942,10 @@ const continued = (list, base, closed, node) => {
  * What a `(` opened, at the second position of `( (func | value afterValue)`:
  * a function whose list begins with no value, by that list at the first
  * position of `[ ... id ] ) => body`, its `=>` at the third and its body
- * at the fourth — or a value and what follows it: `,`, the names after the
- * value, the `=>` and the body at the fifth position of
- * `, [ names ] ) => body`, the value heading a named list; `=`, the
+ * at the fourth — or a value and what follows it: `,`, the items after the
+ * value and then {@link continued} at the fourth position of
+ * `, [ parenItems ] ) arrowOrRest`, the value heading a named list where
+ * `=>` follows and a comma's operands where anything else does; `=`, the
  * value's default at the second position of
  * `= value [ , [ names ] ] ) => body`, the names after it, the `=>` at the
  * fifth and the body at the sixth, the value heading a named list with
@@ -926,8 +971,14 @@ const parenNode = (open, [tag, branch]) => {
     const [v, after] = unmapped(branch)
     const [kind, rest] = unmapped(after)
     if (kind === 'list') {
-        const [, names, , arrow, b] = unmapped(rest)
-        return ['=>', arrowed(namedList(open, v, bare, parameterItems(names)), tokenAt(arrow)), nodeAt(b)]
+        // the items read both ways, and what follows the `)` deciding: an
+        // arrow's parameters, or a comma's operands — refused at the first
+        // token no operand list holds, a trailing comma's at the `)`
+        const [, items, close, next] = unmapped(rest)
+        const more = parenItemsOf(items)
+        const refusal = more.refusal ?? (more.trailing ? tokenAt(close) : null)
+        const list = namedList(open, v, bare, { fixed: more.fixed, rest: more.rest })
+        return continued(list, comma([nodeAt(v), ...toArray(more.operands)], refusal), true, next)
     }
     if (kind === 'default') {
         const [eq, d, more, , arrow, b] = unmapped(rest)
@@ -940,15 +991,16 @@ const parenNode = (open, [tag, branch]) => {
 }
 
 /**
- * A group's node, from `value ) access* '**' unary`: the value at the
- * first position, the steps after the `)` at the third applied to it, and
- * the power at the fourth raised over that.
+ * A group's node, from `value { ',' value } ) access* '**' unary`: the
+ * value at the first position, or the comma over it and the operands at
+ * the second, {@link grouped}, the steps after the `)` at the fourth
+ * applied to it, and the power at the fifth raised over that.
  *
  * @type {(node: Ast<Group, DjsTokenWithMetadata, Out>) => Node}
  */
 const groupNode = node => {
-    const [v, , accesses, powTail] = unmapped(node)
-    return withPow(steps(nodeAt(v), unmapped(accesses), true), powTail)
+    const [v, more, , accesses, powTail] = unmapped(node)
+    return withPow(steps(grouped(v, more), unmapped(accesses), true), powTail)
 }
 
 /**
@@ -1042,9 +1094,9 @@ const operandToNode = node => {
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
-        const [v, , accesses] = unmapped(g)
+        const [v, more, , accesses] = unmapped(g)
         const first = tokenAt(open)
-        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses), true), first, target: invalid(first) })
+        return symbol({ id: 'value', node: steps(grouped(v, more), unmapped(accesses), true), first, target: invalid(first) })
     }
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
@@ -1464,6 +1516,35 @@ const toParameterNames = ([tag, branch]) => {
 }
 
 /**
+ * What follows `(` value `,`, from `parenItems`'s branch, read both ways
+ * the `)` may decide: a fixed item — its target as a parameter, with its
+ * default where it has one, {@link parameterWith}, and its node as an
+ * operand — before the items its tail's mapping already returned, the
+ * first token no operand list holds kept, the default's `=` before the
+ * tail's; or the rest parameter's token, which ends the list and is that
+ * token itself.
+ *
+ * @type {(node: Children<ParenItems, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toParenItems = ([tag, branch]) => {
+    if (tag === 'rest') {
+        const [dots, name] = unmapped(branch)
+        return symbol({ ...noParenItems(false), id: 'parenItems', rest: tokenAt(unmapped(name)[1]), refusal: tokenAt(dots) })
+    }
+    const [v, init, more] = unmapped(branch)
+    const tail = parenItemsAfter(more)
+    const rounds = unmapped(init)
+    return symbol({
+        id: 'parenItems',
+        fixed: { first: parameterWith(valueTargetAt(v), init), tail: tail.fixed },
+        rest: tail.rest,
+        operands: { first: nodeAt(v), tail: tail.operands },
+        refusal: rounds.length === 0 ? tail.refusal : tokenAt(unmapped(rounds[0])[0]),
+        trailing: tail.trailing,
+    })
+}
+
+/**
  * The rewrite set: a value to its node, a list to its items, a member and
  * each statement to its record, and the module to the records of its
  * statements. Keyed by the rules `./grammar` holds, so that
@@ -1492,6 +1573,9 @@ export const mappings = [
     // the parameters after a named list's first, a list of its own so that
     // a list of any length is read in as many steps
     map(parameterNames, toParameterNames),
+    // what follows `(` value `,`, an arrow's parameters or a comma's
+    // operands, a list of its own as the names are
+    map(parenItems, toParenItems),
     map(importBinding, toImportBinding),
     map(importBindings, toImportBindings),
     map(importStatement, toImport),

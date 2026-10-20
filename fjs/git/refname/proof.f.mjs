@@ -1,4 +1,4 @@
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { latin1 } from '../testlib.f.mjs'
 import { hasRefComponents, isName, isWholeName } from './module.f.mjs'
 

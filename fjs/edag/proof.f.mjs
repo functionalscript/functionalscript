@@ -40,7 +40,7 @@
  */
 
 import { validate } from '../rtti/validate/module.f.mjs'
-import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
 import {
     exp, fromValue, isStatic, op0Id, op1Id, op12Id, op2Id, op3Id,
     intrinsicIds, intrinsicLength, intrinsics, isIntrinsic,

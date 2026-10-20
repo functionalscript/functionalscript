@@ -10,7 +10,7 @@
 
 import { parseFromTokens } from './module.f.mjs'
 import { stringifyDjsModule, tokenizeString } from './proof.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
     // A function: the rest parameter is `['args']` in its body, an access

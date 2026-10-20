@@ -6,7 +6,7 @@
  * @import { EdagValue } from '../../edag/value/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { expectation } from './module.f.mjs'
 

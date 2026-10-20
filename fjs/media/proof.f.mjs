@@ -6,7 +6,7 @@
  * @import { ValidationError } from '../rtti/common/types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../asserts/module.f.js'
 import { u8ListToVecMsb, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
 import { detect, jsonDialect } from './module.f.mjs'
 import { checkReferences, dialect, revisionDialect, revisionSchema } from './revision/module.f.mjs'

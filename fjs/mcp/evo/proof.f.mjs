@@ -6,7 +6,7 @@
  * @import { State } from '../../effects/node/virtual/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { fileCas } from '../../cas/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { virtual } from '../../effects/node/virtual/module.f.mjs'

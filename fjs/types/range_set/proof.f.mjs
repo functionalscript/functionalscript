@@ -2,7 +2,7 @@
  * @import { RangeSet } from './types.ts'
  */
 
-import { assert, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertStructurallySame } from '../../asserts/module.f.js'
 import {
     complement,
     contains,

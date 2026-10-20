@@ -6,7 +6,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { run as mockRun } from '../mock/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'

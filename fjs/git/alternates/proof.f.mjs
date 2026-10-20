@@ -1,4 +1,4 @@
-import { assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertStructurallySame } from '../../asserts/module.f.js'
 import { alternatesIn } from './module.f.mjs'
 
 export const proof = {

@@ -19,6 +19,25 @@ pub struct IoError {
     pub message: String,
 }
 
+impl IoError {
+    /// A failure that is not the host's, with the code Node gives for it: an
+    /// argument the host would reject.
+    pub fn refusal(code: &str, message: impl Into<String>) -> IoError {
+        IoError {
+            code: Some(code.to_string()),
+            message: message.into(),
+        }
+    }
+
+    /// A failure with no code: the message alone.
+    pub fn message(message: impl Into<String>) -> IoError {
+        IoError {
+            code: None,
+            message: message.into(),
+        }
+    }
+}
+
 /// An entry of a directory, as Node's `Dirent`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dirent {
@@ -118,14 +137,6 @@ pub(crate) fn failure(error: &io::Error, call: &str, path: &str) -> IoError {
             .or_else(|| code(error.kind()))
             .map(str::to_string),
         message: format!("{error}, {call} '{path}'"),
-    }
-}
-
-/// A failure that is not the host's: an argument the host would reject.
-fn refusal(code: &str, message: String) -> IoError {
-    IoError {
-        code: Some(code.to_string()),
-        message,
     }
 }
 
@@ -242,12 +253,9 @@ pub fn read_file(path: &str) -> Result<Vec<u8>, IoError> {
         .map_err(|e| failure(&e, "stat", path))?
         .len();
     if size > MAX_FILE_SIZE_BYTES {
-        return Err(IoError {
-            code: None,
-            message: format!(
-                "File size {size} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
-            ),
-        });
+        return Err(IoError::message(format!(
+            "File size {size} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
+        )));
     }
     let file = File::open(path).map_err(|e| failure(&e, "open", path))?;
     read_bounded(path, file)
@@ -262,12 +270,9 @@ fn read_bounded(path: &str, reader: impl Read) -> Result<Vec<u8>, IoError> {
         .read_to_end(&mut bytes)
         .map_err(|e| failure(&e, "read", path))?;
     if bytes.len() as u64 > MAX_FILE_SIZE_BYTES {
-        return Err(IoError {
-            code: None,
-            message: format!(
-                "File exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
-            ),
-        });
+        return Err(IoError::message(format!(
+            "File exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
+        )));
     }
     Ok(bytes)
 }
@@ -279,7 +284,7 @@ fn read_bounded(path: &str, reader: impl Read) -> Result<Vec<u8>, IoError> {
 pub fn read_whole(path: &str) -> Result<Vec<Vec<u8>>, IoError> {
     let metadata = fs::metadata(path).map_err(|e| failure(&e, "stat", path))?;
     if !metadata.is_file() {
-        return Err(refusal(
+        return Err(IoError::refusal(
             "ERR_NOT_A_FILE",
             format!("{path} is not a regular file"),
         ));
@@ -352,7 +357,7 @@ pub fn write_file(path: &str, data: &[u8]) -> Result<(), IoError> {
 /// does not seek or write, as the Node runner skips its write loop.
 pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
     let Some(at) = offset(at) else {
-        return Err(refusal(
+        return Err(IoError::refusal(
             "ERR_OUT_OF_RANGE",
             format!("The value of \"position\" is out of range: {at}"),
         ));
@@ -424,7 +429,7 @@ fn read_window(mut file: &File, at: f64, size: f64, what: &str) -> Result<Vec<u8
 
 /// What a handle's operation answers for one that is closed.
 pub fn bad_descriptor() -> IoError {
-    refusal("EBADF", "bad file descriptor".to_string())
+    IoError::refusal("EBADF", "bad file descriptor")
 }
 
 /// `open` of `fjs/effects/node/types.ts`: the file `path` names, for reading.
@@ -436,7 +441,7 @@ pub fn open(path: &str) -> Result<File, IoError> {
     {
         use std::os::unix::fs::FileTypeExt;
         if fs::metadata(path).is_ok_and(|m| m.file_type().is_fifo()) {
-            return Err(refusal(
+            return Err(IoError::refusal(
                 "ERR_NOT_A_FILE",
                 format!("{path} is a FIFO, which cannot be opened without blocking"),
             ));
@@ -450,11 +455,7 @@ pub fn fstat(file: &File) -> Result<Stat, IoError> {
     let metadata = file
         .metadata()
         .map_err(|e| failure(&e, "fstat", "handle"))?;
-    Ok(Stat {
-        size: metadata.len(),
-        is_file: metadata.is_file(),
-        is_directory: metadata.is_dir(),
-    })
+    Ok(metadata.into())
 }
 
 /// `pread`: the window `read_bytes` reads, through an open file. The window
@@ -467,10 +468,7 @@ pub fn pread(file: &File, at: f64, size: f64) -> Result<Vec<u8>, IoError> {
 /// Whether `size` bytes at `at` is a window a read may ask for.
 pub fn check_window(at: f64, size: f64) -> Result<(), IoError> {
     match window_refusal(at, size) {
-        Some(message) => Err(IoError {
-            code: None,
-            message,
-        }),
+        Some(message) => Err(IoError::message(message)),
         None => Ok(()),
     }
 }
@@ -534,7 +532,7 @@ fn write_exclusive_with(
 pub fn rm(path: &str) -> Result<(), IoError> {
     let metadata = fs::symlink_metadata(path);
     if metadata.as_ref().is_ok_and(|m| m.is_dir()) {
-        return Err(refusal(
+        return Err(IoError::refusal(
             "ERR_FS_EISDIR",
             format!("Path is a directory: rm returned EISDIR (is a directory) {path}"),
         ));
@@ -560,13 +558,19 @@ pub struct Stat {
     pub is_directory: bool,
 }
 
+impl From<fs::Metadata> for Stat {
+    fn from(metadata: fs::Metadata) -> Stat {
+        Stat {
+            size: metadata.len(),
+            is_file: metadata.is_file(),
+            is_directory: metadata.is_dir(),
+        }
+    }
+}
+
 pub fn stat(path: &str) -> Result<Stat, IoError> {
     let metadata = fs::metadata(path).map_err(|e| failure(&e, "stat", path))?;
-    Ok(Stat {
-        size: metadata.len(),
-        is_file: metadata.is_file(),
-        is_directory: metadata.is_dir(),
-    })
+    Ok(metadata.into())
 }
 
 /// Whether the path exists, as `access` with no mode asks: a link is followed.
@@ -851,34 +855,11 @@ mod test {
     #[cfg(not(target_family = "wasm"))]
     mod directory {
         use super::*;
-        use std::sync::atomic::{AtomicUsize, Ordering};
-
-        /// A fresh directory under the system's, removed when dropped.
-        struct Scratch(std::path::PathBuf);
-
-        impl Scratch {
-            fn new() -> Self {
-                static NEXT: AtomicUsize = AtomicUsize::new(0);
-                let n = NEXT.fetch_add(1, Ordering::Relaxed);
-                let path = std::env::temp_dir()
-                    .join(format!("nanvm-effects-node-{}-{n}", std::process::id()));
-                fs::create_dir_all(&path).unwrap();
-                Self(path)
-            }
-            fn at(&self, name: &str) -> String {
-                self.0.join(name).to_string_lossy().into_owned()
-            }
-        }
-
-        impl Drop for Scratch {
-            fn drop(&mut self) {
-                let _ = fs::remove_dir_all(&self.0);
-            }
-        }
+        use crate::scratch::Scratch;
 
         #[test]
         fn stat_and_access() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("f");
             write_file(&file, &[1, 2, 3]).unwrap();
             assert_eq!(
@@ -905,7 +886,7 @@ mod test {
 
         #[test]
         fn rename_replaces_a_file() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             write_file(&dir.at("a"), &[1]).unwrap();
             write_file(&dir.at("b"), &[2]).unwrap();
             assert_eq!(rename(&dir.at("a"), &dir.at("b")), Ok(()));
@@ -918,7 +899,7 @@ mod test {
 
         #[test]
         fn rmdir_removes_an_empty_directory_only() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             mkdir(&dir.at("d"), false).unwrap();
             write_file(&dir.at("d/f"), &[]).unwrap();
             assert_eq!(code_of(rmdir(&dir.at("d"))), Some("ENOTEMPTY".into()));
@@ -933,7 +914,7 @@ mod test {
         #[cfg(unix)]
         #[test]
         fn rmdir_refuses_a_link() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             mkdir(&dir.at("target"), false).unwrap();
             std::os::unix::fs::symlink(dir.at("target"), dir.at("link")).unwrap();
             assert_eq!(code_of(rmdir(&dir.at("link"))), Some("ENOTDIR".into()));
@@ -943,7 +924,7 @@ mod test {
 
         #[test]
         fn read_bytes_windows() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("f");
             write_file(&file, &[1, 2, 3, 4, 5]).unwrap();
             assert_eq!(read_bytes(&file, 1.0, 3.0), Ok([2, 3, 4].to_vec()));
@@ -989,7 +970,7 @@ mod test {
 
         #[test]
         fn exclusive_creation() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("f");
             assert_eq!(create_exclusive(&file), Ok(()));
             assert_eq!(read_file(&file), Ok(Vec::new()));
@@ -1000,7 +981,7 @@ mod test {
 
         #[test]
         fn write_exclusive_writes_every_chunk() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("f");
             assert_eq!(
                 write_exclusive(&file, &[[1, 2].to_vec(), Vec::new(), [3].to_vec()]),
@@ -1017,7 +998,7 @@ mod test {
         /// is the write's, not the cleanup's.
         #[test]
         fn a_failed_exclusive_write_is_rolled_back() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("f");
             let result = write_exclusive_with(
                 &file,
@@ -1038,7 +1019,7 @@ mod test {
         /// already gone is a rollback.
         #[test]
         fn a_failed_rollback_is_reported() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("f");
             let error = write_exclusive_with(
                 &file,
@@ -1093,7 +1074,7 @@ mod test {
 
         #[test]
         fn write_read_and_rm() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("a.bin");
             assert_eq!(write_file(&file, &[1, 2, 3]), Ok(()));
             assert_eq!(read_file(&file), Ok([1, 2, 3].to_vec()));
@@ -1106,7 +1087,7 @@ mod test {
 
         #[test]
         fn read_refuses_a_file_over_a_vec() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("big");
             assert_eq!(
                 write_file(&file, &[0; MAX_FILE_SIZE_BYTES as usize]),
@@ -1146,7 +1127,7 @@ mod test {
         ))]
         #[test]
         fn read_reports_a_symlink_loop() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let link = dir.at("loop");
             std::os::unix::fs::symlink("loop", &link).unwrap();
             assert_eq!(code_of(read_file(&link)), Some("ELOOP".into()));
@@ -1154,7 +1135,7 @@ mod test {
 
         #[test]
         fn unsafe_offsets_are_refused_before_open() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let missing = dir.at("missing");
             for at in [MAX_OFFSET as f64 + 1.0, u64::MAX as f64] {
                 // A valid offset on this path would be ENOENT. No sparse file
@@ -1169,7 +1150,7 @@ mod test {
 
         #[test]
         fn rm_refuses_a_directory() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             assert_eq!(code_of(rm(&dir.at(""))), Some("ERR_FS_EISDIR".into()));
             assert_eq!(code_of(rm(&dir.at("none"))), Some("ENOENT".into()));
         }
@@ -1184,7 +1165,7 @@ mod test {
             #[cfg(windows)]
             use std::os::windows::fs::symlink_dir;
 
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             for name in ["empty", "nonempty"] {
                 mkdir(&dir.at(name), false).unwrap();
             }
@@ -1218,7 +1199,7 @@ mod test {
             #[cfg(windows)]
             use std::os::windows::fs::symlink_file;
 
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let target = dir.at("file");
             write_file(&target, &[4, 5]).unwrap();
             for name in ["file", "missing"] {
@@ -1235,7 +1216,7 @@ mod test {
 
         #[test]
         fn mkdir_nested() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let nested = dir.at("a/b/c");
             assert_eq!(code_of(mkdir(&nested, false)), Some("ENOENT".into()));
             assert_eq!(mkdir(&nested, true), Ok(()));
@@ -1246,7 +1227,7 @@ mod test {
 
         #[test]
         fn write_bytes_in_place() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("a");
             assert_eq!(
                 code_of(write_bytes(&file, 0.0, &[1])),
@@ -1269,7 +1250,7 @@ mod test {
 
         #[test]
         fn empty_write_preserves_open_and_offset_checks() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             let file = dir.at("a");
             assert_eq!(code_of(write_bytes(&file, 0.0, &[])), Some("ENOENT".into()));
             assert!(!Path::new(&file).exists());
@@ -1309,7 +1290,7 @@ mod test {
         fn readdir_lists_symlinks_without_following_them() {
             use std::os::unix::fs::symlink;
 
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             mkdir(&dir.at("root"), false).unwrap();
             mkdir(&dir.at("target"), false).unwrap();
             write_file(&dir.at("target/child"), &[]).unwrap();
@@ -1335,7 +1316,7 @@ mod test {
         /// A directory read is sorted, and a recursive one goes level by level.
         #[test]
         fn readdir_order() {
-            let dir = Scratch::new();
+            let dir = Scratch::new("files");
             for d in ["b", "a", "a/x", "b/y", "a/x/deep"] {
                 mkdir(&dir.at(d), false).unwrap();
             }
