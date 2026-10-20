@@ -8,7 +8,9 @@
 [`source`](../source/module.f.mjs) owns the one module walk — `_rootSource`,
 `_parseJson`, `_walk` — as
 [load-modules-without-import-effect](./load-modules-without-import-effect.md)
-asked. Around it, its two callers restate the same two decisions. The root
+asked. Around it, its callers — `resolve` in `compiler/edag` and the
+transpiler's `interpretSource`, `interpretLoaded` and `_transpileDefault` —
+restate the same two decisions. The root
 route, "a `.json` root is a document, a module root is walked":
 
 ```js
@@ -25,7 +27,7 @@ const interpretSource = runtime => source => source.json
 and the JSON import's module shape, `['{}', [[':', 'default',
 jsonValue(value)]]]`, in `linking.json` and `interpreting.json`. The
 transpiler adds `interpretLoaded` to run its runtime `load` only for a module
-root, a third statement of the same route.
+root, another statement of the same route.
 
 ### Proposal
 
@@ -43,7 +45,7 @@ the document either way, as it is now, and neither caller destructures it
 or names `jsonValue` itself. `resolve` is
 `_program(pureOk(linking), ({ exports }) => exports)`; `interpret` is
 `_program(mapStep(load, interpreting), identity)`, which loads the runtime
-only when a module needs it. `_transpileDefault` is the route's third
+only when a module needs it. `_transpileDefault` is the route's other
 caller, and the one that reads the root's kind today: it selects `default`
 from a module's export object and leaves a JSON document as it is, then
 decodes either to data. That choice is a module-branch `finish` and
