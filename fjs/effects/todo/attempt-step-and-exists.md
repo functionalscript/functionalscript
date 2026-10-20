@@ -29,10 +29,11 @@ a `Result` carried. `attemptStep` over it would add a second `ok` layer, and
 it stays as it is.
 
 One instance of the shape has a policy of its own and is decided at every
-site, with differing answers. "Is `path` there" is `access` read as a value: `ENOENT` is
-the answer `false`, any other failure is the failure it is. `foundAt` plus
-`isNotFound` in [`fjs/website`](../../website/module.f.mjs) and `list` in
-[`fjs/cas`](../../cas/module.f.mjs) say so. `ci` in
+site, with differing answers. "Is `path` there" is `access` read as a value:
+a path that names nothing is the answer `false`, any other failure is the
+failure it is. `foundAt` plus `isNotFound` in
+[`fjs/website`](../../website/module.f.mjs) and `list` in
+[`fjs/cas`](../../cas/module.f.mjs) say so for `ENOENT` alone. `ci` in
 [`fjs/ci`](../../ci/module.f.mjs) reads `result[0] === 'ok'`, so a
 `Cargo.toml` that is there but unreadable — a permission error — generates a
 workflow without the Rust jobs, silently: the plausible wrong answer
@@ -55,16 +56,22 @@ the sites above use it. In [`node/module.f.mjs`](../node/module.f.mjs):
 export const exists: (path: string) => Effect<Access, boolean, IoChannel>
 ```
 
-`true` on `ok`, `false` on `ENOENT`, the error on anything else. `foundAt`'s
-callers in `website`, `cas.list` and `ci` read `step(exists(p), has => …)`,
-and `ci` stops swallowing what is not a missing file.
+`true` on `ok`, `false` where the failure `namesNothing` — `ENOENT`,
+`ENOTDIR` or `ELOOP`, the codes [`node/module.f.mjs`](../node/module.f.mjs)
+already reads as nothing at a path a caller spelled — and the error on
+anything else, a permission or an I/O failure among them. `foundAt`'s
+callers in `website`, `cas.list` and `ci` read `step(exists(p), has => …)`;
+`ci` stops swallowing what is not a missing file, and `website` and `cas`,
+which test `isNotFound` today, answer `false` too where a component of the
+path is a file or the links cycle, rather than failing.
 
 ### Tasks
 
 - [ ] `attemptStep` with its proof and README row; `website`,
       `emergent_testing` and its browser runner import it.
 - [ ] `exists` with its proof; `website`, `cas` and `ci` import it.
-- [ ] A `ci` proof for an `access` failure that is not `ENOENT`.
+- [ ] A `ci` proof for an `access` failure `namesNothing` does not cover,
+      such as `EACCES`.
 
 ### Related
 
