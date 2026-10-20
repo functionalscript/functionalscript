@@ -44,7 +44,9 @@ What is worth having is the *other* half — the lookup that does not scan.
   notice is optional before 1.0.
 - `packedId` bisects where `sorted` is claimed and scans where it is not, which
   is what Git does and what the trait is for. A name found by bisection is found
-  in the logarithm of the file rather than a pass over it.
+  in the logarithm of the file rather than a pass over it. It orders names with
+  [`fjs/git/bytes`](../../bytes/module.f.js)'s `cmp`, the order `tryPackedWithout`
+  already checks the claim against, so the two halves agree on what sorted means.
 - The out-of-order case then answers as Git's lookup does, and it answers so
   because both are bisecting rather than because this module imitates a probe
   sequence. Where the two disagree, the file is one `git pack-refs` never wrote.

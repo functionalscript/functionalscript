@@ -6,7 +6,7 @@ import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { empty, length, maxLengthBytes, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { cycle, take, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
-import { digestOf, hexText, isOidOf, of, ofWidth, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
+import { digestOf, hexText, isOidOf, of, ofWidth, oidAt, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 
 /** @type {(hex: string) => readonly number[]} */
 const bytes = hex => {
@@ -66,6 +66,13 @@ export const proof = {
     ofWidth: () => {
         assertEq(ofWidth(20)(length)(vec(160n)(5n)), 160n)
         assertEq(ofWidth(32)(length)(vec(256n)(0n)), 256n)
+    },
+    // The bytes at an offset, most significant first, and only `width` of
+    // them; bytes that run out make a narrower id.
+    oidAt: () => {
+        const b = [0xAA, 0x01, 0x02, 0x03, 0xBB]
+        assertEq(oidAt(b, 1, 3), vec(24n)(0x01_0203n))
+        assertEq(oidAt(b, 3, 3), vec(16n)(0x03BBn))
     },
     // At a width: the id of that width reads, any other is refused, and
     // what is no hex at all is refused as before.

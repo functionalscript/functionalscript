@@ -125,7 +125,7 @@ import { concat, toArray } from '../../types/list/module.f.mjs'
 import { bytesOf, feedWithin, finish, malformed, sizeOf, start } from '../inflater/module.f.mjs'
 import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
-import { hexText, ofWidth } from '../oid/module.f.mjs'
+import { hexText, ofWidth, oidAt } from '../oid/module.f.mjs'
 
 /**
  * The bytes a read hands back, as a dense array to index into.
@@ -545,7 +545,7 @@ const agrees = (path, oidBytes, idx, size, front, tail) => {
     if (h.count !== idx.ids.length) {
         return refused(`holds ${h.count} objects where its index names ${idx.ids.length}`)
     }
-    return u8ListToVecMsb(tail) === idx.packChecksum
+    return oidAt(tail, 0, oidBytes) === idx.packChecksum
         ? pureOk(size)
         : refused(`does not match the index, whose pack checksum is ${hexText(idx.packChecksum)}`)
 }
