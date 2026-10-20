@@ -6,7 +6,7 @@
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { structurallySame } from '../types/object/structurally_same/module.f.mjs'
+import { structurallySame } from '../types/object/structurally_same/module.f.js'
 
 /**
  * Marks a code path as unimplemented. Always throws.

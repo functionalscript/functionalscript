@@ -16,6 +16,7 @@
  */
 
 import { isDriveLetter, isDriveRoot, root, under } from '../../path/module.f.mjs'
+import { codeUnitToString } from '../../text/utf16/module.f.mjs'
 
 /**
  * An entry as the host will be given it: a path ends at its first `NUL`, because
@@ -170,7 +171,7 @@ const unquoted = line => {
         }
         const v = octalAt(line, i + 1)
         if (v === null) { return null }
-        out += String.fromCharCode(v)
+        out += codeUnitToString(v)
         i += 4
     }
 }

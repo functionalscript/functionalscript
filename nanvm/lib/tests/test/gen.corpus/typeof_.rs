@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check::<A>("undefined", Any::typeof_(Nullish::Undefined.to_any()), string_any("undefined"));
     check::<A>("null", Any::typeof_(Nullish::Null.to_any()), string_any("object"));

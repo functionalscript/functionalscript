@@ -7,70 +7,43 @@
 parallel thin wrappers over the same B-tree primitives
 (`btree/find`, `btree/set`, `btree/remove`, `btree/module`) keyed by the same
 string comparator (`string/module.f.mjs` `cmp`). A set is logically a map whose
-key *is* its value, and that relationship shows up directly in the code.
+key *is* its value.
 
-```ts
-// string_set — key === value
-export const contains = value => { const f = find(cmp(value)); return s => s !== null && isFound(f(s).first) }
-export const set      = value => btreeSet(cmp(value))(() => value)
-export const remove   = compose(cmp)(btreeRemove)
-export const values   = btValues
-export const empty    = btEmpty
+### Done
 
-// ordered_map — key is entry[0]
-const keyCmp  = a => ([b]) => cmp(a)(b)
-export const at      = name => map => { … value(find(keyCmp(name))(map).first) … }
-export const setReplace = name => value => setReduceEntry(replace)([name, value])  // wraps btreeSet
-export const remove  = name => btreeRemove(keyCmp(name))
-export const entries = values
-export const empty   = null
-```
+The lookup both collections duplicated — run `btree/find` with a comparator and
+handle the empty tree — has one owner,
+[`btree/find`](../btree/find/module.f.mjs): `findValue` (the matched value or
+`null`) and `contains`, both over a possibly empty `Tree<T>`.
+`string_set.contains` is `contains ∘ cmp`, and `ordered_map.at` is `findValue`
+with its entry-key comparator plus the projection to the entry's value.
 
-Both define a string-keyed comparator (`cmp(value)` vs `keyCmp`), delegate
-find/set/remove/values to `btree`, and expose `empty = null`. `string_set` is
-the `key === value` specialization of the keyed collection that `ordered_map`
-generalizes with `[key, value]` entries.
+### What remains
 
-### Proposed abstraction
-
-A single keyed-B-tree-collection factory parameterized by the key extractor and
-key comparator:
-
-```ts
-const keyedCollection = <K, V>(keyOf: (v: V) => K, keyCmp: (a: K) => (b: K) => Sign) => ({
-    contains: (k: K) => /* find via keyCmp(k) ∘ keyOf */,
-    find:     (k: K) => …,
-    set:      (v: V) => btreeSet(cmpBy(keyOf, keyCmp)(keyOf(v)))(…),
-    remove:   (k: K) => btreeRemove(…),
-    values,
-    empty: null,
-})
-```
+A single keyed-collection factory, parameterized by a key extractor and key
+comparator, that both modules are built from:
 
 - `string_set` = `keyedCollection<string, string>(identity, stringCmp)`
 - `ordered_map<T>` = `keyedCollection<string, Entry<T>>(fst, stringCmp)` plus
-  its `setReduce`/`setReplace`/`at` value-layer conveniences on top.
+  its `setReduce`/`setReplace`/`at`/`fromEntries` value layer on top.
 
-Both consumers already exist: `ordered_map` is used widely (`object`,
-`compiler/parser`, `compiler/transpiler`, `media/datajs/parser`, `js/tokenizer`,
-`website`); `string_set` is used by `ebnf/data`, `ebnf/ll1` and `website`. So
-extracting now satisfies the second-consumer rule.
+It was not done with the lookup extraction because it costs more than the
+duplication it would remove:
 
-### Caveats / why this is an idea, not a mechanical edit
-
+- **Generics.** `ordered_map`'s operations are generic per call
+  (`(name: string) => <T>(map: OrderedMap<T>) => …`). A factory instantiated once
+  at module scope fixes `V = Entry<T>` there, so each operation would have to be
+  re-annotated or re-wrapped to stay generic, which is the duplication again.
+- **Little left to share.** With lookup extracted, `set` and `remove` are already
+  one-liners over `btree/set` and `btree/remove` with each module's comparator,
+  and `values`/`empty` are re-exports of `btree/module`.
 - **Value asymmetry.** A set has no value; a map's value participates in
   `setReduce` (combining on collision). The factory must either expose the raw
   `btreeSet(cmp)(update)` and let each wrapper decide the update function, or
-  model the set as `OrderedMap<null>` and re-expose a value-free surface. The
-  former keeps `string_set`'s storage compact (the value *is* the key, no
-  `[k, v]` tuple); the latter is simpler but doubles `string_set`'s storage.
-  This is a design call worth deciding before implementing.
-- Keep `ordered_map`'s `setReduce`/`setReplace`/`at`/`fromEntries` as a thin
-  value-layer over the shared core rather than pushing them into the factory.
+  model the set as `OrderedMap<null>`, which doubles `string_set`'s storage.
 
-The mechanical win is modest; the value is architectural — making explicit that
-"set" and "ordered map" are one structure, so future ordered collections (e.g.
-an ordered multiset) reuse the core instead of forking a third wrapper.
+Worth revisiting when a third ordered collection (e.g. an ordered multiset)
+would otherwise fork another wrapper.
 
 ### Related
 

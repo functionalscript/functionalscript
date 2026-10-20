@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("padded", Any::dot(string_any(" \t\n﻿a b　\r\n"), string_any("trimEnd")).end_call(&rt, || Ok(Array::default().to_any())), string_any(" \t\n﻿a b"));

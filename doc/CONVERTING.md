@@ -396,3 +396,43 @@ One spelling of the built-in is not a call on a number. `BigInt("12")` is
 where `bigint` takes a number and throws on anything else, so a call on a
 value of another type is checked, not rewritten — the module says what it
 converts, as it does for `min` and `max` on strings.
+
+## 9. A `Map` keyed by strings
+
+`Map` is not a language type, and `new Map(...)` is refused
+(`unexpected token`). A `Map` earns its place only where the keys are not
+strings — a function, an object, a value compared by identity — and stays
+the module's until the language has a type for that; the
+[`edag/analysis`](../fjs/edag/analysis/module.f.mjs) walk's `visited`,
+keyed by EDAG nodes through
+[`types/map`](../fjs/types/map/module.f.mjs), is one. A `Map` whose keys
+are strings is an object the module already has, read through `entry` and
+`hasEntry` (rule 1):
+
+```js
+const { entries } = Object
+
+const same = (a, b) => {
+    const bm = new Map(entries(b))                       // refused
+    return entries(a).every(([k, v]) => bm.has(k) && bm.get(k) === v)
+}
+```
+
+```js
+import { entry, hasEntry } from '../types/object/entry/module.f.js'
+
+const { entries } = Object
+
+const same = (a, b) =>                                   // accepted
+    entries(a).every(([k, v]) => hasEntry(b, k) && entry(b, k) === v)
+```
+
+The value is preserved: `new Map(entries(b))` holds the enumerable own
+string-keyed properties of `b`, which are the entries `hasEntry` and
+`entry` read, and `bm.size` is `entries(b).length`. `bm.has(k)` and
+`hasEntry(b, k)` both answer `true` for an entry holding `undefined`, which
+`entry(b, k) !== undefined` would not. A `Map` built to make a lookup cheap
+is an optimization, and the module drops it with the `Map`
+([DESIGN.md §1](./DESIGN.md#1-simplicity-first)).
+[`fjs/types/object/structurally_same`](../fjs/types/object/structurally_same/module.f.js)
+is the worked case.

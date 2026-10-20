@@ -40,29 +40,9 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { lowerHexDigitValue } from '../../../text/ascii/module.f.mjs'
+import { decodeLower } from '../../../basen/base16/module.f.mjs'
 
 const { is, keys } = Object
-
-/** The value of the lowercase hex digit at `i` in `hex`, or `null` for any other code unit. @type {(hex: string) => (i: number) => number | null} */
-const hexDigit = hex => i => lowerHexDigitValue(hex.charCodeAt(i))
-
-/**
- * Whether `hex` is spelled as a byte document is: lowercase pairs separated
- * by single spaces, at least one pair, nothing else.
- *
- * @type {(hex: string) => boolean}
- */
-const isHex = hex => {
-    if (hex.length % 3 !== 2) { return false }
-    const digit = hexDigit(hex)
-    for (let i = 0; i < hex.length; i += 3) {
-        if (digit(i) === null || digit(i + 1) === null) { return false }
-        if (i + 2 < hex.length && hex.charCodeAt(i + 2) !== 0x20) { return false }
-    }
-    return true
-}
 
 /**
  * The bytes a `['hex', …]` document spells, or `null` where the string is
@@ -70,12 +50,15 @@ const isHex = hex => {
  * else, the one spelling the corpus admits so that a byte vector reads as
  * the issue's byte tables do.
  *
+ * The separators are checked here, as every part between two spaces being
+ * two code units long, which also refuses the empty string; the pairs are
+ * `fjs/basen/base16`'s `decodeLower` to read.
+ *
  * @type {(hex: string) => readonly number[] | null}
  */
 export const bytes = hex => {
-    if (!isHex(hex)) { return null }
-    const digit = hexDigit(hex)
-    return Array.from({ length: (hex.length + 1) / 3 }, (_, i) => assertNotNullish(digit(i * 3)) * 16 + assertNotNullish(digit(i * 3 + 1)))
+    const pairs = hex.split(' ')
+    return pairs.every(pair => pair.length === 2) ? decodeLower(pairs.join('')) : null
 }
 
 // typed over the model's own arrays, which are read-only, so that the

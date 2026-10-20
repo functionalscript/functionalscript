@@ -30,17 +30,13 @@
 import { breadcrumb, changelogDir, pageTitle, repository, shell } from '../page/module.f.mjs'
 import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
 import { intersperse, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
-
-const zero = 0x30
-const nine = 0x39
-const a = 0x61
-const f = 0x66
+import { charIs, isDigit as isDigitCodePoint, lowerHexDigitValue } from '../../text/ascii/module.f.mjs'
 
 /** @type {(c: string) => boolean} */
-const isDigit = c => { const u = c.charCodeAt(0); return u >= zero && u <= nine }
+const isDigit = charIs(isDigitCodePoint)
 
 /** A short commit SHA is lower-case hex, as `git log --format=%h` prints it. @type {(c: string) => boolean} */
-const isHex = c => { const u = c.charCodeAt(0); return isDigit(c) || (u >= a && u <= f) }
+const isHex = charIs(u => lowerHexDigitValue(u) !== null)
 
 /**
  * The shortest SHA the repository's own entries carry. Shorter than this and
