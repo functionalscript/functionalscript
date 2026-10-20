@@ -61,16 +61,24 @@ it is.
 
 #### Syntax
 
-A **call statement** is an expression statement whose expression is a call,
-ended as every statement is, by `;` or where JavaScript inserts one
-([module structure](../modules/README.md)):
+A **call statement** is an expression statement whose expression is a call
+and which begins with a name, ended as every statement is, by `;` or where
+JavaScript inserts one ([module structure](../modules/README.md)):
 
-- a call of any value the language reads, `f(x);`, `a.b(x);`, `f(x)(y);`,
-  `entry(o, k);` and `(0, o.f)(x);`;
+- a call of a name or of a member, `f(x);`, `a.b(x);`, `f(x)(y);` and
+  `entry(o, k);`;
 - a guarded call, and a chain whose last step is a call, `f?.(x);` and
-  `a?.b.c(x);`;
-- a group around one of those, `(f(x));`, since a group changes nothing
-  about the call it holds ([grouping](../operators/grouping.md)).
+  `a?.b.c(x);`.
+
+**It begins with a name.** A statement opening with `(`, `[` or a template
+literal would continue the statement before it where no `;` ends it:
+JavaScript reads `const a = b` and, on the next line, `(0, f)(x)` as
+`const a = b(0, f)(x)`, and a backtick there as a tagged template,
+`` b`x` ``. So `(0, o.f)(x);`, `(f(x));` and `` `a`.trim(); `` are not
+admitted: one symbol could not tell them from the continuation, and the
+grammar already refuses a tagged template at its head, so such a line is
+refused, never split into a statement JavaScript would not see. The comma
+spells the detached call where a value stands, `const r = (0, o.f)(x);`.
 
 It stands wherever a `const` stands: at the module level, in a function
 body, in a guard's block, in a loop's block and in a `switch` case's block.
@@ -86,7 +94,10 @@ refused, as today:
 - **a conversion**, `Number(x);` and `String(x);`. Each is an operator,
   not a call ([operators and functions](../principles/README.md#operators-and-functions));
 - **a string literal**, `"use strict";`, which JavaScript reads as a
-  directive, not as an expression.
+  directive, and which in a module, strict already, does nothing. This
+  proposal does not decide it: it stays refused as it is today, under a
+  register row of its own, `st.directive`, whose question — admit the
+  directive as the nothing it is, or refuse it for a reason — is open.
 
 #### Semantics, by lowering
 
@@ -153,11 +164,11 @@ a silent wrong one.
   or a chain ending in one, read through groups, enters as a `const` that
   binds no name. Any other expression is refused at its first token, as
   `st.expression` is now.
-- **JavaScript's line rules come with it.** A statement may now begin with
-  `(` or `[`, and JavaScript joins such a line to the one before when no
-  `;` ends it: `const a = b` followed by `(0, f)(x)` on the next line is
-  `const a = b(0, f)(x)`. The parser follows JavaScript there, so the
-  meaning is JavaScript's. It is a familiar JavaScript trap, not a new one.
+- **No line rule changes.** A statement begins with a name, and a name
+  continues no value before it: on a new line it begins a statement, as
+  JavaScript inserts the `;` there, and on the same line it is refused, as
+  a statement after an omitted `;` is. A statement opening with `(`, `[` or
+  a backtick is not read, for the reason above.
 
 #### Benefits and drawbacks
 
@@ -179,8 +190,9 @@ a silent wrong one.
 - The writer's output spells the call as a `const`, not as the statement
   written, as it already spells `if` and destructuring differently from
   their source.
-- Statements may begin with `(` or `[`, which brings in JavaScript's
-  line-joining rule for them.
+- A call statement opening with `(`, `[` or a backtick, valid JavaScript,
+  stays refused: `(0, o.f)(x);` is written as a `const`, or with the comma
+  where a value stands.
 
 ### Tasks
 
@@ -196,6 +208,9 @@ a silent wrong one.
         [bodies and guards](../control-flow/guards.md),
         [loops](../control-flow/loops.md) and [switch](../control-flow/switch.md)
         take the statement;
+      - [`todo/edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md),
+        whose subject 8 says the bare call statement stays refused, says it
+        compiles;
       - the [register](./refused-constructs.md)'s `st.call` row is deleted,
         `st.expression` is left with the other expression statements, and
         `st.let-while` no longer counts a call statement among what a
