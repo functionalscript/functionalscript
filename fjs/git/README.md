@@ -124,14 +124,15 @@ what a grammar can and cannot do for the formats.
   as Git reads it: comments and blank lines skipped, a C-quoted line
   unquoted, a path ended at its first `NUL`, and a relative entry joined below
   the `objects/` directory holding the file.
+- [`format/`](format/module.f.mjs) — the repository format a `config`
+  declares and the id width that follows, read through
+  [`config/`](config/module.f.mjs)'s readers: `extensions.objectFormat`
+  absent is SHA-1, `sha256` under `repositoryformatversion = 1` is SHA-256,
+  and a repository format Git refuses is refused.
 - [`store/`](store/module.f.mjs) — from an id to the object it names,
   checked: the loose file at the id's path or the packs through
   [`packstore/`](packstore/module.f.mjs), whichever answers, hashed with
-  `oid`'s `of` and refused where the hash is not the id; and the width from
-  `config`, read through [`config/`](config/module.f.mjs)'s readers:
-  `extensions.objectFormat` absent is SHA-1, `sha256` under
-  `repositoryformatversion = 1` is SHA-256, and a repository format Git
-  refuses is refused. The loose file is read first and anything but a good object there
+  `oid`'s `of` and refused where the hash is not the id. The loose file is read first and anything but a good object there
   — no file, no stream, no object, another object — asks the packs, since Git
   answers a packed copy over a loose one that cannot be read and the hash
   check stands behind either, and the same two questions are put to each

@@ -30,7 +30,7 @@
  *
  * What a key means is its reader's business, not the grammar's: the
  * repository format and the id width it names are
- * [`fjs/git/store`](../store/module.f.mjs)'s `tryOidBytes`. This module
+ * [`fjs/git/format`](../format/module.f.mjs)'s `tryOidBytes`. This module
  * answers every assignment in the file, and the readers below take a key's
  * from there the way Git takes them — {@link values} every one,
  * {@link lastValue} the one that wins, and {@link lastInt} and
