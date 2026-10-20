@@ -8,7 +8,7 @@
  */
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
 import { u8ListToVecMsb, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
-import { detect, dialectEntry, jsonDialect } from './module.f.mjs'
+import { detect, jsonDialect } from './module.f.mjs'
 import { checkReferences, dialect, revisionDialect, revisionSchema } from './revision/module.f.mjs'
 import { dialect as lockDialectName, lockDialect } from './lock/module.f.mjs'
 import { dialect as noteDialectName, noteDialect } from './note/module.f.mjs'
@@ -35,7 +35,7 @@ const gadgetSchema = open(/** @type {const} */ ({
 }))
 
 /** @type {DialectEntry} */
-const gadgetDialect = dialectEntry(gadgetSchema)
+const gadgetDialect = jsonDialect(gadgetSchema).entry
 
 /**
  * `DialectEntry` is deliberately not opaque, so overlapping entries — which a
@@ -129,7 +129,7 @@ export const proof = {
         assertEq(m.mime_type, 'text/plain')
     },
 
-    // The `extraValidate` path: structurally a revision, but `snapshot` is not
+    // The refinement path: structurally a revision, but `snapshot` is not
     // a cbase32 hash, so `revisionDialect`'s refinement rejects it and the
     // verdict stays `text/plain` — exactly what `decodeText` would say.
     nonHashSnapshotFallsThrough: () => {
@@ -339,11 +339,11 @@ export const proof = {
 
     throw: {
         // The `dialect` member must be a direct string const. A thunk-form one
-        // is a valid rtti schema but is not registerable, and `dialectEntry`
-        // says so at registration rather than per blob.
-        thunkDialectMember: () => dialectEntry(open({ dialect: string })),
+        // is a valid rtti schema but is not registerable, and `jsonDialect`
+        // says so when the kit is built rather than per blob.
+        thunkDialectMember: () => jsonDialect(open({ dialect: string })),
 
         // A schema with no `dialect` member at all is likewise refused.
-        noDialectMember: () => dialectEntry(open({ text: string })),
+        noDialectMember: () => jsonDialect(open({ text: string })),
     },
 }
