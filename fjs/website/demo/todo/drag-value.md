@@ -16,10 +16,16 @@ runtime, named on neither side and proven nowhere.
 
 ### Proposal
 
-A pure `dragValue` in [`module.f.mjs`](../module.f.mjs), beside `DemoEvent`:
-`({ min, max, left, right }, range, x) => string`, and the attribute names as
-an exported record the `secp` demo spreads into its SVG. The host reads the
-attributes and the `getScreenCTM` transform, then calls `dragValue`. The
+A pure `dragValue` in [`module.f.mjs`](../module.f.mjs), beside `DemoEvent`,
+over numbers alone: `(axis: { min, max, left, right }, bounds: { min, max },
+x) => string | null`, answering `null` where `right <= left` leaves no axis
+to map onto, and the attribute names as an exported record the `secp` demo
+spreads into its SVG. Every argument is plain data the proof can build. The
+DOM stays in the host: it reads the four attributes off the SVG, the
+pointer's `x` through `getScreenCTM`, and the input's `min` and `max` off
+the `range` element `byName` finds — `Number(range.min)`, `Number(range.max)`
+— and passes the numbers; the element itself never crosses into the
+module. The `range === null` lookup stays the host's too. The
 `secp` demo is the producer it serves today; the arithmetic and the clamp
 get a proof, and the vocabulary stops being two string literals that must
 agree.

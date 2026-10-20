@@ -41,7 +41,7 @@ and `ast.stepOperands` become one-line applications or go; the maps become
 `mapSteps` calls; the item maps become `mapItems`. `analysis.step`
 threads a state and stays. If
 [bodies-from-analysis](../memo/todo/bodies-from-analysis.md) lands first,
-`memo`'s map is gone and `compiler/edag` is `mapSteps`'s one user — still
+`memo`'s map is gone and `compiler/edag` is the map's consumer — still
 worth it, since `sharing` already pays for the fold.
 
 ### Tasks
