@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check::<A>("nullMinusOne", Nullish::Null.to_any() - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
     check::<A>("undefinedMinusOne", Nullish::Undefined.to_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));

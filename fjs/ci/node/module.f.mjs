@@ -9,7 +9,7 @@
  */
 
 import { node, typescript } from '../config/module.f.js'
-import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
+import { install, npmGlobalInstall, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import { nixInstall, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
 
@@ -36,9 +36,7 @@ export const packageJobId = jobId(node)
 export const installNode = inputs =>
     uses('actions/setup-node', { ...inputs, 'node-version': node })
 
-/** @type {(version: string) => MetaStep} */
-const fjsGlobalInstall = version =>
-    install({ run: `npm install -g functionalscript@${version}` })
+const fjsGlobalInstall = npmGlobalInstall('functionalscript')
 
 /**
  * Asserts the Node a job is about to run on, through the shared check.

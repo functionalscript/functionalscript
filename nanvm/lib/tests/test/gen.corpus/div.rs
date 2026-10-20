@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check::<A>("nullDividedByFour", Nullish::Null.to_any() / f64_any(0x4010000000000000), f64_any(0x0000000000000000));
     check::<A>("undefinedDividedByFour", Nullish::Undefined.to_any() / f64_any(0x4010000000000000), f64_any(0x7ff8000000000000));

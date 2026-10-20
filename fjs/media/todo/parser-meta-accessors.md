@@ -252,3 +252,6 @@ one-line follow-up rather than a design decision.
 - [../../ebnf/ll1/todo/mapping-precheck.md](../../ebnf/ll1/todo/mapping-precheck.md)
   — owns the first library reader of `meta.id`; `tagged` moves into
   `fjs/ebnf/ast` only after it.
+- [escapes-through-mappings](../../js/tokenizer/todo/escapes-through-mappings.md)
+  — the follow-up that makes that move once the precheck lands, and takes
+  the `Text` tag and the string mappings down to `lib/json` with it.
