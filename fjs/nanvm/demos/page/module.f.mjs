@@ -30,7 +30,7 @@
 
 import { sandbox } from '../../../effects/common/module.f.mjs'
 import { fetchText, instantiate } from '../../../effects/browser/module.f.mjs'
-import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.mjs'
+import { errorMessage, history, historyStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
@@ -67,10 +67,11 @@ const loaded = r => r[0] === 'ok' ? r : error(errorMessage(r[1]))
  *
  * @type {(name: string) => Effect<FetchText | Instantiate, State, never>}
  */
-export const load = name => resultStep(fetchText(`/${samplePath(name)}`), source =>
-    resultStep(fetchText(`/${watPath}`), wat =>
-        resultStep(instantiate(`/${wasmPath}`), wasm =>
-            pureOk(/** @type {State} */ ({ ...init, source: loaded(source), wat: loaded(wat), wasm: loaded(wasm) })))))
+export const load = name => {
+    const source = resultStep(fetchText(`/${samplePath(name)}`), r => pureOk(/** @type {State} */ ({ ...init, source: loaded(r) })))
+    const wat = step(source, state => resultStep(fetchText(`/${watPath}`), r => pureOk({ ...state, wat: loaded(r) })))
+    return step(wat, state => resultStep(instantiate(`/${wasmPath}`), r => pureOk({ ...state, wasm: loaded(r) })))
+}
 
 /** Bytes as text, refused unless they are UTF-8. @type {(bytes: List<number>) => Result<string, string>} */
 export const decode = bytes => {
@@ -161,14 +162,14 @@ export const runWasm = name => ({ exports }) => {
  *
  * @type {(sample: Sample) => (state: State) => Effect<Sandbox, State, never>}
  */
-export const runBoth = ({ name, program }) => state => resultStep(runJs(program), js => {
-    /** @type {(wasm: Result<WasmRun, string>) => State} */
-    const done = wasm => ({ ...state, runs: /** @type {Runs} */ ({ js: js[1], wasm }) })
+export const runBoth = ({ name, program }) => state => {
     const { wasm } = state
-    return wasm[0] === 'ok'
-        ? resultStep(runWasm(name)(wasm[1]), r => pureOk(done(r[1])))
-        : pureOk(done(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1])))
-})
+    const js = history(runJs(program))
+    const both = historyStep(js, () => wasm[0] === 'ok'
+        ? runWasm(name)(wasm[1])
+        : pureOk(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1])))
+    return step(both, ([wasmRun, jsRun]) => pureOk(/** @type {State} */ ({ ...state, runs: { js: jsRun, wasm: wasmRun } })))
+}
 
 /**
  * A time as the page shows it: to a tenth of a millisecond, which is finer

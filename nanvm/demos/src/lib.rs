@@ -8,7 +8,7 @@
 use nanvm_effects_node::{Native, run};
 use nanvm_lib::{
     naive::Naive,
-    vm::{Any, Function, Object, ToArray},
+    vm::{Any, Array, Function, Object, ToArray, unstable::string_any},
 };
 use std::cell::RefCell;
 
@@ -34,8 +34,22 @@ pub fn perform(module: Module) -> Result<Vec<u8>, Any<Naive>> {
         .ok_or_else(|| Any::from("module has no default function"))?;
     let effect = entry.call([].to_array())?;
     let mut host = Native::new(std::io::empty(), Vec::new(), Vec::new());
-    run(effect, |command, payload| host.perform(command, payload))?;
-    Ok(host.stdout().clone())
+    let result = run(effect, |command, payload| host.perform(command, payload))?;
+    output(result, host.stdout().clone())
+}
+
+/// What a program wrote, if it ended `['ok', value]`. One that ended
+/// `['error', value]` failed, as the JavaScript run reports it, and its
+/// result is the error.
+fn output(result: Any<Naive>, stdout: Vec<u8>) -> Result<Vec<u8>, Any<Naive>> {
+    let tag = Array::try_from(result.clone())
+        .ok()
+        .and_then(|items| items.into_iter().next());
+    if tag == Some(string_any("ok")) {
+        Ok(stdout)
+    } else {
+        Err(result)
+    }
 }
 
 thread_local! {
@@ -71,6 +85,7 @@ pub extern "C" fn hello() -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nanvm_lib::vm::ToAny;
 
     #[test]
     fn hello_writes_its_greeting() {
@@ -78,6 +93,13 @@ mod tests {
             perform(samples::hello::module::<Naive>).unwrap(),
             b"hello, world\n"
         );
+    }
+
+    #[test]
+    fn an_error_result_is_the_sample_failing() {
+        let ended = |tag| [string_any(tag), string_any("x")].to_array().to_any();
+        assert_eq!(output(ended("ok"), b"hi".to_vec()).unwrap(), b"hi");
+        assert!(output(ended("error"), b"hi".to_vec()).is_err());
     }
 
     #[test]
