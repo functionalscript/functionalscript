@@ -67,13 +67,6 @@ type DialectOf<S extends Struct> =
  *   `string` error.
  * - `entry` registers the dialect for `detect`, matching exactly the values
  *   `validate` accepts.
- *
- * A dialect module re-exports the kit one field per `export const`, not as
- * one destructuring `export const { … } = jsonDialect(…)`: the emitted
- * declarations of a destructured export carry no doc comment, neither the
- * statement's nor a binding's, and lose the `@type` that names the module's
- * own types (`Note`, `RevisionError`), so each would publish undocumented and
- * spelled out in full.
  */
 export type JsonDialect<S extends Struct, E = never> = {
     readonly dialect: DialectOf<S>

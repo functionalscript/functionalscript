@@ -59,6 +59,14 @@ media type depends on what the format is a subset of:
   specification](../../spec/datajs/README.md) defines it. Both are served as
   `text/javascript`.
 
+A JSON dialect module (`note`, `lock`, `revision`) builds its kit with
+`jsonDialect` and re-exports it one field per `export const`, each with its own
+doc comment, rather than as one destructuring `export const { … } =
+jsonDialect(…)`. The emitted declarations of a destructured export carry no doc
+comment, neither the statement's nor a binding's, and lose the `@type` that
+names the module's own types (`Note`, `RevisionError`), so each field would
+publish undocumented and spelled out in full.
+
 ### Fall-back chains
 
 A dialect name may be a **fall-back chain**: `+` separates dialects, most
