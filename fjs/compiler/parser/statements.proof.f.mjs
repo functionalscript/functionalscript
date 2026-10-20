@@ -94,6 +94,13 @@ export const proof = {
         expectRefused('const x = 1; Number?.(x); export default 1;', 'reserved word', 14)
         expectRefused('const x = 1; x = 2; export default 1;', 'unexpected token', 16)
         expectRefused('const x = (...a) => 1; x(1) x(2); export default 1;', 'unexpected token', 29)
+        // a statement opening with `(`, `[` or a backtick is not read, since
+        // each would continue the statement before it — a backtick as the
+        // tagged template the grammar refuses at its head — so neither line
+        // is split into a statement JavaScript would not see
+        expectRefused('const x = (...a) => 1; (0, x)(1); export default 1;', 'unexpected token', 24)
+        expectRefused('const x = 1; `a`.at(0); export default 1;', 'unexpected token', 14)
+        expectRefused('const x = 1\n`a`.at(0)\nexport default 1;', 'unexpected token', 1)
     },
     // The call is evaluated, its value discarded, and its failure the
     // module's or the function's, as JavaScript's is.
