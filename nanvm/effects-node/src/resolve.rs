@@ -26,15 +26,6 @@ pub struct FileModule {
     pub path: String,
 }
 
-/// A refusal that is not the file system's: a specifier or URL Node rejects,
-/// with the code it gives where it gives one.
-fn refusal(code: Option<&str>, message: &str) -> IoError {
-    IoError {
-        code: code.map(str::to_string),
-        message: message.to_string(),
-    }
-}
-
 /// `%XX` escapes read as the bytes they are, and the bytes as UTF-8; `None`
 /// where an escape is cut short or not hexadecimal, or the bytes are not UTF-8.
 pub fn percent_decode(text: &str) -> Option<String> {
@@ -138,17 +129,17 @@ pub fn decode_specifier(specifier: &str) -> Option<(bool, String)> {
 /// the URL names one on this machine.
 pub fn file_url_to_path(url: &str) -> Result<String, IoError> {
     let Some(rest) = url.strip_prefix("file://") else {
-        return Err(refusal(None, "only file modules are supported"));
+        return Err(IoError::message("only file modules are supported"));
     };
     if !rest.starts_with('/') {
-        return Err(refusal(
-            Some("ERR_INVALID_FILE_URL_HOST"),
+        return Err(IoError::refusal(
+            "ERR_INVALID_FILE_URL_HOST",
             "File URL host must be \"localhost\" or empty",
         ));
     }
     let invalid = || {
-        refusal(
-            Some("ERR_INVALID_FILE_URL_PATH"),
+        IoError::refusal(
+            "ERR_INVALID_FILE_URL_PATH",
             if cfg!(windows) {
                 "File URL path must not include encoded \\ or / characters"
             } else {
@@ -315,7 +306,7 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
     let loading = match parent {
         None => name.to_string(),
         Some(parent) => {
-            let invalid = || refusal(None, "invalid module specifier");
+            let invalid = || IoError::message("invalid module specifier");
             // An authority is not a path segment: `//host/../../x` must not
             // lose its host during dot reduction and turn into a local import.
             // Empty and localhost authorities remain unsupported too; see
@@ -349,8 +340,7 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
     let loading = absolute_path(&loading)
         .map_err(|e| crate::files::failure(&e, "resolveFileModule", &loading))?;
     if parent.is_none() && entry_path_needs_url_preprocessing(&loading) {
-        return Err(refusal(
-            None,
+        return Err(IoError::message(
             "entry paths with terminal C0 controls are not supported",
         ));
     }

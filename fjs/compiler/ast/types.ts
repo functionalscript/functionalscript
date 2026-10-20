@@ -396,7 +396,7 @@ type _UnaryTagsAreComplete = Assert<Equal<(typeof unaryTags)[number], UnaryTag>>
 
 /**
  * A binary operator, Stages A and B of
- * [`spec/operators/README.md`](../../../spec/operators/README.md):
+ * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
  * arithmetic, strict comparison, bitwise, and the lazy `&&`/`||`/`??` —
  * the EDAG's `op2Id`, and `-` again at two operands, `op12Id`'s other
  * arity, told from {@link AstNeg} by length.

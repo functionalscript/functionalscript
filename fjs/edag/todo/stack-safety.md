@@ -77,8 +77,8 @@ suite stays green.
 
 This is not new: the same crash reproduces for deeply nested array
 literals with no operator involved at all, so it
-predates Stage A of the [operators](../../../spec/operators/README.md)
-— Stage A only made a source shape (a long operator chain) that
+predates [operators](../../../spec/todo/2340-operators.md)
+Stage A — Stage A only made a source shape (a long operator chain) that
 reaches it far more easily to write than the pre-existing ones
 (nested containers, access chains) were.
 

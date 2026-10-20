@@ -141,7 +141,7 @@ the prefix.
 
 `tail`, the operator suffix — Stage A's eager ladder and Stage B's lazy
 operators and conditional above it
-([`spec/operators/README.md`](../../../spec/operators/README.md)) — is
+([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)) — is
 threaded onto every branch of `value`/`body` that may carry one, inline,
 rather than wrapping a shared primary the way a textbook precedence ladder
 would. That wrapping was tried first and rejected: `func`'s body is
@@ -250,13 +250,10 @@ the fold's:
   callee's word before resolving it, so the word alone decides, no scope
   ever binding it. `Number()` is the literal `0`, and `String()` is the
   empty-string literal. Multiple arguments and spreads are refused at the
-  callee with `Number takes one argument` or `String takes one argument`,
-  by design: a conversion is an operator, with a fixed set of operands
-  ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)).
-  Guarded calls, by design too, standalone references, and namespace
-  members other than the static functions below are refused as
-  reserved-word uses. A key or property name remains ordinary,
-  `{ String: 1 }.String` being valid;
+  callee with `Number takes one argument` or `String takes one argument`.
+  Guarded calls, standalone references, and namespace members other than the
+  static functions below are refused as reserved-word uses. A key or
+  property name remains ordinary, `{ String: 1 }.String` being valid;
 - the reserved globals `Object` and `Number`, bound or referenced anywhere
   but as the namespace of a static function — `Object.is` and the four
   `Number` predicates, `Number.isInteger` — beside `Number`'s conversion
