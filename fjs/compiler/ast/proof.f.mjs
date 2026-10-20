@@ -1,4 +1,4 @@
-import { anchors, binaryTags, eagerLayers, isBinary, isInlinedCall, isLazy, isUnary, lazyLayers, readCaptures, unaryTags } from './module.f.mjs'
+import { anchors, binaryTags, commaOperands, eagerLayers, isBinary, isInlinedCall, isLazy, isUnary, lazyLayers, readCaptures, unaryTags } from './module.f.mjs'
 import { definedValues } from '../../types/object/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
@@ -204,6 +204,47 @@ export const proof = {
         assertEq(anchorsOf([[a], [['array', []], ['??', ['cref', 0], 1]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['?:', ['cref', 0], 1, 2]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['&&', ['aref', 0], ['cref', 0]]]]), 'consts 0; imports ')
+    },
+    // A comma keeps each discarded operand that is code, and its last, in
+    // order; a discarded operand that is no code — a primitive, a bare
+    // reference, a function, the `entry` and `hasEntry` helpers, a static
+    // function and an intrinsic's helper — it drops
+    // (`spec/operators/comma.md`).
+    comma: {
+        operands: () => {
+            /** @type {import('./types.ts').AstConst} */
+            const access = ['.', ['cref', 0], 'x']
+            assertStructurallySame(commaOperands([',', [access, 1]]), [access, 1])
+            assertStructurallySame(commaOperands([',', [1, undefined, null, 'a', ['cref', 0], ['aref', 0], ['fref', 0], ['arg', 0], ['rest'], ['self'], 2]]), [2])
+            assertStructurallySame(commaOperands([',', [['=>', 0, [1]], ['entry'], ['hasEntry'], ['Object.is'], ['slice'], access]]), [access])
+            // the last is the value whatever it is, a comma included, and a
+            // discarded comma is its operands, discarded in turn, so its own
+            // inert value is dropped too
+            assertStructurallySame(commaOperands([',', [access, ['cref', 0]]]), [access, ['cref', 0]])
+            assertStructurallySame(commaOperands([',', [access, [',', [access, 1]]]]), [access, [',', [access, 1]]])
+            assertStructurallySame(commaOperands([',', [[',', [access, 1]], 2]]), [access, 2])
+            assertStructurallySame(commaOperands([',', [[',', [[',', [1, access]], ['=>', 0, [1]]]], 2]]), [access, 2])
+        },
+        // what a comma keeps it reaches, eagerly, for anchoring; what it
+        // drops reaches nothing, so a `const` it names alone is anchored
+        anchors: () => {
+            // `export default (c, 1)` and `(() => c, 1)`: `c` anchored
+            assertEq(anchorsOf([[], [['array', []], ['object', [[':', 'default', [',', [['cref', 0], 1]]]]]]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[a], [['object', [[':', 'default', [',', [['aref', 0], 1]]]]]]]), 'consts ; imports 0')
+            assertEq(anchorsOf([[], [['array', []], ['object', [[':', 'default', [',', [['=>', 0, [['fref', 0]], [['cref', 0]]], 1]]]]]]]), 'consts 0; imports ')
+            // `([c], 1)`, `(1, c)` and `(c.x, 1)`: reached
+            assertEq(anchorsOf([[], [['array', []], ['object', [[':', 'default', [',', [['array', [['cref', 0]]], 1]]]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['object', [[':', 'default', [',', [1, ['cref', 0]]]]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['object', [[':', 'default', [',', [['.', ['cref', 0], 'x'], 1]]]]]]]), 'consts ; imports ')
+            // under a lazy operand the comma's operands are lazy too
+            assertEq(anchorsOf([[], [['array', []], ['object', [[':', 'default', ['&&', 1, [',', [['.', ['cref', 0], 'x'], 1]]]]]]]]), 'consts 0; imports ')
+        },
+        // a body that reads its rest array only through an operand the
+        // comma drops reads nothing, so its call is inlined
+        readsRest: () => {
+            assert(isInlinedCall(['()', ['=>', 0, [[',', [['rest'], 1]]]], []]))
+            assert(!isInlinedCall(['()', ['=>', 0, [[',', [['.', ['rest'], 0], 1]]]], []]))
+        },
     },
     // what the sweep from the export leaves out, by index, less what the
     // left-out entries reach themselves

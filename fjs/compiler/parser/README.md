@@ -65,12 +65,13 @@ afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
 loopBlock ::= '{' loopStatement* '}'
 loopStatement ::= const | id '=' value end
 func   ::= [ '...' id ] ')' '=>' body
-afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
+afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
              | '=' value [ ',' [ names ] ] ')' '=>' body
 arrowOrRest ::= '=>' body | access* powTail tail
+parenItems ::= '...' id | value [ '=' value ] [ ',' [ parenItems ] ]
 names  ::= '...' id | target [ '=' value ] [ ',' [ names ] ]
-group  ::= value ')' access* powTail
-groupOperand ::= value ')' access*
+group  ::= value { ',' value } ')' access* powTail
+groupOperand ::= value { ',' value } ')' access*
 powTail ::= [ '**' unary ]
 eagerTail ::= { mulOp unary }
            { addOp unary <the multiplicative repeat above> }
@@ -104,9 +105,18 @@ of the first parameter's default; `arrowOrRest` then selects the arrow or
 the ordinary expression continuation after the parenthesis. The binding
 pass requires a binding target — a name, or a pattern — where that prefix
 becomes a parameter, rejecting `(a + b) => 1` while preserving `(a + b)`.
+After the comma the items are read the same way, `parenItems`, a cover of
+the parameters and of the comma operator's operands, which agree up to the
+`)`: `(a, b) => 1` is a function and `(a, b)` a comma
+([spec: comma](../../../spec/operators/comma.md)). The fold refuses an item
+that is no binding target where `=>` follows, and a default, a rest or a
+trailing comma where it does not, at the `=`, the `...` or the `)`. A
+group no function may open, under a prefix or as an operator's operand,
+reads a comma's operands as values outright, `group`'s `{ ',' value }`.
 Bare `a => a` uses the same arrow continuation. The fixed parameters after
-the first are targets outright, each with an optional default, `= value`,
-and a final rest name is allowed after them; it takes no default and
+the first are values the fold reads as targets, each with an optional
+default, `= value` — targets outright after a default, `names` — and a
+final rest name is allowed after them; it takes no default and
 cannot be followed by another parameter or a comma. The parameters from
 the first default on are the fold's to read from the rest array, landing
 in the function's own scope before its body

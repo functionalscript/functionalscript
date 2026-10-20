@@ -32,8 +32,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, a `Number` or `String` conversion, the function's own `self`, a binary operator, a conditional, a function, the `entry` helper, a static function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstString|AstSelf|AstBinary|AstConditional|AstFunction|AstEntryFunction|AstHasEntryFunction|AstIntrinsic|AstStatic|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, an `instanceof`, a `Number` or `String` conversion, the function's own `self`, a binary operator, a conditional, a comma, a function, the `entry` helper, a static function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGuardedAccess|AstCall|AstGuardedCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstInstanceOf|AstNumber|AstString|AstSelf|AstBinary|AstConditional|AstComma|AstFunction|AstEntryFunction|AstHasEntryFunction|AstIntrinsic|AstStatic|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * The `entry` helper, which the parser recognizes whole
@@ -298,9 +298,9 @@ export type AstGuardedCallStep =
  * callee that is an access is a *method* call, `a.b(c)`, whose receiver is
  * that access's base — the `.` node owns its call, `['.', a, 'b', ['|()',
  * args]]` — and any other callee is the plain `['()', callee, args]`, which
- * over an access is the detached receiver, `(0, a.b)(c)`. That one needs the
- * comma operator and is unspellable, so every call written on a property
- * today is a method call.
+ * over an access is the detached receiver, `(0, a.b)(c)`, which the comma
+ * operator spells, its callee a comma and no access; every other call
+ * written on a property is a method call.
  *
  * One call the lowering does not keep: a call, with no arguments, of a
  * parameterless function written at the call, `isInlinedCall`, is its body
@@ -441,6 +441,20 @@ type _LayersAreComplete = Assert<Equal<_LayerTag | '**', BinaryTag | 'instanceof
  * `anchors`, as `&&`'s right operand is.
  */
 export type AstConditional = readonly ['?:', AstConst, AstConst, AstConst]
+
+/**
+ * The comma operator, `(a, b)`: its operands in order, two at least. It
+ * establishes every operand and is the value of the last, the others' values
+ * discarded — in a pure language the one thing a discarded operand can do is
+ * fail, which makes it the assertion form, `(assert(a >= 0), a + 2)`
+ * ([spec: operators](../../../spec/operators/README.md)). Every operand is an
+ * eager position, as a container's item is. The lowering anchors each
+ * discarded operand that is code of its own, `commaOperands` in
+ * `./module.f.mjs`, and drops the rest; the comma's value is its last
+ * operand's node, so `(a, b)` makes no EDAG node of its own beyond what it
+ * anchors.
+ */
+export type AstComma = readonly [',', readonly AstConst[]]
 
 /**
  * The constants of a body, in declaration order. The **last** entry is the

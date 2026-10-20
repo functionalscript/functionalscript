@@ -231,7 +231,12 @@ however many labels test it — and a label, a case's labels under `||`, the
 module — one node however many references reach it, and what the returned
 value does not reach anchored by the comma rather than dropped, which is the
 one place a comma stands outside a module's root. With no statement the block
-lowers to the value it returns, the two spellings being one function.
+lowers to the value it returns, the two spellings being one function. The
+comma operator, `(a, b)`, adds no node of its own: its value is its last
+operand's node, and each discarded operand that is code is anchored at the
+nearest block root, or the lazy operand it stands in, as an inlined call's
+anchors are, while one that is no code — a reference, a literal, a function —
+is dropped ([spec: comma](../../spec/operators/comma.md)).
 A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
 — and was once the language's only operator. It is no part of the literal
 after it, so `-1` is the negation of `1` in the parser's tree, and the

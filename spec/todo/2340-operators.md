@@ -32,7 +32,7 @@
 |           |`??`     |**done**   |
 |           |`!`      |**done**   |
 |Conditional|`?:`     |**done**   |
-|Comma      |`,`      |1          |
+|Comma      |`,`      |**done** — in parentheses ([specification](../operators/comma.md))|
 |Type       |`typeof` |**done**   |
 |           |`instanceof`|**done** — `Array` on the right only ([specification](../operators/README.md))|
 |           |`in`     |not allowed — by design ([decision](./2346-in-operator.md))|
@@ -47,8 +47,10 @@ positionally; what the front end adds is the anchoring rule below, the
 eager/lazy split `anchors` in [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs)
 reads by. `!` and `typeof` landed after both, the third and fourth
 prefixes, each carried across as the EDAG's own `op1Id` node and folded no
-more than `~` is. The remaining priority-1 row is the comma, which
-generalizes that anchoring rule.
+more than `~` is. The comma landed last, in parentheses, and generalizes
+that anchoring rule: its operands are eager positions, and each discarded
+one that is code is anchored where floated code is
+([specification](../operators/comma.md)). Every row is now decided.
 
 The line every fold this table adds is held to: unary `-` folds over a
 numeric literal, since negating one is exact, total arithmetic, and nothing
@@ -68,9 +70,11 @@ The [comma operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Ref
 const f = a => (assert(a >= 0), a + 2)
 ```
 
-Each operand but the last is evaluated for its throw-potential and its value discarded; the value of the expression is the last operand. The equivalent statement spellings — a bare `assert(...)` statement, or a `const` whose value is unused — denote the same function, and all of them lower to the EDAG's `","` operation ([edag-stage1-discussion](../../todo/edag-stage1-discussion.md), subject 8, for the graph representation). The [failure contract](../principles/README.md#failure-is-one-outcome) governs execution: each required operand's success must be established before the result is revealed, without requiring a fixed evaluation order or computation count.
+It is in the language, written in parentheses ([specification](../operators/comma.md)); the bare comma JavaScript reads in a `return`, a condition, a substitution or a key stays refused ([refused constructs](./refused-constructs.md)). Each operand but the last is evaluated for its throw-potential and its value discarded; the value of the expression is the last operand. The equivalent statement spellings — a bare `assert(...)` statement, or a `const` whose value is unused — denote the same function, and all of them lower to the EDAG's `","` operation ([edag-stage1-discussion](../../todo/edag-stage1-discussion.md), subject 8, for the graph representation). The [failure contract](../principles/README.md#failure-is-one-outcome) governs execution: each required operand's success must be established before the result is revealed, without requiring a fixed evaluation order or computation count.
 
-`Number(a, b)` lands with the comma, as the `(a, b, Number(a))` it is
+`Number(a, b)` is the comma's `(a, b, Number(a))` with `a` evaluated once,
+which the comma alone cannot spell without a binding for `a`, so it stays
+refused by name until a pull request builds that form
 ([number conversion](../conversions/number.md)).
 
 A written comma lowers under the rule the compiler already applies to an unused `const` ([`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs)): the `","` anchors exactly the code the graph would not otherwise hold, so an operand whose node the result or another operand reaches is dropped, and a comma left with its result alone is the result. `const a = []; const b = a; export default (b, a.length);` is `['.', A, 'length']` with no comma, since `b` is `a`'s node and the access reaches it, where `const b = a.x; export default (b, a.length);` keeps `[',', [['.', A, 'x'], ['.', A, 'length']]]`, `b` being a node of its own that the result does not reach.
@@ -97,6 +101,16 @@ module-loading behavior at identical resource limits. Required failures cannot
 be discarded to invent a successful result, and skipped failures cannot be
 introduced on an otherwise successful path. Different memory/time thresholds
 and fail-fast schedules do not distinguish failure outcomes.
+
+**Language-design approval.** **sergey-shandar** directed "Implement the
+comma operator in the compiler" in
+[the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC),
+before implementation began, and recorded "The design is approved." on
+[#3075](https://github.com/functionalscript/functionalscript/pull/3075#issuecomment-6292543966),
+the pull request implementing it. What that pull request settled beyond
+this record — the comma in parentheses only, the cover read up to the `)`,
+and the lowering that drops a discarded operand that is no code — is
+[the specification](../operators/comma.md)'s.
 
 Asserts express **internal contract breaches**, not input validation: untrusted input must be validated with values (`Result` / `Nullable`), since a program that throws on user input can be crashed by any user.
 

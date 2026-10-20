@@ -86,10 +86,10 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstIntrinsic, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstComma, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstIntrinsic, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -233,8 +233,8 @@ const reservedWord = foldError('reserved word')
  * at the word: `Number(a, b)` and `Number(...a)`, JavaScript's and not recognized
  * yet, for want of a representation
  * ([spec: number conversion](../../../spec/conversions/number.md)):
- * `Number(a, b)` is the comma's `(a, b, Number(a))`, which the
- * FunctionalScript writer cannot spell until the comma operator lands, and
+ * `Number(a, b)` is the comma's `(a, b, Number(a))` with `a` evaluated
+ * once, which the comma alone cannot spell without a binding for `a`, and
  * `Number(...a)` converts the first value a spread yields, which no node
  * expresses while a call's arity is the callee's to split. Refused by name
  * rather than answered wrongly; `Number()` is `0`, and is read as the
@@ -1002,6 +1002,23 @@ const conditionalRound = (stack, scope, frame) => {
 }
 
 /**
+ * The next operand of a comma, or the comma closed when none is left:
+ * each operand as written, resolved all, as a conditional's arms are.
+ * Inside it no operand is a call's callee, the comma's frame standing on
+ * top: `(0, a.b)(c)` reads `a.b` by the read rule, as the plain call over
+ * a detached function JavaScript makes of it, and never as a method.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _CommaFrame) => _State}
+ */
+const commaRound = (stack, scope, frame) => {
+    const { comma, index } = frame
+    if (index < comma.length) { return [{ top: frame, rest: stack }, scope, ['enter', comma[index]]] }
+    /** @type {AstComma} */
+    const closed = [',', toArray(frame.done)]
+    return [stack, scope, ok(closed)]
+}
+
+/**
  * What `word` names in `scope` itself: a name it binds, or, where it
  * binds none and the word is the function's own, {@link entered}, the
  * function itself, `['self']`. The name comes after the bindings as it
@@ -1290,6 +1307,12 @@ const enter = (stack, scope, node) => {
         // the one reported, the first in document order
         case 'instanceof': { return [{ top: { instanceof: node[2], at: node[3] }, rest: stack }, scope, ['enter', node[1]]] }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
+        // a comma the parentheses also hold what no comma has in is
+        // refused at the first of it: a default, a rest or a trailing comma
+        case ',': {
+            const refusal = node[2]
+            return refusal === null ? commaRound(stack, scope, { comma: node[1], index: 0, done: null }) : [stack, scope, error(unexpectedToken(refusal))]
+        }
         case '=>': { return entered(stack, scope, node, null) }
         // a block stands only as a function's body, which `'=>'` above
         // enters; the mapping writes one nowhere else
@@ -1638,6 +1661,7 @@ const returned = (stack, scope, frame, value) => {
     if ('container' in frame) { return containerReturned(stack, scope, frame, value) }
     if ('call' in frame) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
     if ('conditional' in frame) { return conditionalRound(stack, scope, advanced(frame, [value])) }
+    if ('comma' in frame) { return commaRound(stack, scope, advanced(frame, [value])) }
     if ('key' in frame) {
         const { key, method } = frame
         return key instanceof Array ? keyEntered(stack, scope, key, { indexed: value }) : [stack, scope, accessClosed(key, method, value)]

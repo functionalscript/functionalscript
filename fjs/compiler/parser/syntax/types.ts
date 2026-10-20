@@ -47,6 +47,12 @@ import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * three operands: always three, nothing else carrying its tag at another
  * arity, so no length decides it as `-`'s does. Nested conditionals
  * associate to the right, folded by the grammar as `**` is.
+ *
+ * The comma operator is `[',', operands, refusal]`, a node where a group
+ * is none: `(a, b)` is not `b`, since `a` is evaluated too, and only a
+ * comma detaches a receiver, `(0, a.b)(c)` calling `a.b` as a plain
+ * function. It is written only in parentheses, which is where JavaScript's
+ * `Expression` meets every position this language reads a value in.
  */
 export type Node =
     | readonly ['primitive', Primitive]
@@ -67,6 +73,11 @@ export type Node =
     // the one token every spelling of the right side shares
     | readonly ['instanceof', Node, Node, DjsTokenWithMetadata]
     | readonly ['?:', Node, Node, Node]
+    // the comma operator, `(a, b)`: its operands in order, two at least,
+    // and the token the fold refuses it at where the parentheses also
+    // hold what no comma has — a default, a rest or a trailing comma,
+    // which only a parameter list may — or `null`
+    | readonly [',', readonly Node[], DjsTokenWithMetadata | null]
     | readonly ['=>', ParameterList, Node]
     | Block
     | Container
@@ -450,6 +461,11 @@ export type Out =
     | { readonly id: 'value', readonly node: Node, readonly first: DjsTokenWithMetadata, readonly target: BindingTarget }
     | { readonly id: 'paren', readonly node: Node, readonly first: DjsTokenWithMetadata }
     | { readonly id: 'parameters', readonly fixed: List<Parameter>, readonly rest: DjsTokenWithMetadata | null }
+    // what follows `(` value `,`, read both ways until the `)` decides:
+    // the parameters, and the comma's operands with the first token no
+    // operand list may hold, a default's `=` or a rest's `...`, and
+    // whether a trailing comma ends it
+    | { readonly id: 'parenItems', readonly fixed: List<Parameter>, readonly rest: DjsTokenWithMetadata | null, readonly operands: List<Node>, readonly refusal: DjsTokenWithMetadata | null, readonly trailing: boolean }
     | { readonly id: 'item', readonly item: Item, readonly target: BindingElement }
     | { readonly id: 'values', readonly items: List<Item>, readonly targets: List<BindingElement> }
     | { readonly id: 'member', readonly member: Member, readonly target: BindingProperty }

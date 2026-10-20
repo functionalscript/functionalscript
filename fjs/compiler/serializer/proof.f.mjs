@@ -1047,8 +1047,8 @@ export const proof = {
         // A node kind with a spelling, in a position that has none.
         refuses(['rest'], 'the arguments outside a function')
         // a comma is a scope's own form — a module's root and a function's
-        // body are where one is read — so one inside a container has no
-        // source spelling until the operator lands
+        // body are where one is read — and the lowering builds one nowhere
+        // else, so one inside a container is a graph built by hand
         refuses(['[]', [[',', [1, 2]]]], 'a comma outside a scope')
         refuses(['=>', 0, [], ['[]', [[',', [1, 2]]]]], 'a comma outside a scope')
         // An access key no literal spells: a computed one, and the three

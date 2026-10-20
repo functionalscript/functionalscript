@@ -44,12 +44,13 @@
  * loopBlock ::= '{' loopStatement* '}'
  * loopStatement ::= const | id '=' value end
  * func   ::= [ '...' id ] ')' '=>' body
- * afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
+ * afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
  *              | '=' value [ ',' [ names ] ] ')' '=>' body
  * arrowOrRest ::= '=>' body | access* powTail tail
+ * parenItems ::= '...' id | value [ '=' value ] [ ',' [ parenItems ] ]
  * names  ::= '...' id | target [ '=' value ] [ ',' [ names ] ]
- * group  ::= value ')' access* powTail
- * groupOperand ::= value ')' access*
+ * group  ::= value { ',' value } ')' access* powTail
+ * groupOperand ::= value { ',' value } ')' access*
  * powTail ::= [ '**' unary ]
  * eagerTail ::= { mulOp unary }
  *            { addOp unary <the multiplicative repeat above> }
@@ -135,7 +136,7 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, AfterCase, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -493,6 +494,37 @@ export const parameterNames = () => ['const', {
 }]
 
 /**
+ * What follows `(` value `,`: the parameters after a named list's first,
+ * or the operands after a comma's first — `b, c` in `(a, b, c) => 1` and
+ * in `(a, b, c)`, which agree up to the `)`. So this is a cover, as the
+ * first value is ({@link afterValue}): each item is read as a value, with
+ * a default, `= value`, where it has one, and a trailing comma allowed;
+ * the rest parameter, `...r`, keeps a plain name and ends the list. What
+ * follows the `)` decides the reading, {@link arrowOrRest}: `=>` makes the
+ * items parameters, and the fold refuses one that is no binding target;
+ * anything else makes them a comma's operands, and the fold refuses a
+ * default, a rest and a trailing comma, none of which a comma has
+ * ([spec: operators](../../../../spec/operators/README.md)). One symbol
+ * decides each choice: `...` begins no value, and `=` follows a value
+ * here and nowhere a value goes on.
+ *
+ * @type {ParenItems}
+ */
+export const parenItems = () => ['const', {
+    rest: [sym('...'), identifierName],
+    fixed: [value, option([sym('='), value]), option([sym(','), option(parenItems)])],
+}]
+
+/**
+ * The operands after a comma's first in a group no function may open,
+ * {@link group} and {@link groupOperand}: each `,` and the value after
+ * it, as many as are written.
+ *
+ * @type {CommaOperands}
+ */
+const commaOperands = repeatFrom0([sym(','), value])
+
+/**
  * What a prefix takes: every value but a function. JavaScript's
  * unary operand is a `UnaryExpression`, which an arrow function is not —
  * `-(...a) => 1` and `~(...a) => 1` are syntax errors there, so they are
@@ -812,9 +844,11 @@ export const arrowOrRest = {
 
 /**
  * What follows the value a `(` opened: `,` — the value is the first of a
- * named parameter list, and the names after it, the `)`, `=>` on the same
- * line and the body follow — or `)`, after which {@link arrowOrRest} tells
- * the one-parameter function `(a) => 1` from the group `(a)` — or `=`,
+ * named parameter list or of a comma's operands, the items after it,
+ * {@link parenItems}, and the `)` follow, after which {@link arrowOrRest}
+ * tells the function `(a, b) => 1` from the comma `(a, b)` — or `)`, after
+ * which {@link arrowOrRest} tells the one-parameter function `(a) => 1`
+ * from the group `(a)` — or `=`,
  * the value being the first parameter and what follows the `=` its
  * default, after which only a list goes on: the names after a `,`, if
  * any, the `)`, `=>` and the body. `(a = 1)` is no group, an assignment
@@ -826,21 +860,24 @@ export const arrowOrRest = {
  * a value, the way JavaScript's own cover grammar does, and the fold
  * checks it is a plain name where the `=>` or the `,` says a parameter was
  * meant — a reference, not grouped again, `((a)) => 1` being a syntax
- * error in JavaScript. The names after the comma are
- * {@link parameterNames}, read as names outright: nothing but a list
- * continues with a comma there.
+ * error in JavaScript. The items after the comma are values too, for the
+ * same reason, {@link parenItems}; after a default only a list goes on,
+ * so the names after it are {@link parameterNames}, read as names
+ * outright.
  *
  * @type {AfterValue}
  */
 export const afterValue = {
-    list: [sym(','), option(parameterNames), sym(')'), sym('=>'), body],
+    list: [sym(','), option(parenItems), sym(')'), arrowOrRest],
     closed: [sym(')'), arrowOrRest],
     default: [sym('='), value, option([sym(','), option(parameterNames)]), sym(')'), sym('=>'), body],
 }
 
 /**
- * A group after its `(`: any value, the `)`, and the steps after it. A
- * group denotes the value it holds and nothing more — `(x)` is `x`, the
+ * A group after its `(`: any value — or a comma's operands, each `,` and
+ * the value after it, {@link commaOperands}, `(a, b)` being the comma
+ * operator's, which makes a node of its own — the `)`, and the steps after
+ * it. A group denotes the value it holds and nothing more — `(x)` is `x`, the
  * graph and its sharing as if the parentheses were not written, which is
  * what JavaScript means by them — so it makes no node of its own and there
  * is no canonical form to choose.
@@ -863,7 +900,7 @@ export const afterValue = {
  *
  * @type {Group}
  */
-export const group = [value, sym(')'), accesses, powTail]
+export const group = [value, commaOperands, sym(')'), accesses, powTail]
 
 /**
  * What a `(` opens: the rest of a function whose list is the rest
@@ -897,7 +934,8 @@ export const parenGroup = [sym('('), group]
 
 /**
  * A group after its `(`, without the power {@link group} itself may
- * carry: the value, `)` and the steps the group takes — everything
+ * carry: the value or a comma's operands, `)` and the steps the group
+ * takes — everything
  * {@link group} has but its own {@link powTail}.
  * `-(1).x` is the negation of the access, but `-(1) ** 2` is a syntax
  * error in JavaScript, so {@link unaryOperand}'s restricted `(` stops
@@ -905,7 +943,7 @@ export const parenGroup = [sym('('), group]
  *
  * @type {GroupOperand}
  */
-export const groupOperand = [value, sym(')'), accesses]
+export const groupOperand = [value, commaOperands, sym(')'), accesses]
 
 /**
  * `(` and {@link groupOperand}: what a prefix may take in
