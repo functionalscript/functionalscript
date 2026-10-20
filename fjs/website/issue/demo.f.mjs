@@ -68,7 +68,7 @@ export const demo = textDemo({
     init: '## Show issue status and priority\n\n**Priority:** P3\n**Status:** wip — the icons are in review\n',
     examples: [
         ['Work in progress', '## Show issue status and priority\n\n**Priority:** P3\n**Status:** wip — the icons are in review\n'],
-        ['Blocked', '## Property accessor\n\n**Priority:** P2\n**Status:** blocked\n**Blocked by:** [Operators](./2340-operators.md)\n'],
+        ['Blocked', '## Property accessor\n\n**Priority:** P2\n**Status:** blocked\n**Blocked by:** [Operators](../operators/README.md)\n'],
         ['Kept as the record', '## Inline type casts\n\n**Priority:** P2\n**Status:** done — kept as the record; cited by eslint.md\n'],
         ['A typo, refused', '## A typo\n\n**Priority:** P3\n**Status:** opne\n'],
     ],
