@@ -23,9 +23,9 @@
  * layer tighter than it, which is the precedence ladder drawn as boxes.
  * Every rule that reaches itself — a value holds values, a list is
  * right-recursive — is titled, so no diagram is drawn forever.
- * `callArguments` draws the same list as `values`: the grammar reads a
- * call's arguments through a rule of its own, which the parser maps apart
- * from an array's items.
+ * `callArguments` draws the same list as `values`, which a call reaches
+ * through a rule of its own. An array's `elements` hold the same items,
+ * and an elision besides.
  *
  * @module
  *
@@ -34,7 +34,7 @@
 
 import {
     _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, body, callArguments,
-    circuitTail, conditionalTail, constStatement, djsModule, eagerTail, end, entries, entry, func, group, groupOperand,
+    circuitTail, conditionalTail, constStatement, djsModule, eagerTail, elements, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
     parenGroup, parenGroupOperand, parenthesized, primitive, statement, afterCase, caseTail, template, terminator, unary, unaryOperand,
@@ -104,6 +104,7 @@ export const diagrams = [
     ['callArguments', callArguments],
     ['template', template],
     ['array', array],
+    ['elements', elements],
     ['values', values],
     ['item', item],
     ['object', object],

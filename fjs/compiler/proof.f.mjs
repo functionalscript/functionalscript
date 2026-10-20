@@ -1333,6 +1333,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Switch': 'xxooo',
                 'Shorthand members': 'ooooo',
                 'Destructuring': 'ooooo',
+                'Destructuring: an elision': 'ooooo',
                 'Methods and properties': 'ooooo',
                 'Static functions': 'ooooo',
                 'Object.entries': 'ooooo',

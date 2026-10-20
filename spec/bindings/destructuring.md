@@ -13,8 +13,8 @@ A `const`, a module's or a body's, exported or not, and a fixed
 [parameter](../functions/parameters.md) may bind a **pattern** in place of a name: an
 object pattern, `{ p, … }`, each property a shorthand name or a key and a
 target, `a: t`, `"a": t`, `["a"]: t`, `[3]: t`; or an array pattern,
-`[t, …]`, each item a target; a target a name or a pattern again, and a
-trailing comma allowed as the literals allow one. Each name is a binding
+`[t, …]`, each item a target or an elision, `[, t]`; a target a name or a
+pattern again, and a trailing comma allowed as the literals allow one. Each name is a binding
 by the rule above — reserved, refused twice, exported as `then`, or
 shadowing a capture, it is refused as a name alone is — and it names the
 part of the value its path reads, as in JavaScript. The initializer is
@@ -45,6 +45,14 @@ its conditional ([functions](../functions/README.md)).
   element where JavaScript's destructuring stops at the last target; no
   program here can observe the difference, there being no generator, no
   side effect and no infinite iterable.
+- An **elision**, `[, b]` or `[a, , c]`, skips a position: it binds and
+  reads nothing, and the element after it reads the next index of the
+  spread, so `const [, b] = v;` is `const $0=[...v];const b=$0[1];`. One
+  after the last element, `[a, ,]`, is a position nothing reads, and
+  elisions alone, `const [,] = v;`, bind nothing and keep the spread's
+  failure, as the empty pattern below does. It is a pattern's alone: in a
+  value the same comma is a hole, which no array of this language has,
+  refused by design (`array hole`, [arrays](../values/arrays.md)).
 - Every read is established whether or not a name reads it, as every
   `const` is ([shared values](constants.md)):
   `const { a: { b } } = {};` throws at load, as it throws in JavaScript.
@@ -109,9 +117,7 @@ pattern not supported`). A value in a binding position —
 a literal, an access, a call, an operator, or a group, `[(a)]`, which
 JavaScript admits in an assignment and refuses in a binding — is the error
 JavaScript names (`invalid destructuring target`), at the token it begins
-with. An elision, `[, b]`, is not read yet and stops at its second
-comma, as it does in an array literal; it is a follow-up in the record,
-not a rule.
+with.
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment>.

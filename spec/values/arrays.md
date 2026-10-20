@@ -11,8 +11,12 @@ export default [
 ```
 
 An array may be empty, may hold any value including another array or an
-object, and may end with a **trailing comma**. Two adjacent commas are not an
-elision: an array has no holes.
+object, and may end with a **trailing comma**. It has no **holes**: an
+elision, a comma where an element would stand — `[1, , 2]`, `[, 1]` or
+`[,]` — is refused by design at that comma (`array hole`), every array of
+this language holding a value at each of its indexes. The same comma in an
+array pattern skips an element ([destructuring](../bindings/destructuring.md)),
+which is where the grammar reads it.
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Trailing_commas>.

@@ -88,7 +88,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstComma, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstIntrinsic, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Discard, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Discard, Element, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
@@ -96,7 +96,7 @@ import { error, mapOk, ok } from '../../types/result/module.f.js'
 import { concat, reverse, toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
@@ -191,6 +191,16 @@ const invalidTarget = foldError('invalid destructuring target')
  * by name rather than read in part.
  */
 const restTarget = foldError('rest element not supported')
+
+/**
+ * A hole in an array value, `[1, , 2]` or `[,]`, at the comma that makes
+ * it: refused by design, an array of the language having none
+ * ([spec: arrays](../../../spec/values/arrays.md)). The grammar admits
+ * the comma for an array pattern's sake, where it is an elision and skips
+ * an element ([spec: destructuring](../../../spec/bindings/destructuring.md)),
+ * and the position alone tells the two apart, so the refusal is here.
+ */
+const arrayHole = foldError('array hole')
 
 /**
  * A computed key in a binding pattern that is no constant, `{ [k]: a }`,
@@ -613,7 +623,9 @@ const planned = check => (target, namespace) => {
         } else if ('element' in item) {
             const { element, source } = item
             if (element[0] === '...') { return error(restTarget(element[1])) }
-            pending = pushed(pending, { target: element, source })
+            // an elision binds and reads nothing: it holds its position, so
+            // the element after it reads the next
+            if (element[0] !== 'elision') { pending = pushed(pending, { target: element, source }) }
         } else {
             const { target: t, source } = item
             switch (t[0]) {
@@ -880,9 +892,20 @@ const itemValue = item => value => {
  */
 const entryOperandOf = entry => entry instanceof Array ? entry[1] : entry.value
 
+/**
+ * An array's element as the item it is: an elision never reaches its
+ * value, {@link badKey} refusing it first.
+ *
+ * @type {(element: Element) => Item}
+ */
+const elementItem = element => {
+    assert(element[0] !== 'elision')
+    return element
+}
+
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
-    kind === 'array' ? operandOf(items[index]) : entryOperandOf(items[index])
+    kind === 'array' ? operandOf(elementItem(items[index])) : entryOperandOf(items[index])
 
 /**
  * The node a member's computed key is, or `null` where the item at `index`
@@ -907,7 +930,7 @@ const computedKeyAt = ([kind, items], index) => {
  */
 const containerValue = ([, items], index, key, value) => {
     const entry = items[index]
-    if (entry instanceof Array) { return itemValue(entry)(value) }
+    if (entry instanceof Array) { return itemValue(elementItem(entry))(value) }
     /** @type {AstMember} */
     const member = [':', key === null ? /** @type {ConstantMember} */ (entry).name : key[0], value]
     return member
@@ -915,7 +938,8 @@ const containerValue = ([, items], index, key, value) => {
 
 /**
  * The error a container's item earns before its value is read, or `null`:
- * a plain `__proto__` key, at the key itself.
+ * a hole in an array, at its comma, {@link arrayHole}, or a plain
+ * `__proto__` key, at the key itself.
  *
  * Checked as each member is reached rather than by scanning every key
  * first, so that an earlier member's failure is reported before a later
@@ -926,7 +950,10 @@ const containerValue = ([, items], index, key, value) => {
  * @type {(container: Container, index: number) => ParseError | null}
  */
 const badKey = ([kind, items], index) => {
-    if (kind === 'array') { return null }
+    if (kind === 'array') {
+        const element = items[index]
+        return element[0] === 'elision' ? arrayHole(element[1]) : null
+    }
     const member = items[index]
     // a spread names no key, and a computed key is an own property's
     if (member instanceof Array || member.spelling === 'computed') { return null }

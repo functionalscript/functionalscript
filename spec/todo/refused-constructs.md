@@ -144,7 +144,6 @@ describes:
 | `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) |
 | `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | planned ([default parameters](./3125-default-parameters.md)) |
 | `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) |
-| `decl.pattern-elision` | `[, b]`, `[a, , b]` | planned ([destructuring](./2450-destructuring.md), the next task, with the array rest) |
 | `decl.parameter-limit` | 17 fixed parameters | design ([functions](../functions/README.md)) |
 
 ### Module structure
@@ -172,7 +171,7 @@ describes:
 | `lit.octal` | `0o7` | open ([numbers](../values/numbers.md) leaves it out; the [roadmap](./README.md) records no use case yet) |
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) |
 | `lit.trailing-dot` | `5.` | open |
-| `lit.array-hole` | `[,]`, `[1,,2]` | open |
+| `lit.array-hole` | `[,]`, `[1,,2]` | design ([arrays](../values/arrays.md): an array has no holes; the same comma in a pattern is an elision, [destructuring](../bindings/destructuring.md)) |
 | `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings.md): a double-quoted string stays a JSON string) |
 | `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | open ([string literals](./2460-js-string-literals.md) defers them until a measured need appears) |
 | `lit.string-continuation` | a `\` before a line terminator in a string | open ([string literals](./2460-js-string-literals.md) defers it until a measured need appears) |

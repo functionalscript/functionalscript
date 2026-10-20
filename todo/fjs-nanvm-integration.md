@@ -177,15 +177,18 @@ converts none.
 The authored `.f.js` population under `fjs/` grows from 42 to 43, and
 `npm start compile` checks 60.
 
-The `git/config` row was measured on a scratch copy: its first refusal
-replaced by the spelling the language admits, the next one reported, and
-nothing past that measured. The other four rows are the `2e0462e` table's,
-their modules unchanged since. Locations are `line:column`; paths are
-relative to `fjs/`.
+The `git/config` row moved once
+[elisions](../spec/bindings/destructuring.md) landed, measured on that
+pull request's branch: the hole in `const [, list] = …` in `tryEntries`,
+its first refusal before, is read now. What remains was measured on a
+scratch copy, each refusal replaced by the spelling the language admits
+until the copy was accepted. The other four rows are the `2e0462e`
+table's, their modules unchanged since. Locations are `line:column`;
+paths are relative to `fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `git/config/module.f.mjs` | 493:12 | The hole in `const [, list] = …` in `tryEntries` (`decl.pattern-elision`) | `acc.sub` in `subStep`, `sub` a `String.prototype` name (`prohibited property name`), at 379:41; past it not measured |
+| `git/config/module.f.mjs` | 379:41 | `acc.sub` in `subStep`, `sub` a `String.prototype` name (`prohibited property name`) | Nothing: the copy with `_SubState`'s `sub` renamed to a name no prototype gives a value, `part`, is accepted — `name` is no such name, `Function.prototype` giving it one |
 | `types/function/compare/module.f.mjs` | 65:9 | `if (e < b) { return b }`, a `return` guard inside the loop in `bsearch` | In `bsearch`, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |

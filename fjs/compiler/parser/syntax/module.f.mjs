@@ -36,8 +36,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, NameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, NameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -50,7 +50,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     afterCase, binaryOpTag, body, callArguments, caseTail, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, entries, entry, loopStatement, member, moduleStatement, nameStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, elements, entries, entry, loopStatement, member, moduleStatement, nameStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -190,10 +190,17 @@ const itemTargetAt = node => {
     return out.target
 }
 
-/** @type {(node: _Leaf) => List<BindingElement>} */
-const valueTargetsAt = node => {
+/** @type {(node: _Leaf) => List<Element>} */
+const elementsAt = node => {
     const out = outAt(node)
-    assert(out.id === 'values')
+    assert(out.id === 'elements')
+    return out.items
+}
+
+/** @type {(node: _Leaf) => List<BindingElement>} */
+const elementTargetsAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'elements')
     return out.targets
 }
 
@@ -412,14 +419,17 @@ const listOf = (itemAt, itemsAt) => {
     }
 }
 
-/** The items an array's optional list holds. */
+/** The items a call's optional list holds. */
 const valueItems = optionalItems(valuesAt)
+
+/** The elements an array's optional list holds. */
+const elementItems = optionalItems(elementsAt)
 
 /** The entries an object's optional list holds. */
 const entryItems = optionalItems(entriesAt)
 
-/** The targets an array's optional list holds, beside its items. */
-const valueTargets = optionalItems(valueTargetsAt)
+/** The targets an array's optional list holds, beside its elements. */
+const elementTargets = optionalItems(elementTargetsAt)
 
 /** The targets an object's optional list holds, beside its entries. */
 const entryTargets = optionalItems(entryTargetsAt)
@@ -427,8 +437,11 @@ const entryTargets = optionalItems(entryTargetsAt)
 /** The items of a list of values, its tail already mapped. */
 const valuesOf = listOf(itemAt, valuesAt)
 
-/** The targets of a list of values, beside its items. */
-const valueTargetsOf = listOf(itemTargetAt, valueTargetsAt)
+/** The elements of an array's list from an item on, its tail already mapped. @type {(node: _ListNode) => List<Element>} */
+const elementsOf = listOf(itemAt, elementsAt)
+
+/** The targets of an array's list from an item on, beside its elements. */
+const elementTargetsOf = listOf(itemTargetAt, elementTargetsAt)
 
 /** The targets of a list of entries, beside its entries. */
 const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
@@ -441,7 +454,7 @@ const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
  * @type {(tag: 'array' | 'object', open: DjsTokenWithMetadata, list: _OptionalList) => BindingTarget}
  */
 const containerTarget = (tag, open, list) => {
-    if (tag === 'array') { return ['array', open, toArray(valueTargets(list))] }
+    if (tag === 'array') { return ['array', open, toArray(elementTargets(list))] }
     return ['object', open, toArray(entryTargets(list))]
 }
 
@@ -876,7 +889,7 @@ const baseOf = ([tag, branch]) => {
         case 'array': {
             const x = unmapped(branch)[0]
             const a = unmapped(x)[0]
-            return ['array', toArray(valueItems(unmapped(a)[1]))]
+            return ['array', toArray(elementItems(unmapped(a)[1]))]
         }
         case 'object': {
             const x = unmapped(branch)[0]
@@ -1515,7 +1528,27 @@ const toItem = ([tag, branch]) => {
 }
 
 /** @type {(node: Children<Items<ItemRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toValues = node => symbol({ id: 'values', items: valuesOf(node), targets: valueTargetsOf(node) })
+const toValues = node => symbol({ id: 'values', items: valuesOf(node) })
+
+/**
+ * An array's elements from `elements`'s branch: an elision, by its comma,
+ * {@link Elision} — in the items and the targets alike, a hole in one and
+ * a skipped element in the other — before the elements the optional
+ * rest's mapping already returned; or an item and the elements after it,
+ * read as a list of values is.
+ *
+ * @type {(node: Children<Elements, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toElements = ([tag, branch]) => {
+    if (tag === 'item') {
+        const list = unmapped(branch)
+        return symbol({ id: 'elements', items: elementsOf(list), targets: elementTargetsOf(list) })
+    }
+    const [comma, more] = unmapped(branch)
+    /** @type {Elision} */
+    const elision = ['elision', tokenAt(comma)]
+    return symbol({ id: 'elements', items: { first: elision, tail: elementItems(more) }, targets: { first: elision, tail: elementTargets(more) } })
+}
 
 /** @type {(node: Children<Items<EntryRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toEntries = node => symbol({ id: 'entries', items: entriesOf(node), targets: entryTargetsOf(node) })
@@ -1590,6 +1623,7 @@ export const mappings = [
     map(unaryOperand, operandToNode),
     map(item, toItem),
     map(values, toValues),
+    map(elements, toElements),
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both
     map(callArguments, toValues),
