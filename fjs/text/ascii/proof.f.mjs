@@ -1,4 +1,7 @@
-import { digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, lowerHexDigitValue, one, range } from './module.f.mjs'
+import {
+    charIs, digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, isDigit, isDigits,
+    isLatinLetter, lowerHexDigitValue, one, range,
+} from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
@@ -73,6 +76,40 @@ export const proof = {
         },
         roundTrip: () => {
             assertEq(stringifySorted(values.map(v => hexDigitValue(hexDigitCodePoint(v)))), stringifySorted(values))
+        },
+    },
+    charIs: {
+        member: () => {
+            assertEq(charIs(isDigit)('0'), true)
+            assertEq(charIs(isDigit)('9'), true)
+            assertEq(charIs(isLatinLetter)('a'), true)
+            assertEq(charIs(isLatinLetter)('Z'), true)
+        },
+        notMember: () => {
+            assertEq(charIs(isDigit)('a'), false)
+            assertEq(charIs(isLatinLetter)('0'), false)
+            assertEq(charIs(isLatinLetter)('\u212a'), false)
+        },
+        notOneCodeUnit: () => {
+            assertEq(charIs(isDigit)(''), false)
+            assertEq(charIs(isDigit)('12'), false)
+            assertEq(charIs(isLatinLetter)('ab'), false)
+            assertEq(charIs(isDigit)('\u{1d7ce}'), false)
+        },
+    },
+    isDigits: {
+        digits: () => {
+            assertEq(isDigits('0'), true)
+            assertEq(isDigits('007'), true)
+            assertEq(isDigits('1234567890'), true)
+        },
+        notDigits: () => {
+            assertEq(isDigits(''), false)
+            assertEq(isDigits('1a'), false)
+            assertEq(isDigits('-1'), false)
+            assertEq(isDigits(' 1'), false)
+            assertEq(isDigits('1e3'), false)
+            assertEq(isDigits('\u0661'), false)
         },
     },
     isCanonicalDigits: {

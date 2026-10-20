@@ -26,6 +26,7 @@
  */
 
 import { tryUtf8, utf8 } from '../../text/module.f.mjs'
+import { isDigits } from '../../text/ascii/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
@@ -884,13 +885,6 @@ export const declaredLength = headers => {
     const n = Number(v)
     return Number.isSafeInteger(n) ? n : null
 }
-
-/** Whether `s` is a non-empty run of decimal digits — no sign, no space, no
- * exponent, which is the whole of what a `Content-Length` may be.
- *
- * @type {(s: string) => boolean}
- */
-const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
 
 /**
  * Whether Node will carry no body for this response, so the producer is never
