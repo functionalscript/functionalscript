@@ -16,7 +16,7 @@ impl<A: IVm> Any<A> {
     /// throws.
     pub fn get_iterator(self) -> Result<IteratorRecord<A>, Any<A>> {
         match self.into() {
-            Unpacked::Array(array) => Ok(IteratorRecord::Array { array, next: 0 }),
+            Unpacked::Array(array) => Ok(IteratorRecord::Array(array.into_iter())),
             Unpacked::String(string) => Ok(IteratorRecord::String { string, next: 0 }),
             _ => Err(error::not_iterable()),
         }
