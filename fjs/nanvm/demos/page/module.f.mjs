@@ -79,17 +79,28 @@ export const decode = bytes => {
 }
 
 /**
- * What a program writes to standard output when performed in memory, as
- * text. Standard error is not kept: a page shows standard output only.
+ * Performs a program in memory: what it wrote to standard output, as a bit
+ * vector, and how it ended. Standard error is not kept: a page shows standard
+ * output only.
  *
- * @type {(program: Sample['program']) => Result<string, string>}
+ * @type {(program: Sample['program']) => readonly [Vec, Result<unknown, unknown>]}
  */
-export const jsOutput = program => {
+export const jsPerform = program => {
     /** @type {MemOperationMap<Write, Vec>} */
     const map = { write: (stream, data) => state => [stream === 'stdout' ? msb.concat(state)(data) : state, ok(undefined)] }
-    const [stdout, result] = mockRun(map)(empty)(program())
-    return result[0] === 'error' ? error(`the program failed: ${String(result[1])}`) : decode(u8ListMsb(stdout))
+    return mockRun(map)(empty)(program())
 }
+
+/**
+ * What {@link jsPerform} answers, as text, or why there is none.
+ *
+ * @type {(performed: readonly [Vec, Result<unknown, unknown>]) => Result<string, string>}
+ */
+export const jsText = ([stdout, result]) =>
+    result[0] === 'error' ? error(`the program failed: ${String(result[1])}`) : decode(u8ListMsb(stdout))
+
+/** A program's standard output when performed in memory, as text. @type {(program: Sample['program']) => Result<string, string>} */
+export const jsOutput = program => jsText(jsPerform(program))
 
 /**
  * A run's answer from `sandbox`, or why there is none: an operation this page
@@ -103,11 +114,16 @@ const timed = r => r[0] === 'error'
         ? error(`it threw: ${String(r[1].result[1])}`)
         : ok({ value: r[1].result[1], time: r[1].duration })
 
-/** @type {(program: Sample['program']) => Effect<Sandbox, Result<Run, string>, never>} */
-export const runJs = program => resultStep(sandbox(() => jsOutput(program)), r => {
-    const t = timed(/** @type {Result<SandboxResult<Result<string, string>>, IoChannel>} */ (r))
+/**
+ * Performs the program in a `sandbox`, and decodes its output after: the time
+ * holds the run alone, as the WebAssembly run's does.
+ *
+ * @type {(program: Sample['program']) => Effect<Sandbox, Result<Run, string>, never>}
+ */
+export const runJs = program => resultStep(sandbox(() => jsPerform(program)), r => {
+    const t = timed(/** @type {Result<SandboxResult<readonly [Vec, Result<unknown, unknown>]>, IoChannel>} */ (r))
     /** @type {Result<Run, string>} */
-    const run = t[0] === 'error' ? t : ok({ output: t[1].value, time: t[1].time })
+    const run = t[0] === 'error' ? t : ok({ output: jsText(t[1].value), time: t[1].time })
     return pureOk(run)
 })
 

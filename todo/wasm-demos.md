@@ -55,6 +55,9 @@ output:
 - **The deployment build makes the `.wasm` and its WAT.**
   `gen.cloudflare/build.sh` already installs Rust and runs `cargo doc` before
   the website generator, so it builds the demo crate for `wasm32` there too.
+  The script is generated: the steps go in `buildText()` in
+  [`fjs/website/cloudflare`](../fjs/website/cloudflare/module.f.mjs), whose
+  proof pins the text.
   Neither file is committed: they are gitignored output, like the site's
   `index.html` files, so nothing can go stale and no reproducible build is
   needed. Committing them was the other option. It would need byte-identical
@@ -104,9 +107,6 @@ alternative.
 - **The disassembler.** Printing WAT in the deployment build needs a tool or
   crate (for example `wasmprinter` or `wasm-tools`), which needs approval
   before it is added ([AGENTS.md §6](../AGENTS.md#6-external-tools)).
-- **The deployment build's toolchain.** `build.sh` installs Rust with
-  `rustup`, outside the Nix shell, so it also needs the `wasm32` target, at
-  the version CI pins.
 - **Disassembly size.** The module carries the NaNVM runtime as well as the
   sample. The page may need to show the sample's own functions first, with the
   rest collapsed.
@@ -114,8 +114,8 @@ alternative.
 ### Tasks
 
 - [x] Settle the entry point, and add the demo crate with its wrapper, the
-      `npm run gen` step that writes the `.rs`, and the `build.sh` step that
-      builds the `.wasm`.
+      `npm run gen` step that writes the `.rs`, and the `buildText()` step
+      that builds the `.wasm`.
 - [x] Build the demo page: source, disassembly, Run button and stats, with
       one sample, `hello`.
 - [ ] Print the WAT in the deployment build, once its tool is approved.
