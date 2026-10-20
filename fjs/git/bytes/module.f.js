@@ -1,6 +1,8 @@
 /**
- * The fixed-width words and the prefix test Git's binary formats are read
- * with: a packfile's header, a pack index's tables, and a ref name's bytes.
+ * The readings Git's formats share: the fixed-width words and the prefix test
+ * its binary formats are read with — a packfile's header, a pack index's
+ * tables, a ref name's bytes — the cut a C string makes at its first NUL, and
+ * the byte order names and refnames sort in.
  *
  * Every reader here takes an indexed array, not `Bytes`. A `Bytes` is a lazy
  * list — a cons, a concat, a thunk — so a reader normalises its input once,
@@ -10,6 +12,7 @@
  * @module
  *
  * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Sign } from '../../types/function/compare/types.ts'
  */
 
 /**
@@ -50,3 +53,47 @@ export const u64be = (b, at) => {
  * @type {(prefix: readonly number[]) => (b: readonly number[]) => boolean}
  */
 export const startsWith = prefix => b => prefix.every((v, i) => b[Number(i)] === v)
+
+/**
+ * The bytes before the first NUL, or all of them where there is none.
+ *
+ * Git hands several values on as C strings — a tag's `type`, a
+ * `packed-refs` header, a `gitdir:` path — and a C string ends at its first
+ * NUL, so the bytes after one are no part of the value however many there
+ * are. {@link untilNul} is the same cut for a value already read as text.
+ *
+ * @type {(b: readonly number[]) => readonly number[]}
+ */
+export const cString = b => {
+    const end = b.indexOf(0x00)
+    return end === -1 ? b : b.slice(0, end)
+}
+
+/**
+ * The characters before the first NUL, or all of them: {@link cString} for a
+ * value a reader holds as a string, such as a config value or an alternates
+ * path.
+ *
+ * @type {(s: string) => string}
+ */
+export const untilNul = s => {
+    const end = s.indexOf('\u0000')
+    return end === -1 ? s : s.slice(0, end)
+}
+
+/**
+ * The order of `a` and `b` byte by byte, unsigned: the first differing byte
+ * decides, and a proper prefix sorts first. It is the order Git sorts a
+ * tree's names and writes `packed-refs` in, and the one its bisection of
+ * that file assumes.
+ *
+ * This is not `fjs/rtti/data`'s `cmpList`, which is short-lex: a shorter
+ * list sorts first there whatever its bytes.
+ *
+ * @type {(a: readonly number[], b: readonly number[]) => Sign}
+ */
+export const cmp = (a, b) => {
+    const i = a.findIndex((x, k) => k >= b.length || x !== b[Number(k)])
+    return i === -1 ? (a.length < b.length ? -1 : 0)
+        : i >= b.length || a[Number(i)] > b[Number(i)] ? 1 : -1
+}

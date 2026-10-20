@@ -45,9 +45,9 @@
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, flat, toArray } from '../../types/list/module.f.mjs'
 import { startsWith, u32be } from '../bytes/module.f.js'
+import { oidAt } from '../oid/module.f.mjs'
 
 /** The four bytes a pack begins with. */
 const signature = /** @type {const} */ ([0x50, 0x41, 0x43, 0x4B])
@@ -221,7 +221,7 @@ export const tryEntry = oidBytes => input => {
     }
     if (code === 7) {
         if (b.length < after + oidBytes) { return null }
-        return { kind: 'refDelta', size: bytes, baseId: u8ListToVecMsb(b.slice(after, after + oidBytes)), dataAt: after + oidBytes }
+        return { kind: 'refDelta', size: bytes, baseId: oidAt(b, after, oidBytes), dataAt: after + oidBytes }
     }
     const type = objectTypes[code]
     return type === undefined ? null : { kind: 'object', type, size: bytes, dataAt: after }

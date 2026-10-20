@@ -26,10 +26,11 @@
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { lf, nul as nulByte } from '../../text/ascii/module.f.mjs'
+import { lf } from '../../text/ascii/module.f.mjs'
 import { identity } from '../../types/function/module.f.js'
 import { error, mapOk, okList } from '../../types/result/module.f.js'
 import { field, hasNulHeader, optionalField, tryRead as readPayload, tryReadAtLeast, write as writePayload } from '../header/module.f.mjs'
+import { cString } from '../bytes/module.f.js'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
 import { tryType as typeNamed } from '../object/module.f.mjs'
 import { isName } from '../refname/module.f.mjs'
@@ -55,7 +56,7 @@ export const write = writePayload
  * The type the `type` header names, or `null` when it names none of the
  * four.
  *
- * The value ends at its first NUL, as it does for Git's own parse: `blob`
+ * The value ends at its first NUL ({@link cString}), as it does for Git's own parse: `blob`
  * followed by a NUL is the type `blob` however many bytes follow it, and a
  * value beginning with one names nothing.
  *
@@ -78,8 +79,7 @@ export const write = writePayload
 const typeOf = value => {
     const bs = byteArray(value)
     if (bs.includes(lf)) { return null }
-    const end = bs.indexOf(nulByte)
-    return typeNamed(end === -1 ? bs : bs.slice(0, end))
+    return typeNamed(cString(bs))
 }
 
 /** The `object` header: the first. */
