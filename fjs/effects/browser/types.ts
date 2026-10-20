@@ -7,6 +7,7 @@
  * @module
  */
 
+import type { StringMap } from '../../types/object/types.ts'
 import type { IoResult } from '../types.ts'
 
 /** Fetches a file from the site, as text. */
@@ -18,7 +19,7 @@ export type FetchText = readonly['fetchText', (path: string) => IoResult<string>
  */
 export type WasmInstance = {
     /** The module's exports, by name: functions, and its memory. */
-    readonly exports: { readonly [name in string]?: unknown }
+    readonly exports: StringMap<unknown>
     /**
      * Fetching, compiling and instantiating the module, in milliseconds, as
      * `performance.now()` measures it. A page reports it apart from any run.

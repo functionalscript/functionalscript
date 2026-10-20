@@ -9,6 +9,7 @@
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
+ * @import { StringMap } from '../../../types/object/types.ts'
  * @import { Sample, State } from './types.ts'
  */
 
@@ -63,7 +64,7 @@ const thrown = value => value === throws ? error('boom') : ok(value)
  * and anything else is not found. `sandbox` is `null` for a page that does not
  * implement it, and `thrown` for a thunk that throws.
  *
- * @type {(files: { readonly [path in string]?: string }, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown') => MemOperationMap<FetchText | Instantiate | Sandbox, null>}
+ * @type {(files: StringMap<string>, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown') => MemOperationMap<FetchText | Instantiate | Sandbox, null>}
  */
 const page = (files, wasm, sandbox = 'ok') => ({
     fetchText: path => s => {
