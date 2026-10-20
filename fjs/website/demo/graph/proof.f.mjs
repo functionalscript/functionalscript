@@ -249,6 +249,35 @@ export const proof = {
             // 0 → 1 with 0, 0 → 2 with 2, 1 → 3 with neither, the entry with 0.
             assertEq(JSON.stringify(fades.toSorted()), '[0,0,1,null]')
         },
+        // A keyed node is drawn at the origin, its box and its text each in
+        // a group moved into place and keyed apart, its clip local too; an
+        // unkeyed one is drawn where it is. An edge between nodes with no
+        // order takes the graph's edgeOrder, as new.
+        keyed: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'shared', label: '', rank: 0, key: 'k' },
+                    { id: 1, kind: 'shared', label: 'b', rank: 1, key: 'b' },
+                    { id: 2, kind: 'shared', label: 'c', rank: 1 },
+                ],
+                edges: [{ from: 0, to: { inline: '5' }, label: '' }, { from: 0, to: 1, label: '' }, { from: 0, to: 2, label: '' }],
+                entries: [{ to: 0 }],
+                edgeOrder: 1,
+            }))
+            // The keyed groups are drawn by key, in a layer each: `b`
+            // before `k`, and the unkeyed node after both, in its layer.
+            const keys = html.split('data-key="').slice(1).map(k => k.slice(0, k.indexOf('"')))
+            assertEq(JSON.stringify(keys), '["box:b","box:k","text:b","text:k"]')
+            assert(html.includes('</defs><g><g data-graph-in-kind="shared" transform="translate(124,10)" data-key="box:b">'), html)
+            // A keyed node is drawn at the origin, its clip too; the unkeyed
+            // one where it is.
+            assert(html.includes('transform="translate(34,13)" data-key="box:k"><rect x="0" y="0" width="50" height="60"'), html)
+            assert(html.includes('<clipPath id="graph-clip-34-13-50-60"><rect x="0" y="0" width="50" height="60" rx="4"></rect></clipPath>'), html)
+            assert(html.includes('<g data-graph-in-kind="shared"><rect x="124" y="50"'), html)
+            // Every edge and the entry are between nodes with no order, so
+            // they take the graph's edgeOrder.
+            assertEq(html.split('data-graph-in-kind="new" data-graph-order="1"').length - 1, 3)
+        },
         inlineClick: () => {
             const html = htmlToString(graphSvg({
                 nodes: [{ id: 0, kind: 'a', label: '', rank: 0 }],

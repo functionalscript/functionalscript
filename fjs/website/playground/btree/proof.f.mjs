@@ -268,16 +268,28 @@ export const proof = {
             assert(time > 0 && time % orderGap === 0, time)
         },
         // Leaving, the nodes the next tree does not share fade out from the
-        // leaves up; entering, the new ones fade in from the root down. A
-        // rank fades as one, and a shared node not at all.
+        // leaves up; entering, after the slide (order 0), the new ones fade
+        // in from the root down from order 1, and the edges between nodes
+        // that stay with them. A rank fades as one, and a shared node not
+        // at all. Every node is keyed by its keys.
         ordered: () => {
-            /** @type {(kind: string, rank: number) => { readonly id: number, readonly kind: string, readonly label: string, readonly rank: number }} */
-            const node = (kind, rank) => ({ id: rank, kind, label: '', rank })
-            const g = { nodes: [node('new', 0), node('shared', 1), node('new', 2), node('new', 2)], edges: [] }
-            assertEq(JSON.stringify(ordered('leave')(g).nodes.map(n => [n.kind, n.order ?? null])),
-                '[["leaving",1],["shared",null],["leaving",0],["leaving",0]]')
-            assertEq(JSON.stringify(ordered('enter')(g).nodes.map(n => [n.kind, n.order ?? null])),
-                '[["new",0],["shared",null],["new",1],["new",1]]')
+            /** @type {(kind: string, id: number, rank: number) => { readonly id: number, readonly kind: string, readonly label: string, readonly rank: number }} */
+            const node = (kind, id, rank) => ({ id, kind, label: '', rank })
+            const g = {
+                nodes: [node('new', 0, 0), node('shared', 1, 1), node('new', 2, 2), node('new', 3, 2)],
+                edges: [{ from: 1, to: { inline: '30' }, label: '' }, { from: 1, to: { inline: '40' }, label: '' }, { from: 0, to: 1, label: '' }],
+            }
+            const leave = ordered('leave')(g)
+            assertEq(JSON.stringify(leave.nodes.map(n => [n.kind, n.order ?? null, n.key])),
+                '[["leaving",1,""],["shared",null,"30,40"],["leaving",0,""],["leaving",0,""]]')
+            assertEq(leave.edgeOrder, undefined)
+            const enter = ordered('enter')(g)
+            assertEq(JSON.stringify(enter.nodes.map(n => [n.kind, n.order ?? null])),
+                '[["new",1],["shared",null],["new",2],["new",2]]')
+            assertEq(enter.edgeOrder, 1)
+            // With nothing new, nothing waits: a first tree, or a move that
+            // changed nothing.
+            assertEq(ordered('enter')({ ...g, nodes: [node('shared', 0, 0)] }).edgeOrder, undefined)
         },
         // The drawing's container alternates from frame to frame, so the
         // fades run again; a leaving frame marks its nodes leaving.

@@ -249,10 +249,20 @@ const textNode = 3
  *   HTML element a name is compared as the browser stores it, ASCII
  *   lowercase: `TITLE` is the `title` already there, not a stranger to
  *   remove and add back on every patch.
- * - **Children are matched by position.** A text node takes the new text; an
- *   element of the tag and namespace the child would be created with is
- *   patched in turn; anything else is replaced by a new node. Extra children
- *   go.
+ * - **Children are matched by position, or by key.** A text node takes the
+ *   new text; an element of the tag and namespace the child would be
+ *   created with is patched in turn; anything else is replaced by a new
+ *   node. Extra children go. A child with a `data-key` is matched instead by
+ *   it: the sibling element with that key, of the same tag and namespace,
+ *   is moved to the child's place and patched, so an element that changes
+ *   place among its siblings is still the same node — what lets a
+ *   stylesheet transition it from where it was. A key the old children do
+ *   not have makes a new node, inserted there. An element with a key is
+ *   never taken for a child without one. Keys are unique among siblings;
+ *   a key used twice matches once. A keyed element whose key is gone is
+ *   removed first, so the ones that stay, in the order they were, are
+ *   never moved: a browser drops a moved element's transition, and it
+ *   would jump to where it goes.
  * - **A form control shows what its markup says.** Markup sets a control's
  *   default — an `input`'s `value` attribute, a `textarea`'s text, a
  *   `checked` or `selected` attribute — and the browser shows the default
@@ -278,10 +288,47 @@ export const patch = (target, element) => {
         if (target.getAttribute(name) !== value) { setAttribute(target, name, value) }
     }
     const parent = childrenOf(target)
-    const nodes = [...parent.childNodes]
     const next = childrenFor(tag, children)
+    /** @type {Map<string, Element>} */
+    const keyed = new Map([...parent.childNodes].flatMap(n => {
+        const key = keyOf(n)
+        return key === null ? [] : [[key, /** @type {Element} */ (n)]]
+    }))
+    const wantedKeys = new Set(next.flatMap(child => {
+        const key = typeof child === 'string' ? undefined : parseElement(child)[1]['data-key']
+        return key === undefined ? [] : [key]
+    }))
+    for (const [key, node] of keyed) {
+        if (!wantedKeys.has(key)) {
+            parent.removeChild(node)
+            keyed.delete(key)
+        }
+    }
     next.forEach((child, i) => {
-        const node = nodes.at(i)
+        const at = parent.childNodes[i]
+        const childKey = typeof child === 'string' ? undefined : parseElement(child)[1]['data-key']
+        if (childKey !== undefined) {
+            const [childTag] = /** @type {HtmlElement} */ (child)
+            const found = keyed.get(childKey)
+            keyed.delete(childKey)
+            const rules = rulesFor(target, childTag)
+            if (found !== undefined && found.localName === childTag && found.namespaceURI === namespaceFor(rules, childTag)) {
+                if (found !== at) { parent.insertBefore(found, at ?? null) }
+                patch(found, /** @type {HtmlElement} */ (child))
+                return
+            }
+            parent.insertBefore(create(target.ownerDocument, rules, /** @type {HtmlElement} */ (child)), at ?? null)
+            return
+        }
+        // An element with a key is never taken for a child without one: the
+        // child goes in before it, and the keyed one stays for its own.
+        const node = at !== undefined && keyOf(at) !== null ? undefined : at
+        if (node === undefined && at !== undefined) {
+            parent.insertBefore(typeof child === 'string'
+                ? target.ownerDocument.createTextNode(child)
+                : create(target.ownerDocument, rulesFor(target, child[0]), child), at)
+            return
+        }
         if (typeof child === 'string') {
             if (node?.nodeType === textNode) {
                 const text = /** @type {Text} */ (node)
@@ -302,10 +349,17 @@ export const patch = (target, element) => {
         }
         place(parent, node, create(target.ownerDocument, rules, child))
     })
-    for (const node of nodes.slice(next.length)) { parent.removeChild(node) }
+    for (const node of [...parent.childNodes].slice(next.length)) { parent.removeChild(node) }
     showDefault(target)
     return target
 }
+
+/**
+ * A node's `data-key`, or `null` for a text node or an element without one.
+ *
+ * @type {(node: ChildNode) => string | null}
+ */
+const keyOf = node => node.nodeType === textNode ? null : /** @type {Element} */ (node).getAttribute('data-key')
 
 /**
  * The name an attribute is stored under on `target`: ASCII lowercase on an

@@ -279,15 +279,31 @@ const inKindOf = p => ({
  * one that stays goes with the node it leaves. Its kind and order are the
  * ones the stylesheet reads off a node's groups.
  *
- * @type {(nodes: readonly _Positioned[]) => (from: number, to: number) => { readonly 'data-graph-in-kind'?: string, readonly 'data-graph-order'?: string }}
+ * Where neither has one, the graph's `edgeOrder`, if it has one.
+ *
+ * @type {(nodes: readonly _Positioned[], edgeOrder: number | undefined) => (from: number, to: number) => { readonly 'data-graph-in-kind'?: string, readonly 'data-graph-order'?: string }}
  */
-const fadeOf = nodes => (from, to) => {
+const fadeOf = (nodes, edgeOrder) => (from, to) => {
     /** @type {(id: number) => _Positioned} */
     const nodeOf = id => assertNotNullish(nodes.find(n => n.id === id))
     const target = nodeOf(to)
     const owner = target.order !== undefined ? target : nodeOf(from)
-    return owner.order === undefined ? {} : inKindOf(owner)
+    return owner.order !== undefined ? inKindOf(owner)
+        : edgeOrder === undefined ? {}
+        : { 'data-graph-in-kind': 'new', 'data-graph-order': String(edgeOrder) }
 }
+
+/**
+ * Where a node's contents are drawn, and the attributes of the groups that
+ * hold them. A node with a `key` is drawn at the origin, its groups moved
+ * into place by a `transform` and keyed for the box and the text apart; any
+ * other is drawn where it is, as it always was.
+ *
+ * @type {(p: _Positioned) => { readonly local: _Positioned, readonly group: (part: string) => { readonly transform?: string, readonly 'data-key'?: string } }}
+ */
+const placeOf = p => p.key === undefined
+    ? { local: p, group: () => ({}) }
+    : { local: { ...p, x: 0, y: 0 }, group: part => ({ transform: `translate(${p.x},${p.y})`, 'data-key': `${part}:${p.key}` }) }
 
 /**
  * A node's ports: one row per outgoing edge, in the order the demo gave
@@ -739,7 +755,7 @@ export const graphSvg = g => {
         ...positioned.map(p => p.y + p.height),
         ...placed.lanes.map(lane => lane.y + laneSize / 2),
     ])
-    const fade = fadeOf(positioned)
+    const fade = fadeOf(positioned, g.edgeOrder)
     /** @type {readonly Element[]} */
     const edgeEls = routesOf(placed).map(({ edge, points }) => ['path', {
         d: `M${points.map(([x, y]) => `${x},${y}`).join(' L')}`,
@@ -772,13 +788,23 @@ export const graphSvg = g => {
     const keyWidthOf = p => port => valueOf(port) === null ? p.width - p.title
         : port.edge.label === '' ? 0
         : p.keyWidth
+    // A keyed graph draws its keyed groups in an order of their own, by
+    // key, in a layer each: a page that patches it then finds a node's
+    // group among the same siblings, in the same order, from one drawing
+    // to the next, and never has to move it.
+    const keyed = positioned.some(p => p.key !== undefined)
+    const drawn = keyed ? positioned.toSorted((a, b) => String(a.key) < String(b.key) ? -1 : 1) : positioned
+    /** @type {(els: readonly Element[]) => readonly Element[]} */
+    const layer = els => keyed ? [['g', ...els]] : els
     /** @type {readonly Element[]} */
-    const boxEls = positioned.map(p => ['g', inKindOf(p),
+    const boxEls = drawn.map(at => {
+        const { local: p, group } = placeOf(at)
+        return /** @type {Element} */ (['g', { ...inKindOf(p), ...group('box') },
         /** @type {Element} */ (['rect', {
             x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-node': '', 'data-graph-kind': p.kind,
         }]),
-        ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(p)})` },
+        ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(at)})` },
             ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x + p.title), y: String(p.y + port.y),
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
@@ -806,12 +832,18 @@ export const graphSvg = g => {
             x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-outline': '',
         }])]),
-    ])
+        ])
+    })
     /** @type {readonly Element[]} */
-    const clipEls = positioned.flatMap(p => p.ports.length === 0 ? [] : [/** @type {Element} */ (['clipPath', { id: clipIdOf(p) },
-        ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])])
+    const clipEls = positioned.flatMap(at => {
+        const { local: p } = placeOf(at)
+        return p.ports.length === 0 ? [] : [/** @type {Element} */ (['clipPath', { id: clipIdOf(at) },
+            ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])]
+    })
     /** @type {readonly Element[]} */
-    const labelEls = positioned.map(p => ['g', inKindOf(p),
+    const labelEls = drawn.map(at => {
+        const { local: p, group } = placeOf(at)
+        return /** @type {Element} */ (['g', { ...inKindOf(p), ...group('text') },
         ...(p.label === '' ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.title / 2), y: String(p.y + p.height / 2),
             'text-anchor': 'middle', 'data-graph-label': '',
@@ -834,7 +866,8 @@ export const graphSvg = g => {
             }, ...(to.parts === undefined ? [to.inline]
                 : to.parts.map(([text, kind]) => /** @type {Element} */ (['tspan', { 'data-graph-part': kind }, text])))])]
         }),
-    ])
+        ])
+    })
     return ['div', { 'data-graph': '' }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
         ['defs',
             ['marker', {
@@ -843,9 +876,9 @@ export const graphSvg = g => {
             },
                 ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-arrow': '' }]],
             ...clipEls],
-        ...boxEls,
+        ...layer(boxEls),
         ...edgeEls,
         ...entryEls,
-        ...labelEls,
+        ...layer(labelEls),
     ]]
 }

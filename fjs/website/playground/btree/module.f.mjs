@@ -271,18 +271,31 @@ const movedKey = name => name.startsWith('move:') ? decimal.parse(name.slice(5))
 const levelOf = value => depths.find(d => String(d) === value)
 
 /**
- * A frame's graph, its moving nodes in order. Entering, the nodes it built
- * are new, and fade in from the root down, one rank at a time; leaving,
- * the nodes the next tree does not share — new, against it — are
- * `leaving`, and fade out from the leaves up.
+ * A frame's graph, its moving nodes in order. Leaving, the nodes the next
+ * tree does not share — new, against it — are `leaving`, and fade out from
+ * the leaves up. Entering, the nodes that stay slide first to where the new
+ * tree puts them, through order 0; then the nodes it built fade in from
+ * the root down, one rank at a time, from order 1, and so do the edges
+ * between nodes that stay, which waited hidden while they slid.
+ *
+ * Every node is keyed by its keys, so a node that stays is the same element
+ * from frame to frame, and slides.
  *
  * @type {(mode: Mode) => (g: Graph) => Graph}
  */
 export const ordered = mode => g => {
     const ranks = [...new Set(g.nodes.flatMap(n => n.kind === 'new' ? [n.rank] : []))].toSorted((a, b) => mode === 'enter' ? a - b : b - a)
+    const first = mode === 'enter' ? 1 : 0
+    /** @type {(id: number) => string} */
+    const keyOf = id => g.edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : []).join(',')
     return {
         ...g,
-        nodes: g.nodes.map(n => n.kind !== 'new' ? n : { ...n, kind: mode === 'enter' ? 'new' : 'leaving', order: ranks.indexOf(n.rank) }),
+        nodes: g.nodes.map(n => ({
+            ...n,
+            key: keyOf(n.id),
+            ...(n.kind !== 'new' ? {} : { kind: mode === 'enter' ? 'new' : 'leaving', order: first + ranks.indexOf(n.rank) }),
+        })),
+        ...(mode === 'enter' && ranks.length > 0 ? { edgeOrder: 1 } : {}),
     }
 }
 

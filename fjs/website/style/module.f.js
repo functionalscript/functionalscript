@@ -630,6 +630,8 @@ svg text { font: inherit }
    keys is deep; an order past them fades with the seventh. */
 @media (prefers-reduced-motion: no-preference) {
   [data-graph-order] { animation-duration: 1s; animation-fill-mode: both; animation-timing-function: ease }
+  /* A keyed node that stays but moves slides to its new place. */
+  [data-graph] [data-key] { transition: transform 1s ease }
   [data-graph-replay="a"] [data-graph-in-kind="new"][data-graph-order] { animation-name: graph-in-a }
   [data-graph-replay="b"] [data-graph-in-kind="new"][data-graph-order] { animation-name: graph-in-b }
   [data-graph-replay="a"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-a }
