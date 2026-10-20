@@ -21,7 +21,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { fromUndefined } from '../../types/nullable/module.f.mjs'
+import { fromUndefined } from '../../types/nullable/module.f.js'
 
 /**
  * The symbol of the first registered name: `0x110000`, one past the last

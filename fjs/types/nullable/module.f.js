@@ -58,8 +58,7 @@ export const fromUndefined = value => value === undefined ? null : value
  * @type {<T>(value: Nullable<T>) => T}
  */
 export const unwrap = value => {
-    assert(value !== null)
-    return value
+    return (assert(value !== null), value)
 }
 
 /**

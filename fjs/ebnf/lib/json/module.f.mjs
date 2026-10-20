@@ -9,7 +9,7 @@
 
 import { assert } from "../../../asserts/module.f.js"
 import { isFixedArray } from "../../../types/array/module.f.mjs"
-import { unmapped } from "../../ast/module.f.mjs"
+import { unmapped } from "../../ast/module.f.js"
 import { range, remove, repeatFrom0, unicodeMax, set, times, option, join, joined } from "../../module.f.mjs"
 
 const isFixedArray2 =
