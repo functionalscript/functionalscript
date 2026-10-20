@@ -55,7 +55,9 @@ module's, a function body's, or the lazy operand it stands in, so
 `c && (assert(c), 1)` establishes the assertion only where `c` is truthy. A
 discarded operand that is no code is dropped: a reference, a literal and a
 function compute nothing a later node reads, and a `const` a reference
-names is anchored by its scope where nothing else reaches it. So
+names is anchored by its scope where nothing else reaches it. A discarded
+comma is its operands, each discarded in turn, so `((a.x, () => 1), 2)`
+drops the function as `(a.x, () => 1, 2)` does. So
 `const a = []; const b = a; export default (b, a.length);` is
 `['.', A, 'length']` with no comma, `b` being `a`'s node, where
 `const a = []; const b = a.x; export default (b, a.length);` keeps

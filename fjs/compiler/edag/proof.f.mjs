@@ -971,6 +971,11 @@ export const proof = {
             expectEdag(compile('export default (...a) => (1, a, () => 1, a[0]);').edag, ['=>', 0, [], ['.', ['rest'], 0]])
             // and one that lowers to a primitive, a negated literal folded
             expectEdag(compile('export default (...a) => (-1, a[0]);').edag, ['=>', 0, [], ['.', ['rest'], 0]])
+            // a discarded comma is its operands, discarded in turn: its own
+            // inert value is dropped as the flat comma drops it
+            const flat = compile('export default (...a) => (a.x, () => 1, 2);').edag
+            expectEdag(flat, ['=>', 0, [], [',', [['.', ['rest'], 'x'], 2]]])
+            expectEdag(compile('export default (...a) => ((a.x, () => 1), 2);').edag, flat)
             expectEdag(compile('export default (Object.is, (s, a, b) => s.slice(a, b), 2);').edag, 2)
             expectEdag(
                 compile('export default ((a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable === true; }, (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }, 3);').edag,
