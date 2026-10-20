@@ -107,6 +107,12 @@ pub extern "C" fn sort() -> i32 {
     export(samples::sort::module::<Naive>)
 }
 
+/// Loads the Collatz sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn collatz() -> i32 {
+    export(samples::collatz::module::<Naive>)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,6 +131,14 @@ mod tests {
         assert_eq!(
             perform(&load(samples::sort::module::<Naive>).unwrap()).unwrap(),
             b"sorted 100000 integers: smallest 1, largest 2147477497\n"
+        );
+    }
+
+    #[test]
+    fn collatz_reports_the_longest_chain() {
+        assert_eq!(
+            perform(&load(samples::collatz::module::<Naive>).unwrap()).unwrap(),
+            b"the longest Collatz chain below 30000 starts at 26623 and takes 307 steps\n"
         );
     }
 

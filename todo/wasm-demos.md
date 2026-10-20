@@ -104,6 +104,13 @@ built:
   array at every step. The sample encodes its own
   output to bytes, with `charCodeAt` and a loop, since `utf8` does not
   compile.
+- **A third page, [`fjs/nanvm/demos/collatz`](../fjs/nanvm/demos/collatz/)**,
+  finds the start below 30,000 with the longest Collatz chain: arithmetic on
+  numbers alone, with no allocation while it searches, since a chain's
+  length and start travel as one number. In headless Chromium the
+  JavaScript run takes about 35 ms and the WebAssembly run about 1.7 s,
+  about fifty times slower, with 1.1 MB of linear memory against the sort's
+  9.5 MB: the cost is NaNVM's calls and dynamic values, not allocation.
 - **`fjs compile` gaps the sort sample worked around**:
   - `a[i]` is refused (`computed key is not Number(...)`): an index computed
     at run time is written `a[Number(i)]`.
@@ -144,8 +151,9 @@ alternative.
 - [x] Print the WAT in the deployment build.
 - [ ] Report the JavaScript run's memory, where the browser measures it.
 - [x] Add a sorting sample, `sort`, to compare the two routes' running time.
-- [ ] Choose one or two more samples that print to the console and that
-      `fjs compile … .rs` accepts today, and add one page each.
+- [x] Add a sample that computes without allocating, `collatz`.
+- [ ] Find where the WebAssembly route's time goes on `collatz`, which
+      allocates nothing yet runs about fifty times slower than JavaScript.
 
 ### Related
 

@@ -2,3 +2,4 @@
 
 pub mod hello;
 pub mod sort;
+pub mod collatz;
