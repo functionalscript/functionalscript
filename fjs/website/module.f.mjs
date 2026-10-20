@@ -75,7 +75,7 @@ import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isAuthored, isThirdParty } from '../dev/module.f.mjs'
-import { header, isIssue } from './issue/module.f.mjs'
+import { header, isIssue } from './issue/module.f.js'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**

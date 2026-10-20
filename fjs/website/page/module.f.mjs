@@ -37,7 +37,7 @@ import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
-import { priorities, statuses } from '../issue/module.f.mjs'
+import { priorities, statuses } from '../issue/module.f.js'
 
 /**
  * The repository the site is built from, which is where a file is read when
