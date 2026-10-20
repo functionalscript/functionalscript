@@ -3,7 +3,7 @@
  */
 
 import { codeMarker, resultMarker, stylesheet } from '../style/module.f.js'
-import { textDemo, textField, inputField, fieldUpdate, caption, refusal } from './module.f.mjs'
+import { textDemo, textField, inputField, fieldUpdate, caption, refusal, radios } from './module.f.mjs'
 import { name as exampleName } from './examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -29,6 +29,10 @@ export const proof = {
     },
     refusal: () => assertEq(htmlToString(refusal('Unexpected <token> & input\nnext line')),
         '<!DOCTYPE html><div role="status"><p data-caption="">Refused:</p><pre data-result="error">Unexpected &lt;token&gt; &amp; input\nnext line</pre></div>'),
+    // Each option's id is the group's name and its value; only the chosen one
+    // is checked.
+    radios: () => assertEq(htmlToString(radios('side', 'Side', [{ value: 'L', label: 'Left' }, { value: 'R', label: 'Right' }], 'R')),
+        '<!DOCTYPE html><fieldset data-radios=""><legend>Side</legend><div><label for="side-L"><input type="radio" id="side-L" name="side" value="L">Left</label><label for="side-R"><input type="radio" id="side-R" name="side" value="R" checked="">Right</label></div></fieldset>'),
     caption: () => assertEq(htmlToString(caption('Hash, hex:')),
         '<!DOCTYPE html><p data-caption="">Hash, hex:</p>'),
     inputField: () => {
