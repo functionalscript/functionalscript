@@ -105,20 +105,6 @@ const chain = hops => {
     return { refs: { heads } }
 }
 
-/**
- * A directory holding one ref of the given name at the given id: under `refs/`
- * where the name has slashes in it, and at the top otherwise.
- *
- * The name is a leading parameter rather than a capture of the loop that walks
- * the names, so this is closed and at module scope (§3.3).
- *
- * @type {(name: string) => (hex: string) => Dir}
- */
-const nameAt = name => hex =>
-    name.includes('/')
-        ? { refs: { [name.split('/')[1]]: { [name.split('/')[2]]: ref(hex) } } }
-        : { [name]: ref(hex) }
-
 /** The one file whose size has no bound, and so the one read in windows. */
 const packedRefs = /** @type {const} */ ('packed-refs')
 
@@ -179,36 +165,6 @@ const kindHost = (entry, answer) => ({
  */
 const rootsBy = (entry, answer) =>
     mockRun(kindHost(entry, answer))(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
-
-/**
- * A host whose gitdir holds `HEAD` and `ORIG_HEAD` as a listing reports them —
- * `HEAD` a file or not, `ORIG_HEAD` never — and answers `bytes` for a read of
- * either, which is what a read of a *link* to a file outside the repository
- * gives back.
- *
- * The bytes lead the kind so this closes over nothing: one function for the whole
- * file instead of a fresh closure per case (`fjs/AGENTS.md` §3.3).
- *
- * @type {(bytes: readonly number[]) => (headIsFile: boolean) => MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>}
- */
-const linkedHeadHost = bytes => headIsFile => ({
-    stat: statUnasked,
-    // the read follows the link, which is the whole problem
-    readFile: path => state => [
-        state,
-        path === 'HEAD' || path === 'ORIG_HEAD'
-            ? ok(u8ListToVecMsb(bytes))
-            : error(ioError({ code: 'ENOENT', message: path })),
-    ],
-    readWhole: missing,
-    readdir: path => state => [
-        state,
-        ok(path === '' ? [
-            dirent('HEAD', path, headIsFile, false),
-            dirent('ORIG_HEAD', path, false, false),
-        ] : []),
-    ],
-})
 
 /**
  * The `IoError` a listing refuses with, over the virtual filesystem: every
@@ -1166,7 +1122,34 @@ export const proof = {
     // for `HEAD`: `readFile` follows the link and `stat` answers for what is at
     // the other end.
     symlinkHeadLookup: () => {
-        const host = linkedHeadHost(latin1(`${b}\n`))
+        const bytes = latin1(`${b}\n`)
+        /**
+         * A host whose gitdir holds `HEAD` and `ORIG_HEAD` as a listing
+         * reports them — `HEAD` a file or not, `ORIG_HEAD` never — and answers
+         * `bytes` for a read of either, which is what a read of a *link* to a
+         * file outside the repository gives back. The kind is the parameter
+         * because it is what the cases below vary.
+         *
+         * @type {(headIsFile: boolean) => MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>}
+         */
+        const host = headIsFile => ({
+            stat: statUnasked,
+            // the read follows the link, which is the whole problem
+            readFile: path => state => [
+                state,
+                path === 'HEAD' || path === 'ORIG_HEAD'
+                    ? ok(u8ListToVecMsb(bytes))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readWhole: missing,
+            readdir: path => state => [
+                state,
+                ok(path === '' ? [
+                    dirent('HEAD', path, headIsFile, false),
+                    dirent('ORIG_HEAD', path, false, false),
+                ] : []),
+            ],
+        })
         const [, r] = mockRun(host(false))(null)(tryResolve(one(''), 20)(latin1('HEAD')))
         assert(r[0] === 'error')
         const e = r[1]
@@ -1540,7 +1523,16 @@ export const proof = {
             'REVERT_HEAD', 'REBASE_HEAD', 'BISECT_HEAD', 'AUTO_MERGE',
             'refs/bisect/good', 'refs/worktree/x', 'refs/rewritten/y',
         ]) {
-            const at = nameAt(name)
+            /**
+             * A directory holding this ref at the given id: under `refs/`
+             * where the name has slashes in it, and at the top otherwise.
+             *
+             * @type {(hex: string) => Dir}
+             */
+            const at = hex =>
+                name.includes('/')
+                    ? { refs: { [name.split('/')[1]]: { [name.split('/')[2]]: ref(hex) } } }
+                    : { [name]: ref(hex) }
             /** @type {Dir} */
             const root = { wt: at(b), repo: { ...at(t), refs: { ...at(t).refs, heads: {} } } }
             assertEq(codePointListToString(toHex(/** @type {Oid} */ (
