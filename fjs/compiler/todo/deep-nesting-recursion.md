@@ -44,6 +44,20 @@ and `stepOperands` in [`../../edag/analysis/module.f.mjs`](../../edag/analysis/m
 orders of magnitude of either depth; the input is named here so the crash
 is a known limit rather than a silent one.
 
+A comma is a node of the same kind
+([spec: comma](../../../spec/operators/comma.md)): `comma` in
+[`../edag/module.f.mjs`](../edag/module.f.mjs) lowers its operands by
+mapping `lower(nodes)` over them, so a comma nested in a comma recurses once
+per level, as a container does, where a group makes no node and nests
+freely. At `265b4a7`, on x64 Node 26.12 with the default stack and a fresh
+process for each depth, the source
+`'export default ' + '('.repeat(n) + '1' + ', 1)'.repeat(n) + ';'` parses at
+every depth tried, three thousand included, and `unresolved` throws
+`RangeError: Maximum call stack size exceeded` in `lower` past 1,262
+levels, where the same measurement holds `'['.repeat(n) + ']'.repeat(n)`
+to 1,303
+([#3075](https://github.com/functionalscript/functionalscript/pull/3075#discussion_r4321672500)).
+
 Where the limits stand after `9789544`, on x64 Node 26.10 with the default
 stack, each depth in a fresh process: the lowering holds a nested array to
 1,209 levels and an access chain to 1,969 steps, the same as `main`. The
@@ -79,10 +93,11 @@ module documentation records the limitation for callers.
       including conversion operands; preserve scope hoisting, lazy regions,
       capture names, and document order. Cover deep `Number`, `String`, and
       mixed conversion chains with source-output round trips.
-- [ ] Give `lowerLeaf`'s container and function cases the explicit stack the
-      operator cases already have.
+- [ ] Give `lowerLeaf`'s container, comma and function cases the explicit
+      stack the operator cases already have.
 - [ ] Proofs at the depth `stackSafety` in `../parser/proof.f.mjs` uses, for
-      nested arrays, nested objects and nested functions, on every output.
+      nested arrays, nested objects, nested commas and nested functions, on
+      every output.
 - [ ] The same for an access chain and an optional chain: a loop or an
       explicit stack in each walk over a chain's steps named above, and
       proofs at that depth — or a refusal at a stated depth, if the limit
