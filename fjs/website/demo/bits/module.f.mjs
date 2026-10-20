@@ -79,6 +79,18 @@ const byteChar = cp => {
 }
 
 /**
+ * The text's characters, each with its UTF-8 bytes as numbers and as a
+ * {@link ByteChar} — or why there are none: an unpaired surrogate has no
+ * UTF-8 bytes.
+ *
+ * @type {(text: string) => Result<readonly (readonly [readonly number[], ByteChar])[], string>}
+ */
+export const byteChars = text => {
+    const cps = toArray(stringToCodePointList(text))
+    return cps.every(isValidCodePoint) ? ok(cps.map(byteChar)) : error('unpaired surrogate, no UTF-8')
+}
+
+/**
  * The groups `scheme` cuts `bits` into. Only the last can be short; it is
  * completed with the stop bit, if the scheme has one, and zeros.
  *
@@ -106,9 +118,8 @@ const groups = ({ width, stop }) => bits => {
  * @type {(scheme: BitScheme, encode: (v: Vec) => string) => (text: string) => Result<BitGroups, string>}
  */
 export const bitGroups = (scheme, encode) => text => {
-    const cps = toArray(stringToCodePointList(text))
-    if (!cps.every(isValidCodePoint)) { return error('unpaired surrogate, no UTF-8') }
-    const chars = cps.map(byteChar)
+    const [kind, chars] = byteChars(text)
+    if (kind === 'error') { return error(chars) }
     const bytes = chars.flatMap(([b]) => b)
     const v = tryU8ListToVecMsb(bytes)
     if (v === null) { return error(`text too long: more than ${maxLengthBytes} UTF-8 bytes`) }
