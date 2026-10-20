@@ -31,6 +31,14 @@ root, another statement of the same route.
 
 ### Proposal
 
+`jsonValue` moves down from `compiler/edag` into `source`, with the
+`jsonLiteral` it is, `fromValue(todo)` over `fjs/edag`'s `fromValue`.
+`compiler/edag` already imports `_rootSource`, `_parseJson` and `_walk` from
+`source`, so the route cannot import `jsonValue` back from it without a
+cycle; `source` importing `fjs/edag` makes none, since nothing `fjs/edag`
+imports reaches `source`. `compiler/edag` and the transpiler then import it
+from `source` where they still need it, and the route does not.
+
 In `source`: `_jsonModule(value)`, the `{ default }` module both loads build;
 the empty walk context as a constant; and `_program(loader, finish)(path)`,
 the route — a JSON root parsed and read through `jsonValue`, which both
@@ -56,6 +64,8 @@ go, and no caller names `_parseJson`, `source.json` or the context.
 
 ### Tasks
 
+- [ ] `jsonValue` moved into `source`; `compiler/edag` and the transpiler
+      import it from there.
 - [ ] `_jsonModule`, the context and `_program` in `source`, with proof.
 - [ ] `resolve`, `interpret` and `_transpileDefault` route through them.
 
