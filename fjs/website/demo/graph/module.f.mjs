@@ -791,7 +791,9 @@ export const graphSvg = g => {
     // A keyed graph draws its keyed groups in an order of their own, by
     // key, in a layer each: a page that patches it then finds a node's
     // group among the same siblings, in the same order, from one drawing
-    // to the next, and never has to move it.
+    // to the next, and never has to move it. Its edges are a layer too, so
+    // the label layer after them stays the same element however many
+    // edges a drawing has.
     const keyed = positioned.some(p => p.key !== undefined)
     const drawn = keyed ? positioned.toSorted((a, b) => String(a.key) < String(b.key) ? -1 : 1) : positioned
     /** @type {(els: readonly Element[]) => readonly Element[]} */
@@ -877,8 +879,7 @@ export const graphSvg = g => {
                 ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-arrow': '' }]],
             ...clipEls],
         ...layer(boxEls),
-        ...edgeEls,
-        ...entryEls,
+        ...layer([...edgeEls, ...entryEls]),
         ...layer(labelEls),
     ]]
 }

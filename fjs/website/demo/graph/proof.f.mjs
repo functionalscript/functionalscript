@@ -277,6 +277,17 @@ export const proof = {
             // Every edge and the entry are between nodes with no order, so
             // they take the graph's edgeOrder.
             assertEq(html.split('data-graph-in-kind="new" data-graph-order="1"').length - 1, 3)
+            // The svg is the defs and three layers, boxes, edges and labels,
+            // however many edges there are, so a patch meets each layer
+            // where it was.
+            /** @type {(edges: Graph['edges']) => string} */
+            const tags = edges => {
+                const div = /** @type {readonly unknown[]} */ (graphSvg({ nodes: [{ id: 0, kind: 'shared', label: 'a', rank: 0, key: 'a' }, { id: 1, kind: 'shared', label: 'b', rank: 1, key: 'b' }], edges }))
+                const svg = /** @type {readonly (readonly unknown[])[]} */ (div[2])
+                return JSON.stringify(svg.slice(2).map(child => child[0]))
+            }
+            assertEq(tags([]), '["defs","g","g","g"]')
+            assertEq(tags([{ from: 0, to: 1, label: '' }]), '["defs","g","g","g"]')
         },
         inlineClick: () => {
             const html = htmlToString(graphSvg({
