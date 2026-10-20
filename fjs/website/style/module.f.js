@@ -620,6 +620,10 @@ svg text { font: inherit }
 [data-graph-in-kind="new"] [data-graph-value-alone],
 [data-graph-in-kind="shared"] [data-graph-value-alone],
 [data-graph-in-kind="leaving"] [data-graph-value-alone] { fill: none }
+/* A node fading in mid-move, before the move is done and its nodes turn
+   blue, keeps its values' light tint: it reads as arriving, lighter than
+   the blue a finished move draws. */
+[data-graph-in-kind="entering"] [data-graph-value-alone] { fill: var(--value-bg) }
 /* The B-tree game's moved key: red in the cell it is removed from, green in
    the one it is inserted into. */
 [data-graph-value][data-graph-value-kind="removed"] { fill: var(--graph-removed-bg) }
