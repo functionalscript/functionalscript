@@ -250,7 +250,9 @@ the fold's:
   callee's word before resolving it, so the word alone decides, no scope
   ever binding it. `Number()` is the literal `0`, and `String()` is the
   empty-string literal. Multiple arguments and spreads are refused at the
-  callee with `Number takes one argument` or `String takes one argument`.
+  callee with `Number takes one argument` or `String takes one argument`,
+  by design: a conversion is an operator, with a fixed set of operands
+  ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)).
   Guarded calls, standalone references, and namespace members other than the
   static functions below are refused as reserved-word uses. A key or
   property name remains ordinary, `{ String: 1 }.String` being valid;
