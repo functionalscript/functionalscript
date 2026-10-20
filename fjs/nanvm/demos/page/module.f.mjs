@@ -155,7 +155,7 @@ export const runWasm = name => ({ exports }) => {
             ? error('the sample threw')
             : decode(Array.from({ length: value }, (_, i) => /** @type {(i: number) => number} */ (outputByte)(i)))
         /** @type {Result<WasmRun, string>} */
-        const run = t[0] === 'error' ? t : ok({ output: output(t[1].value), time: t[1].time, memory: live.buffer.byteLength })
+        const run = t[0] === 'error' ? t : ok({ run: { output: output(t[1].value), time: t[1].time }, memory: live.buffer.byteLength })
         return pureOk(run)
     })
 }
@@ -209,8 +209,8 @@ const runsView = ({ js, wasm }) => [
     ['h3', {}, 'WebAssembly'],
     ...(wasm[0] === 'ok'
         ? [
-            ...outputView(wasm[1].output),
-            stat('Running time', milliseconds(wasm[1].time)),
+            ...outputView(wasm[1].run.output),
+            stat('Running time', milliseconds(wasm[1].run.time)),
             stat('Linear memory after the run', `${wasm[1].memory} bytes`),
         ]
         : [refusal(wasm[1])]),

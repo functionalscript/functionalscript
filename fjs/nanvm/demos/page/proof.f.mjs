@@ -115,10 +115,10 @@ export const proof = {
     runWasm: () => {
         assertStructurallySame(
             perform(page({}, null))(runWasm('hi')(instance([0x68, 0x69]))),
-            ok({ output: ok('hi'), time: 1, memory: 0x1_0000 }))
+            ok({ run: { output: ok('hi'), time: 1 }, memory: 0x1_0000 }))
         const threw = perform(page({}, null))(runWasm('hi')(instance(null)))
         assert(threw[0] === 'ok')
-        assertStructurallySame(threw[1].output, error('the sample threw'))
+        assertStructurallySame(threw[1].run.output, error('the sample threw'))
         assertStructurallySame(perform(page({}, null, 'thrown'))(runWasm('hi')(instance([]))), error('it threw: boom'))
         assertStructurallySame(
             perform(page({}, null))(runWasm('other')(instance([]))),
@@ -149,7 +149,7 @@ export const proof = {
         assert(shown.includes('Running time: 1.0 ms'))
         assert(shown.includes('Linear memory after the run: 65536 bytes'))
         assert(shown.includes('Memory: Not available'))
-        const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0 }), wasm: ok({ output: error('the sample threw'), time: 0, memory: 0 }) } }))
+        const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0 }), wasm: ok({ run: { output: error('the sample threw'), time: 0 }, memory: 0 }) } }))
         assert(empty.includes('(empty)'))
         assert(empty.includes('the sample threw'))
         // Runs that could not happen, and files that did not arrive.

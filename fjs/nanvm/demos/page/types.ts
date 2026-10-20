@@ -32,7 +32,10 @@ export type Run = {
 }
 
 /** The WASM run, and the module's linear memory size after it, in bytes. */
-export type WasmRun = Run & { readonly memory: number }
+export type WasmRun = {
+    readonly run: Run
+    readonly memory: number
+}
 
 /** Both runs of one press of Run, or why one could not happen. */
 export type Runs = {
