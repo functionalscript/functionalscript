@@ -55,7 +55,9 @@ output:
 - **Who builds the `.wasm` and its WAT is open**, between two owners:
   - `npm run gen`, which commits them as `gen.*` files beside the `.rs`, so
     CI's stale-file check catches a sample edited without a rebuild. This
-    needs a reproducible build (see below).
+    needs a reproducible build (see below), and a `*.wasm binary` line in
+    `.gitattributes`: the file's `* text eol=lf` rule would otherwise rewrite
+    any CRLF bytes in the module, as the `*.ico` line there already prevents.
   - the deployment build (`gen.cloudflare/build.sh`), which already installs
     Rust and runs `cargo doc` before the website generator, and would build
     the demo crate there too. Nothing is committed, and nothing can go stale.
