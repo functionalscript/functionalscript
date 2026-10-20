@@ -247,7 +247,7 @@ tracked in [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#tasks)
       [`fjs/nanvm/module.f.mjs`](../../../fjs/nanvm/module.f.mjs), which is what
       tests it on both sides.
       Current status: [operator tables in `nanvm/lib/README.md`](../README.md).
-      Spec: [operators](../../../spec/todo/2340-operators.md).
+      Spec: [operators](../../../spec/operators/README.md).
 - [x] **LL(1) parser foundation** —
       [`fjs/compiler/parser`](../../../fjs/compiler/parser/README.md) uses
       [`fjs/ebnf/ll1`](../../../fjs/ebnf/ll1/README.md) and implements the

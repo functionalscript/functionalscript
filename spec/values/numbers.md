@@ -85,7 +85,7 @@ compatibility question ([principles](../principles/README.md)): every `NaN` is t
 value, and a writer may spell them all as one — the Rust writer spells each
 as the quiet `NaN` with an empty payload.
 
-The `-` is the **unary minus operator** ([operators](../todo/2340-operators.md)),
+The `-` is the **unary minus operator** ([operators](../operators/README.md)),
 the first operator the language had; `~`, the **bitwise not operator**, `!`,
 the **logical not operator**, and `typeof` are the other prefixes — `~`
 Stage A of the same operators document, `!` and `typeof` the rows admitted

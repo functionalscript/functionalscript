@@ -86,7 +86,7 @@
  * was meant.
  *
  * `tail`, the binary-operator suffix — Stage A of
- * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md)
+ * [`spec/operators/README.md`](../../../../spec/operators/README.md)
  * and Stage B, the lazy operators and the conditional, above it — is
  * spread inline onto every branch that may carry one, rather than
  * wrapping a shared primary the way a textbook precedence ladder would:
@@ -327,7 +327,7 @@ export const items = item => {
  * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
  * space since `1.x` is one number and a stray word in JavaScript. Stages A
  * and B of
- * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md):
+ * [`spec/operators/README.md`](../../../../spec/operators/README.md):
  * arithmetic (`+ - * / % **`, and unary `-`), strict comparison
  * (`=== !== > >= < <=`), bitwise (`& | ^ ~ << >> >>>`), the lazy operators
  * (`&& || ??`) and the conditional (`?:`). `==`/`!=` stay refused, and the
@@ -450,7 +450,7 @@ const opOf = tags => fromEntries(definedEntries(tags).map(([name, tag]) => [name
 
 /**
  * The short-circuit operators, Stage B of
- * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md),
+ * [`spec/operators/README.md`](../../../../spec/operators/README.md),
  * each a choice of its own rather than one of three branches, since which
  * of them opens a chain decides what may follow it — see
  * {@link circuitTail}.

@@ -44,8 +44,8 @@ The conversion is an operator, not a function
 ([operators and functions](../principles/README.md#operators-and-functions)),
 so `String()` and `String(x)` are all the call shapes it has: multiple
 arguments and spreads are refused by design at the word
-(`String takes one argument`). The guarded call `String?.(x)` is also
-refused (`reserved word`).
+(`String takes one argument`). So is the guarded call `String?.(x)`, at the
+word (`reserved word`), as `Number?.(x)` is ([number conversion](number.md)).
 A property key computed at run time still requires `Number(...)`
 ([property access](../property-access/README.md)); `a[String(x)]` is refused as every
 other unrecognized computed key is.

@@ -75,19 +75,18 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    `a?.(…)`; implemented
    ([optional chaining](../property-access/optional-chaining.md)), open for linked
    designer approval,
-3. [ ] [operators](./2340-operators.md),
-4. [x] enumerable presence — prohibit `Object.hasOwn`; [`entry`](../property-access/entries.md)
+3. [x] enumerable presence — prohibit `Object.hasOwn`; [`entry`](../property-access/entries.md)
    reads the value and `hasEntry` beside it answers the presence,
-5. [ ] [built-in](./2360-built-in.md),
-6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
+4. [ ] [built-in](./2360-built-in.md),
+5. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; each name is reserved no later
    than `built-in` admits it, since admitting a name a module may already
    have bound is a breaking change, so the list may land a name at a time
    (its file says P3, not this list's P2),
-7. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
-8. [x] computed property key from an expression — `{ [name]: 0 }`
+6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+7. [x] computed property key from an expression — `{ [name]: 0 }`
    ([property keys](../values/objects.md#property-keys)).
-9. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
+8. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
    by design; open for designer approval
    (its file says P3, not this list's P2).
 
