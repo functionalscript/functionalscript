@@ -121,8 +121,10 @@ export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Sco
  * Invalid length metadata or a node shared across invocation scopes is
  * refused through the same diagnostic channel.
  *
- * `pub fn module` carries `#[rustfmt::skip]`, the same as every function
- * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) emits: the layout is
+ * `pub fn module` carries `#[rustfmt::skip]` — the policy
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs)'s output gets once, on
+ * its `mod` declaration, which a compiled module has no hand-written
+ * owner to carry: the layout is
  * the printer's own — one temporary per line, a closure's body a block
  * under its `let` — and not rustfmt's, which breaks a closure argument
  * and a method chain its own way, and a line still grows with the items
