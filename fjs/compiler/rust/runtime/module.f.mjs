@@ -37,7 +37,7 @@
  * @module
  *
  * @import { Exp } from '../../../edag/types.ts'
- * @import { Use } from '../../../edag/rust/types.ts'
+ * @import { Uses } from '../../../edag/rust/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { _BuiltIn, _Resolved, _Table } from './private.ts'
  */
@@ -142,7 +142,7 @@ const table = root => {
  * export object printed by the ordinary backend with no runtime in its
  * scope, every static body carrying the NativeFunction text of its id.
  *
- * @type {(sections: _Table) => Result<{ readonly lines: readonly string[], readonly uses: readonly Use[], readonly bound: string }, readonly unknown[]>}
+ * @type {(sections: _Table) => Result<{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }, readonly unknown[]>}
  */
 const valueLines = ({ builtIns, value }) => {
     /** @type {(node: Exp) => string | undefined} */
@@ -150,7 +150,7 @@ const valueLines = ({ builtIns, value }) => {
         const named = builtIns.find(b => b.node === node)
         return named === undefined ? undefined : nativeFunctionText(`${named.name.split('.').at(-1)}`)
     }
-    return mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: { readonly vm: readonly string[], readonly unstable: readonly string[] }, readonly bound: string }} */ { lines, uses, bound }) => ({
+    return mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }} */ { lines, uses, bound }) => ({
         lines: [
             tagged('comment')('/// The runtime as a value: the `runtime` export of `fjs/js/runtime`, its `static` and `dot`'),
             tagged('comment')('/// functions over the tables they close over, as the ordinary backend prints any module — every'),
@@ -159,7 +159,7 @@ const valueLines = ({ builtIns, value }) => {
             tagged('comment')('/// (`fjs/js/runtime/README.md`).'),
             ...lines,
         ],
-        uses: [...uses.vm.map(n => /** @type {Use} */ (['vm', n])), ...uses.unstable.map(n => /** @type {Use} */ (['unstable', n]))],
+        uses,
         bound,
     }))(itemTagged('runtime', text, null)(value))
 }
@@ -172,21 +172,14 @@ const valueLines = ({ builtIns, value }) => {
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
 export const generateRuntimeTagged = root => okThen((/** @type {_Table} */ sections) =>
-    mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: readonly Use[], readonly bound: string }} */ { lines, uses, bound }) => [
+    mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }} */ { lines, uses, bound }) => [
         tagged('comment')(generatedHeader('`npm run gen` from `fjs/js/runtime/module.f.js`', 'change the runtime and regenerate')),
         '',
-        ...useLinesTagged({ vm: names(uses)('vm'), unstable: names(uses)('unstable') }, bound),
+        ...useLinesTagged(uses, bound),
         '',
         ...lines,
         '',
     ].join('\n'))(valueLines(sections)))(table(root))
-
-/**
- * The names spelled from `module`, each once, sorted.
- *
- * @type {(uses: readonly Use[]) => (module: Use[0]) => readonly string[]}
- */
-const names = uses => module => [...new Set(uses.filter(([m]) => m === module).map(([, name]) => name))].toSorted()
 
 /**
  * {@link generateRuntimeTagged} as plain text, with a refusal as text:

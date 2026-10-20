@@ -1,7 +1,4 @@
-use crate::vm::{
-    Any, IVm, number_coercion::NumberCoercion, numeric::Numeric, primitive::Primitive,
-    primitive_dispatch::PrimitiveDispatch,
-};
+use crate::vm::{Any, IVm, numeric::Numeric, primitive::Primitive};
 
 /// `ToNumeric` of a value already known to be primitive: a `BigInt` stays one,
 /// and everything else is its `ToNumber`.
@@ -11,10 +8,7 @@ pub fn to_numeric<A: IVm>(p: Primitive<A>) -> Result<Numeric<A>, Any<A>> {
     // 3. Return ? ToNumber(primValue).
     Ok(match p {
         Primitive::BigInt(bi) => Numeric::BigInt(bi),
-        Primitive::Nullish(n) => Numeric::Number(NumberCoercion.nullish(n)?),
-        Primitive::Boolean(b) => Numeric::Number(NumberCoercion.bool(b)?),
-        Primitive::Number(n) => Numeric::Number(NumberCoercion.number(n)?),
-        Primitive::String(s) => Numeric::Number(NumberCoercion.string(s)?),
+        p => Numeric::Number(Any::from(p).to_number()?),
     })
 }
 
