@@ -38,5 +38,5 @@ not the subject here.
 
 - [document-nanvm-harness](./document-nanvm-harness.md) — the harness's
   docs, which the shared module is part of.
-- [scratch-directory-guard](../../effects-node/todo/scratch-directory-guard.md)
-  — the same guard inside `effects-node`.
+- [`effects-node`'s `Scratch`](../../effects-node/src/scratch.rs) — the same
+  guard inside `effects-node`.
