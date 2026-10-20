@@ -169,4 +169,4 @@ questions it adds.
 
 - [Undefined-valued properties](./1010-undefined-property.md).
 - [Reading an entry at run time](../property-access/entries.md).
-- [Operators](./2340-operators.md).
+- [Operators](../operators/README.md).

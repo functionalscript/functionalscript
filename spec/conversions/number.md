@@ -23,7 +23,7 @@ JavaScript calls them, and `"[object Object]"` otherwise, so `Number({})` is
 
 It is the language's conversion to a number: unary `+` is not FunctionalScript
 syntax, and where the EDAG has it the two differ, `+` throwing on a `bigint`
-([operators](../todo/2340-operators.md)). It is the EDAG's own
+([operators](../operators/README.md)). It is the EDAG's own
 `['Number', exp]`, which graph outputs preserve and every executor answers; the
 front end folds nothing, `Number("1")` reaching the graph as a node, as `~1`
 does. The conversion is a value like any other: an operand, `-Number("1")`
@@ -54,12 +54,10 @@ conversion is an operator, not a function
 ([operators and functions](../principles/README.md#operators-and-functions)),
 so `Number()` and `Number(x)` are all the call shapes it has: every other is
 refused by design (`Number takes one argument`), `Number(a, b)` and
-`Number(...a)` among them.
-Nor is the guarded call `Number?.(x)`,
-which is `Number(x)` in JavaScript, the word never being nullish: it is
-refused at the word (`reserved word`) as every other spelling of `Number`
-is but the call and the four predicates' reads, until a pull request reads
-the guard away, a spelling no module writes.
+`Number(...a)` among them. So is the guarded call `Number?.(x)`, refused at
+the word (`reserved word`): a guard asks whether a value is nullish, and an
+operator is no value, so the expression asks nothing — JavaScript, whose
+`Number` is never nullish, reads it as `Number(x)`.
 
 The word is reserved for the guarantee `undefined`, `NaN` and `Infinity`
 already have ([numbers](../values/numbers.md)): a global word means one thing wherever
