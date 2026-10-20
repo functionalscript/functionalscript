@@ -58,16 +58,23 @@ calls, does not give by default.
 
 **The statement begins with a name**: an identifier, or `from` or `as`,
 the words a statement may begin with where it is no keyword's. A statement
-opening with anything else is not read. `(` and `[` would continue the
-statement before it where no `;` ends it — JavaScript reads `f` on one line
-and `(g)(x)` on the next as `f(g)(x)` — so the grammar could not tell them
-from a new statement with one symbol, and `(0, o.f)(x);` and `(f(x));` are
-refused at the `(`; a prefix or a literal opens no call worth a statement,
-and `"use strict";` is JavaScript's directive, not an expression. A
-reserved word, `var`, `for` or `else`, begins no statement either, and is
-refused at the word. The design proposed admitting the two `(` spellings;
-the implementation refuses them for the reason above, and the comma
-spells the detached call where a value stands, `const r = (0, o.f)(x);`.
+opening with anything else is not read. `(`, `[` and a backtick would
+continue the statement before it where no `;` ends it — JavaScript reads
+`f` on one line and `(g)(x)` on the next as `f(g)(x)`, and a backtick there
+as the tagged template `` f`x` ``, which the grammar refuses at its head —
+so the grammar could not tell them from a new statement with one symbol,
+and `(0, o.f)(x);`, `(f(x));` and `` `a`.trim(); `` are refused, never
+split into a statement JavaScript would not see; a prefix or another
+literal opens no call worth a statement. A reserved word, `var`, `for` or
+`else`, begins no statement either, and is refused at the word. The design
+first proposed admitting the two `(` spellings, and was amended for the
+reason above; the comma spells the detached call where a value stands,
+`const r = (0, o.f)(x);`.
+
+`"use strict";`, JavaScript's directive, stays refused as it was: a module
+is strict already, so it does nothing, and whether to admit it as the
+nothing it is is a question of its own, open
+([refused constructs](../todo/refused-constructs.md): `st.directive`).
 
 The one assignment the language has, to a loop's variable in its block,
 `x = value;`, is the statement it was ([loops](../control-flow/loops.md));
