@@ -611,8 +611,12 @@ export const demo = {
         await settle()
         d.click('hold')
         await settle()
+        // Still held a while after: a runtime that ignored the delay would
+        // have run the next event by now.
+        await sleep(20)
+        await settle()
         assert(d.root.innerHTML.includes('<pre>held</pre>'), d.root.innerHTML)
-        await sleep(80)
+        await sleep(60)
         await settle()
         assert(d.root.innerHTML.includes('<pre>later</pre>'), d.root.innerHTML)
         // A reader's click during the wait cancels the automatic event.

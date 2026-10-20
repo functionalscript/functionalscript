@@ -377,6 +377,13 @@ export const proof = {
         assert(target.children[0] !== c && target.children[0].localName === 'rect', '')
         assertEq(target.children[2], a)
         assertEq(target.children.length, 3)
+        // An unkeyed child of the keyed node's tag still does not take it.
+        const lone = built(document, ['svg', ['g', { 'data-key': 'k' }]])
+        const [k] = lone.children
+        patch(lone, ['svg', ['g', { id: 'plain' }], ['g', { 'data-key': 'k' }]])
+        assertEq(lone.children.length, 2)
+        assert(lone.children[0] !== k && lone.children[0].getAttribute('id') === 'plain', '')
+        assertEq(lone.children[1], k)
     },
     /**
      * **A keyed node that keeps its order is never moved**, since a browser
