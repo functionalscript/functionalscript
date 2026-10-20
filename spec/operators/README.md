@@ -8,18 +8,14 @@ export default 1 + 2 * 3;
 
 Beyond unary `-` ([supported value types](../values/README.md)), the
 language has arithmetic (`+ - * / % **`), comparison
-(`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A, the
-first the language had — and, above them, the lazy operators
+(`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
+[operators](../todo/2340-operators.md) — and, above them, the lazy operators
 (`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
 logical not and the type tag, the prefixes neither stage had — and
 `instanceof Array`, the one instance check ([below](instanceof.md)) — and
 the comma operator, written in parentheses ([below](comma.md)).
 `==`/`!=` stay refused, since neither language reads them the same way
-twice, and so does `in` ([below](in.md)). Unary `+` is not in the language:
-the conversion to a number is `Number(x)`
-([number conversion](../conversions/number.md)). The EDAG admits every pure
-operation, unary `+` among them, and the language spells a subset of them;
-which is the language's decision, made on these pages, not the EDAG's.
+twice, and so does `in` ([below](in.md)).
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
 levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
@@ -103,24 +99,6 @@ languages, whatever `a` and `b` are. The
 reorder around that; being reached only through a lazy position is not what
 decides whether a `const` runs.
 
-**The anchoring rule** says which computations a module or a body holds, and
-is best read as a subtraction. Every `const` and every import starts as an
-operand of a comma, in source order, with the result last; then each operand
-is deleted that a later operand is guaranteed to evaluate through eager edges
-alone — a container's item, an access base, an operator's left operand, a
-comma's operand ([comma](comma.md)) — and never through a lazy one: the right
-operand of `&&`, `||` or `??`, or a conditional's arm. A function body is not
-lazy for this purpose, since constructing the function evaluates its frame.
-So `const c = null.x; export default [a && c, b && c];` keeps `c`,
-`[',', [c, ['[]', [['&&', a, c], ['&&', b, c]]]]]`, and throws at load as
-JavaScript does, where `[c, a && c]` deletes it, the array evaluating it
-first. The rule holds one level down too: an operand another unreached
-operand reaches only lazily is not deleted for it —
-`const d = null.x; const c = a && d; export default b && c;` keeps both `d`
-and `c`, since evaluating `a && d` as a root establishes `d` no more than
-`b && c` established `c`. `anchors` in
-[`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs) is the rule.
-
 Unparenthesized, a function is no operand of these operators, the
 conditional's condition included: `(...a) => body` reads everything to its
 right as `body`, exactly as in JavaScript, so `1 * (...a) => 2` is refused
@@ -137,10 +115,7 @@ The front end computes none of these — it builds the operation and passes
 it on. Unary `-` alone folds, over an operand that lowers to a number or a
 `bigint`, exact and total arithmetic ([numbers](../values/numbers.md)); every other
 operator here reaches the EDAG as a node, over numbers too (`1 + 2`, `~1`),
-the lazy ones and the conditional included. `+` would need `ToPrimitive` to
-decide number or string, and folding the rest while leaving `+` a node would
-draw an inconsistent line: fold what is exact, and leave what needs an
-assumption to the readers that want a value. Of the other outputs
+the lazy ones and the conditional included. Of the other outputs
 ([output](../command-line/output.md)), the Rust one spells every operator, running a lazy
 operand or an arm only where JavaScript would, and calls an object's own
 `valueOf` or `toString` when conversion requires it. JSON and DataJS output

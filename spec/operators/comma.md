@@ -2,12 +2,6 @@
 
 **Status:** implemented
 
-`sergey-shandar` directed its implementation in
-[the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC)
-before it began, and approved the design in
-[#3075](https://github.com/functionalscript/functionalscript/pull/3075#issuecomment-6292543966),
-as [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo) requires.
-
 ```js
 const assert = (...a) => a[0] ? undefined : (() => { throw a[1]; })();
 export default (...a) => (assert(a[0] >= 0, "negative"), a[0] + 2);
@@ -19,9 +13,8 @@ discarded, as in JavaScript. Any number of operands may be written,
 one thing a discarded operand can do is fail, which makes the comma the
 assertion form: `(assert(a >= 0), a + 2)` is `a + 2` where the assertion
 holds, and the assertion's failure where it does not. Asserts express
-internal contract breaches, not input validation: untrusted input is
-validated with values, a `Result` or a `Nullable`, since a program that
-throws on its input can be crashed by whoever supplies it.
+internal contract breaches, not input validation, which is a value's job
+([operators](../todo/2340-operators.md)).
 
 The comma is written in parentheses, the one place it can be told from
 every other comma: an argument list, an array's items and an object's
@@ -55,7 +48,7 @@ throw.
 
 Every operand is an eager position, as a container's item is: a `const`
 reached through any of them counts as reached for what a module or a body
-anchors (the [anchoring rule](README.md)). The comma makes no EDAG node where it
+anchors ([operators](README.md)). The comma makes no EDAG node where it
 stands. Its value is its last operand's node, and each discarded operand
 that is code is anchored by the comma at the nearest block root — the
 module's, a function body's, or the lazy operand it stands in, so

@@ -716,10 +716,10 @@ export const op0 = /** @type {const} */ ([op0Id])
  * `String`/`Number` are casts, `!` is logical and `~` bitwise not, and
  * `typeof` is the type tag of its operand — always a fresh string, never the
  * operand itself, so it is the one unary operation with no identity concern.
- * `typeof` is pure, so the EDAG admits it, as it admits unary `+` (see
- * `op12Id` below); which operations the language spells as syntax —
- * `typeof`, not unary `+` — is decided in `../../spec/operators/README.md`,
- * not here. Negation is not here
+ * Like unary `+` (see `op12Id` below), `typeof` is an EDAG operation that
+ * FunctionalScript does not yet spell: it is pure, so the EDAG admits it, and
+ * whether the language admits it as syntax is decided in
+ * `../../spec/todo/2340-operators.md`, not here. Negation is not here
  * either: it is `-` at unary arity, an `op12`.
  *
  * `throw` is the one operation that never has a value: it establishes its
@@ -793,7 +793,7 @@ export const op2 = /** @type {const} */ ([op2Id, exp, exp])
  * on a bigint** where `Number` converts. The two are different operations,
  * not two spellings of one. `Number` is FunctionalScript's coercion form and
  * unary `+` is not FunctionalScript syntax at all
- * (`../../spec/operators/README.md`): the EDAG spells it because it is a
+ * (`../../spec/todo/2340-operators.md`): the EDAG spells it because it is a
  * pure operation an executor can implement, and which of the EDAG's
  * operations the language admits as syntax is the language's decision, not
  * the schema's.

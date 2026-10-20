@@ -257,7 +257,7 @@ a negated function and for a negation under an access, `(-[1])[0]`, alike;
 a negated *number* is the number by the time the writer sees it, and a
 number under an access takes a `const`, `const $0=-1;export default $0[0];`.
 
-Stage A of [`spec/operators/README.md`](../../spec/operators/README.md)
+Stage A of [`spec/todo/2340-operators.md`](../../spec/todo/2340-operators.md)
 gave the language the rest: arithmetic, strict comparison, and bitwise —
 `+ - * / % **`, `=== !== > >= < <=`, `& | ^ ~ << >> >>>`. Each parses as
 `[tag, left, right]` (`['~', operand]` for the one other prefix), the tag
