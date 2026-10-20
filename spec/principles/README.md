@@ -109,6 +109,16 @@ Operational diagnostics may report a cause, but cannot become program values
 that distinguish failures. Syntax rejection remains a compiler property:
 accepting invalid JavaScript is not excused by failure equivalence.
 
+```js
+const a = null.x;
+const b = undefined.y;
+export default [b, a];
+```
+
+A graph traversal may encounter `b`'s failure first, where JavaScript
+encounters `a`'s: both are the one failure outcome, and no source-order
+barrier is needed to keep the first.
+
 This deliberately allows reordering failing EDAG computations to fail earlier.
 Do not impose source-order barriers, identical evaluation counts or identical
 resource thresholds merely to preserve failure behavior. Preserve successful
@@ -120,6 +130,44 @@ not a guessed result.
 
 When we implement features of FunctionalScript, the first priority is a
 simplification of the VM, subject to these requirements.
+
+## Operators and functions
+
+**A built-in is a function or an operator, and only an operator's arguments
+are counted at compile time.**
+
+A **function** is a value: `Object.is`, `Number.isSafeInteger`, the
+[`entry` helper](../property-access/entries.md), any arrow. A value can be
+bound, passed and cached, `const f = Number.isSafeInteger;`, so the compiler
+cannot see every call of it, and a call takes **any number of arguments**, as
+in JavaScript: a missing one is `undefined`, and an extra one is evaluated and
+ignored. `Number.isInteger(1, 2)` is `true`.
+
+An **operator** is a construction of the language: `+`, `*`, `typeof`, and the
+conversions `Number(x)` and `String(x)`. It is no value, so the compiler sees
+every use, and each use takes **a fixed set of operands**, checked at compile
+time; any other set is a compilation error. `Number` takes none or one,
+`Number()` being `0`, so `Number(a, b)` and `Number(...a)` are refused by
+design (`Number takes one argument`), and so are `String`'s. Nor is an
+operator guarded: `Number?.(x)` asks whether `Number` is nullish, a question
+about a value, and is refused by design (`reserved word`).
+
+**A word naming a JavaScript object with members of its own is never a
+value.** `Number`, `String` and `Object` are such words: in JavaScript each is
+a function that is also a namespace, `Number.isSafeInteger` and
+`String.fromCharCode`. Were `Number` a FunctionalScript value,
+`const x = Number; x.isSafeInteger(5)` — valid JavaScript, `true` there —
+would be accepted and read `isSafeInteger` from a plain function, `undefined`,
+so the call would fail, which the second requirement above forbids. So each
+word is reserved ([global names](../todo/2365-global-names.md)): an operator
+where the language calls it, `Number(x)` and `String(x)`, and a namespace of
+functions where it reads the members the language admits
+([built-in static functions](../built-ins/static-functions.md)).
+
+**Adopted:** the language designer, **sergey-shandar**, stated the principle in
+[the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC):
+"`Number` and other complex objects, like `String` are operators, not
+functions."
 
 ## Examples
 
