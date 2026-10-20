@@ -274,7 +274,7 @@ export const proof = {
         // another's anchor only where it reaches it eagerly, so `const d =
         // null.x; const c = a && d; export default b && c;` anchors both,
         // since anchoring `c` establishes `a && d` and not `d`. The worked
-        // examples of `spec/todo/2340-operators.md`'s subtraction rule.
+        // examples of the anchoring rule of `spec/operators/README.md`.
         lazy: () => {
             /** `a`, `b`, `c`: three container entries, `c` the one at stake. @type {readonly import('./types.ts').AstConst[]} */
             const abc = [['array', []], ['array', []], ['array', []]]

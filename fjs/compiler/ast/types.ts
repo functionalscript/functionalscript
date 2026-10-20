@@ -79,10 +79,11 @@ export type AstIntrinsic = readonly [IntrinsicId]
 /**
  * A static function the language admits, as a value — `Object.is` or one
  * of the four `Number` predicates, `Number.isInteger`, by its tag: what
- * every spelling of the read is — `Object.is`, `Object['is']`, the guarded
- * `Object?.is`, and the destructuring `const { is } = Object`, which is
- * sugar for `const is = Object.is` — since a namespace is a reserved
- * global, never nullish and no value of its own. One function however
+ * each spelling of the read is — `Object.is`, `Object['is']` and the
+ * destructuring `const { is } = Object`, which is sugar for
+ * `const is = Object.is` — since a namespace is a reserved global and no
+ * value of its own, which is also why a guard on it, `Object?.is`, is
+ * refused. One function however
  * often it is read, as in JavaScript. The lowering spells it as the
  * EDAG's own node, `['Object.is']`, and the writer spells that back as
  * `Object.is`.
@@ -396,7 +397,7 @@ type _UnaryTagsAreComplete = Assert<Equal<(typeof unaryTags)[number], UnaryTag>>
 
 /**
  * A binary operator, Stages A and B of
- * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
+ * [`spec/operators/README.md`](../../../spec/operators/README.md):
  * arithmetic, strict comparison, bitwise, and the lazy `&&`/`||`/`??` —
  * the EDAG's `op2Id`, and `-` again at two operands, `op12Id`'s other
  * arity, told from {@link AstNeg} by length.

@@ -120,12 +120,12 @@ representation names every admitted binding and a VM, the runtime's
 same way, by walking the keys, with no second classification of what a
 global is. The parser admits a listed member as a value, in every
 spelling JavaScript gives the same read: `G.n` and `G['n']`, the constant
-key being the same key the property access already treats it as, and the
-guarded forms `G?.n` and `G?.['n']`, which lower to the same node, since
-a reserved global is never nullish and a harmless spelling is refused
-only for a reason the design has
-([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions));
-a call of it, guarded or not, is a call of that value. It refuses every
+key being the same key the property access already treats it as. The
+guarded forms `G?.n` and `G?.['n']` are refused at the word: a guard asks
+whether a value is nullish, and a namespace is no value, so the spelling
+asks nothing
+([operators and functions](../../../spec/principles/README.md#operators-and-functions)).
+A call of the read, guarded or not, is a call of that value. It refuses every
 other member of a reserved global as it refuses `String.fromCharCode`
 today (`reserved word`), and a computed key, `G[k]`, since the namespace
 is closed at compile time and a key known only at run time cannot be
@@ -150,9 +150,10 @@ first-class function as it is in JavaScript. Destructuring is sugar, so
 namespace is read nowhere else: an array pattern over it, or a member it
 does not admit, is refused at the word — but a key that is a prototype
 name, `keys` or `toString`, is refused first, at the key, as in any
-pattern (`prohibited property name`). No run-time guard exists for the
-guarded spellings, because nothing is guarded. `String?.(x)` stays as the spec
-has it, a question for the conversion node, not this one.
+pattern (`prohibited property name`). A guarded spelling, `Object?.is`,
+never reaches the lowering: it is refused at the word, a namespace being no
+value to guard, as `String?.(x)` is, a conversion being no value either
+([operators and functions](../../../spec/principles/README.md#operators-and-functions)).
 
 **One node per name, a value.** The EDAG spells each admitted static
 function as a parameterless value node of its own, `['Object.is']`, as
@@ -285,8 +286,9 @@ this proposal does not take.
       `['static', path]`: the schema, the analysis, the executors, the
       Rust backend and function text; the analysis's path and placement
       checks go.
-- [x] The parser reserves `Object`, reads `Object.is`, `Object['is']`,
-      `Object?.is` and `Object?.['is']` as `['Object.is']`, and
+- [x] The parser reserves `Object`, reads `Object.is` and `Object['is']`
+      as `['Object.is']` — the guarded `Object?.is`, read so at first, is
+      refused since — and
       `const { is } = Object` as `const is = Object.is`; it refuses every
       other member, a computed key and `Object` alone; the `entry`
       helper's intrinsic `Object` goes, since no scope can bind the word;

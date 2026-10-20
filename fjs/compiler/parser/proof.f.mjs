@@ -1123,8 +1123,8 @@ export const proof = {
             expectRefused('const entry = (Number, b) => { const x = Object.getOwnPropertyDescriptor(Number, b); return x?.enumerable ? [x.value] : []; }; export default entry;', 'reserved word', 16)
             expectRefused('const entry = (a, b) => { const Number = Object.getOwnPropertyDescriptor(a, b); return Number?.enumerable ? [Number.value] : []; }; export default entry;', 'reserved word', 33)
         },
-        // more than one argument, or a spread: not recognized yet, refused
-        // by name at the word
+        // more than one argument, or a spread: refused by design at the
+        // word, the conversion an operator of fixed operands
         arity: () => {
             expectRefused('export default Number(1, 2);', 'Number takes one argument', 16)
             expectRefused('export default Number(...[1]);', 'Number takes one argument', 16)

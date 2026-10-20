@@ -6,8 +6,8 @@
 ### Problem
 
 Object conversion for `ToString`, `ToNumber`, `ToNumeric`, `+` and the
-relational operators goes through `PrimitiveCoercionOp` in
-`vm/primitive_coercion.rs` (`Any::to_primitive`). Before Stage 1 it answered
+relational operators goes through `Any::to_primitive` in
+`vm/primitive_coercion.rs`. Before Stage 1 it answered
 an object or a function without looking at what JavaScript looks at.
 Stage 1 refused the unsupported conversions; Stage 2 implemented own object
 methods, and Stage 3 supplies a function's canonical, EDAG-derived text:
@@ -30,7 +30,7 @@ semantic EDAG to carry text.
 Stage 1 also made one exception to the single entry: a function's
 `ToNumber` is `NaN` for any text, so `NumberCoercion`, `Any::to_numeric` and
 the relational operators can answer text-independent cases without asking
-`PrimitiveCoercionOp` for text. This remains true when associated text is
+`Any::to_primitive` for text. This remains true when associated text is
 absent: numeric conversion gives `NaN`, and relational comparison against a
 non-string primitive gives `false`.
 

@@ -32,7 +32,7 @@ set: how a set of symbols is labelled, and which symbols join into one literal.
 - `codePoints` is the labelling the text grammars had: symbols and ranges, and
   a run of printable ASCII drawn as the one string it spells.
 - `tokens(encoding, categories)` labels a symbol by `decode` from its
-  [`encoding`](../../token_symbol/module.f.mjs), so a terminal reads `=>` or
+  [`encoding`](../../token_symbol/module.f.js), so a terminal reads `=>` or
   `import`. A range of tokens means nothing a reader could use (`id … =>`),
   so a token set is the choice of its tokens, however many runs it has, and
   tokens never join into one literal. A name in `categories` — `id`, `string`

@@ -67,7 +67,7 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `op.loose-equality` | `a == b`, `a != b` | design ([operators](./2340-operators.md)) |
+| `op.loose-equality` | `a == b`, `a != b` | design ([operators](../operators/README.md)) |
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md)) |
 | `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
@@ -80,10 +80,9 @@ describes:
 | `op.this` | `this` | design ([design principles](../design/design-principles.md)) |
 | `op.arguments` | `arguments` | open |
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) |
-| `op.number-spread` | `Number(...a)`, `Number(1, 2)` | planned ([number-spread](./2363-number-spread.md), roadmap) |
-| `op.string-call-shape` | `String(1, 2)`, `String(...[1])`, `String(...[])` | open (the specification leaves them unrecognized; no record plans them) |
-| `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | open ([number](../conversions/number.md) and [string](../conversions/string.md) conversion refuse the guard at the word; no record plans reading it away) |
-| `op.unary-plus` | `+1`, `+a` | open ([operators](./2340-operators.md) leaves unary `+` on the other side of the line; no record plans it) |
+| `op.conversion-call-shape` | `Number(1, 2)`, `Number(...a)`, `String(1, 2)`, `String(...[])` | design ([operators and functions](../principles/README.md#operators-and-functions): a conversion is an operator, with a fixed set of operands) |
+| `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | design ([operators and functions](../principles/README.md#operators-and-functions): an operator is no value, so it has no nullishness to guard) |
+| `op.unary-plus` | `+1`, `+a` | open ([operators](../operators/README.md) leaves unary `+` out of the language; no record plans it) |
 | `op.import-call` | `import("m")` | open |
 | `op.import-meta` | `import.meta` | open |
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) |
@@ -97,6 +96,7 @@ describes:
 | `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) |
 | `acc.mutating-call` | `a.push(0)` | planned ([mutability](../design/mutability.md), "Local mutability") |
 | `acc.prototype-call` | `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) |
+| `acc.guarded-namespace` | `Object?.is`, `Number?.["isInteger"]` | design ([built-in static functions](../built-ins/static-functions.md): a namespace is no value, so it has no nullishness to guard) |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects.md#the-__proto__-key)) |
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) |

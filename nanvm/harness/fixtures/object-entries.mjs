@@ -20,6 +20,6 @@ const o = { a: 1 };
 export default [
     values.map(v => entries(v)),
     values.map(entries),
-    [read() === read(), entries === Object.entries, entries === Object?.["entries"], typeof Object.entries, Object.entries.length, String(Object.entries)],
+    [read() === read(), entries === Object.entries, entries === Object["entries"], typeof Object.entries, Object.entries.length, String(Object.entries)],
     [entries(o) === entries(o), entries(o)[0] === entries(o)[0]],
 ];

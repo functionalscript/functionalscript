@@ -59,8 +59,9 @@ name not yet decided, or, where it says so, never admitted.
 #### Fundamental Objects
 
 - [x] `Object` — `Object.is` is implemented, the first static function: a
-      value, read in every spelling of the access and through
-      `const { is } = Object`, its body in the runtime, the word reserved
+      value, read in either key spelling of the unguarded access — the
+      guarded `Object?.is` is refused since, a namespace being no value to
+      guard — and through `const { is } = Object`, its body in the runtime, the word reserved
       ([built-in static functions](../built-ins/static-functions.md),
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
@@ -81,7 +82,9 @@ object — `structurallySame`, `definedEntries`, every `.f.mjs` that writes
 
 **Proposal.** Admit `Object.entries` as a static function beside
 `Object.is`: a value in every spelling of the read, `Object.entries`,
-`Object["entries"]` and the guarded forms, and through
+`Object["entries"]` and the guarded forms — which a later decision refuses,
+a namespace being no value to guard
+([built-in static functions](../built-ins/static-functions.md)) — and through
 `const { entries } = Object`; the EDAG node `['Object.entries']`; `length`
 `1`; one function however often it is read. Its answer is JavaScript's: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -194,7 +197,9 @@ reads the member cannot be renamed `.f.js` as written.
 **Proposal.** Admit the four as static functions, as `Object.is` is
 ([built-in static functions](../built-ins/static-functions.md)): each
 a value in every spelling of the read, `Number.isInteger`,
-`Number["isInteger"]` and the guarded forms, and through
+`Number["isInteger"]` and the guarded forms — which a later decision
+refuses, a namespace being no value to guard
+([built-in static functions](../built-ins/static-functions.md)) — and through
 `const { isInteger } = Number`; each the EDAG node of its name,
 `['Number.isInteger']`; each body the existing helper the runtime's `static`
 section imports — `isInteger`, `isSafeInteger`, `isNaN_` and `isFinite_` of
@@ -232,8 +237,9 @@ the move in the same session, after the admission.
 - [x] `String` — implemented as `String(exp)`, the string conversion,
       and `String()`, the empty-string literal; the word is reserved
       ([string conversion](../conversions/string.md)). Namespace
-      members, spreads, multiple arguments and guarded global calls remain
-      unrecognized
+      members remain unrecognized; spreads, multiple arguments and guarded
+      calls are refused by design, the conversion being an operator
+      ([operators and functions](../principles/README.md#operators-and-functions))
 - [ ] `RegExp`
 
 ##### String conversion proposal and approval
