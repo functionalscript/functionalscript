@@ -10,7 +10,7 @@
  */
 
 /** How many integers to sort. */
-const count = 10_000
+const count = 100_000
 
 /**
  * The next state of the Park–Miller generator: every product stays below

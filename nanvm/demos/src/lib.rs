@@ -124,7 +124,7 @@ mod tests {
     fn sort_reports_what_it_sorted() {
         assert_eq!(
             perform(&load(samples::sort::module::<Naive>).unwrap()).unwrap(),
-            b"sorted 10000 integers: smallest 1, largest 2146722115\n"
+            b"sorted 100000 integers: smallest 1, largest 2147477497\n"
         );
     }
 

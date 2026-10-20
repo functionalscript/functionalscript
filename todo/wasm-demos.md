@@ -96,11 +96,12 @@ built:
   sample, and left out. The WAT names every function as Rust does, since
   the name section is demangled before it is printed.
 - **A second page, [`fjs/nanvm/demos/sort`](../fjs/nanvm/demos/sort/)**,
-  sorts 10,000 pseudo-random integers with a quicksort written in the
+  sorts 100,000 pseudo-random integers with a quicksort written in the
   sample, and writes what it sorted. The page shows the WebAssembly running
-  time as a multiple of the JavaScript one. In Chromium the JavaScript run
-  takes about 50 ms and the WebAssembly run about 250 ms, so the NaNVM route
-  is about five times slower on this sample. The sample encodes its own
+  time as a multiple of the JavaScript one. In headless Chromium the JavaScript
+  run takes about 250 ms and the WebAssembly run about 2.1 s, so the NaNVM
+  route is about nine times slower on this sample, which allocates a new
+  array at every step. The sample encodes its own
   output to bytes, with `charCodeAt` and a loop, since `utf8` does not
   compile.
 - **`fjs compile` gaps the sort sample worked around**:

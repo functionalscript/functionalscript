@@ -10,6 +10,6 @@ export const proof = {
     // The integers come out in order, and the bytes the sample encodes are the line.
     sample: () => assertStructurallySame(
         jsOutput(/** @type {Sample['program']} */ (/** @type {unknown} */ (program))),
-        ok('sorted 10000 integers: smallest 1, largest 2146722115\n')),
+        ok('sorted 100000 integers: smallest 1, largest 2147477497\n')),
     demo: () => assert(demo.init.runs === null),
 }

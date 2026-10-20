@@ -138,7 +138,7 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         Any::conditional(c2, || Ok(args.argument(0)), c3)
     }, 1, [runtime.clone()].to_array(), Some("(function $0($1){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=(($5,$6)=>(($7)=>([...((0,($5))((($6)[(\"filter\")]((($8)=>(($9)=>(($9)<($8))))(($7)))))),...(($6)[(\"filter\")]((($10)=>(($11)=>(($11)===($10))))(($7)))),...((0,($5))((($6)[(\"filter\")]((($12)=>(($13)=>(($13)>($12))))(($7))))))])))(($0),($1));$4=true;}return $3;};})();return (($2()),(((($1)[(\"length\")])<(2))?($1):((0,($2()))((($1)[(Number(((($1)[(\"length\")])>>(1))))])))));})")).to_any();
     let c6: Any<A> = A::static_function(|self_, _args| {
-        let c0: Any<A> = Any::call(A::frame(self_)[0].clone(), [f64_any(0x40c3880000000000), f64_any(0x3ff0000000000000)].to_array().to_any())?;
+        let c0: Any<A> = Any::call(A::frame(self_)[0].clone(), [f64_any(0x40f86a0000000000), f64_any(0x3ff0000000000000)].to_array().to_any())?;
         let c1: Any<A> = spread_array([spread_item(c0)])?;
         let c2: Any<A> = Any::dot(c1, f64_any(0x0000000000000000)).end()?;
         let c3: Any<A> = Any::call(A::frame(self_)[3].clone(), [c2].to_array().to_any())?;
@@ -147,6 +147,6 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let c6: Any<A> = [string_any("stdout"), c5].to_array().to_any();
         let c7: Any<A> = A::static_function(|_self, _args| { Ok(A::static_function(|_self, _args| { Ok([string_any("ok"), Nullish::Undefined.to_any()].to_array().to_any()) }, 0, Array::default(), Some("()=>[\"ok\",undefined]")).to_any()) }, 0, Array::default(), Some("()=>()=>[\"ok\",undefined]")).to_any();
         Ok([(string_key("command"), string_any("write")), (string_key("payload"), c6), (string_key("continuation"), c7)].to_object().to_any())
-    }, 0, [c1, c2, c4, c5].to_array(), Some("()=>{const $4=$0;const $5=$1;const $6=$2;const $7=$3;return {\"command\":\"write\",\"payload\":[\"stdout\",$5($6($7([...$4(10000,1)][0])))],\"continuation\":()=>()=>[\"ok\",undefined]};}")).to_any();
+    }, 0, [c1, c2, c4, c5].to_array(), Some("()=>{const $4=$0;const $5=$1;const $6=$2;const $7=$3;return {\"command\":\"write\",\"payload\":[\"stdout\",$5($6($7([...$4(100000,1)][0])))],\"continuation\":()=>()=>[\"ok\",undefined]};}")).to_any();
     Ok([(string_key("default"), c6)].to_object().to_any())
 }
