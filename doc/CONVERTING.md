@@ -402,7 +402,7 @@ where `bigint` takes a number and throws on anything else, so a call on a
 value of another type is checked, not rewritten — the module says what it
 converts, as it does for `min` and `max` on strings.
 
-## 9. A `Map` keyed by strings
+## 9. A `Map` or a `Set` of strings
 
 `Map` is not a language type, and `new Map(...)` is refused
 (`unexpected token`). A `Map` earns its place only where the keys are not
@@ -441,6 +441,29 @@ is an optimization, and the module drops it with the `Map`
 ([DESIGN.md §1](./DESIGN.md#1-simplicity-first)).
 [`fjs/types/object/structurally_same`](../fjs/types/object/structurally_same/module.f.js)
 is the worked case.
+
+A `Set` follows the same line: `new Set(...)` is refused as `new Map(...)`
+is, and a `Set` of strings needs no collection at all. Built to ask whether
+a list repeats, it is the question asked of the list itself — each item
+first appears at its own index — and built to ask whether a string is in
+it, `includes`:
+
+```js
+const unique = names => new Set(names).size === names.length    // refused
+const has = (names, x) => new Set(names).has(x)                 // refused
+```
+
+```js
+const unique = names => names.every((n, i) => names.indexOf(n) === i)   // accepted
+const has = (names, x) => names.includes(x)                             // accepted
+```
+
+The value is preserved for strings, which `===`, `indexOf` and `includes`
+tell apart exactly as a `Set` does: `'1'` and `'01'` are two, `'__proto__'`
+is a string like any other, and `''` is one. `unique` is quadratic where
+the `Set` was linear, the optimization the module drops with it.
+[`fjs/ebnf/token_symbol`](../fjs/ebnf/token_symbol/module.f.js), whose
+`encoding` refuses a repeated name, is the worked case.
 
 ## 10. A call made for its failure
 
