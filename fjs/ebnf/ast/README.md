@@ -8,7 +8,7 @@ type.
 
 - `types.ts` — `Meta`, `Ast`, `Children`; `Unmapped` and `JoinNode`, the
   shapes a reader of a combinator's scaffolding is typed by.
-- `module.f.mjs` — `unmapped`, `symbolAt`: the two tests a mapping makes;
+- `module.f.js` — `unmapped`, `symbolAt`: the two tests a mapping makes;
   `items` and `variant`, the same test for an untyped reader, `variant`
   at a variant's position.
 
@@ -124,7 +124,7 @@ across rewrite sets, which change which positions are symbols and never
 what the arrays look like. A mapping therefore needs no shape asserts, only
 `meta.id` where it expects a symbol and `instanceof Array` where it knows a
 position is unmapped — the scaffolding a combinator builds and hands to
-nobody. `symbolAt` and `unmapped` in `module.f.mjs` are those two tests.
+nobody. `symbolAt` and `unmapped` in `module.f.js` are those two tests.
 `Children<R, I, O>` is exact: it states what can be known statically, and
 the one test recovers the rest.
 

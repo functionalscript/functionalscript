@@ -1276,7 +1276,7 @@ these rules bind it.
   the program (a DoS vector). Untrusted-input validation is an ordinary,
   *expected* outcome and belongs in values
   ([`Result`](../fjs/types/result/module.f.js) /
-  [`Nullable`](../fjs/types/nullable/module.f.mjs)); an
+  [`Nullable`](../fjs/types/nullable/module.f.js)); an
   assert firing means the program itself is wrong — a breach of an
   internal API contract. The opaque-error contract (A4) enforces this
   discipline by construction: an error carries no information, so an

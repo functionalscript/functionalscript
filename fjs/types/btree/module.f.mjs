@@ -8,7 +8,7 @@
  */
 
 import { flat } from '../list/module.f.mjs'
-import { map } from '../nullable/module.f.mjs'
+import { map } from '../nullable/module.f.js'
 
 /** @type {<T>(node: TNode<T>) => Thunk<T>} */
 const nodeValues
