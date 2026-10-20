@@ -47,7 +47,7 @@
  */
 
 import { entry as objectEntry } from '../../types/object/entry/module.f.js'
-import { charIs, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.mjs'
+import { charIs, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 
 /** The value Git gives a key written without one. */
@@ -230,7 +230,7 @@ const lines = text => {
  * The number digits spell in a radix, or `null` where they are none or
  * one of them is no digit of it: `0-9` below the radix, and for 16 the
  * letters `a-f` in either case as well, each through
- * [`fjs/text/ascii`](../../text/ascii/module.f.mjs)'s digit-run readers.
+ * [`fjs/text/ascii`](../../text/ascii/module.f.js)'s digit-run readers.
  *
  * @type {(digits: string, radix: bigint) => Nullable<bigint>}
  */

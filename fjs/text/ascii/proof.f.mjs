@@ -1,7 +1,7 @@
 import {
     charIs, digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, isDigit, isDigits,
     isLatinLetter, lowerHexDigitValue, one, range,
-} from './module.f.mjs'
+} from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.js'
 

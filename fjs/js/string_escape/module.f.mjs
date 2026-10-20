@@ -48,7 +48,7 @@ import {
     reverseSolidus,
     solidus,
     space,
-} from '../../text/ascii/module.f.mjs'
+} from '../../text/ascii/module.f.js'
 
 /**
  * The escape letter paired with the code point it denotes.

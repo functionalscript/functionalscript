@@ -14,11 +14,12 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { contains } from '../../types/range/module.f.js'
+import { bigint } from '../../types/bigint/from_number/module.f.js'
 
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {
     const r = s.codePointAt(i)
-    if (r === void 0) { throw s }
+    if (r === undefined) { throw s }
     return r
 }
 
@@ -36,7 +37,7 @@ export const range = s => {
 // 0x00..
 
 /** 0x00 */
-export const nul = one('\0')
+export const nul = one('\u0000')
 
 /** 0x08 */
 export const backspace = one('\b')
@@ -381,7 +382,7 @@ export const digitsValue = radix => {
     /** @type {(d: number) => boolean} */
     const isRadixDigit = d => Number.isInteger(d) && digit0 <= d && d < end
     return digits => digits.length !== 0 && digits.every(isRadixDigit)
-        ? digits.reduce((n, d) => n * radix + BigInt(d - digit0), 0n)
+        ? digits.reduce((n, d) => n * radix + bigint(d - digit0), 0n)
         : null
 }
 
@@ -397,6 +398,6 @@ export const digitsValue = radix => {
 export const hexDigitsValue = digits => {
     const values = digits.map(hexDigitValue)
     return values.length !== 0 && values.every(v => v !== null)
-        ? values.reduce((n, v) => n * 16n + BigInt(/** @type {number} */ (v)), 0n)
+        ? values.reduce((n, v) => n * 16n + bigint(/** @type {number} */ (v)), 0n)
         : null
 }

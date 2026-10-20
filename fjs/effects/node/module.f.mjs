@@ -26,7 +26,7 @@
  */
 
 import { tryUtf8, utf8 } from '../../text/module.f.mjs'
-import { isDigits } from '../../text/ascii/module.f.mjs'
+import { isDigits } from '../../text/ascii/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'

@@ -36,7 +36,7 @@ import {
     signTrustPathMarker,
     signVerifierMarker,
 } from '../../website/style/module.f.js'
-import { hexDigitsValue } from '../../text/ascii/module.f.mjs'
+import { hexDigitsValue } from '../../text/ascii/module.f.js'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'

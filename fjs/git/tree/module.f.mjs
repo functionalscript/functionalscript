@@ -29,7 +29,7 @@ import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/mod
 import {
     digit0, digitsValue, fullStop as dot, isLatinCapitalLetter, latinCapitalLetterA, latinSmallLetterA, nul,
     solidus as slash, space as sp,
-} from '../../text/ascii/module.f.mjs'
+} from '../../text/ascii/module.f.js'
 import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'

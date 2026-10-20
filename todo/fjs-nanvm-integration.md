@@ -144,6 +144,73 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured on `e9df9df`, the head of
+[#3097](https://github.com/functionalscript/functionalscript/pull/3097),
+which implemented [call statements](../spec/functions/call-statements.md),
+with `text/ascii` renamed. A leaf is as defined in the `5dcd94b` audit
+below, and the leaves were rediscovered as the `0c9ddf8` table below says:
+every authored non-proof module loaded through Node with a resolve hook
+recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 5 | `text/ascii`, by `'\u0000'` for `'\0'`, `undefined` for `void 0` and the rewrite of [rule 8](../doc/CONVERTING.md#8-bigint) |
+| 2 | 5 | None: every remaining leaf is refused as written |
+
+`text/ascii` held the refusals its row in the `2e0462e` table below lists,
+and each has an admitted spelling. `nul` is `one('\u0000')`, the same
+character. `at` compares its code point with `undefined`, the value
+`void 0` is. `digitsValue` and `hexDigitsValue` convert each digit with
+`bigint` from [`types/bigint/from_number`](../fjs/types/bigint/from_number/module.f.js),
+which answers as `BigInt` does on the safe integers they pass (rule 8). The
+`assert(…)` that opens `digitsValue` stays as written: it is a call
+statement now. Its references follow, 35 files with its proof, which
+stays `proof.f.mjs`.
+
+The rename exposes one leaf, `git/config`, which imports `text/ascii`,
+`types/object/entry` and `types/result`, all `.f.js` already. The second
+pass checks it with the four leaves left, against the same compiler, and
+converts none.
+
+The authored `.f.js` population under `fjs/` grows from 42 to 43, and
+`npm start compile` checks 60.
+
+The `git/config` row was measured on a scratch copy: its first refusal
+replaced by the spelling the language admits, the next one reported, and
+nothing past that measured. The other four rows are the `2e0462e` table's,
+their modules unchanged since. Locations are `line:column`; paths are
+relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `git/config/module.f.mjs` | 493:12 | The hole in `const [, list] = …` in `tryEntries` (`decl.pattern-elision`) | `acc.sub` in `subStep`, `sub` a `String.prototype` name (`prohibited property name`), at 379:41; past it not measured |
+| `types/function/compare/module.f.mjs` | 65:9 | `if (e < b) { return b }`, a `return` guard inside the loop in `bsearch` | In `bsearch`, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['git/config', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `2e0462e` (historical)
+
 Measured on `2e0462e`, the head of
 [#3079](https://github.com/functionalscript/functionalscript/pull/3079),
 which renamed `ebnf/ast` and `types/nullable`. A leaf is as defined in the

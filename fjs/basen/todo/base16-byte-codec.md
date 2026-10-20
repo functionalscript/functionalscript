@@ -37,7 +37,7 @@ PR, with nothing to declare.
 
 A run of hex digits read as one number has the same shape one level down,
 and it is solved:
-[`fjs/text/ascii`](../../text/ascii/module.f.mjs)'s `hexDigitsValue`
+[`fjs/text/ascii`](../../text/ascii/module.f.js)'s `hexDigitsValue`
 reads one, and `digitsValue` stops at radix 10 on purpose.
 [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
 added it with the `vdf` demo's `parseHex` on it, and
@@ -110,6 +110,6 @@ unit, surrogates included.
 
 - [various-basen-encodings.md](./various-basen-encodings.md) — the other
   encodings this directory tracks.
-- [`fjs/text/ascii`](../../text/ascii/module.f.mjs) — `hexDigitValue`,
+- [`fjs/text/ascii`](../../text/ascii/module.f.js) — `hexDigitValue`,
   `lowerHexDigitValue`, `hexDigitCodePoint`, `digitsValue` and
   `hexDigitsValue`, the shared digit level.
