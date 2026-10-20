@@ -107,10 +107,14 @@ decides whether a `const` runs.
 is best read as a subtraction. Every `const` and every import starts as an
 operand of a comma, in source order, with the result last; then each operand
 is deleted that a later operand is guaranteed to evaluate through eager edges
-alone — a container's item, an access base, an operator's left operand, a
-comma's operand ([comma](comma.md)) — and never through a lazy one: the right
-operand of `&&`, `||` or `??`, or a conditional's arm. A function body is not
-lazy for this purpose, since constructing the function evaluates its frame.
+alone — a container's item, an access's base, a call's callee and its
+arguments, a prefix's operand, both operands of an eager binary operator and
+the left one of a lazy one, a conditional's condition, and a comma's operand
+([comma](comma.md)) — and never through a lazy one: the right operand of
+`&&`, `||` or `??`, or a conditional's arm. `const c = null.x; export default
+1 + c;` deletes `c`, the `+` evaluating it, where `1 && c` keeps it. A
+function body is not lazy for this purpose, since constructing the function
+evaluates its frame.
 So `const c = null.x; export default [a && c, b && c];` keeps `c`,
 `[',', [c, ['[]', [['&&', a, c], ['&&', b, c]]]]]`, and throws at load as
 JavaScript does, where `[c, a && c]` deletes it, the array evaluating it
