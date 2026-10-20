@@ -62,10 +62,10 @@ media type depends on what the format is a subset of:
 A JSON dialect module (`note`, `lock`, `revision`) builds its kit with
 `jsonDialect` and re-exports it one field per `export const`, each with its own
 doc comment, rather than as one destructuring `export const { … } =
-jsonDialect(…)`. The emitted declarations of a destructured export carry no doc
-comment, neither the statement's nor a binding's, and lose the `@type` that
-names the module's own types (`Note`, `RevisionError`), so each field would
-publish undocumented and spelled out in full.
+jsonDialect(…)`. The emitted declarations of a destructured export lose the
+`@type` that names the module's own types (`Note`, `RevisionError`), so each
+field would publish spelled out in full as an expanded `StructTs<…>`. A
+renamed binding (`entry: noteDialect`) also loses its doc comment.
 
 ### Fall-back chains
 
