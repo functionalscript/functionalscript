@@ -4,12 +4,13 @@
  * demand so evaluation order and failure propagation remain observable.
  *
  * @import { Exp, ExpOp } from '../types.ts'
- * @import { EdagValue } from '../value/types.ts'
+ * @import { Closure, EdagValue } from '../value/types.ts'
+ * @import { Outcome } from '../value/call/types.ts'
  * @import { Context, Evaluator } from './types.ts'
  */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { operation, staticCall } from './module.f.mjs'
+import { invokerWith, operation, staticCall } from './module.f.mjs'
 import { noStatic, staticIds, staticPath } from '../module.f.mjs'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
@@ -224,6 +225,30 @@ export const proof = {
         failure(['+', 1, throws], 'conversion')
         failure(['!', ['throw', 1]], 1)
         failure([',', [1, ['throw', 2], 3]], 2)
+    },
+    // `invokerWith` is an executor given only its `run`: a closure is run
+    // under its invocation's context — its frame, its bindings, itself as
+    // `self` and the runtime; a static's body found in the runtime is run
+    // with the static as `self`; the helpers and an intrinsic are answered
+    // in place; and a call a body leaves is made in its place.
+    invokerWith: () => {
+        /** The context echoed for `'echo'`, a call left for `'tail'`, every other body walked by Amnesia. @type {(fn: Closure, context: Context) => Outcome} */
+        const echo = (fn, context) =>
+            fn[3] === 'echo' ? ['ok', ['[]', [['[]', context.frame], ['[]', context.args], ['[]', context.fixed ?? []], context.rest ?? ['[]', []], context.self ?? null, context.runtime ?? null]]]
+            : fn[3] === 'tail' ? ['call', ['=>', 1, ['g'], 'echo'], [7], ['[]', [8]]]
+            : vm(context)(fn[3])
+        /** @type {Closure} */
+        const f = ['=>', 1, ['captured'], 'echo']
+        const bare = invokerWith(echo)(undefined)
+        assertStructurallySame(bare(f, [1], ['[]', [2]]), ['ok', ['[]', [['[]', ['captured']], ['[]', []], ['[]', [1]], ['[]', [2]], f, null]]])
+        assertStructurallySame(bare(['=>', 0, [], 'tail'], [], ['[]', []]), ['ok', ['[]', [['[]', ['g']], ['[]', []], ['[]', [7]], ['[]', [8]], ['=>', 1, ['g'], 'echo'], null]]])
+        assertStructurallySame(bare(['entry'], [['{}', [[':', 'a', 1]]], 'a'], ['[]', []]), ['ok', 1])
+        assertStructurallySame(bare(['hasEntry'], [['{}', [[':', 'a', 1]]], 'b'], ['[]', []]), ['ok', false])
+        assertStructurallySame(bare(['slice'], ['abcd', 1, 3], ['[]', []]), ['ok', 'bc'])
+        assertStructurallySame(bare(['Object.is'], [], ['[]', []]), ['error', noStatic('Object.is')])
+        /** @type {EdagValue} */
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [], ['=>', 2, [], 'echo']]]]]
+        assertStructurallySame(invokerWith(echo)(runtime)(['Object.is'], [], ['[]', [1, 2, 3]]), ['ok', ['[]', [['[]', []], ['[]', []], ['[]', [1, 2]], ['[]', [3]], ['Object.is'], runtime]]])
     },
     evaluationOrder: () => {
         const [state, result] = run(['+', 1, 2], ['already'])
