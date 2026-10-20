@@ -69,16 +69,14 @@ export const diagramPage = ({ init, view }, titles) => () => {
  */
 export const recognizer = (parse, decode) => input => {
     const symbols = decode(input)
-    /** @type {(start: number) => { readonly accepted: boolean, readonly diagnostic: MatchResult<unknown> }} */
-    const from = start => {
+    let start = 0
+    while (true) {
         const diagnostic = parse(symbols, start)
         if (diagnostic[0] === 'error') { return { accepted: false, diagnostic } }
         const end = diagnostic[1][1]
-        return end === symbols.length || end === start
-            ? { accepted: end === symbols.length, diagnostic }
-            : from(end)
+        if (end === symbols.length || end === start) { return { accepted: end === symbols.length, diagnostic } }
+        start = end
     }
-    return from(0)
 }
 
 /**
