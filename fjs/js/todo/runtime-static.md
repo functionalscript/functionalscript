@@ -150,9 +150,10 @@ first-class function as it is in JavaScript. Destructuring is sugar, so
 namespace is read nowhere else: an array pattern over it, or a member it
 does not admit, is refused at the word — but a key that is a prototype
 name, `keys` or `toString`, is refused first, at the key, as in any
-pattern (`prohibited property name`). No run-time guard exists for the
-guarded spellings, because nothing is guarded. `String?.(x)` stays as the spec
-has it, a question for the conversion node, not this one.
+pattern (`prohibited property name`). A guarded spelling, `Object?.is`,
+never reaches the lowering: it is refused at the word, a namespace being no
+value to guard, as `String?.(x)` is, a conversion being no value either
+([operators and functions](../../../spec/principles/README.md#operators-and-functions)).
 
 **One node per name, a value.** The EDAG spells each admitted static
 function as a parameterless value node of its own, `['Object.is']`, as
