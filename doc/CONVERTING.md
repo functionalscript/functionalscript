@@ -36,7 +36,12 @@ Three things hold for every rule:
 - **The value is preserved.** FunctionalScript is a subset of JavaScript, and
   a converted module is still JavaScript: it must compute what it computed
   before, in both languages. A rewrite that changes a result is a change to
-  the module, reviewed as one, never part of a conversion.
+  the module, reviewed as one, never part of a conversion. That includes
+  which of two failures a JavaScript engine reports first: a conversion
+  keeps every call that may fail in its place in the order ([rule 10](#10-a-call-made-for-its-failure)).
+  A refactoring may reorder them, since the
+  [failure contract](../spec/principles/README.md#failure-is-one-outcome)
+  admits any order, but as a change of its own, never inside a conversion.
 - **The compiler is the check.** `fjs compile <input> <output>.f.js` compiles
   one module and stops at its first refusal, with a `line:column`; rename
   only once it accepts the whole module, and `fjs compile` with no arguments
@@ -469,8 +474,8 @@ last statement the body returned `undefined`, which
 returns `undefined`, as an assertion does.
 
 **The order is kept.** A converted module still runs as JavaScript, where
-which of two failing calls throws first is observable, so the call keeps its
-place among the statements: it moves into the statement directly after it,
+which of two failing calls throws first is observable, and a conversion
+changes no behaviour, so the call keeps its place among the statements: it moves into the statement directly after it,
 and never past one. Where that statement is a `const` or a guard, the comma
 goes into it:
 
@@ -494,7 +499,9 @@ and `assert(n <= 16); if (n === 0) { return 0 }` is
 `return` instead, past the `const`, would establish `digit0 + Number(radix)`
 first; the failure contract would admit it
 ([failure is one outcome](../spec/principles/README.md#failure-is-one-outcome)),
-but a JavaScript caller would see the other error.
+but a JavaScript caller would see the other error. A refactoring may
+reorder the assertions, as a change of its own, and the compiler's output
+may establish them in any order; a conversion does neither.
 
 Two spellings compile and are not this rewrite. `const _ = assert(…)` binds
 a name nothing reads, which the comma does not need, and TypeScript narrows
