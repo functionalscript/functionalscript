@@ -5,7 +5,7 @@
  * @import { Game, Par, Search } from './types.ts'
  */
 
-import { demo, depthOf, frameTime, goalNodes, keyCount, land, move, nodeCount, orderGap, ordered, parSearch, searchStep, searchTurn, start, statusLine, step } from './module.f.mjs'
+import { demo, depthOf, frameTime, goalNodes, keyCount, land, marked, move, nodeCount, orderGap, ordered, parSearch, searchStep, searchTurn, start, statusLine, step } from './module.f.mjs'
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
 import { values } from '../../../types/btree/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
@@ -302,6 +302,20 @@ export const proof = {
             assert(h.includes('data-graph-replay="b"'), h)
             assert(h.includes('data-graph-in-kind="leaving" data-graph-order="1"'), h)
             assert(html(step(first)).includes('data-graph-replay="a"'), '')
+        },
+        // The key moved is red where it comes out and green where it goes
+        // back in, and nothing else is marked; a tree just built marks
+        // nothing.
+        marked: () => {
+            /** @type {(game: Game) => readonly string[]} */
+            const kinds = game => html(game).split('data-graph-value-kind="').slice(1).map(t => t.slice(0, t.indexOf('"')))
+            const first = move(40)(level2)
+            assertEq(JSON.stringify(kinds(first)), '["removed","removed"]')
+            assertEq(JSON.stringify(kinds(step(first))), '[]')
+            assertEq(JSON.stringify(kinds(land(first))), '["added","added"]')
+            const g = { nodes: [], edges: [{ from: 0, to: { inline: '40' }, label: '' }], entries: [] }
+            assertEq(marked('still')({ key: 40, changed: true })(g), g)
+            assertEq(marked('enter')(null)(g), g)
         },
     },
     demo: {

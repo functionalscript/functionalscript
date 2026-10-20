@@ -610,11 +610,6 @@ svg text { font: inherit }
    before it holds too is plain. Blue, not green: a new node is not a
    passed test, so it is not --pass-bg. */
 [data-graph-kind="new"] { fill: var(--graph-new-bg) }
-/* A drawing shown frame by frame, as the B-tree game's moves are: a node
-   added is green and a node about to be removed red, so a move reads as
-   what it takes away and what it puts back. */
-[data-graph-replay] [data-graph-kind="new"] { fill: var(--graph-added-bg) }
-[data-graph-replay] [data-graph-kind="leaving"] { fill: var(--graph-removed-bg) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
@@ -625,6 +620,10 @@ svg text { font: inherit }
 [data-graph-in-kind="new"] [data-graph-value-alone],
 [data-graph-in-kind="shared"] [data-graph-value-alone],
 [data-graph-in-kind="leaving"] [data-graph-value-alone] { fill: none }
+/* The B-tree game's moved key: red in the cell it is removed from, green in
+   the one it is inserted into. */
+[data-graph-value][data-graph-value-kind="removed"] { fill: var(--graph-removed-bg) }
+[data-graph-value][data-graph-value-kind="added"] { fill: var(--graph-added-bg) }
 /* A change node by node: a node with an order fades out if it is leaving
    and in if it is new, over half a second, half a second after the order
    before it.
@@ -638,8 +637,9 @@ svg text { font: inherit }
   [data-graph-order] { animation-duration: .5s; animation-fill-mode: both; animation-timing-function: ease }
   /* A keyed node that stays but moves slides to its new place. */
   [data-graph] [data-key] { transition: transform .5s ease }
-  /* A node about to be removed turns red, through order 0, before it fades. */
-  [data-graph-replay] [data-graph-kind="leaving"] { animation: graph-redden .5s ease both }
+  /* A key about to be removed turns red, through order 0, before anything
+     fades. */
+  [data-graph-value-kind="removed"] { animation: graph-redden .5s ease both }
   [data-graph-replay="a"] [data-graph-in-kind="new"][data-graph-order] { animation-name: graph-in-a }
   [data-graph-replay="b"] [data-graph-in-kind="new"][data-graph-order] { animation-name: graph-in-b }
   [data-graph-replay="a"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-a }
@@ -651,7 +651,7 @@ svg text { font: inherit }
   [data-graph-order="5"] { animation-delay: 2.5s }
   [data-graph-order="6"] { animation-delay: 3s }
 }
-@keyframes graph-redden { from { fill: var(--bg) } }
+@keyframes graph-redden { from { fill-opacity: 0 } }
 @keyframes graph-in-a { from { opacity: 0 } }
 @keyframes graph-in-b { from { opacity: 0 } }
 @keyframes graph-out-a { to { opacity: 0 } }

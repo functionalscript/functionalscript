@@ -17,12 +17,12 @@
  * **A level starts from its keys inserted in random order**, one
  * `randomInt` per key, as the B-tree demo's Generate does; the first tree is
  * built when the page starts. The tree is drawn by the B-tree demo's
- * {@link structure}; each move shows the nodes it removes in red, and the
- * nodes it built in green.
+ * {@link structure}, so each move shows the nodes it built in blue, and the
+ * key moved red where it is removed and green where it is inserted.
  *
  * **A move is shown node by node, in four frames**: the nodes the remove
- * replaces turn red, then fade out from the leaf up; the nodes it built
- * fade in green, from the root down — a leaf merged or borrowed from; then
+ * replaces fade out, from the leaf up, once the key has turned red; the
+ * nodes it built fade in, from the root down — a leaf merged or borrowed from; then
  * the same for the insert — a leaf split. Each node takes {@link orderGap} after the one before
  * it, and a frame is held until its last node is done. A key that goes back
  * where it was is shown the same way: its leaf fades out without it, and in
@@ -43,7 +43,7 @@
  * @import { RandomInt } from '../../../effects/common/types.ts'
  * @import { Effect } from '../../../effects/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { Frame, Game, Mode, Par, Search } from './types.ts'
+ * @import { Frame, Game, Last, Mode, Par, Search } from './types.ts'
  * @import { Graph } from '../../demo/graph/types.ts'
  */
 
@@ -272,8 +272,9 @@ const levelOf = value => depths.find(d => String(d) === value)
 
 /**
  * A frame's graph, its moving nodes in order. Leaving, the nodes the next
- * tree does not share — new, against it — are `leaving`: they turn red
- * together, through order 0, then fade out from the leaves up, from order 1. Entering, the nodes that stay slide first to where the new
+ * tree does not share — new, against it — are `leaving`, and fade out from
+ * the leaves up, from order 1, once the key removed has turned red through
+ * order 0 ({@link marked}). Entering, the nodes that stay slide first to where the new
  * tree puts them, through order 0; then the nodes it built fade in from
  * the root down, one rank at a time, from order 1, and so do the edges
  * between nodes that stay, which waited hidden while they slid.
@@ -301,13 +302,27 @@ export const ordered = mode => g => {
 }
 
 /**
+ * A frame's graph with the last move's key marked: `removed`, drawn red,
+ * in a leaving frame, and `added`, drawn green, in an entering one. A
+ * frame without the key, and a tree just built, mark nothing.
+ *
+ * @type {(mode: Mode) => (last: Last | null) => (g: Graph) => Graph}
+ */
+export const marked = mode => last => g => {
+    if (mode === 'still' || last === null) { return g }
+    const inline = String(last.key)
+    const kind = mode === 'leave' ? 'removed' : 'added'
+    return { ...g, edges: g.edges.map(e => typeof e.to === 'number' || e.to.inline !== inline ? e : { ...e, to: { ...e.to, kind } }) }
+}
+
+/**
  * The frame on the board, as a graph, or none before the first tree. A
  * leaving frame draws the tree it shows against the next one, which is
  * what it marks.
  *
  * @type {(game: Game) => Graph | null}
  */
-const drawn = ({ versions, mode }) => versions === null ? null : ordered(mode)(graph(versions))
+const drawn = ({ versions, mode, last }) => versions === null ? null : marked(mode)(last)(ordered(mode)(graph(versions)))
 
 /**
  * How long the frame on the board is held: half a second for each order of its
