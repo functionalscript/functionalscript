@@ -1,0 +1,92 @@
+/**
+ * Base16 (RFC 4648): a list of bytes and its hex spelling, two digits a
+ * byte, the high digit first.
+ *
+ * The writer spells the small letters, which is what Git and every other
+ * writer in this repository spells. The readers take a continuous run of
+ * pairs, with no prefix and no separator, and refuse an odd count of
+ * digits or any code unit that is no digit; an empty run is no bytes.
+ * {@link decode} reads either case, as RFC 4648 and Git read it, and
+ * {@link decodeLower} the small letters only, for a spelling that admits
+ * nothing else. A separator, a prefix or a length is the caller's grammar,
+ * checked around the codec.
+ *
+ * The digits are `fjs/text/ascii`'s, so no value of a digit is derived
+ * here. The input is a list of numbers and not a `Vec`: `../module.f.mjs`'s
+ * `baseN` codes bits, and a byte list is what every reader of a hex
+ * spelling holds.
+ *
+ * @module
+ *
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ */
+
+import { hexDigitCodePoint, hexDigitValue, lowerHexDigitValue } from '../../text/ascii/module.f.mjs'
+
+/** The two lowercase hex digit code points of a byte, the high one first. @type {(byte: number) => readonly [number, number]} */
+const digitsOf = byte => [hexDigitCodePoint(byte >> 4), hexDigitCodePoint(byte & 0xf)]
+
+/**
+ * The lowercase hex digit code points spelling `bytes`, two a byte.
+ *
+ * @type {(bytes: readonly number[]) => readonly number[]}
+ */
+export const encodeCodePoints = bytes => bytes.flatMap(digitsOf)
+
+/**
+ * The lowercase hex spelling of `bytes`, two digits a byte.
+ *
+ * @type {(bytes: readonly number[]) => string}
+ */
+export const encode = bytes => bytes.map(b => String.fromCharCode(...digitsOf(b))).join('')
+
+/**
+ * The bytes a run of hex digit code points spells, each read by
+ * `digitValue`, or `null` on an odd count or a code point it does not read.
+ *
+ * @type {(digitValue: (codePoint: number) => Nullable<number>) => (codePoints: readonly number[]) => Nullable<readonly number[]>}
+ */
+const decodeWith = digitValue => codePoints => {
+    const values = codePoints.flatMap(c => {
+        const v = digitValue(c)
+        return v === null ? [] : [v]
+    })
+    return values.length !== codePoints.length || values.length % 2 !== 0
+        ? null
+        : Array.from({ length: values.length / 2 }, (_, i) => values[2 * i] * 16 + values[2 * i + 1])
+}
+
+/**
+ * The code units of `s`, which a hex reader reads as code points: no digit
+ * is a surrogate, so a string's pairs are refused either way.
+ *
+ * @type {(s: string) => readonly number[]}
+ */
+const codeUnits = s => Array.from({ length: s.length }, (_, i) => s.charCodeAt(i))
+
+/**
+ * The bytes a run of hex digit code points spells, `0-9`, `a-f` and `A-F`
+ * alike, or `null` on an odd count or a code point that is no hex digit, a
+ * non-integer included.
+ *
+ * @type {(codePoints: readonly number[]) => Nullable<readonly number[]>}
+ */
+export const decodeCodePoints = decodeWith(hexDigitValue)
+
+/**
+ * The bytes a hex string spells, either case, or `null` as
+ * {@link decodeCodePoints} refuses.
+ *
+ * @type {(hex: string) => Nullable<readonly number[]>}
+ */
+export const decode = hex => decodeCodePoints(codeUnits(hex))
+
+const decodeLowerCodePoints = decodeWith(lowerHexDigitValue)
+
+/**
+ * The bytes a lowercase hex string spells, or `null` on an odd count or a
+ * code unit that is not one of `0-9`, `a-f`: {@link decode} without `A-F`.
+ *
+ * @type {(hex: string) => Nullable<readonly number[]>}
+ */
+export const decodeLower = hex => decodeLowerCodePoints(codeUnits(hex))
