@@ -103,6 +103,7 @@ export const proof = {
         // tagged template the grammar refuses at its head — so neither line
         // is split into a statement JavaScript would not see
         expectRefused('const x = (...a) => 1; (0, x)(1); export default 1;', 'unexpected token', 24)
+        expectRefused('const x = (...a) => 1; (x(1)); export default 1;', 'unexpected token', 24)
         expectRefused('const x = 1; `a`.at(0); export default 1;', 'unexpected token', 14)
         expectRefused('const x = 1\n`a`.at(0)\nexport default 1;', 'unexpected token', 1)
     },
