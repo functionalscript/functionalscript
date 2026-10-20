@@ -32,18 +32,10 @@ pub use instanceof_::Constructor;
 pub use to_json::JsonError;
 
 use crate::vm::{
-    IVm, Number, String, ToAny, Unpacked,
-    boolean_coercion::BooleanCoercion,
-    dispatch::Dispatch,
-    member_access::non_nullish_receiver,
-    nullish::Nullish,
-    number_coercion::NumberCoercion,
-    numeric::Numeric,
-    numeric_coercion,
-    primitive::Primitive,
-    primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
-    primitive_dispatch::ViaPrimitive,
-    string_coercion::StringCoercion,
+    IVm, Number, String, ToAny, Unpacked, boolean_coercion::BooleanCoercion, dispatch::Dispatch,
+    member_access::non_nullish_receiver, nullish::Nullish, number_coercion::NumberCoercion,
+    numeric::Numeric, numeric_coercion, primitive_coercion::ToPrimitivePreferredType,
+    primitive_dispatch::ViaPrimitive, string_coercion::StringCoercion,
 };
 
 /// ```
@@ -241,13 +233,6 @@ impl<A: IVm> Any<A> {
             return Ok(Numeric::Number(self.to_number()?));
         }
         numeric_coercion::to_numeric(self.to_primitive(Some(ToPrimitivePreferredType::Number))?)
-    }
-
-    pub fn to_primitive(
-        self,
-        preferred_type: Option<ToPrimitivePreferredType>,
-    ) -> Result<Primitive<A>, Any<A>> {
-        self.dispatch(PrimitiveCoercionOp(preferred_type))
     }
 
     fn dispatch<T: Dispatch<A>>(self, o: T) -> T::Result {
