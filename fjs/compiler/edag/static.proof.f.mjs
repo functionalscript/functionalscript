@@ -2,7 +2,8 @@
  * The proof of the lowering of the built-ins a module reaches as values:
  * the helpers `entry` and `hasEntry` and the intrinsics, each the EDAG's
  * own node by its name, and the static functions, `['Object.is']`, read
- * in every spelling and run under a runtime whose `static` answers them.
+ * in either key spelling and run under a runtime whose `static` answers
+ * them.
  * It reads the compiler as `./proof.f.mjs` does, through the helpers it
  * exports; split from it as the parser's proofs are, since that file
  * reached the size the website's build reads a file up to.
@@ -58,14 +59,14 @@ export const proof = {
         // and the helper's text is the helper, in the writer's spelling
         assertStructurallySame(execute(compile(`${helper} export default entry.toString();`).edag), '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
     },
-    // `Object.is` is the EDAG's own node for it, `['Object.is']`, in every
-    // spelling and through destructuring, which reads the namespace's
+    // `Object.is` is the EDAG's own node for it, `['Object.is']`, in either
+    // key spelling and through destructuring, which reads the namespace's
     // member as the access does; the graph runs under a runtime whose
     // `static` section binds it — the one function on every read — and
     // fails naming it under none.
     objectIs: () => {
         expectEdag(compile('export default Object.is;').edag, ['Object.is'])
-        expectEdag(compile('export default Object?.["is"](0, -0);').edag, ['()', ['Object.is'], [0, -0]])
+        expectEdag(compile('export default Object["is"](0, -0);').edag, ['()', ['Object.is'], [0, -0]])
         expectEdag(compile('const { is } = Object; export default [is, Object.is];').edag, ['[]', [['Object.is'], ['Object.is']]])
         /** @type {import('../../edag/value/types.ts').Runtime} */
         const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
@@ -73,7 +74,7 @@ export const proof = {
         assertStructurallySame(assertOk(toData(unwrap(run({ args: [], runtime })))), [true, false, true, [true]])
         assertEq(assertError(run({ args: [] })), 'no binding for the static Object.is')
         // a `Number` predicate the same way, read at its own path
-        expectEdag(compile('const { isInteger } = Number; export default [isInteger, Number?.["isFinite"]];').edag, ['[]', [['Number.isInteger'], ['Number.isFinite']]])
+        expectEdag(compile('const { isInteger } = Number; export default [isInteger, Number["isFinite"]];').edag, ['[]', [['Number.isInteger'], ['Number.isFinite']]])
         /** @type {import('../../edag/value/types.ts').Runtime} */
         const numbers = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Number.isNaN', ['=>', 1, [], ['typeof', ['arg', 0]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         const typed = memo(assertOk(analysis(compile('const { isNaN } = Number; export default [isNaN("x"), Number.isNaN(1)];').edag)))

@@ -41,8 +41,8 @@ such keyword. A module cannot bind it, as a `const`, a parameter or an
 import's local name ([shared values](../bindings/constants.md)), and it is
 no value: it stands as the callee of a call and as the namespace of the
 four predicates the language admits, `Number.isInteger`,
-`Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`
-([built-in static functions](../built-ins/static-functions.md)), and is a
+`Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, read
+unguarded ([built-in static functions](../built-ins/static-functions.md)), and is a
 compilation error (`reserved word`) anywhere else — bare,
 `const f = Number;`, or as the namespace of any other member,
 `Number.MAX_SAFE_INTEGER` or `Number.parseFloat(x)`, each an admission of

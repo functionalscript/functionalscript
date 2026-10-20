@@ -166,9 +166,7 @@ the fixed set prevents is a quiet one: `Number(s, 16)` reads as a radix, as
 `parseInt(s, 16)`'s is, where JavaScript evaluates the `16` and ignores it,
 and `Number(...a)` converts whichever value happens to come first, or
 answers `0` where there is none — each a call whose written arguments say
-more than the conversion does. Nor is an
-operator guarded: `Number?.(x)` asks whether `Number` is nullish, a question
-about a value, and is refused by design (`reserved word`).
+more than the conversion does.
 
 **A word naming a JavaScript object with members of its own is never a
 value.** `Number`, `String` and `Object` are such words: in JavaScript each is
@@ -180,7 +178,9 @@ so the call would fail, which the second requirement above forbids. So each
 word is reserved ([global names](../todo/2365-global-names.md)): an operator
 where the language calls it, `Number(x)` and `String(x)`, and a namespace of
 functions where it reads the members the language admits
-([built-in static functions](../built-ins/static-functions.md)).
+([built-in static functions](../built-ins/static-functions.md)). Being no
+value, neither has a nullishness to guard: `Number?.(x)` and `Object?.is`
+ask nothing, and are refused by design (`reserved word`).
 
 **Adopted:** the language designer, **sergey-shandar**, stated the principle in
 [the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC),

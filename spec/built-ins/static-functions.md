@@ -30,11 +30,17 @@ read, so `Object.is === Object.is`. A value is a function, not an operator,
 so a call of it takes any number of arguments, as in JavaScript —
 `Number.isInteger(1, 2)` is `true`
 ([operators and functions](../principles/README.md#operators-and-functions)).
-Every spelling of the read is that value:
-`Object.is` and `Object["is"]`, and the guarded `Object?.is` and
-`Object?.["is"]`, since a namespace is never nullish; a call of it, guarded
-or not, is a call of that value, and steps after a guarded read go on as
-they would after the plain one. Destructuring is sugar
+Both spellings of the read are that value,
+`Object.is` and `Object["is"]`, and a call of it, guarded or not —
+`Object.is?.(a, b)` — is a call of that value. A guard on the namespace
+itself, `Object?.is` or `Object?.["is"]`, is refused at the word
+(`reserved word`): a guard asks whether a value is nullish, and a namespace
+is no value, so the expression asks nothing. JavaScript, whose `Object` is
+never nullish, reads it as `Object.is`, and a missing global would throw
+before the guard was asked, so no module needs it.
+**sergey-shandar** decided the refusal in
+[the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC): "`Object?.is` doesn't make any
+sense." Destructuring is sugar
 ([destructuring](../bindings/destructuring.md)): `const { is } = Object;` is
 `const is = Object.is;`, and an object pattern over a namespace reads each
 of its keys as that access does, a nested pattern reading through the

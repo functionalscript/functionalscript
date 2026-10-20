@@ -2,8 +2,9 @@
  * The proof of the parser's reading of the static functions the language
  * admits, `Object.is`, `Object.entries` and the four `Number` predicates
  * ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)):
- * each a value, the AST's `['Object.is']`, in every spelling JavaScript
- * reads it in, and each namespace refused everywhere else. It reads the
+ * each a value, the AST's `['Object.is']`, in either key spelling of the
+ * unguarded read, and each namespace refused everywhere else, a guard on
+ * it included. It reads the
  * parser as `./proof.f.mjs` does, through the helpers it exports.
  *
  * No `@module`: a proof's documentation reaches no reader of the published
@@ -19,11 +20,10 @@ import { staticIds, staticPath } from '../../edag/module.f.mjs'
 const exported = value => `[[],[["object",[[":","default",${value}]]]]]`
 
 export const proof = {
-    // The read in each spelling of its key, guarded or not — `Object` is a
-    // reserved global, never nullish — is the one node, a value wherever a
-    // value stands, and a call of it the ordinary call.
+    // The read in either spelling of its key is the one node, a value
+    // wherever a value stands, and a call of it the ordinary call.
     read: () => {
-        for (const source of ['Object.is', 'Object["is"]', 'Object?.is', 'Object?.["is"]', '(Object.is)']) {
+        for (const source of ['Object.is', 'Object["is"]', '(Object.is)']) {
             expectModule(`export default ${source};`, exported('["Object.is"]'))
         }
         expectModule('export default Object.is(0, -0);', exported('["()",["Object.is"],[0,["-",0]]]'))
@@ -32,19 +32,35 @@ export const proof = {
         // an argument is resolved as any is, after the callee
         expectRefused('export default Object.is(missing, 1);', 'const not found', 26)
     },
-    // A chain over the read goes on as it would where nothing before the
-    // steps short-circuits: a plain step is the plain node, and a guarded
-    // call keeps the steps after it as its own chain.
+    // A chain over the read goes on as over any value: a plain step is the
+    // plain node, and a guard on the function, a value, is the guarded
+    // call, which keeps the steps after it as its own chain.
     chain: () => {
-        expectModule('export default Object?.is(1, 2);', exported('["()",["Object.is"],[1,2]]'))
-        expectModule('export default (Object?.is)(1, 2);', exported('["()",["Object.is"],[1,2]]'))
-        expectModule('export default Object?.is.length;', exported('[".",["Object.is"],"length"]'))
-        expectModule('export default Object?.is(1)(2);', exported('["()",["()",["Object.is"],[1]],[2]]'))
+        expectModule('export default Object.is(1)(2);', exported('["()",["()",["Object.is"],[1]],[2]]'))
         expectModule('export default Object.is?.(1, 2);', exported('["?.()",["Object.is"],[1,2]]'))
-        expectModule('export default Object?.["is"]?.(1, 2).x;', exported('["?.()",["Object.is"],[1,2],["|.","x"]]'))
+        expectModule('export default Object["is"]?.(1, 2).x;', exported('["?.()",["Object.is"],[1,2],["|.","x"]]'))
+        expectModule('export default Object.is(1)?.x;', exported('["?.",["()",["Object.is"],[1]],"x"]'))
         // a step's key is judged as any access's is
         expectRefused('export default Object.is.call(1);', 'prohibited member function', 26)
-        expectRefused('export default Object?.is.call(1);', 'prohibited member function', 27)
+    },
+    // A guard asks whether a value is nullish, and a namespace is no
+    // value, so a guarded read of one asks nothing and is refused at the
+    // word — in either key spelling, of each namespace, whatever the chain
+    // goes on with.
+    guarded: () => {
+        for (const source of [
+            'Object?.is',
+            'Object?.["is"]',
+            'Object?.is(1, 2)',
+            'Object?.is.length',
+            'Object?.is(1)(2)',
+            'Object?.["is"]?.(1, 2).x',
+            'Object?.is.call(1)',
+            'Object?.entries',
+            'Number?.isInteger',
+            'Number?.["isFinite"](1)',
+        ]) { expectRefused(`export default ${source};`, 'reserved word', 16) }
+        expectRefused('export default (Object?.is)(1, 2);', 'reserved word', 17)
     },
     // Destructuring is sugar: an object pattern over the namespace reads
     // each key as the access does, so `const { is } = Object` makes the one
@@ -71,14 +87,14 @@ export const proof = {
         expectRefused('const { [k]: a } = Object; export default a;', 'computed key in a binding pattern not supported', 10)
         expectRefused('const { keys } = Object; export default 1;', 'prohibited property name', 9)
     },
-    // The four `Number` predicates are read as `Object.is` is, in every
-    // spelling and through destructuring, beside the conversion `Number(x)`,
+    // The four `Number` predicates are read as `Object.is` is, in either
+    // key spelling and through destructuring, beside the conversion `Number(x)`,
     // which the namespace leaves as it was; a member it does not admit, a
     // value property included, is refused at the word, and so is a
     // predicate under the other namespace.
     number: () => {
         for (const name of ['isInteger', 'isSafeInteger', 'isNaN', 'isFinite']) {
-            for (const source of [`Number.${name}`, `Number["${name}"]`, `Number?.${name}`, `Number?.["${name}"]`]) {
+            for (const source of [`Number.${name}`, `Number["${name}"]`]) {
                 expectModule(`export default ${source};`, exported(`["Number.${name}"]`))
             }
         }
@@ -95,12 +111,12 @@ export const proof = {
         expectRefused('export default Object.isInteger;', 'reserved word', 16)
         expectRefused('const { foo } = Number; export default 1;', 'reserved word', 17)
     },
-    // `Object.entries` is read as `Object.is` is, in every spelling and
-    // through destructuring, though `entries` is a prototype name: the
+    // `Object.entries` is read as `Object.is` is, in either key spelling
+    // and through destructuring, though `entries` is a prototype name: the
     // namespace's own list admits it before the key rule, which still
     // refuses the name over any value and under the other namespace.
     entries: () => {
-        for (const source of ['Object.entries', 'Object["entries"]', 'Object?.entries', 'Object?.["entries"]']) {
+        for (const source of ['Object.entries', 'Object["entries"]']) {
             expectModule(`export default ${source};`, exported('["Object.entries"]'))
         }
         expectModule('export default Object.entries({ a: 1 });', exported('["()",["Object.entries"],[["object",[[":","a",1]]]]]'))
