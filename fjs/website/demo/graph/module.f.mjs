@@ -609,7 +609,7 @@ const routesOf = placed => {
             }).flat(),
             [to.x, to.y + to.height / 2],
         ]
-        return [{ edge: port.edge, points }]
+        return [{ edge: port.edge, to: target, points }]
     }))
 }
 
@@ -757,11 +757,11 @@ export const graphSvg = g => {
     ])
     const fade = fadeOf(positioned, g.edgeOrder)
     /** @type {readonly Element[]} */
-    const edgeEls = routesOf(placed).map(({ edge, points }) => ['path', {
+    const edgeEls = routesOf(placed).map(({ edge, to, points }) => ['path', {
         d: `M${points.map(([x, y]) => `${x},${y}`).join(' L')}`,
         'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
         ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
-        ...(typeof edge.to === 'number' ? fade(edge.from, edge.to) : {}),
+        ...fade(edge.from, to),
     }])
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge
