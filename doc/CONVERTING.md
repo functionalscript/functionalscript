@@ -436,3 +436,41 @@ is an optimization, and the module drops it with the `Map`
 ([DESIGN.md §1](./DESIGN.md#1-simplicity-first)).
 [`fjs/types/object/structurally_same`](../fjs/types/object/structurally_same/module.f.js)
 is the worked case.
+
+## 10. A call made for its failure
+
+A call written as a statement, `assert(a > 0);`, is refused: a body holds
+`const`s and guards before its terminating statement, and nothing else
+([bodies and guards](../spec/control-flow/guards.md)). Such a call is made
+for the one thing a discarded call can do in a pure language, fail, and the
+comma operator says that in the expression the body returns
+([comma](../spec/operators/comma.md)):
+
+```js
+const ok = r => {
+    const [tag, value] = r
+    assert(tag === 'ok', r)          // refused
+    return value
+}
+```
+
+```js
+const ok = r => {
+    const [tag, value] = r
+    return (assert(tag === 'ok', r), value)   // accepted
+}
+```
+
+The value is preserved: the comma establishes the call, then the value, as
+the two statements did, and is the value. Where the call was the body's
+last statement the body returned `undefined`, which
+`return (assert(a === b, x), undefined)` keeps for any call;
+`return assert(a === b, x)` is the shorter spelling where the call itself
+returns `undefined`, as an assertion does.
+
+Two spellings compile and are not this rewrite. `const _ = assert(…)` binds
+a name nothing reads, which the comma does not need, and TypeScript narrows
+nothing after it: an `asserts v` signature narrows only after the call
+standing alone as a statement — or as a comma's discarded operand, which
+TypeScript follows into the value after it. `[assert(…), value][1]` widens
+the value's type the same way and builds an array to read one item of.

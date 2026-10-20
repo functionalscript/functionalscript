@@ -1321,6 +1321,8 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Laziness': 'ooooo',
                 'Laziness: && || ??': 'xxooo',
                 'Laziness: ?:': 'xxooo',
+                'Comma: the assertion form': 'xxooo',
+                'Comma: a detached call': 'ooooo',
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
                 'Recursion': 'ooooo',

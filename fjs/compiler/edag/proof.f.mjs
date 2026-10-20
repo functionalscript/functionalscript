@@ -580,7 +580,7 @@ export const proof = {
     // The plain call over an access is the *detached* receiver,
     // `(0, a.b)(c)` — parentheses alone keep it, which
     // `chainsJs.receiver` in `fjs/edag/proof.f.mjs` pins against JavaScript
-    // — so it needs the comma operator and no source writes one.
+    // — so the comma operator is what writes one.
     call: () => {
         expectEdag(compile('const f = (...a) => 1; export default f();').edag, ['()', ['=>', 0, [], 1], []])
         expectEdag(compile('const f = (...a) => 1; export default f(1, 2);').edag, ['()', ['=>', 0, [], 1], [1, 2]])
@@ -603,9 +603,10 @@ export const proof = {
         assert(twice[1][0][1] === twice[1][1][1], twice)
         // grouping the access changes nothing: parentheses keep the
         // property reference, so this is the method call above, node for
-        // node, and not the detached `(0, o.b)(3)` the comma operator will
-        // spell
+        // node, and not the detached `(0, o.b)(3)`, which the comma
+        // operator spells: the plain call over the access
         expectEdag(compile('const o = { b: 1 }; export default (o.b)(3);').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [3]]])
+        expectEdag(compile('const o = { b: 1 }; export default (0, o.b)(3);').edag, ['()', ['.', ['{}', [[':', 'b', 1]]], 'b'], [3]])
     },
     // A call of a parameterless function written at the call, with no
     // arguments, is its body where the call stands: the idiom for a
@@ -927,6 +928,76 @@ export const proof = {
         // share: the interpreter answers the value with `c` established
         // once, at the comma, and taken by the position that selects it
         assertStructurallySame(execute(compile('const a = 0; const b = 1; const c = [3]; export default [a && c, b && c];').edag), [0, [3]])
+    },
+    // The comma operator establishes every operand and is the last one's
+    // value, so it makes no node where it stands: each discarded operand
+    // that is code of its own is anchored where floated code is — the
+    // block root, or the lazy operand it stands in — and one that is no
+    // code, a reference, a literal or a function, is dropped, its `const`
+    // anchored by the scope where nothing else reaches it
+    // (`spec/operators/comma.md`).
+    comma: {
+        // the two examples of `spec/operators/comma.md`: an alias is the
+        // node it names, which the result reaches, and a `const` of its
+        // own is anchored
+        spec: () => {
+            /** @type {Exp} */
+            const a = ['[]', []]
+            expectEdag(compile('const a = []; const b = a; export default (b, a.length);').edag, ['.', a, 'length'])
+            expectEdag(compile('const a = []; const b = a.x; export default (b, a.length);').edag, [',', [['.', a, 'x'], ['.', a, 'length']]])
+        },
+        // a discarded operand that is code is anchored at the root of the
+        // body it stands in, in order, before the value
+        body: () => {
+            expectEdag(compile('export default (...a) => (a[0], a[1]);').edag, ['=>', 0, [], [',', [['.', ['rest'], 0], ['.', ['rest'], 1]]]])
+            expectEdag(compile('export default (...a) => (a.x, a.y, a.z);').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], ['.', ['rest'], 'y'], ['.', ['rest'], 'z']]]])
+            expectEdag(compile('export default (...a) => ((a.x, a.y), a.z);').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], ['.', ['rest'], 'y'], ['.', ['rest'], 'z']]]])
+            // through an eager position, an operator's operand, a container
+            // item and a call's argument alike
+            expectEdag(compile('export default (...a) => 1 + (a.x, 2);').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], ['+', 1, 2]]]])
+            expectEdag(compile('export default (...a) => [(a.x, 2)];').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], ['[]', [2]]]]])
+            expectEdag(compile('export default (...a) => -(a.x, 2);').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], -2]]])
+        },
+        // a lazy operand is a block root: what the comma anchors there is
+        // established only when the operator selects the operand
+        lazy: () => {
+            expectEdag(compile('export default (...a) => a[0] && (a.x, 1);').edag, ['=>', 0, [], ['&&', ['.', ['rest'], 0], [',', [['.', ['rest'], 'x'], 1]]]])
+            expectEdag(compile('export default (...a) => a[0] ? (a.x, 1) : 2;').edag, ['=>', 0, [], ['?:', ['.', ['rest'], 0], [',', [['.', ['rest'], 'x'], 1]], 2]])
+        },
+        // a reference, a literal, a function, the `entry` helper, a static
+        // function and an intrinsic's helper are no code, so the comma
+        // drops them; the value is the last operand's node
+        inert: () => {
+            expectEdag(compile('export default (...a) => (1, a, () => 1, a[0]);').edag, ['=>', 0, [], ['.', ['rest'], 0]])
+            // and one that lowers to a primitive, a negated literal folded
+            expectEdag(compile('export default (...a) => (-1, a[0]);').edag, ['=>', 0, [], ['.', ['rest'], 0]])
+            expectEdag(compile('export default (Object.is, (s, a, b) => s.slice(a, b), 2);').edag, 2)
+            expectEdag(
+                compile('export default ((a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable === true; }, (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }, 3);').edag,
+                3)
+            // a `const` the comma names and drops is anchored by its scope
+            // as an unreached one, and the function it captured is gone
+            expectEdag(compile('const b = [].x; export default (b, 1);').edag, [',', [['.', ['[]', []], 'x'], 1]])
+            expectEdag(compile('const b = [].x; export default (() => b, 1);').edag, [',', [['.', ['[]', []], 'x'], 1]])
+            // and one reached by an operand the comma keeps is reached
+            expectEdag(compile('const b = [].x; export default ([b], 1);').edag, [',', [['[]', [['.', ['[]', []], 'x']]], 1]])
+        },
+        // the comma's callee is no access, so the call is the plain one
+        // over its value: the detached receiver
+        detached: () => {
+            expectEdag(compile('const f = (...a) => 1; export default (0, f)(2);').edag, ['()', ['=>', 0, [], 1], [2]])
+            assertStructurallySame(execute(compile('const o = { f: (...a) => a[0] }; export default (0, o.f)(5);').edag), 5)
+        },
+        // establishing a discarded operand that fails fails the comma: the
+        // assertion form
+        execute: () => {
+            const source = 'const assert = (...a) => a[0] ? undefined : (() => { throw a[1]; })(); export default (...a) => (assert(a[0] > 0, "neg"), a[0] + 1);'
+            const f = value(compile(source).edag)
+            assertStructurallySame(assertOk(toData(apply(f, [2]))), 3)
+            const [tag, thrown] = call(ok(f), [() => ok(-1)], invoke)
+            assertEq(tag, 'error')
+            assertStructurallySame(thrown, 'neg')
+        },
     },
     // A body `const` is an entry of the body, as a module's is of the
     // module, and lowers the same way: a `const` is one node however many

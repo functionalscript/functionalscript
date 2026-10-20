@@ -375,7 +375,7 @@ export type Parenthesized = {
  * body.
  */
 export type AfterValue = {
-    readonly list: readonly [number, Option<ParameterNames>, number, number, Body]
+    readonly list: readonly [number, Option<ParenItems>, number, ArrowOrRest]
     readonly closed: readonly [number, ArrowOrRest]
     readonly default: readonly [number, Value, Option<readonly [number, Option<ParameterNames>]>, number, number, Body]
 }
@@ -403,13 +403,29 @@ export type ParameterNames = () => readonly ['const', {
 }]
 
 /**
- * A group after its `(`, under a prefix: the value, `)`, the steps the
+ * What follows `(` value `,`: a cover of the parameters after a named
+ * list's first and of a comma's operands after its first — each fixed item
+ * a value, with its default, `= value`, where it has one, listed as
+ * {@link Items} lists anything, and the rest parameter a name, ending the
+ * list. What follows the `)` decides which the items are.
+ */
+export type ParenItems = () => readonly ['const', {
+    readonly rest: readonly [number, typeof identifierName]
+    readonly fixed: readonly [Value, Option<readonly [number, Value]>, Option<readonly [number, Option<ParenItems>]>]
+}]
+
+/** A comma's operands after its first, in a group: each `,` and its value. */
+export type CommaOperands = RepeatFrom<0, readonly [number, Value]>
+
+/**
+ * A group after its `(`, under a prefix: the value or a comma's operands,
+ * {@link CommaOperands}, `)`, the steps the
  * group takes — which are the group's and not the
  * value's, the one thing the parentheses change — and the power it may be
  * raised to, {@link PowTail}. A value's own `(` reads its group through
  * {@link AfterValue} instead, where `=>` may follow the `)`.
  */
-export type Group = readonly [Value, number, RepeatFrom<0, Access>, PowTail]
+export type Group = readonly [Value, CommaOperands, number, RepeatFrom<0, Access>, PowTail]
 
 /**
  * `(` and a group: what a `-` may take in parentheses. It is not
@@ -425,7 +441,7 @@ export type ParenGroup = readonly [number, Group]
  * a syntax error in JavaScript, so {@link UnaryOperand}'s restricted `(`
  * stands on this type rather than {@link Group}'s.
  */
-export type GroupOperand = readonly [Value, number, RepeatFrom<0, Access>]
+export type GroupOperand = readonly [Value, CommaOperands, number, RepeatFrom<0, Access>]
 
 /**
  * `(` and {@link GroupOperand}: what a prefix may take in

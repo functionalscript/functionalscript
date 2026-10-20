@@ -74,6 +74,13 @@ guards, A4) are merged into the graph by the **`","` operation**:
   const k = a => (assert(a >= 0), a + 2)
   ```
 
+  Of these, `g` and `k` compile, to that one shape: the comma is in the
+  language in parentheses ([comma](../spec/operators/comma.md)). `f`'s bare
+  call statement and `h`'s bare comma after `return` stay refused
+  ([refused constructs](../spec/todo/refused-constructs.md)), and so does the
+  `return` pattern above, whose parenthesized spelling,
+  `return (assert(a >= 0 && b >= 0), a + b)`, compiles.
+
   illustrate one code-EDAG shape, not one allocated function in the
   JS-compatible identity model. The last spelling — an expression-bodied
   arrow, no block, no `return` — is a compact spelling the structural source
