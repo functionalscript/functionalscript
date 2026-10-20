@@ -26,6 +26,7 @@
  * @import { Bytes } from '../../types.ts'
  */
 
+import { encode } from '../../../basen/base16/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { fromVec, stringToU8List } from '../../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../../text/utf16/module.f.mjs'
@@ -170,5 +171,5 @@ export const askable = name => {
  */
 export const nameForMessage = name => {
     const dense = byteArray(name)
-    return nameText(dense) ?? dense.map(b => b.toString(16).padStart(2, '0')).join('')
+    return nameText(dense) ?? encode(dense)
 }

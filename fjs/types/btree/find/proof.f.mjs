@@ -4,12 +4,13 @@
  * @import { TNode } from '../types/types.ts'
  */
 
-import { find as btreeFind } from './module.f.mjs'
+import { find as btreeFind, findValue, contains } from './module.f.mjs'
 import { map, toArray } from '../../list/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { squares } from '../testlib.f.mjs'
+import { values } from '../module.f.mjs'
 
 /** @type {(r: Result<Unknown>) => string} */
 const str = r => stringifySorted(toArray(map((/** @type {any} */ x) => x[0])(r)))
@@ -107,4 +108,23 @@ const test = () => {
     }
 }
 
-export const proof = test
+export const proof = {
+    find: test,
+    findValue: () => {
+        assertEq(findValue(cmp('1'))(null), null)
+        // every stored value of a tree with every node shape, so each
+        // position a value can sit in is read
+        const _map = squares(38)
+        for (const v of toArray(values(_map))) {
+            assertEq(findValue(cmp(v))(_map), v)
+        }
+        assertEq(findValue(cmp('65'))(_map), null)
+    },
+    contains: () => {
+        const _map = squares(10)
+        assert(!contains(cmp('1'))(null), 'empty')
+        assert(contains(cmp('1'))(_map), '1')
+        assert(contains(cmp('4'))(_map), '4')
+        assert(!contains(cmp('5'))(_map), '5')
+    },
+}
