@@ -42,6 +42,16 @@ export const tryFromHex = hex => {
 }
 
 /**
+ * The id whose raw spelling is the `width` bytes at `at`: how a binary
+ * format holds one — a pack index's tables and trailer, a `refDelta`'s base.
+ * Bytes short of `at + width` make a narrower id, which a reader that has not
+ * checked the length refuses with {@link isOidOf}.
+ *
+ * @type {(b: readonly number[], at: number, width: number) => Oid}
+ */
+export const oidAt = (b, at, width) => u8ListToVecMsb(b.slice(at, at + width))
+
+/**
  * Whether an id is as wide as a repository's ids: `oidBytes` whole bytes.
  * The width is bound once, so a reader that asks of every id it is handed
  * converts it once.

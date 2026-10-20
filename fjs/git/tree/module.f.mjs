@@ -33,8 +33,8 @@ import {
 import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
+import { cmp } from '../bytes/module.f.js'
 import { isOidOf } from '../oid/module.f.mjs'
-import { min } from '../../types/number/min/module.f.js'
 
 const octalDigit = range('07')
 
@@ -174,18 +174,6 @@ export const tryRead = oidBytes => {
 const sortKey = e => mode(e) === subtree ? [...byteArray(e.name), slash] : byteArray(e.name)
 
 /**
- * Byte-wise order: the first differing byte decides, and a prefix comes
- * first.
- *
- * @type {(a: readonly number[], b: readonly number[]) => number}
- */
-const compare = (a, b) => {
-    const n = min(a.length, b.length)
-    const i = a.findIndex((x, i) => i < n && x !== b[i])
-    return i === -1 ? a.length - b.length : a[i] - b[i]
-}
-
-/**
  * What is wrong with one entry, or `null`: the checks `git fsck` makes on
  * an entry alone. The id is not looked up, only an id of all zero bytes
  * is refused, the one Git never writes and `fsck` refuses as `nullSha1`.
@@ -216,8 +204,8 @@ const problem = e => {
  * @type {(a: TreeEntry, b: TreeEntry) => Nullable<string>}
  */
 const pairProblem = (a, b) =>
-    compare(byteArray(a.name), byteArray(b.name)) === 0 ? 'duplicate name'
-        : compare(sortKey(a), sortKey(b)) >= 0 ? 'not sorted'
+    cmp(byteArray(a.name), byteArray(b.name)) === 0 ? 'duplicate name'
+        : cmp(sortKey(a), sortKey(b)) >= 0 ? 'not sorted'
         : null
 
 /**

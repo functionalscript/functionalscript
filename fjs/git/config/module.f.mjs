@@ -49,6 +49,7 @@
 import { entry as objectEntry } from '../../types/object/entry/module.f.js'
 import { charIs, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
+import { untilNul } from '../bytes/module.f.js'
 
 /** The value Git gives a key written without one. */
 const bareValue = /** @type {const} */ ('true')
@@ -364,8 +365,7 @@ const valueStart = {
 const tryValue = rest => {
     const end = [...rest].reduce(valueStep, valueStart)
     if (end.bad || end.quoted || end.escape) { return null }
-    const nul = end.value.indexOf('\u0000')
-    return nul === -1 ? end.value : end.value.slice(0, nul)
+    return untilNul(end.value)
 }
 
 /**
