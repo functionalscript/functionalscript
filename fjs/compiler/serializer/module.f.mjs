@@ -181,7 +181,7 @@ import { eagerLayers, lazyLayers } from '../ast/module.f.mjs'
 import { _prohibitedAccess } from '../parser/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
 import { chunkStrings, chunksMarked, chunkText, chunksText, keyword, literal, withNames } from '../../text/marked/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.js'
 import { _entryChunks as entryChunks, _entryText as entryText, _hasEntryChunks as hasEntryChunks, _hasEntryText as hasEntryText, _intrinsicChunks as intrinsicChunks, _intrinsicText as intrinsicText, renderFunction } from './function_text/module.f.mjs'
 import { keepsRecursion, loopOf } from '../../edag/loop/module.f.mjs'
@@ -1107,8 +1107,10 @@ const entry = (s0, path) => i => {
         case '&&': case '||': case '??': { return lazyBinary(s, path)(node) }
         case '?:': { return conditional(s, path)(node) }
         // a comma is a block's own form, read by `scopeOperands` where a
-        // module's root, a function's body or a lazy operand begins;
-        // anywhere else it has no source spelling until the operator lands
+        // module's root, a function's body or a lazy operand begins; the
+        // lowering builds one nowhere else, the comma operator's discarded
+        // operands floating to that root, so only a graph built by hand
+        // holds one here
         case ',': { return error('a comma outside a scope') }
         // a `throw` where a scope ends is `statement`'s, the statement it
         // came from; anywhere else it is the call of a function that throws,

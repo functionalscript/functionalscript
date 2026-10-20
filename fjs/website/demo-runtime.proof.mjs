@@ -13,7 +13,7 @@
  * so a proof carries the module it drives rather than a fixture file.
  */
 
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startDemo } from './demo-runtime.mjs'
 import { toDom } from '../media/html/module.mjs'
 

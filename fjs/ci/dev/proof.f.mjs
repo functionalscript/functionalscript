@@ -9,7 +9,7 @@ import {
 } from '../rust/module.f.mjs'
 import { node } from '../config/module.f.js'
 import { nixSystem } from '../nix/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {
     // Three systems, and `git` — the two things this declaration has that no CI

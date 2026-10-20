@@ -4,7 +4,7 @@
  * @import { Array as ValueArray, Closure, Object as ValueObject } from '../../edag/value/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { invoke } from '../../edag/memo/module.f.mjs'
 import { generate, path, value } from './module.f.mjs'
 

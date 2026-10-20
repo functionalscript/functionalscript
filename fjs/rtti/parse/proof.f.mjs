@@ -17,7 +17,7 @@ import {
     assertErrorPath,
     assertOk,
     assertStructurallySame,
-} from '../../asserts/module.f.mjs'
+} from '../../asserts/module.f.js'
 
 export const proof = {
     boolean: {

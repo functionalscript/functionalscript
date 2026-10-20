@@ -141,7 +141,7 @@ by construction. There are no shape asserts in the fold; the asserts are the
 mappings' own, on `meta.id` where a mapping expects a symbol and on
 `instanceof Array` where it knows a position is unmapped — the scaffolding a
 combinator like `join` builds and hands to nobody. `symbolAt` and `unmapped`
-in [`../ast/module.f.mjs`](../ast/module.f.mjs) are those two tests.
+in [`../ast/module.f.js`](../ast/module.f.js) are those two tests.
 [`../ast`](../ast/README.md) holds the argument.
 
 **The parser takes the set and folds it.** The machine builds bottom-up, and

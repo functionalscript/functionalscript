@@ -6,7 +6,7 @@
  * @import { Loop } from './types.ts'
  */
 
-import { assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
 import { keepsRecursion, loopOf, reaches } from './module.f.mjs'
 

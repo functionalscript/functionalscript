@@ -36,7 +36,7 @@ import {
     _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, body, callArguments,
     circuitTail, conditionalTail, constStatement, djsModule, eagerTail, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
-    lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren,
+    lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
     parenGroup, parenGroupOperand, parenthesized, primitive, statement, afterCase, caseTail, template, terminator, unary, unaryOperand,
     value, values,
 } from './module.f.mjs'
@@ -44,7 +44,7 @@ import { eagerLayers } from '../../ast/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
 import { tokens } from '../../../ebnf/railroad/module.f.mjs'
 import { grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /**
  * One diagram per `eagerTail` layer, titled by the names of its operators
@@ -87,6 +87,7 @@ export const diagrams = [
     ['func', func],
     ['parameters', parameters],
     ['afterValue', afterValue],
+    ['parenItems', parenItems],
     ['parameterNames', parameterNames],
     ['arrowOrRest', arrowOrRest],
     ['unary', unary],

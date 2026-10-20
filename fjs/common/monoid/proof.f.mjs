@@ -5,7 +5,7 @@
  */
 
 import { repeat, fold, foldAbsorbing, runs, step } from './module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/module.f.mjs'
 
 /** @type {Absorbing<number>} */

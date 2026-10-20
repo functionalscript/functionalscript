@@ -1,5 +1,5 @@
 import { resolve, decode, specifierKind } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
     // The kind is read from the spelling alone; `//` is rooted here and

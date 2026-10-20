@@ -4,7 +4,7 @@
  * @import { Invoke } from '../../edag/value/call/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis, checked } from '../../edag/analysis/module.f.mjs'
 import { vm, invoke as amnesiaInvoke } from '../../edag/amnesia/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'

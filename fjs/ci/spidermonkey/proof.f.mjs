@@ -2,7 +2,7 @@ import { shellSpiderMonkeyCommands, shellSpiderMonkeyVersionSteps } from './modu
 import { spidermonkey } from '../config/module.f.js'
 import { nixDevelop } from '../nix/module.f.mjs'
 import { _runs } from '../nix/testlib.f.mjs'
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {
     // ARM Linux asserts the shell's whole version, then runs the commands a

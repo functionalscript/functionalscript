@@ -3,7 +3,7 @@
  * or DOM effects. The host adapter proves those boundaries separately.
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { parse } from '../../rtti/parse/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'

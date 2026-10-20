@@ -7,7 +7,7 @@
  * @import { Nullable } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { fn } from '../function/module.f.js'
 
 /**
@@ -58,8 +58,7 @@ export const fromUndefined = value => value === undefined ? null : value
  * @type {<T>(value: Nullable<T>) => T}
  */
 export const unwrap = value => {
-    assert(value !== null)
-    return value
+    return (assert(value !== null), value)
 }
 
 /**

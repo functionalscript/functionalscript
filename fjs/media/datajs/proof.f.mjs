@@ -8,7 +8,7 @@
  * @import { Unknown } from './types.ts'
  */
 
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { fromCodePointList } from '../../text/utf8/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'

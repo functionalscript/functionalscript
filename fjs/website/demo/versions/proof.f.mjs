@@ -13,7 +13,7 @@ import { commandsOf, runPure } from '../../../effects/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
 import { partialRun, run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
-import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 
 // The smallest persistent structure that shares: a sorted list whose
 // insert and remove copy the cells before the change and share the rest. A

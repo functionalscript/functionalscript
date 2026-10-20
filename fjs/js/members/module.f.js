@@ -21,7 +21,7 @@
  * @import { Members } from './types.ts'
  */
 
-import { todo } from '../../asserts/module.f.mjs'
+import { todo } from '../../asserts/module.f.js'
 
 /** @type {Members} */
 export const members = {

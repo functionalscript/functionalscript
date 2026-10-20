@@ -46,7 +46,7 @@ import { graphSvg } from '../graph/module.f.mjs'
 import { examplePicker, name as exampleName } from '../examples/module.f.js'
 import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { randomInt } from '../../../effects/common/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 
 /**

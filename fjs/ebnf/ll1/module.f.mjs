@@ -27,7 +27,7 @@
  * @import { _FirstState, _Follows, _Mappers, _RepeatFrame, _Stack, _State } from './private.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, definedEntries, definedValues, structurallySame } from '../../types/object/module.f.mjs'
 import { contains, empty, intersection, union } from '../../types/range_set/module.f.mjs'

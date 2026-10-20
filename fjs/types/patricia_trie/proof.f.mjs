@@ -3,7 +3,7 @@
  * @import { State as DemoState } from '../../website/demo/versions/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { emptyState, patriciaTrie } from './module.f.mjs'
 import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'

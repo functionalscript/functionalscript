@@ -5,7 +5,7 @@
  * @import { Rule, Thunk, Variant } from '../../types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { diagramPage, force } from '../../testlib.f.mjs'
 import { string, ws, wsSymbol } from '../json/module.f.mjs'
 import { constStatement, dataJs, exportStatement, id, number, property, value as exportedValue } from './module.f.mjs'

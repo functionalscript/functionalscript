@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { examples } from '../examples/module.f.js'

@@ -38,7 +38,7 @@
 
 import { emptyState, patriciaTrie } from './module.f.mjs'
 import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { max } from '../number/max/module.f.js'
 
 /** A key's bits: the trie branches on them, most significant first. */

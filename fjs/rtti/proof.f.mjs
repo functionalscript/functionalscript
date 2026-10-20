@@ -6,7 +6,7 @@
  * @import { DemoEvent } from '../website/demo/types.ts'
  */
 
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 import { _compare, _graphOf, _marked, _outputsOf, _readersOf, demo, examples, lessons, projectSchemas } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'

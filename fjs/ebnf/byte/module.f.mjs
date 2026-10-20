@@ -26,7 +26,7 @@
  * @import { Byte } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { toArray, tryFold } from '../../types/list/module.f.mjs'
 import { isByte } from '../../types/number/module.f.mjs'
 import { rangeEncode, remove, union } from '../module.f.mjs'

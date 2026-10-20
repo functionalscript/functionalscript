@@ -17,7 +17,7 @@ same hazard: it overrides whatever the compiler inferred and is erased at
 runtime. It asks for one of three things instead — an annotated declaration
 (`/** @type {T} */ const o = v`), `/** @satisfies {T} */ (v)` when the goal is
 to *check* rather than *override*, or `assert` / `assertNotNullish` from
-[`fjs/asserts/module.f.mjs`](../fjs/asserts/module.f.mjs) when the claim is an
+[`fjs/asserts/module.f.js`](../fjs/asserts/module.f.js) when the claim is an
 invariant a runtime check can verify.
 
 `@type {const}` is explicitly excluded: it must stay an inline cast.

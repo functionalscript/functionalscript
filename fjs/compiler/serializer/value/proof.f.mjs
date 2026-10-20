@@ -4,7 +4,7 @@
  * @import { EdagValue } from '../../../edag/value/types.ts'
  */
 
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.js'
 import { factoryStringify, stringify } from './module.f.mjs'
 
 export const proof = {

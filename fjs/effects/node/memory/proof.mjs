@@ -11,7 +11,7 @@ import {
     create, read, write,
 } from '../../memory/module.f.mjs'
 import { memoryRun, run } from './module.mjs'
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 import { unwrap } from "../../../types/result/module.f.js"
 import { step, unwrapStep } from '../../module.f.mjs'
 

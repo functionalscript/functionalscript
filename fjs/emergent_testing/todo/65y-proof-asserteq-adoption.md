@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/asserts/module.f.mjs` exports two test helpers, `assert` and `assertEq`,
+`fjs/asserts/module.f.js` exports two test helpers, `assert` and `assertEq`,
 and [`fjs/AGENTS.md`](../../AGENTS.md) §1.3 asks proofs to use them — but some
 `proof.f.mjs` files still hand-roll the check per line:
 
@@ -25,7 +25,7 @@ Counts after the 56 sites outside `fjs/compiler/parser/` were converted:
   `fjs/compiler/parser/grammar/proof.f.mjs` and `fjs/compiler/edag/proof.f.mjs`
   sit inside FunctionalScript source strings under test and are not sites.
 - Every tracked `proof.f.mjs` except `fjs/asserts/proof.f.mjs` (which tests
-  the helpers themselves) now imports from `fjs/asserts/module.f.mjs`.
+  the helpers themselves) now imports from `fjs/asserts/module.f.js`.
 - Two multi-line sites are out of this issue's one-line scope: the `bool`
   case in `todo/proof.f.mjs` and the second `raw` case in
   `fjs/asn.1/proof.f.mjs`, whose message is computed in its own block.
@@ -52,7 +52,7 @@ the refactor with behaviour changes.
 Optional second helper for the remaining shapes:
 
 ```ts
-// fjs/asserts/module.f.mjs — adds nothing if you also have `assertEq`,
+// fjs/asserts/module.f.js — adds nothing if you also have `assertEq`,
 // but makes intent obvious at the call site for non-`===` comparisons.
 export const assertNot = (a: unknown, b: unknown): void => assert(a !== b, ['equal', a, b])
 ```
@@ -101,7 +101,7 @@ it's by far the most common and the lowest-judgement case.
   and AGENTS.md: keep helpers minimal until a second consumer needs
   more.
 - **Import edge.** No longer a question: the helpers live in
-  `fjs/asserts/module.f.mjs`, which `fjs/types` proofs already import from, so
+  `fjs/asserts/module.f.js`, which `fjs/types` proofs already import from, so
   converting a holdout adds no new module edge.
 - **Land in small PRs.** AGENTS.md asks for "one feature/improvement
   with minimal code changes" per PR; a single PR rewriting hundreds of
@@ -119,7 +119,7 @@ it's by far the most common and the lowest-judgement case.
   `proof`; defines module-level asserts as the "light proof" tier (runs on every
   load → light, cheap checks only). `assertEq` is the helper that makes that
   tier ergonomic.
-- `fjs/dev/module.f.mjs` — no longer defines `assert`/`assertEq` itself; both come from `fjs/asserts/module.f.mjs`.
+- `fjs/dev/module.f.mjs` — no longer defines `assert`/`assertEq` itself; both come from `fjs/asserts/module.f.js`.
 - `fjs/sul/id/module.f.mjs:19`, `fjs/sul/id/proof.f.mjs:1`,
   `fjs/sul/proof.f.mjs:1`, `fjs/sul/level/hash/proof.f.mjs:1` — the four
   existing consumers, demonstrating the desired call-site shape.

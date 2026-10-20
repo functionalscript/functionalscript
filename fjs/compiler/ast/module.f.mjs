@@ -4,7 +4,7 @@
  * @module
  *
  * @import { List } from '../../types/list/types.ts'
- * @import { AstBinary, AstInstanceOf, AstKey, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstStep, AstThrow, AstUnary, BinaryTag, UnaryTag, Anchors } from './types.ts'
+ * @import { AstBinary, AstInstanceOf, AstKey, AstCall, AstComma, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstStep, AstThrow, AstUnary, BinaryTag, UnaryTag, Anchors } from './types.ts'
  * @import { _Lazy, _OperandStack, _Reach, _RefNode } from './private.ts'
  */
 
@@ -222,18 +222,22 @@ const pushedAll = (operands, rest) => operands.reduceRight(pushed, rest)
  * nothing here is mutated in place, only rebound, `stack`'s own cons cells
  * each built once and never revisited.
  *
+ * A comma is one more such node, since its operands nest as deep as the
+ * source writes them, and contributes the operands it keeps,
+ * {@link commaOperands}, every one eager.
+ *
  * Which operands a node contributes is `lazy`'s where the readers differ:
  * a lazy operator's conditionally established ones — the right operand of
  * `&&`/`||`/`??` and both arms of `?:` — where the left operand, the
  * condition and a prefix operator's operand, established whatever the
  * value, are every reader's.
  *
- * @type {(lazy: _Lazy) => (ast: AstConst) => List<Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstThrow>>}
+ * @type {(lazy: _Lazy) => (ast: AstConst) => List<Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstComma | AstThrow>>}
  */
 const operandsOf = lazy => ast => {
     /** @type {_OperandStack} */
     let stack = { top: ast, rest: null }
-    /** @type {List<Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstThrow>>} */
+    /** @type {List<Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstComma | AstThrow>>} */
     let bottom = empty
     while (stack !== null) {
         const node = stack.top
@@ -257,6 +261,9 @@ const operandsOf = lazy => ast => {
             // the condition is established whatever it decides, as a lazy
             // operator's left operand is; the arms are `lazy`'s
             case '?:': { stack = { top: node[1], rest: pushedAll(lazy([node[2], node[3]]), rest) }; break }
+            // every operand a comma keeps is established with it, in order:
+            // eager, as a container's items are
+            case ',': { stack = pushedAll(commaOperands(node), rest); break }
             default: { bottom = concat(bottom)([node]); stack = rest }
         }
     }
@@ -283,7 +290,7 @@ const refsOf = lazy => ast => flat(map(refsOfOperand(lazy))(operandsOf(lazy)(ast
  * access chain nests only as deep as the source that built it, which is a
  * separate, narrower concern than an operator chain's unbounded length.
  *
- * @type {(lazy: _Lazy) => (ast: Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstThrow>) => List<_RefNode>}
+ * @type {(lazy: _Lazy) => (ast: Exclude<AstConst, AstUnary | AstInstanceOf | AstBinary | AstConditional | AstComma | AstThrow>) => List<_RefNode>}
  */
 const refsOfOperand = lazy => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
@@ -459,6 +466,44 @@ const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (
  * @type {(ast: AstConst) => boolean}
  */
 const isAlias = ast => ast !== null && typeof ast === 'object' && ['cref', 'aref', 'fref', 'rest', 'arg', 'self'].includes(ast[0])
+
+/**
+ * Whether a comma's discarded operand is no code of its own, which the comma
+ * drops: a primitive, a bare reference — {@link isAlias}'s, the node it
+ * names, which its own scope establishes or anchors — a function, the
+ * `entry` and `hasEntry` helpers, a static function or an intrinsic's
+ * helper. Making any of them cannot fail and computes nothing a later node
+ * reads, a function's captures being references of the same kind.
+ *
+ * @type {(ast: AstConst) => boolean}
+ */
+const isInert = ast => ast === null || typeof ast !== 'object' || isAlias(ast) || isStatic(ast) || isIntrinsic(ast)
+    || ast[0] === '=>' || ast[0] === 'entry' || ast[0] === 'hasEntry'
+
+/**
+ * What a discarded operand establishes: a comma's operands, each discarded
+ * in turn, since `((a, b), c)` is `(a, b, c)`, and any other operand
+ * itself.
+ *
+ * @type {(ast: AstConst) => readonly AstConst[]}
+ */
+const discarded = ast => ast instanceof Array && ast[0] === ',' ? ast[1].flatMap(discarded) : [ast]
+
+/**
+ * The operands a comma establishes, in order: each discarded one that is
+ * code of its own, a discarded comma read as its operands,
+ * {@link discarded}, and {@link isInert} dropping the rest, and then the
+ * last, whose value the comma is. So `((a.x, () => 1), 2)` drops the
+ * function as `(a.x, () => 1, 2)` does. What the comma keeps is what it reaches, for
+ * {@link anchors} and every other reader of references, and what the
+ * lowering anchors — so `const b = null.x; export default (b, 1);` anchors
+ * `b` as the unreached `const` it is, and `(f(b), 1)` reaches `b` through
+ * the call the comma keeps
+ * ([spec: operators](../../../spec/operators/README.md)).
+ *
+ * @type {(ast: AstComma) => readonly AstConst[]}
+ */
+export const commaOperands = ([, operands]) => [...operands.slice(0, -1).flatMap(discarded).filter(x => !isInert(x)), operands[operands.length - 1]]
 
 /** The first import standing for the same node as import `k`, which `imports` says by identity. @type {(imports: readonly unknown[]) => (k: number) => AstModuleRef} */
 const importNode = imports => k => ['aref', imports.indexOf(imports[k])]

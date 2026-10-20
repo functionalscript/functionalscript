@@ -1,4 +1,4 @@
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import {
     allowedCalls, arrayPrototype, bigintPrototype, booleanPrototype, functionPrototype, numberPrototype,
     objectPrototype, prohibitedCalls, prototypeNames, stringPrototype,

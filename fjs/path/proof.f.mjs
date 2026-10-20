@@ -1,5 +1,5 @@
 import { _dotSegmentFold, _foldRejoin, ancestors, basename, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parent, parse, relativize, root, toPosix, under } from "./module.f.mjs"
-import { assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { fold, toArray } from '../types/list/module.f.mjs'
 
 /**

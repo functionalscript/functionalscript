@@ -36,7 +36,12 @@ Three things hold for every rule:
 - **The value is preserved.** FunctionalScript is a subset of JavaScript, and
   a converted module is still JavaScript: it must compute what it computed
   before, in both languages. A rewrite that changes a result is a change to
-  the module, reviewed as one, never part of a conversion.
+  the module, reviewed as one, never part of a conversion. That includes
+  which of two failures a JavaScript engine reports first: a conversion
+  keeps every call that may fail in its place in the order ([rule 10](#10-a-call-made-for-its-failure)).
+  A refactoring may reorder them, since the
+  [failure contract](../spec/principles/README.md#failure-is-one-outcome)
+  admits any order, but as a change of its own, never inside a conversion.
 - **The compiler is the check.** `fjs compile <input> <output>.f.js` compiles
   one module and stops at its first refusal, with a `line:column`; rename
   only once it accepts the whole module, and `fjs compile` with no arguments
@@ -436,3 +441,71 @@ is an optimization, and the module drops it with the `Map`
 ([DESIGN.md §1](./DESIGN.md#1-simplicity-first)).
 [`fjs/types/object/structurally_same`](../fjs/types/object/structurally_same/module.f.js)
 is the worked case.
+
+## 10. A call made for its failure
+
+A call written as a statement, `assert(a > 0);`, is refused: a body holds
+`const`s and guards before its terminating statement, and nothing else
+([bodies and guards](../spec/control-flow/guards.md)). Such a call is made
+for the one thing a discarded call can do in a pure language, fail, and the
+comma operator says that in the expression the body returns
+([comma](../spec/operators/comma.md)):
+
+```js
+const ok = r => {
+    const [tag, value] = r
+    assert(tag === 'ok', r)          // refused
+    return value
+}
+```
+
+```js
+const ok = r => {
+    const [tag, value] = r
+    return (assert(tag === 'ok', r), value)   // accepted
+}
+```
+
+The value is preserved: the comma establishes the call, then the value, as
+the two statements did, and is the value. Where the call was the body's
+last statement the body returned `undefined`, which
+`return (assert(a === b, x), undefined)` keeps for any call;
+`return assert(a === b, x)` is the shorter spelling where the call itself
+returns `undefined`, as an assertion does.
+
+**The order is kept.** A converted module still runs as JavaScript, where
+which of two failing calls throws first is observable, and a conversion
+changes no behaviour, so the call keeps its place among the statements: it moves into the statement directly after it,
+and never past one. Where that statement is a `const` or a guard, the comma
+goes into it:
+
+```js
+const digitsValue = radix => {
+    assert(2n <= radix && radix <= 10n, radix)                 // refused
+    const end = digit0 + Number(radix)
+    return …
+}
+```
+
+```js
+const digitsValue = radix => {
+    const end = (assert(2n <= radix && radix <= 10n, radix), digit0 + Number(radix))
+    return …
+}
+```
+
+and `assert(n <= 16); if (n === 0) { return 0 }` is
+`if ((assert(n <= 16), n === 0)) { return 0 }`. Moving the call into the
+`return` instead, past the `const`, would establish `digit0 + Number(radix)`
+first; the failure contract would admit it
+([failure is one outcome](../spec/principles/README.md#failure-is-one-outcome)),
+but a JavaScript caller would see the other error. A refactoring may
+reorder the assertions, as a change of its own, and the compiler's output
+may establish them in any order; a conversion does neither.
+
+Two spellings compile and are not this rewrite. `const _ = assert(…)` binds
+a name nothing reads, which the comma does not need, and TypeScript narrows
+nothing after it: an `asserts v` signature narrows only after the call
+standing alone as a statement — or as a comma's discarded operand, which
+TypeScript follows into the value after it. `[assert(…), value][1]` widens
+the value's type the same way and builds an array to read one item of.

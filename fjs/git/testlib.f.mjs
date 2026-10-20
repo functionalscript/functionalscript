@@ -8,7 +8,7 @@
  * @import { Bytes } from './types.ts'
  */
 
-import { assert } from '../asserts/module.f.mjs'
+import { assert } from '../asserts/module.f.js'
 import { decode } from '../basen/base16/module.f.mjs'
 
 /**

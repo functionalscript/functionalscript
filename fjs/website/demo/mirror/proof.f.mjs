@@ -1,5 +1,5 @@
 import { editOf } from './module.f.mjs'
-import { assert, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
 
 // The copy `a b` of a highlighted field, as the nodes `a`, ` b` and the
 // terminator, one unit each at the end: lengths 1, 2 and 1.

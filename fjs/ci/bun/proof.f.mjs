@@ -2,7 +2,7 @@ import { bunPin, bunSteps } from './module.f.mjs'
 import { bun, bunSources } from '../config/module.f.js'
 import { nixDevelop, nixSystem } from '../nix/module.f.mjs'
 import { _migratedJobChecks, _runs } from '../nix/testlib.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 const runs = _runs(bunSteps)
 

@@ -224,7 +224,7 @@ type _RepeatAst<Min extends number, Max extends number, D extends Rule, I, O> =
 /**
  * A position a reader knows to be unmapped, typed by shape: the node `N`
  * the machine built there, or, as far as the type can say, a symbol.
- * `unmapped` in `./module.f.mjs` asserts the node.
+ * `unmapped` in `./module.f.js` asserts the node.
  *
  * A reader of a combinator's scaffolding — the pairs `join` builds and
  * hands to nobody — serves every grammar that uses the combinator, so it

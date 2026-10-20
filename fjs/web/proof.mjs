@@ -20,7 +20,7 @@ import process from 'node:process'
 import { lstat, open } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq } from '../asserts/module.f.js'
 import { isBun, loopback, within, withServer, withTemporary } from '../effects/node/testlib.mjs'
 import { respond } from './module.f.mjs'
 
