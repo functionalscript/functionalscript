@@ -22,6 +22,7 @@
 import { rust } from '../../ci/config/module.f.js'
 import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
+import { wasmPath } from '../../nanvm/demos/page/module.f.mjs'
 
 /**
  * The generated directory, beside `gen.nix/` at the repository root, where
@@ -36,6 +37,12 @@ export const generatedDirectory = 'gen.cloudflare'
 /** @type {string} */
 export const buildPath = `${generatedDirectory}/build.sh`
 
+/** The target the WASM demo pages' module is built for. @type {string} */
+export const wasmTarget = 'wasm32-unknown-unknown'
+
+/** Where `cargo build` writes that module. @type {string} */
+export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
+
 /**
  * The script's text.
  *
@@ -46,6 +53,13 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * the smallest profile that carries `cargo` and `rustdoc`, exactly the
  * pinned toolchain, and no edit to a shell profile nothing would read: the
  * script puts the new `cargo` on its own `PATH` instead.
+ *
+ * **Then the WASM demo pages' module**
+ * ([`todo/wasm-demos.md`](../../../todo/wasm-demos.md)): the `wasm32` target
+ * added to the toolchain just installed, `nanvm-demos` built for it, and
+ * `nanvm-demos-publish` copying the module out of `target/`, which the site
+ * does not serve, to where the page fetches it. Built here, and never
+ * committed, so nothing can go stale.
  *
  * **Then the site's bars, `cargo doc`, and the site** — the order
  * [`../README.md`](../README.md#the-rust-api-reference) gives.
@@ -59,8 +73,8 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * `set -e` makes the first failing step the script's result, so a build that
  * could not install does not go on to publish as if it had.
  *
- * The script calls external tools — `curl`, `rustup`'s installer, `npm` and
- * `cargo` —
+ * The script calls external tools — `curl`, `rustup`'s installer, `rustup`,
+ * `npm` and `cargo` —
  * which the repository owner approved for this one script
  * ([`AGENTS.md` §6](../../../AGENTS.md#6-external-tools)). Its proof pins the
  * text exactly, so no tool joins it unseen.
@@ -72,6 +86,9 @@ set -e
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$HOME/rustup-init.sh"
 sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-modify-path
 export PATH="$HOME/.cargo/bin:$PATH"
+rustup target add ${wasmTarget}
+cargo build -p nanvm-demos --release --target ${wasmTarget}
+cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath}
 npm run rustdoc-bars
 RUSTDOCFLAGS="--html-in-header $PWD/${rustdocHeadPath} --html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
 npm run website

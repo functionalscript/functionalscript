@@ -526,8 +526,13 @@ through the demo's own channel, which is what `never` obliges the demo to
 absorb — the bigint demo turns it into a row saying so, and its proof drives
 exactly that runner. A command *not* named is a malformed node and panics: a
 vocabulary and a handler map are two different things, which is why the
-runtime declares both. The first browser-only operation — a fetch, a file the
-reader picks — is where `fjs/effects/browser/` becomes necessary.
+runtime declares both.
+
+**The browser's own operations are [`effects/browser`](../effects/browser/types.ts)'s**:
+`fetchText`, a file from the site as text, and `instantiate`, a WebAssembly
+module from the site with how long loading it took. The WASM demo pages
+([`todo/wasm-demos.md`](../../todo/wasm-demos.md)) are the first demos to need
+them.
 
 **A page already shows its demo's first view.** The build imports each demo
 and writes `view(init)` into its section, so the demo appears with the page.

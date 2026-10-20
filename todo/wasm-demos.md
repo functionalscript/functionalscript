@@ -64,6 +64,29 @@ output:
   build writes them to, as module pages already load files from the served
   tree ([website/README.md](../fjs/website/README.md)).
 
+### Status
+
+The first page, [`fjs/nanvm/demos/hello`](../fjs/nanvm/demos/hello/), is
+built:
+
+- **The entry point** is the sample's `default` export, called with no
+  arguments, answering the effect the page performs. The JavaScript run
+  performs it in memory with `effects/mock`, keeping standard output; the
+  WASM run calls the sample's export in `nanvm-demos`, which performs it on
+  `nanvm-effects-node`'s host and keeps standard output for the page to read
+  back with `output_byte`.
+- **The page** is [`fjs/nanvm/demos/page`](../fjs/nanvm/demos/page/module.f.mjs),
+  a demo over two new browser operations,
+  [`effects/browser`](../fjs/effects/browser/types.ts)'s `fetchText` and
+  `instantiate`.
+- **The deployment build** adds the `wasm32-unknown-unknown` target, builds
+  `nanvm-demos`, and `nanvm-demos-publish` copies the module to
+  `nanvm/demos/_build/`, which git ignores and the site serves.
+- **Not yet:** the WAT (waiting on the disassembler's approval), the
+  JavaScript memory figure, and the sample's use of `log` and `utf8`, which
+  `fjs compile` cannot compile yet, so the sample builds its `write` command
+  by hand.
+
 ### Alternative
 
 [WASM demo pages with rustc in the browser](./wasm-demos-in-browser-rustc.md)
@@ -75,10 +98,6 @@ alternative.
 
 ### Open questions
 
-- **The entry point.** Generated Rust answers the module's export object and
-  invokes nothing. A sample needs an agreed entry, such as calling its
-  `default` export with the console effect, and the JavaScript run must call
-  the same one.
 - **What "second run" means.** This design reads it as the WASM run, which
   follows the JavaScript one. If it means a warm-up run before a measured one,
   the Run button runs each route twice and reports the second.
@@ -94,13 +113,15 @@ alternative.
 
 ### Tasks
 
-- [ ] Choose two or three samples that print to the console and that
-      `fjs compile … .rs` accepts today.
-- [ ] Settle the entry point, and add the demo crate with its wrapper, the
+- [x] Settle the entry point, and add the demo crate with its wrapper, the
       `npm run gen` step that writes the `.rs`, and the `build.sh` step that
-      builds the `.wasm` and WAT.
-- [ ] Build the demo page: source, disassembly, Run button and stats.
-- [ ] Add one page per sample and link them from the website.
+      builds the `.wasm`.
+- [x] Build the demo page: source, disassembly, Run button and stats, with
+      one sample, `hello`.
+- [ ] Print the WAT in the deployment build, once its tool is approved.
+- [ ] Report the JavaScript run's memory, where the browser measures it.
+- [ ] Choose two or three more samples that print to the console and that
+      `fjs compile … .rs` accepts today, and add one page each.
 
 ### Related
 

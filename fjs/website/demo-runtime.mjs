@@ -10,6 +10,7 @@
  *
  * @import { CommandSet, Commands } from '../effects/types.ts'
  * @import { Catch, RandomInt, Sandbox } from '../effects/common/types.ts'
+ * @import { BrowserOp } from '../effects/browser/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
  * @import { Element as HtmlElement } from '../media/html/types.ts'
  * @import { _FieldMemory as FieldMemory } from './private.ts'
@@ -18,6 +19,7 @@
 import { asyncPartialRun } from '../effects/module.mjs'
 import { commandsOf } from '../effects/module.f.mjs'
 import { commonOperationMap, randomIntOperationMap } from '../effects/common/module.mjs'
+import { browserOperationMap } from '../effects/browser/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
@@ -26,20 +28,21 @@ import { editOf } from './demo/mirror/module.f.mjs'
 /**
  * What a demo may ask this page for.
  *
- * **Host-neutral operations only, and all three are already written.**
- * `sandbox` runs a thunk and reports how long it took, `catch` reports whether
- * one threw, and `randomInt` answers 32 random bits — a browser has
- * `performance.now()`, a `try` and `crypto.getRandomValues` as surely as Node
- * does, which is why `effects/common` holds them rather than either host. A
- * demo that wants to measure something asks for `sandbox`; nothing in the page
- * knows what it is measuring.
+ * **Host-neutral operations, and the browser's own.** `sandbox` runs a thunk
+ * and reports how long it took, `catch` reports whether one threw, and
+ * `randomInt` answers 32 random bits — a browser has `performance.now()`, a
+ * `try` and `crypto.getRandomValues` as surely as Node does, which is why
+ * `effects/common` holds them rather than either host. A demo that wants to
+ * measure something asks for `sandbox`; nothing in the page knows what it is
+ * measuring. `fetchText` and `instantiate` are `effects/browser`'s: a file
+ * from the site, and a WebAssembly module from it, which the WASM demo pages
+ * load.
  *
  * **The list is what makes a refusal possible.** `partialMatch` recognises a
  * command against it before answering `notImplemented`, so a vocabulary and a
  * handler map are two different things: a command named here with no handler
  * declines, and one not named here is a malformed node. There is nothing in
- * the first category today, and the first browser-only operation — a fetch, a
- * file the reader picks — is where that gap opens.
+ * the first category today.
  *
  * Declared as a record because `CommandSet` is checked for *completeness*: a
  * command added to the vocabulary and forgotten here is a compile error, where
@@ -47,19 +50,19 @@ import { editOf } from './demo/mirror/module.f.mjs'
  * the runner tests membership against is derived from it, so the two cannot
  * disagree — the same shape `effects/node` uses for the same reason.
  *
- * @type {CommandSet<Sandbox | Catch | RandomInt>}
+ * @type {CommandSet<Sandbox | Catch | RandomInt | BrowserOp>}
  */
-const commandSet = { sandbox: null, catch: null, randomInt: null }
+const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: null, instantiate: null }
 
 /**
  * The commands of {@link commandSet}, in the form a partial runner tests
  * membership against.
  *
- * @type {Commands<Sandbox | Catch | RandomInt>}
+ * @type {Commands<Sandbox | Catch | RandomInt | BrowserOp>}
  */
 const commands = commandsOf(commandSet)
 
-const run = asyncPartialRun(commands)({ ...commonOperationMap, ...randomIntOperationMap })
+const run = asyncPartialRun(commands)({ ...commonOperationMap, ...randomIntOperationMap, ...browserOperationMap })
 
 /**
  * Says whether the page is waiting on this demo, and stops the reader asking

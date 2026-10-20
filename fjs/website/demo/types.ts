@@ -65,7 +65,9 @@ export type DemoEvent =
  *
  * **What a demo may name is what the runtime implements**, which is today
  * `sandbox`, `catch` and `randomInt` from
- * [`effects/common`](../../effects/common/types.ts) — host-neutral operations a browser has as surely as Node does. A demo that
+ * [`effects/common`](../../effects/common/types.ts) — host-neutral operations a browser has as surely as Node does —
+ * and `fetchText` and `instantiate` from
+ * [`effects/browser`](../../effects/browser/types.ts). A demo that
  * needs nothing declares `never` and returns `pureOk`, which is the same shape
  * with an empty vocabulary rather than a second kind of demo. An operation the
  * runtime does not implement answers `notImplemented` through the demo's own
