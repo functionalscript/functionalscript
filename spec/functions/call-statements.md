@@ -64,9 +64,14 @@ continue the statement before it where no `;` ends it — JavaScript reads
 as the tagged template `` f`x` ``, which the grammar refuses at its head —
 so the grammar could not tell them from a new statement with one symbol,
 and `(0, o.f)(x);`, `(f(x));` and `` `a`.trim(); `` are refused, never
-split into a statement JavaScript would not see; a prefix or another
-literal opens no call worth a statement. A reserved word, `var`, `for` or
-`else`, begins no statement either, and is refused at the word. The design
+split into a statement JavaScript would not see. A prefix opens an
+operator's result, refused as any is. A literal continues nothing before
+it, so a call on one, `"a".trim();`, has no such hazard; it is left out
+because no module calls a member of a constant for its failure, and
+whether to admit it is open
+([refused constructs](../todo/refused-constructs.md): `st.literal-call`).
+A reserved word, `var`, `for` or `else`, begins no statement either, and
+is refused at the word. The design
 first proposed admitting the two `(` spellings, and was amended for the
 reason above; the comma spells the detached call where a value stands,
 `const r = (0, o.f)(x);`.
