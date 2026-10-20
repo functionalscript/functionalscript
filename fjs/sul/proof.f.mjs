@@ -132,15 +132,20 @@ export const proof = {
                 assert(h.includes('<input type="text" id="bits" name="bits" value="0100100001101001">'), h)
                 assert(h.includes('16 input bits and 1 padding bits: L1 8, L2 3, L3 1 words.'), h)
             },
-            // Each row is its own level: in `Hi`'s first eight bits, L1's
-            // words `01 00 100 0…` switch colour three times, L2's `7 4 6`
-            // once, and L3's single word never, drawn in that order under
-            // names in the same order.
+            // Each row is its own level, and each unit draws its own bits of
+            // it. `Hi`'s L1 words are `01 00 100 00 11 01 00 1·1`, its L2
+            // words 7, 4 and 6 bits long, and its L3 word all 17: the first
+            // byte, the second, and the padding's one bit each show their
+            // part of every row, in that order, under names in the same order.
             rowsAreLevels: () => {
                 const h = htmlToString(demo.view({ ...demo.init, input: 'bits' }))
                 /** @type {(pixels: string) => string} */
                 const row = pixels => `<div data-sul-row="">${[...pixels].map(c => `<span data-sul-px="${c}"></span>`).join('')}</div>`
-                assert(h.includes(`${row('aabbaaab')}${row('aaaaaaab')}${row('aaaaaaaa')}</div>`), h)
+                /** @type {(l1: string, l2: string, l3: string) => string} */
+                const unit = (l1, l2, l3) => `${row(l1)}${row(l2)}${row(l3)}</div>`
+                assert(h.includes(unit('aabbaaab', 'aaaaaaab', 'aaaaaaaa')), h)
+                assert(h.includes(unit('baabbaab', 'bbbaaaaa', 'aaaaaaaa')), h)
+                assert(h.includes(unit('b', 'a', 'a')), h)
                 assert(h.includes(['bits', 'L1', 'L2', 'L3'].map(name => `<div data-sul-row="">${name}</div>`).join('')), h)
             },
             refused: () => {

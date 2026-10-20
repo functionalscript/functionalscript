@@ -18,6 +18,11 @@
  * in [`levels.md`](./level/literal/levels.md), whose words are `00`, `01`,
  * `100`, `101` and `11`.
  *
+ * **The demo is visual.** A word's ends are shown only by its stripe's
+ * colour: a screen reader reads the bits and the rows' names, not where the
+ * words end. Writing the words out as text was considered and left out, as
+ * the stripes are the demo's point.
+ *
  * **Input is limited to 256 bits**, so the stripes stay a size a page can
  * show; longer input is refused rather than cut short.
  *
