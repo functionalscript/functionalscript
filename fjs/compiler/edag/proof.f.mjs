@@ -759,7 +759,7 @@ export const proof = {
         expectEdag(compile('export default (-1).x;').edag, ['.', -1, 'x'])
         expectEdag(compile('export default -1 .x;').edag, ['-', ['.', 1, 'x']])
     },
-    // Stage A of `spec/todo/2340-operators.md`: arithmetic, strict
+    // Stage A of `spec/operators/README.md`: arithmetic, strict
     // comparison, and bitwise, each the EDAG's own `op2`/`op12`/`op1` shape
     // with both operands lowered and nothing folded — the binary `-`
     // included, told from the unary one the `group` block already covers
@@ -886,7 +886,7 @@ export const proof = {
     // throws at load whatever `a && c` later decides — where one eager path
     // in is enough to drop the anchor; and an unreached entry covers
     // another only where it reaches it eagerly. The worked examples of
-    // `spec/todo/2340-operators.md`'s subtraction rule, through the front
+    // the anchoring rule of `spec/operators/README.md`, through the front
     // end.
     lazyAnchored: () => {
         /** `c`'s node, `null.x`, and the array `[a && c, b && c]` over `a = 1`, `b = 2`. @type {Exp} */

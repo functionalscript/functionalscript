@@ -40,10 +40,12 @@ bind it as a `const`, parameter or import, and it has no standalone value:
 denote the conversion without resolving a scope, and keeps future namespace
 members from changing the meaning of existing bindings.
 
-Multiple arguments and spreads remain unrecognized and are refused at the
-word (`String takes one argument`): JavaScript evaluates all arguments before
-converting the first, while a one-operand node cannot express those call
-shapes. The guarded call `String?.(x)` is also refused (`reserved word`).
+The conversion is an operator, not a function
+([operators and functions](../principles/README.md#operators-and-functions)),
+so `String()` and `String(x)` are all the call shapes it has: multiple
+arguments and spreads are refused by design at the word
+(`String takes one argument`). So is the guarded call `String?.(x)`, at the
+word (`reserved word`), as `Number?.(x)` is ([number conversion](number.md)).
 A property key computed at run time still requires `Number(...)`
 ([property access](../property-access/README.md)); `a[String(x)]` is refused as every
 other unrecognized computed key is.
