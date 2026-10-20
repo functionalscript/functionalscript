@@ -38,11 +38,13 @@ the module around them, `extraValidate = always` and
 of [`fjs/website/demo/code`](../../fjs/website/demo/code/module.f.js)'s
 `codeBlock`, a leaf of the
 [migration](../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point)
-converted once parameter defaults landed, and `msg = 'assertion failed'` in
-[`fjs/asserts`](../../fjs/asserts/module.f.js)'s `assert` is one of the
-two constructs that keep every proof `proof.f.mjs`
-([`fjs/compiler`](../../fjs/compiler/README.md)), the bare `if` being the
-other.
+converted once parameter defaults landed. `msg = 'assertion failed'` in
+[`fjs/asserts`](../../fjs/asserts/module.f.js)'s `assert` compiles too, and
+the module is an `.f.js` since its bare `if` was braced and its call
+statements rewritten through the comma
+([CONVERTING.md rule 10](../../doc/CONVERTING.md#10-a-call-made-for-its-failure));
+what keeps a proof `proof.f.mjs` now is the proof's own assertion calls,
+written as statements ([`fjs/compiler`](../../fjs/compiler/README.md)).
 
 ### Proposal
 
