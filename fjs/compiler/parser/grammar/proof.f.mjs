@@ -604,7 +604,7 @@ export const proof = {
         assertStructurallySame(read('const o = {}; export default o?.(,);'), ['error', ','])
         assertStructurallySame(read('const o = {}; export default o?.b?.;'), ['error', ';'])
     },
-    // Stage B of `spec/todo/2340-operators.md`: the lazy operators and the
+    // Stage B of `spec/operators/README.md`: the lazy operators and the
     // conditional, above the eager ladder. `&&` and `||` chain as in
     // JavaScript, `??` chains with itself alone, and `?:` takes whole
     // values for its arms. The shape refuses what JavaScript's grammar

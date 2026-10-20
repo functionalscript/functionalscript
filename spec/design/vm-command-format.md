@@ -30,7 +30,7 @@ only on previous commands.
 |      |instance_property       |          |[property-accessor](../todo/2330-property-accessor.md)|
 |      |instance_method_call    |          |[property-accessor](../todo/2330-property-accessor.md)|
 |      |at                      |          |[property-accessor](../todo/2330-property-accessor.md)|
-|      |operators               |          |[operators](../todo/2340-operators.md)                |
+|      |operators               |          |[operators](../operators/README.md)                   |
 
 ## FJS commands
 
