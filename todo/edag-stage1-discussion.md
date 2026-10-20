@@ -101,8 +101,9 @@ guards, A4) are merged into the graph by the **`","` operation**:
   from the control-flow branches of `"?:"` (subject 3).
 - **The original Stage 1 shipped without `","`**: its body was a plain
   node. The compiler now emits comma nodes for anchored computations,
-  without changing the body's shape; authored comma expressions remain
-  outside the current source grammar.
+  without changing the body's shape, and an authored comma, written in
+  parentheses, lowers to those same anchors
+  ([comma](../spec/operators/comma.md)).
 
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
@@ -274,7 +275,8 @@ anchors, fixed/rest functions, captures and `self`. The
 [Memo proofs](../fjs/edag/memo/proof.f.mjs) and
 [Amnesia proofs](../fjs/edag/amnesia/proof.f.mjs) cover these paths. The current
 [node inventory](../fjs/edag/README.md#nodes) is the schema reference; source
-limits still apply, including no unary `+` or authored comma expressions.
+limits still apply, including no unary `+`; an authored comma is admitted in
+parentheses ([comma](../spec/operators/comma.md)).
 
 |Form|JS|Rollout history|Notes|
 |----|--|-----|-----|
@@ -294,7 +296,7 @@ limits still apply, including no unary `+` or authored comma expressions.
 |`["entry"]`|the `entry` helper|entry rollout|implemented helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/property-access/entries.md))|
 |`["Number", node]`|`Number(x)`|later|implemented numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|implemented string coercion|
-|`[",", nodes]`|`(a, b)`|later|implemented sequence node (subject 8); `nodes` is one array operand, taking the last value or `undefined` when empty; the partial source writer refuses fewer than two operands; emitted for anchors and inlined blocks, while authored comma expressions remain unparsed|
+|`[",", nodes]`|`(a, b)`|later|implemented sequence node (subject 8); `nodes` is one array operand, taking the last value or `undefined` when empty; the partial source writer refuses fewer than two operands; emitted for anchors, inlined blocks and an authored comma's discarded operands, which a comma written in parentheses anchors there ([comma](../spec/operators/comma.md))|
 |`["=>", length, slots, body]`|`(…) => …`|2|implemented function and captures; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]`; the initial Stage 2 used a placeholder before captures landed ([functions](../spec/functions/README.md))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. The original

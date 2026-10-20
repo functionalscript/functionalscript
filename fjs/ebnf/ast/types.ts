@@ -238,7 +238,7 @@ type _RepeatAst<Min extends number, Max extends number, D extends Rule, I, O> =
 export type Unmapped<N> = Meta<unknown> | N
 
 /**
- * The node `join` in `../module.f.js` produces, over the item node `T`:
+ * The node `join` in `../module.f.mjs` produces, over the item node `T`:
  * empty, or the first item beside the separator-item pairs. `joined` reads
  * the items back out of it.
  */
