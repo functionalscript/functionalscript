@@ -97,6 +97,13 @@ export type Demo<State, Event, O extends Operation = never> = {
      * on these turns. Queued reader input cancels a scheduled turn.
      */
     readonly nextEvent?: ((state: State) => Event | null) | undefined
+    /**
+     * How many milliseconds to wait before running the event `nextEvent`
+     * asks for, so a demo can hold a state on screen — a step of an
+     * animation — before the next. None, or `0`, runs it on the next turn.
+     * A reader's event still cancels the wait.
+     */
+    readonly nextDelay?: ((state: State) => number) | undefined
 }
 
 /**

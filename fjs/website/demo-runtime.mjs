@@ -400,8 +400,9 @@ const fail = (root, cause) => {
  * input it cares about.
  *
  * `nextEvent` requests one automatic event on a later turn after the latest
- * state renders. Reader events cancel the scheduled turn, and automatic
- * updates keep controls available so a Stop button can interrupt the work.
+ * state renders, `nextDelay` milliseconds later if the demo says. Reader
+ * events cancel the scheduled turn, and automatic updates keep controls
+ * available so a Stop button can interrupt the work.
  *
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => (event: DemoEvent) => void}
  */
@@ -439,7 +440,10 @@ const stepper = (root, demo) => {
                     render(root, demo.view(state))
                     const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
                     incremental = next !== null
-                    if (next !== null) { scheduled = setTimeout(() => step(next, true), 0) }
+                    if (next !== null) {
+                        const delay = demo.nextDelay === undefined ? 0 : demo.nextDelay(state)
+                        scheduled = setTimeout(() => step(next, true), delay)
+                    }
                 }
             } catch (cause) {
                 incremental = false

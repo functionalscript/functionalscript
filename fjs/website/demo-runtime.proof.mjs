@@ -588,6 +588,45 @@ export const demo = {
         await settle()
         assertEq(d.rendered.length, rendered)
     },
+    /**
+     * **`nextDelay` holds a state on screen.** The automatic event waits
+     * that long: a turn later it has not run, and once the delay is over it
+     * has. A reader's event in between cancels it, as it cancels any
+     * scheduled turn.
+     */
+    delayedEvents: async () => {
+        const source = moduleUrl(`
+export const demo = {
+    init: 'still',
+    nextEvent: state => state === 'held' ? { kind: 'click', name: 'later' } : null,
+    nextDelay: () => 50,
+    update: state => event => () => ['ok', event.kind === 'click' ? (event.name === 'hold' ? 'held' : event.name) : state],
+    view: state => ['div', ['button', { type: 'button', name: 'hold' }, 'Hold'], ['button', { type: 'button', name: 'other' }, 'Other'], ['pre', state]],
+}
+`)
+        /** @type {(ms: number) => Promise<void>} */
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+        const d = dom(source)
+        await startDemo(d.root)
+        await settle()
+        d.click('hold')
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>held</pre>'), d.root.innerHTML)
+        await sleep(80)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>later</pre>'), d.root.innerHTML)
+        // A reader's click during the wait cancels the automatic event.
+        const e = dom(source)
+        await startDemo(e.root)
+        await settle()
+        e.click('hold')
+        await settle()
+        e.click('other')
+        await settle()
+        await sleep(80)
+        await settle()
+        assert(e.root.innerHTML.includes('<pre>other</pre>'), e.root.innerHTML)
+    },
     automaticInputKeepsControls: async () => {
         const d = dom(incremental(20))
         await startDemo(d.root)
