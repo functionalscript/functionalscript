@@ -48,7 +48,7 @@ import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapSte
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { ancestors, parent, under } from '../../../path/module.f.mjs'
-import { length, maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, u8ListToVecChunksMsb, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { solidus as slash } from '../../../text/ascii/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
@@ -661,12 +661,7 @@ const within = (dir, text, e) => {
  *
  * @type {(bytes: readonly number[]) => readonly Vec[]}
  */
-const chunked = bytes => {
-    const size = Number(maxLengthBytes)
-    return Array.from(
-        { length: Math.ceil(bytes.length / size) },
-        (_, i) => u8ListToVecMsb(bytes.slice(i * size, (i + 1) * size)))
-}
+const chunked = bytes => toArray(u8ListToVecChunksMsb(Number(maxLengthBytes))(bytes))
 
 /**
  * What taking the name out of `packed-refs` comes to: a refusal, `false` where

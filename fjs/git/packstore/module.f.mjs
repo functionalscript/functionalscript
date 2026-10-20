@@ -22,10 +22,9 @@
  * Opening an index is not cheap: it is read whole and its trailing checksum is
  * hashed, and its ids are built as it is read. That is what makes a packed read
  * cost more than a loose one here where it costs less in Git, which keeps its
- * indexes mapped; the two halves of it are
- * [`packidx`'s lazy-index-ids.md](../packidx/todo/lazy-index-ids.md) and
- * [`oid`'s chunk-gathering.md](../oid/todo/chunk-gathering.md), and neither is a
- * question about what a read *answers*.
+ * indexes mapped; what remains of it is
+ * [`packidx`'s lazy-index-ids.md](../packidx/todo/lazy-index-ids.md), and that
+ * is not a question about what a read *answers*.
  *
  * **An entry is read up to where the index says the next begins, and the
  * inflater finds where its stream ends.** A pack entry carries no length: its

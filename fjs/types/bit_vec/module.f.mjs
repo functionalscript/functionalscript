@@ -31,7 +31,7 @@
 
 import { bitLength, divUp, mask, maxLength, roundUp8, xor } from '../bigint/module.f.mjs'
 import { compose, flip, identity } from '../function/module.f.js'
-import { map } from '../list/module.f.mjs'
+import { map, next } from '../list/module.f.mjs'
 import { isByte } from '../number/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
 import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
@@ -522,6 +522,56 @@ export const tryU8ListToVecMsb = tryU8ListToVec(msb)
  * @type {(list: List<number>) => Vec}
  */
 export const u8ListToVecMsb = mapUnwrap(tryU8ListToVecMsb)
+
+/**
+ * A byte list as the `Vec`s it takes to hold it, `chunkBytes` at a time and
+ * the last one shorter, made as a consumer asks for them: one chunk is held
+ * at a time and never the whole list as an array, so a list longer than an
+ * array would hold is cut all the same. No bytes, no chunks.
+ *
+ * A `Vec` holds at most {@link maxLengthBytes}, so a byte sequence that may
+ * be longer is hashed or written as a list of these. {@link u8ListToVecMsb}
+ * is one chunk.
+ *
+ * Every byte is walked once, and a chunk stops where the list ends. The tail
+ * the gathering reached is what the next chunk starts from, not the list with
+ * a count dropped from its front: a dropped list walks the bytes it drops, and
+ * a chunk over a list dropped over a list would walk every byte before it,
+ * once per chunk, which is quadratic in the list.
+ *
+ * A chunk is gathered in reverse, last byte first, onto a list that is never
+ * reversed: the last byte is the least significant in the most significant
+ * byte first order, so the reversed list read least significant first is the
+ * same `Vec`.
+ *
+ * @throws If `chunkBytes` is not a whole number from 1 to {@link maxLengthBytes};
+ * and when a chunk is read, if one of its items is not a byte.
+ *
+ * @type {(chunkBytes: number) => (list: List<number>) => List<Vec>}
+ */
+export const u8ListToVecChunksMsb = chunkBytes => {
+    assert(
+        Number.isInteger(chunkBytes) && chunkBytes >= 1 && chunkBytes <= Number(maxLengthBytes),
+        ['not a chunk length', chunkBytes])
+    /** @type {(list: List<number>) => List<Vec>} */
+    const chunks = list => () => {
+        let rest = list
+        let taken = 0
+        /** @type {List<number>} */
+        let gathered = null
+        while (taken < chunkBytes) {
+            const r = next(rest)
+            if (r === null) { break }
+            gathered = { first: r.first, tail: gathered }
+            rest = r.tail
+            taken += 1
+        }
+        return taken === 0
+            ? null
+            : { first: u8ListToVec(lsb)(gathered), tail: chunks(rest) }
+    }
+    return chunks
+}
 
 /** @type {({ unpackSplit }: BitOrder) => (n: bigint) => (u: Unpacked) => Thunk<Unpacked>} */
 const unpackChunkList = ({ unpackSplit }) => n => {
