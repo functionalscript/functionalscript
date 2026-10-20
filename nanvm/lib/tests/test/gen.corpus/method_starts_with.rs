@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("prefix", Any::dot(string_any("abc"), string_any("startsWith")).end_call(&rt, || Ok([string_any("ab")].to_array().to_any())), true.to_any());

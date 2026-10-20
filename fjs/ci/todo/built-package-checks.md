@@ -153,9 +153,10 @@ commit, different working directories.
   deleted: the package-name special case it was filed to replace is gone from
   the generator. If a package ever needs its own post-install check, it belongs
   to the checks this issue adds.
-- [66H-ci-npm-global-install](66h-ci-npm-global-install.md) — a factory for the
+- `npmGlobalInstall` (`../common/module.f.mjs`) — the factory for the
   `npm install -g` step shape; `fjsGlobalInstall` is one of its two call sites,
-  so this issue either removes the case for it or concentrates it
+  so removing the registry install here leaves it a single consumer, the
+  publish job's TypeScript install
 - [package-check-unsupported-package-shapes](package-check-unsupported-package-shapes.md)
   — the sibling issue about what the packed-package check can and cannot see
 - [ci-integration-tests](ci-integration-tests.md) — its integration stage also

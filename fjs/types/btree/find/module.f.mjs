@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { TNode } from '../types/types.ts'
+ * @import { TNode, Tree } from '../types/types.ts'
  * @import { Compare } from '../../function/compare/types.ts'
  * @import { First, Path, PathItem, Result } from './types.ts'
  */
@@ -67,4 +67,25 @@ export const value = ([i, r]) => {
             return null
         }
     }
+}
+
+/**
+ * The stored value `c` matches in a possibly empty tree, or `null` when there
+ * is none.
+ *
+ * @type {<T>(c: Compare<T>) => (tree: Tree<T>) => T | null}
+ */
+export const findValue = c => {
+    const f = find(c)
+    return tree => tree === null ? null : value(f(tree).first)
+}
+
+/**
+ * Whether a possibly empty tree holds a value `c` matches.
+ *
+ * @type {<T>(c: Compare<T>) => (tree: Tree<T>) => boolean}
+ */
+export const contains = c => {
+    const f = find(c)
+    return tree => tree !== null && isFound(f(tree).first)
 }

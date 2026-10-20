@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check_throws::<A>("unreachedCondition", scope(|| {
         let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;

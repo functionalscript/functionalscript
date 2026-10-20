@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check_throws::<A>("number", Err(f64_any(0x3ff0000000000000)));
     check_throws::<A>("string", Err(string_any("a")));

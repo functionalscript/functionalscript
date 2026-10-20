@@ -2,7 +2,6 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
     check::<A>("nullCoalesceOne", Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
     check::<A>("undefinedCoalesceOne", Any::nullish_coalescing(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));

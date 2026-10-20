@@ -47,7 +47,7 @@
  */
 
 import { entry as objectEntry } from '../../types/object/entry/module.f.js'
-import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.mjs'
+import { charIs, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 
 /** The value Git gives a key written without one. */
@@ -57,17 +57,17 @@ const bareValue = /** @type {const} */ ('true')
 const bom = /** @type {const} */ ('\uFEFF')
 
 /** @type {(c: string) => boolean} */
-const isAlpha = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+const isAlpha = charIs(isLatinLetter)
 
 /** @type {(c: string) => boolean} */
-const isDigit = c => c >= '0' && c <= '9'
+const isDigitChar = charIs(isDigit)
 
 /**
  * What Git calls a key character: what a name is made of.
  *
  * @type {(c: string) => boolean}
  */
-const isKeyChar = c => isAlpha(c) || isDigit(c) || c === '-'
+const isKeyChar = c => isAlpha(c) || isDigitChar(c) || c === '-'
 
 /**
  * The whitespace Git's parser skips between a key and its `=`, and nothing

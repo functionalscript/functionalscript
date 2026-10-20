@@ -8,14 +8,17 @@
  * deliberately says nothing about dates, maps, sets, typed arrays, prototypes,
  * or property descriptors; see the README for what it does *not* promise.
  *
- * This module is a leaf on purpose. `fjs/asserts` needs the comparison for
- * `assertStructurallySame`, and the public object module (`../module.f.mjs`)
- * reaches `fjs/asserts` through `types/nullable`, so importing it here
- * would close the cycle `asserts -> object -> nullable -> asserts`. It
- * imports nothing: SameValue is the built-in `Object.is`.
+ * This module stays below `fjs/asserts` on purpose. `fjs/asserts` needs the
+ * comparison for `assertStructurallySame`, and the public object module
+ * (`../module.f.mjs`) reaches `fjs/asserts` through `types/nullable`, so
+ * importing it here would close the cycle
+ * `asserts -> object -> nullable -> asserts`. Its one import is
+ * `../entry`, which imports nothing; SameValue is the built-in `Object.is`.
  *
  * @module
  */
+
+import { entry, hasEntry } from '../entry/module.f.js'
 
 const { entries } = Object
 
@@ -52,8 +55,6 @@ export const structurallySame = (a, b) => {
     }
     if (b instanceof Array) { return false }
     const ae = entries(a)
-    /** @type {ReadonlyMap<string, unknown>} */
-    const bm = new Map(entries(b))
-    return ae.length === bm.size
-        && ae.every(([k, v]) => bm.has(k) && structurallySame(v, bm.get(k)))
+    return ae.length === entries(b).length
+        && ae.every(([k, v]) => hasEntry(b, k) && structurallySame(v, entry(b, k)))
 }

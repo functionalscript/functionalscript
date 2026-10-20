@@ -12,6 +12,7 @@ import {
     solidus, tilde,
 } from '../ascii/module.f.mjs'
 import { fromU8List, stringToU8List } from '../utf8/module.f.mjs'
+import { codeUnitToString } from '../utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
 
@@ -66,7 +67,7 @@ const isPathByte = b =>
 
 /** `b` as it reads in a URL path: itself, or its escape. @type {(b: number) => string} */
 const pathByte = b =>
-    isPathByte(b) ? String.fromCharCode(b) : `%${b.toString(16).toUpperCase().padStart(2, '0')}`
+    isPathByte(b) ? codeUnitToString(b) : `%${b.toString(16).toUpperCase().padStart(2, '0')}`
 
 /** Every UTF-8 byte of `s` as it reads in a URL path. @type {(s: string) => string} */
 const encodeLiteral = s => utf8Bytes(s).map(pathByte).join('')

@@ -5,35 +5,35 @@
 
 ### Problem
 
-Nothing in the repository owns the step between a list of bytes and its hex
-spelling, so each module that needs it writes its own:
+The codec is [`fjs/basen/base16`](../base16/module.f.mjs): `encode` and
+`encodeCodePoints` spell a byte list in lowercase, and `decode` (either
+case), `decodeCodePoints` (either case, over code points) and `decodeLower`
+(lowercase only) read a continuous run of pairs back, or refuse it. A
+separator, a prefix or a width stays the caller's grammar, checked around the
+codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
+`hexBytes`, `fjs/git/refstore/name`'s `nameForMessage` and
+`fjs/media/datajs/vectors`'s `bytes` are on it. These still spell their own:
 
-- [`fjs/git/oid`](../../git/oid/module.f.mjs) — `tryFromHex` pairs digits
-  with `h * 16 + …`, either case; `toHex` and `hexText` spell an id back in
-  lowercase.
-- [`fjs/media/datajs/vectors`](../../media/datajs/vectors/module.f.mjs) —
-  `bytes` reads lowercase pairs separated by single spaces.
-- [`fjs/git/testlib.f.mjs`](../../git/testlib.f.mjs) — `hexBytes` reads a
-  continuous string, either case.
 - [`fjs/text/percent`](../../text/percent/module.f.mjs) — `escapeByte` reads
-  the two digits after a `%`.
-- [`fjs/git/refstore/name`](../../git/refstore/name/module.f.mjs) — `nameForMessage`
-  spells a name's bytes with `toString(16).padStart(2, '0')`.
+  the two digits after a `%`, at the front of a longer part; one byte, which
+  is closer to the fixed-width scalar below than to a byte list.
 - [`fjs/types/uint8array`](../../types/uint8array/module.f.mjs) —
   `hexOfByte` and `hexOf` spell bytes in lowercase, and `fromVec` reads a
   pair back with ``Number(`0x…`)``; it works a bigint at a time for a
-  reason its doc gives, which the codec's design must respect.
+  reason its doc gives, which the codec's byte lists do not respect, so it
+  is not moved.
 - [`fjs/website`](../../website/module.f.mjs) — `commitOf` turns the
   environment's string into code units and screens out anything above `0x7f`
-  by hand, because the only hex reader it can reach takes bytes. It spells
-  the id back with `fjs/git/oid`'s `hexText`.
+  by hand, because `fjs/git/oid`'s reader takes bytes; the codec's `decode`
+  takes the string and refuses a wide unit itself, but the width check is
+  `oid`'s `tryFromHexOf`. It spells the id back with `oid`'s `hexText`.
 
 The list holds modules and test libraries, not proof files. Several
 `proof.f.mjs` under `fjs/git` spell the same conversion at their
 assertion sites, `refstore`'s many times over, and `oid`'s spells it as
 `String.fromCharCode(...toArray(toHex(id)))`; those are fixtures, not consumers with an API of
-their own, and once the codec exists each proof can call it where it
-helps, in the same PR or any later one, with nothing to declare.
+their own, and each proof can call the codec where it helps, in any later
+PR, with nothing to declare.
 
 A run of hex digits read as one number has the same shape one level down,
 and it is solved:
@@ -65,10 +65,16 @@ lower case as each one chose.
 One codec, exported where every consumer above can import it: bytes to
 lowercase hex, and hex to bytes or a refusal. The consumers differ in what
 they accept — either case or lowercase only, pairs run together or separated
-by spaces, bytes or a string as input — and which of those the codec offers,
-and which stay with the consumer, is the design question. `baseN` in
+by spaces, bytes or a string as input. `fjs/basen/base16` offers both cases
+and both inputs, and leaves separators to the consumer, as `vectors` checks
+its spaces before `decodeLower`. `baseN` in
 [`../module.f.mjs`](../module.f.mjs) is `Vec`-shaped and pads by the bit, so
 it is a neighbour here rather than the answer.
+
+What remains for the consumers above: `website`'s `commitOf` could read the
+environment's string with `decode` once `fjs/git/oid` offers a width check
+over bytes already read, and `uint8array` needs a reason to give up its
+bigint-at-a-time spelling, or a codec entry over a whole `Vec` that keeps it.
 
 For digit runs, `hexDigitsValue` in `text/ascii` is the hexadecimal
 reader: digit code points to `bigint` or `null`. `digitsValue` keeps its
@@ -80,9 +86,14 @@ unit, surrogates included.
 
 ### Tasks
 
-- [ ] Decide the codec's home and which spellings it accepts.
-- [ ] Implement it with a proof at 100%, and move every byte-list
-      consumer listed above onto it, `fjs/types/uint8array` included.
+- [x] Decide the codec's home and which spellings it accepts:
+      `fjs/basen/base16`, lowercase out, either case or lowercase only in,
+      no separators.
+- [x] Implement it with a proof at 100%, and move `git/oid`,
+      `git/testlib.f.mjs`, `git/refstore/name` and `media/datajs/vectors`
+      onto it.
+- [ ] Move the consumers still listed above onto it, or record why each
+      stays, `fjs/types/uint8array` included.
 - [x] The radix-16 digit-run reader: `hexDigitsValue` in `text/ascii`,
       landed by [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
       with the `vdf` demo on it.

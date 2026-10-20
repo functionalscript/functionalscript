@@ -25,7 +25,7 @@
  */
 
 import { empty as btEmpty, values as btValues } from '../btree/module.f.mjs'
-import { find, isFound } from '../btree/find/module.f.mjs'
+import { contains as btreeContains } from '../btree/find/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { set as btreeSet } from '../btree/set/module.f.mjs'
 import { cmp } from "../string/module.f.mjs"
@@ -38,11 +38,7 @@ export const values = btValues
 export const empty = btEmpty
 
 /** @type {(value: string) => (set: StringSet) => boolean} */
-export const contains =
-    value => {
-        const f = find(cmp(value))
-        return s => s !== null && isFound(f(s).first)
-    }
+export const contains = compose(cmp)(btreeContains)
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
 export const set = value => btreeSet(cmp(value))(() => value)
