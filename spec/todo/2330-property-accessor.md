@@ -29,7 +29,7 @@ reinterpret. `hasEntry` answers presence beside it
 What this file still owns is `a[+i]`, beside the numeric index
 `a[Number(i)]` that is in the language, where the program knows no `bigint`
 reaches the index — but unary `+` is outside the language:
-[operators](../operators/README.md) leaves it on the other side of the line, and
+[operators](./2340-operators.md) leaves it on the other side of the line, and
 no record plans it ([refused constructs](./refused-constructs.md)). Where a program knows its
 index to be a number, `a[Number(i)]` is the spelling to write, `entry`
 being the read for a key of any type.

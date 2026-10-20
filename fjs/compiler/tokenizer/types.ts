@@ -29,7 +29,7 @@ import type {
  * is written with them, `-` because it is a prefix operator, read by the
  * grammar rather than folded into the literal after it, and the rest —
  * `+ * / % **`, `=== !== > >= < <=`, `& | ^ ~ << >> >>>` — Stage A of
- * [`spec/operators/README.md`](../../../spec/operators/README.md):
+ * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
  * every one of them arithmetic, strict comparison, or bitwise, each already
  * a kind of its own on `JsToken`, so this layer only has to admit it —
  * and `&& || ??` with `?`, the lazy operators and the conditional's own
