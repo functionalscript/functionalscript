@@ -109,6 +109,16 @@ Operational diagnostics may report a cause, but cannot become program values
 that distinguish failures. Syntax rejection remains a compiler property:
 accepting invalid JavaScript is not excused by failure equivalence.
 
+```js
+const a = null.x;
+const b = undefined.y;
+export default [b, a];
+```
+
+A graph traversal may encounter `b`'s failure first, where JavaScript
+encounters `a`'s: both are the one failure outcome, and no source-order
+barrier is needed to keep the first.
+
 This deliberately allows reordering failing EDAG computations to fail earlier.
 Do not impose source-order barriers, identical evaluation counts or identical
 resource thresholds merely to preserve failure behavior. Preserve successful
@@ -138,7 +148,9 @@ conversions `Number(x)` and `String(x)`. It is no value, so the compiler sees
 every use, and each use takes **a fixed set of operands**, checked at compile
 time; any other set is a compilation error. `Number` takes none or one,
 `Number()` being `0`, so `Number(a, b)` and `Number(...a)` are refused by
-design (`Number takes one argument`), and so are `String`'s.
+design (`Number takes one argument`), and so are `String`'s. Nor is an
+operator guarded: `Number?.(x)` asks whether `Number` is nullish, a question
+about a value, and is refused by design (`reserved word`).
 
 **A word naming a JavaScript object with members of its own is never a
 value.** `Number`, `String` and `Object` are such words: in JavaScript each is
