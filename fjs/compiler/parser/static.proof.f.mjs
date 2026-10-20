@@ -2,8 +2,9 @@
  * The proof of the parser's reading of the static functions the language
  * admits, `Object.is`, `Object.entries` and the four `Number` predicates
  * ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)):
- * each a value, the AST's `['Object.is']`, in every spelling JavaScript
- * reads it in, and each namespace refused everywhere else. It reads the
+ * each a value, the AST's `['Object.is']`, in either key spelling of the
+ * unguarded read, and each namespace refused everywhere else, a guard on
+ * it included. It reads the
  * parser as `./proof.f.mjs` does, through the helpers it exports.
  *
  * No `@module`: a proof's documentation reaches no reader of the published

@@ -134,7 +134,13 @@ simplification of the VM, subject to these requirements.
 ## Operators and functions
 
 **A built-in is a function or an operator, and only an operator's arguments
-are counted at compile time.**
+are counted at compile time.** That is the rule for the built-ins a module
+names by a word — a global word or a namespace's member. A member function
+of a receiver, `[1].slice(1)` or `"a".trim()`, is the third kind: a call on
+a value's prototype, which is no value of the language, since its read
+alone is refused ([property access](../property-access/README.md)), and
+whose call takes its arguments as a function's does, unchecked at compile
+time ([member functions](../built-ins/member-functions.md)).
 
 A **function** is a value: `Object.is`, `Number.isSafeInteger`, the
 [`entry` helper](../property-access/entries.md), any arrow. A value can be

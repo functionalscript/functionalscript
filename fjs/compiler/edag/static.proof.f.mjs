@@ -2,7 +2,8 @@
  * The proof of the lowering of the built-ins a module reaches as values:
  * the helpers `entry` and `hasEntry` and the intrinsics, each the EDAG's
  * own node by its name, and the static functions, `['Object.is']`, read
- * in every spelling and run under a runtime whose `static` answers them.
+ * in either key spelling and run under a runtime whose `static` answers
+ * them.
  * It reads the compiler as `./proof.f.mjs` does, through the helpers it
  * exports; split from it as the parser's proofs are, since that file
  * reached the size the website's build reads a file up to.
