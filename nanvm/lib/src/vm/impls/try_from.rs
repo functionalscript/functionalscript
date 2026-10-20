@@ -1,3 +1,7 @@
+//! One `TryFrom<Any<A>> for X` per payload type, the inverse of each
+//! `From<X> for Unpacked<A>` in `from.rs`; why both stay hand-written is
+//! there.
+
 use crate::{
     common::sized_index::SizedIndex,
     vm::{

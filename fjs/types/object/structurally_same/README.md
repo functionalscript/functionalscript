@@ -10,10 +10,12 @@ homes cannot both be the implementation: the object module imports
 the object module would close the runtime cycle
 `asserts -> object -> nullable -> asserts`.
 
-So the implementation lives here, in a leaf that imports **nothing**, and the
-two consumers reach it from opposite directions — `fjs/asserts` imports it
-directly, and `fjs/types/object` re-exports it as part of its public API. Adding
-any import to this module re-opens the cycle; keep it a leaf.
+So the implementation lives here, below both, and the two consumers reach it
+from opposite directions — `fjs/asserts` imports it directly, and
+`fjs/types/object` re-exports it as part of its public API. Its one import is
+[`../entry`](../entry/module.f.js), which reads an own entry and imports
+nothing. An import that reaches `fjs/asserts`, directly or through another
+module, re-opens the cycle; keep every import below it.
 
 ## What it compares, and what it does not
 
