@@ -208,7 +208,7 @@ information — see [serialization](../design/serialization.md) and
    the designer approval remain open.
 5. [ ] [call statements](./3450-call-statements.md) — `assert(a);`, a call
    evaluated for its failure, lowered as an unused `const` to the `,`
-   anchor; no new EDAG node. Approval pending.
+   anchor; no new EDAG node. Approved; implementation pending.
 
 ### 3.5. Priority 4
 
