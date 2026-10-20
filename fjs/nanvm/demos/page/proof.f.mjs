@@ -10,7 +10,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Sample, State } from './types.ts'
+ * @import { Runs, Sample, State } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -18,7 +18,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, init, jsOutput, load, milliseconds, runBoth, runJs, runWasm, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
+import { buildDirectory, decode, init, jsOutput, load, milliseconds, ratio, runBoth, runJs, runWasm, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
 
 /** @type {(text: string) => Sample['program']} */
 const writes = text => () => ({
@@ -157,6 +157,14 @@ export const proof = {
         assertStructurallySame(failed.runs?.wasm, error('gone'))
     },
     milliseconds: () => assertEq(milliseconds(1.54), '1.5 ms'),
+    ratio: () => {
+        /** @type {(js: number, wasm: number) => Runs} */
+        const runs = (js, wasm) => ({ js: ok({ output: ok(''), time: js }), wasm: ok({ run: { output: ok(''), time: wasm }, memory: 0 }) })
+        assertEq(ratio(runs(4, 10)), '2.5×')
+        // A JavaScript time the clock reads as `0`, and a run that failed.
+        assertEq(ratio(runs(0, 10)), 'Not available')
+        assertEq(ratio({ ...runs(4, 10), wasm: error('no wasm') }), 'Not available')
+    },
     view: () => {
         // Before loading: no startup and no runs.
         const first = text(view('hi')(init))
@@ -170,6 +178,7 @@ export const proof = {
         assert(shown.includes('Running time: 1.0 ms'))
         assert(shown.includes('Linear memory after the run: 65536 bytes'))
         assert(shown.includes('Memory: Not available'))
+        assert(shown.includes('WebAssembly running time, as a multiple of the JavaScript one: 1.0×'))
         assert(shown.includes('pub fn module() {}'))
         const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0 }), wasm: ok({ run: { output: error('the sample threw'), time: 0 }, memory: 0 }) } }))
         assert(empty.includes('(empty)'))

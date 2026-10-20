@@ -27,7 +27,7 @@ import { rustDirectory, rustPath, samplePath } from './page/module.f.mjs'
 export { rustPath, samplePath }
 
 /** The samples, by the name of the directory beside this module that holds each. */
-export const samples = ['hello']
+export const samples = ['hello', 'sort']
 
 /** The module file naming every compiled sample, which `src/lib.rs` includes by path. */
 export const modulesPath = `${rustDirectory}/mod.rs`

@@ -77,7 +77,10 @@ const root = {
     'nanvm': { 'harness': { 'fixtures': {} } },
     'fjs': {
         'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } },
-        'nanvm': { 'demos': { 'hello': { 'sample.f.mjs': [utf8('export default () => 1;')] } } },
+        'nanvm': { 'demos': {
+            'hello': { 'sample.f.mjs': [utf8('export default () => 1;')] },
+            'sort': { 'sample.f.mjs': [utf8('export default () => 2;')] },
+        } },
     },
 }
 

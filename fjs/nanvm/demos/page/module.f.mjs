@@ -221,8 +221,19 @@ const outputView = output => output[0] === 'ok'
     ? [caption('Standard output:'), ['div', { [codeMarker]: '' }, ['pre', output[1] === '' ? '(empty)' : output[1]]]]
     : [refusal(output[1])]
 
+/**
+ * How many times as long the WebAssembly run took as the JavaScript one, or
+ * "Not available" where either failed or the JavaScript time reads `0`,
+ * which a browser's coarse clock answers for a short run.
+ *
+ * @type {(runs: Runs) => string}
+ */
+export const ratio = ({ js, wasm }) => js[0] === 'ok' && wasm[0] === 'ok' && js[1].time > 0
+    ? `${(wasm[1].run.time / js[1].time).toFixed(1)}×`
+    : 'Not available'
+
 /** @type {(runs: Runs) => readonly Node[]} */
-const runsView = ({ js, wasm }) => [
+const runsDetail = ({ js, wasm }) => [
     ['h3', {}, 'JavaScript'],
     ...(js[0] === 'ok'
         ? [
@@ -239,6 +250,13 @@ const runsView = ({ js, wasm }) => [
             stat('Linear memory after the run', `${wasm[1].memory} bytes`),
         ]
         : [refusal(wasm[1])]),
+]
+
+/** @type {(runs: Runs) => readonly Node[]} */
+const runsView = runs => [
+    ...runsDetail(runs),
+    ['h3', {}, 'Comparison'],
+    stat('WebAssembly running time, as a multiple of the JavaScript one', ratio(runs)),
 ]
 
 /** @type {(state: State) => readonly Node[]} */

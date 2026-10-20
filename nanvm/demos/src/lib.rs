@@ -101,6 +101,12 @@ pub extern "C" fn hello() -> i32 {
     export(samples::hello::module::<Naive>)
 }
 
+/// Loads the sorting sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn sort() -> i32 {
+    export(samples::sort::module::<Naive>)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,6 +117,14 @@ mod tests {
         assert_eq!(
             perform(&load(samples::hello::module::<Naive>).unwrap()).unwrap(),
             b"hello, world\n"
+        );
+    }
+
+    #[test]
+    fn sort_reports_what_it_sorted() {
+        assert_eq!(
+            perform(&load(samples::sort::module::<Naive>).unwrap()).unwrap(),
+            b"sorted 10000 integers: smallest 1, largest 2146722115\n"
         );
     }
 

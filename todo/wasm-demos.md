@@ -95,6 +95,25 @@ built:
   approved. NaNVM and `std` are most of the module, the same for every
   sample, and left out. The WAT names every function as Rust does, since
   the name section is demangled before it is printed.
+- **A second page, [`fjs/nanvm/demos/sort`](../fjs/nanvm/demos/sort/)**,
+  sorts 10,000 pseudo-random integers with a quicksort written in the
+  sample, and writes what it sorted. The page shows the WebAssembly running
+  time as a multiple of the JavaScript one. In Chromium the JavaScript run
+  takes about 50 ms and the WebAssembly run about 250 ms, so the NaNVM route
+  is about five times slower on this sample. The sample encodes its own
+  output to bytes, with `charCodeAt` and a loop, since `utf8` does not
+  compile.
+- **`fjs compile` gaps the sort sample worked around**:
+  - `a[i]` is refused (`computed key is not Number(...)`): an index computed
+    at run time is written `a[Number(i)]`.
+  - A `const` read only past a guard, in one branch of `?:`, has no Rust
+    spelling ("a shared node reached only through lazy operands"): the pivot
+    is passed to a nested function instead.
+  - A module `const` cannot name one declared after it (`const not found`),
+    so two module functions cannot call each other: the quicksort's step is
+    nested inside it.
+  - `let` needs a JSDoc type for TypeScript where its tuple mixes `number`
+    and `bigint`; a gap of the type check, not of the compiler.
 - **Not yet:** the JavaScript memory figure, and the sample's use of `log` and `utf8`, which
   `fjs compile` cannot compile yet, so the sample builds its `write` command
   by hand.
@@ -123,7 +142,8 @@ alternative.
       one sample, `hello`.
 - [x] Print the WAT in the deployment build.
 - [ ] Report the JavaScript run's memory, where the browser measures it.
-- [ ] Choose two or three more samples that print to the console and that
+- [x] Add a sorting sample, `sort`, to compare the two routes' running time.
+- [ ] Choose one or two more samples that print to the console and that
       `fjs compile … .rs` accepts today, and add one page each.
 
 ### Related
