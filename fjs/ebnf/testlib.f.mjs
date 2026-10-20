@@ -72,8 +72,9 @@ export const recognizer = (parse, decode) => input => {
     let start = 0
     while (true) {
         const diagnostic = parse(symbols, start)
-        if (diagnostic[0] === 'error') { return { accepted: false, diagnostic } }
-        const end = diagnostic[1][1]
+        const [tag, value] = diagnostic
+        if (tag === 'error') { return { accepted: false, diagnostic } }
+        const [, end] = value
         if (end === symbols.length || end === start) { return { accepted: end === symbols.length, diagnostic } }
         start = end
     }
