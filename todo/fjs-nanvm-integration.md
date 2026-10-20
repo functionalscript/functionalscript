@@ -168,7 +168,9 @@ statement now. Its references follow, 35 files with its proof, which
 stays `proof.f.mjs`.
 
 The rename exposes one leaf, `git/config`, which imports `text/ascii`,
-`types/object/entry` and `types/result`, all `.f.js` already. The second
+`types/object/entry`, `types/result` and `git/bytes`, all `.f.js` already.
+`main`'s `9183a13`, merged in since, added the last and moved nothing in
+the table. The second
 pass checks it with the four leaves left, against the same compiler, and
 converts none.
 
