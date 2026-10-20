@@ -17,7 +17,7 @@
  * @import { Operation } from '../effects/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
- * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
+ * @import { LoadedModule, LoadModuleOperations, ModuleMap } from '../dev/types.ts'
  * @import { TestFn, TestEntry, TestSet, Path, LeafReporter, Reporter, RunState, RunTotals, TestFailure, TestId, TestResult, _TestAndPath } from './types.ts'
  * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
@@ -425,10 +425,28 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
 const runModule = reporter => (k, v) => state =>
     runEntries(reporter)(k, collectTests([], false, v))(state)
 
+/**
+ * What a discovered module offers the runner: its `proof` export, or — for a
+ * module that would not load — a proof whose one leaf fails with the reason.
+ *
+ * A module that throws while it is evaluated is a failed test, not an absent
+ * one: a module-level `assert` is a supported place for a check (`./README.md`,
+ * "Proof location and scope"). Turning the failure into a leaf here is what
+ * makes both runners report it the same way — `fjs t` counts it and describes
+ * it with the run's other failures, and an external framework reports the
+ * registered test as failed — rather than each needing its own rule for it.
+ *
+ * @type {(loaded: LoadedModule) => unknown}
+ */
+const loadedProof = ([tag, value]) =>
+    tag === 'ok' ? value.proof : () => { throw errorMessage(value) }
+
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
 const proofEntries = moduleMap =>
-    definedEntries(moduleMap)
-        .flatMap(([k, v]) => v.proof !== undefined ? [/** @type {const} */ ([k, v.proof])] : [])
+    definedEntries(moduleMap).flatMap(([k, v]) => {
+        const proof = loadedProof(v)
+        return proof !== undefined ? [/** @type {const} */ ([k, proof])] : []
+    })
 
 /**
  * Runs all test modules in `moduleMap` whose names pass `isTest`, accumulates

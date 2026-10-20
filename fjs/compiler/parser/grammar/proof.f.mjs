@@ -8,7 +8,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { diagramPage } from '../../../ebnf/testlib.f.mjs'
 import { railroadLabelMarker } from '../../../website/style/module.f.js'
 import { demo, diagrams } from './demo.f.mjs'
@@ -234,16 +234,19 @@ export const proof = {
         assertStructurallySame(read('const f = () => 1; export default f();'), ['ok'])
         // a named list: `(a)` is read as a group's value, and the `=>`
         // past the `)` makes it the one parameter, as JavaScript reads it;
-        // `,` after the value makes it the first of a list, and every name
-        // after it is a name outright, a trailing comma allowed
+        // `,` after the value makes it the first of a list or of a comma's
+        // operands, every item after it a value too, a trailing comma
+        // allowed, and the `=>` past the `)` makes them parameters
         assertStructurallySame(read('export default (a) => 1;'), ['ok'])
         assertStructurallySame(read('export default (a, b) => 1;'), ['ok'])
         assertStructurallySame(read('export default (a,) => 1;'), ['ok'])
         assertStructurallySame(read('export default ( a , b , ) => 1;'), ['ok'])
         assertStructurallySame(read('export default (a\n, b\n) => 1;'), ['ok'])
         assertStructurallySame(read('export default (a, b) => (c) => 1;'), ['ok'])
-        assertStructurallySame(read('export default (a, 1) => 1;'), ['error', 'number'])
-        assertStructurallySame(read('export default (a, b.c) => 1;'), ['error', '.'])
+        // an item that is no name is the fold's to refuse, as the head is:
+        // the grammar reads a value, which `(a, 1)` and `(a, b.c)` are
+        assertStructurallySame(read('export default (a, 1) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a, b.c) => 1;'), ['ok'])
         assertStructurallySame(read('export default (a, ...b) => 1;'), ['ok'])
         // a default, `= value`, after any fixed parameter, the first
         // included, a pattern too, and a fixed parameter or the rest after
@@ -259,7 +262,11 @@ export const proof = {
         assertStructurallySame(read('export default (a, ...b = 1) => 1;'), ['error', '='])
         assertStructurallySame(read('export default (a = ) => 1;'), ['error', ')'])
         assertStructurallySame(read('export default (a, b) 1;'), ['error', 'number'])
-        assertStructurallySame(read('export default (a, b);'), ['error', ';'])
+        // with no `=>` the items are a comma's operands, and a default or a
+        // rest among them is the fold's to refuse, as no comma holds one
+        assertStructurallySame(read('export default (a, b);'), ['ok'])
+        assertStructurallySame(read('export default (a, b = 1);'), ['ok'])
+        assertStructurallySame(read('export default (a, ...b);'), ['ok'])
         // the grammar admits a value at the head of the list, one symbol
         // being unable to tell `(a) => 1` from `(a).b`; that the head is a
         // name is the fold's check, `malformed parameter list`
@@ -506,9 +513,8 @@ export const proof = {
         // a call on a group: the grammar takes it, and it is the same call
         // `o.b(1)` is, since parentheses keep the property reference
         assertStructurallySame(read('const o = {}; export default (o.b)(1);'), ['ok'])
-        // a group holds one value and holds it: no bare comma (which waits
-        // on the operator, `spec/todo/2340-operators.md`), and no missing
-        // `)`. The hole is not refused here any more: `()` is a function's
+        // a group holds one value or a comma's operands, and holds them: no
+        // missing `)`. The hole is not refused here any more: `()` is a function's
         // empty parameter list, which the `(` opens wherever a value may
         // stand, so the refusal is at the `=>` that never comes. That is
         // one symbol past JavaScript's own, which backtracks to the `)`
@@ -518,9 +524,10 @@ export const proof = {
         // `)` there, below
         assertStructurallySame(read('export default ();'), ['error', ';'])
         assertStructurallySame(read('export default (,);'), ['error', ','])
-        // a comma after the value opens the rest of a named list, so the
-        // refusal is at the item that is no name
-        assertStructurallySame(read('export default (1, 2);'), ['error', 'number'])
+        // a comma after the value opens the rest of a named list or of a
+        // comma's operands, which the `)` decides: `(1, 2)` is a comma
+        assertStructurallySame(read('export default (1, 2);'), ['ok'])
+        assertStructurallySame(read('export default (1, (2, 3)).x;'), ['ok'])
         assertStructurallySame(read('export default (1;'), ['error', ';'])
         assertStructurallySame(read('export default (1));'), ['error', ')'])
         // a group is a `-`'s operand, and the only way a function reaches
@@ -533,6 +540,15 @@ export const proof = {
         assertStructurallySame(read('export default -((...a) => 1);'), ['ok'])
         assertStructurallySame(read('export default -(...a) => 1;'), ['error', '...'])
         assertStructurallySame(read('export default -();'), ['error', ')'])
+        // under a prefix and as an operand a group holds a comma too, its
+        // operands values and nothing else, so the grammar itself refuses
+        // a trailing comma, a default and a rest there
+        assertStructurallySame(read('export default -(1, 2);'), ['ok'])
+        assertStructurallySame(read('export default -(1, 2).x;'), ['ok'])
+        assertStructurallySame(read('export default 1 + (2, 3) ** 2;'), ['ok'])
+        assertStructurallySame(read('export default -(1, 2,);'), ['error', ')'])
+        assertStructurallySame(read('export default -(1, a = 2);'), ['error', '='])
+        assertStructurallySame(read('export default -(1, ...a);'), ['error', '...'])
     },
     // A call is a step after a value, as an access is: `(` decides it, and
     // what it applies to is everything written before it. Its arguments are

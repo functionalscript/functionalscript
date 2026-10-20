@@ -3,7 +3,7 @@
  * @import { FetchText, Instantiate, WasmInstance } from './types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { fetchText, instantiate } from './module.f.mjs'
 
 export const proof = {

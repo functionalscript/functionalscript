@@ -7,7 +7,7 @@
 import { do_, pureOk, step } from '../module.f.mjs'
 import { partialRun, run } from './module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
-import { assertEq, assertError, assertOk } from '../../asserts/module.f.mjs'
+import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 
 /** @type {Func<_Add>} */
 const add = do_('add')

@@ -1,7 +1,7 @@
 /**
  * @import { RunInstance } from '../effects/mock/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
- * @import { NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
+ * @import { IoResult, Module, NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
  * @import { All, Await, Catch, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
@@ -11,7 +11,7 @@
 import { exitCode } from '../effects/node/module.f.mjs'
 import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
-import { assert, assertEq, todo } from '../asserts/module.f.mjs'
+import { assert, assertEq, todo } from '../asserts/module.f.js'
 import {
     testAll, fmtPath, fmtImport, ghEscape,
     registerModule, parseTestSet,
@@ -23,7 +23,7 @@ import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
-import { pureError, step } from '../effects/module.f.mjs'
+import { pureError, pureOk, step } from '../effects/module.f.mjs'
 
 /**
  * The mock reporter's stdout lines. A schema rather than a hand-written type:
@@ -798,49 +798,138 @@ export const registerEmptyModuleMap = () => {
     assertEq(exitCode(code), 0)
 }
 
+/**
+ * Runs `register` (the `NodeProgram` entry point) with `testContext` over a
+ * flat directory of `files`, each import answered by `load`, and answers the
+ * `test` calls it made: the context, the name, and whether a throw was
+ * expected. With `invoke` set, each registered body is also run, which is how
+ * a proof reaches what a registered test does when the framework runs it.
+ *
+ * @type {(
+ *     testContext: TestContext,
+ *     files: readonly string[],
+ *     load: (path: string) => IoResult<Module>,
+ *     invoke: boolean,
+ * ) => readonly (readonly [TestContext, string, boolean])[]}
+ */
+const runRegister = (testContext, files, load, invoke) => {
+    /** @typedef {Test | All | Await} _RegisterMockOps */
+    /** @type {(readonly [TestContext, string, boolean])[]} */
+    let calls = []
+    /** @type {RunInstance<_RegisterMockOps | Readdir | Import, undefined>} */
+    let runner
+    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
+        readdir: (_path, _o) => s => [s, ok(files.map(name => ({ name, parentPath: '.', isFile: true, isDirectory: false })))],
+        import: path => s => [s, load(path)],
+        all: (...effects) => s => {
+            const [st, rs] = effects.reduce(
+                ([st1, rs1], e) => {
+                    const [ns, r] = runner(st1)(e)
+                    return [ns, [...rs1, r]]
+                },
+                /** @type {readonly [undefined, readonly unknown[]]} */ ([s, []]),
+            )
+            return [st, ok(rs)]
+        },
+        await: p => s => [s, ok([p])],
+        test: (ctx, name, xf, fn) => s => {
+            if (invoke) { runner(s)(fn(ctx)) }
+            calls = [...calls, [ctx, name, xf]]
+            return [s, ok(undefined)]
+        },
+    }))
+    runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (register({
+        ...defaultNodeProgramOptions, env: {}, testContext,
+    })))
+    return calls
+}
+
+/**
+ * A module whose import succeeds, with one passing leaf.
+ *
+ * @type {() => IoResult<Module>}
+ */
+const loadsOk = () => ok({ proof: { ok: () => {} } })
+
+/**
+ * A module whose import fails, as a module-level `assert` makes it fail.
+ *
+ * @type {() => IoResult<Module>}
+ */
+const loadFails = () => error(['ioError', { message: 'load-time failure' }])
+
 // Discovery passes the supplied context through unchanged. The synthetic
 // runner records context identity without invoking the virtual `test: todo`.
 export const registerUsesSuppliedContext = () => {
-    /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @type {TestContext} */
     const firstCtx = { test: todo }
     /** @type {TestContext} */
     const secondCtx = { test: todo }
 
-    /** @type {(testContext: TestContext) => readonly (readonly [TestContext, string])[]} */
-    const runRegister = testContext => {
-        /** @type {(readonly [TestContext, string])[]} */
-        let calls = []
-        /** @type {RunInstance<_RegisterMockOps | Readdir | Import, undefined>} */
-        let runner
-        runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
-            readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true, isDirectory: false }])],
-            import: _path => s => [s, ok({ proof: { ok: () => {} } })],
-            all: (...effects) => s => {
-                const [st, rs] = effects.reduce(
-                    ([st1, rs1], e) => {
-                        const [ns, r] = runner(st1)(e)
-                        return [ns, [...rs1, r]]
-                    },
-                    /** @type {readonly [undefined, readonly unknown[]]} */ ([s, []]),
-                )
-                return [st, ok(rs)]
-            },
-            await: p => s => [s, ok([p])],
-            test: (ctx, name, _xf, _fn) => s => { calls = [...calls, [ctx, name]]; return [s, ok(undefined)] },
-        }))
-        runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (register({
-            ...defaultNodeProgramOptions, env: {}, testContext,
-        })))
-        return calls
-    }
-
     for (const ctx of [firstCtx, secondCtx]) {
-        const calls = runRegister(ctx)
+        const calls = runRegister(ctx, ['a.proof.f.ts'], loadsOk, false)
         assertEq(calls.length, 1)
         assert(calls[0][0] === ctx)
         assertEq(calls[0][1], 'import("./a.proof.f.ts").proof.ok()')
     }
+}
+
+// A module that will not load is registered as a test of its own, named for
+// its proof and not expected to throw, beside the modules that did load. It
+// used to fail discovery instead, and `all.test.mjs` does not read the exit
+// code that failure produced, so the external runner reported a pass.
+export const registerLoadFailure = () => {
+    const calls = runRegister(
+        registerNoopCtx,
+        ['a.f.ts', 'b.proof.f.ts'],
+        path => path.endsWith('a.f.ts') ? loadFails() : loadsOk(),
+        false)
+    assertEq(
+        JSON.stringify(calls.map(([, name, xf]) => [name, xf])),
+        JSON.stringify([
+            ['import("./a.f.ts").proof()', false],
+            ['import("./b.proof.f.ts").proof.ok()', false],
+        ]))
+}
+
+// What makes that registered test fail: its body throws when the framework
+// runs it, which is the one thing an external framework reads as a failure.
+const registeredLoadFailureThrows = () => {
+    runRegister(registerNoopCtx, ['a.f.ts'], loadFails, true)
+}
+
+/**
+ * `fjs t` counts a module that will not load as a failed test, describes it
+ * with the run's other failures, and still runs the modules beside it.
+ *
+ * `'a.f.ts': []` is content, not a module, so the virtual `import` refuses it
+ * — the virtual stand-in for a module whose evaluation throws. The leaf that
+ * stands for it throws when run, which the virtual `sandbox` cannot trap, so
+ * this reporter's `test` answers that leaf's outcome itself;
+ * `registeredLoadFailureThrows` is where the leaf is run.
+ */
+export const loadFailureIsAFailedTest = () => {
+    /** @type {Reporter<Sandbox | Write>} */
+    const reporter = {
+        ...makeReporter(),
+        test: (file, path, entry) => file === './a.f.ts'
+            ? pureOk({ result: error('load-time failure'), duration: 0 })
+            : defaultTest(file, path, entry),
+    }
+    const [finalState, code] = virtualAt({
+        'a.f.ts': [],
+        'b.proof.f.ts': () => ({ proof: { y: ok0 } }),
+    })(testAll(reporter)(options('.')))
+    assertEq(exitCode(code), 1)
+    assertEq(
+        JSON.stringify(parseEvents(finalState.stdout)),
+        JSON.stringify([
+            ['start', './a.f.ts', ''],
+            ['result', './a.f.ts', ''],
+            ['start', './b.proof.f.ts', '.y'],
+            ['result', './b.proof.f.ts', '.y'],
+            ['summary', 1, 1, 0],
+        ]))
 }
 
 // direct unit tests for the pure path-format helpers
@@ -988,6 +1077,7 @@ export const proof = {
     formatDuration: formatDurationProofs,
     throw: {
         registerBodyPanicsOnUndispatchableEffect,
+        registeredLoadFailureThrows,
     },
     flat,
     nested,
@@ -1019,6 +1109,8 @@ export const proof = {
     registerEmptyProof,
     registerEmptyModuleMap,
     registerUsesSuppliedContext,
+    registerLoadFailure,
+    loadFailureIsAFailedTest,
     defaultReporterExpectedToThrow,
     helpers
 }

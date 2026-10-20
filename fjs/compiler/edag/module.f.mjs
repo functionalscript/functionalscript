@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp, ExpOp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
- * @import { AstAccess, AstBinary, AstInstanceOf, AstKey, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstSpread, AstStep, AstThrow, AstUnary, UnaryTag } from '../ast/types.ts'
+ * @import { AstAccess, AstBinary, AstInstanceOf, AstKey, AstBody, AstCall, AstComma, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstSpread, AstStep, AstThrow, AstUnary, UnaryTag } from '../ast/types.ts'
  * @import { _Load } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -17,11 +17,11 @@
  * @import { _Entries, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
-import { anchors, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
-import { fromValue, isStatic } from '../../edag/module.f.mjs'
+import { anchors, commaOperands, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
+import { fromValue, isIntrinsic, isStatic } from '../../edag/module.f.mjs'
 import { _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
 import { mapStep, step } from '../../effects/module.f.mjs'
-import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
+import { assertNotNullish, todo } from '../../asserts/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])
@@ -92,7 +92,9 @@ const anchoring = ({ exp, anchors }) => anchors.length === 0 ? exp : [',', [...a
  * `chainsJs.receiver` in [`../../edag/proof.f.mjs`](../../edag/proof.f.mjs)
  * pins against JavaScript itself. Parentheses alone do not detach:
  * `(a.b)(c)` keeps the receiver and is this same node, so grouping spells
- * this one and not the other, which waits on the comma operator.
+ * this one, and the comma operator the other: its callee is a comma, no
+ * access, so the call is the plain one over the comma's value,
+ * {@link comma}.
  *
  * Any other callee is the plain call, `['()', callee, args]`.
  *
@@ -116,6 +118,26 @@ const call = nodes => ast => {
     }
     const f = lower(nodes)(callee)
     return { exp: ['()', f.exp, list], anchors: [...f.anchors, ...floated(items)] }
+}
+
+/**
+ * A comma's EDAG: the value of its last operand, the node that operand
+ * lowers to, and before what it floats each discarded operand the comma
+ * keeps, {@link commaOperands}, after what that operand floats itself —
+ * so the comma makes no node where it stands, and its discarded operands
+ * are established where floated code is, at the nearest block root or
+ * lazy operand ({@link anchoring}), as an inlined call's anchors are. An
+ * operand the comma drops is no code, and nothing is lost: a reference's
+ * `const` is anchored by its scope where nothing else reaches it. Nor is
+ * one that lowers to a primitive, `-1` folded to the number, which is no
+ * code once lowered.
+ *
+ * @type {(nodes: _Nodes) => (ast: AstComma) => _Lowered}
+ */
+const comma = nodes => ast => {
+    const kept = commaOperands(ast).map(lower(nodes))
+    const last = kept.length - 1
+    return { exp: kept[last].exp, anchors: kept.flatMap((x, i) => i === last || !(x.exp instanceof Array) ? x.anchors : [...x.anchors, x.exp]) }
 }
 
 /**
@@ -319,6 +341,9 @@ const lowerLeaf = nodes => ast => {
     // each answered by every executor with the one function its runtime
     // holds, however often it is read
     if (isStatic(ast)) { return plain([ast[0]]) }
+    // an intrinsic's helper, the EDAG's own node for it, fresh per helper
+    // written as `entry`'s is
+    if (isIntrinsic(ast)) { return plain([ast[0]]) }
     switch (ast[0]) {
         case 'aref': { return plain(nodes.parameters[ast[1]]) }
         case 'cref': { return plain(nodes.consts[ast[1]]) }
@@ -345,6 +370,7 @@ const lowerLeaf = nodes => ast => {
         case 'hasEntry': { return plain(['hasEntry']) }
         case '()': { return call(nodes)(ast) }
         case '?.()': { return guardedCall(nodes)(ast) }
+        case ',': { return comma(nodes)(ast) }
         // an access, plain or guarded: the EDAG's own form already, its key
         // a constant or the conversion and its steps, where it has any, the
         // continuation the parser folded ({@link access}). Out of this

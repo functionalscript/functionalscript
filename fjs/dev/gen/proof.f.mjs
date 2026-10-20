@@ -10,7 +10,7 @@
  * @import { Unknown } from '../../media/datajs/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { errorExit, exitCode, exitStep, log, nodeCommands } from '../../effects/node/module.f.mjs'
@@ -76,7 +76,7 @@ const root = {
     },
     'nanvm': { 'harness': { 'fixtures': {} } },
     'fjs': {
-        'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = {};')] } },
+        'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } },
         'nanvm': { 'demos': { 'hello': { 'sample.f.mjs': [utf8('export default () => 1;')] } } },
     },
 }

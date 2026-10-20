@@ -4,7 +4,7 @@
 
 import { at, setReplace, setReduce, empty, entries, remove, fromEntries } from './module.f.mjs'
 import { toArray } from '../list/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
     main: [

@@ -53,8 +53,9 @@ import {
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
+import { isDigits } from '../text/ascii/module.f.mjs'
 import { percentDecode, percentEncodePath } from '../text/percent/module.f.mjs'
-import { unwrap } from '../types/nullable/module.f.mjs'
+import { unwrap } from '../types/nullable/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 
 // ── Routing ───────────────────────────────────────────────────────────────────
@@ -82,12 +83,6 @@ const userInfoMark = '@'
  * @type {string}
  */
 const portMark = ':'
-
-/** Whether `s` is a decimal number, and a non-empty one.
- *
- * @type {(s: string) => boolean}
- */
-const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
 
 /**
  * Whether `s` names a port.

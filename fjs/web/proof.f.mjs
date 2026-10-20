@@ -6,7 +6,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq } from '../asserts/module.f.js'
 import { createServer, exitCode, ioError, listen, open, readBytes } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'

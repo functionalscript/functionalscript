@@ -6,7 +6,10 @@ proposal by merging it and asking for the implementation
 ([#2885](https://github.com/functionalscript/functionalscript/pull/2885));
 the member table is nested under `member`, keyed by the global's name;
 `sergey-shandar` then made the node a value, `['Object.is']`, in place of
-the callee-only `['static', path]`, and destructuring sugar over it
+the callee-only `['static', path]`, and destructuring sugar over it;
+since then the table is flat, keyed by the node's id, `'Object.is'`, and
+an executor asks `runtime.static(id)` for a body rather than reading a
+section — the proposal below describes the shape as first built
 
 ### Problem
 
@@ -178,9 +181,9 @@ and a call calls the body with the arguments. A path with neither is the
 executor's error, not the module's: the parser admitted it, so an executor
 given no runtime, or one without the body, reports a missing binding the
 way the transpiler reports a package without a runtime (`no runtime
-export`), never a `TypeError` and never a plausible value. NaNVM's
-runtime is static: a static function per body, with an accessor the Rust
-backend reads the node as
+export`), never a `TypeError` and never a plausible value. NaNVM takes
+the runtime as a value, each compiled module's parameter, and reads a
+static from it by its path
 ([`fjs/js/runtime/README.md`](../runtime/README.md), "How NaNVM finds
 it"); and a body bound this way is exactly the non-capturing function
 [`callable-function-objects.md`](../../../nanvm/lib/todo/callable-function-objects.md)'s

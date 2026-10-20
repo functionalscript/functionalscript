@@ -50,17 +50,16 @@
  * @import { _LiteralId, _Member, _OnlyKey, Json, NumberPolicy, Out, ParseUnknown, Tagged, Text } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { hexDigitsValue } from '../../../text/ascii/module.f.mjs'
+import { codeUnitToString } from '../../../text/utf16/module.f.mjs'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.js'
 import { eof } from '../../../ebnf/module.f.mjs'
-import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
+import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, unitAt, units } from '../../../ebnf/utf16/module.f.mjs'
 import { character, escape, items, json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'
-
-const { fromCharCode } = String
 const { fromEntries } = Object
 
 /**
@@ -138,12 +137,12 @@ const textMapping = mapping
  */
 const escapeMapping = textMapping(escape, ([, e]) => {
     const branch = unmapped(e)
-    if (branch[0] === 'c') { return textTag.symbol(fromCharCode(assertNotNullish(escapeToCodePoint(unitAt(branch[1]))))) }
+    if (branch[0] === 'c') { return textTag.symbol(codeUnitToString(assertNotNullish(escapeToCodePoint(unitAt(branch[1]))))) }
     const [, digits] = unmapped(branch[1])
     // The grammar admits exactly four hex digits here, so `hexDigitsValue`
     // never answers `null` and the value fits one code unit.
     const unit = assertNotNullish(hexDigitsValue(unmapped(digits).map(hexDigitUnit)))
-    return textTag.symbol(fromCharCode(Number(unit)))
+    return textTag.symbol(codeUnitToString(Number(unit)))
 })
 
 /**
@@ -153,7 +152,7 @@ const escapeMapping = textMapping(escape, ([, e]) => {
  * @type {Mapping<Utf16, Text>}
  */
 const characterMapping = textMapping(character, node =>
-    node[0] === 'c' ? textTag.symbol(fromCharCode(unitAt(node[1]))) : symbolAt(node[1]))
+    node[0] === 'c' ? textTag.symbol(codeUnitToString(unitAt(node[1]))) : symbolAt(node[1]))
 
 /**
  * The mapping of the grammar's `string` rule: to the text of its characters,

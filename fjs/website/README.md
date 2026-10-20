@@ -246,7 +246,7 @@ generated nor linked, so nothing points at a page that was never written.
 [`todo/README.md`](../../todo/README.md#issue-format) defines them: a
 subfolder's are listed with the rest, named by their path inside the `todo/` —
 `blocked/later.md` — and a `README.md` documents its directory rather than
-being one. Each is read for its header by [`issue`](./issue/module.f.mjs), and
+being one. Each is read for its header by [`issue`](./issue/module.f.js), and
 **one whose status or priority cannot be read stops the build**, naming the
 file, rather than being listed with a guess — the answer a release file that
 does not parse already gets. Reading them costs the build about two seconds
@@ -258,7 +258,7 @@ against 15 s).
 P1s, the issues that block everything else, lead the list rather than sitting
 wherever their names sort, and the badges are its left column, so a reader sees
 where each priority starts. Within one priority, status is ordered as
-[`issue`](./issue/module.f.mjs)'s `statuses` lists it: work in progress, then
+[`issue`](./issue/module.f.js)'s `statuses` lists it: work in progress, then
 work not started, then work waiting or deferred, then the record, then what
 will not be done. Status first was the other order: it grouped the list by
 icon and sank the records to the bottom, but put every work in progress, a P5

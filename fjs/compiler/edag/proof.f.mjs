@@ -29,7 +29,7 @@ import { validate } from '../../rtti/validate/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 
@@ -145,7 +145,7 @@ const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':'
 export const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
 
 /** Ordinary data comparisons erase reflection explicitly. @type {(graph: Exp) => unknown} */
-const execute = graph => assertOk(toData(value(graph)))
+export const execute = graph => assertOk(toData(value(graph)))
 
 /** Call represented functions without manufacturing host wrappers. @type {(fn: EdagValue, args: Values) => EdagValue} */
 export const apply = (fn, args) => assertOk(call(ok(fn), args.map(arg => () => ok(arg)), invoke))
@@ -505,61 +505,6 @@ export const proof = {
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', 0, [], ['{}', [[':', 'x', ['rest']]]]])
         expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', 0, [], ['=>', 0, [], ['rest']]])
     },
-    // The `entry` helper is the EDAG's own node for it, `['entry']`, the
-    // helper as a value: one node per helper written, as every arrow is a
-    // node of its own, and one however many references reach a `const`
-    // holding it; called as any function is, and read as one — and the
-    // graph runs, the executors answering the call themselves.
-    entry: () => {
-        const helper = 'const entry = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; };'
-        expectEdag(compile(`${helper} export default entry;`).edag, ['entry'])
-        const shared = compile(`${helper} export default [entry, entry];`).edag
-        expectEdag(shared, ['[]', [['entry'], ['entry']]])
-        assert(shared instanceof Array && shared[0] === '[]' && shared[1][0] === shared[1][1], shared)
-        const two = compile('export default [(a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }, (c, d) => { const e = Object.getOwnPropertyDescriptor(c, d); return e?.enumerable ? e.value : undefined; }];').edag
-        expectEdag(two, ['[]', [['entry'], ['entry']]])
-        assert(two instanceof Array && two[0] === '[]' && two[1][0] !== two[1][1], two)
-        expectEdag(compile(`${helper} export default entry({ k: 1 }, "k");`).edag, ['()', ['entry'], [['{}', [[':', 'k', 1]]], 'k']])
-        // `hasEntry` is its own node the same way
-        const has = 'const hasEntry = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable === true; };'
-        expectEdag(compile(`${has} export default hasEntry;`).edag, ['hasEntry'])
-        expectEdag(compile(`${has} export default hasEntry({ k: 1 }, "k");`).edag, ['()', ['hasEntry'], [['{}', [[':', 'k', 1]]], 'k']])
-        expectEdag(compile(`${helper} export default [entry.length, typeof entry];`).edag, ['[]', [['.', ['entry'], 'length'], ['typeof', ['entry']]]])
-        // an unreached helper is anchored as any entry is
-        expectEdag(compile(`${helper} export default 1;`).edag, [',', [['entry'], 1]])
-        assertStructurallySame(execute(compile(`${helper} export default [entry({ k: 1 }, "k"), entry([7, 8], 1), entry([7, 8], "length"), entry("ab", 0), entry(entry, "length"), entry.length, typeof entry, entry({ "1": 9 }, 1), entry({ u: undefined }, "u")];`).edag),
-            [1, 8, undefined, 'a', undefined, 2, 'function', 9, undefined])
-        // the helper passed as a value, and called from where it was passed
-        assertStructurallySame(execute(compile(`${helper} const call = (f, o) => f(o, "x"); export default call(entry, { x: 3 });`).edag), 3)
-        assertStructurallySame(execute(compile(`${helper} export default [10, 20].map(entry);`).edag), [undefined, undefined])
-        const fn = value(compile(`${helper} export default entry;`).edag)
-        assertStructurallySame(assertOk(toData(apply(fn, [['{}', [[':', 'y', 4]]], 'y']))), 4)
-        assertStructurallySame(assertOk(toData(apply(fn, [['[]', [5]], 0]))), 5)
-        // and the helper's text is the helper, in the writer's spelling
-        assertStructurallySame(execute(compile(`${helper} export default entry.toString();`).edag), '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
-    },
-    // `Object.is` is the EDAG's own node for it, `['Object.is']`, in every
-    // spelling and through destructuring, which reads the namespace's
-    // member as the access does; the graph runs under a runtime whose
-    // `static` section binds it — the one function on every read — and
-    // fails naming it under none.
-    objectIs: () => {
-        expectEdag(compile('export default Object.is;').edag, ['Object.is'])
-        expectEdag(compile('export default Object?.["is"](0, -0);').edag, ['()', ['Object.is'], [0, -0]])
-        expectEdag(compile('const { is } = Object; export default [is, Object.is];').edag, ['[]', [['Object.is'], ['Object.is']]])
-        /** @type {import('../../edag/value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
-        const run = memo(assertOk(analysis(compile('const { is } = Object; const f = () => Object.is; export default [is(1, 1), Object.is(1, 2), is === f(), [1].map(x => f()(x, 1))];').edag)))
-        assertStructurallySame(assertOk(toData(unwrap(run({ args: [], runtime })))), [true, false, true, [true]])
-        assertEq(assertError(run({ args: [] })), 'no binding for the static Object.is')
-        // a `Number` predicate the same way, read at its own path
-        expectEdag(compile('const { isInteger } = Number; export default [isInteger, Number?.["isFinite"]];').edag, ['[]', [['Number.isInteger'], ['Number.isFinite']]])
-        /** @type {import('../../edag/value/types.ts').Runtime} */
-        const numbers = ['{}', [[':', 'static', ['{}', [[':', 'Number', ['{}', [[':', 'isNaN', ['=>', 1, [], ['typeof', ['arg', 0]]]]]]]]]]]]
-        const typed = memo(assertOk(analysis(compile('const { isNaN } = Number; export default [isNaN("x"), Number.isNaN(1)];').edag)))
-        assertStructurallySame(assertOk(toData(unwrap(typed({ args: [], runtime: numbers })))), ['string', 'number'])
-        assertEq(assertError(typed({ args: [], runtime })), 'no binding for the static Number.isNaN')
-    },
     // A function that captures is `['=>', length, slots, body]`: each slot
     // the enclosing scope's own node for a captured value — one per node,
     // in the order the body first names them — and each read of it in the
@@ -635,7 +580,7 @@ export const proof = {
     // The plain call over an access is the *detached* receiver,
     // `(0, a.b)(c)` — parentheses alone keep it, which
     // `chainsJs.receiver` in `fjs/edag/proof.f.mjs` pins against JavaScript
-    // — so it needs the comma operator and no source writes one.
+    // — so the comma operator is what writes one.
     call: () => {
         expectEdag(compile('const f = (...a) => 1; export default f();').edag, ['()', ['=>', 0, [], 1], []])
         expectEdag(compile('const f = (...a) => 1; export default f(1, 2);').edag, ['()', ['=>', 0, [], 1], [1, 2]])
@@ -658,9 +603,10 @@ export const proof = {
         assert(twice[1][0][1] === twice[1][1][1], twice)
         // grouping the access changes nothing: parentheses keep the
         // property reference, so this is the method call above, node for
-        // node, and not the detached `(0, o.b)(3)` the comma operator will
-        // spell
+        // node, and not the detached `(0, o.b)(3)`, which the comma
+        // operator spells: the plain call over the access
         expectEdag(compile('const o = { b: 1 }; export default (o.b)(3);').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [3]]])
+        expectEdag(compile('const o = { b: 1 }; export default (0, o.b)(3);').edag, ['()', ['.', ['{}', [[':', 'b', 1]]], 'b'], [3]])
     },
     // A call of a parameterless function written at the call, with no
     // arguments, is its body where the call stands: the idiom for a
@@ -982,6 +928,81 @@ export const proof = {
         // share: the interpreter answers the value with `c` established
         // once, at the comma, and taken by the position that selects it
         assertStructurallySame(execute(compile('const a = 0; const b = 1; const c = [3]; export default [a && c, b && c];').edag), [0, [3]])
+    },
+    // The comma operator establishes every operand and is the last one's
+    // value, so it makes no node where it stands: each discarded operand
+    // that is code of its own is anchored where floated code is — the
+    // block root, or the lazy operand it stands in — and one that is no
+    // code, a reference, a literal or a function, is dropped, its `const`
+    // anchored by the scope where nothing else reaches it
+    // (`spec/operators/comma.md`).
+    comma: {
+        // the two examples of `spec/operators/comma.md`: an alias is the
+        // node it names, which the result reaches, and a `const` of its
+        // own is anchored
+        spec: () => {
+            /** @type {Exp} */
+            const a = ['[]', []]
+            expectEdag(compile('const a = []; const b = a; export default (b, a.length);').edag, ['.', a, 'length'])
+            expectEdag(compile('const a = []; const b = a.x; export default (b, a.length);').edag, [',', [['.', a, 'x'], ['.', a, 'length']]])
+        },
+        // a discarded operand that is code is anchored at the root of the
+        // body it stands in, in order, before the value
+        body: () => {
+            expectEdag(compile('export default (...a) => (a[0], a[1]);').edag, ['=>', 0, [], [',', [['.', ['rest'], 0], ['.', ['rest'], 1]]]])
+            expectEdag(compile('export default (...a) => (a.x, a.y, a.z);').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], ['.', ['rest'], 'y'], ['.', ['rest'], 'z']]]])
+            expectEdag(compile('export default (...a) => ((a.x, a.y), a.z);').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], ['.', ['rest'], 'y'], ['.', ['rest'], 'z']]]])
+            // through an eager position, an operator's operand, a container
+            // item and a call's argument alike
+            expectEdag(compile('export default (...a) => 1 + (a.x, 2);').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], ['+', 1, 2]]]])
+            expectEdag(compile('export default (...a) => [(a.x, 2)];').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], ['[]', [2]]]]])
+            expectEdag(compile('export default (...a) => -(a.x, 2);').edag, ['=>', 0, [], [',', [['.', ['rest'], 'x'], -2]]])
+        },
+        // a lazy operand is a block root: what the comma anchors there is
+        // established only when the operator selects the operand
+        lazy: () => {
+            expectEdag(compile('export default (...a) => a[0] && (a.x, 1);').edag, ['=>', 0, [], ['&&', ['.', ['rest'], 0], [',', [['.', ['rest'], 'x'], 1]]]])
+            expectEdag(compile('export default (...a) => a[0] ? (a.x, 1) : 2;').edag, ['=>', 0, [], ['?:', ['.', ['rest'], 0], [',', [['.', ['rest'], 'x'], 1]], 2]])
+        },
+        // a reference, a literal, a function, the `entry` helper, a static
+        // function and an intrinsic's helper are no code, so the comma
+        // drops them; the value is the last operand's node
+        inert: () => {
+            expectEdag(compile('export default (...a) => (1, a, () => 1, a[0]);').edag, ['=>', 0, [], ['.', ['rest'], 0]])
+            // and one that lowers to a primitive, a negated literal folded
+            expectEdag(compile('export default (...a) => (-1, a[0]);').edag, ['=>', 0, [], ['.', ['rest'], 0]])
+            // a discarded comma is its operands, discarded in turn: its own
+            // inert value is dropped as the flat comma drops it
+            const flat = compile('export default (...a) => (a.x, () => 1, 2);').edag
+            expectEdag(flat, ['=>', 0, [], [',', [['.', ['rest'], 'x'], 2]]])
+            expectEdag(compile('export default (...a) => ((a.x, () => 1), 2);').edag, flat)
+            expectEdag(compile('export default (Object.is, (s, a, b) => s.slice(a, b), 2);').edag, 2)
+            expectEdag(
+                compile('export default ((a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable === true; }, (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }, 3);').edag,
+                3)
+            // a `const` the comma names and drops is anchored by its scope
+            // as an unreached one, and the function it captured is gone
+            expectEdag(compile('const b = [].x; export default (b, 1);').edag, [',', [['.', ['[]', []], 'x'], 1]])
+            expectEdag(compile('const b = [].x; export default (() => b, 1);').edag, [',', [['.', ['[]', []], 'x'], 1]])
+            // and one reached by an operand the comma keeps is reached
+            expectEdag(compile('const b = [].x; export default ([b], 1);').edag, [',', [['[]', [['.', ['[]', []], 'x']]], 1]])
+        },
+        // the comma's callee is no access, so the call is the plain one
+        // over its value: the detached receiver
+        detached: () => {
+            expectEdag(compile('const f = (...a) => 1; export default (0, f)(2);').edag, ['()', ['=>', 0, [], 1], [2]])
+            assertStructurallySame(execute(compile('const o = { f: (...a) => a[0] }; export default (0, o.f)(5);').edag), 5)
+        },
+        // establishing a discarded operand that fails fails the comma: the
+        // assertion form
+        execute: () => {
+            const source = 'const assert = (...a) => a[0] ? undefined : (() => { throw a[1]; })(); export default (...a) => (assert(a[0] > 0, "neg"), a[0] + 1);'
+            const f = value(compile(source).edag)
+            assertStructurallySame(assertOk(toData(apply(f, [2]))), 3)
+            const [tag, thrown] = call(ok(f), [() => ok(-1)], invoke)
+            assertEq(tag, 'error')
+            assertStructurallySame(thrown, 'neg')
+        },
     },
     // A body `const` is an entry of the body, as a module's is of the
     // module, and lowers the same way: a `const` is one node however many
@@ -1589,6 +1610,8 @@ export const proof = {
                     ['rest', { inline: 'rest', kind: 'terminal' }],
                     ['entry', { inline: 'entry', kind: 'terminal' }],
                     ['hasEntry', { inline: 'hasEntry', kind: 'terminal' }],
+                    ['slice', { inline: 'slice', kind: 'terminal' }],
+                    ['charCodeAt', { inline: 'charCodeAt', kind: 'terminal' }],
                 ]) {
                     assertStructurallySame(_shapeOf([tag]), shape, tag)
                 }

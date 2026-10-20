@@ -2,15 +2,15 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("range", Any::dot(string_any("abcdef"), string_any("substring")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0x4010000000000000)].to_array().to_any())), string_any("bcd"));
-    check::<A>("swapped", Any::dot(string_any("abcdef"), string_any("substring")).end_call(|| Ok([f64_any(0x4010000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("bcd"));
-    check::<A>("negativeIsZero", Any::dot(string_any("abc"), string_any("substring")).end_call(|| Ok([f64_any(0xbff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())), string_any("ab"));
-    check::<A>("nanIsZero", Any::dot(string_any("abc"), string_any("substring")).end_call(|| Ok([f64_any(0x7ff8000000000000), f64_any(0x4000000000000000)].to_array().to_any())), string_any("ab"));
-    check::<A>("undefinedEnd", Any::dot(string_any("abc"), string_any("substring")).end_call(|| Ok([f64_any(0x3ff0000000000000), Nullish::Undefined.to_any()].to_array().to_any())), string_any("bc"));
-    check::<A>("nullEnd", Any::dot(string_any("abc"), string_any("substring")).end_call(|| Ok([f64_any(0x4000000000000000), Nullish::Null.to_any()].to_array().to_any())), string_any("ab"));
-    check::<A>("pastTheEnd", Any::dot(string_any("abc"), string_any("substring")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0x4022000000000000)].to_array().to_any())), string_any("bc"));
-    check::<A>("noArgument", Any::dot(string_any("abc"), string_any("substring")).end_call(|| Ok(Array::default().to_any())), string_any("abc"));
-    check_throws::<A>("bigint", Any::dot(string_any("abc"), string_any("substring")).end_call(|| Ok([bigint_any(0)].to_array().to_any())));
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("range", Any::dot(string_any("abcdef"), string_any("substring")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), f64_any(0x4010000000000000)].to_array().to_any())), string_any("bcd"));
+    check::<A>("swapped", Any::dot(string_any("abcdef"), string_any("substring")).end_call(&rt, || Ok([f64_any(0x4010000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("bcd"));
+    check::<A>("negativeIsZero", Any::dot(string_any("abc"), string_any("substring")).end_call(&rt, || Ok([f64_any(0xbff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())), string_any("ab"));
+    check::<A>("nanIsZero", Any::dot(string_any("abc"), string_any("substring")).end_call(&rt, || Ok([f64_any(0x7ff8000000000000), f64_any(0x4000000000000000)].to_array().to_any())), string_any("ab"));
+    check::<A>("undefinedEnd", Any::dot(string_any("abc"), string_any("substring")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), Nullish::Undefined.to_any()].to_array().to_any())), string_any("bc"));
+    check::<A>("nullEnd", Any::dot(string_any("abc"), string_any("substring")).end_call(&rt, || Ok([f64_any(0x4000000000000000), Nullish::Null.to_any()].to_array().to_any())), string_any("ab"));
+    check::<A>("pastTheEnd", Any::dot(string_any("abc"), string_any("substring")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), f64_any(0x4022000000000000)].to_array().to_any())), string_any("bc"));
+    check::<A>("noArgument", Any::dot(string_any("abc"), string_any("substring")).end_call(&rt, || Ok(Array::default().to_any())), string_any("abc"));
+    check_throws::<A>("bigint", Any::dot(string_any("abc"), string_any("substring")).end_call(&rt, || Ok([bigint_any(0)].to_array().to_any())));
 }

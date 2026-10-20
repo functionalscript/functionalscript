@@ -25,7 +25,7 @@
  * @import { Issue } from './types.ts'
  */
 
-import { header, priorities, statuses } from './module.f.mjs'
+import { header, priorities, statuses } from './module.f.js'
 import { caption, refusal, textDemo } from '../demo/module.f.mjs'
 import { issueItem, issueOrder } from '../page/module.f.mjs'
 

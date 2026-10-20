@@ -3,7 +3,8 @@
 use crate::{
     sign::Sign,
     vm::{
-        Any, BigInt, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToObject, ToString, error,
+        Any, BigInt, Function, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToObject,
+        ToString, error,
     },
 };
 
@@ -59,6 +60,24 @@ pub fn bigint_any_words<A: IVm>(negative: bool, words: &[u64]) -> Any<A> {
 /// empty-payload one, whatever sign or payload the engine held it with.
 pub fn f64_any<A: IVm>(v: u64) -> Any<A> {
     Number::from(f64::from_bits(v)).to_any()
+}
+
+/// A static function read from the runtime value by its id, `Object.is`:
+/// what a compiled module's read of a static spells,
+/// `static_read(&runtime, "Object.is")?` — the value's `static` function,
+/// called with the id — the one closure the runtime holds for it, so two
+/// reads are one function, as `Object.is === Object.is` is in JavaScript.
+/// An id the runtime answers no function for is refused
+/// ([`error::no_static_function`]): the parser admitted the id, so the
+/// runtime's table is incomplete, and `undefined` would be a plausible
+/// wrong answer. A throw of `static` itself is the read's.
+pub fn static_read<A: IVm>(runtime: &Any<A>, path: &str) -> Result<Any<A>, Any<A>> {
+    let read = runtime.clone().dot(string_any("static")).end()?;
+    let value = read.call([string_any(path)].to_array().to_any())?;
+    match Function::try_from(value) {
+        Ok(f) => Ok(f.to_any()),
+        Err(_) => Err(error::no_static_function(path)),
+    }
 }
 
 /// `===` as an operator result. `==` on `Any` is exactly JavaScript's `===`,

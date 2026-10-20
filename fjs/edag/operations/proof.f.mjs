@@ -8,8 +8,8 @@
  * @import { Context, Evaluator } from './types.ts'
  */
 
-import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { operation } from './module.f.mjs'
+import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { operation, staticCall } from './module.f.mjs'
 import { noStatic, staticIds, staticPath } from '../module.f.mjs'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
@@ -131,22 +131,34 @@ export const proof = {
         eq(['()', ['hasEntry'], [object, 1]], false)
         eq(['()', ['hasEntry'], [['{}', [[':', 'u', ['undefined']]]], 'u']], true)
         failure(['()', ['hasEntry'], [null, 'a']])
+        eq(['()', ['slice'], ['abc', 1]], 'bc')
+        eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 7]]]], 1]], 7)
+        failure(['()', ['slice'], [null, 1]])
+        failure(['()', ['slice'], [['{}', []], 1]])
+        eq(['()', ['charCodeAt'], ['abc', 2]], 0x63)
+        failure(['()', ['charCodeAt'], [null, 0]])
         failure(['.', null, 'a', ['|()', []]])
     },
     // A static function is a value whether called or not, the node, one
-    // function by its name; the body the runtime's `static` section holds
-    // at its path answers its call, with the static as the body's `self`,
+    // function by its name; the body the runtime's `static` answers for its id
+    // answers its call, with the static as the body's `self`,
     // and its `length`, and its text is its name's. With no runtime, or
     // none at the path, the dispatcher fails naming it at the read — every
     // static with a body alike — and the invoker at the call.
     objectIs: () => {
         failure(['()', ['Object.is'], [1, 1]], noStatic('Object.is'))
         failure(['Object.is'], 'no binding for the static Object.is')
+        // a `static` that throws is the call's throw, asked for the body
+        // directly, as the executors ask after the read
+        /** @type {EdagValue} */
+        const throwing = ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]]
+        const asked = invokeWith(throwing)
+        assertEq(assertError(settle(asked)(staticCall(throwing, ['Object.is'], ['[]', []], () => { throw 'unreached' }, asked))), 'boom')
         for (const id of staticIds.filter(id => !isNative(staticPath(id)))) { failure([id], noStatic(id)) }
         /** @type {Context} */
         const withRuntime = {
             ...context,
-            runtime: ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['[]', [['===', ['arg', 0], ['arg', 1]], ['self'], ['rest']]]]]]]]]]]]],
+            runtime: ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['[]', [['===', ['arg', 0], ['arg', 1]], ['self'], ['rest']]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]],
         }
         const invokeBound = invokeWith(withRuntime.runtime)
         const bound = operation({ ...evaluator, context: withRuntime, invoke: invokeBound, operand: (e, state) => [[...state, e], vm(withRuntime)(e)] })

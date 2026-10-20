@@ -129,3 +129,9 @@ export type TextFieldOptions = Pick<TextDemoOptions, 'name' | 'label' | 'rows' |
 
 /** Options for a labelled single-line input. */
 export type InputFieldOptions = Pick<TextDemoOptions, 'name' | 'label'>
+
+/** One radio button of a group: the value it sends and the text beside it. */
+export type RadioOption = {
+    readonly value: string
+    readonly label: string
+}

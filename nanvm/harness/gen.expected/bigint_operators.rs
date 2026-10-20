@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{bigint_any, bigint_any_words, string_any, string_k
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [bigint_any(6999999965), bigint_any(17000000035), bigint_any_words(true, &[0x40aad27d05636800, 0x0000000000000003]), bigint_any(-2), bigint_any(1999999930), bigint_any(0), bigint_any(-5000000035), bigint_any(5000000035), bigint_any_words(false, &[0x80000002cb417800]), bigint_any(0), bigint_any_words(false, &[0x8000000861c467fd, 0x0000000000000001]), bigint_any(768614337), bigint_any(4854775807), bigint_any_words(true, &[0x80000002cb4177ff]), bigint_any_words(false, &[0xce66c50891bd1001, 0x40000002cb417806]), bigint_any_words(false, &[0xbf619b1e00000000, 0x00000015cf781936]), bigint_any(11832133632), bigint_any(-4832133667), bigint_any(-16664267299), bigint_any(-12000000001), bigint_any(5000000034), bigint_any_words(false, &[0x0000000000000000, 0x000000b2d05e0000]), bigint_any_words(false, &[0x000000059682effe, 0x0000000000000001]), bigint_any(1152921506106846975), bigint_any(-2500000018), false.to_any(), true.to_any(), true.to_any(), false.to_any(), true.to_any(), false.to_any(), true.to_any(), true.to_any(), true.to_any(), true.to_any(), string_any("bigint")].to_array().to_any();
     Ok([(string_key("default"), c0)].to_object().to_any())
 }

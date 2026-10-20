@@ -17,15 +17,17 @@ use std::cell::RefCell;
 #[path = "../gen.samples/mod.rs"]
 pub mod samples;
 
-/// A compiled module: what `fjs compile` writes as `module`, on the VM the
-/// samples run on.
-pub type Module = fn() -> Result<Any<Naive>, Any<Naive>>;
+/// A compiled module: what `fjs compile` writes as `module`, a function of
+/// the runtime value, on the VM the samples run on.
+pub type Module = fn(Any<Naive>) -> Result<Any<Naive>, Any<Naive>>;
 
-/// Performs a sample: calls its `default` export with no arguments, and
-/// performs the effect it answers with an empty standard input. Answers what
-/// the sample wrote to standard output, or what it threw.
+/// Performs a sample: initializes it with the runtime value, calls its
+/// `default` export with no arguments, and performs the effect it answers
+/// with an empty standard input. Answers what the sample wrote to standard
+/// output, or what it threw.
 pub fn perform(module: Module) -> Result<Vec<u8>, Any<Naive>> {
-    let exports = Object::try_from(module()?).map_err(|_| Any::from("module is not an object"))?;
+    let exports = Object::try_from(module(nanvm_lib::vm::runtime::<Naive>()?)?)
+        .map_err(|_| Any::from("module is not an object"))?;
     let entry = exports
         .own_property(&"default".into())
         .and_then(|value| Function::try_from(value).ok())

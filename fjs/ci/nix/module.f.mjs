@@ -21,7 +21,7 @@
 
 import { writeFiles } from '../../effects/node/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
-import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
+import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { install, test, uses } from '../common/module.f.mjs'
 import { nixpkgs, rustOverlay } from '../config/module.f.js'

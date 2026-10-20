@@ -5,7 +5,7 @@
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
-import { assert, assertEq, assertOk } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk } from '../../asserts/module.f.js'
 import { exitCode, readUtf8File } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'

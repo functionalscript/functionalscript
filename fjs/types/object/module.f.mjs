@@ -15,7 +15,7 @@
 
 import { isArray } from '../array/module.f.mjs'
 import { iterable } from '../list/module.f.mjs'
-import { fromUndefined } from '../nullable/module.f.mjs'
+import { fromUndefined } from '../nullable/module.f.js'
 import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.mjs'
 
 /**
@@ -23,7 +23,7 @@ import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered
  * can use it without the cycle `asserts -> object -> nullable -> asserts`; see
  * `./structurally_same/README.md`. This module is its public home.
  */
-export { structurallySame } from './structurally_same/module.f.mjs'
+export { structurallySame } from './structurally_same/module.f.js'
 
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 

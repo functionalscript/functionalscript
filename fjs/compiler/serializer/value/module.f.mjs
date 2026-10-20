@@ -22,12 +22,12 @@
  * @import { _ValueNode } from './private.ts'
  */
 
-import { assertOk } from '../../../asserts/module.f.mjs'
+import { assertOk } from '../../../asserts/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
-import { isStatic } from '../../../edag/module.f.mjs'
+import { isIntrinsic, isStatic } from '../../../edag/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { _entryText, _hasEntryText, _renderSymbolic } from '../function_text/module.f.mjs'
+import { _entryText, _hasEntryText, _intrinsicText, _renderSymbolic } from '../function_text/module.f.mjs'
 import { _name as symbol, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 import { chunksText, chunkText } from '../../../text/marked/module.f.mjs'
 
@@ -42,6 +42,8 @@ const entry = (a, i, n) => {
     // a static function is the built-in, not its body, so there is none
     // to write: the module reads the host's own, which the tag spells
     if (isStatic(n)) { return n[0] }
+    // an intrinsic's helper, written in its one spelling as `entry` is
+    if (isIntrinsic(n)) { return _intrinsicText(n[0])(`value${i}/function`) }
     switch (n[0]) {
         case 'undefined': { return 'undefined' }
         case '[]': { return `[${n[1].map(operand).join(',')}]` }

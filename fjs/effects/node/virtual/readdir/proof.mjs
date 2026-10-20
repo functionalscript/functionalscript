@@ -8,7 +8,7 @@
 
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { resultMapStep } from '../../../module.f.mjs'
 import { ok } from '../../../../types/result/module.f.js'
 import { readdir } from '../../module.f.mjs'

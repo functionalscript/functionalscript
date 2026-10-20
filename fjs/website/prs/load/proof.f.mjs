@@ -3,7 +3,7 @@
  * ordinary-data decisions. No host clock, fetch, DOM, or scheduler is needed.
  */
 
-import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import {
     checkFailure, finishedNote, hasNextLink, listFailure, pageRequest, pageStep,
     refusalDecision, refusalNote, refreshStart, responseMessages, transportFailure,

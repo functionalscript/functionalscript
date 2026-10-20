@@ -2,34 +2,34 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("first", Any::dot(string_any("aXbX"), string_any("replace")).end_call(|| Ok([string_any("X"), string_any("-")].to_array().to_any())), string_any("a-bX"));
-    check::<A>("none", Any::dot(string_any("ab"), string_any("replace")).end_call(|| Ok([string_any("z"), string_any("-")].to_array().to_any())), string_any("ab"));
-    check::<A>("emptyPattern", Any::dot(string_any("ab"), string_any("replace")).end_call(|| Ok([string_any(""), string_any("-")].to_array().to_any())), string_any("-ab"));
-    check::<A>("match", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| Ok([string_any("X"), string_any("[$&]")].to_array().to_any())), string_any("a[X]b"));
-    check::<A>("dollar", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| Ok([string_any("X"), string_any("$$")].to_array().to_any())), string_any("a$b"));
-    check::<A>("before", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| Ok([string_any("X"), string_any("$`")].to_array().to_any())), string_any("aab"));
-    check::<A>("after", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| Ok([string_any("X"), string_any("$'")].to_array().to_any())), string_any("abb"));
-    check::<A>("noCaptures", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| Ok([string_any("X"), string_any("$1$<n>$")].to_array().to_any())), string_any("a$1$<n>$b"));
-    check::<A>("function", Any::dot(string_any("aXbX"), string_any("replace")).end_call(|| {
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("first", Any::dot(string_any("aXbX"), string_any("replace")).end_call(&rt, || Ok([string_any("X"), string_any("-")].to_array().to_any())), string_any("a-bX"));
+    check::<A>("none", Any::dot(string_any("ab"), string_any("replace")).end_call(&rt, || Ok([string_any("z"), string_any("-")].to_array().to_any())), string_any("ab"));
+    check::<A>("emptyPattern", Any::dot(string_any("ab"), string_any("replace")).end_call(&rt, || Ok([string_any(""), string_any("-")].to_array().to_any())), string_any("-ab"));
+    check::<A>("match", Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || Ok([string_any("X"), string_any("[$&]")].to_array().to_any())), string_any("a[X]b"));
+    check::<A>("dollar", Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || Ok([string_any("X"), string_any("$$")].to_array().to_any())), string_any("a$b"));
+    check::<A>("before", Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || Ok([string_any("X"), string_any("$`")].to_array().to_any())), string_any("aab"));
+    check::<A>("after", Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || Ok([string_any("X"), string_any("$'")].to_array().to_any())), string_any("abb"));
+    check::<A>("noCaptures", Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || Ok([string_any("X"), string_any("$1$<n>$")].to_array().to_any())), string_any("a$1$<n>$b"));
+    check::<A>("function", Any::dot(string_any("aXbX"), string_any("replace")).end_call(&rt, || {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.rest(0);
             Ok(rest.clone().to_any())
         }, 0, Array::default(), Some("(...$0)=>$0")).to_any();
         Ok([string_any("X"), c0].to_array().to_any())
     }), string_any("aX,1,aXbXbX"));
-    check::<A>("functionMatch", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| {
+    check::<A>("functionMatch", Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.rest(0);
             Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
         }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
         Ok([string_any("X"), c0].to_array().to_any())
     }), string_any("aXb"));
-    check::<A>("undefinedPattern", Any::dot(string_any("aundefinedb"), string_any("replace")).end_call(|| Ok([Nullish::Undefined.to_any(), string_any("-")].to_array().to_any())), string_any("a-b"));
-    check::<A>("numberPattern", Any::dot(string_any("a1b"), string_any("replace")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())), string_any("a2b"));
-    check::<A>("noReplacement", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| Ok([string_any("X")].to_array().to_any())), string_any("aundefinedb"));
-    check::<A>("undefinedAnswer", Any::dot(string_any("aXb"), string_any("replace")).end_call(|| {
+    check::<A>("undefinedPattern", Any::dot(string_any("aundefinedb"), string_any("replace")).end_call(&rt, || Ok([Nullish::Undefined.to_any(), string_any("-")].to_array().to_any())), string_any("a-b"));
+    check::<A>("numberPattern", Any::dot(string_any("a1b"), string_any("replace")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())), string_any("a2b"));
+    check::<A>("noReplacement", Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || Ok([string_any("X")].to_array().to_any())), string_any("aundefinedb"));
+    check::<A>("undefinedAnswer", Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.rest(0);
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;

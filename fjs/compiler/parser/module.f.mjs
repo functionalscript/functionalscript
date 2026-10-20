@@ -86,23 +86,23 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstComma, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstIntrinsic, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import { concat, reverse, toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.mjs'
-import { staticIds, staticPath } from '../../edag/module.f.mjs'
+import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -233,8 +233,8 @@ const reservedWord = foldError('reserved word')
  * at the word: `Number(a, b)` and `Number(...a)`, JavaScript's and not recognized
  * yet, for want of a representation
  * ([spec: number conversion](../../../spec/conversions/number.md)):
- * `Number(a, b)` is the comma's `(a, b, Number(a))`, which the
- * FunctionalScript writer cannot spell until the comma operator lands, and
+ * `Number(a, b)` is the comma's `(a, b, Number(a))` with `a` evaluated
+ * once, which the comma alone cannot spell without a binding for `a`, and
  * `Number(...a)` converts the first value a spread yields, which no node
  * expresses while a call's arity is the callee's to split. Refused by name
  * rather than answered wrongly; `Number()` is `0`, and is read as the
@@ -685,6 +685,28 @@ const lowered = ({ reads, names }, value, base) => ({
  */
 const advanced = (frame, made) => ({ ...frame, index: frame.index + 1, done: concat(frame.done)(made) })
 
+/**
+ * A binding statement's value landed in a frame that counts entries — a
+ * block body's `const`, a loop block's, or a late parameter: a name its
+ * own initializer read from outside, unbound when the statement began and
+ * bound now only by the capture that read took, is refused, `capture
+ * shadowed`; otherwise the frame steps past the entries the statement
+ * lowers to, {@link advanced}, and the names bind to them for what
+ * follows — after the value, keeping them out of their own initializer's
+ * scope — and `round` goes on.
+ *
+ * @type {<F extends _Counted<AstConst> & { readonly entries: number }>(round: (stack: _Stack, scope: _Scope, frame: F) => _State, stack: _Stack, scope: _Scope, frame: F, plan: _Plan, value: AstConst) => _State}
+ */
+const landed = (round, stack, scope, frame, plan, value) => {
+    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+    const { entries, bound } = lowered(plan, value, frame.entries)
+    return round(
+        stack,
+        { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
+        { ...advanced(frame, entries), entries: frame.entries + entries.length })
+}
+
 /** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
 const isCallStep = step => step !== undefined && step[0] !== '|.'
 
@@ -980,6 +1002,23 @@ const conditionalRound = (stack, scope, frame) => {
 }
 
 /**
+ * The next operand of a comma, or the comma closed when none is left:
+ * each operand as written, resolved all, as a conditional's arms are.
+ * Inside it no operand is a call's callee, the comma's frame standing on
+ * top: `(0, a.b)(c)` reads `a.b` by the read rule, as the plain call over
+ * a detached function JavaScript makes of it, and never as a method.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _CommaFrame) => _State}
+ */
+const commaRound = (stack, scope, frame) => {
+    const { comma, index } = frame
+    if (index < comma.length) { return [{ top: frame, rest: stack }, scope, ['enter', comma[index]]] }
+    /** @type {AstComma} */
+    const closed = [',', toArray(frame.done)]
+    return [stack, scope, ok(closed)]
+}
+
+/**
  * What `word` names in `scope` itself: a name it binds, or, where it
  * binds none and the word is the function's own, {@link entered}, the
  * function itself, `['self']`. The name comes after the bindings as it
@@ -1268,6 +1307,12 @@ const enter = (stack, scope, node) => {
         // the one reported, the first in document order
         case 'instanceof': { return [{ top: { instanceof: node[2], at: node[3] }, rest: stack }, scope, ['enter', node[1]]] }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
+        // a comma the parentheses also hold what no comma has in is
+        // refused at the first of it: a default, a rest or a trailing comma
+        case ',': {
+            const refusal = node[2]
+            return refusal === null ? commaRound(stack, scope, { comma: node[1], index: 0, done: null }) : [stack, scope, error(unexpectedToken(refusal))]
+        }
         case '=>': { return entered(stack, scope, node, null) }
         // a block stands only as a function's body, which `'=>'` above
         // enters; the mapping writes one nowhere else
@@ -1438,6 +1483,44 @@ const isHasEntryOf = (node, x) => {
 }
 
 /**
+ * An intrinsic's helper, recognized whole as the `entry` helper is: a
+ * function of as many parameters as the intrinsic's `length`, each a bare
+ * name, whose expression body is the member call of the intrinsic's name
+ * on the first with the rest, in order —
+ *
+ * ```js
+ * (s, a, b) => s.slice(a, b)
+ * ```
+ *
+ * under any distinct names — the AST's `['slice']`, the member's name
+ * ([`fjs/js/intrinsic`](../../js/intrinsic/module.f.js); the list is
+ * `intrinsics` in `fjs/edag`). `null` where the function is not a helper,
+ * by shape or by its names — a keyword or a reserved global among them, a
+ * name repeated, a pattern, a rest parameter, a spread, a block body, the
+ * key in the computed spelling — and the ordinary resolution takes it
+ * from there, as it takes every member call.
+ *
+ * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => AstIntrinsic | null}
+ */
+const intrinsicFunction = ([, list, body]) => {
+    if (!('fixed' in list) || list.rest !== null || body[0] !== '()') { return null }
+    const [, callee, items] = body
+    if (callee[0] !== '.' || callee.length !== 3 || callee[2] instanceof Array) { return null }
+    const key = keyNamed(callee[2])
+    const intrinsic = intrinsics.find(([id]) => id === key)
+    if (intrinsic === undefined || list.fixed.length !== intrinsicLength(intrinsic[0]) || items.length !== list.fixed.length - 1) { return null }
+    const tokens = list.fixed.flatMap(p => p[0] === 'name' ? [p[1]] : [])
+    if (tokens.length !== list.fixed.length) { return null }
+    const names = tokens.map(nameOf)
+    if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    const [receiver, ...rest] = names
+    if (!isRef(callee[1], receiver) || !items.every((item, k) => isRef(item, rest[k]))) { return null }
+    /** @type {AstIntrinsic} */
+    const helper = [intrinsic[0]]
+    return helper
+}
+
+/**
  * The `entry` helper, recognized whole
  * ([spec: entry](../../../spec/property-access/entries.md)), and the
  * `hasEntry` helper beside it, the same but for its `return`
@@ -1518,10 +1601,12 @@ const entryFunction = ([, list, body]) => {
  * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: string | null) => _State}
  */
 const entered = (stack, scope, node, self) => {
-    // the helper first, whole: a function that is one has no body to
+    // the helpers first, whole: a function that is one has no body to
     // resolve
     const entry = entryFunction(node)
     if (entry !== null) { return [stack, scope, entry] }
+    const intrinsic = intrinsicFunction(node)
+    if (intrinsic !== null) { return [stack, scope, ok(intrinsic)] }
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const { names, count, entries, late } = bound
@@ -1563,16 +1648,7 @@ const lateRound = (stack, scope, frame) => {
  *
  * @type {(stack: _Stack, scope: _Scope, frame: _LateFrame, value: AstConst) => _State}
  */
-const lateLanded = (stack, scope, frame, value) => {
-    const { plan } = frame.late[frame.index]
-    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
-    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
-    const { entries, bound } = lowered(plan, value, frame.entries)
-    return lateRound(
-        stack,
-        { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-        { ...advanced(frame, entries), entries: frame.entries + entries.length })
-}
+const lateLanded = (stack, scope, frame, value) => landed(lateRound, stack, scope, frame, frame.late[frame.index].plan, value)
 
 /**
  * A value handed to the frame on top: the next round of a container with
@@ -1585,6 +1661,7 @@ const returned = (stack, scope, frame, value) => {
     if ('container' in frame) { return containerReturned(stack, scope, frame, value) }
     if ('call' in frame) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
     if ('conditional' in frame) { return conditionalRound(stack, scope, advanced(frame, [value])) }
+    if ('comma' in frame) { return commaRound(stack, scope, advanced(frame, [value])) }
     if ('key' in frame) {
         const { key, method } = frame
         return key instanceof Array ? keyEntered(stack, scope, key, { indexed: value }) : [stack, scope, accessClosed(key, method, value)]
@@ -1654,15 +1731,7 @@ const returned = (stack, scope, frame, value) => {
     if ('block' in frame) {
         const [kind, statement] = frame.block[frame.index]
         if (kind === 'const') {
-            const plan = assertNotNullish(frame.plan, ['a const statement with no plan', statement])
-            // a name its own initializer read from outside, as a body's
-            const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
-            if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
-            const { entries, bound } = lowered(plan, value, frame.entries)
-            return loopRound(
-                stack,
-                { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-                { ...advanced(frame, entries), entries: frame.entries + entries.length })
+            return landed(loopRound, stack, scope, frame, assertNotNullish(frame.plan, ['a const statement with no plan', statement]), value)
         }
         // an assignment rebinds the loop's variable, which the block may
         // have read already: a new entry the word names from here on
@@ -1674,19 +1743,7 @@ const returned = (stack, scope, frame, value) => {
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const') {
-            const plan = assertNotNullish(frame.plan, ['a const statement with no plan', statement])
-            // a name its own initializer read from outside: unbound when the
-            // statement began, bound now only by the capture that read took
-            const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
-            if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
-            // the bindings land after the value, keeping the names out of
-            // their own initializer's scope, and name the entries this
-            // statement makes, after the ones the body has made so far
-            const { entries, bound } = lowered(plan, value, frame.entries)
-            return bodyRound(
-                stack,
-                { ...scope, names: bound.reduce((names, [word, ref]) => extended(names)(word, ref), scope.names) },
-                { ...advanced(frame, entries), entries: frame.entries + entries.length })
+            return landed(bodyRound, stack, scope, frame, assertNotNullish(frame.plan, ['a const statement with no plan', statement]), value)
         }
         // a guard's condition: its block is the first arm, a block of
         // JavaScript's own, so it may bind what the body has bound or read

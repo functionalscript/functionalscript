@@ -16,11 +16,11 @@
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
+import { decodeCodePoints, encodeCodePoints } from '../../basen/base16/module.f.mjs'
 import { sha1 } from '../../crypto/sha1/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { isWholeBytesIn, length, tryU8ListToVecMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { next, toArray } from '../../types/list/module.f.mjs'
@@ -37,13 +37,8 @@ import { write } from '../object/module.f.mjs'
  * @type {(hex: Bytes) => Nullable<Oid>}
  */
 export const tryFromHex = hex => {
-    const digits = byteArray(hex)
-    const values = digits.flatMap(b => {
-        const v = hexDigitValue(b)
-        return v === null ? [] : [v]
-    })
-    if (values.length !== digits.length || values.length === 0 || values.length % 2 !== 0) { return null }
-    return tryU8ListToVecMsb(values.filter((_, i) => i % 2 === 0).map((h, i) => h * 16 + values[2 * i + 1]))
+    const bytes = decodeCodePoints(byteArray(hex))
+    return bytes === null || bytes.length === 0 ? null : tryU8ListToVecMsb(bytes)
 }
 
 /**
@@ -197,7 +192,7 @@ export const digestOf = oidBytes => {
 export const toHex = oid => {
     const bits = length(oid)
     assert(bits !== 0n && isWholeBytesIn(bits), ['not whole bytes', oid])
-    return toArray(u8ListMsb(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
+    return encodeCodePoints(toArray(u8ListMsb(oid)))
 }
 
 /**

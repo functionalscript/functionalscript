@@ -10,9 +10,9 @@
  *
  * An entry is a body, or `todo` where none is written yet: the executors
  * answer those natively today, NaNVM in `vm/lambda` and the interpreter in
- * `fjs/edag/value/method`, and the one body written so far,
- * `startsWith`, is the `member` section of [`../runtime`](../runtime/module.f.js),
- * which the static runtime compiles. Which names stay native, and how the
+ * `fjs/edag/value/method`, and the bodies written so far, `startsWith`
+ * and `codePointAt`, are the `member` section of
+ * [`../runtime`](../runtime/module.f.js), which NaNVM compiles to a value. Which names stay native, and how the
  * executors are generated from this table, is decided after it is filled
  * ([`../todo/runtime-members.md`](../todo/runtime-members.md)).
  *
@@ -21,7 +21,7 @@
  * @import { Members } from './types.ts'
  */
 
-import { todo } from '../../asserts/module.f.mjs'
+import { todo } from '../../asserts/module.f.js'
 
 /** @type {Members} */
 export const members = {

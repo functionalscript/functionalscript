@@ -5,7 +5,7 @@
  * @import { EdagValue } from '../types.ts'
  */
 
-import { assertEq, assertOk } from '../../../asserts/module.f.mjs'
+import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { untagUndefined, truthy, typeOf, strictEqual, is, unary, binary } from './module.f.mjs'
 
 /** @type {readonly (readonly [EdagValue, boolean, string])[]} */
@@ -25,6 +25,8 @@ const classifications = [
     [['=>', 0, [], 0], true, 'function'],
     [['entry'], true, 'function'],
     [['hasEntry'], true, 'function'],
+    [['slice'], true, 'function'],
+    [['charCodeAt'], true, 'function'],
     [['Object.entries'], true, 'function'],
     [['Object.is'], true, 'function'],
 ]

@@ -40,7 +40,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { tryJsonStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { assertOk } from '../../asserts/module.f.mjs'
+import { assertOk } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { withoutNegativeZero } from '../corpus/module.f.mjs'
 
@@ -85,7 +85,7 @@ const throwing = [
     'use nanvm_lib::vm::{Any, IVm, Nullish, ToAny};',
     '',
     '#[rustfmt::skip]',
-    'pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {',
+    'pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {',
     '    Err(Nullish::Undefined.to_any())',
     '}',
 ].join('\n')

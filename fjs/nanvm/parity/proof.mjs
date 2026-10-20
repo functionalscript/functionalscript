@@ -7,7 +7,7 @@
  * `expected`, so the two hosts agree through it.
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { runNodeEffect } from '../../effects/node/module.mjs'
 import { withTemporary } from '../../effects/node/testlib.mjs'
 import * as parity from '../../../nanvm/harness/fixtures/parity.mjs'

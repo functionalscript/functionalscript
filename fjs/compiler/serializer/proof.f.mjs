@@ -17,7 +17,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -485,6 +485,12 @@ export const proof = {
         writes(['hasEntry'], `export default ${has};`)
         writes(['()', ['hasEntry'], [1, 2]], `const $0=($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable===true;};export default $0(1,2);`)
         writes(['.', ['hasEntry'], 'length'], `const $0=($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable===true;};export default $0.length;`)
+        // an intrinsic's helper in its one spelling, the member call of the
+        // name on its first parameter with the rest
+        writes(['slice'], 'export default ($0,$1,$2)=>$0.slice($1,$2);')
+        writes(['charCodeAt'], 'export default ($0,$1)=>$0.charCodeAt($1);')
+        writes(['()', ['slice'], ['abc', 1, 2]], 'const $0=($1,$2,$3)=>$1.slice($2,$3);export default $0("abc",1,2);')
+        writes(['.', ['slice'], 'length'], 'const $0=($1,$2,$3)=>$1.slice($2,$3);export default $0.length;')
         // an operand of an operator, a prefix's and a conditional's
         // condition are grouped as a function is, an arrow being no
         // operand bare; a conditional's arm, an item and an argument are
@@ -1041,8 +1047,8 @@ export const proof = {
         // A node kind with a spelling, in a position that has none.
         refuses(['rest'], 'the arguments outside a function')
         // a comma is a scope's own form — a module's root and a function's
-        // body are where one is read — so one inside a container has no
-        // source spelling until the operator lands
+        // body are where one is read — and the lowering builds one nowhere
+        // else, so one inside a container is a graph built by hand
         refuses(['[]', [[',', [1, 2]]]], 'a comma outside a scope')
         refuses(['=>', 0, [], ['[]', [[',', [1, 2]]]]], 'a comma outside a scope')
         // An access key no literal spells: a computed one, and the three

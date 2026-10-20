@@ -41,7 +41,7 @@ import { tryUtf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 
 /** A named curve, bound once.
  * @type {(name: string, curve: Curve) => DemoCurve}

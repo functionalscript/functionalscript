@@ -12,7 +12,7 @@
  * @import { Sample, State } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'

@@ -10,12 +10,13 @@ import {
     stringToCodePointList,
     codePointListToString,
     codePointToString,
+    codeUnitToString,
     floorCodePointBoundary,
     isWellFormed,
 } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 
 /** @type {(a: readonly Unknown[]) => string} */
 const stringify = a =>
@@ -177,6 +178,11 @@ export const proof = {
         () => { assertEq(codePointToString(0xd800), '\ud800') },
         // above the maximum code point, the low 16 bits are kept
         () => { assertEq(codePointToString(0x11_0000), '\u0000') },
+    ],
+    codeUnitToString: [
+        () => { assertEq(codeUnitToString(0x41), 'A') },
+        // a lone surrogate is kept as its own code unit
+        () => { assertEq(codeUnitToString(0xd800), '\ud800') },
     ],
     isWellFormed: () => {
         assertEq(isWellFormed(''), true)

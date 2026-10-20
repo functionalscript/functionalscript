@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{f64_any, strict_eq, strict_ne, string_any, string_
 use nanvm_lib::vm::{Any, Constructor, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;
     let c1: Any<A> = (c0.clone() + f64_any(0x3ff0000000000000))?;
     let c2: Any<A> = (c0.clone() - f64_any(0x3ff0000000000000))?;

@@ -11,7 +11,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { assertOk } from '../../../asserts/module.f.mjs'
+import { assertOk } from '../../../asserts/module.f.js'
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.mjs'

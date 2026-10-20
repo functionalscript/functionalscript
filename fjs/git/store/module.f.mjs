@@ -72,7 +72,7 @@ import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkS
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, under } from '../../path/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
-import { map } from '../../types/nullable/module.f.mjs'
+import { map } from '../../types/nullable/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { alternatesIn } from '../alternates/module.f.mjs'
 import { lastBool, lastInt, lastValue, tryEntries, values } from '../config/module.f.mjs'
@@ -482,56 +482,6 @@ const packedOr = (idOf, id, loose) => r => {
 }
 
 /**
- * What one object directory answers for an id: its loose file, or its packs
- * where that is anything but the object.
- *
- * A `Result` and not an error, because none of the three things short of the
- * object ends the search — the next directory may hold it — and each is still an
- * answer once every directory has been asked.
- *
- * Everything it needs is a leading parameter, so the step closes over nothing
- * the walk carries (§3.3).
- *
- * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, _Outcome, IoChannel>}
- */
-const inOne = (idOf, oidBytes, id) => od => {
-    const p = loosePath(od, id)
-    // `resultStep` and not `resultMapStep`: the answer is wanted as a *value* and
-    // not lifted back into the channel, because none of the three things short of
-    // the object ends the search here.
-    const loose = resultStep(readLoose(p), r => pureOk(checkedAt(idOf, p, id)(r)))
-    return step(loose, r => {
-        if (r[0] === 'ok' && r[1] !== null) { return pureOk(/** @type {_Outcome} */ ([r, false])) }
-        // On the loose side, a failure meaning *nothing is at this path* is not
-        // a refusal: it is what a store without the object looks like. That is
-        // `ENOENT`, and also the `ENOTDIR` of a path whose component is a
-        // regular file and the `ELOOP` of one whose links cycle — an alternates
-        // entry naming either is a borrowing Git warns about and reads past.
-        // Everything else that read can say is a refusal — a hash mismatch,
-        // because the file is there and holds something else; a stream that is
-        // no zlib stream, because the file is there and is broken; an `EACCES`,
-        // because the file may be there and the host will not say. An earlier
-        // revision named only the hash mismatch, so a borrowed store's corrupt
-        // loose object hid behind the repository's own `ENOENT`; a later one
-        // named only `ENOENT`, so an unusable *directory* refused the store.
-        const looseRefused = r[0] === 'error' && !namesNothing(r[1])
-        return resultStep(readPacked(od, oidBytes)(id), h => {
-            const answered = packedOr(idOf, id, r)(h)
-            return pureOk(/** @type {_Outcome} */ ([
-                answered,
-                // On the packed side there is no such failure to spare: an index
-                // that names the id has said the store holds it, so *every* way
-                // the read can fail afterwards is a refusal — an `ENOENT` for the
-                // `.pack` beside a readable `.idx` among them. Which side
-                // answered is the question, not which errno came back; asking the
-                // code alone turns that missing pack into a miss.
-                answered === r ? looseRefused : answered[0] === 'error',
-            ]))
-        })
-    })
-}
-
-/**
  * One directory of the search: its answer where it has the object, and otherwise
  * the first directory's answer kept for the end.
  *
@@ -544,13 +494,63 @@ const inOne = (idOf, oidBytes, id) => od => {
  *
  * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => (found: Nullable<_Outcome>) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, readonly [Nullable<_Outcome>, List<string>], IoChannel>}
  */
-const storeOf = (idOf, oidBytes, id) => od => found => {
-    if (found !== null && found[0][0] === 'ok' && found[0][1] !== null) {
-        return pureOk(/** @type {const} */ ([found, null]))
+const storeOf = (idOf, oidBytes, id) => {
+    /**
+     * What one object directory answers for the id: its loose file, or its
+     * packs where that is anything but the object.
+     *
+     * A `Result` and not an error, because none of the three things short of
+     * the object ends the search — the next directory may hold it — and each is
+     * still an answer once every directory has been asked.
+     *
+     * @type {(od: string) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, _Outcome, IoChannel>}
+     */
+    const inOne = od => {
+        const p = loosePath(od, id)
+        // `resultStep` and not `resultMapStep`: the answer is wanted as a
+        // *value* and not lifted back into the channel, because none of the
+        // three things short of the object ends the search here.
+        const loose = resultStep(readLoose(p), r => pureOk(checkedAt(idOf, p, id)(r)))
+        return step(loose, r => {
+            if (r[0] === 'ok' && r[1] !== null) { return pureOk(/** @type {_Outcome} */ ([r, false])) }
+            // On the loose side, a failure meaning *nothing is at this path* is
+            // not a refusal: it is what a store without the object looks like.
+            // That is `ENOENT`, and also the `ENOTDIR` of a path whose
+            // component is a regular file and the `ELOOP` of one whose links
+            // cycle — an alternates entry naming either is a borrowing Git
+            // warns about and reads past. Everything else that read can say is
+            // a refusal — a hash mismatch, because the file is there and holds
+            // something else; a stream that is no zlib stream, because the file
+            // is there and is broken; an `EACCES`, because the file may be there
+            // and the host will not say. An earlier revision named only the
+            // hash mismatch, so a borrowed store's corrupt loose object hid
+            // behind the repository's own `ENOENT`; a later one named only
+            // `ENOENT`, so an unusable *directory* refused the store.
+            const looseRefused = r[0] === 'error' && !namesNothing(r[1])
+            return resultStep(readPacked(od, oidBytes)(id), h => {
+                const answered = packedOr(idOf, id, r)(h)
+                return pureOk(/** @type {_Outcome} */ ([
+                    answered,
+                    // On the packed side there is no such failure to spare: an
+                    // index that names the id has said the store holds it, so
+                    // *every* way the read can fail afterwards is a refusal — an
+                    // `ENOENT` for the `.pack` beside a readable `.idx` among
+                    // them. Which side answered is the question, not which errno
+                    // came back; asking the code alone turns that missing pack
+                    // into a miss.
+                    answered === r ? looseRefused : answered[0] === 'error',
+                ]))
+            })
+        })
     }
-    return mapStep(
-        inOne(idOf, oidBytes, id)(od),
-        o => /** @type {const} */ ([kept(found, o), null]))
+    return od => found => {
+        if (found !== null && found[0][0] === 'ok' && found[0][1] !== null) {
+            return pureOk(/** @type {const} */ ([found, null]))
+        }
+        return mapStep(
+            inOne(od),
+            o => /** @type {const} */ ([kept(found, o), null]))
+    }
 }
 
 /**

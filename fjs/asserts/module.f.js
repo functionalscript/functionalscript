@@ -6,7 +6,7 @@
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { structurallySame } from '../types/object/structurally_same/module.f.mjs'
+import { structurallySame } from '../types/object/structurally_same/module.f.js'
 
 /**
  * Marks a code path as unimplemented. Always throws.
@@ -23,7 +23,8 @@ export const todo = () => { throw 'not implemented' }
  * @type {(v: boolean, msg?: unknown) => asserts v}
  */
 export const assert = (v, msg = 'assertion failed') => {
-    if (!v) throw msg
+    if (!v) { throw msg }
+    return undefined
 }
 
 /**
@@ -34,7 +35,7 @@ export const assert = (v, msg = 'assertion failed') => {
  */
 export const assertEq = (...x) => {
     const [a, b] = x
-    assert(a === b, x)
+    return assert(a === b, x)
 }
 
 /**
@@ -52,7 +53,7 @@ export const assertEq = (...x) => {
  */
 export const assertStructurallySame = (...x) => {
     const [a, b] = x
-    assert(structurallySame(a, b), x)
+    return assert(structurallySame(a, b), x)
 }
 
 /**
@@ -65,10 +66,7 @@ export const assertStructurallySame = (...x) => {
  *
  * @type {<T>(a: T|null|undefined, msg?: unknown) => T}
  */
-export const assertNotNullish = (a, msg) => {
-    assert(a !== null && a !== undefined, msg)
-    return a
-}
+export const assertNotNullish = (a, msg) => (assert(a !== null && a !== undefined, msg), a)
 
 /**
  * Asserts that `r` is `ok`, throwing `r` if it is an `error`, and returns the
@@ -78,8 +76,7 @@ export const assertNotNullish = (a, msg) => {
  */
 export const assertOk = r => {
     const [tag, value] = r
-    assert(tag === 'ok', r)
-    return value
+    return (assert(tag === 'ok', r), value)
 }
 
 /**
@@ -90,8 +87,7 @@ export const assertOk = r => {
  */
 export const assertError = r => {
     const [tag, value] = r
-    assert(tag === 'error', r)
-    return value
+    return (assert(tag === 'error', r), value)
 }
 
 /**

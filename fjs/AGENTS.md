@@ -62,9 +62,12 @@ stay opt-in through the `proof.mjs` filename convention.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
-`module.f.js` keeps a `proof.f.mjs` for now: a proof fails through `assert`,
-whose `!`, bare `if` and default parameter the compiler does not accept yet
-([`compiler/README.md`](./compiler/README.md)). Type-only APIs may live in an authored
+`module.f.js` keeps a `proof.f.mjs` for now: a proof is a run of assertion
+calls written as statements, `assertEq(a, b)`, and a body holds only `const`s
+and guards before its terminating statement
+([`compiler/README.md`](./compiler/README.md),
+[CONVERTING.md rule 10](../doc/CONVERTING.md#10-a-call-made-for-its-failure)).
+`fjs/asserts` itself is an `.f.js`. Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:
 
@@ -91,7 +94,7 @@ policy.
 ### 1.3 Use `assert` / `assertEq`, never a hand-written `if`/`throw`
 
 Assert results in `proof` code with `assert`/`assertEq` from
-[`fjs/asserts/module.f.mjs`](./asserts/module.f.mjs), not a hand-written
+[`fjs/asserts/module.f.js`](./asserts/module.f.js), not a hand-written
 `if (cond) { throw ... }`. For an `['ok' | 'error', payload]` result, the same
 module has `assertOk`/`assertError`, which return the payload so it can be
 compared: `assertEq(assertOk(r), expected)`.
@@ -812,7 +815,7 @@ declaration form is a welcome cleanup wherever the rewrite is straightforward.
 When the value being narrowed is an invariant a comment would otherwise have to
 assert on trust — "this is never `undefined`/`null` because the caller already
 guaranteed X" — prefer `assert`/`assertNotNullish` from
-[`fjs/asserts/module.f.mjs`](./asserts/module.f.mjs) over a cast:
+[`fjs/asserts/module.f.js`](./asserts/module.f.js) over a cast:
 
 ```js
 const refCounter = assertNotNullish(refs.get(entry))
@@ -1169,9 +1172,7 @@ can deduplicate structurally identical closed functions across modules (and
 repositories). That is a reason to hoist what is already closed, not to close
 what isn't. Deduplication is an optimization, and it doesn't outweigh a simpler
 helper. For example, `loop` in `crypto/vdf` captures the field's `reduce` and
-stays inside `sloth_vdf`. Helpers shaped by an earlier text of this rule, which
-asked for the opposite and which their comments still cite, are migration debt,
-not precedent: [lifted-captures](./todo/lifted-captures.md) lists them.
+stays inside `sloth_vdf`, and `walkStep`'s loop in `effects` captures `f`.
 
 Don't split below the semantic seam, though — if a fragment can't be described by
 a one-line JSDoc claim ("renews the lease", "publishes the staging file"),

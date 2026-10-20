@@ -6,7 +6,7 @@
  * @import { Invoke } from '../call/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { invoke } from '../../amnesia/module.f.mjs'
 import { admits, hasMethod, method } from './module.f.mjs'
@@ -107,14 +107,12 @@ export const proof = {
         check('a😀b', 'at', [10], undefinedValue)
         check('a😀b', 'charAt', [1], '\ud83d')
         check('a😀b', 'charCodeAt', [1], 0xD83D)
-        check('a😀b', 'codePointAt', [1], 0x1_F600)
-        check('a😀b', 'codePointAt', [10], undefinedValue)
         check('abc', 'slice', [1], 'bc')
         check('abc', 'slice', [-2, -1], 'b')
         check('abc', 'substring', [2, 1], 'b')
         check('abc', 'substring', [1], 'bc')
         assertEq(assertOk(method('abc', 'slice', [0, coercible], () => ok(undefinedValue), undefined)), '')
-        for (const key of ['at', 'charAt', 'charCodeAt', 'codePointAt', 'slice', 'substring']) {
+        for (const key of ['at', 'charAt', 'charCodeAt', 'slice', 'substring']) {
             assertEq(method('abc', key, [coercible], () => failure, undefined), failure)
         }
         for (const key of ['slice', 'substring']) { assertEq(method('abc', key, [0, coercible], () => failure, undefined), failure) }
@@ -145,7 +143,8 @@ export const proof = {
             assertEq(method('abc', key, ['x', coercible], () => failure, undefined), failure)
         }
     },
-    // `startsWith` has no native case: the runtime's `dot` answers it, asked
+    // `startsWith` has no native case, and neither has `codePointAt`: the
+    // runtime's `dot` answers it, asked
     // for the receiver and the key — the function of the arguments, or
     // `undefined` for a receiver the name is no member of — and the
     // function called with the arguments. Without one the call is the
@@ -160,6 +159,7 @@ export const proof = {
         assertEq(assertOk(hasMethod('abc', 'startsWith', runtime, invoke)), true)
         assertEq(assertOk(hasMethod('no', 'startsWith', runtime, invoke)), false)
         assertEq(assertOk(hasMethod('abc', 'startsWith', undefined, invoke)), false)
+        assertEq(assertOk(hasMethod('abc', 'codePointAt', undefined, invoke)), false)
         assertEq(assertOk(hasMethod('abc', 'slice', undefined, skipped)), true)
         assertEq(assertOk(hasMethod(1, 'startsWith', runtime, skipped)), false)
         assertEq(assertOk(method('abc', 'startsWith', ['ab'], invoke, runtime)), 'ab')

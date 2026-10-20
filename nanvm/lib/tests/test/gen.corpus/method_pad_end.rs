@@ -2,12 +2,12 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("dots", Any::dot(string_any("a"), string_any("padEnd")).end_call(|| Ok([f64_any(0x4010000000000000), string_any(".")].to_array().to_any())), string_any("a..."));
-    check::<A>("cut", Any::dot(string_any("abc"), string_any("padEnd")).end_call(|| Ok([f64_any(0x4020000000000000), string_any("xy")].to_array().to_any())), string_any("abcxyxyx"));
-    check::<A>("spaces", Any::dot(string_any("a"), string_any("padEnd")).end_call(|| Ok([f64_any(0x4008000000000000)].to_array().to_any())), string_any("a  "));
-    check::<A>("emptyFill", Any::dot(string_any("a"), string_any("padEnd")).end_call(|| Ok([f64_any(0x4014000000000000), string_any("")].to_array().to_any())), string_any("a"));
-    check::<A>("shorter", Any::dot(string_any("abc"), string_any("padEnd")).end_call(|| Ok([f64_any(0x4000000000000000), string_any("x")].to_array().to_any())), string_any("abc"));
-    check_throws::<A>("bigintLength", Any::dot(string_any("a"), string_any("padEnd")).end_call(|| Ok([bigint_any(3)].to_array().to_any())));
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("dots", Any::dot(string_any("a"), string_any("padEnd")).end_call(&rt, || Ok([f64_any(0x4010000000000000), string_any(".")].to_array().to_any())), string_any("a..."));
+    check::<A>("cut", Any::dot(string_any("abc"), string_any("padEnd")).end_call(&rt, || Ok([f64_any(0x4020000000000000), string_any("xy")].to_array().to_any())), string_any("abcxyxyx"));
+    check::<A>("spaces", Any::dot(string_any("a"), string_any("padEnd")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())), string_any("a  "));
+    check::<A>("emptyFill", Any::dot(string_any("a"), string_any("padEnd")).end_call(&rt, || Ok([f64_any(0x4014000000000000), string_any("")].to_array().to_any())), string_any("a"));
+    check::<A>("shorter", Any::dot(string_any("abc"), string_any("padEnd")).end_call(&rt, || Ok([f64_any(0x4000000000000000), string_any("x")].to_array().to_any())), string_any("abc"));
+    check_throws::<A>("bigintLength", Any::dot(string_any("a"), string_any("padEnd")).end_call(&rt, || Ok([bigint_any(3)].to_array().to_any())));
 }

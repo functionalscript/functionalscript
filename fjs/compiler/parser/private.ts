@@ -416,6 +416,14 @@ export type _ConditionalFrame = _Counted<AstConst> & {
     readonly conditional: readonly ['?:', Node, Node, Node]
 }
 
+/**
+ * A comma being built: its operand at `index` is being evaluated, and
+ * `done` holds the values before it, {@link _Counted}.
+ */
+export type _CommaFrame = _Counted<AstConst> & {
+    readonly comma: readonly Node[]
+}
+
 export type _Frame =
     | _ContainerFrame
     | _CallFrame
@@ -427,6 +435,7 @@ export type _Frame =
     | _BinaryLeftFrame
     | _BinaryRightFrame
     | _ConditionalFrame
+    | _CommaFrame
     | _FunctionFrame
     | _LateFrame
     | _BodyFrame

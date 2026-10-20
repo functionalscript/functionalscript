@@ -19,7 +19,7 @@ import {
     none,
 } from '../../types/list/module.f.mjs'
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { isUintUpTo } from '../../types/number/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
 import { concat } from '../../types/string/module.f.mjs'
@@ -344,9 +344,29 @@ export const floorCodePointBoundary = s => index => {
 }
 
 /**
+ * Converts a single UTF-16 code unit to the one-code-unit string it spells —
+ * the code-unit counterpart of {@link codePointToString}, and the one place
+ * FunctionalScript modules turn a character code into a `string` instead of
+ * each reaching for `String.fromCharCode` itself.
+ *
+ * A lone surrogate is kept as that code unit, and input outside `0..0xFFFF`
+ * is truncated to its low 16 bits, as `String.fromCharCode` does.
+ *
+ * @example
+ *
+ * ```ts
+ * codeUnitToString(0x41)    // 'A'
+ * codeUnitToString(0xD800)  // '\ud800' — a lone high surrogate
+ * ```
+ *
+ * @type {(codeUnit: U16) => string}
+ */
+export const codeUnitToString = codeUnit => String.fromCharCode(codeUnit)
+
+/**
  * Converts a list of UTF-16 code units (U16) to a string.
  * This function takes a list of `U16` values (UTF-16 code units) and reconstructs the original string by mapping
- * each code unit back to its character using `String.fromCharCode`. The resulting characters are concatenated
+ * each code unit back to its character using {@link codeUnitToString}. The resulting characters are concatenated
  * to form the final string.
  *
  * @example
@@ -358,7 +378,7 @@ export const floorCodePointBoundary = s => index => {
  *
  * @type {(input: List<U16>) => string}
  */
-export const listToString = compose(map(String.fromCharCode))(concat)
+export const listToString = compose(map(codeUnitToString))(concat)
 
 /**
  * Converts a list of Unicode code points (CodePoint) to a string.

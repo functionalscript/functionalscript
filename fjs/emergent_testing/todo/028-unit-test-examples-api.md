@@ -36,7 +36,7 @@ simple invariant: every top-level example group describes a real public export,
 and renaming an export forces the matching example name to change too.
 
 ```ts
-import { assertEq } from '../asserts/module.f.mjs'
+import { assertEq } from '../asserts/module.f.js'
 
 const normalizeRoot = (s: string): string => s === '' ? '.' : s
 

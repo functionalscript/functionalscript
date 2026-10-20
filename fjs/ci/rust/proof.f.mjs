@@ -15,7 +15,7 @@
  * @module
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { devNixJob } from '../dev/module.f.mjs'
 import { flakeText, nixVersionStep } from '../nix/module.f.mjs'

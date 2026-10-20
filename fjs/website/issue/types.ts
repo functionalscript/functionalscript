@@ -1,11 +1,11 @@
 /**
- * Types for `fjs/website/issue/module.f.mjs`: an issue's header as the
+ * Types for `fjs/website/issue/module.f.js`: an issue's header as the
  * website reads it.
  *
  * @module
  */
 
-import type { priorities, statuses } from './module.f.mjs'
+import type { priorities, statuses } from './module.f.js'
 
 /** One value of an issue's `**Status:**` line. */
 export type Status = typeof statuses[number]

@@ -6,7 +6,7 @@ import { partialRun } from '../../effects/mock/module.f.mjs'
 import { nodeCommands } from '../../effects/node/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 const source = { id: 'main.f.js', path: 'main.f.js', json: false }
 const imported = { specifier: './dep.f.js', json: false, name: 'default' }

@@ -3,7 +3,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { sha1 } from '../sha1/module.f.mjs'

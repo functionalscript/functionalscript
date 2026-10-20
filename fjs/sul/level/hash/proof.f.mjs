@@ -3,7 +3,7 @@
  * @import { EncodeState } from './types.ts'
  */
 
-import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 import { compress, level3Id } from '../../id/module.f.mjs'
 import { emptyEncodeState, encode } from './module.f.mjs'
 

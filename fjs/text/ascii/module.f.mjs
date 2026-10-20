@@ -12,7 +12,7 @@
  * @import { Range } from '../../types/range/types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { contains } from '../../types/range/module.f.js'
 
 /** @type {(s: string) => (i: number) => number} */
@@ -277,6 +277,17 @@ export const isLatinCapitalLetter = contains(...latinCapitalLetterRange)
 export const isLatinLetter = codePoint =>
     isLatinSmallLetter(codePoint) || isLatinCapitalLetter(codePoint)
 
+/**
+ * A code-point class asked of a one-character string, which is what most
+ * lexical rules hold: `charIs(isDigit)('7')`. `false` for a string that is
+ * not one UTF-16 code unit — `''`, `'12'`, and a character outside the Basic
+ * Multilingual Plane alike, none of which any class here admits — so a
+ * consumer has no length test of its own to write.
+ *
+ * @type {(isClass: (codePoint: number) => boolean) => (c: string) => boolean}
+ */
+export const charIs = isClass => c => c.length === 1 && isClass(one(c))
+
 // hexadecimal digits
 
 const isLatinSmallLetterAF = contains(...latinSmallLetterAFRange)
@@ -342,6 +353,15 @@ export const isCanonicalDigits = digits =>
     digits.length !== 0
     && digits.every(d => Number.isInteger(d) && isDigit(d))
     && (digits.length === 1 || digits[0] !== digit0)
+
+/**
+ * Whether a string is a non-empty run of `0-9` and nothing else: no sign, no
+ * space, no exponent. A leading zero is admitted — canonicality is
+ * {@link isCanonicalDigits}'s question, asked of code points.
+ *
+ * @type {(s: string) => boolean}
+ */
+export const isDigits = s => s !== '' && [...s].every(charIs(isDigit))
 
 /**
  * The number a run of digits spells in `radix`, or `null` where the run is

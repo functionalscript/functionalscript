@@ -5,7 +5,7 @@
  * Provider responses are supplied locally; no live credentials are used.
  */
 
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import worker, { handleGithubRequest } from './github-worker.mjs'
 
 /** @type {string} */

@@ -4,9 +4,9 @@
  * @import { BitGroups, BitScheme } from './types.ts'
  */
 
-import { bitGroupDemo, bitGroups } from './module.f.mjs'
+import { bitGroupDemo, bitGroups, byteChars } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../../asserts/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { runPure } from '../../../effects/module.f.mjs'
 import { length, maxLengthBytes, uint } from '../../../types/bit_vec/module.f.mjs'
@@ -36,6 +36,16 @@ const stopDemo = bitGroupDemo({ intro: 'Encode <text> & read the groups.', name:
 const blockDemo = bitGroupDemo({ intro: 'Encode <text> & read the groups.', name: 'Block', how: '3 bits, 2 to a block', scheme: blocks, encode })
 
 export const proof = {
+    // Each character with its bytes as numbers and in binary; a lone
+    // surrogate has no UTF-8 bytes.
+    byteChars: () => {
+        assertEq(JSON.stringify(assertOk(byteChars('a é'))), JSON.stringify([
+            [[0x61], { label: 'a', standIn: false, bytes: ['01100001'] }],
+            [[0x20], { label: '␠', standIn: true, bytes: ['00100000'] }],
+            [[0xc3, 0xa9], { label: 'é', standIn: false, bytes: ['11000011', '10101001'] }],
+        ]))
+        assertEq(assertError(byteChars('\ud800')), 'unpaired surrogate, no UTF-8')
+    },
     bitGroups: {
         // A short last group is completed with zeros; whole groups need
         // nothing.

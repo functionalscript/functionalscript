@@ -1,17 +1,18 @@
-use super::method::{method, runtime};
+use super::method::method;
 use crate::vm::{
-    Any, Array, IVm, Unpacked,
+    Any, Array, IVm, ToAny, ToArray, Unpacked,
     member_access::{non_nullish_receiver, undefined_if_absent},
 };
 
 /// A property step's live state: the receiver and the key, the read
 /// deferred to the exit that needs it. `end` reads the property; a call
 /// exit resolves the callee — an object's own property or an array's
-/// element first, then the receiver type's built-in member function — and
-/// the guard of `|?.()` asks the same resolution whether there is a callee
-/// at all. Holding the key rather than the value is what lets a call reach
-/// a built-in the receiver does not own, `[1].at(0)`, and what keeps the
-/// receiver for it.
+/// element first, then the body the runtime value's `dot` answers for the
+/// name, then the receiver type's native member function for a name
+/// without a body — and the guard of `|?.()` asks the same resolution
+/// whether there is a callee at all. Holding the key rather than the
+/// value is what lets a call reach a built-in the receiver does not own,
+/// `[1].at(0)`, and what keeps the receiver for it.
 ///
 /// The receiver is never nullish: [`Member::new`] throws for one, before
 /// the arguments of any step, and a live chain is one that got past it.
@@ -67,37 +68,79 @@ impl<A: IVm> Member<A> {
         undefined_if_absent(self.own())
     }
 
+    /// The function the runtime value's `dot` answers for the receiver and
+    /// the key, or `None`: the body of the name, a function of the receiver
+    /// answering the function of the arguments, `undefined` for a receiver
+    /// the name is no member of, or the throw of its first step
+    /// (`fjs/js/runtime`'s `dot`; `fjs/js/runtime/README.md`, "How NaNVM
+    /// finds it"). `dot` is pure, so the guard of `?.()` and the call may
+    /// each ask it. Asked before the native table, as the interpreter asks
+    /// it, so a name with a body is the body's wherever it is called and a
+    /// native beside a body is unreachable: substituting a native for a
+    /// body, which DESIGN.md §13 allows a VM, is a measured change to this
+    /// order, not an entry in the table.
+    fn body(&self, runtime: &Any<A>) -> Result<Option<Any<A>>, Any<A>> {
+        let dot = runtime.clone().dot("dot".into()).end()?;
+        let callee = dot.call(
+            [self.receiver.clone(), self.key.clone()]
+                .to_array()
+                .to_any(),
+        )?;
+        Ok(if callee.is_nullish() {
+            None
+        } else {
+            Some(callee)
+        })
+    }
+
     /// The guard of `|?.()`: whether the callee the call would find is
     /// nullish — an own property that is, or nothing at all, no own
     /// property and no built-in of the name, native or the runtime's, which
     /// the runtime's body decides for the receiver, and may throw deciding.
     /// `({}).at?.()` skips; `({}).toString?.()` calls.
-    pub(crate) fn is_nullish(&self) -> Result<bool, Any<A>> {
+    pub(crate) fn is_nullish(&self, runtime: &Any<A>) -> Result<bool, Any<A>> {
         match self.own() {
             Some(v) => Ok(v.is_nullish()),
-            None => Ok(method(&self.receiver, &self.key).is_none()
-                && runtime(&self.receiver, &self.key)?.is_none()),
+            None => {
+                Ok(self.body(runtime)?.is_none() && method(&self.receiver, &self.key).is_none())
+            }
         }
     }
 
     /// The call, its arguments already evaluated: the own property or
     /// element if there is one — `Any::call` throwing for a value that is
-    /// no function — else the receiver type's native built-in of the name
-    /// with the receiver, else the function the runtime's body answers for
-    /// the receiver, called with the arguments, else the `TypeError` for
-    /// calling `undefined`, as JavaScript throws on a type without the
-    /// method. The arguments are the array a call spreads, and a value that
-    /// is no array throws on every path, through `Array::try_from` as
-    /// `Any::call` throws, before a built-in sees them.
-    pub(crate) fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
+    /// no function — else the function the runtime value's body answers
+    /// for the receiver, called with the arguments, else the receiver
+    /// type's native built-in of the name with the receiver, for a name
+    /// without a body, else the `TypeError` for calling `undefined`, as
+    /// JavaScript throws on a type without the method. The arguments are
+    /// the array a call spreads, and a value that is no array throws on
+    /// every path, through `Array::try_from` as `Any::call` throws,
+    /// before a built-in sees them.
+    pub(crate) fn call(self, runtime: &Any<A>, args: Any<A>) -> Result<Any<A>, Any<A>> {
+        match self.own() {
+            Some(callee) => callee.call(args),
+            None => match self.body(runtime)? {
+                Some(f) => f.call(args),
+                None => match method(&self.receiver, &self.key) {
+                    Some(f) => f(self.receiver, Array::try_from(args)?),
+                    None => Any::undefined().call(args),
+                },
+            },
+        }
+    }
+
+    /// The call that asks no runtime: the own property or element, else the
+    /// native built-in, else the `TypeError` — what an intrinsic's helper
+    /// answers, `slice(s, a, b)`, a member function no body defines, so
+    /// the runtime has nothing to add and need not be in scope
+    /// (`fjs/js/intrinsic`).
+    pub(crate) fn call_native(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
         match self.own() {
             Some(callee) => callee.call(args),
             None => match method(&self.receiver, &self.key) {
                 Some(f) => f(self.receiver, Array::try_from(args)?),
-                None => match runtime(&self.receiver, &self.key)? {
-                    Some(f) => f.call(args),
-                    None => Any::undefined().call(args),
-                },
+                None => Any::undefined().call(args),
             },
         }
     }
@@ -111,6 +154,11 @@ mod tests {
     };
 
     type A = Naive;
+
+    /// The runtime value a call step takes.
+    fn rt() -> Any<A> {
+        crate::vm::runtime::<A>().unwrap()
+    }
 
     fn no_args() -> Result<Any<A>, Any<A>> {
         Ok([].to_array().to_any())
@@ -127,13 +175,72 @@ mod tests {
     fn own_property_first() {
         let shadowed: Any<A> = [("toString".into(), seven())].to_object().to_any();
         assert_eq!(
-            shadowed.dot("toString".into()).end_call(no_args),
+            shadowed.dot("toString".into()).end_call(&rt(), no_args),
             Ok(7.0.to_any())
         );
         let not_callable: Any<A> = [("toString".into(), 1.0.to_any())].to_object().to_any();
         assert_eq!(
-            not_callable.dot("toString".into()).end_call(no_args),
+            not_callable.dot("toString".into()).end_call(&rt(), no_args),
             Err(error::unexpected_type())
+        );
+    }
+
+    /// The runtime value's `dot` is asked before the native table: a body
+    /// for a name the table answers too is what the call reaches, and the
+    /// table answers only where `dot` says `undefined` — `at`, which has
+    /// no body in the runtime, is the native's through it.
+    #[test]
+    fn body_before_native() {
+        let answering: Any<A> = [(
+            "dot".into(),
+            A::static_function(
+                |self_, _| Ok(A::frame(self_)[0].clone()),
+                2,
+                [seven()].to_array(),
+                None,
+            )
+            .to_any(),
+        )]
+        .to_object()
+        .to_any();
+        let one: Any<A> = [1.0.to_any()].to_array().to_any();
+        let zero = || Ok([0.0.to_any()].to_array().to_any());
+        assert_eq!(
+            one.clone().dot("at".into()).end_call(&answering, zero),
+            Ok(7.0.to_any())
+        );
+        assert_eq!(one.dot("at".into()).end_call(&rt(), zero), Ok(1.0.to_any()));
+    }
+
+    /// The guard of `?.()` asks `dot` before the native table too, and
+    /// before any argument: for `[1].at?.(x)` on a runtime whose `dot`
+    /// throws, the answer is that throw and `x` is never evaluated, where
+    /// the native table alone would call `at` with `x`. The call asks in
+    /// the same order.
+    #[test]
+    fn guard_asks_body_first() {
+        let throwing: Any<A> = [(
+            "dot".into(),
+            A::static_function(|_, _| Err("boom".into()), 2, [].to_array(), None).to_any(),
+        )]
+        .to_object()
+        .to_any();
+        let one: Any<A> = [1.0.to_any()].to_array().to_any();
+        assert_eq!(
+            one.clone()
+                .dot("at".into())
+                .option_call(&throwing, || panic!("the argument is not evaluated"))
+                .end(),
+            Err("boom".into())
+        );
+        let zero = || Ok([0.0.to_any()].to_array().to_any());
+        assert_eq!(
+            one.clone().dot("at".into()).option_call(&rt(), zero).end(),
+            Ok(1.0.to_any())
+        );
+        assert_eq!(
+            one.dot("at".into()).end_call(&throwing, zero),
+            Err("boom".into())
         );
     }
 
@@ -141,10 +248,13 @@ mod tests {
     #[test]
     fn array_element_first() {
         let fs: Any<A> = [seven()].to_array().to_any();
-        assert_eq!(fs.dot(0.0.to_any()).end_call(no_args), Ok(7.0.to_any()));
+        assert_eq!(
+            fs.dot(0.0.to_any()).end_call(&rt(), no_args),
+            Ok(7.0.to_any())
+        );
         let ns: Any<A> = [1.0.to_any()].to_array().to_any();
         assert_eq!(
-            ns.dot(0.0.to_any()).end_call(no_args),
+            ns.dot(0.0.to_any()).end_call(&rt(), no_args),
             Err(error::unexpected_type())
         );
     }
@@ -157,20 +267,20 @@ mod tests {
     fn no_method_throws() {
         let object: Any<A> = [].to_object().to_any();
         assert_eq!(
-            object.dot("at".into()).end_call(no_args),
+            object.dot("at".into()).end_call(&rt(), no_args),
             Err(error::unexpected_type())
         );
         let s: Any<A> = "ab".into();
         assert_eq!(
-            s.dot(0.0.to_any()).end_call(no_args),
+            s.dot(0.0.to_any()).end_call(&rt(), no_args),
             Err(error::unexpected_type())
         );
         assert_eq!(
-            seven().dot("length".into()).end_call(no_args),
+            seven().dot("length".into()).end_call(&rt(), no_args),
             Err(error::unexpected_type())
         );
         assert_eq!(
-            1.0.to_any::<A>().dot("at".into()).end_call(no_args),
+            1.0.to_any::<A>().dot("at".into()).end_call(&rt(), no_args),
             Err(error::unexpected_type())
         );
     }
@@ -183,24 +293,38 @@ mod tests {
     fn option_call_guard_sees_built_ins() {
         let object: Any<A> = [("u".into(), Nullish::Null.to_any())].to_object().to_any();
         assert_eq!(
-            object.clone().dot("at".into()).option_call(no_args).end(),
+            object
+                .clone()
+                .dot("at".into())
+                .option_call(&rt(), no_args)
+                .end(),
             Ok(Any::undefined())
         );
         let s: Any<A> = "a".into();
         assert_eq!(
-            s.dot(0.0.to_any()).option_call(no_args).end(),
+            s.dot(0.0.to_any()).option_call(&rt(), no_args).end(),
             Err(error::unexpected_type())
         );
         assert_eq!(
-            seven().dot("length".into()).option_call(no_args).end(),
+            seven()
+                .dot("length".into())
+                .option_call(&rt(), no_args)
+                .end(),
             Err(error::unexpected_type())
         );
         assert_eq!(
-            object.clone().dot("u".into()).option_call(no_args).end(),
+            object
+                .clone()
+                .dot("u".into())
+                .option_call(&rt(), no_args)
+                .end(),
             Ok(Any::undefined())
         );
         assert_eq!(
-            object.dot("toString".into()).option_call(no_args).end(),
+            object
+                .dot("toString".into())
+                .option_call(&rt(), no_args)
+                .end(),
             Ok("[object Object]".into())
         );
     }
@@ -213,7 +337,7 @@ mod tests {
         assert_eq!(
             1.0.to_any::<A>()
                 .dot("toString".into())
-                .end_call(|| Ok(Nullish::Null.to_any())),
+                .end_call(&rt(), || Ok(Nullish::Null.to_any())),
             Err(error::unexpected_type())
         );
     }
@@ -228,7 +352,7 @@ mod tests {
         assert_eq!(
             Any::<A>::undefined()
                 .dot("toString".into())
-                .end_call(|| Err("boom".into())),
+                .end_call(&rt(), || Err("boom".into())),
             Err(error::nullish_to_object())
         );
     }

@@ -4,7 +4,7 @@
  * without a network.
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { browserOperationMap } from './module.mjs'
 
 /** The smallest WebAssembly module: the magic number and the version. */

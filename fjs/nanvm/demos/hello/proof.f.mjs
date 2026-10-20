@@ -1,6 +1,6 @@
 /** @import { Sample } from '../page/types.ts' */
 
-import { assert, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { jsOutput } from '../page/module.f.mjs'
 import program from './sample.f.mjs'

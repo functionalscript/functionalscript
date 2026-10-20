@@ -29,8 +29,8 @@
 
 import { map } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { map as nullableMap } from '../../types/nullable/module.f.mjs'
-import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { map as nullableMap } from '../../types/nullable/module.f.js'
+import { codePointToString, codeUnitToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { errorMask } from '../../text/code_point/module.f.mjs'
 import {
     backspace,
@@ -113,10 +113,8 @@ export const escapeToCodePoint = lookup(simpleEscapes)
 export const codePointToEscape = lookup(simpleEscapes.flatMap(([letter, codePoint]) =>
     codePoint === optionalEscape ? [] : [/** @type {const} */([codePoint, letter])]))
 
-const { fromCharCode } = String
-
 /** @type {(value: number) => string} */
-const hexDigit = value => fromCharCode(hexDigitCodePoint(value))
+const hexDigit = value => codeUnitToString(hexDigitCodePoint(value))
 
 /**
  * `\uXXXX` with lowercase hex digits, matching ECMAScript's `UnicodeEscape`.

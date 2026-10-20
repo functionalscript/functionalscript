@@ -13,7 +13,7 @@
  * API, which is the case that rule names outright.
  */
 
-import { assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { hexBytes, latin1 } from './testlib.f.mjs'
 
 export const proof = {
@@ -25,7 +25,7 @@ export const proof = {
         assertStructurallySame(hexBytes('ff'), [0xff])
         assertStructurallySame(hexBytes('0f10a5'), [0x0F, 0x10, 0xA5])
         // Upper case reads too, though the fixtures are written lower: the
-        // digit rule is `fjs/text/ascii`'s and admits both, and refusing one
+        // reader is `fjs/basen/base16`'s and admits both, and refusing one
         // here would be a rule of this function's own invention.
         assertStructurallySame(hexBytes('FF0A'), [0xff, 0xa])
         // a word of a fanout table, which is what these captures mostly are

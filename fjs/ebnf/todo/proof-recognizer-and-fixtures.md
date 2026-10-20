@@ -1,90 +1,36 @@
-## proof-recognizer-and-fixtures. One recognizer helper and shared fixtures for the grammar proofs
+## proof-recognizer-and-fixtures. The remaining whole-input checks and the JSON corpus
 
 **Priority:** P4
 **Status:** open
 
-### Problem
+### Done
 
-Every recognizer test asks the same question — *did the parser accept and
-consume all of the input?* — and spells the answer inline. When the
-classical `fjs/bnf` backends lived, the spelling was copied seven times in
-their proofs, in two backend-specific shapes; those went with the backends.
-What remains is over the one backend, and is still spelled per proof:
+[`../testlib.f.mjs`](../testlib.f.mjs) holds `recognizer(parse, decode)` — an
+adapter over an [`../ll1`](../ll1/README.md) parser that answers whether a text
+is accepted with every symbol consumed, resuming a match that ends short and
+carrying the last `MatchResult` as the diagnostic — and
+`assertRecognizes(recognize)(cases)`, which fails with `[input, diagnostic]`.
+The adapter takes a built `Parser` and the input decoding, not a `RuleSet` and
+an entry name, because its consumers hold front-end rules and read different
+alphabets (code points, code units). Its users are
+`fjs/js/tokenizer/proof.f.mjs`'s `isValid` corpus, a one-token grammar resumed
+per token, and `fjs/ebnf/lib/markdown/proof.f.mjs`'s `accepts` / `refuses`, a
+grammar ending in `eof`; `fjs/ebnf/proof.f.mjs` proves the adapter's branches.
 
-- `fjs/js/tokenizer/proof.f.mjs`'s `covers` resumes
-  [`../ll1`](../ll1/README.md)'s `parser` of the one-token grammar
-  `fjs/ebnf/lib/js` from where the last token ended, and answers `false` at
-  the first token the grammar refuses and `true` once the loop reaches the
-  end;
-- the grammar proofs under [`../lib`](../lib/) and `fjs/media/*/parser` each
-  read a `MatchResult` in their own words to say "accepted, and the end is
-  the length".
+### Remaining
 
-The JSON-shaped acceptance corpus is listed in that proof's `isValid` beside
-its JavaScript-token cases, where several JSON-rejecting rows are
-intentionally accepted by the token stream because tokenization
-leaves document structure to the parser; that divergence should be an
-explicit override table rather than a copied corpus, once a second consumer
-of the corpus exists.
-
-Measure before building: the count above is what the deletion of `fjs/bnf`
-left, not what was measured when this issue was filed, and a helper with one
-consumer is not a helper.
-
-### Proposal
-
-One recognizer adapter over the surviving backend, one assertion helper any
-recognizer can use, and the fixtures beside them in
-[`../testlib.f.mjs`](../testlib.f.mjs), which already holds what the front
-end's proofs share:
-
-```ts
-export type Recognition = {
-    readonly accepted: boolean
-    readonly diagnostic: unknown
-}
-
-export type Recognizer = (input: string) => Recognition
-
-export const ll1Recognizer = (ruleSet: RuleSet, entry: string): Recognizer => …
-
-export const assertRecognizes = (r: Recognizer) =>
-    (cases: readonly Case[]): void => …
-export type Case = readonly [string, boolean]
-```
-
-The recognizer must not collapse to a bare `boolean`: the `MatchResult` is
-the diagnostic, and `assertRecognizes` reports `[input, diagnostic]` so a
-failure identifies both the corpus row and the parser state. The adapter
-takes a `RuleSet` and its entry name and builds via `parserRuleSet`, which
-the backend already exposes, so no production API is added; a token layer's
-recognizer — the tokenizer's `covers` — is the same adapter resumed per
-token, and is the reason the entry is a parameter rather than a default.
-
-`stringToCodePointList` / `toArray` stay inside the recognizer adapter, which
-takes them from `fjs/text/utf16` — input decoding, not what
-[unicode-rules](../unicode/todo/unicode-rules.md) owns.
-
-### Tasks
-
-- [ ] Measure: which proofs under `fjs/ebnf`, `fjs/js`, `fjs/media` and
-      `fjs/compiler` spell the whole-input question, and whether the JSON corpus
-      has a second consumer. If the answer is one and none, close this.
-- [ ] Add `Case`, `Recognition`, `assertRecognizes` and `ll1Recognizer` to
-      [`../testlib.f.mjs`](../testlib.f.mjs), with the proof coverage a
-      `testlib` owes; carry the `MatchResult` through as `diagnostic`.
-- [ ] Convert the sites found, `fjs/js/tokenizer`'s `isValid` among them; add
-      `jsonCases` with a named override list only where a second consumer
-      appears.
-- [ ] Confirm coverage is unchanged — this must move test text, not test cases.
-- [ ] `tsc`, `fjs t`.
-
-### Related
-
-- [`fjs/types/btree/testlib.f.mjs`](../../types/btree/testlib.f.mjs) — the
-  same "shared harness and fixtures belong in a `testlib.f.mjs`" move, done
-  for another module's proofs.
-- [65Y-proof-assertEq-adoption](../../emergent_testing/todo/65y-proof-asserteq-adoption.md)
-  — orthogonal assertion cleanup.
-- [the DJS parser](../../compiler/parser/README.md) — its token-symbol alphabet
-  needs its own recognizer adapter, but can share `Case` / `assertRecognizes`.
+- [`../ll1/proof.f.mjs`](../ll1/proof.f.mjs) still spells "consumed all"
+  itself — the `dataJs` and large-document cases compare a match's end with
+  the text's length, and the integer lexer resumes a one-token parser in its
+  own loop. It was left alone while another change was editing that proof;
+  its cases pin trees and ends exactly, so convert only the rows that ask
+  the whole-input question alone.
+- `fjs/compiler/parser/grammar/proof.f.mjs`'s `read` reports where a module
+  is refused by token name rather than accepted-or-not; it fits `Case` /
+  `assertRecognizes` only with its own token-alphabet adapter and a diagnostic
+  the corpus states, which is a separate decision.
+- The JSON-shaped rows of the tokenizer's `isValid` (several JSON-rejecting
+  texts accepted, since tokenization leaves structure to the parser) have no
+  second consumer, so no shared corpus or override table exists. Make the
+  divergence an explicit override list once a second consumer of the corpus
+  appears.

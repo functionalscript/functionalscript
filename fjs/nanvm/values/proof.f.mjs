@@ -4,7 +4,7 @@
  * @import { Array as ValueArray, Closure, Object as ValueObject } from '../../edag/value/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { invoke } from '../../edag/memo/module.f.mjs'
 import { generate, path, value } from './module.f.mjs'
 
@@ -75,6 +75,6 @@ export const proof = {
         assertEq(path, 'nanvm/harness/gen.values/captures.rs')
         const rust = generate()
         assert(rust.startsWith('// Fixture source: `fjs/nanvm/values/module.f.mjs`; regenerate with `npm run gen`.'))
-        assert(rust.includes('pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>>'))
+        assert(rust.includes('pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>>'))
     },
 }

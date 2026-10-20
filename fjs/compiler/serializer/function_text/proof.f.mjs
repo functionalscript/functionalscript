@@ -4,7 +4,7 @@
  * @import { Exp, Function as FunctionExp, Op2Id } from '../../../edag/types.ts'
  */
 
-import { assertEq, assertOk } from '../../../asserts/module.f.mjs'
+import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { staticIds } from '../../../edag/module.f.mjs'
 import { renderFunction, _renderSymbolic } from './module.f.mjs'
@@ -97,6 +97,10 @@ export const proof = {
             [['throw', 1], '(()=>{throw (1);})()'],
             [['()', ['entry'], [['{}', []], 'x']], '((0,(($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}))(({}),("x")))'],
             [['()', ['hasEntry'], [['{}', []], 'x']], '((0,(($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}))(({}),("x")))'],
+            // an intrinsic's helper is written in its one spelling too
+            [['()', ['slice'], ['abc', 1, 2]], '((0,(($0,$1,$2)=>$0.slice($1,$2)))(("abc"),(1),(2)))'],
+            [['slice'], '(($0,$1,$2)=>$0.slice($1,$2))'],
+            [['charCodeAt'], '(($0,$1)=>$0.charCodeAt($1))'],
             // a static function is written as the source reads it
             [['()', ['Object.is'], [1, 2]], '((0,(Object.is))((1),(2)))'],
             [['Object.is'], '(Object.is)'],

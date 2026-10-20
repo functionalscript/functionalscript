@@ -5,7 +5,7 @@
  * @import { Exp, PropertyLambda } from '../types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.mjs'
 
 /** @type {Exp} */
@@ -30,6 +30,8 @@ export const proof = {
         assertStructurallySame(operandsOf(['arg', 0]), [])
         assertStructurallySame(operandsOf(['entry']), [])
         assertStructurallySame(operandsOf(['hasEntry']), [])
+        assertStructurallySame(operandsOf(['slice']), [])
+        assertStructurallySame(operandsOf(['charCodeAt']), [])
         // the constructor's name is no operand
         assertStructurallySame(operandsOf(['instanceof', c, 'Array']), [c])
         // a list is read as a list, whatever its first item spells

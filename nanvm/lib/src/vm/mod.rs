@@ -34,7 +34,7 @@ pub use crate::vm::{
     any::{Any, Constructor, JsonError, to_any::ToAny},
     array::{Array, to_array::ToArray},
     bigint::BigInt,
-    function::{Accessor, Function, MemberCode, RuntimeCode, RuntimeFunction},
+    function::Function,
     internal::{IComplex, IContainer, IFunction, IStaticFunction, IVm, StaticCode},
     iterator_record::IteratorRecord,
     lambda::{OptionLambda, OptionPropertyLambda, PropertyLambda},
@@ -42,14 +42,14 @@ pub use crate::vm::{
     number::Number,
     object::{Object, property::Property, to_object::ToObject},
     object_spread::ObjectSpread,
-    runtime::{object_entries, runtime_method, runtime_static},
     string::{String, to_string::ToString},
     unpacked::Unpacked,
 };
 
-/// The compiled runtime's accessors, `object_is` for `Object.is`: what a
-/// compiled read of a static function spells, an item of this module.
-pub use crate::vm::runtime::compiled::*;
+/// The runtime as a value, `runtime::<A>()`: what whoever runs compiled
+/// modules builds once and hands each as its parameter
+/// (`fjs/js/runtime/README.md`, "How NaNVM finds it").
+pub use crate::vm::runtime::compiled::runtime;
 
 pub(crate) use crate::vm::impls::ContainerWrapper;
 

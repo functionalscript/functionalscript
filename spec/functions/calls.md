@@ -17,8 +17,10 @@
   property reference — only detaching the value loses it, as `(0, o.m)(a)`
   does with the comma operator. `(o.m)(a)` is in the language
   ([grouping](../operators/grouping.md)) and is the same program as `o.m(a)`, down to the
-  graph it compiles to; the detached spelling waits on the comma operator,
-  so every call written on a property today is a call with a receiver.
+  graph it compiles to; the detached spelling is the comma operator's
+  ([comma](../operators/comma.md)), which calls the function `o.m` holds as
+  a plain one, and every other call written on a property is a call with a
+  receiver.
 
   A method call's property is the access's, but its key is judged by the
   call rule and not the read rule ([property access](../property-access/README.md)): a

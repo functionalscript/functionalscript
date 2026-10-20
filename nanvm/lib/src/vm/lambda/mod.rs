@@ -24,8 +24,12 @@
 //! A property step holds its receiver and key, [`Member`], and the read
 //! waits for the exit: `end` reads, and a call exit resolves the callee —
 //! an object's own property or an array's element first, then the
-//! receiver type's built-in member function ([`method`](method::method)),
-//! then the `TypeError` for calling `undefined`. No user function reads
+//! function the runtime value's `dot` answers for the receiver, then the
+//! receiver type's built-in member function ([`method`](method::method))
+//! for a name without a body, then the `TypeError` for calling `undefined`. A call step on a member
+//! takes the runtime value for that, `&runtime`, the parameter every
+//! compiled module receives (`fjs/js/runtime/README.md`, "How NaNVM finds
+//! it"); a step on a plain value needs none. No user function reads
 //! `this`, so `Function::call` takes no receiver and never will: the
 //! receiver is consumed by the built-in and handed to nothing. Which
 //! built-ins the table answers is `nanvm/lib/todo/member-functions.md`.
@@ -54,21 +58,23 @@ pub(crate) trait Live<A: IVm>: Sized {
     fn value(self) -> Any<A>;
     /// The guard of a `?.()` step: whether what the call would call is
     /// nullish, or the throw of deciding, a member's body deciding for its
-    /// receiver.
-    fn is_nullish(&self) -> Result<bool, Any<A>>;
+    /// receiver, which the runtime value's `dot` answers.
+    fn is_nullish(&self, runtime: &Any<A>) -> Result<bool, Any<A>>;
     /// The call, its arguments evaluated: `Any::call` of a value, and a
-    /// member's own-property-first resolution.
-    fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>>;
+    /// member's resolution — the receiver's own property, the function
+    /// the runtime value's `dot` answers, the native for a name without a
+    /// body, the `TypeError`.
+    fn call(self, runtime: &Any<A>, args: Any<A>) -> Result<Any<A>, Any<A>>;
 }
 
 impl<A: IVm> Live<A> for Any<A> {
     fn value(self) -> Any<A> {
         self
     }
-    fn is_nullish(&self) -> Result<bool, Any<A>> {
+    fn is_nullish(&self, _runtime: &Any<A>) -> Result<bool, Any<A>> {
         Ok(Any::is_nullish(self))
     }
-    fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
+    fn call(self, _runtime: &Any<A>, args: Any<A>) -> Result<Any<A>, Any<A>> {
         Any::call(self, args)
     }
 }
@@ -77,11 +83,11 @@ impl<A: IVm> Live<A> for Member<A> {
     fn value(self) -> Any<A> {
         self.read()
     }
-    fn is_nullish(&self) -> Result<bool, Any<A>> {
-        Member::is_nullish(self)
+    fn is_nullish(&self, runtime: &Any<A>) -> Result<bool, Any<A>> {
+        Member::is_nullish(self, runtime)
     }
-    fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
-        Member::call(self, args)
+    fn call(self, runtime: &Any<A>, args: Any<A>) -> Result<Any<A>, Any<A>> {
+        Member::call(self, runtime, args)
     }
 }
 
@@ -122,9 +128,13 @@ impl<A: IVm, T: Live<A>> Region<A, T> {
         }
     }
     /// `|()`: the arguments forced, then the call, whose callability check
-    /// therefore comes second.
-    fn call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Region<A, Any<A>> {
-        self.step(|v| args().and_then(|a| v.call(a)))
+    /// therefore comes second; the runtime value for a member's dispatch.
+    fn call(
+        self,
+        runtime: &Any<A>,
+        args: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> Region<A, Any<A>> {
+        self.step(|v| args().and_then(|a| v.call(runtime, a)))
     }
     /// `|.`: the key forced, then the step over the current value as the
     /// receiver, whose nullish throw therefore comes second.
@@ -133,10 +143,15 @@ impl<A: IVm, T: Live<A>> Region<A, T> {
     }
     /// A guard: the region skipped where the live state is nullish, thrown
     /// where deciding throws, and otherwise `step` over it; nothing for a
-    /// region already skipped or thrown.
-    fn guarded<U: Live<A>>(self, step: impl FnOnce(Self) -> Region<A, U>) -> Region<A, U> {
+    /// region already skipped or thrown. A member decides with the runtime
+    /// value, whose `dot` may answer a callee for its receiver.
+    fn guarded<U: Live<A>>(
+        self,
+        runtime: &Any<A>,
+        step: impl FnOnce(Self) -> Region<A, U>,
+    ) -> Region<A, U> {
         match self {
-            Region::Live(v) => match v.is_nullish() {
+            Region::Live(v) => match v.is_nullish(runtime) {
                 Err(e) => Region::Thrown(e),
                 Ok(true) => Region::Skipped,
                 Ok(false) => step(Region::Live(v)),
@@ -145,21 +160,46 @@ impl<A: IVm, T: Live<A>> Region<A, T> {
             Region::Thrown(e) => Region::Thrown(e),
         }
     }
-    /// The `?.` node's own step: a nullish receiver skips the key and the
-    /// rest of the chain; any other takes the step `|.` takes.
-    pub(crate) fn option_dot(
-        self,
-        key: impl FnOnce() -> Result<Any<A>, Any<A>>,
-    ) -> Region<A, Member<A>> {
-        self.guarded(|live| live.dot(key))
-    }
     /// `|?.()`: a nullish callee skips the rest of the chain, its
     /// arguments untouched; any other is called.
     pub(crate) fn option_call(
         self,
+        runtime: &Any<A>,
         args: impl FnOnce() -> Result<Any<A>, Any<A>>,
     ) -> Region<A, Any<A>> {
-        self.guarded(|live| live.call(args))
+        self.guarded(runtime, |live| live.call(runtime, args))
+    }
+}
+
+impl<A: IVm> Region<A, Any<A>> {
+    /// The `?.` node's own step, on a plain value: a nullish receiver skips
+    /// the key and the rest of the chain; any other takes the step `|.`
+    /// takes. The guard is the value's own nullishness, which asks no
+    /// runtime.
+    pub(crate) fn option_dot(
+        self,
+        key: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> Region<A, Member<A>> {
+        match self {
+            Region::Live(v) if Any::is_nullish(&v) => Region::Skipped,
+            live => live.dot(key),
+        }
+    }
+    /// `|()` on a plain value, the state after a call step or a `?.()`
+    /// node: `Any::call`, which asks no runtime.
+    fn call_value(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Region<A, Any<A>> {
+        self.step(|v| args().and_then(|a| Any::call(v, a)))
+    }
+    /// `?.()` on a plain value, the node's own step and a `|?.()` step on
+    /// the state after a call: a nullish callee skips, any other is called.
+    pub(crate) fn option_call_value(
+        self,
+        args: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> Region<A, Any<A>> {
+        match self {
+            Region::Live(v) if Any::is_nullish(&v) => Region::Skipped,
+            live => live.call_value(args),
+        }
     }
 }
 
@@ -184,12 +224,30 @@ impl<A: IVm> PropertyLambda<A> {
     /// receiver — an own property, or a built-in member function. No
     /// region is open, so this is also what a `|!()` would be — "there is
     /// no bit to clear".
-    pub fn end_call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>> {
-        self.0.and_then(|m| args().and_then(|a| m.call(a)))
+    pub fn end_call(
+        self,
+        runtime: &Any<A>,
+        args: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> Result<Any<A>, Any<A>> {
+        self.0.and_then(|m| args().and_then(|a| m.call(runtime, a)))
+    }
+    /// `|()` of an intrinsic's helper, `slice(s, a, b)`: the member call
+    /// that asks no runtime, the own property else the native else the
+    /// `TypeError`, since no body defines the name
+    /// ([`Member::call_native`]).
+    pub fn end_call_native(
+        self,
+        args: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> Result<Any<A>, Any<A>> {
+        self.0.and_then(|m| args().and_then(|a| m.call_native(a)))
     }
     /// `|?.()`: `a.b?.(...args)`, opening a region.
-    pub fn option_call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionLambda<A> {
-        OptionLambda(Region::from(self.0).option_call(args))
+    pub fn option_call(
+        self,
+        runtime: &Any<A>,
+        args: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> OptionLambda<A> {
+        OptionLambda(Region::from(self.0).option_call(runtime, args))
     }
 }
 
@@ -207,7 +265,7 @@ impl<A: IVm> OptionLambda<A> {
     }
     /// `|()`: call the current value, inside the region.
     pub fn call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionLambda<A> {
-        OptionLambda(self.0.call(args))
+        OptionLambda(self.0.call_value(args))
     }
     /// `|.`: a property of the current value, inside the region; the value
     /// becomes the receiver.
@@ -229,25 +287,37 @@ impl<A: IVm> OptionPropertyLambda<A> {
     }
     /// `|()`: `a?.b(...args)`, the property called on its receiver, skipped
     /// with the region.
-    pub fn call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionLambda<A> {
-        OptionLambda(self.0.call(args))
+    pub fn call(
+        self,
+        runtime: &Any<A>,
+        args: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> OptionLambda<A> {
+        OptionLambda(self.0.call(runtime, args))
     }
     /// `|.`: `a?.b.c`, skipped with the region.
     pub fn dot(self, key: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionPropertyLambda<A> {
         OptionPropertyLambda(self.0.dot(key))
     }
     /// `|?.()`: `a?.b?.(...args)`, its own guard on the callee.
-    pub fn option_call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionLambda<A> {
-        OptionLambda(self.0.option_call(args))
+    pub fn option_call(
+        self,
+        runtime: &Any<A>,
+        args: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> OptionLambda<A> {
+        OptionLambda(self.0.option_call(runtime, args))
     }
     /// `|!()`, terminal: `(a?.b)(...args)`. The parentheses close the
     /// region first, so a skipped chain is `undefined` here and the call
     /// happens regardless — the arguments are evaluated, then `undefined`
     /// is called and throws. A live chain calls the property on its
     /// receiver; a thrown chain stays thrown, arguments untouched.
-    pub fn end_call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>> {
+    pub fn end_call(
+        self,
+        runtime: &Any<A>,
+        args: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> Result<Any<A>, Any<A>> {
         match self.0 {
-            Region::Live(m) => args().and_then(|a| m.call(a)),
+            Region::Live(m) => args().and_then(|a| m.call(runtime, a)),
             Region::Skipped => args().and_then(|a| Any::undefined().call(a)),
             Region::Thrown(e) => Err(e),
         }
@@ -263,6 +333,11 @@ mod tests {
 
     type A = Naive;
     type Thunk = Box<dyn FnOnce() -> Result<Any<A>, Any<A>>>;
+
+    /// The runtime value a member's call step takes.
+    fn rt() -> Any<A> {
+        crate::vm::runtime::<A>().unwrap()
+    }
 
     /// A thunk that must not be forced.
     fn boom() -> Result<Any<A>, Any<A>> {
@@ -315,9 +390,9 @@ mod tests {
     /// the lambda and `c` was never evaluated.
     #[test]
     fn property_end_call() {
-        answers_arguments(|args| object().dot("f".into()).end_call(args));
+        answers_arguments(|args| object().dot("f".into()).end_call(&rt(), args));
         assert_eq!(
-            Any::undefined().dot("f".into()).end_call(boom),
+            Any::undefined().dot("f".into()).end_call(&rt(), boom),
             Err(error::nullish_to_object())
         );
     }
@@ -326,9 +401,12 @@ mod tests {
     /// callability check, so theirs is the throw.
     #[test]
     fn property_end_call_forces_arguments_before_callability() {
-        assert_eq!(object().dot("n".into()).end_call(boom), Err("boom".into()));
         assert_eq!(
-            object().dot("n".into()).end_call(args),
+            object().dot("n".into()).end_call(&rt(), boom),
+            Err("boom".into())
+        );
+        assert_eq!(
+            object().dot("n".into()).end_call(&rt(), args),
             Err(error::unexpected_type())
         );
     }
@@ -336,17 +414,20 @@ mod tests {
     /// `a.b?.(...c)`: guarded on the property, then a region.
     #[test]
     fn property_option_call() {
-        answers_arguments(|args| object().dot("f".into()).option_call(args).end());
+        answers_arguments(|args| object().dot("f".into()).option_call(&rt(), args).end());
         assert_eq!(
-            object().dot("u".into()).option_call(boom).end(),
+            object().dot("u".into()).option_call(&rt(), boom).end(),
             Ok(Any::undefined())
         );
         assert_eq!(
-            object().dot("n".into()).option_call(boom).end(),
+            object().dot("n".into()).option_call(&rt(), boom).end(),
             Err("boom".into())
         );
         assert_eq!(
-            Any::undefined().dot("f".into()).option_call(boom).end(),
+            Any::undefined()
+                .dot("f".into())
+                .option_call(&rt(), boom)
+                .end(),
             Err(error::nullish_to_object())
         );
     }
@@ -367,7 +448,7 @@ mod tests {
             returns_object
                 .option_call(|| Ok([].to_array().to_any()))
                 .dot(key("f"))
-                .call(args)
+                .call(&rt(), args)
                 .end()
         });
     }
@@ -380,7 +461,7 @@ mod tests {
             Any::undefined()
                 .option_call(boom)
                 .dot(boom)
-                .call(boom)
+                .call(&rt(), boom)
                 .dot(boom)
                 .end(),
             Ok(Any::undefined())
@@ -392,7 +473,11 @@ mod tests {
     #[test]
     fn option_steps_thrown() {
         assert_eq!(
-            identity().option_call(boom).dot(key("x")).call(args).end(),
+            identity()
+                .option_call(boom)
+                .dot(key("x"))
+                .call(&rt(), args)
+                .end(),
             Err("boom".into())
         );
     }
@@ -403,16 +488,16 @@ mod tests {
     /// non-terminal steps on a live chain.
     #[test]
     fn option_property_steps_live() {
-        answers_arguments(|args| object().option_dot(key("f")).call(args).end());
+        answers_arguments(|args| object().option_dot(key("f")).call(&rt(), args).end());
         assert_eq!(
             object().option_dot(key("n")).dot(key("x")).end(),
             Ok(Any::undefined())
         );
         assert_eq!(
-            object().option_dot(key("u")).option_call(boom).end(),
+            object().option_dot(key("u")).option_call(&rt(), boom).end(),
             Ok(Any::undefined())
         );
-        answers_arguments(|args| object().option_dot(key("f")).option_call(args).end());
+        answers_arguments(|args| object().option_dot(key("f")).option_call(&rt(), args).end());
     }
 
     /// `a?.b.c(...d).e?.(...f)` on a nullish `a`: one region, everything
@@ -423,9 +508,9 @@ mod tests {
             Any::undefined()
                 .option_dot(boom)
                 .dot(boom)
-                .call(boom)
+                .call(&rt(), boom)
                 .dot(boom)
-                .option_call(boom)
+                .option_call(&rt(), boom)
                 .end(),
             Ok(Any::undefined())
         );
@@ -449,7 +534,7 @@ mod tests {
             Err("boom".into())
         );
         assert_eq!(
-            object().option_dot(key("u")).call(boom).end(),
+            object().option_dot(key("u")).call(&rt(), boom).end(),
             Err("boom".into())
         );
     }
@@ -474,13 +559,13 @@ mod tests {
     /// specification's reading.
     #[test]
     fn option_property_end_call() {
-        answers_arguments(|args| object().option_dot(key("f")).end_call(args));
+        answers_arguments(|args| object().option_dot(key("f")).end_call(&rt(), args));
         assert_eq!(
-            Any::undefined().option_dot(boom).end_call(boom),
+            Any::undefined().option_dot(boom).end_call(&rt(), boom),
             Err("boom".into())
         );
         assert_eq!(
-            Any::undefined().option_dot(boom).end_call(args),
+            Any::undefined().option_dot(boom).end_call(&rt(), args),
             Err(error::unexpected_type())
         );
     }
@@ -488,6 +573,9 @@ mod tests {
     /// A thrown chain stays thrown through `end_call`, arguments untouched.
     #[test]
     fn option_property_end_call_thrown() {
-        assert_eq!(object().option_dot(boom).end_call(boom), Err("boom".into()));
+        assert_eq!(
+            object().option_dot(boom).end_call(&rt(), boom),
+            Err("boom".into())
+        );
     }
 }

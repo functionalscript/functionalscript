@@ -6,7 +6,7 @@
  */
 
 import { throws } from 'node:assert/strict'
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tryFunctionText } from '../module.f.mjs'
 
 /** @type {(e: FunctionExp, captures?: readonly unknown[]) => (...args: readonly unknown[]) => any} */

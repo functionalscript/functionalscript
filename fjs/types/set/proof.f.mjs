@@ -2,7 +2,7 @@
  * @import { PersistentSet } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { add, empty, has, size, values } from './module.f.mjs'
 
 /**

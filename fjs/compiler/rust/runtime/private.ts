@@ -1,5 +1,5 @@
 /**
- * Types private to the static runtime's printer, `module.f.mjs`.
+ * Types private to the runtime's printer, `module.f.mjs`.
  *
  * @module
  */
@@ -7,39 +7,24 @@
 import type { Exp } from '../../../edag/types.ts'
 
 /**
- * A module-level node resolved at compile time: a function, which becomes
- * an item, or a literal, inlined where a body reads it.
+ * A module-level node the `statics` table holds, resolved: a function, a
+ * built-in; a native static the table lists as itself, no built-in of the
+ * module's; or anything else, no built-in.
  */
-export type _Resolved = readonly ['function', readonly unknown[]] | readonly ['literal', Exp] | readonly ['helper', Exp]
+export type _Resolved = readonly ['function', readonly unknown[]] | readonly ['native', Exp] | readonly ['other', Exp]
 
 /**
- * A built-in the `runtime` export names: its name — `Object.is` for the
- * `static` section, `startsWith` for the `member` section, the key a call
- * step dispatches by — the function node the name resolves to, and
- * whether it is the `member` section's.
+ * A built-in the `statics` export names: its id, `Object.is`, and the
+ * function node the id resolves to, which carries the NativeFunction text
+ * of the id's last key.
  */
 export type _BuiltIn = {
     readonly name: string
     readonly node: readonly unknown[]
-    readonly member: boolean
 }
 
-/**
- * A module-level function as an item: the node, the built-in's name, which
- * a helper no section names gets as `f0`, `f1`, …, the identifier, and the
- * kind — a static, with an accessor compiled code reads; a member, the
- * code alone, which a call step calls; or a helper, with an accessor the
- * module's own.
- */
-export type _Item = {
-    readonly node: readonly unknown[]
-    readonly name: string
-    readonly ident: string
-    readonly kind: 'static' | 'member' | 'helper'
-}
-
-/** The sections of a runtime module: its built-ins, and its `dot` dispatcher's node, which is not printed, or `undefined` for none. */
+/** The runtime module: its built-ins, and the `runtime` export object itself, the value the ordinary backend prints. */
 export type _Table = {
     readonly builtIns: readonly _BuiltIn[]
-    readonly dot: unknown
+    readonly value: Exp
 }

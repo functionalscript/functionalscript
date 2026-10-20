@@ -23,7 +23,7 @@
  *
  * @module
  *
- * @import { Demo, DemoEvent, TextDemoOptions, TextFieldOptions, InputFieldOptions } from './types.ts'
+ * @import { Demo, DemoEvent, TextDemoOptions, TextFieldOptions, InputFieldOptions, RadioOption } from './types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Node, Element } from '../../media/html/types.ts'
@@ -97,6 +97,20 @@ export const textField = ({ name, label, rows = 8, highlight }, text) => {
 export const inputField = ({ name, label }, value) => ['p',
     ['label', { for: name }, `${label} `],
     ['input', { type: 'text', id: name, name, value }],
+]
+
+/** A choice from a few options that all stay visible: a group of inline
+ * radio buttons sharing `name`, under a legend saying what is chosen. Each
+ * option's `id` is `name` and its value joined by `-`, so it is unique on the
+ * page as long as `name` is.
+ * @type {(name: string, label: string, options: readonly RadioOption[], value: string) => Element}
+ */
+export const radios = (name, label, options, value) => ['fieldset', { 'data-radios': '' },
+    ['legend', label],
+    ['div', ...options.map(/** @returns {Element} */ option => ['label', { for: `${name}-${option.value}` },
+        ['input', { type: 'radio', id: `${name}-${option.value}`, name, value: option.value, ...(option.value === value ? { checked: '' } : {}) }],
+        option.label,
+    ])],
 ]
 
 /** A caption naming the result drawn after it: a `p` marked with the

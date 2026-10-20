@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
 
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { uploadGitHubPreview } from './github-preview.mjs'
 
 const env = /** @type {const} */ ({

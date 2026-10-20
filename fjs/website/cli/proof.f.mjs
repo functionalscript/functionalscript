@@ -3,7 +3,7 @@
  * @import { NodeOp, NodeProgram } from '../../effects/node/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { helpReference } from '../../cli/module.f.mjs'
 import { commands } from '../../module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'

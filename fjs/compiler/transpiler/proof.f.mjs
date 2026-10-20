@@ -30,7 +30,7 @@ import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 /**
  * The package's runtime at its path beside a root's files: `fjs compile` interprets a data output under it, and the virtual root is the package.
@@ -131,12 +131,12 @@ export const proof = {
         },
         // A static function exported is the host's own built-in in the
         // emitted module, whichever static it is, under a runtime whose
-        // `static` section binds the ones with a body; a function value, so
+        // `static` answers the ones with a body; a function value, so
         // the module is what reaches the compile boundary.
         staticExports: () => {
             const root = {
                 main: [utf8('export default [Object.entries, Object.is, Number.isNaN];')],
-                'r.f.js': [utf8('export const runtime = { static: { Object: { is: (a, b) => a === b }, Number: { isNaN: x => x !== x } } };')],
+                'r.f.js': [utf8('const entry = (o, p) => { const d = Object.getOwnPropertyDescriptor(o, p); return d?.enumerable ? d.value : undefined }; const statics = { "Object.is": (a, b) => a === b, "Number.isNaN": x => x !== x }; export const runtime = { static: id => entry(statics, id) };')],
             }
             const loaded = { value: 3 }
             /** @type {PartialMemOperationMap<NodeOp | CompileValue, typeof emptyState>} */

@@ -5,11 +5,11 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { generate, toRust } from './module.f.mjs'
-import { toText } from '../../text/marked/module.f.mjs'
+import { generate, itemTagged, toRust } from './module.f.mjs'
+import { toText, untagged } from '../../text/marked/module.f.mjs'
 import { unmarkedWords, wordsOf } from '../../edag/rust/unmarked/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
@@ -22,6 +22,23 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 const refusedByRust = ['An import', 'A named import and a call', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error']
 
 export const proof = {
+    /**
+     * A module's scope as one named item, with its bound and the names it
+     * spells, which `generate` prints as `module` and the static runtime
+     * as `runtime`, giving its built-ins their texts.
+     */
+    itemTagged: () => {
+        const given = /** @type {Exp} */ (['=>', 1, [], ['arg', 0]])
+        const { lines, uses, bound } = unwrap(itemTagged('runtime', e => e === given ? 'function id() { [native code] }' : undefined, null)(['{}', [[':', 'id', given]]]))
+        assertEq(bound, 'IStaticFunction')
+        assertEq(lines.map(untagged).join('\n'), '#[rustfmt::skip]\npub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {\n    let c0: Any<A> = A::static_function(|_self, args| { Ok(args.argument(0)) }, 1, Array::default(), Some("function id() { [native code] }")).to_any();\n    Ok([(string_key("id"), c0)].to_object().to_any())\n}')
+        assertEq(uses.unstable.join(), 'string_key')
+        assertEq(unwrap(itemTagged('module', undefined, 'runtime')(1)).bound, 'IVm')
+        // a module names its parameter where it reaches a built-in — a
+        // static read, a member call — and takes it unnamed otherwise
+        assertEq(unwrap(itemTagged('module', undefined, 'runtime')(1)).lines.map(untagged).join('\n'), '#[rustfmt::skip]\npub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {\n    Ok(f64_any(0x3ff0000000000000))\n}')
+        assertEq(unwrap(itemTagged('module', undefined, 'runtime')(['Object.is'])).lines.map(untagged).join('\n'), '#[rustfmt::skip]\npub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {\n    static_read(&runtime, "Object.is")\n}')
+    },
     structuralRefusals: () => {
         for (const length of [-0, -1, 0.5, NaN, Infinity]) {
             assertEq(assertError(toRust(['=>', length, [], 1])),
@@ -55,7 +72,7 @@ use nanvm_lib::vm::unstable::f64_any;
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
     Ok([c0.clone(), c0.clone()].to_array().to_any())
 }
@@ -77,7 +94,7 @@ use nanvm_lib::vm::unstable::{string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(string_key("a"), string_any("x"))].to_object().to_any();
     Any::dot(c0, string_any("a")).end()
 }
@@ -97,7 +114,7 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any();
     let c1: Any<A> = [(string_key("a"), c0)].to_object().to_any();
     let c2: Any<A> = Any::dot(c1, string_any("a")).end()?;
@@ -112,7 +129,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 use nanvm_lib::vm::{Any, IVm, Nullish, ToAny};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok(Nullish::Null.to_any())
 }
 `)
@@ -125,7 +142,7 @@ use nanvm_lib::vm::unstable::bigint_any;
 use nanvm_lib::vm::{Any, IVm};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok(bigint_any(-5))
 }
 `)
@@ -138,7 +155,7 @@ use nanvm_lib::vm::unstable::bigint_any_words;
 use nanvm_lib::vm::{Any, IVm};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]))
 }
 `)
@@ -157,7 +174,7 @@ use nanvm_lib::vm::unstable::f64_any;
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
     Ok(f64_any(0x4045000000000000))
 }
@@ -172,7 +189,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any())
 }
 `)
@@ -187,7 +204,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     generateFunctionCall: () => {
         /** @type {Exp} */
         const root = ['()', ['=>', 0, [], ['.', ['rest'], 0]], [41]]
-        assertEq(generate(root), "// @generated by `fjs compile`. Do not edit: recompile the source module instead.\n\nuse nanvm_lib::vm::unstable::f64_any;\nuse nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray};\n\n#[rustfmt::skip]\npub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {\n    let c0: Any<A> = A::static_function(|_self, args| {\n        let rest = args.rest(0);\n        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()\n    }, 0, Array::default(), Some(\"(...$0)=>$0[0]\")).to_any();\n    Any::call(c0, [f64_any(0x4044800000000000)].to_array().to_any())\n}\n")
+        assertEq(generate(root), "// @generated by `fjs compile`. Do not edit: recompile the source module instead.\n\nuse nanvm_lib::vm::unstable::f64_any;\nuse nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray};\n\n#[rustfmt::skip]\npub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {\n    let c0: Any<A> = A::static_function(|_self, args| {\n        let rest = args.rest(0);\n        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()\n    }, 0, Array::default(), Some(\"(...$0)=>$0[0]\")).to_any();\n    Any::call(c0, [f64_any(0x4044800000000000)].to_array().to_any())\n}\n")
     },
     /**
      * A function whose body binds a temporary of its own — `const f =
@@ -199,7 +216,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     generateFunctionScope: () => {
         /** @type {Exp} */
         const first = ['.', ['rest'], 0]
-        assertEq(generate(['()', ['=>', 0, [], ['[]', [first, first]]], [1]]), "// @generated by `fjs compile`. Do not edit: recompile the source module instead.\n\nuse nanvm_lib::vm::unstable::f64_any;\nuse nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray};\n\n#[rustfmt::skip]\npub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {\n    let c0: Any<A> = A::static_function(|_self, args| {\n        let rest = args.rest(0);\n        let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n        Ok([c0.clone(), c0.clone()].to_array().to_any())\n    }, 0, Array::default(), Some(\"(...$0)=>{const $1=$0[0];return [$1,$1];}\")).to_any();\n    Any::call(c0, [f64_any(0x3ff0000000000000)].to_array().to_any())\n}\n")
+        assertEq(generate(['()', ['=>', 0, [], ['[]', [first, first]]], [1]]), "// @generated by `fjs compile`. Do not edit: recompile the source module instead.\n\nuse nanvm_lib::vm::unstable::f64_any;\nuse nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray};\n\n#[rustfmt::skip]\npub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {\n    let c0: Any<A> = A::static_function(|_self, args| {\n        let rest = args.rest(0);\n        let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n        Ok([c0.clone(), c0.clone()].to_array().to_any())\n    }, 0, Array::default(), Some(\"(...$0)=>{const $1=$0[0];return [$1,$1];}\")).to_any();\n    Any::call(c0, [f64_any(0x3ff0000000000000)].to_array().to_any())\n}\n")
     },
     /**
      * One function called twice is one shared node — `const f`, referenced
@@ -210,7 +227,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     generateSharedFunction: () => {
         /** @type {Exp} */
         const f = ['=>', 0, [], ['rest']]
-        assertEq(generate(['[]', [['()', f, [1]], ['()', f, [2]]]]), "// @generated by `fjs compile`. Do not edit: recompile the source module instead.\n\nuse nanvm_lib::vm::unstable::f64_any;\nuse nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray};\n\n#[rustfmt::skip]\npub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {\n    let c0: Any<A> = A::static_function(|_self, args| {\n        let rest = args.rest(0);\n        Ok(rest.clone().to_any())\n    }, 0, Array::default(), Some(\"(...$0)=>$0\")).to_any();\n    let c1: Any<A> = Any::call(c0.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;\n    let c2: Any<A> = Any::call(c0.clone(), [f64_any(0x4000000000000000)].to_array().to_any())?;\n    Ok([c1, c2].to_array().to_any())\n}\n")
+        assertEq(generate(['[]', [['()', f, [1]], ['()', f, [2]]]]), "// @generated by `fjs compile`. Do not edit: recompile the source module instead.\n\nuse nanvm_lib::vm::unstable::f64_any;\nuse nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray};\n\n#[rustfmt::skip]\npub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {\n    let c0: Any<A> = A::static_function(|_self, args| {\n        let rest = args.rest(0);\n        Ok(rest.clone().to_any())\n    }, 0, Array::default(), Some(\"(...$0)=>$0\")).to_any();\n    let c1: Any<A> = Any::call(c0.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;\n    let c2: Any<A> = Any::call(c0.clone(), [f64_any(0x4000000000000000)].to_array().to_any())?;\n    Ok([c1, c2].to_array().to_any())\n}\n")
     },
     /**
      * A string literal spelling a marker — the name of a helper, an
@@ -224,7 +241,7 @@ use nanvm_lib::vm::unstable::string_any;
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([string_any("static_function("), string_any("Array::default"), string_any("f64_any(")].to_array().to_any())
 }
 `)
@@ -272,7 +289,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         ok: () => {
             const result = toRust(null)
             assertEq(result[0], 'ok')
-            assert(result[1].includes('pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {'), result)
+            assert(result[1].includes('pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {'), result)
         },
         /**
          * A node the module scope refuses — here, an unlinked import
@@ -301,7 +318,7 @@ use nanvm_lib::vm::unstable::bigint_any;
 use nanvm_lib::vm::{Any, IVm, ToAny};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0 = || bigint_any(1) / bigint_any(0);
     Any::logical_and(false.to_any(), c0)
 }
@@ -321,7 +338,7 @@ use nanvm_lib::vm::unstable::{bigint_any, f64_any};
 use nanvm_lib::vm::{Any, IVm, ToAny};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0 = || bigint_any(1) / bigint_any(0);
     Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c0)
 }

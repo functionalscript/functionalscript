@@ -4,7 +4,7 @@
 
 import { nodeRemove } from './module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
-import { assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish } from '../../../asserts/module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { expectedSquares38, set, squares } from '../testlib.f.mjs'
 

@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{f64_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
+pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x4045000000000000)) }, 0, Array::default(), Some("()=>42")).to_any();
     let c1: Any<A> = A::static_function(|_self, _args| { Ok(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any()) }, 0, Array::default(), Some("()=>()=>undefined")).to_any();
     let c2: Any<A> = A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any();

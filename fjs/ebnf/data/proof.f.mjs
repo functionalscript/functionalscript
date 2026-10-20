@@ -3,7 +3,7 @@
  * @import { Rule as DataRule, RuleNameMap, RuleSet, RuleVisitor } from './types.ts'
  */
 
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { digit, json, string, uint, ws, wsSymbol } from '../lib/json/module.f.mjs'
