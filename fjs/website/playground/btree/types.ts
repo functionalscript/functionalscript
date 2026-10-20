@@ -38,11 +38,12 @@ export type Search = {
 export type Par = number | Search | null
 
 /**
- * What a frame of a move does with the nodes the next tree does not share:
- * `leave` fades them out, and `enter` fades in the nodes the tree before
- * did not have.
+ * What a frame does with the nodes the next tree does not share: `leave`
+ * fades them out, and `enter` slides the nodes that stay and fades in the
+ * nodes the tree before did not have. A tree just built is `still`: drawn
+ * as it is, with nothing moving from the tree it replaced.
  */
-export type Mode = 'leave' | 'enter'
+export type Mode = 'still' | 'leave' | 'enter'
 
 /**
  * One frame of a move: the tree drawn and the tree it is drawn against,

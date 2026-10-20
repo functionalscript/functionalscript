@@ -74,13 +74,13 @@ export const proof = {
     },
     start: {
         // One `randomInt` per key, and a tree of the level's keys, as both
-        // versions, with no moves made.
+        // versions, drawn still, with no moves made.
         builds: () => {
             const [asked, r] = counter(0)(start(3)(level2))
             assertEq(asked, 26)
             assert(r[0] === 'ok', '')
             const game = r[1]
-            assertEq(JSON.stringify([game.depth, game.moves, game.last, game.error]), '[3,0,null,null]')
+            assertEq(JSON.stringify([game.depth, game.mode, game.moves, game.last, game.error]), '[3,"still",0,null,null]')
             const versions = assertNotNullish(game.versions)
             assertEq(versions.before, versions.after)
             assertEq(JSON.stringify(keysOf(game)), JSON.stringify(tensUpTo(26)))
@@ -290,6 +290,9 @@ export const proof = {
             assertEq(enter.edgeOrder, 1)
             // With nothing new, nothing waits: a first tree.
             assertEq(ordered('enter')({ ...g, nodes: [node('shared', 0, 0)] }).edgeOrder, undefined)
+            // A tree just built is drawn as it is, unkeyed, so nothing slides
+            // from the tree it replaced.
+            assertEq(ordered('still')(g), g)
         },
         // The drawing's container alternates from frame to frame, so the
         // fades run again; a leaving frame marks its nodes leaving.

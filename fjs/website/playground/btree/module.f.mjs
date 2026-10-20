@@ -170,7 +170,7 @@ export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(dept
     const tree = r[1].reduce((t, k) => structure.insert(k)(t), structure.empty)
     const par = parDepths.includes(depth) ? parSearch(tensUpTo(keyCount(depth)))(tree) : null
     /** @type {Game} */
-    const started = { depth, versions: { before: tree, after: tree }, mode: 'enter', note: null, pending: [], moves: 0, par, last: null, error: null }
+    const started = { depth, versions: { before: tree, after: tree }, mode: 'still', note: null, pending: [], moves: 0, par, last: null, error: null }
     return pureOk(started)
 })
 
@@ -278,11 +278,13 @@ const levelOf = value => depths.find(d => String(d) === value)
  * between nodes that stay, which waited hidden while they slid.
  *
  * Every node is keyed by its keys, so a node that stays is the same element
- * from frame to frame, and slides.
+ * from frame to frame, and slides. A tree just built is drawn `still`, as it
+ * is: unkeyed, so no node slides from where the tree before had it.
  *
  * @type {(mode: Mode) => (g: Graph) => Graph}
  */
 export const ordered = mode => g => {
+    if (mode === 'still') { return g }
     const ranks = [...new Set(g.nodes.flatMap(n => n.kind === 'new' ? [n.rank] : []))].toSorted((a, b) => mode === 'enter' ? a - b : b - a)
     const first = mode === 'enter' ? 1 : 0
     /** @type {(id: number) => string} */
@@ -337,7 +339,7 @@ const board = game => {
 
 /** @type {Demo<Game, DemoEvent, RandomInt>} */
 export const demo = {
-    init: { depth: depths[0], versions: null, mode: 'enter', note: null, pending: [], moves: 0, par: null, last: null, error: null },
+    init: { depth: depths[0], versions: null, mode: 'still', note: null, pending: [], moves: 0, par: null, last: null, error: null },
     nextEvent: ({ pending, par }) => pending.length > 0 ? { kind: 'click', name: 'step' }
         : par === null || typeof par === 'number' ? null
         : { kind: 'click', name: 'par' },
