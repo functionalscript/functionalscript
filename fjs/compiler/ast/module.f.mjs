@@ -481,9 +481,20 @@ const isInert = ast => ast === null || typeof ast !== 'object' || isAlias(ast) |
     || ast[0] === '=>' || ast[0] === 'entry' || ast[0] === 'hasEntry'
 
 /**
+ * What a discarded operand establishes: a comma's operands, each discarded
+ * in turn, since `((a, b), c)` is `(a, b, c)`, and any other operand
+ * itself.
+ *
+ * @type {(ast: AstConst) => readonly AstConst[]}
+ */
+const discarded = ast => ast instanceof Array && ast[0] === ',' ? ast[1].flatMap(discarded) : [ast]
+
+/**
  * The operands a comma establishes, in order: each discarded one that is
- * code of its own, {@link isInert} dropping the rest, and then the last,
- * whose value the comma is. What the comma keeps is what it reaches, for
+ * code of its own, a discarded comma read as its operands,
+ * {@link discarded}, and {@link isInert} dropping the rest, and then the
+ * last, whose value the comma is. So `((a.x, () => 1), 2)` drops the
+ * function as `(a.x, () => 1, 2)` does. What the comma keeps is what it reaches, for
  * {@link anchors} and every other reader of references, and what the
  * lowering anchors — so `const b = null.x; export default (b, 1);` anchors
  * `b` as the unreached `const` it is, and `(f(b), 1)` reaches `b` through
@@ -492,7 +503,7 @@ const isInert = ast => ast === null || typeof ast !== 'object' || isAlias(ast) |
  *
  * @type {(ast: AstComma) => readonly AstConst[]}
  */
-export const commaOperands = ([, operands]) => [...operands.slice(0, -1).filter(x => !isInert(x)), operands[operands.length - 1]]
+export const commaOperands = ([, operands]) => [...operands.slice(0, -1).flatMap(discarded).filter(x => !isInert(x)), operands[operands.length - 1]]
 
 /** The first import standing for the same node as import `k`, which `imports` says by identity. @type {(imports: readonly unknown[]) => (k: number) => AstModuleRef} */
 const importNode = imports => k => ['aref', imports.indexOf(imports[k])]
