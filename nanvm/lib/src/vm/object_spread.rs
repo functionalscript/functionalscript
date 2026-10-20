@@ -1,7 +1,7 @@
-use core::iter::FusedIterator;
+use core::iter::{Enumerate, FusedIterator};
 
 use crate::{
-    common::sized_index::SizedIndex,
+    common::index_iter::IndexIter,
     vm::{Any, Array, IVm, String, ToAny},
 };
 
@@ -32,16 +32,16 @@ pub enum ObjectSpread<A: IVm> {
     Object(std::vec::IntoIter<(String<A>, Any<A>)>),
     /// An array's elements keyed by index: `"0"`, `"1"`, … `length` is not
     /// enumerable.
-    Array { array: Array<A>, next: u32 },
+    Array(Enumerate<IndexIter<u32, Array<A>>>),
     /// A string's code units keyed by index, each a one-unit string: a
     /// surrogate pair is two entries, as `{...'😀'}` is in JavaScript.
-    String { string: String<A>, next: u32 },
+    String(Enumerate<IndexIter<u32, String<A>>>),
     /// Every other value: no own enumerable properties.
     Empty,
 }
 
 /// The key of index `i`, as JavaScript's `ToString(i)` spells it.
-fn index_key<A: IVm>(i: u32) -> String<A> {
+fn index_key<A: IVm>(i: usize) -> String<A> {
     i.to_string().as_str().into()
 }
 
@@ -51,22 +51,10 @@ impl<A: IVm> Iterator for ObjectSpread<A> {
     fn next(&mut self) -> Option<(String<A>, Any<A>)> {
         match self {
             ObjectSpread::Object(entries) => entries.next(),
-            ObjectSpread::Array { array, next } => {
-                if *next >= array.length() {
-                    return None;
-                }
-                let entry = (index_key(*next), array[*next].clone());
-                *next += 1;
-                Some(entry)
-            }
-            ObjectSpread::String { string, next } => {
-                if *next >= string.length() {
-                    return None;
-                }
-                let entry = (index_key(*next), String::of_unit(string[*next]).to_any());
-                *next += 1;
-                Some(entry)
-            }
+            ObjectSpread::Array(elements) => elements.next().map(|(i, v)| (index_key(i), v)),
+            ObjectSpread::String(units) => units
+                .next()
+                .map(|(i, u)| (index_key(i), String::of_unit(u).to_any())),
             ObjectSpread::Empty => None,
         }
     }
@@ -75,8 +63,8 @@ impl<A: IVm> Iterator for ObjectSpread<A> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let left = match self {
             ObjectSpread::Object(entries) => entries.len(),
-            ObjectSpread::Array { array, next } => array.length().saturating_sub(*next) as usize,
-            ObjectSpread::String { string, next } => string.length().saturating_sub(*next) as usize,
+            ObjectSpread::Array(elements) => elements.len(),
+            ObjectSpread::String(units) => units.len(),
             ObjectSpread::Empty => 0,
         };
         (left, Some(left))
