@@ -62,8 +62,8 @@ becomes a property of one loop.
 
 ### Tasks
 
-- [ ] `stack_walk` with its proof, including the depth it carries.
-- [ ] `datajs/parser` and `datajs/serializer` on it.
+- [x] `stack_walk` with its proof, including the depth it carries.
+- [x] `datajs/parser` and `datajs/serializer` on it.
 - [ ] `ll1`, `compiler/parser` and `ebnf/data`'s `lower`, as each is next
       touched.
 

@@ -7,7 +7,7 @@
 
 import type { List } from '../../../types/list/types.ts'
 import type { OrderedMap } from '../../../types/ordered_map/types.ts'
-import type { Result } from '../../../types/result/types.ts'
+import type { Step } from '../../../types/stack_walk/types.ts'
 import type { Unknown } from '../types.ts'
 import type { Container, Node } from './types.ts'
 
@@ -31,10 +31,5 @@ export type _Frame = {
     readonly done: List<Unknown>
 }
 
-/** The containers suspended around the node being evaluated, innermost on top. */
-export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
-
-/** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */
-export type _Step = readonly ['enter', Node] | Result<Unknown, string>
-
-export type _State = readonly [stack: _Stack, step: _Step]
+/** What to do next: evaluate an item inside a frame, or hand a value — or the error — to the frame on top. */
+export type _Step = Step<Node, _Frame, Unknown, string>

@@ -8,7 +8,7 @@
  */
 
 import type { List } from '../../../types/list/types.ts'
-import type { Result } from '../../../types/result/types.ts'
+import type { Step } from '../../../types/stack_walk/types.ts'
 import type { PersistentSet } from '../../../types/set/types.ts'
 import type { _Member, _Read, _Value } from './types.ts'
 
@@ -46,14 +46,9 @@ export type _Frame<L> = {
     readonly done: List<_Member<object, L>>
 }
 
-/** The containers suspended around the value being read, innermost on top. */
-export type _Stack<L> = { readonly top: _Frame<L>, readonly rest: _Stack<L> } | null
-
-/** What to do next: read a value of the caller's, or hand a value read to the frame on top. */
-export type _Todo<L> = readonly ['enter', unknown] | _Value<object, L>
-
-/** The next thing to do, or the refusal that ends the read. */
-export type _Next<L> = Result<_Todo<L>, string>
-
-/** The read in progress: the suspended containers, the walk so far, and what to do next. */
-export type _State<L> = readonly [stack: _Stack<L>, walk: _Walk<L>, next: _Next<L>]
+/**
+ * What one value or one resumed frame comes to: the walk so far, and what to
+ * do next — read a member of the caller's inside a frame, hand a value read
+ * to the frame on top, or end the read with the refusal.
+ */
+export type _Visit<L> = readonly [_Walk<L>, Step<unknown, _Frame<L>, _Value<object, L>, string>]
