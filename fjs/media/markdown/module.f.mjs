@@ -339,6 +339,11 @@ const readProse = entry => {
     /** @type {readonly Inline[]} */
     let out = []
     for (const [i, span] of entry.entries()) {
+        // Two code spans side by side are `a``b` between single backticks:
+        // CommonMark reads the double run as content of one span.
+        if (span[0] === 'code' && i !== 0 && entry[i - 1][0] === 'code') {
+            return error('two code spans side by side, which GitHub reads as one')
+        }
         if (span[0] === 'code') { out = [...out, span]; continue }
         if ((span[0] === 'strong' || span[0] === 'em')
             && (unflanked(i === 0 ? undefined : lastChar(entry[i - 1]))(span[1][0])
