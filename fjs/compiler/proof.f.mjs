@@ -28,7 +28,7 @@ import { unwrap } from '../types/result/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
-import { _compiled, _written, demo, outputs } from './demo.f.mjs'
+import { compiled, _written, demo, outputs } from './demo.f.mjs'
 import { disagreement } from '../website/demo/highlight/module.f.mjs'
 import { textOfResult } from '../text/marked/module.f.mjs'
 import { examples } from './examples/module.f.js'
@@ -1346,11 +1346,11 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             }
             assertEq(Object.keys(expected).length, examples.length)
             for (const [name, source] of examples) {
-                assertEq(outputs.map(([, file]) => _compiled(source)(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
+                assertEq(outputs.map(([, file]) => compiled(source)(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
             }
-            assertEq(textOfResult(_compiled('export default 1;')('output.json')), '1')
-            assertEq(textOfResult(_compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')), '120')
-            assertEq(textOfResult(_compiled('export default "\\x41";')('output.json')), 'unexpected token')
+            assertEq(textOfResult(compiled('export default 1;')('output.json')), '1')
+            assertEq(textOfResult(compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')), '120')
+            assertEq(textOfResult(compiled('export default "\\x41";')('output.json')), 'unexpected token')
         },
         // A pane shows what `fjs compile` writes: the whole of `compile` over
         // the same file system answers the same text, or the same refusal.
@@ -1360,7 +1360,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assertEq(outputText(noRuntime)('output.txt'), null)
             for (const [name, source] of examples) {
                 for (const [label, file] of outputs) {
-                    const shown = _compiled(source)(file)
+                    const shown = compiled(source)(file)
                     const [shownTag, shownValue] = shown
                     const [writtenTag, writtenValue] = _written(source)(file)
                     const route = assertNotNullish(outputText(noRuntime)(file))

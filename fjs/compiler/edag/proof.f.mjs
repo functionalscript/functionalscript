@@ -20,7 +20,7 @@ import { isArray } from '../../types/array/module.f.mjs'
 import { tryModuleStringify } from '../serializer/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, _moduleExports, _moduleThrows, resolve, unresolved } from './module.f.mjs'
-import { _graphOf, _shapeOf, demo } from './demo.f.mjs'
+import { graphOfText, _shapeOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { _crossings, graphOf } from '../../website/demo/graph/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
@@ -1769,7 +1769,7 @@ export const proof = {
         // `0` and `1`, reaching `+` past the row `*` sits in — and neither
         // passes through a box: each runs down a lane of its own.
         noEdgeCrossesABox: () => {
-            assertEq(_crossings(unwrap(_graphOf(demo.init))), 0)
+            assertEq(_crossings(unwrap(graphOfText(demo.init))), 0)
         },
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))
@@ -1896,7 +1896,7 @@ export const proof = {
             // an example exists to show what it can.
             draw: () => {
                 for (const [name, source] of examples) {
-                    assertEq(_graphOf(source)[0] === 'ok', !['Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name), name)
+                    assertEq(graphOfText(source)[0] === 'ok', !['Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name), name)
                     assert(!htmlToString(demo.view(source)).includes('not yet drawn'), name)
                 }
             },

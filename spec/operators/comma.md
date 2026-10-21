@@ -85,6 +85,12 @@ Read back, that text is the graph it was written from.
 
 The compiler demo offers the programs `comma` in [`module.f.js`](./module.f.js), each with its real output.
 
+The [comma demo page](../../fjs/nanvm/demos/comma/) runs the assertion form above
+with every output `fjs compile` makes of it: the expression graph (EDAG), the
+Rust and the WebAssembly that Rust builds to. Its Run button calls the default
+export with `1` and with `-1`, as JavaScript and as WebAssembly, and shows what
+each call returned or threw.
+
 ## Reference
 
 - ECMA-262: [Comma operator](https://tc39.es/ecma262/#sec-comma-operator)
