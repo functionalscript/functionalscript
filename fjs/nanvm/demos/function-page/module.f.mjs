@@ -34,6 +34,7 @@
  * @import { Element, Node } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Demo, DemoEvent } from '../../../website/demo/types.ts'
+ * @import { Place } from '../page/types.ts'
  * @import { Call, Calls, FunctionSample, Outcome, State } from './types.ts'
  */
 
@@ -55,9 +56,9 @@ export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], 
 /**
  * Fetches the files a WASM demo page shows, as {@link loadFiles} does.
  *
- * @type {(name: string) => Effect<FetchText | Instantiate, State, never>}
+ * @type {(place: Place) => Effect<FetchText | Instantiate, State, never>}
  */
-export const load = name => mapStep(loadFiles(name), ({ source, rust, wat, wasm }) => ({ source, rust, wat, wasm, calls: null }))
+export const load = place => mapStep(loadFiles(place), ({ source, rust, wat, wasm }) => ({ source, rust, wat, wasm, calls: null }))
 
 /**
  * What `call_sample` answers for a call when no sample is loaded:
@@ -226,7 +227,7 @@ export const view = inputs => state => ['div', {},
 
 /** @type {(sample: FunctionSample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox, State, never>} */
 export const update = sample => state => event =>
-    event.kind === 'start' ? load(sample.name)
+    event.kind === 'start' ? load(sample)
     : event.kind === 'click' && event.name === 'run' ? runCalls(sample)(state)
     : pureOk(state)
 

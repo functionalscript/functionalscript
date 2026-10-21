@@ -45,7 +45,7 @@ orders of magnitude of either depth; the input is named here so the crash
 is a known limit rather than a silent one.
 
 A comma is a node of the same kind
-([spec: comma](../../../spec/operators/comma.md)): `comma` in
+([spec: comma](../../../spec/operators/comma/README.md)): `comma` in
 [`../edag/module.f.mjs`](../edag/module.f.mjs) lowers its operands by
 mapping `lower(nodes)` over them, so a comma nested in a comma recurses once
 per level, as a container does, where a group makes no node and nests

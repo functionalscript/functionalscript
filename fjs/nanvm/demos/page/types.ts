@@ -10,12 +10,18 @@ import type { Effect } from '../../../effects/types.ts'
 import type { Result } from '../../../types/result/types.ts'
 
 /**
- * A sample: the name it is known by, which is also its directory beside the
- * generator, its module in `nanvm-demos` and the export that runs it there;
- * and the program itself, as the JavaScript run performs it.
+ * Where a sample is: the name it is known by, which is also its module in
+ * `nanvm-demos` and the export that loads it there; and the directory that
+ * holds its `sample.f.js`, repository-relative — beside the generator for a
+ * sample of its own, beside its page for a spec page's example.
  */
-export type Sample = {
+export type Place = {
     readonly name: string
+    readonly directory: string
+}
+
+/** A sample: where it is, and the program itself, as the JavaScript run performs it. */
+export type Sample = Place & {
     readonly program: () => Effect<Write, unknown, unknown>
 }
 

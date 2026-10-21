@@ -935,9 +935,9 @@ export const proof = {
     // block root, or the lazy operand it stands in — and one that is no
     // code, a reference, a literal or a function, is dropped, its `const`
     // anchored by the scope where nothing else reaches it
-    // (`spec/operators/comma.md`).
+    // (`spec/operators/comma/README.md`).
     comma: {
-        // the two examples of `spec/operators/comma.md`: an alias is the
+        // the two examples of `spec/operators/comma/README.md`: an alias is the
         // node it names, which the result reaches, and a `const` of its
         // own is anchored
         spec: () => {

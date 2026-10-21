@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../../asserts/module.f.js'
+import { assert, assertEq } from '../../../fjs/asserts/module.f.js'
 import entry from './sample.f.js'
 import { demo } from './demo.f.mjs'
 

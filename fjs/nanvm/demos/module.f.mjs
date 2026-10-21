@@ -7,15 +7,17 @@
  * `mod.rs`, and builds it for `wasm32` in the deployment build.
  *
  * Invoked from `gen`, so the drift check fails when a committed `.rs` is
- * stale. The samples are listed by name, not found by a walk: each one also
- * needs an entry in the crate and a demo page, so a new sample is never one
- * file.
+ * stale. The samples are listed, not found by a walk: each one also needs an
+ * entry in the crate and a demo page, so a new sample is never one file. A
+ * sample of its own is a directory beside this module; a spec page's example
+ * sits with its page, so the page holds its text, its example and its demo.
  *
  * @module
  *
  * @import { IoChannel, NodeProgram } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { _CompileOp } from '../../compiler/types.ts'
+ * @import { Place } from './page/types.ts'
  */
 
 import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
@@ -27,8 +29,13 @@ import { rustDirectory, rustPath, samplePath } from './page/module.f.mjs'
 
 export { rustPath, samplePath }
 
-/** The samples, by the name of the directory beside this module that holds each. */
-export const samples = ['hello', 'sort', 'collatz', 'comma']
+/** The samples, each by its name and the directory that holds it. @type {readonly Place[]} */
+export const samples = [
+    { name: 'hello', directory: 'fjs/nanvm/demos/hello' },
+    { name: 'sort', directory: 'fjs/nanvm/demos/sort' },
+    { name: 'collatz', directory: 'fjs/nanvm/demos/collatz' },
+    { name: 'comma', directory: 'spec/operators/comma' },
+]
 
 /** The module file naming every compiled sample, which `src/lib.rs` includes by path. */
 export const modulesPath = `${rustDirectory}/mod.rs`
@@ -52,11 +59,11 @@ export const modules = names => [
  * Compiles every sample into its `.rs`, in order, stopping at the first the
  * compiler refuses, then writes `mod.rs` naming them all.
  *
- * @type {(names: readonly string[]) => Effect<_CompileOp, void, IoChannel>}
+ * @type {(places: readonly Place[]) => Effect<_CompileOp, void, IoChannel>}
  */
-export const generate = names => step(
-    forEachStep(pureOk(names), name => compileFile(noRuntime)(samplePath(name), rustPath(name))),
-    () => writeFiles([[modulesPath, modules(names)]]))
+export const generate = places => step(
+    forEachStep(pureOk(places), ({ name, directory }) => compileFile(noRuntime)(samplePath(directory), rustPath(name))),
+    () => writeFiles([[modulesPath, modules(places.map(({ name }) => name))]]))
 
 /** @type {NodeProgram} */
 export const main = _options => exitStep(generate(samples))
