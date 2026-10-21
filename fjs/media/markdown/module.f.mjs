@@ -342,6 +342,18 @@ const unflanked = outer => inner => !isWordChar(inner) && inner !== ' '
 const codeSideBySide = spans => spans.some((s, i) => i !== 0 && s[0] === 'code' && spans[i - 1][0] === 'code')
 
 /**
+ * Tilde delimiters can surround other spans. Code contents and link targets
+ * are not prose; a link label is checked separately in its own scope.
+ *
+ * @type {(spans: readonly (Inline | Label)[]) => boolean}
+ */
+const proseTildePair = spans => {
+    const text = spans.flatMap(s => s[0] === 'text' ? [s[1]] : []).join('')
+    const first = text.indexOf('~')
+    return first !== -1 && text.indexOf('~', first + 1) !== -1
+}
+
+/**
  * An entry's spans with every prose run read by {@link proseSpans}: a text
  * run may become text and autolinks, a bold, emphasised or label run is
  * checked and kept. A link with an empty label is refused here, the one
@@ -353,6 +365,7 @@ const readProse = entry => {
     /** @type {readonly Inline[]} */
     let out = []
     if (codeSideBySide(entry)) { return error('two code spans side by side, which GitHub reads as one') }
+    if (proseTildePair(entry)) { return error('a tilde pair, which GitHub may read as strikethrough') }
     for (const [i, span] of entry.entries()) {
         if (span[0] === 'code') { out = [...out, span]; continue }
         // `*a**b*` is one emphasis holding `**` in CommonMark, not two.
@@ -375,6 +388,7 @@ const readProse = entry => {
             : [span[1]]
         if (span[0] === 'link' && span[1].length === 0) { return error('a link with an empty label') }
         if (span[0] === 'link' && codeSideBySide(span[1])) { return error('two code spans side by side, which GitHub reads as one') }
+        if (span[0] === 'link' && proseTildePair(span[1])) { return error('a tilde pair in a link label, which GitHub may read as strikethrough') }
         // CommonMark reads an entity in a destination as the character it
         // names, and the page would keep it as written.
         if (span[0] === 'link' && [...span[2]].some((_, i) => entityAt(span[2], i))) {
@@ -577,8 +591,9 @@ export const tryParseBlocks = text => {
             if (texts[0] === 'error') { return refuse(texts[1]) }
             /** @type {readonly Entry[]} */
             let entries = []
-            for (const t of texts[1]) {
-                const spans = inlineAt(at, t)
+            const starts = lines.slice(i, end).flatMap((line, offset) => line.startsWith('- ') ? [at + offset] : [])
+            for (const [index, t] of texts[1].entries()) {
+                const spans = inlineAt(starts[index], t)
                 if (spans[0] === 'error') { return spans }
                 entries = [...entries, spans[1]]
             }
