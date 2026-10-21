@@ -66,26 +66,67 @@ constructs a recursive helper whose normal result is the value bound as `r`.
 A second loop consumes the first loop's results at its own entry point.
 No source-level closure is introduced before source capture checks.
 
+### Shared lazy demand state
+
+A free reference is not permission to establish a lazy initializer while
+constructing the helper. For example, a lazy value read only in a skipped
+loop arm remains unevaluated, and one first demanded inside the loop is reused
+by later iterations and following statements in its owning invocation.
+
+Thread an ordered internal memo vector alongside the helper's user state.
+Each cell carries an initialized flag and its established value; the flag
+distinguishes an undemanded initializer from any source payload. A demand
+selects the stored value or evaluates the initializer with the current memo
+state, then supplies the value and updated memo state together. Failed
+initialization uses the existing failure channel and never supplies a ready
+cell. Conditional regions update only the selected arm's state.
+
+Internal continues carry next user state and memo state simultaneously.
+Normal and escaping helper completions carry the updated memo vector back to
+the caller, which retains it for subsequent demands and sequential loops.
+Nested helpers receive the same owning cells and return their updates to
+their caller; no generated helper directly invokes an enclosing helper.
+The declared normalized loop input and result signatures remain unchanged.
+
+Initializer recipes depend on established immutable values or other memo
+cells. Discover those dependencies through their resolved identities without
+performing source write analysis. Capture established prerequisites normally;
+thread undemanded dependencies as cells instead of evaluating them to build
+the frame. A lazy definition introduced inside an iteration starts fresh on
+each new iteration, while an enclosing invocation's cell survives it. Nested
+loops share an outer iteration's cell only for that iteration's lifetime.
+
+The general internal state/result packages include this bookkeeping. The
+existing scalar graph remains unchanged where no such demand state crosses
+the helper boundary. Pin the memo-bearing graph normalization and stable
+cell ordering with its first implementation.
+
 ### Enclosing-function returns
 
 A loop helper with only normal exits returns its results directly. If the
-loop can return from the enclosing source function, use the internal completion
-forms:
+loop can return from the enclosing source function or transfer to a lexically
+enclosing loop, use the internal completion forms:
 
 ```text
 ["normal", resultValues]
 ["return", value]
+["break", targetId, resultValues]
+["continue", targetId, nextValues]
 ```
 
-These forms are private to this conversion. FAST, admission and serializers
-know only their own loop/result/return constructs.
+These forms are private to this conversion. `targetId` is a deterministic
+encoding of the resolved loop identity within the owning function, not a
+printed name or the identity's presentation index. FAST, admission and
+serializers know only their own loop/result/return constructs.
 
 A caller resumes after the loop for normal completion. A source-function
 return propagates through enclosing generated helpers until its owning
-function returns the payload. An ordinary nested source function owns its own
-returns. Source values resembling completion tags remain payloads, not control
-signals. Existing throws/failures propagate through the existing failure
-channel; there is no additional failure tag.
+function returns the payload. A break or continue targeting an enclosing loop
+propagates until that loop's caller processes its own result or transition;
+intermediate helpers do not perform the outer transition. An ordinary nested
+source function owns its own returns. Source values resembling completion
+tags remain payloads, not control signals. Existing throws/failures propagate
+through the existing failure channel; there is no additional failure tag.
 
 An inner helper returns to its caller. It never calls an outer helper to
 continue an outer iteration: that would create a recursive call cycle which
@@ -145,6 +186,13 @@ their documented normalization. Repeated conversions must stabilize.
 - [ ] Implement normal results and enclosing-function completion propagation.
       Cover several breaks, nested returns, source nested-function returns,
       completion-shaped user values and failures.
+- [ ] Propagate resolved breaks and continues through inner helpers to their
+      enclosing target without recursive helper cycles. Distinct target
+      identities with the same presentation index remain distinct.
+- [ ] Thread shared lazy demand state through helpers, conditional demands,
+      continues and completions. Cover skipped failures, identity reused across
+      iterations and following code, sequential/nested loops, and fresh
+      iteration-local cells without changing public loop signatures.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
 - [ ] Keep the existing scalar shape; pin deterministic general state/capture
