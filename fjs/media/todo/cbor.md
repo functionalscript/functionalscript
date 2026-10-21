@@ -302,11 +302,37 @@ Each is the session's proposal; none is built on until the owner answers.
   - **(c) Major 0 and 1 for both**, so `parse(serialize(5n))` is `5`: two distinct
     FJS values share bytes, and a hash cannot tell them apart. Not recommended.
 
+  The sections above are written for (a). **Each answer changes the same five
+  rules**, so the choice is mechanical once it is made, and none of the rules
+  below may be read as holding for an answer other than the one it is listed
+  under:
+
+  | rule | (a) | (b) | (c) |
+  | --- | --- | --- | --- |
+  | serialize an integral safe `number` | major 0 or 1 | a float, shortest width (`5` is `f94500`) | major 0 or 1 |
+  | serialize a `bigint` | tag 2 or 3, always | major 0 or 1 if it fits 64 bits, else tag 2 or 3 | major 0 or 1 if it fits 64 bits, else tag 2 or 3 |
+  | parse major 0 or 1 | a `number` in the safe range, else a `bigint` | **a `bigint`**, whatever the size | a `number` in the safe range, else a `bigint` |
+  | parse tag 2 or 3 | a `bigint` | a `bigint` | a `bigint` |
+  | parse a float | a `number` | a `number` | a `number` |
+
+  What follows from the table: under (b) the round trip is `5n -> 05 -> 5n` and
+  `5 -> f94500 -> 5`, which is why the parser must read major 0 and 1 as
+  `bigint`; under (c) it is `5n -> 05 -> 5`, which is why (c) is not injective.
+  The canonical-but-not rule (`serialize(parse(bytes))` is `bytes`) is the same
+  under all three and picks different cases: under (a) an integer outside the
+  safe range spelled as major 0 or 1, and a bignum with a leading zero byte;
+  under (b) a bignum for a value that fits 64 bits, and a bignum with a leading
+  zero byte; under every answer a float in any width but the shortest. The vector
+  lists (the Proofs section) are
+  built per answer: for instance the RFC's `01` parses to the `number` 1 under
+  (a) and (c) and to the `bigint` 1n under (b). The float rules (D4) and the
+  number/bigint split of the model (D2) do not move.
+
   The RFC points (3.4.3 on preferred serialization of bignums, 4.2.1 on core
   deterministic encoding) are to be checked against the text before they reach
   the README; the exception in (a) rests on them. The producer rule in
-  [detect-cbor.md](../type/todo/detect-cbor.md) says "RFC 8949 §4.2 core
-  deterministic encoding" and is amended with this answer.
+  [detect-cbor.md](../type/todo/detect-cbor.md) points at the profile this
+  decision settles and names none of its integer rules.
 - **D4. Shortest floats.** The `todo` already says RFC 8949 4.2; the roadmap
   records the competing "always 8-byte doubles" (it is also simpler to encode).
   Shortest-form is the standard's and is recommended.
