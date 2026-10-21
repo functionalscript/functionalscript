@@ -267,7 +267,7 @@ export const proof = {
             // The keyed groups are drawn by key, in a layer each: `b`
             // before `k`, and the unkeyed node after both, in its layer.
             const keys = html.split('data-key="').slice(1).map(k => k.slice(0, k.indexOf('"')))
-            assertEq(JSON.stringify(keys), '["box:b","box:k","edge:k/1/b","entry:k","text:b","text:k"]')
+            assertEq(JSON.stringify(keys), '["box:b","box:k","edge:[&quot;k&quot;,&quot;1&quot;,&quot;b&quot;]","entry:[&quot;k&quot;]","text:b","text:k"]')
             assert(html.includes('</defs><g><g data-graph-in-kind="shared" transform="translate(124,10)" data-key="box:b">'), html)
             // A keyed node is drawn at the origin, its clip too; the unkeyed
             // one where it is.
@@ -279,7 +279,7 @@ export const proof = {
             // The edge to the unkeyed node has no key and comes first; every
             // route of a keyed graph is three points, a straight run doubled.
             assert(html.includes('<g><path d="M84,63 L84,63 L124,63" data-graph-edge="" marker-end="url(#graph-arrow)"></path>'), html)
-            assert(html.includes('<path d="M84,43 L84,43 L124,23" data-graph-edge="" marker-end="url(#graph-arrow)" data-key="edge:k/1/b">'), html)
+            assert(html.includes('<path d="M84,43 L84,43 L124,23" data-graph-edge="" marker-end="url(#graph-arrow)" data-key="edge:[&quot;k&quot;,&quot;1&quot;,&quot;b&quot;]">'), html)
             // The svg is the defs and three layers, boxes, edges and labels,
             // however many edges there are, so a patch meets each layer
             // where it was.
@@ -467,7 +467,20 @@ export const proof = {
                     { from: 0, to: 1, label: 'b' },
                 ],
             }))
-            assert(keyed.includes('data-key="edge:r/0/s"') && keyed.includes('data-key="edge:r/1/s"'), keyed)
+            assert(keyed.includes('data-key="edge:[&quot;r&quot;,&quot;0&quot;,&quot;s&quot;]"') && keyed.includes('data-key="edge:[&quot;r&quot;,&quot;1&quot;,&quot;s&quot;]"'), keyed)
+            // Keys holding the separator a joined key would use still give
+            // two edges two keys.
+            const slashed = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: '', rank: 0, key: 'a/0' },
+                    { id: 1, kind: 'a', label: '', rank: 0, key: 'a' },
+                    { id: 2, kind: 'a', label: '', rank: 1, key: 'c' },
+                    { id: 3, kind: 'a', label: '', rank: 1, key: '0/c' },
+                ],
+                edges: [{ from: 0, to: 2, label: '' }, { from: 1, to: 3, label: '' }],
+            }))
+            const edgeKeys = slashed.split('data-key="edge:').slice(1).map(k => k.slice(0, k.indexOf('"')))
+            assertEq(new Set(edgeKeys).size, 2)
         },
         /**
          * **A node is as wide as its label column and its widest key

@@ -291,12 +291,13 @@ const fadeOf = nodeOf => (from, to) => {
  * An edge's or an entry's `data-key` in a keyed graph, from the keys of the
  * nodes it joins, so a page that patches the drawing keeps the same path
  * for it, and the site's stylesheet slides its route with its nodes. None
- * when a node it joins has no key.
+ * when a node it joins has no key. The keys are written as a JSON array, so
+ * no key's own characters can make two edges' keys the same.
  *
  * @type {(part: string, ...keys: readonly (string | undefined)[]) => { readonly 'data-key'?: string }}
  */
 const pathKeyOf = (part, ...keys) =>
-    keys.every(k => k !== undefined) ? { 'data-key': `${part}:${keys.join('/')}` } : {}
+    keys.every(k => k !== undefined) ? { 'data-key': `${part}:${JSON.stringify(keys)}` } : {}
 
 /**
  * Where a node's contents are drawn, and the attributes of the groups that
