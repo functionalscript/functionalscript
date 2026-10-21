@@ -714,7 +714,7 @@ export const proof = {
         },
         // The `.json` reader is JSON, not the module reader with a JSON flag:
         // a bigint is not JSON, whatever a module makes of it.
-        jsonInputRejectsDjsExtensions: () => {
+        jsonInputRejectsModuleExtensions: () => {
             const root = { 'a.json': [utf8('{"a":1n}')] }
             const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['a.json', 'a.data.js'])))
             assertEq(exitCode(code), 1)
