@@ -1,9 +1,9 @@
 ## Compiler vocabulary and modularization
 
 **Priority:** P2
-**Status:** wip — normalized FAST, source binding identities and complete write/
-capture facts are implemented; structured source normalization and shared output
-migration are in progress
+**Status:** wip — structured source input, shared binding analysis and scalar
+loop construction use FAST; shared output conversion and preparation are in
+progress
 
 ### Problem
 
