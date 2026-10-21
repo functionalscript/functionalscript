@@ -286,6 +286,7 @@ export const proof = {
             [['list', [[['text', 'a b']], [['em', 'c']]]], ['paragraph', [['text', 'd']]]]),
         empty: () => assertStructurallySame(blocks(''), []),
         // Seven `#`s, or one with no space after it, is prose.
+        tabHeading: () => assertStructurallySame(blocks('#\tA\n'), [['heading', 1, [['text', 'A']]]]),
         notAHeading: () => assertStructurallySame(blocks('#a\n\n####### b\n'),
             [['paragraph', [['text', '#a']]], ['paragraph', [['text', '####### b']]]]),
         refuses: {
