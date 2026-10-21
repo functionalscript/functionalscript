@@ -172,6 +172,84 @@ exit values. Keep setup outside the loop once, and computations inside it once
 per reached iteration. No cyclic EDAG or new EDAG loop node is needed: recursion
 continues to use the existing scoped `self` representation.
 
+#### Loops in arbitrary statement positions
+
+A source function may contain several sequential loops, a loop inside an
+`if` branch, or loops nested in other loops. The canonical top-level loop
+shape is an internal normalization invariant, not a source restriction.
+
+Extract each loop that needs this shape into a fresh local function whose
+body contains that loop at its root, and call the function once at the
+original loop position. Here "once" means one initial call each time execution
+reaches that loop statement; a loop inside another loop is entered again on
+each relevant outer iteration. Iterations within the helper subsequently
+become its own tail self-calls in EDAG.
+
+For example:
+
+```js
+const f = (flag, firstLimit, secondLimit) => {
+    let n = 0;
+    while (n < firstLimit) { n = n + 1; }
+    if (flag) {
+        while (n < secondLimit) { n = n + 1; }
+    }
+    return n;
+};
+```
+
+can first become:
+
+```js
+const f = (flag, firstLimit, secondLimit) => {
+    let n = 0;
+    const firstLoop = firstState => {
+        while (firstState < firstLimit) {
+            firstState = firstState + 1;
+        }
+        return firstState;
+    };
+    n = firstLoop(n);
+    if (flag) {
+        const secondLoop = secondState => {
+            while (secondState < secondLimit) {
+                secondState = secondState + 1;
+            }
+            return secondState;
+        };
+        n = secondLoop(n);
+    }
+    return n;
+};
+```
+
+This is a conceptual intermediate form; later passes normalize each helper's
+condition and exits to the core loop form. It reuses the same root-loop
+conversion instead of adding separate EDAG constructions for each placement.
+
+Pass mutable outer bindings needed by a helper as explicit arguments, never
+as captures; immutable outer bindings may be captured as usual. Return the
+outgoing state needed by the following statements and rebind it in the
+caller. With several state values, use a common state result and establish
+its components before updating the caller's bindings. Loop-local bindings
+retain their original lifetimes and do not escape merely because a helper
+was introduced.
+
+Keep helper creation, argument evaluation and its initial call in the
+original execution region. An unselected branch must not create its helper,
+evaluate its state arguments, test its condition or run its body. Sequential
+loops receive the state left by earlier loops, in source order; nested loops
+receive the current outer iteration's state on every entry.
+
+Resolve original transfers before extracting a function boundary. A source
+`return` inside a loop still exits the enclosing source function, not merely
+the generated helper. Use the existing continuation/control normalization to
+preserve that destination, or explicitly propagate the completion to the
+caller; returning normal loop state alone is insufficient. A `break` returns
+through that loop's exit, a `continue` repeats that loop, and a failure
+propagates without executing following statements. The generated helper
+remains internal and is never exposed as a program value.
+
 #### Tail-position analysis and output
 
 Analyze each function separately. Starting at its returned expression:
@@ -260,8 +338,8 @@ TODOs rather than implementing a second version here.
 | B | AST-to-FAST and FAST-to-EDAG boundaries for currently accepted input | A |
 | C | Common EDAG-to-FAST placement and all existing output consumers, preserving current loop support | A, B; [tail-loop FAST migration](../edag/todo/tail-call-loop.md#fast-migration) |
 | D | General binding/capture admission and local rebinding | A, B; recorded language-design approval |
-| E | Conditional-loop, break, continue and post-loop-continuation normalization | A, B, D; recorded language-design approval |
-| F | General normalized FAST loops to EDAG, including nested loops and exits | E |
+| E | Loop extraction at arbitrary statement positions, conditional-loop and transfer/continuation normalization | A, B, D; recorded language-design approval |
+| F | General normalized FAST loop helpers to EDAG, including sequential, conditional and nested loops and exits | E |
 | G | General tail-position self-call analysis | C |
 | H | Tail self-calls to FAST loops with full invocation state and capture snapshots | C, D, F, G |
 | I | Complete public source admission and backend integration for the broadened forms | D, F, H |
@@ -304,12 +382,17 @@ not ready. The intentional capture-rule change lands with its migration.
       `while (condition)` to a core loop with the negated exit guard, and lower
       breaks through correctly scoped post-loop continuations. Handle several
       exits, continues, body-end back edges, nested loops, direct returns and
-      failures. Define how later passes make loop state and continuation
-      arguments explicit without uncontrolled code duplication.
+      failures. Extract sequential loops and loops inside branches into local
+      functions called once at each reached loop entry, with explicit mutable
+      state inputs/outputs and preserved original return destinations. Define
+      how later passes make loop state and continuation arguments explicit
+      without uncontrolled code duplication.
 - [ ] **F — Construct recursive EDAG.** Compile normalized loop regions and
       their continuations to functions/tail calls over the necessary state.
-      Keep pre-loop setup outside, rebuild iteration-local values, and preserve
-      outer mutable state changed by nested loops. Prove this boundary without
+      Reuse the canonical root-loop conversion for each extracted helper; its
+      initial call stays at the source loop's execution point. Keep pre-loop
+      setup outside, rebuild iteration-local values, and preserve outer mutable
+      state changed by sequential, conditional and nested loops. Prove this boundary without
       depending on an optimizer to repair evaluation or sharing.
 - [ ] **G — Analyze tail calls.** Replace the single-template question with
       per-function analysis of tail occurrences through conditionals and
@@ -345,7 +428,8 @@ Add evidence with the step that introduces the behavior:
 | Capture admission | Captures before/after a parameter assignment; a nested write; a never-assigned `let`; explicit snapshots; post-loop and immediately called capture migration. |
 | Loop condition | Initially false condition skips the body; a changing condition is tested on every iteration; `continue` re-tests it; a failing condition remains required. |
 | Break continuation | Multiple breaks with different exit state; `X; return Y` executes once; non-exit `REST` survives; exit-block names cannot capture continuation names; direct return/failure skips the continuation. |
-| Nested control | Inner break/continue target the inner loop; outer state changes survive the inner exit; direct function return leaves both loops. |
+| Loop placement | Sequential loops consume preceding exit state; loops inside either `if` arm execute only when selected; nested helpers are entered once per reached outer iteration; mutable inputs are parameters, not captures, and multiple outgoing values are returned correctly. |
+| Nested control | Inner break/continue target the inner loop; outer state changes survive the inner exit; a source return inside an extracted helper still exits the enclosing source function; direct function return leaves both loops. |
 | Tail analysis | Bare self-call; either/both conditional arms; nested conditionals; preceding comma anchors; non-tail calls in conditions/arguments/arithmetic; mixed recursion; shared-node and nested-function boundaries. |
 | Invocation state | Swapped and dependent arguments; missing and extra arguments; unused failing arguments; spreads, fresh rest arrays, defaults and destructuring each invocation; preserved function length. |
 | Lifetimes | The saved closure example; per-iteration identity-bearing objects/functions; values shared between condition and body; eager failing initializers and unselected lazy failures; memo cells reset per invocation. |
