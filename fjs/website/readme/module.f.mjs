@@ -90,13 +90,13 @@ const words = span => span[0] === 'link' || span[0] === 'strong' || span[0] === 
     : span[1]
 
 /**
-/**
  * What GitHub's anchor does with a character outside ASCII: keeps a letter
  * of any script, and drops punctuation and symbols. A cased letter and the
- * Han, kana and Hangul blocks are letters; Latin-1's punctuation and its
- * `×` and `÷`, General Punctuation to
+ * Han (with its supplementary planes), kana and Hangul blocks are letters;
+ * Latin-1's punctuation and its `×` and `÷`, General Punctuation to
  * Miscellaneous Symbols and Arrows, CJK symbols and punctuation, fullwidth
- * punctuation and the emoji planes are dropped. Anything else is `unknown`:
+ * punctuation, the kana block's punctuation and the emoji blocks are
+ * dropped. Anything else is `unknown`:
  * telling an Arabic comma from an Arabic letter takes the Unicode tables
  * GitHub's slugger reads, so such a heading is refused rather than given an
  * anchor that may differ.
@@ -106,9 +106,11 @@ const words = span => span[0] === 'link' || span[0] === 'strong' || span[0] === 
 const anchorChar = c => {
     const code = /** @type {number} */(c.codePointAt(0))
     const within = /** @type {(from: number, to: number) => boolean} */((from, to) => code >= from && code <= to)
-    if (within(0xa0, 0xbf) || code === 0xd7 || code === 0xf7 || within(0x2000, 0x2bff) || within(0x3000, 0x303f) || within(0xff00, 0xff0f) || code >= 0x1f000) { return 'drop' }
+    if (within(0xa0, 0xbf) || code === 0xd7 || code === 0xf7 || within(0x2000, 0x2bff) || within(0x3000, 0x303f) || within(0xff00, 0xff0f) || within(0x1f000, 0x1faff)
+        // Kana's sound marks, double hyphen and middle dot.
+        || code === 0x309b || code === 0x309c || code === 0x30a0 || code === 0x30fb) { return 'drop' }
     if (c.toLowerCase() !== c.toUpperCase()
-        || within(0x3040, 0x30ff) || within(0x3400, 0x4dbf) || within(0x4e00, 0x9fff) || within(0xac00, 0xd7a3)) {
+        || within(0x3040, 0x30ff) || within(0x3400, 0x4dbf) || within(0x4e00, 0x9fff) || within(0xac00, 0xd7a3) || within(0x20000, 0x323af)) {
         return 'keep'
     }
     return 'unknown'
