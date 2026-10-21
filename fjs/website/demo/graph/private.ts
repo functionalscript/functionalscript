@@ -127,9 +127,15 @@ export type _Placed = {
 /** A point of an edge's route. */
 export type _Point = readonly [number, number]
 
-/** An edge and the points it is drawn through, port first, target last. */
+/**
+ * An edge, its `index` in the graph's list of edges, the node it ends at —
+ * an inline edge has no route — and the points it is drawn through, port
+ * first, target last.
+ */
 export type _Route = {
     readonly edge: Edge
+    readonly index: number
+    readonly to: number
     readonly points: readonly _Point[]
 }
 

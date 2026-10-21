@@ -369,6 +369,15 @@ const dom = path => {
             for (const f of listeners) { f({ target: field ?? { name, value } }) }
         },
         /**
+         * The reader ticking or unticking the checkbox named `name`, whose
+         * value is `on` either way.
+         *
+         * @type {(name: string, checked: boolean) => void}
+         */
+        toggle: (name, checked) => {
+            for (const f of listeners) { f({ target: { name, type: 'checkbox', value: 'on', checked } }) }
+        },
+        /**
          * The reader scrolling the field named `name`: its scroll is heard at
          * the section, as a capturing listener hears it.
          *
@@ -587,6 +596,83 @@ export const demo = {
         const rendered = d.rendered.length
         await settle()
         assertEq(d.rendered.length, rendered)
+    },
+    /**
+     * **`nextDelay` holds a state on screen.** The automatic event waits
+     * that long: a turn later it has not run, and once the delay is over it
+     * has. A reader's event in between cancels it, as it cancels any
+     * scheduled turn.
+     */
+    /**
+     * **A checkbox reports whether it is checked**: its value when it is,
+     * nothing when it is not, though its value is the same either way.
+     */
+    checkboxInput: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: '',
+    update: state => event => () => ['ok', event.kind === 'input' ? \`\${event.name}=\${event.value}\` : state],
+    view: state => ['div', ['pre', state]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.toggle('animate', false)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>animate=</pre>'), d.root.innerHTML)
+        d.toggle('animate', true)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>animate=on</pre>'), d.root.innerHTML)
+    },
+    delayedEvents: async () => {
+        const source = moduleUrl(`
+export const demo = {
+    init: 'still',
+    nextEvent: state => state === 'held' ? { kind: 'click', name: 'later' } : null,
+    nextDelay: () => 300,
+    update: state => event => () => ['ok', event.kind === 'click' ? (event.name === 'hold' ? 'held' : event.name) : state],
+    view: state => ['div', ['button', { type: 'button', name: 'hold' }, 'Hold'], ['button', { type: 'button', name: 'other' }, 'Other'], ['pre', state]],
+}
+`)
+        /** @type {(ms: number) => Promise<void>} */
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+        const d = dom(source)
+        await startDemo(d.root)
+        await settle()
+        d.click('hold')
+        await settle()
+        // Still held a while after: a runtime that ignored the delay would
+        // have run the next event by now. The delay is long enough that a
+        // slow host still checks well inside it.
+        await sleep(20)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>held</pre>'), d.root.innerHTML)
+        await sleep(400)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>later</pre>'), d.root.innerHTML)
+        // A reader's click during the wait cancels the automatic event.
+        const e = dom(source)
+        await startDemo(e.root)
+        await settle()
+        e.click('hold')
+        await settle()
+        e.click('other')
+        await settle()
+        await sleep(400)
+        await settle()
+        assert(e.root.innerHTML.includes('<pre>other</pre>'), e.root.innerHTML)
+        // A reader who asked for less motion is not held: the next event
+        // runs at once.
+        const r = dom(source)
+        const view = r.root.ownerDocument.defaultView
+        r.root.ownerDocument.defaultView = { ...view, matchMedia: (/** @type {string} */ query) => ({ matches: query === '(prefers-reduced-motion: reduce)' }) }
+        await startDemo(r.root)
+        await settle()
+        r.click('hold')
+        await settle()
+        await sleep(20)
+        await settle()
+        assert(r.root.innerHTML.includes('<pre>later</pre>'), r.root.innerHTML)
     },
     automaticInputKeepsControls: async () => {
         const d = dom(incremental(20))

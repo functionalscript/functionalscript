@@ -225,8 +225,8 @@ const railroadLabel = kind => `[${railroadLabelMarker}="${kind}"]`
  * Named because two stylesheets declare them: {@link stylesheet} on every
  * page, and {@link rustdocStylesheet} on rustdoc's.
  */
-const lightTokens = '--graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
-const darkTokens = '--graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
+const lightTokens = '--graph-new-bg: #aecbfa; --graph-added-bg: #a8dab5; --graph-removed-bg: #f6aea9; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
+const darkTokens = '--graph-new-bg: #1c2d4d; --graph-added-bg: #1c3d27; --graph-removed-bg: #4d1c1c; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
 
 /**
  * The rules for the site's two bars, the header and the funding footer,
@@ -624,7 +624,51 @@ svg text { font: inherit }
 /* The versions demos draw a node's kind as its fill, so a value filling a
    row of one is left unfilled, or the tint would hide it. */
 [data-graph-in-kind="new"] [data-graph-value-alone],
-[data-graph-in-kind="shared"] [data-graph-value-alone] { fill: none }
+[data-graph-in-kind="shared"] [data-graph-value-alone],
+[data-graph-in-kind="leaving"] [data-graph-value-alone] { fill: none }
+/* A node fading in mid-move, before the move is done and its nodes turn
+   blue, keeps its values' light tint: it reads as arriving, lighter than
+   the blue a finished move draws. */
+[data-graph-in-kind="entering"] [data-graph-value-alone] { fill: var(--value-bg) }
+/* The B-tree game's moved key: red in the cell it is removed from, green in
+   the one it is inserted into. */
+[data-graph-value][data-graph-value-kind="removed"] { fill: var(--graph-removed-bg) }
+[data-graph-value][data-graph-value-kind="added"] { fill: var(--graph-added-bg) }
+/* A change node by node: a node with an order fades out if it is leaving
+   and in otherwise — new, or entering, a node a step built that its demo
+   draws plain — over 150 ms, 150 ms after the order before it.
+   Only where the reader has not asked for less motion: then the drawing
+   changes at once. The page updates its elements in place, and an
+   animation runs again only when its name changes, so the drawing's
+   container alternates data-graph-replay between "a" and "b", and each
+   name has a twin. Orders 0 to 6 are timed: order 0 and one per rank of
+   the deepest tree the B-tree game draws, 80 keys in at most six ranks. A
+   higher order has no rule and no delay. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-graph-order] { animation-duration: .15s; animation-fill-mode: both; animation-timing-function: ease }
+  /* A keyed node that stays but moves slides to its new place, and a keyed
+     edge's route with it, where the browser animates a path's d; where it
+     does not, the route is redrawn at once. */
+  [data-graph] [data-key] { transition: transform .15s ease, d .15s ease }
+  /* A key about to be removed turns red, through order 0, before anything
+     fades. */
+  [data-graph-value-kind="removed"] { animation: graph-redden .15s ease both }
+  [data-graph-replay="a"] [data-graph-order]:not([data-graph-in-kind="leaving"]) { animation-name: graph-in-a }
+  [data-graph-replay="b"] [data-graph-order]:not([data-graph-in-kind="leaving"]) { animation-name: graph-in-b }
+  [data-graph-replay="a"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-a }
+  [data-graph-replay="b"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-b }
+  [data-graph-order="1"] { animation-delay: .15s }
+  [data-graph-order="2"] { animation-delay: .3s }
+  [data-graph-order="3"] { animation-delay: .45s }
+  [data-graph-order="4"] { animation-delay: .6s }
+  [data-graph-order="5"] { animation-delay: .75s }
+  [data-graph-order="6"] { animation-delay: .9s }
+}
+@keyframes graph-redden { from { fill-opacity: 0 } }
+@keyframes graph-in-a { from { opacity: 0 } }
+@keyframes graph-in-b { from { opacity: 0 } }
+@keyframes graph-out-a { to { opacity: 0 } }
+@keyframes graph-out-b { to { opacity: 0 } }
 /* A row showing the node an edge leads to is part of the edge, not a
    value. */
 [data-graph-value][data-graph-value-ref] { fill: none }
