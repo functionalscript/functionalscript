@@ -9,7 +9,7 @@
  *
  * @module
  *
- * @import { BindingId, Function as FastFunction, Loop, Value } from '../../../js/ast/types.ts'
+ * @import { BindingId, Function as FastFunction, Loop, Statement, Value } from '../../../js/ast/types.ts'
  */
 
 import { freeLoopBindings } from '../control/module.f.mjs'
@@ -18,10 +18,30 @@ import { freeLoopBindings } from '../control/module.f.mjs'
 const names = (value, binding) => value instanceof Array && value[0] === 'ref' && value[1] === binding
 
 /**
+ * Prefix reads may alias established captures or self without becoming current
+ * invocation inputs. Each returned lineage keeps its fixed parameter position.
+ * Root callers check their invocation layout before requesting these aliases.
+ * @type {(fn: FastFunction, before: readonly Statement[]) => readonly (readonly BindingId[])[] | null}
+ */
+export const invocationAliases = (fn, before) => {
+    let aliases = fn.parameters.map(parameter => [parameter])
+    let established = [...fn.parameters, ...fn.captures.map(capture => capture.binding), ...(fn.self === null ? [] : [fn.self])]
+    for (const statement of before) {
+        if (statement[0] !== 'define') { return null }
+        const value = statement[2]
+        if (!(value instanceof Array) || value[0] !== 'ref' || !established.includes(value[1])) { return null }
+        established = [...established, statement[1]]
+        aliases = aliases.map(lineage => lineage.includes(value[1]) ? [...lineage, statement[1]] : lineage)
+    }
+    return aliases
+}
+
+/**
  * The root scalar loop where its entry aliases the current invocation and its
  * result is returned directly, or `null` where reconstruction would change
- * the function boundary. Before the loop, only aliases of invocation inputs
- * are admitted; these establish no computation or identity of their own.
+ * the function boundary. Before the loop, aliases of invocation inputs, captures
+ * and self establish no computation or identity. The entry must still follow
+ * the current invocation input's own alias lineage.
  *
  * @type {(fn: FastFunction) => Loop | null}
  */
@@ -33,15 +53,8 @@ export const rootLoopOf = fn => {
     if (last === undefined || last[0] !== 'loop') { return null }
     const loop = last[1]
     if (loop.parameters.length !== 1 || loop.results.length !== 1 || !names(exit[2], loop.results[0])) { return null }
-    /** @type {readonly BindingId[]} */
-    let aliases = parameters
-    for (const statement of body.statements.slice(0, -1)) {
-        if (statement[0] !== 'define') { return null }
-        const value = statement[2]
-        if (!(value instanceof Array) || value[0] !== 'ref' || !aliases.includes(value[1])) { return null }
-        aliases = [...aliases, statement[1]]
-    }
-    return aliases.some(binding => names(loop.initial[0], binding)) ? loop : null
+    const aliases = invocationAliases(fn, body.statements.slice(0, -1))
+    return aliases !== null && aliases[0].some(binding => names(loop.initial[0], binding)) ? loop : null
 }
 
 /**

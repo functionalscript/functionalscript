@@ -54,6 +54,13 @@ export const proof = {
         assert(loop !== undefined && loop[0] === 'loop')
         assertEq(freeLoopBindings(loop[1]).length, 0)
     },
+    lazyAliasReads: () => {
+        // Capture-order aliases must not add comma anchors to lazy frame reads.
+        assertStructurallySame(graph('const captured={};export default selected=>()=>{const test=selected;const value=captured;return test?value:0;};'),
+            ['{}', [[':', 'default', ['=>', 1, [['{}', []]], ['=>', 0, [['arg', 0], ['frame', 0]], ['?:', ['frame', 0], ['frame', 1], 0]]]]]])
+        // A real declaration still evaluates before a lazily read alias of it.
+        assertError(memo(assertOk(analysis(graph('export default (()=>{const value=null.x;const alias=value;return false?alias:0;})();'))))({ args: [] }))
+    },
     blocks: () => {
         const ast = assertOk(parse('')('export default (() => { const x = [1]; return [x, x]; })();'))
         const fast = normalize(ast, [])

@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { rootLoopOf, scalarHelper } from './module.f.mjs'
+import { invocationAliases, rootLoopOf, scalarHelper } from './module.f.mjs'
 
 const parameter = { index: 0 }
 const state = { index: 1 }
@@ -32,6 +32,15 @@ const fn = body => ({ target, parameters: [parameter], rest: null, self: null, c
 const root = loop => fn({ statements: [['loop', loop]], exit: ['return', target, ['ref', result]] })
 
 export const proof = {
+    invocationAliases: () => {
+        const value = { ...fn({ statements: [], exit: ['yield', []] }), parameters: [parameter, state], self: other, captures: [{ binding: result, value: 1 }] }
+        assertStructurallySame(invocationAliases(value, [
+            ['define', alias, ['ref', state], 'lazy'],
+            ['define', { index: 5 }, ['ref', result], 'lazy'],
+            ['define', { index: 6 }, ['ref', other], 'lazy'],
+        ]), [[parameter], [state, alias]])
+        assertStructurallySame(invocationAliases({ ...value, parameters: [] }, []), [])
+    },
     helper: () => {
         const captured = { ...loop, body: { ...loop.body, statements: /** @type {Block['statements']} */ ([['define', alias, ['array', [['ref', other], ['ref', other]]], 'required']]) } }
         const helper = scalarHelper(captured)
@@ -68,6 +77,31 @@ export const proof = {
         assertEq(rootLoopOf(root({ ...loop, results: [result, other] })), null)
         for (const value of /** @type {readonly Value[]} */ ([0, ['array', []], ['ref', other], ['ref', { index: parameter.index }]])) {
             assertEq(rootLoopOf(root({ ...loop, initial: [value] })), null)
+        }
+    },
+    establishedAliases: () => {
+        const self = { index: 5 }
+        const selfAlias = { index: 6 }
+        const captureAlias = { index: 7 }
+        const captureAliasAgain = { index: 8 }
+        const value = {
+            ...fn({
+                statements: [
+                    ['define', selfAlias, ['ref', self], 'lazy'],
+                    ['define', captureAlias, ['ref', other], 'lazy'],
+                    ['define', captureAliasAgain, ['ref', captureAlias], 'lazy'],
+                    ['define', alias, ['ref', parameter], 'lazy'],
+                    ['loop', { ...loop, initial: [['ref', alias]] }],
+                ],
+                exit: ['return', target, ['ref', result]],
+            }),
+            self,
+            captures: [{ binding: other, value: /** @type {Value} */ (['array', []]) }],
+        }
+        assert(rootLoopOf(value) === value.body.statements.at(-1)?.[1])
+        // Established captures and self are not the current invocation input.
+        for (const binding of [selfAlias, captureAliasAgain]) {
+            assertEq(rootLoopOf({ ...value, body: { ...value.body, statements: [...value.body.statements.slice(0, -1), ['loop', { ...loop, initial: [['ref', binding]] }]] } }), null)
         }
     },
     resultProcessing: () => {
