@@ -15,6 +15,11 @@
  * @import { _Scope } from './types.ts'
  */
 
+import { charIs, isLatinCapitalLetter } from '../../../text/ascii/module.f.js'
+
+/** Whether a character is an upper-case Latin letter. @type {(c: string) => boolean} */
+const isCapital = charIs(isLatinCapitalLetter)
+
 /**
  * Whether a name is spelled the way Git spells a *pseudoref*: every character an
  * upper-case letter, `-` or `_`, and at least one of them.
@@ -46,7 +51,7 @@
  */
 const isPseudoref = text =>
     text.length !== 0
-    && [...text].every(c => (c >= 'A' && c <= 'Z') || c === '-' || c === '_')
+    && [...text].every(c => isCapital(c) || c === '-' || c === '_')
 
 /**
  * The prefixes under `refs/` that are per worktree.
