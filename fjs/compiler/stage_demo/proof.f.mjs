@@ -17,7 +17,7 @@ export const proof = {
         assert(shown.endsWith('<p>seen export default 1;</p></div>'), shown)
     },
     parsed: () => {
-        const imports = parsed(ast => ok(ast[0].length))
+        const imports = parsed(module => ok(module.ast[0].length))
         assertEq(JSON.stringify(imports('import a from "a";\nexport default a;')), '["ok",1]')
         assertEq(JSON.stringify(imports('export default "\\x41";')), '["error","unexpected token"]')
         const refusing = parsed(() => error('the stage refuses'))

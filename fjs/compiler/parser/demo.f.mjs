@@ -5,10 +5,10 @@
  * shared, `arg` and `fref` where a function reads its parameters and its
  * frame.
  *
- * **The AST is shown as the DataJS text of the value the parser returns**, so
- * it is the structure itself and not a drawing of it: what a reader sees is
- * what the next stage is handed. A shared constant is a `const` of its own
- * there too, which is the AST's reason for being a list.
+ * **The AST field is shown as DataJS text**, so it is the structure itself
+ * and not a drawing of it. The parser also retains source binding facts for
+ * admission and normalization. A shared constant is a `const` of its own
+ * in the AST too, which is its reason for being a list.
  *
  * **A refusal is shown in the parser's own words** — `unexpected token`,
  * `unexpected end` — rather than as an empty box, and the shared examples
@@ -37,7 +37,7 @@ import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
  *
  * @type {(text: string) => Result<Marked, string>}
  */
-export const _astOf = parsed(tryMarked)
+export const _astOf = parsed(({ ast }) => tryMarked(ast))
 
 export const demo = stageDemo({
     intro: 'Parses a FunctionalScript module and shows its abstract syntax tree as DataJS. The constants and imports describe the structure passed to the next compiler stage.',

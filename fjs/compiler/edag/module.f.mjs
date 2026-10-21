@@ -6,9 +6,9 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstImport, AstModule } from '../ast/types.ts'
+ * @import { AstImport } from '../ast/types.ts'
  * @import { _Load } from '../source/types.ts'
- * @import { ParseError } from '../parser/types.ts'
+ * @import { ParseError, ResolvedModule } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  * @import { Unresolved } from './types.ts'
@@ -30,7 +30,7 @@ const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', 
  * Source expansion supplies explicit immutable bindings and required roots;
  * graph construction consumes those normalized FAST values.
  *
- * @type {(imports: readonly Exp[]) => (module: AstModule) => Exp}
+ * @type {(imports: readonly Exp[]) => (module: ResolvedModule) => Exp}
  */
 const lowered = imports => module => {
     const fast = normalize(module, imports)
@@ -45,9 +45,9 @@ const over = imports => edag => ({ imports, edag })
  * import is its parameter node, and the specifiers ride beside the graph
  * for the resolution to read.
  *
- * @type {(module: AstModule) => Unresolved}
+ * @type {(module: ResolvedModule) => Unresolved}
  */
-export const unresolved = module => over(module[0])(lowered(module[0].map(parameter))(module))
+export const unresolved = module => over(module.ast[0])(lowered(module.ast[0].map(parameter))(module))
 
 /**
  * Whether a module's computation ends in a `throw`, past its evaluation

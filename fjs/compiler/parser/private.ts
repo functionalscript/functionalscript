@@ -10,9 +10,10 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
+import type { BindingId, BindingScope } from '../../js/ast/types.ts'
 import type { AstCall, AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstStatic, AstSelf, BinaryTag, UnaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
-import type { ParseError } from './types.ts'
+import type { BindingOrigin, ParseError } from './types.ts'
 import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item, Key, Let, LoopBlock, Node, Switch, While } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
@@ -55,6 +56,9 @@ export type _Read = {
 export type _Plan = {
     readonly reads: readonly _Read[]
     readonly names: readonly (readonly [DjsTokenWithMetadata, number])[]
+    /** One original source identity per expanded initialization, aliases included. */
+    readonly ids: readonly BindingId[]
+    readonly metadata: DjsTokenWithMetadata['metadata']
 }
 
 /**
@@ -110,6 +114,11 @@ export type _Lowered = {
  */
 export type _Scope = {
     readonly names: _Env
+    readonly origins: OrderedMap<BindingId>
+    readonly trace: BindingScope
+    readonly sourceOrigins: readonly BindingOrigin[]
+    /** A synthetic execution region retains its source function target. */
+    readonly region: boolean
     /** The `length` of the function whose body this is: its named parameters counted, `0` for a rest parameter, none, or the module. */
     readonly count: number
     readonly captures: readonly _Ref[]
@@ -242,6 +251,10 @@ export type _Bound = {
     readonly count: number
     readonly entries: readonly AstConst[]
     readonly late: readonly _Late[]
+    readonly origins: OrderedMap<BindingId>
+    readonly bindings: readonly BindingId[]
+    readonly sourceOrigins: readonly BindingOrigin[]
+    readonly initialized: readonly BindingId[]
 }
 
 /**
@@ -302,6 +315,7 @@ export type _LetFrame = {
     readonly let: Let
     readonly body: _BodyFrame
     readonly word: string
+    readonly binding: BindingId
 }
 
 /**
@@ -452,9 +466,11 @@ export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
 /** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */
 export type _Step =
     | readonly ['enter', Node]
-    /** A `const`'s value to enter, with the word the `const` binds: a function is entered under it as its `self`. */
-    | readonly ['define', Node, string]
+    /** A `const` initializer with its source name and identity: an ordinary function reads that declaration as its `self`. */
+    | readonly ['define', Node, readonly [string, BindingId]]
     | Result<AstConst, ParseError>
 
 /** The frames suspended, the scope the node being evaluated stands in, and what to do next. */
 export type _State = readonly [stack: _Stack, scope: _Scope, step: _Step]
+
+export type _Evaluated = { readonly value: AstConst; readonly scope: _Scope }

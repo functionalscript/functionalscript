@@ -1,6 +1,7 @@
 /**
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstConst, AstModule } from '../ast/types.ts'
+ * @import { ResolvedModule } from './types.ts'
  * @import { EdagValue, Values } from '../../edag/value/types.ts'
  */
 
@@ -35,7 +36,7 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 export const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 
 /** A module as the proofs pin it: the compiler's own dump, since the tree holds bigints JSON cannot write. */
-export const stringifyDjsModule = _stringifyTree
+export const stringifyDjsModule = (/** @type {ResolvedModule | AstModule} */ module) => _stringifyTree('ast' in module ? module.ast : module)
 
 /**
  * `count` copies of `element`, comma-joined.
@@ -83,7 +84,7 @@ export const expectRefused = (source, message, column) => {
     assertEq(value.metadata?.column, column, source)
 }
 
-/** Parser fixtures execute through the shared represented interpreter. @type {(ast: AstModule, args?: Values) => EdagValue} */
+/** Parser fixtures execute through the shared represented interpreter. @type {(ast: ResolvedModule, args?: Values) => EdagValue} */
 const evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
 
 export const proof = {
@@ -104,9 +105,9 @@ export const proof = {
         bindings: () => {
             const source = 'import d, { x, x as y, default as z, as as from, } from "./dep"; export default [d,x,y,z,from];'
             const module = unwrap(parseFromTokens(tokenizeString(source)))
-            assertStructurallySame(module[0], ['default', 'x', 'x', 'default', 'as'].map(name => ({ specifier: './dep', json: false, name })))
+            assertStructurallySame(module.ast[0], ['default', 'x', 'x', 'default', 'as'].map(name => ({ specifier: './dep', json: false, name })))
             const exports = /** @type {const} */ (['{}', [[':', 'default', 1], [':', 'x', 2], [':', 'as', 3]]])
-            assertStructurallySame(assertOk(toData(evaluate(module, module[0].map(() => exports)))), { default: [1, 2, 2, 1, 3] })
+            assertStructurallySame(assertOk(toData(evaluate(module, module.ast[0].map(() => exports)))), { default: [1, 2, 2, 1, 3] })
             const syntax = unwrap(parseSyntax(tokenizeString(source)))
             assertStructurallySame(syntax.imports[0].bindings.map(({ name, local }) => [name, local.token]), [
                 ['default', { kind: 'id', value: 'd' }], ['x', { kind: 'id', value: 'x' }],
@@ -116,13 +117,13 @@ export const proof = {
         },
         empty: () => {
             const module = unwrap(parseFromTokens(tokenizeString('import {} from "./dep"; import d, {} from "./dep"; export default d;')))
-            assertStructurallySame(module[0].map(({ name }) => name), [null, 'default'])
+            assertStructurallySame(module.ast[0].map(({ name }) => name), [null, 'default'])
             const exports = /** @type {const} */ (['{}', [[':', 'default', 7]]])
             assertStructurallySame(assertOk(toData(evaluate(module, [exports, exports]))), { default: 7 })
         },
         json: () => {
             const module = unwrap(parseFromTokens(tokenizeString('import {default as data} from "./data.json" with {type:"json"}; export default data;')))
-            assertStructurallySame(module[0], [{ specifier: './data.json', json: true, name: 'default' }])
+            assertStructurallySame(module.ast[0], [{ specifier: './data.json', json: true, name: 'default' }])
         },
         errors: () => {
             for (const source of [
@@ -266,7 +267,7 @@ export const proof = {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { switch (n[0]) { case 1: case 2: { const x = [1]; return [x, x]; } case 3: { throw 3; } } const y = [2]; return y; };'))
             assert(tag === 'ok')
-            assertStructurallySame(value, [[], [['object', [[':', 'default', ['=>', 1, [
+            assertStructurallySame(value.ast, [[], [['object', [[':', 'default', ['=>', 1, [
                 ['.', ['arg', 0], 0],
                 ['?:', ['||', ['===', ['cref', 0], 1], ['===', ['cref', 0], 2]],
                     ['()', ['=>', 0, [['array', [1]], ['array', [['cref', 0], ['cref', 0]]]]], []],
@@ -278,7 +279,7 @@ export const proof = {
             // switch is the body's last statement
             const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { return 1; } default: { return 0; } } };'))
             assert(tag2 === 'ok')
-            assertStructurallySame(value2, [[], [['object', [[':', 'default', ['=>', 1, [
+            assertStructurallySame(value2.ast, [[], [['object', [[':', 'default', ['=>', 1, [
                 ['arg', 0],
                 ['?:', ['===', ['cref', 0], 1], ['()', ['=>', 0, [1]], []], ['()', ['=>', 0, [0]], []]],
             ]]]]]]])
@@ -286,7 +287,7 @@ export const proof = {
             // entry of the arm's function, read through the arm's frame
             const [tag3, value3] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { switch (n) { case 2: { return 2; } } return 1; } } return 0; };'))
             assert(tag3 === 'ok')
-            assertStructurallySame(value3, [[], [['object', [[':', 'default', ['=>', 1, [
+            assertStructurallySame(value3.ast, [[], [['object', [[':', 'default', ['=>', 1, [
                 ['arg', 0],
                 ['?:', ['===', ['cref', 0], 1],
                     ['()', ['=>', 0, [['fref', 0], ['?:', ['===', ['cref', 0], 2], ['()', ['=>', 0, [2]], []], ['()', ['=>', 0, [1]], []]]], [['arg', 0]]], []],
@@ -295,7 +296,7 @@ export const proof = {
             // after a loop, the switch reads the variable's last binding
             const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { r = r + 1; } switch (r) { case 1: { return r; } } return 0; };'))
             assert(tag4 === 'ok')
-            assertStructurallySame(value4, [[], [['object', [[':', 'default', ['=>', 1, [
+            assertStructurallySame(value4.ast, [[], [['object', [[':', 'default', ['=>', 1, [
                 ['()', ['=>', 1, [['?:', ['<', ['arg', 0], ['fref', 0]], ['()', ['=>', 0, [['+', ['fref', 0], 1], ['()', ['fref', 1], [['cref', 0]]]], [['arg', 0], ['self']]], []], ['arg', 0]]], [['arg', 0]]], [0]],
                 ['cref', 0],
                 ['?:', ['===', ['cref', 1], 1], ['()', ['=>', 0, [['fref', 0]], [['cref', 0]]], []], ['()', ['=>', 0, [0]], []]],
@@ -323,7 +324,7 @@ export const proof = {
             expectRefused('export default n => { const c = 1; return () => { switch (c) { case 1: { return 1; } } const c = 2; return c; }; };', 'capture shadowed', 94)
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { const c = 1; return () => { switch (n) { case 1: { const c = 2; return c; } } return c; }; };'))
             assert(tag === 'ok')
-            assertStructurallySame(value, [[], [['object', [[':', 'default', ['=>', 1, [
+            assertStructurallySame(value.ast, [[], [['object', [[':', 'default', ['=>', 1, [
                 1,
                 ['=>', 0, [['fref', 0], ['?:', ['===', ['cref', 0], 1], ['()', ['=>', 0, [2, ['cref', 0]]], []], ['()', ['=>', 0, [['fref', 0]], [['fref', 1]]], []]]], [['arg', 0], ['cref', 0]]],
             ]]]]]]])
@@ -333,7 +334,7 @@ export const proof = {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const d = [2]; r = r + d[0]; } return [r, r]; };'))
             assert(tag === 'ok')
-            assertStructurallySame(value, [[], [['object', [[':', 'default', ['=>', 1, [
+            assertStructurallySame(value.ast, [[], [['object', [[':', 'default', ['=>', 1, [
                 ['()', ['=>', 1, [['?:',
                     ['<', ['arg', 0], ['fref', 0]],
                     ['()', ['=>', 0, [['array', [2]], ['+', ['fref', 0], ['.', ['cref', 0], 0]], ['()', ['fref', 1], [['cref', 1]]]], [['arg', 0], ['self']]], []],
@@ -346,7 +347,7 @@ export const proof = {
             // `const` is
             const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < 1) { r = null.x; r = 1; } return r; };'))
             assert(tag4 === 'ok')
-            assertStructurallySame(value4, [[], [['object', [[':', 'default', ['=>', 1, [
+            assertStructurallySame(value4.ast, [[], [['object', [[':', 'default', ['=>', 1, [
                 ['()', ['=>', 1, [['?:',
                     ['<', ['arg', 0], 1],
                     ['()', ['=>', 0, [['.', null, 'x'], 1, ['()', ['fref', 0], [['cref', 1]]]], [['self']]], []],
@@ -357,7 +358,7 @@ export const proof = {
             // a block assigning nothing continues with the variable as it is
             const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { } return r; };'))
             assert(tag2 === 'ok')
-            assertStructurallySame(value2, [[], [['object', [[':', 'default', ['=>', 1, [
+            assertStructurallySame(value2.ast, [[], [['object', [[':', 'default', ['=>', 1, [
                 ['()', ['=>', 1, [['?:',
                     ['<', ['arg', 0], ['fref', 0]],
                     ['()', ['=>', 0, [['()', ['fref', 0], [['fref', 1]]]], [['self'], ['arg', 0]]], []],
@@ -369,7 +370,7 @@ export const proof = {
             // name a later function captures, as any `const` is
             const [tag3, value3] = parseFromTokens(tokenizeString('export default () => { let r = 0; while (r) { r = 1; } const s = [r]; return () => [r, s]; };'))
             assert(tag3 === 'ok')
-            assertStructurallySame(value3, [[], [['object', [[':', 'default', ['=>', 0, [
+            assertStructurallySame(value3.ast, [[], [['object', [[':', 'default', ['=>', 0, [
                 ['()', ['=>', 1, [['?:', ['arg', 0], ['()', ['=>', 0, [1, ['()', ['fref', 0], [['cref', 0]]]], [['self']]], []], ['arg', 0]]]], [0]],
                 ['array', [['cref', 0]]],
                 ['=>', 0, [['array', [['fref', 0], ['fref', 1]]]], [['cref', 0], ['cref', 1]]],
@@ -733,7 +734,7 @@ export const proof = {
             const [tag, value] = parseFromTokens(tokenizeString(`export default (a) => {\n${'if (a) { return 1; }\n'.repeat(5000)}return 0;\n};`))
             assert(tag === 'ok', tag)
             /** @type {any} */
-            let arm = /** @type {any} */ (value[1][0])[1][0][2][2][0]
+            let arm = /** @type {any} */ (value.ast[1][0])[1][0][2][2][0]
             for (let depth = 1; depth < 5_000; depth += 1) { arm = arm[3][1][2][0] }
             assertEq(stringifySorted(arm[3]), '["()",["=>",0,[0]],[]]')
         },
@@ -797,7 +798,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(`const a = {}; const c = 1; export default ${source};`))
                 assert(tag === 'ok', value)
-                const [, body] = value
+                const [, body] = value.ast
                 assertEq(stringifyDjsModule([[], [body[body.length - 1]]]), `[[],[["object",[[":","default",${expected}]]]]]`)
             }
             expect('a?.b', '["?.",["cref",0],"b"]')
@@ -1775,7 +1776,7 @@ export const proof = {
             const [tag, value] = parseFromTokens(tokenizeString(
                 `export default [${repeated('{}')(20000)}];`))
             assert(tag === 'ok', tag)
-            assertEq(value[1].length, 1)
+            assertEq(value.ast[1].length, 1)
         },
         () => {
             const [tag] = parseFromTokens(tokenizeString(
@@ -1797,7 +1798,7 @@ export const proof = {
             // walked by a loop too: the outermost function captures the
             // module's `x`, every one inside it its parent's slot
             /** @type {any} */
-            let fn = /** @type {any} */ (value[1][1])[1][0][2]
+            let fn = /** @type {any} */ (value.ast[1][1])[1][0][2]
             assertEq(stringifySorted(fn[3]), '[["cref",0]]')
             for (let depth = 1; depth < 20_000; depth += 1) { fn = fn[2][0] }
             assertEq(stringifySorted(fn), '["=>",0,[["fref",0]],[["fref",0]]]')

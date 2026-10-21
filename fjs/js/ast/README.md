@@ -45,7 +45,9 @@ same binding identities for locals and parameters. Its events distinguish
 function, while nested `function` events introduce a capture boundary.
 
 The analysis returns each binding's `isMutable` flag and ordered, deduplicated
-`capturedBy` targets. Any write in the complete source scope makes a binding
+`capturedBy` targets. Each target names the source function containing a direct
+resolved read or write; forwarding a value through an intermediate generated
+frame does not add a source reference. Any write in the complete source scope makes a binding
 mutable, including later, nested or unreachable writes. Initialization never
 does. This records facts; source declaration legality and capture admission
 remain the compiler's policies. In particular, computing the new facts does
