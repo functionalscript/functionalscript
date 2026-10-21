@@ -198,4 +198,4 @@ export const assoc = key => a => {
  * @returns {(items: readonly T[]) => Nullable<O>}
  */
 export const findMap = f => items =>
-    items.reduce((found, item, index) => found ?? f(item, index), /** @type {Nullable<O>} */ (null))
+    items.reduce((found, item, index) => found !== null ? found : f(item, index), /** @type {Nullable<O>} */ (null))

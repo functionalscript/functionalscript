@@ -158,9 +158,11 @@ export const proof = {
         () => assertEq(findMap((/** @type {number} */ x, /** @type {number} */ i) => x > 1 ? `${x}@${i}` : null)([1, 2, 3]), '2@1'),
         () => assertEq(findMap(() => null)([1, 2]), null),
         () => assertEq(findMap(() => 'x')([]), null),
+        // `undefined` is an answer: only `null` is absence
+        () => assertEq(findMap((/** @type {number} */ x) => x === 1 ? undefined : 'later')([1, 2]), undefined),
         // nothing after the first answer is asked
         () => assertEq(findMap((/** @type {number} */ x) => {
-            if (x > 2) { throw x }
+            assert(x <= 2, x)
             return x === 2 ? 'two' : null
         })([1, 2, 3]), 'two'),
     ],

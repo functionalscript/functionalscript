@@ -336,7 +336,7 @@ export const proof = {
         () => assertEq(findMap(() => 'x')([]), null),
         // lazy: nothing after the first answer is asked
         () => assertEq(findMap((/** @type {number} */ x) => {
-            if (x > 2) { throw x }
+            assert(x <= 2, x)
             return x === 2 ? 'two' : null
         })([1, 2, 3]), 'two'),
     ],
