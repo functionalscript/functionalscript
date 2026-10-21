@@ -137,6 +137,14 @@ export const proof = {
         assertEq(parse('12'), null)
         assertEq(show(5), '0101')
     },
+    // a key is a number, so a width past its 53 bits of precision is refused
+    binaryKeysWidth: {
+        widest: () => assertEq(binaryKeys(53).parse('1'.repeat(53)), 2 ** 53 - 1),
+        throw: {
+            wide: () => binaryKeys(54),
+            empty: () => binaryKeys(0),
+        },
+    },
     graphOf: {
         // Inserting 0 in front builds one cell and shares the three after
         // it. Only the new list is drawn, with one arrow, into its root.

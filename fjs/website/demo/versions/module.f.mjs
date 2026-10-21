@@ -46,7 +46,7 @@ import { graphSvg } from '../graph/module.f.mjs'
 import { examplePicker, name as exampleName } from '../examples/module.f.js'
 import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { randomInt } from '../../../effects/common/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { digitsValue, one } from '../../../text/ascii/module.f.js'
 
@@ -76,15 +76,22 @@ export const decimal = {
  * A key reads through `text/ascii`'s `digitsValue`, so an empty text and a
  * character other than `0` or `1` are refused.
  *
+ * @throws If `width` is not `1` to `53`: a key is a `number`, and a wider
+ * one would read two spellings as one key. A caller's mistake no text can
+ * cause.
+ *
  * @type {(width: number) => Pick<Keys, 'parse' | 'show'>}
  */
-export const binaryKeys = width => ({
-    parse: text => {
-        const key = text.length <= width ? readBinary([...text].map(one)) : null
-        return key === null ? null : Number(key)
-    },
-    show: key => key.toString(2).padStart(width, '0'),
-})
+export const binaryKeys = width => {
+    assert(Number.isInteger(width) && 1 <= width && width <= 53, ['binary key width out of range', width])
+    return {
+        parse: text => {
+            const key = text.length <= width ? readBinary([...text].map(one)) : null
+            return key === null ? null : Number(key)
+        },
+        show: key => key.toString(2).padStart(width, '0'),
+    }
+}
 
 /**
  * Every node of each version, once: a node two paths reach — two rows of
