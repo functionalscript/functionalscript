@@ -22,6 +22,7 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { assoc, dedup } from '../../types/array/module.f.mjs'
+import { isIdentifier } from '../../js/identifier/module.f.mjs'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { _taggedPrimitive as primitive, _taggedUnion as union, _taggedPrinter as tsPrinter } from '../../types/ts/module.f.mjs'
@@ -60,18 +61,13 @@ const keyword = tagged('keyword')
 
 const literal = tagged('literal')
 
-/** @type {(c: string) => boolean} */
-const isIdStart = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_' || c === '$'
-
-/** @type {(c: string) => boolean} */
-const isIdPart = c => isIdStart(c) || (c >= '0' && c <= '9')
-
-/** Whether `s` can name a TypeScript type alias. */
-/** @type {(s: string) => boolean} */
-const isTypeName = s =>
-    s !== ''
-    && [...s].every((c, i) => i === 0 ? isIdStart(c) : isIdPart(c))
-    && !reserved.some(p => p === s)
+/**
+ * Whether `s` can name a TypeScript type alias: a JavaScript identifier that
+ * is no reserved word.
+ *
+ * @type {(s: string) => boolean}
+ */
+const isTypeName = s => isIdentifier(s) && !reserved.some(p => p === s)
 
 /**
  * Maps every rule name to a TypeScript type-alias identifier: the name

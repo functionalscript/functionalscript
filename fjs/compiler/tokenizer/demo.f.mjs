@@ -23,7 +23,7 @@
  *
  * @module
  *
- * @import { DjsTokenWithMetadata } from './types.ts'
+ * @import { ModuleTokenWithMetadata } from './types.ts'
  */
 
 import { codeMarker } from '../../website/style/module.f.js'
@@ -37,7 +37,7 @@ import { tokenize } from './module.f.mjs'
  * One token as a line: `line:column  kind  value`, with an error's message
  * and span in place of a value.
  *
- * @type {(t: DjsTokenWithMetadata) => string}
+ * @type {(t: ModuleTokenWithMetadata) => string}
  */
 export const _line = ({ token, metadata }) => {
     const detail = token.kind === 'error'
