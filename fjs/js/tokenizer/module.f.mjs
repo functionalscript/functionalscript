@@ -62,7 +62,7 @@ import {
     reverseSolidus,
     hexDigitValue, hexDigitsValue, isDigit,
     latinSmallLetterU,
-} from '../../text/ascii/module.f.mjs'
+} from '../../text/ascii/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { mapUnwrap } from '../../types/nullable/module.f.js'
 import { concat, empty, flat, fold, stateScan, toArray } from '../../types/list/module.f.mjs'

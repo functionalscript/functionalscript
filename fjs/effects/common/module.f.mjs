@@ -14,7 +14,7 @@
 import { do_, pure, pureOk, resultMapStep, step } from '../module.f.mjs'
 import { okList } from '../../types/result/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
-import { lf } from '../../text/ascii/module.f.mjs'
+import { lf } from '../../text/ascii/module.f.js'
 import { u8ListToString } from '../../text/utf8/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { error as resultError } from '../../types/result/module.f.js'

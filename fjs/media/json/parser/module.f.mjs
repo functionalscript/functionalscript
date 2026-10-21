@@ -51,7 +51,7 @@
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
-import { hexDigitsValue } from '../../../text/ascii/module.f.mjs'
+import { hexDigitsValue } from '../../../text/ascii/module.f.js'
 import { codeUnitToString } from '../../../text/utf16/module.f.mjs'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.js'

@@ -34,7 +34,7 @@
  */
 
 import { cmp as numberCmp } from '../number/module.f.mjs'
-import { digit0, digitsValue, one } from '../../text/ascii/module.f.mjs'
+import { digit0, digitsValue, one } from '../../text/ascii/module.f.js'
 import { max } from '../number/max/module.f.js'
 
 const decimalValue = digitsValue(10n)
