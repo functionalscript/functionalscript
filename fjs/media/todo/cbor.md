@@ -116,8 +116,8 @@ fjs/media/cbor/
 ```
 
 ```js
-serialize:   (value: Value) => Result<List<number>, string> // bytes, lazy; refuses a lone surrogate or nesting past maxDepth
-parse:       (bytes: List<number>) => Result<Value, string>  // strict, bounded, total over byte lists
+serialize:   (value: Value) => Result<List<number>, Error> // bytes, lazy; refuses a lone surrogate or nesting past maxDepth
+parse:       (bytes: List<number>) => Result<Value, Error>  // strict, bounded, total over byte lists
 isCanonical: (bytes: List<number>) => boolean
 mediaType = 'application/cbor'
 ```
@@ -132,8 +132,10 @@ serializer writes `NaN`, `Infinity` and `-Infinity` as `null`, as
 (below). So neither is a superset of the other: CBOR is the lossless encoding of
 a `number`, JSON the one that spells every string, and a dialect served as both
 encodings keeps its values inside what both accept, which is its schema's to say
-(D8 and D9). Every function is pure, and the errors are values with a message in
-the style of the sibling parsers.
+(D8 and D9). Every function is pure, and the errors are values. `Error` is the
+type D6 settles, in `types.ts`: a message string in the style of the sibling
+parsers, or a code plus a message; the signatures above do not decide it, and
+nothing else here depends on which.
 
 **Input admission.** `parse` and `isCanonical` read a list of numbers, and a
 list can hold what no byte is: `NaN`, `-0`, `1.5`, `256`, a string. Every element
