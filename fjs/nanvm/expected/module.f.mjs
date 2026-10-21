@@ -55,8 +55,11 @@ const none = '#[rustfmt::skip]\npub const JSON: Option<&[u8]> = None;'
 /** The `THROWS` constant: whether the fixture is expected to throw. @type {(throws: boolean) => string} */
 const throwsConstant = throws => `pub const THROWS: bool = ${throws};`
 
+/** A byte as two hexadecimal digits. */
+const hexByte = encodeScalar(2)
+
 /** A byte as a Rust hexadecimal literal. @type {(byte: number) => string} */
-const byteLiteral = byte => `0x${encodeScalar(2)(byte)}`
+const byteLiteral = byte => `0x${hexByte(byte)}`
 
 /**
  * The `JSON` constant: the UTF-8 bytes of the text, or `None`. The bytes are

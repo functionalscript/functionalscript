@@ -164,12 +164,15 @@ const verdictView = ({ verdict, steps }) =>
                         ? [['p', { role: 'status', [resultMarker]: 'ok' }, `✓ y verifies: squaring it ${steps} times returns x, up to sign.`]]
                         : [['p', { role: 'status', [resultMarker]: 'error' }, '✗ y does not verify for this x and number of steps.']]
 
+/** A SHA-256 digest as 64 hexadecimal digits. */
+const hexOfX = encodeScalar(64)
+
 /** `x` in hex, or the refusal of a text too long to hash.
  * @type {(x: bigint | null) => readonly Element[]}
  */
 const xView = x => x === null
     ? [refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)]
-    : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(encodeScalar(64)(x), 'Copy x')]
+    : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(hexOfX(x), 'Copy x')]
 
 /** The evaluated `y`, once every step is done.
  * @type {(run: DemoRun | null) => readonly Element[]}

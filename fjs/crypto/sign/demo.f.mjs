@@ -227,16 +227,22 @@ const paragraph = text => ['p', text]
 const verdict = (valid, text) => ['p', { role: 'status', [resultMarker]: valid ? 'ok' : 'error' }, text]
 
 /** @type {(c: DemoCurve, u: Point2D, label: string) => readonly Node[]} */
-const publicKeyView = (c, [ux, uy], label) => [
-    caption(`${label}, hex:`),
-    codeBlock(`Ux = ${encodeScalar(c.coordinateDigits)(ux)}\nUy = ${encodeScalar(c.coordinateDigits)(uy)}`, `Copy ${label}`),
-]
+const publicKeyView = (c, [ux, uy], label) => {
+    const coordinate = encodeScalar(c.coordinateDigits)
+    return [
+        caption(`${label}, hex:`),
+        codeBlock(`Ux = ${coordinate(ux)}\nUy = ${coordinate(uy)}`, `Copy ${label}`),
+    ]
+}
 
 /** @type {(c: DemoCurve, r: bigint, s: bigint) => readonly Node[]} */
-const signatureView = (c, r, s) => [
-    caption('Signature r, hex:'), codeBlock(encodeScalar(c.scalarDigits)(r), 'Copy r'),
-    caption('Signature s, hex:'), codeBlock(encodeScalar(c.scalarDigits)(s), 'Copy s'),
-]
+const signatureView = (c, r, s) => {
+    const scalar = encodeScalar(c.scalarDigits)
+    return [
+        caption('Signature r, hex:'), codeBlock(scalar(r), 'Copy r'),
+        caption('Signature s, hex:'), codeBlock(scalar(s), 'Copy s'),
+    ]
+}
 
 /** Copyable public outputs; keep the local nonce in secondary details.
  * @type {(c: DemoCurve, result: Result<DemoSigned, string>) => readonly Node[]}

@@ -66,9 +66,12 @@ const pathMarks = [hyphenMinus, fullStop, lowLine, tilde, solidus]
 const isPathByte = b =>
     isDigit(b) || isLatinSmallLetter(b) || isLatinCapitalLetter(b) || pathMarks.includes(b)
 
+/** A byte as two hexadecimal digits. */
+const hexByte = encodeScalar(2)
+
 /** `b` as it reads in a URL path: itself, or its escape. @type {(b: number) => string} */
 const pathByte = b =>
-    isPathByte(b) ? codeUnitToString(b) : `%${encodeScalar(2)(b).toUpperCase()}`
+    isPathByte(b) ? codeUnitToString(b) : `%${hexByte(b).toUpperCase()}`
 
 /** Every UTF-8 byte of `s` as it reads in a URL path. @type {(s: string) => string} */
 const encodeLiteral = s => utf8Bytes(s).map(pathByte).join('')

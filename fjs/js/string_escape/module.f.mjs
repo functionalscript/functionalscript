@@ -113,13 +113,16 @@ export const escapeToCodePoint = lookup(simpleEscapes)
 export const codePointToEscape = lookup(simpleEscapes.flatMap(([letter, codePoint]) =>
     codePoint === optionalEscape ? [] : [/** @type {const} */([codePoint, letter])]))
 
+/** A UTF-16 code unit as four hexadecimal digits. */
+const hexUnit = encodeScalar(4)
+
 /**
  * `\uXXXX` with lowercase hex digits, matching ECMAScript's `UnicodeEscape`.
  *
  * @type {(unit: number) => string}
  */
 const unicodeEscape = unit =>
-    `\\u${encodeScalar(4)(unit)}`
+    `\\u${hexUnit(unit)}`
 
 /**
  * The two-character escape a letter spells, projected over the lookup's
