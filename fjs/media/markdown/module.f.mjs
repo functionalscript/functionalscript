@@ -468,7 +468,9 @@ export const tryParseBlocks = text => {
                     return error(`line ${end + 1}: a line that GitHub reads as part of the list item above it`)
                 }
                 const content = item.trim().slice(item.startsWith('- ') ? 2 : 0).trim()
-                const foreign = headingLevel(content) !== 0 ? 'a heading' : foreignBlock(content)
+                // The trim would drop the two spaces of a hard break, so it is asked first.
+                const foreign = item.endsWith('  ') ? 'a hard line break'
+                    : headingLevel(content) !== 0 ? 'a heading' : foreignBlock(content)
                 if (foreign !== null) {
                     return error(`line ${end + 1}: ${foreign} inside a list item`)
                 }

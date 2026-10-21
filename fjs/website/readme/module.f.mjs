@@ -60,6 +60,8 @@ export const resolveHref = commit => isPage => dir => href => {
     const colon = href.indexOf(':')
     const slash = href.indexOf('/')
     if (href.startsWith('#')) { return ok(href) }
+    // A network-path reference is absolute on GitHub, with no scheme to check.
+    if (href.startsWith('//')) { return error(`a link with no scheme: ${href}`) }
     if (colon > 0 && (slash === -1 || colon < slash)) {
         const scheme = href.slice(0, colon + 1).toLowerCase()
         return schemes.includes(scheme) ? ok(href) : error(`a link with a scheme a page does not open: ${scheme}`)
@@ -95,17 +97,25 @@ export const slug = spans => [...spans.map(words).join('').toLowerCase()]
     .join('')
 
 /**
- * Every heading's anchor, in order. A repeated one gets `-1`, `-2` and so on
- * after its first use, as GitHub numbers them.
+ * Every heading's anchor, in order. A repeated one gets the first of `-1`,
+ * `-2` and so on that no heading before it has, as GitHub numbers them.
  *
  * @type {(blocks: Blocks) => readonly string[]}
  */
-export const anchors = blocks => blocks
-    .flatMap(block => block[0] === 'heading' ? [slug(block[2])] : [])
-    .map((id, i, all) => {
-        const before = all.slice(0, i).filter(x => x === id).length
-        return before === 0 ? id : `${id}-${before}`
-    })
+export const anchors = blocks => {
+    /** @type {readonly string[]} */
+    let used = []
+    for (const block of blocks) {
+        if (block[0] !== 'heading') { continue }
+        const id = slug(block[2])
+        let n = 0
+        // A suffixed anchor another heading already has is skipped, as
+        // GitHub's slugger skips it: `A`, `A-1`, `A` are `a`, `a-1`, `a-2`.
+        while (used.includes(n === 0 ? id : `${id}-${n}`)) { n++ }
+        used = [...used, n === 0 ? id : `${id}-${n}`]
+    }
+    return used
+}
 
 /**
  * A README as the elements of its page, or the first link it cannot place.
