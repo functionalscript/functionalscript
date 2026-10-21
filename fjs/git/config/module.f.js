@@ -376,9 +376,9 @@ const tryValue = rest => {
  */
 const subStep = (acc, c) => {
     if (acc.after !== null) { return { ...acc, after: acc.after + c } }
-    if (acc.escape) { return { sub: acc.sub + c, escape: false, after: null } }
+    if (acc.escape) { return { part: acc.part + c, escape: false, after: null } }
     if (c === '\\') { return { ...acc, escape: true } }
-    return c === '"' ? { ...acc, after: '' } : { ...acc, sub: acc.sub + c }
+    return c === '"' ? { ...acc, after: '' } : { ...acc, part: acc.part + c }
 }
 
 /**
@@ -386,7 +386,7 @@ const subStep = (acc, c) => {
  *
  * @type {_SubState}
  */
-const subStart = { sub: '', escape: false, after: null }
+const subStart = { part: '', escape: false, after: null }
 
 /**
  * The subsection closing a header whose section is already read, and what
@@ -400,7 +400,7 @@ const subStart = { sub: '', escape: false, after: null }
 const trySub = (section, rest) => {
     const open = afterSpace(rest)
     if (open[0] !== '"') { return null }
-    const { sub, after } = [...open.slice(1)].reduce(subStep, subStart)
+    const { part: sub, after } = [...open.slice(1)].reduce(subStep, subStart)
     if (after === null || after[0] !== ']') { return null }
     // A subsection holding a NUL is refused rather than read. Git takes
     // every character but a `\n` into a subsection and then hands the

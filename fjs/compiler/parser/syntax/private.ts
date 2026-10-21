@@ -9,7 +9,7 @@
 import type { List } from '../../../types/list/types.ts'
 import type { Meta, Unmapped } from '../../../ebnf/ast/types.ts'
 import type { TokenMetadata } from '../../../ebnf/lib/js/types.ts'
-import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
+import type { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
 import type { Item, Key, Node, Out, Parameter } from './types.ts'
 
 /**
@@ -17,12 +17,12 @@ import type { Item, Key, Node, Out, Parameter } from './types.ts'
  * physical end-of-input token split off.
  */
 export type _TokenStream = {
-    readonly tokens: readonly DjsTokenWithMetadata[]
+    readonly tokens: readonly ModuleTokenWithMetadata[]
     readonly eofMetadata: TokenMetadata
 }
 
 /** A position a reader inspects: a symbol of either alphabet, or a node the machine built. */
-export type _Leaf = Meta<DjsTokenWithMetadata | Out> | readonly unknown[]
+export type _Leaf = Meta<ModuleTokenWithMetadata | Out> | readonly unknown[]
 
 /**
  * `**`'s own optional round, `'**' unary`: no round, or one holding the
@@ -105,7 +105,7 @@ export type _DefaultNode = Unmapped<readonly [] | readonly [Unmapped<readonly [_
  */
 export type _ParenItems = _ParameterTail & {
     readonly operands: List<Node>
-    readonly refusal: DjsTokenWithMetadata | null
+    readonly refusal: ModuleTokenWithMetadata | null
     readonly trailing: boolean
 }
 
@@ -123,7 +123,7 @@ export type _NameNode = Unmapped<readonly [unknown, _Leaf]>
  */
 export type _ParameterTail = {
     readonly fixed: List<Parameter>
-    readonly rest: DjsTokenWithMetadata | null
+    readonly rest: ModuleTokenWithMetadata | null
 }
 
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */

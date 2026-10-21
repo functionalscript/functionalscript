@@ -112,7 +112,7 @@ what a grammar can and cannot do for the formats.
   name one stored *after* it, which is where `index-pack --fix-thin` appends
   the base a fetched pack arrived without, so nothing here assumes a base
   precedes the delta and a chain is bounded by the pack's object count instead.
-- [`config/`](config/module.f.mjs) — Git's `config` grammar: the file as
+- [`config/`](config/module.f.js) — Git's `config` grammar: the file as
   `(section, key, value)` entries, read a character at a time as Git's own
   parser reads it — quoted values and their escapes, a header that ends
   mid-line, a key without a value — and the readers of one key over them,
@@ -126,7 +126,7 @@ what a grammar can and cannot do for the formats.
   the `objects/` directory holding the file.
 - [`format/`](format/module.f.mjs) — the repository format a `config`
   declares and the id width that follows, read through
-  [`config/`](config/module.f.mjs)'s readers: `extensions.objectFormat`
+  [`config/`](config/module.f.js)'s readers: `extensions.objectFormat`
   absent is SHA-1, `sha256` under `repositoryformatversion = 1` is SHA-256,
   and a repository format Git refuses is refused.
 - [`store/`](store/module.f.mjs) — from an id to the object it names,

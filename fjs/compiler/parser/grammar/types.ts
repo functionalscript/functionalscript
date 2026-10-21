@@ -11,7 +11,7 @@
 import type { Assert } from '../../../asserts/types.ts'
 import type { Option, RepeatFrom, Rule } from '../../../ebnf/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
-import type { DjsToken } from '../../tokenizer/types.ts'
+import type { ModuleToken } from '../../tokenizer/types.ts'
 import type { BinaryTag } from '../../ast/types.ts'
 import type { literalWords } from '../../../js/keywords/module.f.js'
 import type { eagerLayers } from '../../ast/module.f.mjs'
@@ -64,7 +64,7 @@ export type InfixTag = BinaryTag | 'instanceof'
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
 
 /**
- * A token name the grammar can name as a terminal: every `DjsToken` kind
+ * A token name the grammar can name as a terminal: every `ModuleToken` kind
  * except `eof`, plus the keywords with symbols of their own, and `keyword`,
  * the symbol of every other reserved word.
  *
@@ -72,12 +72,12 @@ type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _Fra
  * end-of-input; the tokenizer's physical `eof` token is split off the stream
  * before any name is mapped, so it never reaches this alphabet.
  *
- * The kinds are derived from `DjsToken` rather than listed, so a token kind
+ * The kinds are derived from `ModuleToken` rather than listed, so a token kind
  * added there cannot silently go unrepresented at the parser layer.
  */
-export type _OrdinaryTokenName = Exclude<DjsToken['kind'], 'eof'> | _FramingKeyword | 'keyword'
+export type _OrdinaryTokenName = Exclude<ModuleToken['kind'], 'eof'> | _FramingKeyword | 'keyword'
 
-type _KindsAreComplete = Assert<Equal<(typeof _tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>
+type _KindsAreComplete = Assert<Equal<(typeof _tokenKindNames)[number], Exclude<ModuleToken['kind'], 'eof'>>>
 type _AlphabetIsComplete = Assert<Equal<(typeof _ordinaryTokenNames)[number], _OrdinaryTokenName>>
 
 // The token kinds that are a whole value are one list, `_valueKinds`; the

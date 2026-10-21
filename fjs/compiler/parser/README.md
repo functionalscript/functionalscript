@@ -180,7 +180,7 @@ the backtracking grammar this replaced had
 - **Trivia is no symbol.** Whitespace, newlines and comments are not in the
   stream the grammar reads: `fjs/compiler/tokenizer` leaves them out and
   marks each token with whether a newline stood before it, `newline` in
-  `DjsTokenWithMetadata`. So no rule mentions trivia and none begins with
+  `ModuleTokenWithMetadata`. So no rule mentions trivia and none begins with
   it — the backtracking grammar's statement terminator and its final
   optional `;` both did, a first/first conflict on the trivia symbols —
   and JavaScript's three line-break rules are facts of a token the fold

@@ -11,7 +11,7 @@ import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { tryEntries } from '../config/module.f.mjs'
+import { tryEntries } from '../config/module.f.js'
 import { initConfig, initSha256Config, latin1 } from '../testlib.f.mjs'
 import { oidBytes, tryOidBytes } from './module.f.mjs'
 
