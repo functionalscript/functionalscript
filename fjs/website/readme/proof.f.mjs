@@ -24,6 +24,7 @@ export const proof = {
         mailto: () => assertStructurallySame(local('mailto:a@e.x'), ok('mailto:a@e.x')),
         fragment: () => assertStructurallySame(local('#x'), ok('#x')),
         // A scheme that runs code, or that a page does not open, is refused.
+        networkPath: () => assertStructurallySame(local('//e.x/a'), error('a link with no scheme: //e.x/a')),
         javascript: () => assertStructurallySame(local('JavaScript:alert(1)'), error('a link with a scheme a page does not open: javascript:')),
         query: () => assertStructurallySame(local('x.md?raw=1#L2'), ok('/spec/a/x.md?raw=1#L2')),
         queryOnADirectory: () => assertStructurallySame(local('..?a#b'), ok('/spec/index.html?a#b')),
@@ -48,6 +49,10 @@ export const proof = {
     anchors: () => assertStructurallySame(
         anchors([['heading', 1, [['text', 'A']]], ['paragraph', []], ['heading', 2, [['text', 'a']]], ['heading', 2, [['text', 'B']]], ['heading', 3, [['text', 'A']]]]),
         ['a', 'a-1', 'b', 'a-2']),
+    // A suffixed anchor a heading already has is not given again.
+    anchorsSkipTaken: () => assertStructurallySame(
+        anchors([['heading', 1, [['text', 'A']]], ['heading', 1, [['text', 'A-1']]], ['heading', 1, [['text', 'A']]]]),
+        ['a', 'a-1', 'a-2']),
     readmeNodes: {
         all: () => {
             /** @type {Blocks} */
