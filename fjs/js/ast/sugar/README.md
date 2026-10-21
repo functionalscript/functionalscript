@@ -16,9 +16,12 @@ identities, including writes and references in nested or unreachable regions.
 `normalize(resolved, imports)` consumes that admitted record and its shared
 facts. It expands pattern reads and defaults, chooses invocation parameters and
 rest layout, and maps every source declaration to its current immutable value.
-Aliases retain an established value. Initializers and assignment computations
-remain required even if a later write discards their result. A late parameter's
-raw argument read is established once before default selection; both the test
+Used aliases retain an established value and their lexical order, so generated
+helper capture signatures survive source round trips. Unused aliases of already
+established values are removed without introducing captures. Initializers and
+assignment computations remain required even if a later write discards their
+result. A late parameter's raw argument read is established once before default
+selection; both the test
 and the alternative name that binding. The fixed prefix preserves `length`.
 
 Terminal guards and switches become yielding value regions. They introduce no

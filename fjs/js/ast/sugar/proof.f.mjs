@@ -6,6 +6,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { parse } from '../../../compiler/source/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
+import { freeLoopBindings } from '../../../edag/from_fast/control/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
@@ -37,7 +38,21 @@ export const proof = {
         const graph = /** @type {readonly ['{}', readonly (readonly [':', string, readonly ['[]', readonly unknown[]]])[]]} */ (fromFast(fast.body))
         const pair = graph[1][0][2][1]
         assert(pair[0] === pair[1])
-        assertEq(fast.body.statements.length, 1)
+        // The alias retains source order while both reads name one graph node.
+        assertEq(fast.body.statements.length, 2)
+    },
+    aliasCaptureOrder: () => {
+        const value = fn('export default (b,f)=>{let w=0;while(w<3){const unused=b;const first=f;const second=first;const third=b;w=third+second(third);}return w;};')
+        const statement = value.body.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined && statement[0] === 'loop')
+        const captures = freeLoopBindings(statement[1])
+        assertEq(captures.length, 2)
+        assertEq(captures[0], value.parameters[1])
+        assertEq(captures[1], value.parameters[0])
+        const unused = fn('export default b=>{let w=0;while(w<1){const unused=b;w=w+1;}return w;};')
+        const loop = unused.body.statements.find(statement => statement[0] === 'loop')
+        assert(loop !== undefined && loop[0] === 'loop')
+        assertEq(freeLoopBindings(loop[1]).length, 0)
     },
     blocks: () => {
         const ast = assertOk(parse('')('export default (() => { const x = [1]; return [x, x]; })();'))
@@ -113,7 +128,8 @@ export const proof = {
         assert(variable !== undefined)
         assert(resolved.bindings.some(fact => fact.id === variable.id && fact.isMutable))
         const normalized = fn(source)
-        const statement = normalized.body.statements[0]
+        const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined)
         assert(statement[0] === 'loop')
         const loop = statement[1]
         assert(loop.parameters[0] !== variable.id && loop.results[0] !== variable.id && loop.parameters[0] !== loop.results[0])
