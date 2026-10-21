@@ -88,7 +88,7 @@ export const outputs = [
  *
  * @type {(text: string) => (outputFileName: string) => Result<Marked, string>}
  */
-export const _compiled = text => outputFileName => {
+export const compiled = text => outputFileName => {
     const result = unwrap(virtualAt({ 'input.f.js': [utf8(text)] })(_outputMarked(runtime)('input.f.js', outputFileName))[1])
     const [tag, value] = result
     if (tag === 'error') {
@@ -101,7 +101,7 @@ export const _compiled = text => outputFileName => {
 /**
  * `text` compiled by the whole of `compile` over an in-memory file system:
  * the file it wrote, or what it printed when it refused. The proof holds
- * {@link _compiled} to it.
+ * {@link compiled} to it.
  *
  * @type {(text: string) => (outputFileName: string) => Result<string, string>}
  */
@@ -118,6 +118,6 @@ export const demo = stageDemo({
     intro: 'Compiles a FunctionalScript module into JSON, DataJS, JavaScript, an expression graph and Rust, with each output under its file extension. Compare the output with fjs compile for a module without imports.',
     name: 'compiler',
 })(text => outputs.map(([label, outputFileName]) => {
-    const [kind, value] = _compiled(text)(outputFileName)
+    const [kind, value] = compiled(text)(outputFileName)
     return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]
 }))

@@ -9,7 +9,7 @@
 use nanvm_effects_node::{Native, run};
 use nanvm_lib::{
     naive::Naive,
-    vm::{Any, Array, Function, Object, ToArray, unstable::string_any},
+    vm::{Any, Array, Function, Object, ToAny, ToArray, unstable::string_any},
 };
 use std::cell::RefCell;
 
@@ -41,6 +41,27 @@ pub fn perform(entry: &Function<Naive>) -> Result<Vec<u8>, Any<Naive>> {
     let mut host = Native::new(std::io::empty(), Vec::new(), Vec::new());
     let result = run(effect, |command, payload| host.perform(command, payload))?;
     output(result, host.stdout().clone())
+}
+
+/// Calls a sample's entry with one number, as a page calls a function
+/// sample: the text of what it answered, or of what it threw, each as
+/// JavaScript's `String` spells it.
+pub fn call(
+    entry: &Function<Naive>,
+    input: f64,
+) -> Result<std::string::String, std::string::String> {
+    entry
+        .call([input.to_any()].to_array())
+        .map(text)
+        .map_err(text)
+}
+
+/// A value as `String(value)` spells it, or the text of what that threw.
+fn text(value: Any<Naive>) -> std::string::String {
+    match value.to_string() {
+        Ok(string) => string.into(),
+        Err(thrown) => format!("String() threw on it: {}", text(thrown)),
+    }
 }
 
 /// What a program wrote, if it ended `['ok', value]`. One that ended
@@ -89,6 +110,25 @@ pub extern "C" fn run_sample() -> i32 {
     }
 }
 
+/// Calls the sample loaded last with `input` and keeps the text of its
+/// answer for [`output_byte`]. Answers the text's length in bytes where the
+/// call returned, `-1 - length` where it threw, and `i32::MIN` if no sample
+/// is loaded.
+#[unsafe(no_mangle)]
+pub extern "C" fn call_sample(input: f64) -> i32 {
+    let Some(called) = ENTRY.with(|kept| kept.borrow().as_ref().map(|entry| call(entry, input)))
+    else {
+        return i32::MIN;
+    };
+    let (bytes, threw) = match called {
+        Ok(answer) => (answer.into_bytes(), false),
+        Err(thrown) => (thrown.into_bytes(), true),
+    };
+    let length = bytes.len() as i32;
+    OUTPUT.with(|output| *output.borrow_mut() = bytes);
+    if threw { -1 - length } else { length }
+}
+
 /// The `index`th byte the last sample run wrote.
 #[unsafe(no_mangle)]
 pub extern "C" fn output_byte(index: u32) -> u32 {
@@ -113,10 +153,15 @@ pub extern "C" fn collatz() -> i32 {
     export(samples::collatz::module::<Naive>)
 }
 
+/// Loads the comma operator's sample, a function of one number.
+#[unsafe(no_mangle)]
+pub extern "C" fn comma() -> i32 {
+    export(samples::comma::module::<Naive>)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nanvm_lib::vm::ToAny;
 
     #[test]
     fn hello_writes_its_greeting() {
@@ -143,6 +188,13 @@ mod tests {
     }
 
     #[test]
+    fn comma_answers_or_fails_its_assertion() {
+        let entry = load(samples::comma::module::<Naive>).unwrap();
+        assert_eq!(call(&entry, 1.0), Ok("3".into()));
+        assert_eq!(call(&entry, -1.0), Err("negative".into()));
+    }
+
+    #[test]
     fn an_error_result_is_the_sample_failing() {
         let ended = |tag| [string_any(tag), string_any("x")].to_array().to_any();
         assert_eq!(output(ended("ok"), b"hi".to_vec()).unwrap(), b"hi");
@@ -156,5 +208,10 @@ mod tests {
         assert_eq!(run_sample(), 13);
         assert_eq!(output_byte(0), u32::from(b'h'));
         assert_eq!(output_byte(12), u32::from(b'\n'));
+        assert_eq!(comma(), 0);
+        assert_eq!(call_sample(1.0), 1);
+        assert_eq!(output_byte(0), u32::from(b'3'));
+        assert_eq!(call_sample(-1.0), -1 - 8);
+        assert_eq!(output_byte(0), u32::from(b'n'));
     }
 }

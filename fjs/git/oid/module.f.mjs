@@ -22,8 +22,8 @@ import { sha1 } from '../../crypto/sha1/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { isWholeBytesIn, length, tryU8ListToVecMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { next, toArray } from '../../types/list/module.f.mjs'
+import { isWholeBytesIn, length, tryU8ListToVecMsb, u8ListMsb, u8ListToVecChunksMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 import { write } from '../object/module.f.mjs'
 
 /**
@@ -120,28 +120,9 @@ const chunkBytes = /** @type {const} */ (65_536)
  * is held at a time and never the object as an array, so an object longer
  * than an array would hold is hashed all the same.
  *
- * The tail the gathering reached is what the next chunk starts from, not
- * the list with a count dropped from its front: a dropped list walks the
- * bytes it drops, and a chunk over a list dropped over a list would walk
- * every byte before it, once per chunk, which is quadratic in the object.
- * Every byte is walked once here.
- *
  * @type {(bytes: Bytes) => List<Vec>}
  */
-const chunks = bytes => () => {
-    let rest = bytes
-    let taken = 0
-    const gathered = Array.from({ length: chunkBytes }, () => {
-        const r = next(rest)
-        if (r === null) { return 0 }
-        rest = r.tail
-        taken += 1
-        return r.first
-    })
-    return taken === 0
-        ? null
-        : { first: u8ListToVecMsb(taken === chunkBytes ? gathered : gathered.slice(0, taken)), tail: chunks(rest) }
-}
+const chunks = u8ListToVecChunksMsb(chunkBytes)
 
 /**
  * The id Git gives an object, at the repository's width: the hash of
