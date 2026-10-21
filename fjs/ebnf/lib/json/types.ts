@@ -62,6 +62,33 @@ export type EntryNode<K, V> = Unmapped<readonly [
 ]>
 
 /**
+ * The node a mapping of a value built by `createValue` receives, over the
+ * item node `T` of an array, the entry node `E` of an object, and the string
+ * and number nodes `S` and `N`: one row per branch, tagged by its key. A
+ * grammar that adds branches has a node with more rows than these.
+ */
+export type ValueNode<T, E, S, N> =
+    | readonly ['array', Unmapped<ContainerNode<T>>]
+    | readonly ['object', Unmapped<ContainerNode<E>>]
+    | readonly ['string', S]
+    | readonly ['number', N]
+    | readonly ['true' | 'false' | 'null', unknown]
+
+/**
+ * A handler per branch of a {@link ValueNode}, each answering `R`: a
+ * container's receives its items, and the three keywords' one handler
+ * receives the constant each spells. `valueCases` in `./module.f.mjs`
+ * dispatches over it.
+ */
+export type ValueCases<T, E, S, N, R> = {
+    readonly array: (items: readonly T[]) => R
+    readonly object: (entries: readonly E[]) => R
+    readonly string: (node: S) => R
+    readonly number: (node: N) => R
+    readonly word: (word: boolean | null) => R
+}
+
+/**
  * The seven alternatives a value has, as `createValue` builds them from a
  * property rule `P` and a value rule `V`.
  */

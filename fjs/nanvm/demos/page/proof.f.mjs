@@ -85,7 +85,7 @@ const perform = map => effect => {
     return result[1]
 }
 
-const files = { '/fjs/nanvm/demos/hi/sample.f.mjs': 'export default 1', [`/${rustPath('hi')}`]: 'pub fn module() {}', [`/${watPath('hi')}`]: '(module)' }
+const files = { '/fjs/nanvm/demos/hi/sample.f.js': 'export default 1', [`/${rustPath('hi')}`]: 'pub fn module() {}', [`/${watPath('hi')}`]: '(module)' }
 
 /** Every loaded state. @type {State} */
 const ready = perform(page(files, instance([0x68, 0x69])))(load('hi'))
@@ -95,7 +95,7 @@ const text = e => JSON.stringify(e)
 
 export const proof = {
     paths: () => {
-        assertEq(samplePath('hello'), 'fjs/nanvm/demos/hello/sample.f.mjs')
+        assertEq(samplePath('hello'), 'fjs/nanvm/demos/hello/sample.f.js')
         assertEq(rustPath('hello'), 'nanvm/demos/gen.samples/hello.rs')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
         assertEq(watPath('hello'), `${buildDirectory}/hello.wat`)
@@ -108,7 +108,7 @@ export const proof = {
         assertEq(ready.runs, null)
         // A file that does not arrive is the reason it is not shown.
         const missing = perform(page({}, null))(load('hi'))
-        assertStructurallySame(missing.source, error(`/fjs/nanvm/demos/hi/sample.f.mjs: HTTP 404`))
+        assertStructurallySame(missing.source, error(`/fjs/nanvm/demos/hi/sample.f.js: HTTP 404`))
         assertStructurallySame(missing.wasm, error(`/${wasmPath}: HTTP 404`))
     },
     decode: () => {

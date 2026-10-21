@@ -12,7 +12,7 @@ import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { BindingId, BindingScope } from '../../js/ast/types.ts'
 import type { AstCall, AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstStatic, AstSelf, BinaryTag, UnaryTag } from '../ast/types.ts'
-import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+import type { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
 import type { BindingOrigin, ParseError } from './types.ts'
 import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item, Key, Let, LoopBlock, Node, Switch, While } from './syntax/types.ts'
 
@@ -55,10 +55,10 @@ export type _Read = {
  */
 export type _Plan = {
     readonly reads: readonly _Read[]
-    readonly names: readonly (readonly [DjsTokenWithMetadata, number])[]
+    readonly names: readonly (readonly [ModuleTokenWithMetadata, number])[]
     /** One original source identity per expanded initialization, aliases included. */
     readonly ids: readonly BindingId[]
-    readonly metadata: DjsTokenWithMetadata['metadata']
+    readonly metadata: ModuleTokenWithMetadata['metadata']
 }
 
 /**
@@ -72,7 +72,7 @@ export type _Plan = {
 export type _Pending =
     | { readonly target: BindingTarget, readonly source: _Source }
     | { readonly element: BindingElement, readonly source: _Source }
-    | { readonly property: BindingProperty, readonly parent: number | DjsTokenWithMetadata }
+    | { readonly property: BindingProperty, readonly parent: number | ModuleTokenWithMetadata }
 
 /** What the plan's walk has still to judge, the next on top, as {@link _Stack} holds the frames of a resolution. */
 export type _PendingStack = { readonly top: _Pending, readonly rest: _PendingStack } | null
@@ -413,7 +413,7 @@ export type _UnaryFrame = { readonly unary: UnaryTag }
  * checked once the left returns so that a fault in the left is reported
  * first, and the operator token the refusal is reported at.
  */
-export type _InstanceOfFrame = { readonly instanceof: Node, readonly at: DjsTokenWithMetadata }
+export type _InstanceOfFrame = { readonly instanceof: Node, readonly at: ModuleTokenWithMetadata }
 
 /** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
 export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }

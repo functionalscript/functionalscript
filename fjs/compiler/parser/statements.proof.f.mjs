@@ -15,7 +15,7 @@
  */
 
 import { parseFromTokens } from './module.f.mjs'
-import { expectModule, expectRefused, stringifyDjsModule, tokenizeString } from './proof.f.mjs'
+import { expectModule, expectRefused, stringifyModule, tokenizeString } from './proof.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
@@ -229,7 +229,7 @@ export const proof = {
             const tokenList = tokenizeString('import a from "a.f.js"; \n const b = 1; \n export default [a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, '[[{"json":false,"name":"default","specifier":"a.f.js"}],[1,["object",[[":","default",["array",[["aref",0],["cref",0]]]]]]]]')
         },
         () => {
@@ -282,28 +282,28 @@ export const proof = {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default 3;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, '[[],[1,2,["object",[[":","default",3]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default b;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, '[[],[1,2,["object",[[":","default",["cref",1]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default [b,a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, '[[],[1,2,["object",[[":","default",["array",[["cref",1],["cref",0],["cref",1]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default {"1st":b,"2nd":a,"3rd":b};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== '[[],[1,2,["object",[[":","default",["object",[[":","1st",["cref",1]],[":","2nd",["cref",0]],[":","3rd",["cref",1]]]]]]]]]') { throw result }
         },
     ],
@@ -340,21 +340,21 @@ export const proof = {
             const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n export default a;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[["object",[[":","default",["aref",0]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs"; \n import b from "second/test.f.mjs"; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, '[[{"json":false,"name":"default","specifier":"first/test.f.mjs"},{"json":false,"name":"default","specifier":"second/test.f.mjs"}],[["object",[[":","default",["array",[["aref",1],["aref",0],["aref",1]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n const b = null; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[null,["object",[[":","default",["array",[["cref",0],["aref",0],["cref",0]]]]]]]]')
         },
     ],

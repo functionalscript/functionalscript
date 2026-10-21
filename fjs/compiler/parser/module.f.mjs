@@ -4,7 +4,7 @@
  * module record.
  *
  * ```text
- * DjsToken stream ==./syntax: the grammar, then the rewrite set==> module
+ * ModuleToken stream ==./syntax: the grammar, then the rewrite set==> module
  *                 ==the fold: names bound and resolved, keys checked==> ResolvedModule
  * ```
  *
@@ -86,7 +86,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { BindingEvent, BindingId } from '../../js/ast/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstComma, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstIntrinsic, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
@@ -118,7 +118,7 @@ import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/m
  */
 const protoKey = '__proto__'
 
-/** @type {(message: string) => (t: DjsTokenWithMetadata) => ParseError} */
+/** @type {(message: string) => (t: ModuleTokenWithMetadata) => ParseError} */
 const foldError = message => ({ metadata }) => ({ message, metadata })
 
 /** A plain `__proto__` key, at the key. */
@@ -250,7 +250,7 @@ const reservedWord = foldError('reserved word')
  * `Number()` is `0`, and is read as the literal, {@link conversion}, as
  * `String()` is the empty string.
  *
- * @type {(name: 'Number' | 'String') => (token: DjsTokenWithMetadata) => ParseError}
+ * @type {(name: 'Number' | 'String') => (token: ModuleTokenWithMetadata) => ParseError}
  */
 const conversionArity = name => foldError(`${name} takes one argument`)
 
@@ -379,7 +379,7 @@ const sourceOrigin = (scope, word) => {
  * {@link conversion}, the namespace of a static function,
  * {@link staticRead}, and that of the `entry` helper, {@link entryFunction}.
  *
- * @type {(name: DjsTokenWithMetadata) => Result<string, ParseError>}
+ * @type {(name: ModuleTokenWithMetadata) => Result<string, ParseError>}
  */
 const identifierOf = name => {
     const word = nameOf(name)
@@ -476,7 +476,7 @@ export const _prohibitedAccess = method => name =>
         ? (prohibitedCallNames.has(name) ? 'member function' : null)
         : (prohibitedNames.has(name) ? 'property name' : null)
 
-/** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
+/** What an access's key token names: a name's word, the string's text, or the number. @type {(t: ModuleTokenWithMetadata) => string | number} */
 const keyNamed = t => {
     const { token } = t
     switch (token.kind) {
@@ -495,7 +495,7 @@ const keyNamed = t => {
  * either way: the lowering makes the callee access a method call,
  * `['.', a, 'b', ['|()', args]]`.
  *
- * @type {(key: DjsTokenWithMetadata, method: boolean, base: AstConst) => Result<AstConst, ParseError>}
+ * @type {(key: ModuleTokenWithMetadata, method: boolean, base: AstConst) => Result<AstConst, ParseError>}
  */
 const accessClosed = (key, method, base) => mapOk(
     /** @type {(named: string | number) => AstConst} */
@@ -540,7 +540,7 @@ const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
  * key is read, and a member function a module may not call where it is
  * called, `method`, as {@link _prohibitedAccess} answers.
  *
- * @type {(key: DjsTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
+ * @type {(key: ModuleTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
  */
 const checkedKey = (key, method) => {
     const named = keyNamed(key)
@@ -602,7 +602,7 @@ const isCall = node => {
  * operator's result discarded is almost always a mistake, and a conversion
  * is an operator ([spec: call statements](../../../spec/functions/call-statements.md)).
  *
- * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, value: Node, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
+ * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
 const constPlan = check => (target, value, namespace) =>
     target[0] === 'discard' && !isCall(value) ? error(unexpectedToken(target[1])) : planned(check)(target, namespace)
@@ -647,7 +647,7 @@ const constPlan = check => (target, value, namespace) =>
  * is the one read of its value, which the lowering makes an entry no name
  * reads, as an unused `const`'s is.
  *
- * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
+ * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
 const planned = check => (target, namespace) => {
     if (target[0] === 'discard') { return ok({ reads: [{ source: null, spread: false }], names: [], ids: [sourceBinding(0)], metadata: target[1].metadata }) }
@@ -657,7 +657,7 @@ const planned = check => (target, namespace) => {
         : properties(null, target[2], namespace)
     /** The reads so far, the last first. @type {List<_Read>} */
     let reads = null
-    /** The names so far, the last first, each with its read's position. @type {List<readonly [DjsTokenWithMetadata, number]>} */
+    /** The names so far, the last first, each with its read's position. @type {List<readonly [ModuleTokenWithMetadata, number]>} */
     let names = null
     /** The words the pattern has bound so far. @type {_Env} */
     let seen = empty
@@ -732,7 +732,7 @@ const planned = check => (target, namespace) => {
  * refused as the access refuses it: a prototype name at the key, and any
  * other at the word, as `Object.keys` is.
  *
- * @type {(parent: number | DjsTokenWithMetadata, key: DjsTokenWithMetadata) => Result<_Source, ParseError>}
+ * @type {(parent: number | ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<_Source, ParseError>}
  */
 const propertySource = (parent, key) => {
     const member = typeof parent === 'number' ? null : staticMember(nameOf(parent), keyNamed(key))
@@ -747,7 +747,7 @@ const propertySource = (parent, key) => {
  * written first, each with the entry its source is read from — or the
  * namespace's word, {@link planned}.
  *
- * @type {(pending: _PendingStack, list: readonly BindingProperty[], parent: number | DjsTokenWithMetadata) => _PendingStack}
+ * @type {(pending: _PendingStack, list: readonly BindingProperty[], parent: number | ModuleTokenWithMetadata) => _PendingStack}
  */
 const properties = (pending, list, parent) => list.reduceRight(
     /** @type {(after: _PendingStack, property: BindingProperty) => _PendingStack} */
@@ -793,7 +793,7 @@ const lowered = ({ reads, names }, value, base) => ({
             return spread ? ['array', [['...', read]]] : read
         })),
     bound: names.map(
-        /** @type {(name: readonly [DjsTokenWithMetadata, number]) => readonly [string, AstModuleRef]} */
+        /** @type {(name: readonly [ModuleTokenWithMetadata, number]) => readonly [string, AstModuleRef]} */
         (([token, i]) => [nameOf(token), ['cref', base + i]])),
 })
 
@@ -1315,7 +1315,7 @@ const functionScope = list => {
         if (tag === 'error') { return error(plan) }
         bound = parameterBindings(bound, plan, i < count)
         seen = plan.names.reduce(
-            /** @type {(env: _Env, name: readonly [DjsTokenWithMetadata, number]) => _Env} */
+            /** @type {(env: _Env, name: readonly [ModuleTokenWithMetadata, number]) => _Env} */
             ((env, [name]) => extended(env)(nameOf(name), restBinding)),
             seen)
         if (i >= count) {
@@ -1409,7 +1409,7 @@ const bodyRound = (stack, scope, frame) => {
  * namespace's members alone, and the value it is lowered over is
  * `undefined`, read by no entry, {@link lowered}.
  *
- * @type {(target: BindingTarget | Discard, value: Node, namespace: DjsTokenWithMetadata | null, plan: _Plan) => _State[2]}
+ * @type {(target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null, plan: _Plan) => _State[2]}
  */
 const constValue = (target, value, namespace, plan) => namespace !== null ? ok(undefined)
     : target[0] === 'name' ? ['define', value, [nameOf(target[1]), plan.ids[0]]] : ['enter', value]
@@ -1581,7 +1581,7 @@ const isNamespace = word => staticIds.some(id => staticPath(id)[0] === word)
  * entered. Any other pattern over the word, and the word alone, is
  * entered and refused as every reserved global is.
  *
- * @type {(target: BindingTarget | Discard, value: Node) => DjsTokenWithMetadata | null}
+ * @type {(target: BindingTarget | Discard, value: Node) => ModuleTokenWithMetadata | null}
  */
 const namespaceOf = (target, value) => target[0] === 'object' && value[0] === 'ref' && isNamespace(nameOf(value[1])) ? value[1] : null
 
@@ -2251,7 +2251,7 @@ const evaluate = (initial, self) => root => {
  * while the binding lands after, keeping the name out of its own
  * initializer's scope.
  *
- * @type {(env: _Env) => (name: DjsTokenWithMetadata) => Result<string, ParseError>}
+ * @type {(env: _Env) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
  */
 const bindable = env => name => {
     const [tag, word] = identifierOf(name)
@@ -2271,7 +2271,7 @@ const bindable = env => name => {
  * body's own initializer reads is refused once it has been, in
  * {@link returned}.
  *
- * @type {(scope: _Scope) => (name: DjsTokenWithMetadata) => Result<string, ParseError>}
+ * @type {(scope: _Scope) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
  */
 const bodyBindable = scope => name => {
     const [tag, word] = identifierOf(name)
@@ -2411,7 +2411,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
  * `./syntax`, and what the grammar accepts and this refuses is the fold's:
  * a name unbound or bound twice, and a plain `__proto__` key.
  *
- * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<ResolvedModule, ParseError>}
+ * @type {(tokenList: List<ModuleTokenWithMetadata>) => Result<ResolvedModule, ParseError>}
  */
 export const parseFromTokens = tokenList => {
     const [tag, module] = parseSyntax(tokenList)

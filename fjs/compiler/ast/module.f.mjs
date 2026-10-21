@@ -6,10 +6,11 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { AstBinary, AstInstanceOf, AstKey, AstCall, AstComma, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstStep, AstThrow, AstUnary, BinaryTag, UnaryTag, Anchors } from './types.ts'
  * @import { _Lazy, _OperandStack, _Reach, _RefNode } from './private.ts'
+ * @import { ItemsOver } from '../../edag/types.ts'
  */
 
 import { concat, empty, flat, map, toArray } from '../../types/list/module.f.mjs'
-import { isIntrinsic, isStatic, lazyOp2Id } from '../../edag/module.f.mjs'
+import { isIntrinsic, isStatic, lazyOp2Id, stepOperands as edagStepOperands } from '../../edag/module.f.mjs'
 
 /**
  * Every binary operator's tag, {@link BinaryTag} at run time — pinned to it
@@ -127,11 +128,9 @@ const keyOperands = key => key instanceof Array ? [key] : []
  *
  * @type {(step: AstStep | undefined) => readonly AstConst[]}
  */
-export const stepOperands = step => {
-    if (step === undefined) { return [] }
-    if (step[0] === '|.') { return [...keyOperands(step[1]), ...stepOperands(step[2])] }
-    return [...step[1].map(itemOperand), ...stepOperands(step[2])]
-}
+export const stepOperands = edagStepOperands(
+    keyOperands,
+    /** @type {(items: ItemsOver<AstConst>) => readonly AstConst[]} */ (items => items.map(itemOperand)))
 
 /**
  * The lazy operands of a chain node: the steps', a guarded access's
