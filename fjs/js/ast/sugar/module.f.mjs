@@ -137,14 +137,15 @@ const pruneAliases = (block, results) => {
 
 /**
  * Alias declarations preserve the established value rather than minting a
- * second node. A real initializer remains required even when later overwritten.
+ * second node. Retained reads preserve lexical capture order without adding an
+ * evaluation demand. A real initializer stays required even when overwritten.
  *
  * @type {(environment: Environment, id: BindingId, value: Value, alias: boolean) => Established}
  */
 const establish = (environment, id, value, alias) => {
     if (alias) { return { environment: [...environment, [id, value]], statements: [] } }
     const version = binding(id.index)
-    return { environment: [...environment, [id, reference(version)]], statements: [['define', version, value, 'required']] }
+    return { environment: [...environment, [id, reference(version)]], statements: [['define', version, value, value instanceof Array && value[0] === 'ref' ? 'lazy' : 'required']] }
 }
 
 /** The single owner of checked pattern expansion. @type {(plan: ExpansionPlan, value: Value, environment: Environment, alias: boolean) => Established} */
