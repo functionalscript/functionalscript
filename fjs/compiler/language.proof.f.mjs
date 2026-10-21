@@ -939,16 +939,17 @@ export const proof = {
             assertEq(moduleRefused('const f = (a = null.x) => a; export default f();'), 'input.f.js - error: module initialization failed')
             assertEq(moduleRefused('const f = (a, b = null.x) => a === 5 ? b : a; export default f(6);'), 'input.f.js - error: module initialization failed')
             assertEq(compileSource('const f = (a, b = null.x) => a === 5 ? b : a; export default f(6, 1);')('output.json'), '6')
-            assertEq(compileSource('export default (a, b = null.x) => a === 5 ? b : a;')('output.js'), "export default ($0,...$1)=>{const $2=$1[0];const $3=$2===undefined?null.x:$2;return $0===5?$3:$0;};")
+            assertEq(compileSource('export default (a, b = null.x) => a === 5 ? b : a;')('output.js'), 'export default ($0,...$1)=>{const $2=$1[0];const $3=$2===undefined?null.x:$2;return $0===5?$3:$0;};')
         },
         outputs: () => {
             const source = 'export default (a, b = a, ...r) => [a, b, r];'
-            assertEq(compileSource(source)('output.js'), "export default ($0,...$1)=>{const $2=$1[0];return [$0,$2===undefined?$0:$2,$1.slice(1)];};")
+            assertEq(compileSource(source)('output.js'), 'export default ($0,...$1)=>{const $2=$1[0];return [$0,$2===undefined?$0:$2,$1.slice(1)];};')
+            // Fixed argument reads share their established invocation value.
             assertEq(compileSource(source)('output.edag.data.js'),
-                "const $0=[\"arg\",0];const $1=[\"rest\"];const $2=[\".\",$1,0];export default [\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"[]\",[$0,[\"?:\",[\"===\",$2,[\"undefined\"]],$0,$2],[\".\",$1,\"slice\",[\"|()\",[1]]]]]]]]];")
+                'const $0=["arg",0];const $1=["rest"];const $2=[".",$1,0];export default ["{}",[[":","default",["=>",1,[],["[]",[$0,["?:",["===",$2,["undefined"]],$0,$2],[".",$1,"slice",["|()",[1]]]]]]]]];')
             assert(compileSource(source)('output.rs').includes('if Any::<A>::to_boolean((strict_eq(_b2.clone(), Nullish::Undefined.to_any()))?) { _args.argument(0) } else { _b2.clone() }'))
-            assertEq(compileSource('export default (a = 1) => { const b = [a]; return [b, b]; };')('output.js'), "export default (...$0)=>{const $1=$0[0];const $2=[$1===undefined?1:$1];return [$2,$2];};")
-            assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), "const $0={};export default ($1,...$2)=>{const $3=$2[0];return [$1,$3===undefined?$0:$3,$2.slice(1)];};")
+            assertEq(compileSource('export default (a = 1) => { const b = [a]; return [b, b]; };')('output.js'), 'export default (...$0)=>{const $1=$0[0];const $2=[$1===undefined?1:$1];return [$2,$2];};')
+            assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), 'const $0={};export default ($1,...$2)=>{const $3=$2[0];return [$1,$3===undefined?$0:$3,$2.slice(1)];};')
         },
     },
     // Code outputs preserve throws; data outputs execute module initialization.

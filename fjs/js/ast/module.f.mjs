@@ -6,7 +6,10 @@
  * @module
  *
  * @import { Binding, BindingId, BindingEvent, BindingScope, FunctionTarget, Item, Key, Operator, Step } from './types.ts'
+ * @import { List, Result as ListResult } from '../../types/list/types.ts'
  */
+
+import { concat, next, reverse, toArray } from '../../types/list/module.f.mjs'
 
 /**
  * Reassignment and nested references over the complete expanded source scope.
@@ -16,32 +19,41 @@
  * @type {(root: BindingScope) => readonly Binding[]}
  */
 export const analyzeBindings = root => {
+    /** @type {List<{ id: BindingId, owner: FunctionTarget }>} */
     let declarations = root.bindings.map(id => ({ id, owner: root.target }))
-    /** @type {readonly { id: BindingId, scope: FunctionTarget, write: boolean }[]} */
-    let references = []
-    /** @type {readonly { scope: FunctionTarget, event: BindingEvent }[]} */
+    /** @type {List<{ id: BindingId, scope: FunctionTarget, write: boolean }>} */
+    let references = null
+    /** @type {List<{ scope: FunctionTarget, event: BindingEvent }>} */
     let pending = root.events.map(event => ({ scope: root.target, event }))
-    while (pending.length !== 0) {
-        const [{ scope, event }, ...rest] = pending
+    while (true) {
+        /** @type {ListResult<{ scope: FunctionTarget, event: BindingEvent }>} */
+        const item = next(pending)
+        if (item === null) { break }
+        /** @type {BindingEvent} */
+        const event = item.first.event
+        const scope = item.first.scope
+        const rest = item.tail
         if (event[0] === 'function') {
+            /** @type {BindingScope} */
             const child = event[1]
-            declarations = [...declarations, ...child.bindings.map(id => ({ id, owner: child.target }))]
-            pending = [...child.events.map(event => ({ scope: child.target, event })), ...rest]
+            declarations = concat(declarations)(child.bindings.map(id => ({ id, owner: child.target })))
+            pending = concat(child.events.map(event => ({ scope: child.target, event })))(rest)
             continue
         }
         if (event[0] === 'region') {
-            pending = [...event[1].map(event => ({ scope, event })), ...rest]
+            pending = concat(event[1].map(event => ({ scope, event })))(rest)
             continue
         }
         if (event[0] !== 'initialize') {
-            references = [...references, { id: event[1], scope, write: event[0] === 'write' }]
+            references = { first: { id: event[1], scope, write: event[0] === 'write' }, tail: references }
         }
         pending = rest
     }
-    return declarations.map(({ id, owner }) => ({
+    const orderedReferences = toArray(reverse(references))
+    return toArray(declarations).map(({ id, owner }) => ({
         id,
-        isMutable: references.some(reference => reference.id === id && reference.write),
-        capturedBy: [...new Set(references.filter(reference => reference.id === id && reference.scope !== owner).map(reference => reference.scope))],
+        isMutable: orderedReferences.some(reference => reference.id === id && reference.write),
+        capturedBy: [...new Set(orderedReferences.filter(reference => reference.id === id && reference.scope !== owner).map(reference => reference.scope))],
     }))
 }
 
