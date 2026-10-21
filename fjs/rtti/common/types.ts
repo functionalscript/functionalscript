@@ -109,3 +109,15 @@ export type Reader<A> = {
  * reader collected, or the container itself.
  */
 export type Finish<C extends Unknown, A> = (acc: A, value: C) => Unknown
+
+/**
+ * One {@link Finish} per container kind: what a reader builds of an `array`,
+ * a `record`, a `Tuple` and a `Struct` once its members are read. A container
+ * with a stated `rest` is finished as the bare kind it extends.
+ */
+export type Finishes<A> = {
+    readonly array: Finish<ReadonlyArray<Unknown>, A>
+    readonly record: Finish<StringMap<Unknown>, A>
+    readonly tuple: Finish<ReadonlyArray<Unknown>, A>
+    readonly struct: Finish<StringMap<Unknown>, A>
+}

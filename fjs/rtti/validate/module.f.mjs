@@ -56,13 +56,12 @@
  *
  * ## Dispatch strategy
  *
- * Schema recognition is delegated to `visit` in `../common/module.f.mjs`,
- * which routes each `Type` variant to a handler in the `Visitor` record
- * defined below; nothing here walks the `Type` ADT itself. The container
- * handlers are the skeletons `parse` reads through too (`containerRead`,
- * `constContainerRead` and `restContainerRead` in `../common/module.f.mjs`),
- * which state each shape's read order once; `validate` supplies a `Reader`
- * that collects nothing, so a validation allocates nothing per entry. The data
+ * The reader is `readerOf` in `../common/module.f.mjs`, which `parse` is
+ * built from too: schema recognition, the container skeletons and the shape
+ * each container kind is read with are written there once, so the two
+ * readers read a container in the same order by construction. `validate`
+ * supplies a collector that collects nothing, so a validation allocates
+ * nothing per entry, and keeps every container as it is. The data
  * form's `validate` (`../data/module.f.mjs`) is the same shape over `Data`.
  *
  * ## Recursion safety
@@ -78,119 +77,27 @@
  * @module
  *
  * @import { Unknown } from '../ts/types.ts'
- * @import { ConstObject, Type } from '../types.ts'
- * @import { Reader, Validate, ValidateE } from '../common/types.ts'
+ * @import { Type } from '../types.ts'
+ * @import { Validate } from '../common/types.ts'
  */
 
-import { ok } from '../../types/result/module.f.js'
-import {
-    constContainerRead,
-    constPrimitiveValidate,
-    containerRead,
-    isArray,
-    isObject,
-    noAccumulate,
-    orVisit,
-    primitive0Validate,
-    restContainerRead,
-    structSchemaEntries,
-    tupleSchemaEntries,
-    verror,
-    visit,
-} from '../common/module.f.mjs'
+import { noAccumulate, readerOf } from '../common/module.f.mjs'
 import { emptyRest } from '../data/module.f.mjs'
-
-/**
- * What `validate` brings to the container skeletons in
- * `../common/module.f.mjs`: itself, for each member's schema, and nothing to
- * collect — a success carries the value it was given, so a read allocates
- * nothing per member.
- *
- * @type {Reader<undefined>}
- */
-const reader = {
-    // Through the erased `ValidateE`: `validate(t)` at `Type` would instantiate
-    // `Ts<Type>` (TS2589) — the boundary `orVisit` describes.
-    read: t => /** @type {any} */ (validate(t)),
-    empty: undefined,
-    cons: noAccumulate,
-}
 
 /** A checked container is the result: the value it was given, not a reconstruction. */
 /** @type {(acc: undefined, value: Unknown) => Unknown} */
 const keep = (_, value) => value
 
-const arrayValidate = containerRead(reader)(
-    isArray,
-    item => (value, declared) => value.length <= declared || !emptyRest([], item),
-    keep,
+/**
+ * What `validate` brings to `readerOf` in `../common/module.f.mjs`: nothing
+ * to collect — a success carries the value it was given, so a read allocates
+ * nothing per member — and every container kind kept as it is.
+ */
+const read = readerOf(
+    { empty: undefined, cons: noAccumulate },
+    { array: keep, record: keep, tuple: keep, struct: keep },
+    emptyRest,
 )
-
-const recordValidate = containerRead(reader)(isObject, () => () => true, keep)
-
-const tupleValidate = constContainerRead(reader)(
-    isArray,
-    tupleSchemaEntries,
-    (value, k) => value[Number(k)],
-    (value, declared) => value.length <= declared,
-    keep,
-)
-
-const structValidate = constContainerRead(reader)(
-    isObject,
-    structSchemaEntries,
-    (value, k) => value[k],
-    () => true,
-    keep,
-)
-
-const restTupleValidate = restContainerRead(reader)(
-    isArray,
-    tupleSchemaEntries,
-    (value, k) => value[Number(k)],
-    (rtti, r) => (value, declared) => value.length <= declared || !emptyRest(rtti, r),
-    keep,
-)
-
-const restStructValidate = restContainerRead(reader)(
-    isObject,
-    structSchemaEntries,
-    (value, k) => value[k],
-    () => () => true,
-    keep,
-)
-
-/** @type {(rtti: ConstObject, r: Type) => ValidateE} */
-const restValidate = (rtti, r) =>
-    rtti instanceof Array
-        ? restTupleValidate(rtti, r)
-        : restStructValidate(rtti, r)
-
-const orValidate =
-    /**
-     * @template {readonly Type[]} T
-     * @param {T} rtti
-     * @returns {Validate<() => readonly ['or', ...T]>}
-     */
-    rtti =>
-        /** @type {any} */ (orVisit(/** @type {any} */ (validate))(rtti))
-
-const validateVisitor = /** @type {any} */ ({
-    tuple: tupleValidate,
-    struct: structValidate,
-    rest: restValidate,
-    array: arrayValidate,
-    record: recordValidate,
-    or: orValidate,
-    constPrimitive: constPrimitiveValidate,
-    primitive0: primitive0Validate,
-    unknown: () => ok,
-    // Absence is decided by the container loop before dispatch, so a value
-    // that reaches this handler is present — and no present value is absent.
-    // An ordinary error is what lets `orVisit` try the other members of
-    // `or(option, t)`.
-    option: () => () => verror('unexpected value'),
-})
 
 /**
  * Creates a validator function for the given RTTI schema: a `Thunk` for
@@ -227,4 +134,6 @@ const validateVisitor = /** @type {any} */ ({
  * @type {<const T extends Type>(rtti: T) => Validate<T>}
  */
 export const validate = rtti =>
-    (visit(validateVisitor)(rtti))
+    // Through the erased `ValidateE`: `Validate<T>` is what it reads as, and
+    // naming it on `readerOf`'s side would instantiate `Ts<Type>` (TS2589).
+    /** @type {any} */ (read(rtti))
