@@ -53,6 +53,10 @@ export const proof = {
         // A character it cannot class is left out of the slug; the README
         // is refused before the slug is used.
         unknown: () => assertEq(slug([['text', 'aأ']]), 'a'),
+        // A Han ideograph past the first plane stays, as GitHub keeps it.
+        supplementaryHan: () => assertEq(slug([['text', '𠀀 x']]), '𠀀-x'),
+        // Past the emoji blocks, nothing is known to be dropped.
+        legacySymbol: () => assertEq(slug([['text', 'a\u{1fb00}']]), 'a'),
         digits: () => assertEq(slug([['strong', '10-2']]), '10-2'),
     },
     anchors: () => assertStructurallySame(

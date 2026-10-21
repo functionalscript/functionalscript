@@ -112,9 +112,9 @@ export const proof = {
         alternating: () => assertStructurallySame(
             spans(`a ${tick}b${tick} **c**`),
             [['text', 'a '], ['code', 'b'], ['text', ' '], ['strong', 'c']]),
-        adjacentSpans: () => assertStructurallySame(
-            spans(`${tick}a${tick}${tick}b${tick}`),
-            [['code', 'a'], ['code', 'b']]),
+        // The grammar reads two spans; CommonMark reads the double run as
+        // content of one, so the entry is refused.
+        adjacentSpans: () => assertEq(tryParseEntry(`${tick}a${tick}${tick}b${tick}`)[1], 'two code spans side by side, which GitHub reads as one'),
     },
     /**
      * **Code binds tightest.** The symbols that open every other span are
@@ -266,6 +266,7 @@ export const proof = {
                 spans(`[${tick}a${tick}](u)`), [['link', [['code', 'a']], 'u']]),
             emptyLabel: () => assertEq(tryParseEntry('[](u)')[1], 'a link with an empty label'),
             codeIsNotProse: () => assertStructurallySame(spans(`${tick}_a_${tick}`), [['code', '_a_']]),
+            spacedCode: () => assertEq(tryParseEntry(`${tick}a${tick} ${tick}b${tick}`)[0], 'ok'),
         },
         // An asterisk with a letter on one side and punctuation on the other
         // opens or closes nothing on GitHub.
