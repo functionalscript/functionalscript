@@ -13,6 +13,11 @@ difference, that a proof stays `proof.f.mjs`, is in
 compiler refuses, construct by construct, is
 [CONVERTING.md](../doc/CONVERTING.md).
 
+A module the current compiler accepts whole must be `.f.js`, not `.f.mjs`:
+rename it (`git mv`, then fix importers) in the pull request that makes it
+compile, and confirm with `npm start compile` from the repository root. See
+[AGENTS.md §3](../AGENTS.md#3-functionalscript-and-typescript-fjs).
+
 ## Contents
 
 1. [Testing and proof coverage](#1-testing-and-proof-coverage)

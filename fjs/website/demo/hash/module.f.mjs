@@ -15,13 +15,14 @@ import { utf8 } from '../../../text/module.f.mjs'
 import { codeBlock } from '../code/module.f.js'
 import { tryShellQuote } from '../../../text/shell/module.f.js'
 import { caption } from '../module.f.mjs'
+import { encodeScalar } from '../../../basen/base16/module.f.mjs'
 
 /** Format a hash's bits as hex, preserving its complete width.
  * @type {(hash: { readonly hashLength: bigint }) => (bits: Vec) => string}
  */
 export const hexOf = hash => {
-    const digits = Number(hash.hashLength / 4n)
-    return bits => uint(bits).toString(16).padStart(digits, '0')
+    const hex = encodeScalar(Number(hash.hashLength / 4n))
+    return bits => hex(uint(bits))
 }
 
 /** The hex digest of UTF-8 text, including every leading zero.
