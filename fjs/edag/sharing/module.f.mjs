@@ -4,40 +4,20 @@
  * several places, as a `const` read twice lowers to — so it is a question of
  * identity, never of spelling: two nodes spelled alike are two nodes.
  *
- * Both writers count it here. The Rust printer, in
- * [`../rust/module.f.mjs`](../rust/module.f.mjs), counts with {@link visit},
- * stopping at the nodes its caller has bound, and binds every node it
- * finds reached from two places in a `let`; the FunctionalScript writer,
- * in
- * [`../../compiler/serializer/module.f.mjs`](../../compiler/serializer/module.f.mjs),
- * gives each node {@link sharedNodesOf} lists a `const`, reading the list
- * through the identity table of
- * [`../analysis/module.f.mjs`](../analysis/module.f.mjs). What each writer
- * names beyond the shared nodes is its own: the Rust printer binds an
- * unshared operation too, where the FunctionalScript writer writes it in
- * place, and the FunctionalScript writer reads a shared parameter, rest
- * array or frame slot by its name, and writes a pure node two lazy operands
- * reach with no eager path in each.
- *
- * Whether more of the two writers' walks can share this one is
- * [`../todo/identity-shared-walks.md`](../todo/identity-shared-walks.md).
+ * Identity analysis uses this walk's scope-local counts. Common graph-to-FAST
+ * conversion then chooses bindings and evaluation regions once for all output
+ * targets. Serializers render prepared FAST and perform no graph placement.
  *
  * @module
  *
  * @import { Exp } from '../types.ts'
  */
 
-import { isIntrinsic, lazyOp2Id } from '../module.f.mjs'
+import { isIntrinsic } from '../module.f.mjs'
 
 /**
- * The operations that establish every operand after the first only
- * conditionally: `&&`, `||` and `??` establish the right operand only if the
- * left decides nothing, and `?:` establishes the one arm its condition
- * selects — the EDAG's positional laziness, as `op2Id` and `op3Id` in
- * [`../module.f.mjs`](../module.f.mjs) state it. The binary three are
- * `lazyOp2Id` from there rather than a copy, so a writer cannot defer a
- * different set from the one the executor defers. In each the deciding
- * operand comes first and every later one is lazy.
+ * The conditional establishes its condition, then the selected arm. Source
+ * logical operators have already become conditionals; every op2 is eager.
  *
  * The chain nodes have lazy positions of their own, {@link chainLazy}: a
  * `?.` or `?.()` node's key or arguments and its continuation's operands
@@ -49,7 +29,7 @@ import { isIntrinsic, lazyOp2Id } from '../module.f.mjs'
  *
  * @type {readonly string[]}
  */
-export const lazy = [...lazyOp2Id, '?:']
+export const lazy = ['?:']
 
 /**
  * `true` for the tag of a node that opens a chain: `.`, `?.` and `?.()`,
@@ -118,7 +98,7 @@ export const visit = operands => visited => root => {
  * The operands a walk descends into, read from a node's shape rather than
  * from every array it holds: an array, object, or comma node holds its
  * operands in a list, whose first item may be a string that spells a tag —
- * `['&&', c, c]` is three array items where `['&&', c, c]` a node is an
+ * `['+', c, c]` is three array items where `['+', c, c]` a node is an
  * operation — so the list is read as a list, and every other node's
  * operands follow its tag. A spread and a property are members of a
  * list, not nodes, so a list is read through them, {@link members}.

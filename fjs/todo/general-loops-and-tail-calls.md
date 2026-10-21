@@ -1,8 +1,8 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** wip — A-C shared FAST foundation implemented above #3127;
-short-circuit normalization is next
+**Status:** wip — A-D shared FAST foundation and conditional schema implemented
+above #3127; general loop construction is next
 
 ### Goal
 
@@ -32,7 +32,7 @@ has one detailed owner; implementations and other TODOs link there.
 | Mutable bindings and source loop admission/normalization | [Let proposal: later work](../../spec/todo/3220-let.md#later) |
 | Explicit FAST loops to recursive EDAG; state/completion encoding and root-loop reuse | [FAST loop construction](../edag/todo/fast-loop-construction.md) |
 | Existing output migration and broader tail-call analysis | [Tail-call loops](../edag/todo/tail-call-loop.md) |
-| Logical operators to conditionals and EDAG schema migration | [Short-circuit conditionals](../edag/todo/short-circuit-conditionals.md) |
+| Logical operators to conditionals and EDAG schema migration | [Short-circuit conditionals](../edag/README.md#source-logical-operators) |
 
 Source name/declaration checks preserve legality before declaration kinds are
 discarded. Pattern expansion precedes shared local/parameter write analysis;
@@ -93,7 +93,7 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
 - [x] **C — Existing output.** Move graph placement and current tail-loop
       decisions to `to_fast`; establish common emission preparation and migrate
       every required consumer before starting D.
-- [ ] **D — Smaller EDAG.** Complete the short-circuit owner's source lowering,
+- [x] **D — Smaller EDAG.** Complete the short-circuit owner's source lowering,
       schema/identity decision and producer/consumer migration.
 - [ ] **E — General graph construction.** Complete the loop-construction owner
       using explicit FAST inputs/results; no source-mutability analysis here.

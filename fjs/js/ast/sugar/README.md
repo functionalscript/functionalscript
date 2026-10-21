@@ -38,3 +38,14 @@ Import identities come from the module boundary. Equal supplied graph objects
 share their established binding; primitive comparisons preserve `NaN` and the
 sign of zero. Required input definitions retain unused and lazy-only module
 loads. The resulting FAST contains no source assignment or mutable slot.
+
+Logical syntax remains in `SourceValue`, independently of the canonical
+operation vocabulary. [`logicalValue`](./logical/module.f.mjs) establishes a
+left operand once in an immutable binding in the original expression region,
+then selects the right operand or the established left value. An existing
+reference is reused. The right operand stays in its selected yielding arm;
+the normalization introduces no function boundary or eager outer temporary.
+Nullish selection compares against null and primitive undefined with nested
+conditionals. Switch label joins use this same lowering, so their graph is
+the graph of the equivalent written logical expression. Normalized FAST and
+canonical EDAG contain no logical or nullish operation tags.

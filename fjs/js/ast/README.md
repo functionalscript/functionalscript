@@ -35,8 +35,9 @@ its value operands. `mapOperator(map)(operator)` maps those operands, including
 computed keys, spreads and optional-chain continuations, without interpreting
 metadata as values. `operatorOperands(operator)` lists the same operands in
 stable source order. Neither helper changes evaluation regions; traversing a
-lazy operand does not establish its runtime value. The logical operators
-remain during the baseline migration and are removed by the later schema step.
+lazy operand does not establish its runtime value. `CoreBinaryTag` excludes
+logical and nullish source operators; source sugar expresses them with
+immutable bindings and conditional result regions.
 
 `analyzeBindings(scope)` consumes the resolved, pattern-expanded binding stage,
 before assignment normalization or graph construction. Each scope declares the

@@ -5,6 +5,7 @@
  * @import { Exp, Function as FunctionExp } from '../../../edag/types.ts'
  */
 
+import { conditional } from '../../../edag/testlib.f.mjs'
 import { throws } from 'node:assert/strict'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tryFunctionText } from '../module.f.mjs'
@@ -95,7 +96,7 @@ export const proof = {
         const shared = /** @type {const} */ (['[]', []])
         /** @type {FunctionExp} */
         const graph = ['=>', 2, [], ['[]', [
-            ['&&', ['arg', 0], shared], ['||', ['arg', 1], shared],
+            conditional('&&', ['arg', 0], shared), conditional('||', ['arg', 1], shared),
         ]]]
         const fn = compile(graph)
         const first = fn(true, false)
@@ -106,7 +107,7 @@ export const proof = {
         assertStructurallySame(fn(false, true), [false, true])
         const failure = /** @type {const} */ (['throw', 'demanded'])
         const lazy = compile(['=>', 2, [], ['[]', [
-            ['&&', ['arg', 0], failure], ['||', ['arg', 1], failure],
+            conditional('&&', ['arg', 0], failure), conditional('||', ['arg', 1], failure),
         ]]])
         assertStructurallySame(lazy(false, true), [false, true])
         throws(() => lazy(true, true), e => e === 'demanded')

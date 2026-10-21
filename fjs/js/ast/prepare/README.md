@@ -53,3 +53,7 @@ the host call stack for syntax depth. The direct scoped proofs cover 20,000
 nested unary operations, binary operations, property accesses and final-value
 blocks containing required definitions. This is evidence for those preparation
 shapes; target parser and runtime limits belong to their respective boundaries.
+
+Logical source spellings reach this pass as required definitions and explicit
+conditionals. Preparation has no separate short-circuit lowering policy: it
+preserves the established left operand and the selected conditional region.

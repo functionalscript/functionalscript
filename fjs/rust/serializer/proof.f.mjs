@@ -40,7 +40,7 @@ export const proof = {
             ['+', 1, 2], ['-', 1, 2], ['*', 1, 2], ['/', 1, 2], ['%', 1, 2], ['**', 1, 2],
             ['&', 1, 2], ['|', 1, 2], ['^', 1, 2], ['<<', 1, 2], ['>>', 1, 2], ['>>>', 1, 2],
             ['===', 1, 2], ['!==', 1, 2], ['<', 1, 2], ['<=', 1, 2], ['>', 1, 2], ['>=', 1, 2],
-            ['&&', true, 2], ['||', false, 2], ['??', null, 2], ['?:', true, 1, 2],
+            ['?:', true, 1, 2],
             ['instanceof', ['array', []], 'Array'],
         ]
         for (const value of values) {
@@ -149,7 +149,7 @@ export const proof = {
                     exit: ['yield', []],
                 }],
             ],
-            exit: ['yield', [['array', [['demand', y], ['demand', y], ['ref', x], ['&&', true, ['demand', y]], ['&&', true, ['block', yielding([['demand', y]])]]]]]],
+            exit: ['yield', [['array', [['demand', y], ['demand', y], ['ref', x], ['?:', true, ['demand', y], false], ['?:', true, ['block', yielding([['demand', y]])], false]]]]],
         }
         const rendered = unwrap(scope(body, options)).lines.join('\n')
         assert(rendered.includes('RefCell::new'))

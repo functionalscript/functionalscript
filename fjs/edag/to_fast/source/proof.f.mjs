@@ -7,6 +7,7 @@
  * @import { Block, Value } from '../../../js/ast/types.ts'
  */
 
+import { conditional } from '../../testlib.f.mjs'
 import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.mjs'
 import { fromAnalysis } from '../module.f.mjs'
@@ -52,8 +53,8 @@ export const proof = {
         assertEq(reason(['[]', [[',', [1, 2]]]], true), null)
         assertEq(reason(['=>', 0, [], [',', [['rest'], 1]]]), 'an anchor that is a name')
         assertEq(reason(['?:', true, [',', [1, 2]], 3]), null)
-        assertEq(reason(['&&', false, [',', [1, 2]]]), null)
-        assertEq(reason(['&&', false, 1], true), null)
+        assertEq(reason(conditional('&&', false, [',', [1, 2]])), null)
+        assertEq(reason(conditional('&&', false, 1), true), null)
         assertEq(reason(['throw', 1]), null)
         /** @type {Exp} */
         const scalar = ['+', 1, 2]

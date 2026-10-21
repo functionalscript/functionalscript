@@ -2,8 +2,8 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { BindingId, BindingScope, FunctionTarget, Item, Entry, Key, Step, _Access, _Call, _Conditional, _Binary, _Unary, _InstanceOf, _Comma, _Array, _Object } from '../../js/ast/types.ts'
-import type { SourceValue, SourceParameter, SourceStatement, SourceBlock, SourceCase } from '../../js/ast/sugar/source.ts'
+import type { BindingId, BindingScope, FunctionTarget, Item, Entry, Key, Step, _Access, _Call, _Conditional, _Unary, _InstanceOf, _Comma, _Array, _Object } from '../../js/ast/types.ts'
+import type { SourceValue, SourceParameter, SourceStatement, SourceBlock, SourceCase, _SourceBinary } from '../../js/ast/sugar/source.ts'
 import type { PatternPlan } from '../../js/ast/sugar/pattern/types.ts'
 import type { StaticId, IntrinsicId } from '../../edag/types.ts'
 import type { BinaryTag, UnaryTag } from '../ast/types.ts'
@@ -24,7 +24,7 @@ export type ValueIntrinsic = readonly [IntrinsicId]
 export type ValueAccess = _Access<SourceValue>
 export type ValueCall = _Call<SourceValue>
 export type ValueConditional = _Conditional<SourceValue>
-export type ValueBinary = _Binary<SourceValue>
+export type ValueBinary = _SourceBinary<SourceValue>
 export type ValueUnary = _Unary<SourceValue>
 export type ValueInstanceOf = _InstanceOf<SourceValue>
 export type ValueComma = _Comma<SourceValue>

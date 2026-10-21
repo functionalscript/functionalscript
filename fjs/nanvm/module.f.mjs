@@ -22,11 +22,11 @@
  * three exist so that neither consumer has to re-implement a rule of the
  * corpus format: a rule written twice is a rule that drifts.
  *
- * Operation identity comes from [`fjs/edag`](../edag/README.md) and is not
- * restated here — a group's `op` is an `Op1Id`, an `Op2Id`, an `Op12Id`, or
- * an `Op3Id`, and which vocabulary it is in is what fixes the case's operand
- * count — except for an `Op12Id`, legal at both of the first two counts,
- * where the group's own `arity` does.
+ * Canonical operation identity comes from [`fjs/edag`](../edag/README.md).
+ * Source/native logical labels retain their independent oracle groups and
+ * construct canonical conditionals through the shared source FAST sugar.
+ * Canonical vocabularies fix operand counts; an `Op12Id`, legal at both of
+ * the first two counts, uses the group's own `arity`.
  *
  * The operator groups are written here; the member-function groups are in
  * [`member/module.f.js`](./member/module.f.js), so that no one file
@@ -54,6 +54,7 @@ import { fromValue, op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import { callback, functionText, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
 import { groups as memberGroups } from './member/module.f.js'
+import { logicalExp } from '../edag/from_fast/source/module.f.mjs'
 
 export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
 
@@ -167,6 +168,7 @@ export const arityOf = g => {
     if ('arity' in g) { return g.arity }
     // the constructor is a name, not an operand: one operand
     if ('name' in g) { return 1 }
+    if (g.op === '&&' || g.op === '||' || g.op === '??') { return 2 }
     if (isOp1Id(g.op)[0] === 'ok') { return 1 }
     return isOp3Id(g.op)[0] === 'ok' ? 3 : 2
 }
@@ -180,9 +182,8 @@ export const arityOf = g => {
  * A fresh node on every call, like every other lowered value, so two
  * function operands are two closures and never one node reached twice.
  * Both consumers know this shape: `amnesia` establishes it as any `=>`,
- * and the Rust printer renders exactly this node as the harness's one
- * function value, `function_any()`, as it does a compiled `() => undefined`,
- * the same node; its text is the writer's, `()=>undefined`.
+ * and the Rust serializer builds an ordinary native closure; its represented
+ * text is the writer's, `()=>undefined`.
  *
  * @type {() => Exp}
  */
@@ -244,13 +245,9 @@ export const callbackExp = name => functionExp(callbacks[name]())
  * The expression an `unreached` denotes: `1n / 0n`, which throws when
  * established — a `RangeError` in JavaScript, an `Err` in `nanvm-lib`, the
  * corpus's own `bigTenDividedByZero` on both. An operation rather than a
- * throw node, because the schema has no throw node and needs none for this:
- * what a lazy operand must not do is be established, and any established
- * operation that throws observes that. Both consumers read it as the
- * ordinary node it is: `amnesia` establishes it only where the operator is
- * eager, and the Rust printer prints it as the thunk a lazy position takes,
- * `|| bigint_any(1) / bigint_any(0)`, the operation's own `Result` being
- * the closure's answer.
+ * explicit throw: what an unselected operand must not do is be established,
+ * and an ordinary failing operation observes that. Canonical conditional
+ * regions retain this operation only in the selected branch.
  *
  * A fresh node on every call, like {@link lambdaExp}.
  *
@@ -318,6 +315,7 @@ export const caseExp = shared => g => args => {
     const [a, b, c] = args.map(valuesExp(shared))
     // the constructor name is the group's, carried into the node as it is
     if ('name' in g) { return ['instanceof', a, g.name] }
+    if (g.op === '&&' || g.op === '||' || g.op === '??') { return logicalExp(g.op, a, b) }
     // `n` decides which vocabularies the tag can be in, and the check above
     // makes that agree with the operands. The casts are that step and nothing
     // more: an `Op12Id` is legal at either of the first two counts, so it is
@@ -982,8 +980,8 @@ const notCases = [
  * established at all. `unreached` lowers to an operation that throws when
  * established (see {@link unreachedExp}), so `false && unreached` answers
  * `false` on either side only because neither side touched the right
- * operand — `amnesia`'s `&&` is lazy, and `nanvm-lib`'s takes the operand as
- * a thunk it never calls. A case that did establish it would throw where it
+ * operand. Source FAST sugar constructs the conditional regions consumed by
+ * both represented executors. A case that did establish it would throw where it
  * expected a value, which is the failure the corpus's own `check` reports.
  * Every other case here has a constant on the discarded side, and proves
  * *which* operand comes back.

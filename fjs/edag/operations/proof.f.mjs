@@ -9,6 +9,7 @@
  * @import { Context, Evaluator } from './types.ts'
  */
 
+import { conditional } from '../testlib.f.mjs'
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { invokerWith, operation, staticCall } from './module.f.mjs'
 import { noStatic, staticIds, staticPath } from '../module.f.mjs'
@@ -92,12 +93,12 @@ export const proof = {
         eq(['<<', 1, 3], 8)
         eq(['>>', -8, 1], -4)
         eq(['>>>', -1, 31], 1)
-        eq(['&&', 0, 1], 0)
-        eq(['&&', 2, 1], 1)
-        eq(['||', 0, 1], 1)
-        eq(['||', 2, 1], 2)
-        eq(['??', null, 1], 1)
-        eq(['??', 0, 1], 0)
+        eq(conditional("&&", 0, 1), 0)
+        eq(conditional("&&", 2, 1), 1)
+        eq(conditional("||", 0, 1), 1)
+        eq(conditional("||", 2, 1), 2)
+        eq(conditional("??", null, 1), 1)
+        eq(conditional("??", 0, 1), 0)
         eq(['?:', true, 1, 2], 1)
         eq(['?:', false, 1, 2], 2)
         eq([',', [1, 2]], 2)
@@ -155,6 +156,8 @@ export const proof = {
         const throwing = ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]]
         const asked = invokeWith(throwing)
         assertEq(assertError(settle(asked)(staticCall(throwing, ['Object.is'], ['[]', []], () => { throw 'unreached' }, asked))), 'boom')
+        const throwingRead = operation({ ...evaluator, context: { ...context, runtime: throwing }, invoke: asked })
+        assertStructurallySame(throwingRead(['Object.is'], []), [[], ['error', 'boom']])
         for (const id of staticIds.filter(id => !isNative(staticPath(id)))) { failure([id], noStatic(id)) }
         /** @type {Context} */
         const withRuntime = {
@@ -254,7 +257,7 @@ export const proof = {
         const [state, result] = run(['+', 1, 2], ['already'])
         assertStructurallySame(state, ['already', 1, 2])
         assertStructurallySame(result, ['ok', 3])
-        assertStructurallySame(run(['&&', 0, ['throw', 1]], [])[0], [0])
+        assertStructurallySame(run(conditional("&&", 0, ['throw', 1]), [])[0], [0, 0])
         assertStructurallySame(run(['?:', true, 1, ['throw', 2]], [])[0], [true, 1])
         const stop = /** @type {const} */ (['throw', 1])
         assertEq(run(['+', stop, 2], [])[0].length, 1)

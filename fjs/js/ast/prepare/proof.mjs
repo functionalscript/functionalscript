@@ -3,7 +3,7 @@
  * Host compilation observes nonlocal return behavior, closure lifetimes and
  * simultaneous state changes, which inspecting the IR alone cannot establish.
  *
- * @import { BindingId, Function as FastFunction } from '../types.ts'
+ * @import { BindingId, Function as FastFunction, Value as FastValue } from '../types.ts'
  */
 
 import { throws } from 'node:assert/strict'
@@ -34,17 +34,45 @@ export const proof = {
         })
         assertEq(fn(true), 7)
         assertEq(fn(false), 3)
-        for (const tag of /** @type {const} */ (['&&', '||', '??'])) {
+        /** @type {readonly (readonly [FastValue, unknown, unknown, number])[]} */
+        const cases = [
+            [['if', ['ref', condition], { statements: [], exit: ['return', target, 7] }, { statements: [], exit: ['yield', [['ref', condition]]] }], true, false, 1],
+            [['if', ['ref', condition], { statements: [], exit: ['yield', [['ref', condition]]] }, { statements: [], exit: ['return', target, 7] }], false, true, 2],
+            [['if', ['if', ['===', ['ref', condition], null], { statements: [], exit: ['yield', [true]] }, { statements: [], exit: ['yield', [['===', ['ref', condition], undefined]]] }],
+                { statements: [], exit: ['return', target, 7] }, { statements: [], exit: ['yield', [['ref', condition]]] }], null, 0, 1],
+        ]
+        for (const [value, selected, skipped, expected] of cases) {
             const lazy = compile({
                 target, parameters: [condition], rest: null, self: null, captures: [],
                 body: {
-                    statements: [['define', result, [tag, ['ref', condition], ['block', { statements: [], exit: ['return', target, 7] }]], 'required']],
+                    statements: [['define', result, value, 'required']],
                     exit: ['return', target, ['+', ['ref', result], 1]],
                 },
             })
-            assertEq(lazy(tag === '&&' ? true : tag === '||' ? false : null), 7)
-            assertEq(lazy(tag === '&&' ? false : tag === '||' ? true : 0), tag === '||' ? 2 : 1)
+            assertEq(lazy(selected), 7)
+            assertEq(lazy(skipped), expected)
         }
+    },
+    conditionalValues: () => {
+        const target = { kind: /** @type {const} */ ('function'), index: 0 }
+        const value = id(0)
+        const signed = compile({
+            target, parameters: [value], rest: null, self: null, captures: [],
+            body: { statements: [], exit: ['return', target, ['if', ['ref', value], { statements: [], exit: ['yield', [3]] }, { statements: [], exit: ['yield', [['ref', value]]] }]] },
+        })
+        assertEq(signed(-0), -0)
+        const result = id(1)
+        const allocation = compile({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: {
+                statements: [
+                    ['define', value, ['array', []], 'required'],
+                    ['define', result, ['if', ['ref', value], { statements: [], exit: ['yield', [['ref', value]]] }, { statements: [], exit: ['yield', [3]] }], 'required'],
+                ],
+                exit: ['return', target, ['array', [['ref', value], ['ref', result]]]],
+            },
+        })()
+        assertEq(allocation[0], allocation[1])
     },
     parallelState: () => {
         const target = { kind: /** @type {const} */ ('function'), index: 0 }

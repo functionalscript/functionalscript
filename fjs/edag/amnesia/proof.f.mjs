@@ -8,6 +8,7 @@
  * @import { EdagValue, Values, Array as ValueArray } from '../value/types.ts'
  */
 
+import { conditional } from '../testlib.f.mjs'
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../asserts/module.f.js'
 import { vm, invoke } from './module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
@@ -224,7 +225,7 @@ export const proof = {
         // `throw` in a lazy position is not established, as nothing there
         // is; where it is, it fails — `failures.thrown` below.
         eq(['?:', true, 1, ['throw', 2]], 1)
-        eq(['&&', false, ['throw', 2]], false)
+        eq(conditional("&&", false, ['throw', 2]), false)
     },
     // `o12` — the node's length picks the operation. The unary arms coerce
     // with `ToNumber`, so a string operand pins that they are not the binary
@@ -349,12 +350,12 @@ export const proof = {
     // case that claims "not evaluated" uses `boom`, which throws if it is;
     // `failures.forced` calls the same nodes with the other left operand.
     lazy: () => {
-        eq(['&&', false, boom], false)
-        eq(['&&', true, 7], 7)
-        eq(['||', true, boom], true)
-        eq(['||', false, 7], 7)
-        eq(['??', 0, boom], 0)
-        eq(['??', null, 7], 7)
+        eq(conditional("&&", false, boom), false)
+        eq(conditional("&&", true, 7), 7)
+        eq(conditional("||", true, boom), true)
+        eq(conditional("||", false, 7), 7)
+        eq(conditional("??", 0, boom), 0)
+        eq(conditional("??", null, 7), 7)
         eq(['?:', true, 7, boom], 7)
         eq(['?:', false, boom, 7], 7)
         // `ToBoolean` on the condition, as `&&`/`||` coerce: `0` is the
@@ -743,7 +744,7 @@ export const proof = {
         eq(['.', o, 'step', ['|()', [0, o]]], 1_000)
         eq(['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000], ['?.()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [0]], 1_000)
         eq(['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000], [',', [['arg', 0], ['()', ['self'], [['+', ['arg', 0], 1]]]]], ['arg', 0]]], [0]], 1_000)
-        eq(['()', ['=>', 1, [], ['&&', ['<', ['arg', 0], 1_000], ['||', false, ['??', null, ['()', ['self'], [['+', ['arg', 0], 1]]]]]]], [0]], false)
+        eq(['()', ['=>', 1, [], conditional("&&", ['<', ['arg', 0], 1_000], conditional("||", false, conditional("??", null, ['()', ['self'], [['+', ['arg', 0], 1]]])))], [0]], false)
         // the step after a call step continues from the call's value
         eq(['?.', ['{}', [[':', 'f', ['=>', 0, [], ['{}', [[':', 'x', 7]]]]]]], 'f', ['|()', [], ['|.', 'x']]], 7)
         // a tail call's failures are the call's: a callee that is not a
@@ -828,9 +829,9 @@ export const proof = {
         // The other side of `lazy`: with the left operand that does not
         // short-circuit, the thunk *is* forced and `boom` throws. Without
         // these, `o2lazy` returning `a` unconditionally would still pass.
-        forcedAnd: () => fails(['&&', true, boom]),
-        forcedOr: () => fails(['||', false, boom]),
-        forcedCoalesce: () => fails(['??', null, boom]),
+        forcedAnd: () => fails(conditional("&&", true, boom)),
+        forcedOr: () => fails(conditional("||", false, boom)),
+        forcedCoalesce: () => fails(conditional("??", null, boom)),
         forcedConsequent: () => fails(['?:', true, boom, 7]),
         forcedAlternate: () => fails(['?:', false, 7, boom]),
         // ... and `o2` forces it with no short-circuit to begin with.

@@ -8,6 +8,7 @@
  * @import { Analysis, Node } from '../analysis/types.ts'
  */
 
+import { conditional } from '../testlib.f.mjs'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
 import { fromFast } from '../from_fast/module.f.mjs'
@@ -29,7 +30,7 @@ export const proof = {
             ['()', ['=>', 0, [], 2], []], ['?.()', ['undefined'], []],
             ['?.', null, ['Number', 1]], ['?.', null, 'x', ['|.', 'y']],
             ['.', ['rest'], 'at', ['|()', [1]]],
-            ['&&', true, 2], ['||', false, 2], ['??', null, 2], ['?:', true, 1, 2],
+            conditional('&&', true, 2), conditional('||', false, 2), conditional('??', null, 2), ['?:', true, 1, 2],
             [',', [['[]', []], 2]], ['throw', 'failure'], ['[]', [['throw', 1]]],
         ]
         for (const graph of graphs) {
@@ -64,7 +65,7 @@ export const proof = {
     },
     regions: () => {
         const shared = /** @type {const} */ (['[]', []])
-        const graph = /** @type {const} */ (['[]', [['&&', true, shared], ['||', false, shared]]])
+        const graph = /** @type {const} */ (['[]', [conditional('&&', true, shared), conditional('||', false, shared)]])
         const fast = assertOk(toFast(graph))
         assert(fast.statements.some(statement => statement[0] === 'define' && statement[3] === 'lazy'))
         roundTrip(graph)
@@ -77,7 +78,7 @@ export const proof = {
         const anchored = /** @type {const} */ (['[]', []])
         const field = /** @type {const} */ (['.', anchored, 'length'])
         roundTrip([',', [anchored, ['?:', true, field, field]]])
-        roundTrip([',', [shared, ['&&', false, shared]]])
+        roundTrip([',', [shared, conditional('&&', false, shared)]])
         roundTrip([',', [shared, 2]])
         const call = /** @type {const} */ (['()', ['=>', 0, [], ['throw', 'failure']], []])
         roundTrip(['=>', 1, [], ['?:', ['arg', 0], [',', [call, 0]], call]])
@@ -141,7 +142,7 @@ export const proof = {
     anchorOrder: () => {
         const second = /** @type {const} */ (['[]', [1]])
         const before = /** @type {const} */ (['[]', [2]])
-        const graph = /** @type {Exp} */ ([',', [before, second, ['[]', [['&&', 1, ['[]', [second, second]]], ['&&', 2, ['[]', [2]]]]]]])
+        const graph = /** @type {Exp} */ ([',', [before, second, ['[]', [conditional('&&', 1, ['[]', [second, second]]), conditional('&&', 2, ['[]', [2]])]]]])
         roundTrip(graph)
     },
     deepExpressions: () => {

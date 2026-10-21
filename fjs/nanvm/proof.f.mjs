@@ -50,6 +50,7 @@ import {
     valueExp,
     valuesExp,
 } from './module.f.mjs'
+import { conditional } from '../edag/testlib.f.mjs'
 
 const { fromEntries, is } = Object
 
@@ -450,8 +451,8 @@ const unreachedOperand = {
     },
     /** In a lazy position the case answers, a container holding it too; in an eager one it returns an error. */
     lazy: () => {
-        assertEq(assertOk(corpus()(['&&', false, valueExp(unreached)])), false)
-        assertEq(assertOk(corpus()(['&&', false, valueExp([unreached])])), false)
+        assertEq(assertOk(corpus()(conditional('&&', false, valueExp(unreached)))), false)
+        assertEq(assertOk(corpus()(conditional('&&', false, valueExp([unreached])))), false)
         assertEq(assertOk(corpus()(['?:', true, 1, valueExp(unreached)])), 1)
     },
     failures: () => {

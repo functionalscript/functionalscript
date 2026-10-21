@@ -384,7 +384,7 @@ preparation; connecting the source feature later does not rewrite it.
   — FAST-first prerequisites and ordered integration gates.
 - [FAST loop construction](./fast-loop-construction.md)
   — explicit normalized loop inputs/results and root-loop identity rules.
-- [Short-circuit conditionals](./short-circuit-conditionals.md)
+- [Short-circuit conditionals](../README.md#source-logical-operators)
   — reduce canonical tail analysis to conditional and sequence forms.
 - [Compiler vocabulary and modularization](../../todo/compiler-vocabulary-and-modularization.md)
   — the common conversion owns loop lowering in the MVP.

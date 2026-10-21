@@ -48,7 +48,7 @@
  * body as the graph has it, and its text is the writer's.
  *
  * **Sharing decides how many times, never when.** An edge from a lazy
- * position — the right operand of `&&`, `||`, `??`, an arm of `?:` — counts
+ * position — an arm of `?:` or a guarded-chain operand — counts
  * as an edge, since the table records sharing and the executor decides when.
  *
  * **Refused.** A node reached from two scopes, which the compiler never
@@ -307,9 +307,6 @@ const handlers = {
     '<<': o2,
     '>>': o2,
     '>>>': o2,
-    '&&': o2,
-    '||': o2,
-    '??': o2,
     '?:': o3,
     // One operand and a constructor name: the name is metadata, carried
     // across as `arg`'s index is, never walked.

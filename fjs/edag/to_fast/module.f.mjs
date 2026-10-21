@@ -23,7 +23,6 @@ const ownOperands = node => node[0] === '=>' ? node[2] : operandsOf(node)
 /** Conditionally evaluated operands, including optional-chain regions. @type {(node: Node) => readonly Operand[]} */
 const lazyOperands = node => {
     switch (node[0]) {
-        case '&&': case '||': case '??': { return [node[2]] }
         case '?:': { return [node[2], node[3]] }
         case '.': { return node.length === 4 && node[3][0] === '|?.()' ? stepOperands(node[3]) : [] }
         case '?.': { return [node[2], ...stepOperands(node[3])] }
@@ -35,7 +34,7 @@ const lazyOperands = node => {
 /** @type {(node: Node) => readonly Operand[]} */
 const eagerOperands = node => {
     switch (node[0]) {
-        case '&&': case '||': case '??': case '?:': case '?.': case '?.()': { return [node[1]] }
+        case '?:': case '?.': case '?.()': { return [node[1]] }
         case '.': { return [node[1], node[2], ...node.length === 4 && node[3][0] === '|()' ? node[3][1].map(itemOperand) : []] }
         default: { return ownOperands(node) }
     }

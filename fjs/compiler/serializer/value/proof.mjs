@@ -7,6 +7,7 @@
  * @import { EdagValue, Function as FunctionValue } from '../../../edag/value/types.ts'
  */
 
+import { conditional } from '../../../edag/testlib.f.mjs'
 import { throws } from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
 
@@ -158,7 +159,7 @@ export const proof = {
     lazySharedBody: async () => {
         const shared = /** @type {const} */ (['[]', []])
         const fn = await compile(['=>', 2, [], ['[]', [
-            ['&&', ['arg', 0], shared], ['||', ['arg', 1], shared],
+            conditional('&&', ['arg', 0], shared), conditional('||', ['arg', 1], shared),
         ]]])
         const first = fn(true, false)
         const second = fn(true, false)

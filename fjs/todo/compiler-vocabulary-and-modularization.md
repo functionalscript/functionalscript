@@ -129,8 +129,8 @@ owners; this proposal does not require a Rust input parser.
   reinterpret destructuring or defaults. Preserve one evaluation of an
   initializer, use fresh bindings, retain relevant source origins, and
   preserve scope, conditional evaluation and observable function arity.
-  The [short-circuit owner](../edag/todo/short-circuit-conditionals.md) specifies
-  conditional lowering and schema migration after the FAST foundation gate.
+  The [short-circuit contract](../edag/README.md#source-logical-operators) records
+  the implemented conditional lowering and canonical schema migration.
 - **Graph construction preserves source sharing.** References to one binding
   refer to one graph node. Distinct equal expressions remain distinct unless
   an explicit, permitted optimization merges them.
@@ -572,7 +572,7 @@ old fold or a writer for later migration.
 The [let proposal](../../spec/todo/3220-let.md#later),
 [loop construction](../edag/todo/fast-loop-construction.md),
 [tail-call analysis](../edag/todo/tail-call-loop.md#general-tail-calls) and
-[short-circuit removal](../edag/todo/short-circuit-conditionals.md) own those
+[short-circuit removal](../edag/README.md#source-logical-operators) own those
 extensions. This architecture issue owns the shared foundation.
 Unrelated tokenizer moves and general directory reorganization do not block it.
 
@@ -634,7 +634,7 @@ parts do not delay the epic's foundation gate:
   caller-supplied corpus bindings use the common prepared FAST path.
 - [Tail-call loops](../edag/todo/tail-call-loop.md#fast-migration) — existing
   loop emission and its migration from writers into common FAST conversion.
-- [Short-circuit conditionals](../edag/todo/short-circuit-conditionals.md)
+- [Short-circuit conditionals](../edag/README.md#source-logical-operators)
   — later source sugar and canonical EDAG schema change.
 - [FAST loop construction](../edag/todo/fast-loop-construction.md)
   — later explicit-loop helper construction and graph round-trip rules.

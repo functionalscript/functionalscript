@@ -1,5 +1,4 @@
 mod add;
-mod and;
 mod bitand;
 mod bitor;
 mod bitxor;
@@ -13,10 +12,8 @@ mod instanceof_;
 mod mul;
 mod neg;
 mod not;
-mod nullish_coalescing;
 mod object_spread;
 mod option_call;
-mod or;
 mod partial_eq;
 mod relational;
 mod rem;

@@ -130,8 +130,6 @@ const precedence = input => {
     const op = value[0]
     if (op === 'function' || op === 'entry' || op === 'hasEntry' || (value.length === 1 && isIntrinsic(value))) { return 1 }
     if (op === 'if' || op === '?:') { return 2 }
-    if (op === '||' || op === '??') { return 3 }
-    if (op === '&&') { return 4 }
     if (op === '|') { return 5 }
     if (op === '^') { return 6 }
     if (op === '&') { return 7 }
@@ -276,17 +274,13 @@ const operatorText = (context, operator) => {
         default: {
             const level = precedence(operator)
             const [tag, left, right] = operator
-            const mixed = (/** @type {Value} */ value) => {
-                const operand = syntaxValue(value)
-                return ['&&', '||', '??'].includes(tag) && operand instanceof Array && ['&&', '||', '??'].includes(operand[0]) && (operand[0] === '??') !== (tag === '??')
-            }
             const leftText = expression(context, left, level + (tag === '**' ? 1 : 0))
             const leftValue = syntaxValue(left)
             const signedLeaf = typeof leftValue === 'number' && (leftValue < 0 || Object.is(leftValue, -0)) || typeof leftValue === 'bigint' && leftValue < 0n
             const unary = leftValue instanceof Array && ['-', '+', '~', '!', 'typeof'].includes(leftValue[0]) && leftValue.length === 2
             const l = tag === '**' && (signedLeaf || unary) ? `(${leftText})` : leftText
             const r = expression(context, right, level + (tag === '**' ? 0 : 1))
-            return `${mixed(left) && precedence(left) >= level ? `(${l})` : l}${tag}${mixed(right) && precedence(right) >= level + 1 ? `(${r})` : r}`
+            return `${l}${tag}${r}`
         }
     }
 }

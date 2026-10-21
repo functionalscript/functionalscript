@@ -4,6 +4,7 @@
  * @import { Exp, Function as FunctionExp, Op2Id } from '../../../edag/types.ts'
  */
 
+import { conditional } from '../../../edag/testlib.f.mjs'
 import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { staticIds } from '../../../edag/module.f.mjs'
@@ -116,8 +117,11 @@ export const proof = {
         for (const id of staticIds) { assertEq(text([id]), `()=>${id}`) }
         for (const op of /** @type {readonly Op2Id[]} */ ([
             '===', '!==', '<', '<=', '>', '>=', '*', '/', '%', '**',
-            '&', '|', '^', '<<', '>>', '>>>', '&&', '||', '??',
+            '&', '|', '^', '<<', '>>', '>>>',
         ])) { assertEq(text([op, 1, 2]), `()=>1${op}2`) }
+        assertEq(text(conditional('&&', 1, 2)), '()=>1?2:1')
+        assertEq(text(conditional('||', 1, 2)), '()=>1?1:2')
+        assertEq(text(conditional('??', 1, 2)), '()=>(1===null?true:1===undefined)?2:1')
     },
     chains: () => {
         /** @type {readonly (readonly [Exp, string])[]} */
@@ -150,9 +154,9 @@ export const proof = {
     },
     lazySharing: () => {
         const shared = /** @type {const} */ (['[]', []])
-        const body = /** @type {const} */ (['[]', [['&&', false, shared], ['||', true, shared]]])
-        assertEq(text(body), '()=>{const $0=(()=>{let $1,$2=false;return()=>{if(!$2){$1=[];$2=true;}return $1;};})();return [false&&$0(),true||$0()];}')
-        const withCapture = '()=>{const $1=(()=>{let $2,$3=false;return()=>{if(!$3){$2=[];$3=true;}return $2;};})();return [false&&$1(),true||$1()];}'
+        const body = /** @type {const} */ (['[]', [conditional('&&', false, shared), conditional('||', true, shared)]])
+        assertEq(text(body), '()=>{const $0=(()=>{let $1,$2=false;return()=>{if(!$2){$1=[];$2=true;}return $1;};})();return [false?$0():false,true?true:$0()];}')
+        const withCapture = '()=>{const $1=(()=>{let $2,$3=false;return()=>{if(!$3){$2=[];$3=true;}return $2;};})();return [false?$1():false,true?true:$1()];}'
         const captured = /** @type {const} */ (['[]', [2]])
         assertEq(render(['=>', 0, [captured], body]), withCapture)
         const other = /** @type {const} */ (['[]', [7]])
