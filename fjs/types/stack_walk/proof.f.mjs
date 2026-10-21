@@ -7,42 +7,46 @@ import { error, ok } from '../result/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 
 /**
- * A tree of numbers: a number leaf, an array of trees, or a string standing
- * for a refusal.
- *
- * @typedef {unknown} Tree
+ * Two walks over a tree of numbers — a number leaf, an array of trees, or
+ * anything else standing for a refusal: the sum of its leaves, and the same
+ * sum with the leaves visited counted on the way.
  */
+const sums = () => {
+    /** @typedef {{ readonly node: readonly unknown[], readonly index: number, readonly sum: number }} Frame */
 
-/** @typedef {{ readonly node: readonly Tree[], readonly index: number, readonly sum: number }} Frame */
+    /** @type {(frame: Frame) => Step<unknown, Frame, number, string>} */
+    const round = frame => frame.index < frame.node.length
+        ? ['push', frame, frame.node[frame.index]]
+        : ok(frame.sum)
 
-/** @type {(frame: Frame) => Step<Tree, Frame, number, string>} */
-const round = frame => frame.index < frame.node.length
-    ? ['push', frame, frame.node[frame.index]]
-    : ok(frame.sum)
+    /** @type {(frame: Frame, value: number) => Step<unknown, Frame, number, string>} */
+    const next = ({ node, index, sum }, value) => round({ node, index: index + 1, sum: sum + value })
 
-/** The sum of a tree's leaves; a string leaf is an error. */
-const sum = walk({
-    /** @type {(node: Tree) => Step<Tree, Frame, number, string>} */
-    enter: node => typeof node === 'number' ? ok(node)
-        : node instanceof Array ? round({ node, index: 0, sum: 0 })
-        : error(String(node)),
-    /** @type {(frame: Frame, value: number) => Step<Tree, Frame, number, string>} */
-    resume: ({ node, index, sum }, value) => round({ node, index: index + 1, sum: sum + value }),
-})
+    const sum = walk({
+        /** @type {(node: unknown) => Step<unknown, Frame, number, string>} */
+        enter: node => typeof node === 'number' ? ok(node)
+            : node instanceof Array ? round({ node, index: 0, sum: 0 })
+            : error(String(node)),
+        resume: next,
+    })
 
-/** The same sum, counting the leaves visited on the way. */
-const counted = walkFold({
-    /** @type {(acc: number, node: Tree) => readonly [number, Step<Tree, Frame, number, string>]} */
-    enter: (acc, node) => typeof node === 'number' ? [acc + 1, ok(node)]
-        : node instanceof Array ? [acc, round({ node, index: 0, sum: 0 })]
-        : [acc, error(String(node))],
-    /** @type {(acc: number, frame: Frame, value: number) => readonly [number, Step<Tree, Frame, number, string>]} */
-    resume: (acc, { node, index, sum }, value) => [acc, round({ node, index: index + 1, sum: sum + value })],
-})(0)
+    const counted = walkFold({
+        /** @type {(acc: number, node: unknown) => readonly [number, Step<unknown, Frame, number, string>]} */
+        enter: (acc, node) => typeof node === 'number' ? [acc + 1, ok(node)]
+            : node instanceof Array ? [acc, round({ node, index: 0, sum: 0 })]
+            : [acc, error(String(node))],
+        /** @type {(acc: number, frame: Frame, value: number) => readonly [number, Step<unknown, Frame, number, string>]} */
+        resume: (acc, frame, value) => [acc, next(frame, value)],
+    })(0)
 
-/** A tree nested `depth` levels deep around one leaf. @type {(depth: number) => Tree} */
+    return { sum, counted }
+}
+
+const { sum, counted } = sums()
+
+/** A tree nested `depth` levels deep around one leaf. @type {(depth: number) => unknown} */
 const nested = depth => {
-    /** @type {Tree} */
+    /** @type {unknown} */
     let tree = 1
     for (let i = 0; i < depth; ++i) { tree = [tree] }
     return tree
