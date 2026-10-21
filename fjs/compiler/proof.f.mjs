@@ -668,22 +668,28 @@ export const proof = {
             // an unused alias of the name is dropped with the `const`, as an alias of a capture is
             assertEq(fjsRoundTrip('const f = () => { const g = f; return 1; };\nexport default f;'), 'export default ()=>1;')
         },
+        // Source logical syntax lowers once to conditionals. Each left value
+        // is established once, right-side work stays in the selected arm,
+        // and branch-local or captured arrays retain their shared identity.
+        logical: () => {
+            assertEq(fjsRoundTrip('export default (...a) => (a[0] && a[1] || a[2]) ?? a[3];'), 'export default (...$0)=>{const $1=$0[0];const $2=$1?$0[1]:$1;const $3=$2?$2:$0[2];return ($3===null?true:$3===undefined)?$0[3]:$3;};')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] && (() => { const x = null.x; return 1; })();'), 'export default (...$0)=>{const $1=$0[0];return $1?(()=>{const $2=null.x;return 1;})():$1;};')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;'), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];const $2=$0[1];const $3=$0[2];return [$2?$1:$2,$3?$1:$3];})():4;')
+            assertEq(fjsRoundTrip('const c = []; export default (...a) => [a[0] && c, a[1] && c];'), 'const $0=[];export default (...$1)=>{const $2=$1[0];const $3=$1[1];return [$2?$0:$2,$3?$0:$3];};')
+            assertEq(fjsRoundTrip('export default (...a) => (a[0] + 1) && a[1] + (a[2] ? 1 : 2);'), 'export default (...$0)=>{const $1=$0[0]+1;return $1?$0[1]+($0[2]?1:2):$1;};')
+        },
         // The lazy operators and the conditional, and the block a lazy
         // operand opens where it needs one: a call of a parameterless
         // function written at the call, which the lowering inlines, so
         // the text reads back as the graph it was written from — the same
         // graph, not the same text: `(() => [1, 2])()` is the array.
         lazy: () => {
-            assertEq(fjsRoundTrip('export default (...a) => (a[0] && a[1] || a[2]) ?? a[3];'), 'export default (...$0)=>($0[0]&&$0[1]||$0[2])??$0[3];')
             assertEq(fjsRoundTrip('export default (...a) => a[0] ? a[1] ? 1 : 2 : a[2] ? 3 : 4;'), 'export default (...$0)=>$0[0]?$0[1]?1:2:$0[2]?3:4;')
             assertEq(fjsRoundTrip('export default (() => [1, 2])();'), 'export default [1,2];')
             assertEq(fjsRoundTrip('export default (() => { const x = [1]; return [x, x]; })();'), 'const $0=[1];export default [$0,$0];')
             assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4;'), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];return [$1,$1];})():4;')
-            assertEq(fjsRoundTrip('export default (...a) => a[0] && (() => { const x = null.x; return 1; })();'), 'export default (...$0)=>$0[0]&&(()=>{const $1=null.x;return 1;})();')
             assertEq(fjsRoundTrip('export default (...a) => [(() => { const x = null.x; return 1; })()];'), 'export default ()=>{const $0=null.x;return [1];};')
-            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;'), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];return [$0[1]&&$1,$0[2]&&$1];})():4;')
             assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x, (() => { const y = [2]; return a[1] ? [y, y] : 1; })()]; })() : 4;'), 'export default (...$0)=>$0[0]?(()=>{const $1=[2];const $2=[1];return [$2,$2,$0[1]?[$1,$1]:1];})():4;')
-            assertEq(fjsRoundTrip('const c = []; export default (...a) => [a[0] && c, a[1] && c];'), 'const $0=[];export default (...$1)=>[$1[0]&&$0,$1[1]&&$0];')
             assertEq(fjsRoundTrip('export default (...a) => { const y = a[0] ? [] : 1; return [y, y]; };'), 'export default (...$0)=>{const $1=$0[0]?[]:1;return [$1,$1];};')
             // an unused alias of a capture leaves no slot behind, in a body
             // or in a call inlined into one; the `const` is anchored instead
@@ -759,7 +765,6 @@ export const proof = {
             assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
             assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
             assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -(()=>1);')
-            assertEq(fjsRoundTrip('export default (...a) => (a[0] + 1) && a[1] + (a[2] ? 1 : 2);'), 'export default (...$0)=>$0[0]+1&&$0[1]+($0[2]?1:2);')
             assertEq(fjsRoundTrip('const o = []; export default [o + 1, o + 1];'), 'const $0=[];export default [$0+1,$0+1];')
             assertEq(compileSource('export default 1 + 2 * 3;')('x.edag.data.js'), 'export default ["{}",[[":","default",["+",1,["*",2,3]]]]];')
             assertEq(compileSource('export default 1 + 2;')('output.data.js'), 'export default 3;')
@@ -1088,6 +1093,26 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'export default [-1, -1n, - -1, -Infinity, -0];',
                 '[f64_any(0xbff0000000000000), bigint_any(-1), f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000), f64_any(0x8000000000000000)].to_array().to_any()')
         },
+        // Logical source syntax uses canonical conditional regions in Rust.
+        // A selected failing right operand stays inside its arm; an eagerly
+        // established shared array is reused by both selecting arms.
+        logicalOperators: () => {
+            /** The lines of the module's body. @type {(source: string) => readonly string[]} */
+            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
+            assertStructurallySame(body('export default 1 && 2;'), [
+                '    Ok([(string_key("default"), if Any::<A>::to_boolean(f64_any(0x3ff0000000000000)) { f64_any(0x4000000000000000) } else { f64_any(0x3ff0000000000000) })].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default false || 1n / 0n;'), [
+                '    Ok([(string_key("default"), if Any::<A>::to_boolean(false.to_any()) { false.to_any() } else { (bigint_any(1) / bigint_any(0))? })].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default null ?? 1;'), [
+                '    Ok([(string_key("default"), if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(Nullish::Null.to_any(), Nullish::Undefined.to_any()))? }) { f64_any(0x3ff0000000000000) } else { Nullish::Null.to_any() })].to_object().to_any())',
+            ])
+            assertStructurallySame(body('const c = [1]; export default [false && c, true && c];'), [
+                '    let _b0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                '    Ok([(string_key("default"), [if Any::<A>::to_boolean(false.to_any()) { _b0.clone() } else { false.to_any() }, if Any::<A>::to_boolean(true.to_any()) { _b0.clone() } else { true.to_any() }].to_array().to_any())].to_object().to_any())',
+            ])
+        },
         // A lazy operator's conditionally established operand prints as
         // the thunk `nanvm-lib` takes — `|| Ok(…)` around a value, an
         // operation's own line bound to a closure — so the `1n / 0n` a
@@ -1098,32 +1123,9 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
             const one = 'f64_any(0x3ff0000000000000)'
             const two = 'f64_any(0x4000000000000000)'
-            assertStructurallySame(body('export default 1 && 2;'), [
-                `    let c0: Any<A> = (Any::logical_and(${one}, || Ok(${two})))?;`,
-                '    Ok([(string_key("default"), c0)].to_object().to_any())',
-            ])
-            assertStructurallySame(body('export default false || 1n / 0n;'), [
-                '    let c0 = || bigint_any(1) / bigint_any(0);',
-                '    let c1: Any<A> = (Any::logical_or(false.to_any(), c0))?;',
-                '    Ok([(string_key("default"), c1)].to_object().to_any())',
-            ])
-            assertStructurallySame(body('export default null ?? 1;'), [
-                `    let c0: Any<A> = (Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(${one})))?;`,
-                '    Ok([(string_key("default"), c0)].to_object().to_any())',
-            ])
             assertStructurallySame(body('export default true ? 1 : 2;'), [
                 `    let c0: Any<A> = (Any::conditional(true.to_any(), || Ok(${one}), || Ok(${two})))?;`,
                 '    Ok([(string_key("default"), c0)].to_object().to_any())',
-            ])
-            // a `const` reached only lazily is anchored — a `let` before
-            // the root, as JavaScript establishes a `const` at its
-            // declaration — and each thunk clones it
-            assertStructurallySame(body('const c = [1]; export default [false && c, true && c];'), [
-                `    let c0: Any<A> = [${one}].to_array().to_any();`,
-                '    let c1: Any<A> = (Any::logical_and(false.to_any(), || Ok(c0.clone())))?;',
-                '    let c2: Any<A> = (Any::logical_and(true.to_any(), || Ok(c0.clone())))?;',
-                '    let c3: Any<A> = [c1, c2].to_array().to_any();',
-                '    Ok([(string_key("default"), c3)].to_object().to_any())',
             ])
             // a function's arguments reached only lazily are no `const`
             // to anchor and need none: the parameter is bound already, so
