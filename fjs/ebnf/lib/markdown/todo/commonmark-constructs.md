@@ -20,15 +20,17 @@ than argued from the spec:
 | --- | --- | --- |
 | `**see [details](u)**` | bold around a link | refused |
 | `[**details**](u)` | a link whose words are bold | refused |
-| a two-backtick code span | one code span holding `x` | refused |
+| a two-backtick code span | one code span holding `x` | read as that span, one space stripped each side; three backticks refused |
 | a code span padded with spaces | `code` — one stripped each side | refused |
-| `a * b * c` | three words and two asterisks | refused |
+| `a * b * c` | three words and two asterisks | refused, after the grammar matches it |
+| `` **`a` b** `` | bold holding code | read as that |
 | `[x](a(b)c)` | a link to `a(b)c` | refused |
 | `[x](u "t")` | a link to `u`, titled `t` | refused |
 | `[x](<u>)` | a link to `u` | refused |
 | `![alt](u)` | an image | refused |
-| a nested list marker | a list inside the item | refused |
-| a blank line inside an item | two paragraphs | refused |
+| a nested list marker | a list inside the item | read as that in a README; refused in a release file |
+| a blank line inside an item | two paragraphs, a loose list | read as that in a README; refused in a release file |
+| a pipe table | a table (GitHub's extension) | read as that in a README when every row opens with a pipe; refused in a release file |
 | `-     code`, five spaces after the dash | an indented code block in the item | refused |
 
 ### What is accepted and still read differently
@@ -50,7 +52,7 @@ the README renderer needed are now read as GitHub reads them or refused
 | a bare `https://…` or `www.…` | a link (GitHub's extension) | refused |
 | `~~a~~` | strikethrough (GitHub's extension) | refused; one `~` is text |
 | a line ending in two spaces or a backslash | a hard line break | joined with a space; two spaces refused in a README |
-| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose in a release file; refused in a README |
+| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose in a release file; refused in a README, but for `- - a`, a nested list there |
 | `  1. x`, `  # h` on a continuation | the same | prose |
 
 The last two rows are the sharpest: an indented `- child` **is** refused, as a

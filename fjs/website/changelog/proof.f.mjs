@@ -146,8 +146,8 @@ const render = {
         // two thirds of every entry.
         text: () => assertEq(spanNode(['text', 'a']), 'a'),
         code: () => assertStructurallySame(spanNode(['code', 'a']), ['code', 'a']),
-        strong: () => assertStructurallySame(spanNode(['strong', 'a']), ['strong', 'a']),
-        em: () => assertStructurallySame(spanNode(['em', 'a']), ['em', 'a']),
+        strong: () => assertStructurallySame(spanNode(['strong', [['text', 'a'], ['code', 'b']]]), ['strong', 'a', ['code', 'b']]),
+        em: () => assertStructurallySame(spanNode(['em', [['text', 'a']]]), ['em', 'a']),
         link: () => assertStructurallySame(
             spanNode(['link', [['text', 'a'], ['code', 'b']], 'u']), ['a', { href: 'u' }, 'a', ['code', 'b']]),
     },

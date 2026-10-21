@@ -782,9 +782,15 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-readme] h4 { font-size: 1.25em }
 [data-readme] h5 { font-size: 1em }
 [data-readme] h6 { color: var(--muted); font-size: .875em }
-[data-readme] :is(p, ul, pre) { margin: 0 0 1rem }
+[data-readme] :is(p, ul, pre, table) { margin: 0 0 1rem }
 [data-readme] ul { padding-left: 2em }
 [data-readme] li + li { margin-top: .25em }
+[data-readme] li > :is(p, pre) { margin-top: 1rem }
+[data-readme] li > ul { margin: .25em 0 0 }
+[data-readme] table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; width: max-content }
+[data-readme] :is(th, td) { border: 1px solid var(--border); padding: 6px 13px }
+[data-readme] th { font-weight: 600 }
+[data-readme] tbody tr:nth-child(2n) { background: color-mix(in srgb, var(--border) 25%, var(--bg)) }
 [data-readme] a, [data-readme] a:visited { color: var(--value); text-decoration: none }
 [data-readme] a:hover { text-decoration: underline }
 [data-readme] code { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border-radius: 6px; font: 85% ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: .2em .4em; white-space: break-spaces }

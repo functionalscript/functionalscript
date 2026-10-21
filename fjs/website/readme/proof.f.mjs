@@ -43,8 +43,8 @@ export const proof = {
     },
     slug: {
         words: () => assertEq(slug([['text', 'Hello, World!']]), 'hello-world'),
-        spans: () => assertEq(slug([['code', 'a_b'], ['text', ' – '], ['link', [['text', 'C'], ['code', 'd']], 'u'], ['em', 'É']]), 'a_b--cdé'),
-        digits: () => assertEq(slug([['strong', '10-2']]), '10-2'),
+        spans: () => assertEq(slug([['code', 'a_b'], ['text', ' – '], ['link', [['text', 'C'], ['code', 'd']], 'u'], ['em', [['text', 'É']]]]), 'a_b--cdé'),
+        digits: () => assertEq(slug([['strong', [['text', '10-'], ['code', '2']]]]), '10-2'),
     },
     anchors: () => assertStructurallySame(
         anchors([['heading', 1, [['text', 'A']]], ['paragraph', []], ['heading', 2, [['text', 'a']]], ['heading', 2, [['text', 'B']]], ['heading', 3, [['text', 'A']]]]),
@@ -59,25 +59,31 @@ export const proof = {
             const blocks = [
                 ['heading', 1, [['text', 'T']]],
                 ['heading', 6, [['text', 'S']]],
-                ['paragraph', [['text', 'a '], ['code', 'b'], ['strong', 'c'], ['em', 'd'], ['link', [['text', 'e '], ['code', 'f']], 'g']]],
+                ['paragraph', [['text', 'a '], ['code', 'b'], ['strong', [['text', 'c'], ['code', 'h']]], ['em', [['text', 'd']]], ['link', [['text', 'e '], ['code', 'f']], 'g']]],
                 ['code', 'js', 'x'],
                 ['code', '', 'y'],
-                ['list', [[['text', 'i']], [['text', 'j']]]],
+                ['list', false, [[['paragraph', [['text', 'i']]], ['list', true, [[['paragraph', [['text', 'k']]]]]]], [['paragraph', [['text', 'j']]]]]],
+                ['table', [null, 'center'], [[['text', 'h']], []], [[[['code', 'c']], [['text', 'd']]]]],
+                ['table', ['left'], [[['text', 'h']]], []],
             ]
             assertStructurallySame(readmeNodes(href)(blocks), ok([
                 ['h2', { id: 't' }, 'T'],
                 ['h6', { id: 's' }, 'S'],
-                ['p', 'a ', ['code', 'b'], ['strong', 'c'], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
+                ['p', 'a ', ['code', 'b'], ['strong', 'c', ['code', 'h']], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
                 ['pre', ['code', { class: 'language-js' }, 'x']],
                 ['pre', ['code', 'y']],
-                ['ul', ['li', 'i'], ['li', 'j']],
+                ['ul', ['li', 'i', ['ul', ['li', ['p', 'k']]]], ['li', 'j']],
+                ['table', ['thead', ['tr', ['th', 'h'], ['th', { align: 'center' }]]], ['tbody', ['tr', ['td', ['code', 'c']], ['td', { align: 'center' }, 'd']]]],
+                ['table', ['thead', ['tr', ['th', { align: 'left' }, 'h']]]],
             ]))
         },
         // A link it cannot place refuses the README, wherever it stands.
         refuses: {
             heading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['link', [['text', 'x']], 'bad']]]]), error('no')),
             paragraph: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['text', 'a'], ['link', [['text', 'x']], 'bad']]]]), error('no')),
-            list: () => assertStructurallySame(readmeNodes(href)([['list', [[['link', [['text', 'x']], 'bad']]]]]), error('no')),
+            list: () => assertStructurallySame(readmeNodes(href)([['list', false, [[['paragraph', [['link', [['text', 'x']], 'bad']]]]]]]), error('no')),
+            header: () => assertStructurallySame(readmeNodes(href)([['table', [null], [[['link', [['text', 'x']], 'bad']]], []]]), error('no')),
+            row: () => assertStructurallySame(readmeNodes(href)([['table', [null], [[]], [[[['link', [['text', 'x']], 'bad']]]]]]), error('no')),
         },
     },
     readmeSection: {

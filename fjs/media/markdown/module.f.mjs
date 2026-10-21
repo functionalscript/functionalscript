@@ -25,7 +25,7 @@
  * @import { Utf16 } from '../../ebnf/utf16/types.ts'
  * @import { RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Block, Blocks, Document, Entry, Inline, Label } from './types.ts'
+ * @import { Align, Block, Blocks, Document, Entry, Inline, Label } from './types.ts'
  */
 
 import { unmapped } from '../../ebnf/ast/module.f.js'
@@ -49,34 +49,67 @@ const parseEntry = parser([entryRule, eof], nothing)
 const arr = node => unmapped(/** @type {readonly unknown[]} */(node))
 
 /**
- * A link's label as its spans: text and code alternating, as an entry's do,
- * a code span being the `code` rule's own tuple rather than a branch.
+ * A code span's text. A single-backtick body is the code as written. A
+ * double-backtick body runs through the two backticks that close it, and
+ * CommonMark strips one space from each end when both ends have one, so
+ * ``` `` f`x` `` ``` is the code `` f`x` ``.
  *
- * @type {(node: unknown) => readonly Label[]}
+ * @type {(node: unknown) => string}
  */
-const labelOf = node => {
-    const [lead, rest] = arr(node)
+const codeText = node => {
+    const [kind, body] = arr(arr(node)[1])
+    if (kind === 'single') { return lexeme(arr(body)[0]) }
+    const text = lexeme(arr(body)[1]).slice(0, -2)
+    return text.length > 1 && text.startsWith(' ') && text.endsWith(' ') ? text.slice(1, -1) : text
+}
+
+/**
+ * Text and code alternating, as a link's label and a bold body hold them:
+ * the leading run, if any, then each code span and the run after it.
+ *
+ * @type {(lead: unknown, pairs: unknown) => readonly Label[]}
+ */
+const labelsOf = (lead, pairs) => {
     /** @type {readonly Label[]} */
-    const head = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
-    return [...head, ...arr(rest).flatMap(pair => {
+    const head = lead === undefined || arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
+    return [...head, ...arr(pairs).flatMap(pair => {
         const [code, tail] = arr(pair)
         /** @type {readonly Label[]} */
         const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
-        return [/** @type {Label} */(['code', lexeme(arr(code)[1])]), ...after]
+        return [/** @type {Label} */(['code', codeText(code)]), ...after]
     })]
+}
+
+/** A link's label as its spans. @type {(node: unknown) => readonly Label[]} */
+const labelOf = node => {
+    const [lead, rest] = arr(node)
+    return labelsOf(lead, rest)
+}
+
+/**
+ * A bold or emphasised body as its spans, by the branch the grammar took:
+ * one opening with text, or one opening with a code span.
+ *
+ * @type {(node: unknown) => readonly Label[]}
+ */
+const emphasisOf = node => {
+    const [tag, body] = arr(node)
+    if (tag === 'code') { return labelsOf(undefined, body) }
+    const [lead, rest] = arr(body)
+    return labelsOf(lead, rest)
 }
 
 /**
  * One delimited span, by the branch the grammar took. Each case indexes the
- * rule's own tuple: `code` is the body between its backticks, `strong` the
- * body after the two asterisks it opens with, `em` the body before the one
- * it closes with, and a `link` its text and the two parts of its target.
+ * rule's own tuple: `strong` is the body after the two asterisks it opens
+ * with, `em` the body before the one it closes with, and a `link` its label
+ * and the two parts of its target.
  *
  * @type {(node: unknown) => Inline}
  */
 const spanOf = node => {
     const [tag, body] = arr(node)
-    if (tag === 'code') { return ['code', lexeme(arr(body)[1])] }
+    if (tag === 'code') { return ['code', codeText(body)] }
     if (tag === 'link') {
         const l = arr(body)
         // A target is its first symbol, which may not open the angle-bracket
@@ -85,8 +118,8 @@ const spanOf = node => {
     }
     const [kind, inner] = arr(arr(body)[1])
     return kind === 'strong'
-        ? ['strong', lexeme(arr(inner)[1])]
-        : ['em', lexeme(arr(inner)[0])]
+        ? ['strong', emphasisOf(arr(inner)[1])]
+        : ['em', emphasisOf(arr(inner)[0])]
 }
 
 /**
@@ -300,10 +333,16 @@ const readProse = entry => {
             out = [...out, ...read[1]]
             continue
         }
-        const texts = span[0] === 'link'
-            ? span[1].flatMap(l => l[0] === 'text' ? [l[1]] : [])
-            : [span[1]]
+        const texts = span[1].flatMap(l => l[0] === 'text' ? [l[1]] : [])
         if (span[0] === 'link' && span[1].length === 0) { return error('a link with an empty label') }
+        // CommonMark reads an asterisk with a space inside it as no
+        // delimiter at all, so `a * b * c` is prose there and a body
+        // padded with a space is refused here, not read as emphasis.
+        const first = span[1][0]
+        const last = span[1][span[1].length - 1]
+        if (span[0] !== 'link' && ((first[0] === 'text' && first[1].startsWith(' ')) || (last[0] === 'text' && last[1].endsWith(' ')))) {
+            return error('bold or emphasis padded with a space')
+        }
         const refused = texts.map(proseSpans(false)).find(r => r[0] === 'error')
         if (refused !== undefined) { return /** @type {Result<Entry, string>} */(refused) }
         out = [...out, span]
@@ -414,103 +453,204 @@ const inlineAt = (line, text) => {
 }
 
 /**
- * A README as its blocks, or the first line GitHub reads as something these
- * blocks cannot hold
- * ([`render-readme`](../../website/todo/render-readme.md)).
+ * A table row's cells as their text: the row without the pipes that open
+ * and close it, split at every pipe between. A pipe inside a code span
+ * splits it too, as it does on GitHub, which is why a cell's text is read
+ * only once it is a cell.
  *
- * The blocks are the ones a README is written in: an ATX heading, a
- * paragraph, a code fence opened by three backticks, and a list of `- `
- * items. A list is read by {@link entryTexts}, the release file's own
- * reader, so a README's list and a changelog's are one rule: wrapped lines
- * indented by two spaces, no nested list, no blank line between items.
- *
- * **What GitHub reads differently is refused, not approximated.** A blank
- * line between two items makes GitHub's list loose; a line after a list
- * with no blank before it continues GitHub's last item; a heading closed
- * by `#`s loses them there. Each would be a different page here, so each
- * is the refusal that keeps the README a link to GitHub instead.
- *
- * @type {(text: string) => Result<Blocks, string>}
+ * @type {(row: string) => readonly string[]}
  */
-export const tryParseBlocks = text => {
-    const lines = text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line)
-    /** @type {readonly Block[]} */
+const cells = row => {
+    const t = row.trim()
+    return t.slice(1, t.endsWith('|') && t.length > 1 ? -1 : t.length).split('|').map(c => c.trim())
+}
+
+/**
+ * A delimiter cell's alignment, or `undefined` for a cell that is not one:
+ * a run of `-` with an optional `:` at either end.
+ *
+ * @type {(cell: string) => Align | undefined}
+ */
+const alignOf = cell => {
+    const left = cell.startsWith(':')
+    const right = cell.endsWith(':') && cell.length > 1
+    const dashes = cell.slice(left ? 1 : 0, right ? -1 : cell.length)
+    if (dashes === '' || [...dashes].some(c => c !== '-')) { return undefined }
+    return left && right ? 'center' : left ? 'left' : right ? 'right' : null
+}
+
+/**
+ * The column alignments a header row and the line under it open a table
+ * with, or `null` where GitHub reads no table: the row must open with a
+ * pipe, and the line under it be a delimiter row with as many cells.
+ *
+ * @type {(header: string, delimiter: string | undefined) => readonly Align[] | null}
+ */
+const tableAligns = (header, delimiter) => {
+    if (!header.startsWith('|') || delimiter === undefined || !delimiter.startsWith('|')) { return null }
+    const aligns = cells(delimiter).map(alignOf)
+    if (aligns.some(a => a === undefined) || aligns.length !== cells(header).length) { return null }
+    return /** @type {readonly Align[]} */(aligns)
+}
+
+/**
+ * A run of lines as its blocks, each with the indexes of its first and last
+ * line, or the first line GitHub reads as something these blocks cannot
+ * hold. `base` is the source line the run starts after, so that a refusal
+ * inside a list item names the line in the file; `inItem` says the run is
+ * a list item's, where a heading is refused.
+ *
+ * @type {(base: number, inItem: boolean) => (lines: readonly string[]) => Result<readonly (readonly [Block, number, number])[], string>}
+ */
+const readBlocks = (base, inItem) => lines => {
+    /** @type {readonly (readonly [Block, number, number])[]} */
     let out = []
     let i = 0
+    /** @type {(at: number, why: string) => Result<readonly (readonly [Block, number, number])[], string>} */
+    const refuseAt = (at, why) => error(`line ${base + at + 1}: ${why}`)
     while (i < lines.length) {
         const line = lines[i]
-        const at = i + 1
-        /** @type {(why: string) => Result<Blocks, string>} */
-        const refuse = why => error(`line ${at}: ${why}`)
+        const at = base + i + 1
         if (line.trim() === '') { i++; continue }
         if (isFence(line)) {
             const info = line.slice(3)
-            if (info.includes('`') || info.includes(' ')) { return refuse('a code fence whose info string is not one word') }
+            if (info.includes('`') || info.includes(' ')) { return refuseAt(i, 'a code fence whose info string is not one word') }
             const close = lines.indexOf('```', i + 1)
-            if (close === -1) { return refuse('a code fence that is never closed') }
-            out = [...out, ['code', info, lines.slice(i + 1, close).join('\n')]]
+            if (close === -1) { return refuseAt(i, 'a code fence that is never closed') }
+            out = [...out, [['code', info, lines.slice(i + 1, close).join('\n')], i, close]]
             i = close + 1
             continue
         }
         const level = headingLevel(line)
         if (level !== 0) {
+            // A heading inside an item has no anchor GitHub would give it
+            // the same way, so it is not read as one.
+            if (inItem) { return refuseAt(i, 'a heading inside a list item') }
             const content = line.slice(level + 1).trim()
-            if (content === '' || content.endsWith('#')) { return refuse('a heading that is empty or closed by `#`') }
+            if (content === '' || content.endsWith('#')) { return refuseAt(i, 'a heading that is empty or closed by `#`') }
             const spans = inlineAt(at, content)
             if (spans[0] === 'error') { return spans }
-            out = [...out, ['heading', level, spans[1]]]
+            out = [...out, [['heading', level, spans[1]], i, i]]
             i++
             continue
         }
         if (line.startsWith('- ')) {
-            let end = i
-            while (end < lines.length && lines[end].trim() !== '') {
-                const item = lines[end]
-                if (!item.startsWith('- ') && !item.startsWith('  ')) {
-                    return error(`line ${end + 1}: a line that GitHub reads as part of the list item above it`)
+            /** @type {readonly Blocks[]} */
+            let items = []
+            let loose = false
+            let j = i
+            let more = true
+            while (more) {
+                const start = j
+                const first = lines[j].slice(2)
+                // A marker with nothing after it, or with more than one
+                // space, sets the item's text at a column its other lines
+                // would have to match; every item here is written `- text`.
+                if (first.trim() === '' || first.startsWith(' ')) {
+                    return refuseAt(j, 'a list item whose text does not follow its marker')
                 }
-                const content = item.trim().slice(item.startsWith('- ') ? 2 : 0).trim()
-                // The trim would drop the two spaces of a hard break, so it is asked first.
-                const foreign = item.endsWith('  ') ? 'a hard line break'
-                    : headingLevel(content) !== 0 ? 'a heading' : foreignBlock(content)
-                if (foreign !== null) {
-                    return error(`line ${end + 1}: ${foreign} inside a list item`)
+                /** @type {readonly string[]} */
+                let body = [first]
+                j++
+                while (j < lines.length && !lines[j].startsWith('- ')) {
+                    const l = lines[j]
+                    if (l.trim() === '') {
+                        // A blank line stays in the item when an indented
+                        // line follows it, and ends the list otherwise.
+                        let k = j
+                        while (k < lines.length && lines[k].trim() === '') { k++ }
+                        if (k === lines.length || !lines[k].startsWith('  ')) { break }
+                        body = [...body, ...lines.slice(j, k).map(() => '')]
+                        j = k
+                        continue
+                    }
+                    if (!l.startsWith('  ')) {
+                        return refuseAt(j, 'a line that GitHub reads as part of the list item above it')
+                    }
+                    body = [...body, l.slice(2)]
+                    j++
                 }
-                end++
+                const read = readBlocks(base + start, true)(body)
+                if (read[0] === 'error') { return read }
+                const placed = read[1]
+                // A blank line between two blocks of one item loosens it.
+                loose = loose || placed.some((p, k) => k !== 0 && p[1] > placed[k - 1][2] + 1)
+                items = [...items, placed.map(p => p[0])]
+                let k = j
+                while (k < lines.length && lines[k].trim() === '') { k++ }
+                more = k < lines.length && lines[k].startsWith('- ')
+                // So does one between two items.
+                loose = loose || (more && k !== j)
+                j = more ? k : start + body.length
             }
-            let next = end
-            while (next < lines.length && lines[next].trim() === '') { next++ }
-            if (next < lines.length && next !== end && lines[next].startsWith('- ')) {
-                return error(`line ${next + 1}: a list item after a blank line, which GitHub reads as a loose list`)
+            out = [...out, [['list', loose, items], i, j - 1]]
+            i = j
+            continue
+        }
+        const aligns = tableAligns(line, lines[i + 1])
+        if (aligns !== null) {
+            let end = i + 2
+            while (end < lines.length && lines[end].trim() !== '') { end++ }
+            const rows = lines.slice(i, end)
+            /** @type {(readonly Entry[])[]} */
+            let read = []
+            for (const [r, row] of rows.entries()) {
+                if (r === 1) { continue }
+                // An escaped pipe is a cell's content on GitHub, and a
+                // split here.
+                if (row.includes('\\|')) { return refuseAt(i + r, 'an escaped pipe in a table') }
+                if (!row.startsWith('|')) { return refuseAt(i + r, 'a table row that does not open with a pipe') }
+                const texts = cells(row)
+                if (texts.length !== aligns.length) { return refuseAt(i + r, 'a table row whose cells do not match its header') }
+                /** @type {readonly Entry[]} */
+                let entries = []
+                for (const t of texts) {
+                    const spans = inlineAt(at + r, t)
+                    if (spans[0] === 'error') { return spans }
+                    entries = [...entries, spans[1]]
+                }
+                read = [...read, entries]
             }
-            const texts = entryTexts(lines.slice(i, end).join('\n'))
-            if (texts[0] === 'error') { return refuse(texts[1]) }
-            /** @type {readonly Entry[]} */
-            let entries = []
-            for (const t of texts[1]) {
-                const spans = inlineAt(at, t)
-                if (spans[0] === 'error') { return spans }
-                entries = [...entries, spans[1]]
-            }
-            out = [...out, ['list', entries]]
+            out = [...out, [['table', aligns, read[0], read.slice(1)], i, end - 1]]
             i = end
             continue
         }
         const foreign = foreignBlock(line)
-        if (foreign !== null) { return refuse(foreign) }
+        if (foreign !== null) { return refuseAt(i, foreign) }
         let end = i + 1
         while (end < lines.length && lines[end].trim() !== ''
             && headingLevel(lines[end]) === 0 && !isFence(lines[end]) && !lines[end].startsWith('- ')) {
             const continued = foreignBlock(lines[end].trimStart())
-            if (continued !== null) {
-                return error(`line ${end + 1}: ${continued}`)
-            }
+            if (continued !== null) { return refuseAt(end, continued) }
             end++
         }
         const spans = inlineAt(at, lines.slice(i, end).map(l => l.trim()).join(' '))
         if (spans[0] === 'error') { return spans }
-        out = [...out, ['paragraph', spans[1]]]
+        out = [...out, [['paragraph', spans[1]], i, end - 1]]
         i = end
     }
     return ok(out)
+}
+
+/**
+ * A README as its blocks, or the first line GitHub reads as something these
+ * blocks cannot hold
+ * ([`render-readme`](../../website/todo/render-readme.md)).
+ *
+ * The blocks are the ones a README is written in: an ATX heading, a
+ * paragraph, a code fence opened by three backticks, a list of `- ` items,
+ * each holding blocks of its own indented by two spaces, and a table whose
+ * rows open with a pipe.
+ *
+ * **What GitHub reads differently is refused, not approximated.** A line
+ * after a list item with no blank before it and no indentation continues
+ * GitHub's item lazily; a heading closed by `#`s loses them there. Each
+ * would be a different page here, so each is the refusal that keeps the
+ * README a link to GitHub instead.
+ *
+ * @type {(text: string) => Result<Blocks, string>}
+ */
+export const tryParseBlocks = text => {
+    const read = readBlocks(0, false)(text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line))
+    return read[0] === 'error' ? read : ok(read[1].map(p => p[0]))
 }

@@ -26,17 +26,17 @@
  * parse as garbage; recognise code first and the remainder is balanced in
  * all 789.
  *
- * **`strong` and `em` hold text and nothing else.** Every one of the 336
- * bold spans and 10 emphasised spans in the tree is plain — none nests, none
- * contains code, none contains a link — so neither carries {@link Inline}.
- * A nested shape would be a generality the format has never used, and the
- * parser would owe it a meaning.
+ * **`strong` and `em` hold text and code**, as a link's label does: a
+ * README sets a name in bold as `` **`Object` is a reserved word** ``. Neither
+ * holds a link or another emphasis, so neither carries {@link Inline}: a
+ * nested shape would be a generality no file uses, and the parser would owe
+ * it a meaning.
  */
 export type Inline =
     | readonly ['text', string]
     | readonly ['code', string]
-    | readonly ['strong', string]
-    | readonly ['em', string]
+    | readonly ['strong', readonly Label[]]
+    | readonly ['em', readonly Label[]]
     | readonly ['link', readonly Label[], string]
 
 /**
@@ -68,19 +68,35 @@ export type Entry = readonly Inline[]
 export type Document = readonly Entry[]
 
 /**
+ * A table column's alignment, from its delimiter cell: `:--`, `:-:`, `--:`,
+ * or `null` for a plain `---`.
+ */
+export type Align = 'left' | 'center' | 'right' | null
+
+/**
  * One block of a README: a heading with its level, a paragraph, a fenced
- * code block with its info string, or a list of entries — each a block a
+ * code block with its info string, a list, or a table — each a block a
  * README in the tree is written in and GitHub reads as this reads it.
  *
- * What a README may hold and these cannot express — a table, a numbered or
- * nested list, a block quote, raw HTML — is refused by the reader rather
- * than written as something else, so the README stays a link to GitHub.
+ * **A list item holds blocks**, as it does in CommonMark: paragraphs, code
+ * fences and nested lists, written indented by the two columns its `- `
+ * marker takes. A list is `loose` when a blank line separates two of its
+ * items or two blocks of one item, and GitHub then sets each paragraph of
+ * it in a `<p>`; a tight list's paragraphs are its items' bare text.
+ *
+ * **A table is GitHub's**: a header row, a delimiter row giving each
+ * column's alignment, and body rows, every row's cells being inline spans.
+ *
+ * What a README may hold and these cannot express — a numbered list, a
+ * block quote, raw HTML — is refused by the reader rather than written as
+ * something else, so the README stays a link to GitHub.
  */
 export type Block =
     | readonly ['heading', number, readonly Inline[]]
     | readonly ['paragraph', readonly Inline[]]
     | readonly ['code', string, string]
-    | readonly ['list', readonly Entry[]]
+    | readonly ['list', boolean, readonly Blocks[]]
+    | readonly ['table', readonly Align[], readonly Entry[], readonly (readonly Entry[])[]]
 
 /** A README as its blocks, in order. */
 export type Blocks = readonly Block[]

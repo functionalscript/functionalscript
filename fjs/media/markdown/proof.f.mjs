@@ -100,8 +100,24 @@ export const proof = {
     spans: {
         text: () => assertStructurallySame(spans('plain (#1807)'), [['text', 'plain (#1807)']]),
         code: () => assertStructurallySame(spans(`${tick}a${tick}`), [['code', 'a']]),
-        strong: () => assertStructurallySame(spans('**a**'), [['strong', 'a']]),
-        em: () => assertStructurallySame(spans('*a*'), [['em', 'a']]),
+        strong: () => assertStructurallySame(spans('**a**'), [['strong', [['text', 'a']]]]),
+        // A bold body holds code, opening with it or after text, as a label does.
+        strongCode: () => assertStructurallySame(spans(`**${tick}O${tick} is ${tick}r${tick}**`),
+            [['strong', [['code', 'O'], ['text', ' is '], ['code', 'r']]]]),
+        emCode: () => assertStructurallySame(spans(`*a ${tick}b${tick}*`), [['em', [['text', 'a '], ['code', 'b']]]]),
+        // Two backticks open a span that may hold one, and the one space
+        // each end carries is stripped, as CommonMark strips it.
+        doubleCode: () => assertStructurallySame(spans(`a ${tick}${tick} f${tick}x${tick} ${tick}${tick}`),
+            [['text', 'a '], ['code', `f${tick}x${tick}`]]),
+        doubleCodeUnpadded: () => assertStructurallySame(spans(`${tick}${tick}a${tick}${tick}`), [['code', 'a']]),
+        doubleCodeOneSpace: () => assertStructurallySame(spans(`${tick}${tick} ${tick}${tick}`), [['code', ' ']]),
+        doubleCodeInALabel: () => assertStructurallySame(spans(`[${tick}${tick}a${tick}${tick}](u)`), [['link', [['code', 'a']], 'u']]),
+        // An asterisk with a space inside it is no delimiter on GitHub.
+        spaceFlanked: () => assertEq(tryParseEntry('a * b * c')[1], 'bold or emphasis padded with a space'),
+        paddedStrong: () => assertEq(tryParseEntry('** a**')[1], 'bold or emphasis padded with a space'),
+        paddedEm: () => assertEq(tryParseEntry(`*a ${tick}b${tick} *`)[1], 'bold or emphasis padded with a space'),
+        paddedAfterCode: () => assertEq(tryParseEntry(`*${tick}b${tick} *`)[1], 'bold or emphasis padded with a space'),
+        em: () => assertStructurallySame(spans('*a*'), [['em', [['text', 'a']]]]),
         link: () => assertStructurallySame(spans('[a](b)'), [['link', [['text', 'a']], 'b']]),
         // A target is folded from two parts; the address is both, whole.
         linkTarget: () => assertStructurallySame(
@@ -111,7 +127,7 @@ export const proof = {
         // nothing rather than an empty `text`.
         alternating: () => assertStructurallySame(
             spans(`a ${tick}b${tick} **c**`),
-            [['text', 'a '], ['code', 'b'], ['text', ' '], ['strong', 'c']]),
+            [['text', 'a '], ['code', 'b'], ['text', ' '], ['strong', [['text', 'c']]]]),
         adjacentSpans: () => assertStructurallySame(
             spans(`${tick}a${tick}${tick}b${tick}`),
             [['code', 'a'], ['code', 'b']]),
@@ -134,7 +150,7 @@ export const proof = {
         unwrap(tryParse(`- ${tick}a${tick}: one\n  more\n- **b:** two\n`)),
         [
             [['code', 'a'], ['text', ': one more']],
-            [['strong', 'b:'], ['text', ' two']],
+            [['strong', [['text', 'b:']]], ['text', ' two']],
         ]),
     /**
      * The demo's initial text is chosen to carry every property the parser
@@ -157,7 +173,7 @@ export const proof = {
             const entry = unwrap(tryParse(demo.init))[1]
             assert(entry.some(s2 => s2[0] === 'code' && s2[1] === 'readonly T[]'))
             assert(entry.some(s2 => s2[0] === 'code' && s2[1] === '*'))
-            assert(entry.some(s2 => s2[0] === 'em' && s2[1] === 'always'))
+            assert(entry.some(s2 => s2[0] === 'em' && s2[1][0][1] === 'always'))
         },
         // Every kind the grammar has, and a reference left as text.
         everyKind: () => {
@@ -274,16 +290,37 @@ export const proof = {
      */
     tryParseBlocks: {
         heading: () => assertStructurallySame(blocks('# A\n\n### *b*\n'),
-            [['heading', 1, [['text', 'A']]], ['heading', 3, [['em', 'b']]]]),
+            [['heading', 1, [['text', 'A']]], ['heading', 3, [['em', [['text', 'b']]]]]]),
         paragraph: () => assertStructurallySame(blocks('a\n  b\r\nc\n\nd\n'),
             [['paragraph', [['text', 'a b c']]], ['paragraph', [['text', 'd']]]]),
         // A heading, a fence or a list item ends a paragraph without a blank line.
         paragraphEnds: () => assertStructurallySame(blocks('a\n# h\nb\n```\nc\n```\nd\n- e\n'),
             [['paragraph', [['text', 'a']]], ['heading', 1, [['text', 'h']]], ['paragraph', [['text', 'b']]],
-                ['code', '', 'c'], ['paragraph', [['text', 'd']]], ['list', [[['text', 'e']]]]]),
+                ['code', '', 'c'], ['paragraph', [['text', 'd']]], ['list', false, [[['paragraph', [['text', 'e']]]]]]]),
         fence: () => assertStructurallySame(blocks('```js\nconst a = 1\n\nb\n```\n'), [['code', 'js', 'const a = 1\n\nb']]),
         list: () => assertStructurallySame(blocks('- a\n  b\n- *c*\n\nd\n'),
-            [['list', [[['text', 'a b']], [['em', 'c']]]], ['paragraph', [['text', 'd']]]]),
+            [['list', false, [[['paragraph', [['text', 'a b']]]], [['paragraph', [['em', [['text', 'c']]]]]]]], ['paragraph', [['text', 'd']]]]),
+        // A blank line between items, or between two blocks of one item,
+        // makes a list loose.
+        looseItems: () => assertStructurallySame(blocks('- a\n\n- b\n'),
+            [['list', true, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]]]]]]),
+        looseItem: () => assertStructurallySame(blocks('- a\n\n  b\n- c\n'),
+            [['list', true, [[['paragraph', [['text', 'a']]], ['paragraph', [['text', 'b']]]], [['paragraph', [['text', 'c']]]]]]]),
+        // An item holds a fence and a nested list, indented by two spaces; a
+        // blank inside the fence or the nested list leaves the outer one tight.
+        itemBlocks: () => assertStructurallySame(blocks('- a\n  ```js\n  x\n\n  y\n  ```\n  - b\n\n  - c\n'),
+            [['list', false, [[['paragraph', [['text', 'a']]], ['code', 'js', 'x\n\ny'],
+                ['list', true, [[['paragraph', [['text', 'b']]]], [['paragraph', [['text', 'c']]]]]]]]]]),
+        // A blank line the list does not continue after ends it.
+        listEnds: () => assertStructurallySame(blocks('- a\n\nb\n'),
+            [['list', false, [[['paragraph', [['text', 'a']]]]]], ['paragraph', [['text', 'b']]]]),
+        table: () => assertStructurallySame(blocks('| a | `b` |\n|:-|:-:|\n| c ||\n|d|-:|\n\ne\n'),
+            [['table', ['left', 'center'], [[['text', 'a']], [['code', 'b']]], [[[['text', 'c']], []], [[['text', 'd']], [['text', '-:']]]]],
+                ['paragraph', [['text', 'e']]]]),
+        // A closing pipe is optional, and a lone pipe is one empty cell.
+        tableOpenRows: () => assertStructurallySame(blocks('|\n|-|\n|a\n'), [['table', [null], [[]], [[[['text', 'a']]]]]]),
+        tableAlignments: () => assertStructurallySame(blocks('|a|b|c|\n|---|--:|-|\n'),
+            [['table', [null, 'right', null], [[['text', 'a']], [['text', 'b']], [['text', 'c']]], []]]),
         empty: () => assertStructurallySame(blocks(''), []),
         // A line that opens with an autolink is a paragraph, as on GitHub.
         autolinkLine: () => assertStructurallySame(blocks('<https://e.x>.\n'),
@@ -298,12 +335,21 @@ export const proof = {
             emptyHeading: () => assertEq(refusal('# \n'), 'line 1: a heading that is empty or closed by `#`'),
             closedHeading: () => assertEq(refusal('## a ##\n')?.startsWith('line 1: a heading'), true),
             headingSpans: () => assertEq(refusal('\n# _a_\n')?.startsWith('line 2: an underscore'), true),
+            tableRowWithoutAPipe: () => assertEq(refusal('|a|\n|-|\nb\n'), 'line 3: a table row that does not open with a pipe'),
+            tableRowCells: () => assertEq(refusal('|a|\n|-|\n|b|c|\n'), 'line 3: a table row whose cells do not match its header'),
+            tableEscapedPipe: () => assertEq(refusal('|a|\n|-|\n|b\\|c|\n'), 'line 3: an escaped pipe in a table'),
+            tableSpans: () => assertEq(refusal('|a|\n|-|\n|_b_|\n')?.startsWith('line 3: an underscore'), true),
+            tableHeaderCells: () => assertEq(refusal('|a|b|\n|-|\n'), 'line 1: a table'),
+            tableDelimiter: () => assertEq(refusal('|a|\n|:|\n'), 'line 1: a table'),
+            tableDelimiterWithoutAPipe: () => assertEq(refusal('|a|\n-\n'), 'line 1: a table'),
+            emptyItem: () => assertEq(refusal('- \n'), 'line 1: a list item whose text does not follow its marker'),
+            itemIndentedPastItsMarker: () => assertEq(refusal('-  a\n'), 'line 1: a list item whose text does not follow its marker'),
+            nestedRefusal: () => assertEq(refusal('- a\n\n  - b\n    > c\n'), 'line 4: a block quote'),
             lazyContinuation: () => assertEq(refusal('- a\nb\n'), 'line 2: a line that GitHub reads as part of the list item above it'),
             headingInAnItem: () => assertEq(refusal('- # a\n'), 'line 1: a heading inside a list item'),
-            nestedList: () => assertEq(refusal('- a\n  * b\n'), 'line 2: a list marked other than with `- ` inside a list item'),
-            looseList: () => assertEq(refusal('- a\n\n- b\n'), 'line 3: a list item after a blank line, which GitHub reads as a loose list'),
+            nestedList: () => assertEq(refusal('- a\n  * b\n'), 'line 2: a list marked other than with `- `'),
             itemIndentedCode: () => assertEq(refusal('-     a\n')?.startsWith('line 1:'), true),
-            itemSpans: () => assertEq(refusal('- a\n- _b_\n')?.startsWith('line 1: an underscore'), true),
+            itemSpans: () => assertEq(refusal('- a\n- _b_\n')?.startsWith('line 2: an underscore'), true),
             paragraphSpans: () => assertEq(refusal('a\n_b_\n')?.startsWith('line 1: an underscore'), true),
             indentedCode: () => assertEq(refusal('    a\n'), 'line 1: an indented code block'),
             quote: () => assertEq(refusal('> a\n'), 'line 1: a block quote'),
@@ -319,7 +365,7 @@ export const proof = {
             thematicBreak: () => assertEq(refusal('***\n'), 'line 1: a thematic break or a heading underline'),
             setextUnderline: () => assertEq(refusal('a\n===\n'), 'line 2: a thematic break or a heading underline'),
             hardBreak: () => assertEq(refusal('a  \nb\n'), 'line 1: a hard line break'),
-            hardBreakInAnItem: () => assertEq(refusal('- first  \n  second\n'), 'line 1: a hard line break inside a list item'),
+            hardBreakInAnItem: () => assertEq(refusal('- first  \n  second\n'), 'line 1: a hard line break'),
             indentedItem: () => assertEq(refusal('  - a\n'), 'line 1: an indented list item'),
             indentedItemAfterAParagraph: () => assertEq(refusal('a\n  - b\n'), 'line 2: an indented list item'),
             indentedHeading: () => assertEq(refusal('a\n # b\n'), 'line 2: an indented heading'),

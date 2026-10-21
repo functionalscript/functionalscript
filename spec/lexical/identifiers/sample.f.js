@@ -1,6 +1,6 @@
 /**
  * The example of [`README.md`](./README.md) (Identifiers) as a function of
- * one number, for the page's WASM demo: aSCII names with `_` and `$`, and
+ * one number, for the page's WASM demo: ASCII names with `_` and `$`, and
  * reserved words as keys.
  *
  * @module
