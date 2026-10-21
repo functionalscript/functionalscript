@@ -37,6 +37,7 @@ export const proof = {
         /** @type {EdagValue} */
         const shared = ['{}', [[':', 'x', 1]]]
         const twice = of(['[]', [shared, shared]])
+        assert(twice.includes('let _b0: Any<A> = [(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any();'))
         assert(twice.includes('[_b0.clone(), _b0.clone()]'))
         assert(twice.includes('Some(&[0x5b, 0x7b, 0x22, 0x78, 0x22, 0x3a, 0x31, 0x7d, 0x2c, 0x7b, 0x22, 0x78, 0x22, 0x3a, 0x31, 0x7d, 0x5d])'))
     },
