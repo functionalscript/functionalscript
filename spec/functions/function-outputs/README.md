@@ -11,7 +11,7 @@
 
 ## Examples
 
-No programs yet: this page's accepted and refused examples are a follow-up.
+The compiler demo has no programs for this page yet: its accepted and refused examples are a follow-up.
 
 The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
 example as a function of one number — a function as a value: its `length`,
