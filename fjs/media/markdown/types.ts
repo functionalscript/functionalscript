@@ -7,10 +7,11 @@
  * types are that subset, fixed against every release file in the tree — 103
  * of them, 789 entries — rather than against Markdown at large.
  *
- * What the corpus does **not** contain, and these types therefore cannot
- * express: headings, code fences, numbered lists, nested lists, block
+ * What the corpus does **not** contain, and {@link Document} therefore
+ * cannot express: headings, code fences, numbered lists, nested lists, block
  * quotes, tables, and interior blank lines. A release file is a flat list of
- * entries and nothing else.
+ * entries and nothing else. A README is more, and {@link Blocks} is the
+ * part of it this reads: headings, paragraphs, code fences and flat lists.
  *
  * @module
  */
@@ -36,7 +37,14 @@ export type Inline =
     | readonly ['code', string]
     | readonly ['strong', string]
     | readonly ['em', string]
-    | readonly ['link', string, string]
+    | readonly ['link', readonly Label[], string]
+
+/**
+ * One span of a link's label: text, or code. A README names a file as
+ * ``[`module.f.js`](./module.f.js)``, so a label holds a code span; no label
+ * in the tree holds emphasis or another link, and none may.
+ */
+export type Label = readonly ['text', string] | readonly ['code', string]
 
 /**
  * One entry — a Markdown list item — as its spans.
@@ -58,3 +66,21 @@ export type Entry = readonly Inline[]
  * not part of this type — a reader of a `Document` has it already.
  */
 export type Document = readonly Entry[]
+
+/**
+ * One block of a README: a heading with its level, a paragraph, a fenced
+ * code block with its info string, or a list of entries — each a block a
+ * README in the tree is written in and GitHub reads as this reads it.
+ *
+ * What a README may hold and these cannot express — a table, a numbered or
+ * nested list, a block quote, raw HTML — is refused by the reader rather
+ * than written as something else, so the README stays a link to GitHub.
+ */
+export type Block =
+    | readonly ['heading', number, readonly Inline[]]
+    | readonly ['paragraph', readonly Inline[]]
+    | readonly ['code', string, string]
+    | readonly ['list', readonly Entry[]]
+
+/** A README as its blocks, in order. */
+export type Blocks = readonly Block[]

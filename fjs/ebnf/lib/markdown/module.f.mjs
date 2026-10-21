@@ -100,6 +100,9 @@ export const text = repeatFrom1(remove(any, set(opening)))
  */
 export const code = /**@type {const}*/(['`', unpadded('`'), '`'])
 
+/** A run of a link label's text: no bracket, asterisk, backtick or backslash. */
+const labelText = repeatFrom1(remove(any, set('][*`\\')))
+
 /**
  * A body of emphasis: text with none of the symbols that open a span.
  *
@@ -135,14 +138,18 @@ export const emphasis = /**@type {const}*/(['*', {
 /**
  * An inline link.
  *
- * **Its label holds no span opener and its target no parenthesis**, both
- * for the reason the emphasis body excludes them: CommonMark reads more
- * here than this subset does, and admitting the symbols as text would give
- * one source two readings.
+ * **Its label holds text and code and no other span opener, and its target
+ * no parenthesis**, both for the reason the emphasis body excludes them:
+ * CommonMark reads more here than this subset does, and admitting the
+ * symbols as text would give one source two readings.
  *
  * A label is where it shows: GitHub renders `[**details**](u)` as a link
  * whose words are bold, and reading the asterisks as label text would print
- * them. A target is where it bites: a destination may hold balanced
+ * them. A code span is the one span a label holds — a README names a file
+ * as ``[`module.f.js`](./module.f.js)`` — and it is read as the code it is,
+ * text and code alternating as they do in {@link entry}. An empty label is
+ * matched here and refused after, since the alternation cannot say "at
+ * least one" without the conflict {@link entry} describes. A target is where it bites: a destination may hold balanced
  * parentheses, so GitHub reads `[x](a(b)c)` as a link to `a(b)c`, while
  * stopping at the first `)` gives a link to `a(b)` — not a stray rendering
  * but the wrong address, and nothing on the page would say so.
@@ -170,7 +177,7 @@ export const emphasis = /**@type {const}*/(['*', {
  * like to both readers and stays admitted.
  */
 export const link = /**@type {const}*/([
-    '[', repeatFrom1(remove(any, set('][*`\\'))),
+    '[', [option(labelText), repeatFrom0([code, option(labelText)])],
     '](', remove(any, set(')( \\<')), repeatFrom0(remove(any, set(')( \\'))), ')',
 ])
 

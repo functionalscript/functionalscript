@@ -116,7 +116,11 @@ export const proof = {
         // bites: stopping at the first `)` gives the wrong address, with
         // nothing on the page to say so.
         formattingInALinkLabel: () => refuses(`[**details**](u)`),
-        codeInALinkLabel: () => refuses(`[${tick}code${tick}](u)`),
+        // A label holds a code span, as a README names a file by one.
+        codeInALinkLabel: () => accepts(`[${tick}module.f.js${tick}](./module.f.js)`),
+        codeAndTextInALinkLabel: () => accepts(`[the ${tick}a${tick} and ${tick}b${tick} files](u)`),
+        // Matched here, refused after: the alternation cannot say "at least one".
+        emptyLabel: () => accepts(`[](u)`),
         parenthesisInATarget: () => refuses(`[x](a(b)c)`),
         // What a released entry actually carries still reads.
         anOrdinaryLink: () => accepts(`[#1421](https://example.com/pull/1421)`),

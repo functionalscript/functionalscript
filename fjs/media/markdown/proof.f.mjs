@@ -3,12 +3,27 @@ import { runPure } from '../../effects/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.mjs'
-import { entryTexts, tryParse, tryParseEntry } from './module.f.mjs'
+import { entryTexts, proseSpans, tryParse, tryParseBlocks, tryParseEntry } from './module.f.mjs'
 
 const tick = '`'
 
 /** @type {(text: string) => readonly unknown[]} */
 const spans = text => unwrap(tryParseEntry(text))
+
+/** @type {(text: string) => readonly unknown[]} */
+const blocks = text => unwrap(tryParseBlocks(text))
+
+/** The refusal of a README, or `null` where it is read. @type {(text: string) => string | null} */
+const refusal = text => {
+    const r = tryParseBlocks(text)
+    return r[0] === 'error' ? r[1] : null
+}
+
+/** The refusal of a run of prose, or `null` where it is read. @type {(text: string) => string | null} */
+const proseRefusal = text => {
+    const r = proseSpans(true)(text)
+    return r[0] === 'error' ? r[1] : null
+}
 
 export const proof = {
     /**
@@ -87,10 +102,10 @@ export const proof = {
         code: () => assertStructurallySame(spans(`${tick}a${tick}`), [['code', 'a']]),
         strong: () => assertStructurallySame(spans('**a**'), [['strong', 'a']]),
         em: () => assertStructurallySame(spans('*a*'), [['em', 'a']]),
-        link: () => assertStructurallySame(spans('[a](b)'), [['link', 'a', 'b']]),
+        link: () => assertStructurallySame(spans('[a](b)'), [['link', [['text', 'a']], 'b']]),
         // A target is folded from two parts; the address is both, whole.
         linkTarget: () => assertStructurallySame(
-            spans('[#1](https://example.com/p<1>)'), [['link', '#1', 'https://example.com/p<1>']]),
+            spans('[#1](https://example.com/p<1>)'), [['link', [['text', '#1']], 'https://example.com/p<1>']]),
         angleBracketedTarget: () => assertEq(tryParseEntry('[x](<https://example.com>)')[0], 'error'),
         // Runs of text and spans alternate, and an absent run contributes
         // nothing rather than an empty `text`.
@@ -199,6 +214,108 @@ export const proof = {
             const r = tryParse(`- fine\n- ${tick}unclosed\n`)
             assertEq(r[0], 'error')
             assertEq(/** @type {string} */(r[1]).startsWith('entry 1:'), true)
+        },
+    },
+    /**
+     * **A run of prose is read as GitHub reads it, or refused.** What the
+     * grammar takes as text and GitHub does not is found here, after
+     * recognition.
+     */
+    proseSpans: {
+        plain: () => assertStructurallySame(unwrap(proseSpans(true)('a b')), [['text', 'a b']]),
+        empty: () => assertStructurallySame(unwrap(proseSpans(true)('')), []),
+        // The one autolink form read, as the link it is on GitHub.
+        autolink: () => assertStructurallySame(
+            unwrap(proseSpans(true)('see <https://example.com> now')),
+            [['text', 'see '], ['link', [['text', 'https://example.com']], 'https://example.com'], ['text', ' now']]),
+        autolinkAlone: () => assertStructurallySame(
+            unwrap(proseSpans(true)('<http://e.x>')),
+            [['link', [['text', 'http://e.x']], 'http://e.x']]),
+        // A link inside a link is a reading neither side has.
+        noAutolinkInALabel: () => assertEq(proseSpans(false)('<https://e.x>')[0], 'error'),
+        snakeCase: () => assertEq(proseRefusal('a_b and 9_x_é'), null),
+        oneTilde: () => assertEq(proseRefusal('about ~100'), null),
+        ampersand: () => assertEq(proseRefusal('a & b, a&; and &x y;'), null),
+        ampersandAlone: () => assertEq(proseRefusal('a & b'), null),
+        lessThan: () => assertEq(proseRefusal('a < b, a <1 and <'), null),
+        refuses: {
+            underscore: () => assertEq(proseRefusal('_a_'), 'an underscore that GitHub may read as emphasis at 0'),
+            trailingUnderscore: () => assertEq(proseRefusal('a_'), 'an underscore that GitHub may read as emphasis at 1'),
+            tildes: () => assertEq(proseRefusal('~~a~~'), 'a tilde pair, which GitHub reads as strikethrough, at 0'),
+            entity: () => assertEq(proseRefusal('&amp;'), 'an entity, which GitHub reads as the character it names, at 0'),
+            numericEntity: () => assertEq(proseRefusal('&#38;')?.startsWith('an entity'), true),
+            bareUrl: () => assertEq(proseRefusal('see https://e.x'), 'a bare URL, which GitHub reads as a link, at 4'),
+            bareHttp: () => assertEq(proseRefusal('http://e.x')?.startsWith('a bare URL'), true),
+            bareWww: () => assertEq(proseRefusal('www.e.x')?.startsWith('a bare URL'), true),
+            html: () => assertEq(proseRefusal('a <b>'), 'raw HTML at 2'),
+            closingTag: () => assertEq(proseRefusal('</b>'), 'raw HTML at 0'),
+            // A target with a space is no autolink, and GitHub reads the tag.
+            notAnAutolink: () => assertEq(proseRefusal('<https://e.x y>'), 'raw HTML at 0'),
+            nestedAngle: () => assertEq(proseRefusal('<https://e<x>')?.startsWith('raw HTML'), true),
+            unclosedAngle: () => assertEq(proseRefusal('<https://e.x'), 'raw HTML at 0'),
+        },
+        // Every prose run of an entry goes through it: text, bold and a label.
+        inAnEntry: {
+            text: () => assertEq(tryParseEntry('_a_')[0], 'error'),
+            strong: () => assertEq(tryParseEntry('**a_**')[0], 'error'),
+            label: () => assertEq(tryParseEntry('[_a_](u)')[0], 'error'),
+            labelWithCode: () => assertStructurallySame(
+                spans(`[the ${tick}a${tick} file](u)`),
+                [['link', [['text', 'the '], ['code', 'a'], ['text', ' file']], 'u']]),
+            codeOnlyLabel: () => assertStructurallySame(
+                spans(`[${tick}a${tick}](u)`), [['link', [['code', 'a']], 'u']]),
+            emptyLabel: () => assertEq(tryParseEntry('[](u)')[1], 'a link with an empty label'),
+            codeIsNotProse: () => assertStructurallySame(spans(`${tick}_a_${tick}`), [['code', '_a_']]),
+        },
+    },
+    /**
+     * A README's blocks: headings, paragraphs, code fences and flat lists,
+     * and a refusal naming the line of anything GitHub reads otherwise.
+     */
+    tryParseBlocks: {
+        heading: () => assertStructurallySame(blocks('# A\n\n### *b*\n'),
+            [['heading', 1, [['text', 'A']]], ['heading', 3, [['em', 'b']]]]),
+        paragraph: () => assertStructurallySame(blocks('a\n  b\r\nc\n\nd\n'),
+            [['paragraph', [['text', 'a b c']]], ['paragraph', [['text', 'd']]]]),
+        // A heading, a fence or a list item ends a paragraph without a blank line.
+        paragraphEnds: () => assertStructurallySame(blocks('a\n# h\nb\n```\nc\n```\nd\n- e\n'),
+            [['paragraph', [['text', 'a']]], ['heading', 1, [['text', 'h']]], ['paragraph', [['text', 'b']]],
+                ['code', '', 'c'], ['paragraph', [['text', 'd']]], ['list', [[['text', 'e']]]]]),
+        fence: () => assertStructurallySame(blocks('```js\nconst a = 1\n\nb\n```\n'), [['code', 'js', 'const a = 1\n\nb']]),
+        list: () => assertStructurallySame(blocks('- a\n  b\n- *c*\n\nd\n'),
+            [['list', [[['text', 'a b']], [['em', 'c']]]], ['paragraph', [['text', 'd']]]]),
+        empty: () => assertStructurallySame(blocks(''), []),
+        // Seven `#`s, or one with no space after it, is prose.
+        notAHeading: () => assertStructurallySame(blocks('#a\n\n####### b\n'),
+            [['paragraph', [['text', '#a']]], ['paragraph', [['text', '####### b']]]]),
+        refuses: {
+            fenceInfo: () => assertEq(refusal('```js x\n```\n'), 'line 1: a code fence whose info string is not one word'),
+            fenceBacktick: () => assertEq(refusal('```a`\n```\n')?.startsWith('line 1: a code fence'), true),
+            unclosedFence: () => assertEq(refusal('a\n\n```\nb\n'), 'line 3: a code fence that is never closed'),
+            emptyHeading: () => assertEq(refusal('# \n'), 'line 1: a heading that is empty or closed by `#`'),
+            closedHeading: () => assertEq(refusal('## a ##\n')?.startsWith('line 1: a heading'), true),
+            headingSpans: () => assertEq(refusal('\n# _a_\n')?.startsWith('line 2: an underscore'), true),
+            lazyContinuation: () => assertEq(refusal('- a\nb\n'), 'line 2: a line that GitHub reads as part of the list item above it'),
+            headingInAnItem: () => assertEq(refusal('- # a\n'), 'line 1: a heading inside a list item'),
+            nestedList: () => assertEq(refusal('- a\n  * b\n'), 'line 2: a list marked other than with `- ` inside a list item'),
+            looseList: () => assertEq(refusal('- a\n\n- b\n'), 'line 3: a list item after a blank line, which GitHub reads as a loose list'),
+            itemIndentedCode: () => assertEq(refusal('-     a\n')?.startsWith('line 1:'), true),
+            itemSpans: () => assertEq(refusal('- a\n- _b_\n')?.startsWith('line 1: an underscore'), true),
+            paragraphSpans: () => assertEq(refusal('a\n_b_\n')?.startsWith('line 1: an underscore'), true),
+            indentedCode: () => assertEq(refusal('    a\n'), 'line 1: an indented code block'),
+            quote: () => assertEq(refusal('> a\n'), 'line 1: a block quote'),
+            table: () => assertEq(refusal('| a |\n'), 'line 1: a table'),
+            tableUnderAHeader: () => assertEq(refusal('a | b\n--- | ---\n'), 'line 2: a table'),
+            html: () => assertEq(refusal('<div>\n'), 'line 1: raw HTML'),
+            tildeFence: () => assertEq(refusal('~~~\n'), 'line 1: a tilde code fence'),
+            starList: () => assertEq(refusal('* a\n'), 'line 1: a list marked other than with `- `'),
+            plusList: () => assertEq(refusal('+ a\n'), 'line 1: a list marked other than with `- `'),
+            numbered: () => assertEq(refusal('1. a\n'), 'line 1: a numbered list'),
+            numberedParen: () => assertEq(refusal('12)\n'), 'line 1: a numbered list'),
+            numberIsProse: () => assertEq(refusal('1.5 is a number\n\n2024 a\n\n12\n'), null),
+            thematicBreak: () => assertEq(refusal('***\n'), 'line 1: a thematic break or a heading underline'),
+            setextUnderline: () => assertEq(refusal('a\n===\n'), 'line 2: a thematic break or a heading underline'),
+            hardBreak: () => assertEq(refusal('a  \nb\n'), 'line 1: a hard line break'),
         },
     },
 }
