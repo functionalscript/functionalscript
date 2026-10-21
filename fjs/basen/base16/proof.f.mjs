@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { decode, decodeCodePoints, decodeLower, encode, encodeCodePoints } from './module.f.mjs'
+import { decode, decodeCodePoints, decodeLower, encode, encodeCodePoints, encodeScalar } from './module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.js'
 
 /** Every byte, in order, for the round trips. */
@@ -16,6 +16,14 @@ export const proof = {
         assertStructurallySame(encodeCodePoints([]), [])
         // `0`, `9`, `a`, `f`: both ends of both digit ranges
         assertStructurallySame(encodeCodePoints([0x09, 0xaf]), [0x30, 0x39, 0x61, 0x66])
+    },
+    // padded to the width, never cut to it, for a number and a bigint alike
+    encodeScalar: () => {
+        assertEq(encodeScalar(2)(0), '00')
+        assertEq(encodeScalar(4)(0x61), '0061')
+        assertEq(encodeScalar(2)(0x1ff), '1ff')
+        assertEq(encodeScalar(8)(0xdead_beefn), 'deadbeef')
+        assertEq(encodeScalar(0)(0xan), 'a')
     },
     decode: () => {
         assertStructurallySame(decode(''), [])
