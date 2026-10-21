@@ -283,12 +283,17 @@ const emptyContext = { complete: null, stack: null }
  * @returns {(path: string) => Effect<O | ReadWhole | ResolveFileModule, EdagValue | R, ParseError | E | LE>}
  */
 export const _program = (loader, finish) => {
+    /** @type {(source: _Source) => Effect<O | ReadWhole | ResolveFileModule, R, ParseError | E | LE>} */
+    const walked = source => {
+        const walk = step(loader, load => _walk(load)(source)(emptyContext))
+        return mapStep(walk, ([, module]) => finish(module))
+    }
     /** @type {(source: _Source) => Effect<O | ReadWhole | ResolveFileModule, EdagValue | R, ParseError | E | LE>} */
     const route = source => source.json
         // The CLI extension selects JSON input even when realpath follows an
         // alias to a differently named file. Import attributes still use the
         // target path.
         ? mapStep(_parseJson(source.path), jsonValue)
-        : step(loader, load => mapStep(_walk(load)(source)(emptyContext), ([, module]) => finish(module)))
+        : walked(source)
     return path => step(_rootSource(path), route)
 }
