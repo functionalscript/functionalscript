@@ -11,9 +11,12 @@
  * @import { _Context, _ImportSource, _Load, _Source } from './types.ts'
  * @import { Operation, Effect } from '../../effects/types.ts'
  * @import { IoChannel, ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
+ * @import { EdagValue, Object as ValueObject } from '../../edag/value/types.ts'
  */
 
 import { error } from '../../types/result/module.f.js'
+import { todo } from '../../asserts/module.f.js'
+import { fromValue } from '../../edag/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { decode as decodeImportPath, specifierKind } from '../../path/import/module.f.mjs'
@@ -234,4 +237,63 @@ export const _walk = load => {
         return mapStep(initialized, ([value, { context: next }]) => completed(id, next)(value))
     }
     return walk
+}
+
+/** JSON has no function leaves, so the function hook is unreachable. */
+const jsonLiteral = fromValue(todo)
+
+/**
+ * A JSON document's value as an EDAG: a tree with JSON's leaves, its
+ * members in the order the reader built them. Both compiler paths read a
+ * JSON document as a value, a root and a `.json` import alike.
+ *
+ * `fromValue` allows arbitrary hook expressions. JSON never reaches its hook,
+ * so only literal value nodes are constructed and the narrower cast holds.
+ *
+ * @type {(value: JsonUnknown) => EdagValue}
+ */
+export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
+
+/**
+ * A JSON document imported `with { type: "json" }`, as a module: its value
+ * under `default`, the module both compiler paths' `_Load`s build. Exported
+ * for them; the `_` says linkage.
+ *
+ * @type {(value: JsonUnknown) => ValueObject}
+ */
+export const _jsonModule = value => ['{}', [[':', 'default', jsonValue(value)]]]
+
+/** The walk's state before any module is entered: nothing complete, no chain. */
+const emptyContext = { complete: null, stack: null }
+
+/**
+ * The program at the root `path`: the route both compiler paths take. A
+ * `.json` root is a document, its value through {@link jsonValue}; a module
+ * root is walked with the `_Load` the `loader` effect yields, and the walked
+ * module passed through `finish`. `loader` runs only for a module root, so a
+ * JSON document never loads what a module needs — the interpreter's runtime.
+ *
+ * Exported for the EDAG linker in `../edag` and the represented interpreter in
+ * `../transpiler`; the `_` says linkage.
+ *
+ * @template {Operation} O
+ * @template T, S, E, LE, R
+ * @param {Effect<O, _Load<T, S, E>, LE>} loader
+ * @param {(module: T) => R} finish
+ * @returns {(path: string) => Effect<O | ReadWhole | ResolveFileModule, EdagValue | R, ParseError | E | LE>}
+ */
+export const _program = (loader, finish) => {
+    /** @type {(source: _Source) => Effect<O | ReadWhole | ResolveFileModule, R, ParseError | E | LE>} */
+    const walked = source => {
+        const walk = step(loader, load => _walk(load)(source)(emptyContext))
+        return mapStep(walk, ([, module]) => finish(module))
+    }
+    /** @type {(source: _Source) => Effect<O | ReadWhole | ResolveFileModule, EdagValue | R, ParseError | E | LE>} */
+    const route = source => source.json
+        // The CLI extension selects JSON input even when realpath follows an
+        // alias to a differently named file. Import attributes still use the
+        // target path.
+        ? mapStep(_parseJson(source.path), jsonValue)
+        : walked(source)
+    return path => step(_rootSource(path), route)
 }
