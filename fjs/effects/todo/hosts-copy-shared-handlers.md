@@ -71,7 +71,12 @@ does not mention.
 - [x] The browser `import` through `io`; one phrase for the unreadable value,
       pinned on every host's report: `unreadableThrownValue` in
       `module.f.mjs`.
-- [ ] `_maxFileSizeBytes` and the windowing shared; `fileStat` in the Node host.
+- [x] The window size shared, as `_maxVecBytes` in `node/module.f.mjs`,
+      which its own chunked writes read too; `fileStat` in the Node host.
+      The windowing stays per host: the Node host fills windows from a
+      handle until one comes back short, without the file's size, while
+      the SpiderMonkey shell hands back the whole file and the host slices
+      it, so the two share the size and not a loop.
 
 ### Related
 

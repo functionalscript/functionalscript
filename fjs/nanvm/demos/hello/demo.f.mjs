@@ -6,7 +6,7 @@
  * @import { Sample } from '../page/types.ts'
  */
 
-import program from './sample.f.mjs'
+import program from './sample.f.js'
 import { wasmDemo } from '../page/module.f.mjs'
 
 /**

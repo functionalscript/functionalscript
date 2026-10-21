@@ -18,11 +18,26 @@
  * A node with edges draws its `label` as a column left of its rows. An
  * empty `label` draws no column, for a demo whose rows already say what
  * the node is.
+ *
+ * `order`, when given, is the node's place in an animation, drawn as
+ * `data-graph-order`: the site's stylesheet fades a `new` node in and a
+ * `leaving` one out, 150 ms after the order before it, so a change can
+ * appear node by node.
+ *
+ * `key`, when given, names the node across drawings: its box and its text
+ * are each drawn in a group moved into place by a `transform` and keyed
+ * `data-key`, so a page that patches the drawing keeps the same groups for
+ * the same node, and the site's stylesheet slides them from where they
+ * were to where they are. An edge or entry between keyed nodes is keyed by
+ * their keys too, so its route slides with them where the browser animates
+ * a path's `d`, and is redrawn at once where it does not.
  */
 export type Node = {
     readonly id: number
     readonly kind: string
     readonly label: string
+    readonly order?: number | undefined
+    readonly key?: string | undefined
 }
 
 /** A {@link Node} once `ranked` (`./module.f.mjs`) has placed it. */

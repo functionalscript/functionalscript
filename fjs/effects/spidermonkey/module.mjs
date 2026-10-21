@@ -32,18 +32,15 @@
 
 import { asyncPartialRun, io } from '../module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
-import { exitCode, nodeCommands } from '../node/module.f.mjs'
+import { _maxVecBytes, exitCode, nodeCommands } from '../node/module.f.mjs'
 import { _orderDirents } from '../node/virtual/readdir/module.f.mjs'
 import { concat, normalize } from '../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { tryShellQuote } from '../../text/shell/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 
-/** The most bytes one `Vec` holds: the window `readWhole` reads in. */
-const maxFileSizeBytes = Number(maxLengthBytes)
 
 const shell = /** @type {Shell} */ (/** @type {unknown} */ (globalThis))
 const { getenv } = shell.os
@@ -155,8 +152,8 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
         if (isDirectory(path)) { throw new Error(`${path} is not a file`) }
         const bytes = shell.os.file.readFile(path, 'binary')
         /** @type {readonly Uint8Array[]} */
-        const windows = Array.from({ length: Math.ceil(bytes.length / maxFileSizeBytes) },
-            (_, i) => bytes.subarray(i * maxFileSizeBytes, (i + 1) * maxFileSizeBytes))
+        const windows = Array.from({ length: Math.ceil(bytes.length / _maxVecBytes) },
+            (_, i) => bytes.subarray(i * _maxVecBytes, (i + 1) * _maxVecBytes))
         return windows.map(toVec)
     }),
     mkdir: (path, options) => io(async () => { onPath(options?.recursive === true ? 'mkdir -p' : 'mkdir', path) }),

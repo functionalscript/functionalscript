@@ -232,6 +232,9 @@ const childrenFor = (tag, children) => {
  */
 const textNode = 3
 
+/** `Node.ELEMENT_NODE`, spelled out for the same reason. */
+const elementNode = 1
+
 /**
  * Brings an existing DOM element into line with a `media/html` element of
  * the same tag, in place, and answers the DOM element.
@@ -249,10 +252,20 @@ const textNode = 3
  *   HTML element a name is compared as the browser stores it, ASCII
  *   lowercase: `TITLE` is the `title` already there, not a stranger to
  *   remove and add back on every patch.
- * - **Children are matched by position.** A text node takes the new text; an
- *   element of the tag and namespace the child would be created with is
- *   patched in turn; anything else is replaced by a new node. Extra children
- *   go.
+ * - **Children are matched by position, or by key.** A text node takes the
+ *   new text; an element of the tag and namespace the child would be
+ *   created with is patched in turn; anything else is replaced by a new
+ *   node. Extra children go. A child with a `data-key` is matched instead by
+ *   it: the sibling element with that key, of the same tag and namespace,
+ *   is moved to the child's place and patched, so an element that changes
+ *   place among its siblings is still the same node — what lets a
+ *   stylesheet transition it from where it was. A key the old children do
+ *   not have makes a new node, inserted there. An element with a key is
+ *   never taken for a child without one. Keys are unique among siblings;
+ *   a key used twice matches once. A keyed element whose key is gone is
+ *   removed first, so the ones that stay, in the order they were, are
+ *   never moved: a browser drops a moved element's transition, and it
+ *   would jump to where it goes.
  * - **A form control shows what its markup says.** Markup sets a control's
  *   default — an `input`'s `value` attribute, a `textarea`'s text, a
  *   `checked` or `selected` attribute — and the browser shows the default
@@ -278,10 +291,50 @@ export const patch = (target, element) => {
         if (target.getAttribute(name) !== value) { setAttribute(target, name, value) }
     }
     const parent = childrenOf(target)
-    const nodes = [...parent.childNodes]
     const next = childrenFor(tag, children)
+    /** @type {Map<string, Element>} */
+    const keyed = new Map([...parent.childNodes].flatMap(n => {
+        const key = keyOf(n)
+        return key === null ? [] : [[key, /** @type {Element} */ (n)]]
+    }))
+    /** @type {Map<string, HtmlElement>} */
+    const wantedKeys = new Map(next.flatMap(child => {
+        const key = typeof child === 'string' ? undefined : parseElement(child)[1]['data-key']
+        return key === undefined ? [] : [[key, /** @type {HtmlElement} */ (child)]]
+    }))
+    // A keyed node goes first if its key is gone or comes back as another
+    // tag, so none is left in the way of the nodes that stay.
+    for (const [key, node] of keyed) {
+        const child = wantedKeys.get(key)
+        if (child === undefined || !fits(target, node, child[0])) {
+            parent.removeChild(node)
+            keyed.delete(key)
+        }
+    }
     next.forEach((child, i) => {
-        const node = nodes.at(i)
+        const at = parent.childNodes[i]
+        const childKey = typeof child === 'string' ? undefined : parseElement(child)[1]['data-key']
+        if (childKey !== undefined) {
+            const [childTag] = /** @type {HtmlElement} */ (child)
+            const found = keyed.get(childKey)
+            keyed.delete(childKey)
+            if (found !== undefined) {
+                if (found !== at) { parent.insertBefore(found, at ?? null) }
+                patch(found, /** @type {HtmlElement} */ (child))
+                return
+            }
+            parent.insertBefore(create(target.ownerDocument, rulesFor(target, childTag), /** @type {HtmlElement} */ (child)), at ?? null)
+            return
+        }
+        // An element with a key is never taken for a child without one: the
+        // child goes in before it, and the keyed one stays for its own.
+        const node = at !== undefined && keyOf(at) !== null ? undefined : at
+        if (node === undefined && at !== undefined) {
+            parent.insertBefore(typeof child === 'string'
+                ? target.ownerDocument.createTextNode(child)
+                : create(target.ownerDocument, rulesFor(target, child[0]), child), at)
+            return
+        }
         if (typeof child === 'string') {
             if (node?.nodeType === textNode) {
                 const text = /** @type {Text} */ (node)
@@ -293,19 +346,32 @@ export const patch = (target, element) => {
         }
         const [childTag] = child
         const rules = rulesFor(target, childTag)
-        const same = node !== undefined
-            && /** @type {Element} */ (node).localName === childTag
-            && /** @type {Element} */ (node).namespaceURI === namespaceFor(rules, childTag)
-        if (same) {
+        if (node !== undefined && fits(target, /** @type {Element} */ (node), childTag)) {
             patch(/** @type {Element} */ (node), child)
             return
         }
         place(parent, node, create(target.ownerDocument, rules, child))
     })
-    for (const node of nodes.slice(next.length)) { parent.removeChild(node) }
+    for (const node of [...parent.childNodes].slice(next.length)) { parent.removeChild(node) }
     showDefault(target)
     return target
 }
+
+/**
+ * A node's `data-key`, or `null` for an element without one or a node that
+ * is not an element — text, or a comment.
+ *
+ * @type {(node: ChildNode) => string | null}
+ */
+const keyOf = node => node.nodeType !== elementNode ? null : /** @type {Element} */ (node).getAttribute('data-key')
+
+/**
+ * Whether `node`, a child of `target`, can be patched into an element
+ * `tag`: the same tag, in the namespace `target` gives it.
+ *
+ * @type {(target: Element, node: Element, tag: string) => boolean}
+ */
+const fits = (target, node, tag) => node.localName === tag && node.namespaceURI === namespaceFor(rulesFor(target, tag), tag)
 
 /**
  * The name an attribute is stored under on `target`: ASCII lowercase on an

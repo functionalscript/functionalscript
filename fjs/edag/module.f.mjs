@@ -1,7 +1,7 @@
 /**
  * @module
  *
- * @import { Exp, IntrinsicId, OptionLambda, OptionPropertyLambda, Plain, StaticId } from './types.ts'
+ * @import { Exp, IntrinsicId, ItemsOver, OptionLambda, OptionPropertyLambda, Plain, StaticId, StepOver } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
 
@@ -845,3 +845,53 @@ export const constructorId = or('Array')
  * expression, and the name would be walked as a literal.
  */
 export const instanceOf = /** @type {const} */ (['instanceof', exp, constructorId])
+
+// Traversal
+
+/**
+ * Whether an item of a list, {@link items}, is a spread rather than a
+ * plain operand.
+ *
+ * @template E
+ * @param {E | readonly ['...', E]} item
+ * @returns {item is readonly ['...', E]}
+ */
+const isSpread = item => item instanceof Array && item[0] === '...'
+
+/**
+ * An item list with `f` applied to every operand, a spread kept a spread
+ * around its operand's image: the map over an array's items or a call's
+ * arguments, whatever the operands are. A walk that threads a state through
+ * the items, as an executor's evaluation does, or spells a spread as text,
+ * as a writer does, is not a map and keeps its own loop.
+ *
+ * @type {<E, F>(f: (e: E) => F) => (items: ItemsOver<E>) => ItemsOver<F>}
+ */
+export const mapItems = f => items => items.map(item => isSpread(item) ? ['...', f(item[1])] : f(item))
+
+/**
+ * What a chain's steps hold, in written order: each `|.` step's key read
+ * by `key` and each call step's item list by `args`, then its
+ * continuation's, and nothing where there is no step. The fold under every
+ * walk that lists a chain's operands.
+ *
+ * @type {<E, I, O>(key: (i: I) => readonly O[], args: (items: ItemsOver<E>) => readonly O[]) => (k: StepOver<E, I> | undefined) => readonly O[]}
+ */
+export const stepOperands = (key, args) => k => {
+    if (k === undefined) { return [] }
+    const [, , next] = k
+    return [...(k[0] === '|.' ? key(k[1]) : args(k[1])), ...stepOperands(key, args)(next)]
+}
+
+/**
+ * A chain's steps with each `|.` step's key mapped by `key` and each call
+ * step's item list by `items`, every tag and arity kept: the map twin of
+ * {@link stepOperands}.
+ *
+ * @type {<E, I, F, J>(key: (i: I) => J, items: (items: ItemsOver<E>) => ItemsOver<F>) => (k: StepOver<E, I>) => StepOver<F, J>}
+ */
+export const mapSteps = (key, items) => k => {
+    const [, , next] = k
+    const rest = next === undefined ? [] : [mapSteps(key, items)(next)]
+    return /** @type {StepOver<any, any>} */ (/** @type {unknown} */ (k[0] === '|.' ? ['|.', key(k[1]), ...rest] : [k[0], items(k[1]), ...rest]))
+}

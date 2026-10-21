@@ -1,7 +1,7 @@
 /**
  * Writes the Rust of the WASM demo pages' samples
  * ([`todo/wasm-demos.md`](../../../todo/wasm-demos.md)): each sample's
- * `sample.f.mjs` compiled through the compiler's Rust output into
+ * `sample.f.js` compiled through the compiler's Rust output into
  * `nanvm/demos/gen.samples/<name>.rs`, and `gen.samples/mod.rs` naming each.
  * The `nanvm-demos` crate reaches the set through one `#[path]` to that
  * `mod.rs`, and builds it for `wasm32` in the deployment build.

@@ -577,6 +577,14 @@ small: pure computation or a bounded synchronous `sandbox` call for timing.
 Do not request blocking I/O on these turns. Queuing a reader
 event cancels a scheduled turn; the latest rendered state decides whether to schedule another one.
 
+`nextDelay(state)`, when a demo has it, is how many milliseconds the runtime
+waits before that turn: a demo that animates holds each step on screen for
+that long. Where the reader has asked for less motion
+(`prefers-reduced-motion: reduce`) the runtime does not wait, and the steps
+pass at once. It is scheduling rather than an operation — the runtime already
+owns when a turn runs — so a demo needs no effect to wait, and a reader's
+event cancels the wait as it cancels any scheduled turn.
+
 Events are serialized: one `update` at a time, the next queued behind it. That
 is what makes a demo's state a fold over its events in the order they happened,
 which is the property its proof relies on. `start` arrives once, after the
