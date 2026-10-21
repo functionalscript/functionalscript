@@ -13,7 +13,6 @@ still carrying their own:
 |Where|What|
 |-|-|
 |[`fjs/text/ascii`](../../../text/ascii/module.f.js)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges; `charIs`, any of them asked of a one-character string; `isDigits`, a string of decimal digits; and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
-|[`fjs/git/refstore/scope`](../../../git/refstore/scope/module.f.js)|`isPseudoref`, the capital letters as `'A'`..`'Z'` — a `.f.js`, which can import only what `fjs compile` accepts, as it accepts `text/ascii` now|
 
 Most of these ask about a one-character *string*, where `text/ascii`'s
 classes take a code point, which is part of why each consumer wrote its own;
@@ -84,7 +83,7 @@ written out again.
 - [x] `fjs/git/alternates`: the octal value read with `digitsValue(8n)` as
       `fjs/git/tree` does, not `parseInt`; it refuses a digit outside the
       radix itself, so `isOctal` went rather than moved.
-- [ ] `fjs/git/refstore/scope`: `isPseudoref` over `isLatinCapitalLetter`, keeping
+- [x] `fjs/git/refstore/scope`: `isPseudoref` over `isLatinCapitalLetter`, keeping
       the `-` and `_` it adds.
 - [x] `fjs/git/tree`: `lower` over the same class.
 - [x] `fjs/rtti/ts`: `isIdStart`/`isIdPart` go; `isTypeName` asks
