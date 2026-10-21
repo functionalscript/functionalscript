@@ -64,7 +64,7 @@ import { assert, assertNotNullish } from '../asserts/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { toData, unionFold } from '../rtti/data/module.f.mjs'
 import { definedEntries, definedValues, isObject } from '../types/object/module.f.mjs'
-import { find, map } from '../types/list/module.f.mjs'
+import { findMap } from '../types/list/module.f.mjs'
 import { error, ok, okThen } from '../types/result/module.f.js'
 
 /**
@@ -173,7 +173,7 @@ const refusedLeaf = leaf => {
         : path
     /** @type {(path: Path) => (children: readonly (readonly [string, unknown])[]) => Path | null} */
     const first = path => children =>
-        find(null)(p => p !== null)(map(([k, x]) => walk([...path, k])(x))(children))
+        findMap(([k, x]) => walk([...path, k])(x))(children)
     return walk
 }
 
