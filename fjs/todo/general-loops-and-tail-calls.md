@@ -25,17 +25,19 @@ has one detailed owner; implementations and other TODOs link there.
 
 | Concern | Authoritative proposal |
 | --- | --- |
-| FAST vocabulary, stage invariants, preparation and baseline migration | [Compiler architecture](./compiler-vocabulary-and-modularization.md#fast-contract) |
+| FAST vocabulary, shared binding analysis, stage invariants, preparation and baseline migration | [Compiler architecture](./compiler-vocabulary-and-modularization.md#fast-contract) |
 | Mutable bindings and source loop admission/normalization | [Let proposal: later work](../../spec/todo/3220-let.md#later) |
 | Explicit FAST loops to recursive EDAG; state/completion encoding and root-loop reuse | [FAST loop construction](../edag/todo/fast-loop-construction.md) |
 | Existing output migration and broader tail-call analysis | [Tail-call loops](../edag/todo/tail-call-loop.md) |
 | Logical operators to conditionals and EDAG schema migration | [Short-circuit conditionals](../edag/todo/short-circuit-conditionals.md) |
 
-Source binding/admission checks run before desugaring erases their evidence.
-AST-to-FAST determines branch results and loop inputs/results. `from_fast`
-consumes those explicit signatures; it does not inspect source `let`,
-classify source writes or rediscover which variables belong in loop state.
-Serializers render common prepared FAST.
+Source name/declaration checks preserve legality before declaration kinds are
+discarded. Pattern expansion precedes shared local/parameter write analysis;
+source capture admission precedes assignment normalization and helper creation.
+FAST normalization determines branch results and loop inputs/results.
+`from_fast` consumes those explicit signatures; it does not inspect source
+`let`, classify source writes or rediscover loop state. Serializers render
+common prepared FAST.
 
 ### Implementation order
 
@@ -52,18 +54,19 @@ tokenizer/directory cleanup.
 
 | ID | Deliverable and owner | Depends on | Completion gate |
 | --- | --- | --- | --- |
-| A | Define and implement the [FAST contract](./compiler-vocabulary-and-modularization.md#fast-contract) | Existing AST/EDAG evaluation contracts | Shared types, identities, normalized/prepared forms, graph domains and pass APIs are concrete; the first existing consumer uses them. |
+| A | Define and implement the [FAST contract](./compiler-vocabulary-and-modularization.md#fast-contract) | Existing AST/EDAG evaluation contracts | Shared bindings with inferred `isMutable`, write/capture analysis, normalized/prepared forms, graph domains and pass APIs are concrete; the first existing consumer uses them. |
 | B | Migrate existing source input through FAST; architecture and loop-construction owners | A | Current source admission survives; `from_fast` supports existing scalar loops and scalar root-loop reconstruction required by C, under A's explicit graph contracts. |
 | C | Migrate existing output through FAST; architecture and [tail-loop migration](../edag/todo/tail-call-loop.md#fast-migration) owners | B | Source JS, runtime/function text and Rust use shared placement/preparation; existing stack-safe, capture, failure and round-trip cases pass; replaced writer analysis is removed. |
 | D | Desugar short-circuit operators and remove their EDAG tags; short-circuit owner | C | Lowering lives in AST-to-FAST; canonical producers/consumers and the explicit old-graph policy agree. |
 | E | Generalize explicit FAST loops to EDAG; loop-construction owner | D | Arbitrary structured placement, explicit state/results, enclosing-function returns and root-loop rules work on normalized FAST fixtures. |
 | F | Generalize tail-call analysis and common loop emission; tail-call owner | E | Eligible evaluations become simultaneous loop transitions with complete invocation/capture lifetimes; generated loop helpers remain stack-safe. |
-| G | Admit general local rebinding and mutable-capture rules; language owner | F; formal language-design approval | Source checks and value/branch-result lowering use the established FAST path, with explicit compatibility migration. |
+| G | Admit general local rebinding and write-based capture rules; language owner | F; formal language-design approval | Source policy uses A/B's shared analysis; value/branch-result lowering uses the established FAST path, with explicit compatibility migration. |
 | H | Admit general source loops and exits; language owner | G | Sequential, conditional and nested loops, break/continue/return/throw work through the complete shared pipeline. |
 | I | Finish integration and close the epic | H | Public contracts and examples describe shipped behavior; all replaced paths and completed TODOs are reconciled. |
 
 A-C are the foundation gate. Preserve current behavior while changing its
-owner. D-H implement new behavior only through that foundation.
+owner; shared binding analysis does not enable G's new source capture policy.
+D-H implement new behavior only through that foundation.
 
 E-F develop the general internal conversions using explicit FAST/EDAG fixtures;
 they do not prematurely enable source spellings the parser cannot read.
@@ -76,8 +79,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
 
 - [ ] **A — FAST first.** Implement the architecture owner's small common model
       and stage APIs. Resolve representation questions there before consumers
-      depend on them; include branch results, loop signatures and shared lazy
-      evaluation, not just renamed AST types.
+      depend on them; include uniform local/parameter binding analysis, branch
+      results, loop signatures and shared lazy evaluation, not just renamed
+      AST types.
 - [ ] **B — Existing input.** Move source checks and lowering to their final
       owners. Preserve scopes, diagnostics, captures, arity, required evaluations
       and established single-variable loop cases. Implement scalar root-loop
@@ -94,8 +98,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.
 - [ ] **G — General bindings.** Implement the language owner's admission and
-      AST-to-FAST rules after approval; migrate the post-loop and immediate-call
-      capture exceptions to explicit snapshots.
+      AST-to-FAST rules after approval using the existing analysis; migrate the
+      post-loop and immediate-call capture exceptions for reassigned bindings
+      to explicit snapshots.
 - [ ] **H — General source loops.** Connect source state/result selection and
       transfer resolution to E/F. Admit and emit each new source form only with
       its complete conversion path and evidence.
@@ -112,7 +117,7 @@ Detailed cases belong to the owners above. The epic's cross-boundary gates are:
 | Existing language through FAST | Current source acceptance, required failures, eager/lazy sharing, function arity, captures, function text and existing million-round cases survive A-C. |
 | Smaller canonical EDAG | Source short-circuit semantics and operand identity survive D; former tags follow the explicit admission/hash policy. |
 | Internal loop conversions | E-F preserve explicit state, normal completion and enclosing-function return; repeated conversions stabilize within the declared graph domain. |
-| Source semantics | G-H enforce the capture rule before optimization and preserve lexical scope, TDZ, condition re-evaluation and required overwritten initializers. |
+| Source semantics | G-H apply one write-based capture rule to locals and parameters, including destructured bindings, before optimization; preserve lexical scope, TDZ, condition re-evaluation and required overwritten initializers. |
 | Loop execution | Following code runs once on normal completion; nested helpers return to callers; iteration count does not increase stack depth. |
 | Invocation and output | Simultaneous argument updates, rest/default/spread behavior, per-invocation values and snapshots agree across the shared JS/Rust path. |
 

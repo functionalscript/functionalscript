@@ -41,7 +41,7 @@ output and compiler orchestration, so it lives in `fjs/todo/`.
 | --- | --- |
 | JS tokens | Lexical tokens with the metadata needed to parse JS, including relevant line boundaries and source locations. |
 | AST | The syntax representation of a supported subset of JavaScript. That subset may be larger than FunctionalScript. It does not promise support for all JavaScript. |
-| FAST | Foundation AST: a foundation IR with immutable value bindings, evaluation regions, structured branches and loops with explicit state/results. Its shape and primitives need not be a subset of JavaScript AST; core `loop` replaces source `while` syntax. The same vocabulary, with documented stage invariants, is used before EDAG construction and after EDAG-to-FAST conversion. Representability in FAST does not by itself establish FJS acceptance. |
+| FAST | Foundation AST: a foundation IR with explicit bindings, evaluation regions and structured control flow. Binding analysis classifies reassignment; normalization produces immutable values and explicit branch/loop state; preparation produces target-ready slots and transfers. Its shape and primitives need not be a subset of JavaScript AST; core `loop` replaces source `while` syntax. These are stages of one vocabulary, used before EDAG construction and after EDAG-to-FAST conversion. Representability in FAST does not by itself establish FJS acceptance. |
 | Desugaring | AST-to-FAST rewriting that preserves the supported source semantics while expressing sugar through basic constructs. |
 | EDAG | Expression DAG: operations and their references, with explicit sharing, invocation scopes and required evaluation. One shared node is different from distinct equal nodes. |
 | Anchor | A required computation retained through a comma node even when the returned value does not otherwise require it. |
@@ -85,8 +85,8 @@ normalizations.
 | Module | Responsibility |
 | --- | --- |
 | `fjs/js/tokenizer` | JS text to tokens, and token rendering back to marked/plain text. Own lexical spelling, escaping and separation. Reuse the existing tokenizer. |
-| `fjs/js/ast` | AST and shared FAST definitions, binding/target identities, and normalized/prepared stage contracts. |
-| `fjs/js/ast/sugar` | AST → normalized FAST, using common normalization routines; owns source sugar and explicit source branch/loop signatures. |
+| `fjs/js/ast` | AST and shared FAST definitions, binding/target identities, shared write/capture analysis, and binding/normalized/prepared stage contracts. |
+| `fjs/js/ast/sugar` | AST → FAST sugar expansion, followed by normalization after binding analysis and source admission; owns source sugar and explicit source branch/loop signatures. |
 | `fjs/js/ast/prepare` | Normalized → prepared FAST: shared slot/temporary lowering, invocation lifetimes and value captures for all serializers. |
 | `fjs/js/ast/serializer` | Prepared FAST → JS tokens; marked-text output composes this with token rendering. |
 | `fjs/js/ast/parser` | A stream of JS tokens → AST. |
@@ -112,8 +112,10 @@ owners; this proposal does not require a Rust input parser.
 - **JS syntax infrastructure is reusable.** Parsing a JS-subset AST does not
   establish FJS acceptance. `fjs/compiler` owns FJS admission, loading/linking
   and orchestration. Run source-level checks before desugaring erases the
-  constructs those checks inspect. Document where binding resolution and
-  capture discovery occur.
+  constructs those checks inspect. Resolve names and reject illegal `const`
+  writes while source declaration kinds are available. Shared FAST analysis
+  discovers writes/captures after pattern expansion preserves their identities;
+  FJS admission applies the source capture policy to those facts.
 - **Desugaring owns syntax sugar.** Later stages receive FAST and do not
   reinterpret destructuring or defaults. Preserve one evaluation of an
   initializer, use fresh bindings, retain relevant source origins, and
@@ -170,6 +172,50 @@ Identifiers printed by a serializer are presentation. Source bindings may
 map to successive immutable values; that source mapping is not part of
 `from_fast`'s input.
 
+**Binding stage.** Variables and parameters use one binding record,
+conceptually `Binding { id, isMutable }`; FAST has no separate `let` and
+`const` declaration forms. Here `isMutable` means reassigned after
+initialization, not permission to assign or mutable object contents. Source
+declaration kinds remain available for source legality/diagnostics until those
+checks finish; an illegal `const` assignment never becomes a mutable FAST
+binding. Initialization and subsequent assignment are distinct operations.
+
+After desugaring supported patterns/defaults into explicit bindings, run one
+write/capture analysis for both locals and parameters:
+
+1. Use the resolved binding identity of each reference and assignment. Preserve
+   source scopes, binding origins and nested source function boundaries.
+2. Scan the complete binding scope, including nested functions, before
+   optimization. Any reassignment sets `isMutable`; declaration, parameter,
+   default and destructuring initialization do not. A source reassignment
+   within an initializer still counts for the binding it targets. Count writes
+   even in syntactically unreachable branches; no flow/liveness proof is needed.
+3. Record references from nested source functions as captures, including write
+   targets. These are analysis facts; admission owns which combinations the
+   current source language allows. G's proposed policy rejects
+   `isMutable && captured`, including a capture before a later write.
+
+The flag is consumed only after this analysis completes. Pattern expansion
+must preserve original binding identities: reassigning a destructured parameter
+is a write to its local binding, not to the fresh argument temporary. For
+example, `const f = ([a]) => a * a` becomes conceptually:
+
+```text
+f = function(a0) {
+    initialize a1 = a0[0]
+    return a1 * a1
+}
+```
+
+`f`, `a0` and `a1` all have `isMutable: false`. There is no special mutability
+algorithm for destructured parameters. A notation such as `(const a) => a`
+can illustrate that flag, but introduces no JavaScript syntax.
+
+**Normalized stage.** After source capture admission, normalization replaces
+reassignments with fresh immutable values and explicit branch/loop state.
+All value bindings are immutable here; `from_fast` neither infers nor consumes
+source mutability. Generated loop helpers are introduced only afterward.
+
 | Normalized construct | Contract |
 | --- | --- |
 | Value and reference | Literals, operations and functions retain existing EDAG semantics; a reference uses an established identity rather than copying its initializer. |
@@ -215,23 +261,33 @@ a dependency on the later standalone-`let` grammar. Its slot lowering must:
 - Keep slots private to their owning function/region and preserve lexical
   transfer targets. Serializers map the resulting instructions to syntax.
 
-This is a stage distinction, not a second independent compiler IR.
+Binding, normalization and preparation are stages of one compiler IR.
 `from_fast` consumes normalized FAST only; serializers consume prepared FAST.
 Graph round-trip claims apply before physical preparation. No serializer
 repeats state selection, placement or parallel-update analysis.
 
-The fixed call order is source resolution/admission, AST-to-FAST normalization,
-then `from_fast`; output is `to_fast`, then `prepare`, then serialization.
-Normalization routines may be split into small common passes. Each states
-which constructs it consumes/produces and runs in a fixed order; no unbounded
-rewrite-until-stable driver or general optimizer is required. Source capture
-checks precede generated functions, and only graph construction introduces
-recursive helpers.
+The fixed input order is source resolution and syntax/declaration checks,
+pattern/sugar expansion with source evidence retained, shared write/capture
+analysis, source capture admission, assignment/control-flow normalization,
+then `from_fast`. Output is `to_fast`, then `prepare`, then serialization.
+Small common passes state their input/output invariants and run in a fixed
+order; no unbounded rewrite-until-stable driver or general optimizer is required.
+Source checks always finish before a pass erases the evidence they inspect.
+Source capture checks precede generated functions, and only graph construction
+introduces recursive helpers.
 
-A's examples/proofs cover a branch with results, a swapped-parameter loop,
-normal versus function exit, an overwritten required initializer, lazy shared
-evaluation and a captured iteration value. The API must express these before
-downstream work depends on it.
+A/B establish the binding representation and shared analysis while preserving
+current source acceptance, including its existing loop capture exceptions.
+Retain source-origin metadata needed by that admission policy until G replaces
+it with the [proposed uniform rule](../../spec/todo/3220-let.md#general-bindings).
+G enables the new policy and general rebinding in these same passes; it does
+not introduce a second analysis or require retrofitting FAST.
+
+A's examples/proofs cover written/unwritten locals and parameters, destructured
+initialization, source `const` errors, a branch with results, a swapped-parameter
+loop, normal versus function exit, an overwritten required initializer, lazy
+shared evaluation and a captured iteration value. The API must express these
+before downstream work depends on it.
 
 A also records the supported exact-graph domains and any intentional
 normalization needed by the baseline scalar root-loop round trip. B implements
@@ -256,9 +312,9 @@ this issue owns the vocabulary the line uses and the placements below.
 | --- | --- |
 | Tokenizer | Spelling: what is a token, escapes, line boundaries. |
 | Grammar | Shape: which token sequences are a module, a statement, a value. |
-| Binding | Names: what a word resolves to, captures, and JavaScript's own early errors that read a word — a name bound twice, a reserved word bound — checked before desugaring erases what they inspect. |
+| Binding | Names and facts: resolve identities and declaration legality before source evidence is erased; after pattern expansion, shared FAST analysis discovers writes and captures. Admission uses these facts without repeating the analysis. |
 | Desugaring | Sugar: a construct expressed through FAST's basic constructs, including short-circuit operators as single-evaluation conditionals. |
-| Admission | What FunctionalScript keeps of the supported JavaScript subset, and the refusals that are its own and no early error of JavaScript's — a prototype name as a key, `o.toString`, a reserved global, a bare `__proto__` key, a prohibited member call — run before desugaring erases what they inspect; `fjs/compiler` owns it. |
+| Admission | What FunctionalScript keeps of the supported JavaScript subset, including its capture policy and refusals such as a prototype key, `o.toString`, a reserved global, a bare `__proto__` key or a prohibited member call. Source-shape checks precede expansion that erases their evidence; capture checks follow shared analysis and precede assignment normalization/helper generation. `fjs/compiler` owns it. |
 | Graph construction (`from_fast`) | Sharing, scopes, anchors, and recursive loop helpers with state results and enclosing-function completion handling. |
 | Linking | Loading and linking, what the records beside a module function ask of the host and of the modules loaded: a specifier resolved to a module identity, one load and one evaluation per identity, a cycle refused, the attribute's agreement with the file, the selected export's existence; and the module function applied to what was loaded. `fjs/compiler` owns it, `_walk` in `source` and `resolve` in `edag` today. |
 | Orchestration | Which steps run for an input and an output name: `fjs compile`'s dispatch by file type, a `.json` document against a module, which output evaluates and which writes a graph, the diagnostics' paths — the command-line pages' layer. `fjs/compiler`'s `module.f.mjs` and `fjs/cli` own it. |
@@ -279,7 +335,8 @@ Where a feature lives today, and where the vocabulary places it:
 | A module as a function over its imports | The fold's `AstModule`, then `unresolved` and `Unresolved` in `compiler/edag` | Desugaring, with the import metadata beside the function |
 | Module resolution, identity, cycles, the attribute's and the selected export's checks | `_walk` in `compiler/source`, `resolve` in `compiler/edag` | Linking |
 | Dispatch by file type and output name, the authored `.f.js` check | `fjs/compiler/module.f.mjs`, `fjs/cli` | Orchestration |
-| Resolution, captures, JavaScript's early errors | The fold | Binding, before desugaring |
+| Resolution and JavaScript's early errors | The fold | Binding, before desugaring erases the relevant source evidence |
+| Writes and captures | The fold | Shared binding analysis after pattern expansion; admission applies the source policy before normalization |
 | FunctionalScript's own refusals: a prototype name, a reserved global, `__proto__`, a prohibited call | The fold | Admission, before desugaring |
 
 **Destructuring is the fold's today and belongs to desugaring.** The syntax
@@ -501,10 +558,14 @@ documentation and run the affected checks with each implementation increment.
 
 - [ ] **A:** Implement the FAST contract with shared types, stage APIs and
       common normalization/preparation facilities, starting with a real existing
-      consumer. Publish its vocabulary, ownership map and invariants.
+      consumer. Include one binding representation and write/capture analysis
+      for locals and parameters. Publish its vocabulary, ownership map and
+      invariants.
 - [ ] **B:** Separate reusable JS AST parsing/desugaring from FJS admission.
       Move existing source input through normalized FAST and `from_fast`,
       preserving resolution, captures, source locations and graph contracts.
+      Expand patterns before shared analysis; preserve source legality and
+      current admission, leaving the new capture policy to G.
 - [ ] **B:** Preserve references, scopes and required-evaluation anchors in graph
       construction. Keep existing loops structured until that boundary; the
       loop-construction owner extends its capability later.
