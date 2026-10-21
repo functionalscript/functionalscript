@@ -293,6 +293,8 @@ export const proof = {
             fenceBacktick: () => assertEq(refusal('```a`\n```\n')?.startsWith('line 1: a code fence'), true),
             unclosedFence: () => assertEq(refusal('a\n\n```\nb\n'), 'line 3: a code fence that is never closed'),
             emptyHeading: () => assertEq(refusal('# \n'), 'line 1: a heading that is empty or closed by `#`'),
+            // A marker that ends the line is an empty heading on GitHub, not prose.
+            markerOnlyHeading: () => assertEq(refusal('a\n\n###\n'), 'line 3: a heading that is empty or closed by `#`'),
             closedHeading: () => assertEq(refusal('## a ##\n')?.startsWith('line 1: a heading'), true),
             headingSpans: () => assertEq(refusal('\n# _a_\n')?.startsWith('line 2: an underscore'), true),
             lazyContinuation: () => assertEq(refusal('- a\nb\n'), 'line 2: a line that GitHub reads as part of the list item above it'),
