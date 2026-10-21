@@ -305,6 +305,17 @@ export const proof = {
             strong: () => assertEq(tryParseEntry('**a*b*')[0], 'error'),
             emAfterStrong: () => assertEq(tryParseEntry('**a***b*')[0], 'error'),
         },
+        tildeAcrossSpans: {
+            emphasis: () => assertEq(tryParseEntry('~*foo*~')[0], 'error'),
+            strong: () => assertEq(tryParseEntry('~**foo**~')[0], 'error'),
+            link: () => assertEq(tryParseEntry('~[foo](u)~')[0], 'error'),
+            code: () => assertEq(tryParseEntry(`~${tick}foo${tick}~`)[0], 'error'),
+            double: () => assertEq(tryParseEntry('~~*foo*~~')[0], 'error'),
+            label: () => assertEq(tryParseEntry(`[~${tick}foo${tick}~](u)`)[0], 'error'),
+            codeContents: () => assertEq(tryParseEntry(`${tick}~~foo~~${tick}`)[0], 'ok'),
+            destination: () => assertEq(tryParseEntry('[foo](~u~)')[0], 'ok'),
+            separateScopes: () => assertEq(tryParseEntry('~[~foo](u)')[0], 'ok'),
+        },
         // GitHub reads an address or an autolink in bold as a link too.
         autolinkInEmphasis: {
             email: () => assertEq(tryParseEntry('**foo@example.com**')[1], 'an email address, which GitHub reads as a link, at 3'),
@@ -349,6 +360,7 @@ export const proof = {
         tableOpenRows: () => assertStructurallySame(blocks('|\n|-|\n|a\n'), [['table', [null], [[]], [[[['text', 'a']]]]]]),
         tableAlignments: () => assertStructurallySame(blocks('|a|b|c|\n|---|--:|-|\n'),
             [['table', [null, 'right', null], [[['text', 'a']], [['text', 'b']], [['text', 'c']]], []]]),
+        wrappedItemRefusal: () => assertEq(refusal('# Heading\n\n- ok\n  continued\n- _bad_'), 'line 5: an underscore that GitHub may read as emphasis at 0'),
         empty: () => assertStructurallySame(blocks(''), []),
         // A line that opens with an autolink is a paragraph, as on GitHub.
         autolinkLine: () => assertStructurallySame(blocks('<https://e.x>.\n'),
@@ -384,7 +396,7 @@ export const proof = {
             headingInAnItem: () => assertEq(refusal('- # a\n'), 'line 1: a heading inside a list item'),
             nestedList: () => assertEq(refusal('- a\n  * b\n'), 'line 2: a list marked other than with `- `'),
             itemIndentedCode: () => assertEq(refusal('-     a\n')?.startsWith('line 1:'), true),
-            itemSpans: () => assertEq(refusal('- a\n- _b_\n')?.startsWith('line 2: an underscore'), true),
+            itemSpans: () => assertEq(refusal('- a\n- _b_\n'), 'line 2: an underscore that GitHub may read as emphasis at 0'),
             paragraphSpans: () => assertEq(refusal('a\n_b_\n')?.startsWith('line 1: an underscore'), true),
             indentedCode: () => assertEq(refusal('    a\n'), 'line 1: an indented code block'),
             // A tab reaches the fourth column, so the line is code on GitHub.
