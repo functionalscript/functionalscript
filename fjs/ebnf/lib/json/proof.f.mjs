@@ -183,14 +183,16 @@ export const proof = {
     // them out: the colon and the whitespace around it passed over. What a
     // mapping receives for an entry is a node of the shape `entry` reads.
     entry: () => {
-        /** @typedef {Assert<Children<Entry<'k', 'v'>, Utf16, 'o'> extends EntryNode<Ast<'k', Utf16, 'o'>, Ast<'v', Utf16, 'o'>> ? true : false>} _Shape */
+        // `EntryNode` leaves the separators `unknown`, so the claim is that the
+        // node fits it, not that the two are equal.
+        /** @typedef {Assert<Equal<Children<Entry<'k', 'v'>, Utf16, 'o'> extends EntryNode<Ast<'k', Utf16, 'o'>, Ast<'v', Utf16, 'o'>> ? true : false, true>>} _Shape */
         /** @type {RewriteSet<Utf16, never>} */
         const nothing = []
         const parse = parser(object('k', 'v'), nothing)
         /** @type {(text: string) => readonly (readonly [Ast<'k', Utf16>, Ast<'v', Utf16>])[]} */
         const entriesOf = text => items(unwrap(parse(units(text)))[0]).map(entry)
-        const k = [{ symbol: 0x6b, meta: utf16 }]
-        const v = [{ symbol: 0x76, meta: utf16 }]
+        const k = /** @type {const} */ ([{ symbol: 0x6b, meta: utf16 }])
+        const v = /** @type {const} */ ([{ symbol: 0x76, meta: utf16 }])
         assertStructurallySame(entriesOf('{}'), [])
         assertStructurallySame(entriesOf('{k:v}'), [[k, v]])
         assertStructurallySame(entriesOf('{ k : v , k:v }'), [[k, v], [k, v]])
