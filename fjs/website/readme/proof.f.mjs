@@ -44,6 +44,9 @@ export const proof = {
     slug: {
         words: () => assertEq(slug([['text', 'Hello, World!']]), 'hello-world'),
         spans: () => assertEq(slug([['code', 'a_b'], ['text', ' – '], ['link', [['text', 'C'], ['code', 'd']], 'u'], ['em', [['text', 'É']]]]), 'a_b--cdé'),
+        // An uncased script stays, as GitHub keeps it; its punctuation, a
+        // symbol and an emoji go.
+        uncased: () => assertEq(slug([['text', '中文、テスト → ok ✓ 😀']]), '中文テスト--ok--'),
         digits: () => assertEq(slug([['strong', [['text', '10-'], ['code', '2']]]]), '10-2'),
     },
     anchors: () => assertStructurallySame(

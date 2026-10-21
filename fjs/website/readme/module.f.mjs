@@ -85,16 +85,36 @@ const words = span => span[0] === 'link' || span[0] === 'strong' || span[0] === 
     : span[1]
 
 /**
+/**
+ * Whether a character outside ASCII stays in an anchor: a letter, a mark or
+ * a digit of any script, cased or not. GitHub drops punctuation and symbols,
+ * which outside ASCII are the blocks from General Punctuation to
+ * Miscellaneous Symbols and Arrows, the CJK symbols and punctuation, the
+ * fullwidth forms' punctuation, and the emoji planes; everything else is a
+ * script's own character.
+ *
+ * @type {(c: string) => boolean}
+ */
+const keptBeyondAscii = c => {
+    const code = /** @type {number} */(c.codePointAt(0))
+    return code > 0x7f
+        && !(code >= 0x2000 && code <= 0x2bff)
+        && !(code >= 0x3000 && code <= 0x303f)
+        && !(code >= 0xff00 && code <= 0xff0f)
+        && code < 0x1f000
+}
+
+/**
  * A heading's anchor as GitHub makes it: its words lowercased, spaces as
  * `-`, and every character but a letter, a digit, `-` and `_` dropped. So a
  * `#fragment` written against the README on GitHub finds the same heading
- * here.
+ * here, `# 中文` included.
  *
  * @type {(spans: readonly Inline[]) => string}
  */
 export const slug = spans => [...spans.map(words).join('').toLowerCase()]
     .flatMap(c => c === ' ' ? ['-']
-        : c === '-' || c === '_' || charIs(isDigit)(c) || charIs(isLatinLetter)(c) || c.toLowerCase() !== c.toUpperCase() ? [c]
+        : c === '-' || c === '_' || charIs(isDigit)(c) || charIs(isLatinLetter)(c) || keptBeyondAscii(c) ? [c]
         : [])
     .join('')
 
