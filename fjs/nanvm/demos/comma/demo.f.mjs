@@ -8,7 +8,7 @@
  * @module
  */
 
-import entry from './sample.f.mjs'
+import entry from './sample.f.js'
 import { functionDemo } from '../function-page/module.f.mjs'
 
 export const demo = functionDemo({ name: 'comma', entry, inputs: [1, -1] })

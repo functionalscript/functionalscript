@@ -75,7 +75,7 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { isIntrinsic, isStatic } from '../module.f.mjs'
+import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.mjs'
 import { sharedNodesOf } from '../sharing/module.f.mjs'
 
 /** A walk that has added nothing, and merges twins where `merges` says. @type {(merges: boolean) => _State} */
@@ -373,12 +373,9 @@ const handlers = {
 const named = x => x instanceof Array ? [x[1]] : []
 
 /** The operands of a chain's steps, including guarded arguments and computed keys. @type {(k: Step | undefined) => readonly Operand[]} */
-export const stepOperands = k => {
-    if (k === undefined) { return [] }
-    if (k[0] === '|.') { return [k[1], ...stepOperands(k[2])] }
-    const [, x, cont] = k
-    return [...x.map(itemOperand), ...stepOperands(cont)]
-}
+export const stepOperands = edagStepOperands(
+    /** @type {(k: IndexOperand) => readonly Operand[]} */ (k => [k]),
+    /** @type {(xs: ItemsOver<Operand>) => readonly Operand[]} */ (xs => xs.map(itemOperand)))
 
 /** A plain item or the operand of a spread. @type {(x: ItemOperand) => Operand} */
 export const itemOperand = x => x instanceof Array && x[0] === '...' ? x[1] : x
@@ -463,20 +460,12 @@ const sharedByIdentity = (e, visited) => {
 const restore = (exps, operand) => operand instanceof Array ? exps[operand[1]] : operand
 
 /** @type {(exps: readonly ExpOp[], items: readonly ItemOperand[]) => ItemsOver<Exp>} */
-const restoreItems = (exps, items) => items.map(item => item instanceof Array && item[0] === '...'
-    ? ['...', restore(exps, item[1])] : restore(exps, item))
+const restoreItems = (exps, items) => mapItems(/** @type {(x: Operand) => Exp} */ (x => restore(exps, x)))(items)
 
 /** @type {(exps: readonly ExpOp[], step: Step) => StepOver<Exp>} */
-const restoreStep = (exps, step) => {
-    const [tag, operand, continuation] = step
-    if (tag === '|.') {
-        const key = restore(exps, operand)
-        return continuation === undefined ? [tag, key] : [tag, key, restoreStep(exps, continuation)]
-    }
-    const args = restoreItems(exps, operand)
-    if (tag === '|!()') { return [tag, args] }
-    return continuation === undefined ? [tag, args] : [tag, args, restoreStep(exps, continuation)]
-}
+const restoreStep = (exps, step) => mapSteps(
+    /** @type {(x: IndexOperand) => Exp} */ (x => restore(exps, x)),
+    /** @type {(items: ItemsOver<Operand>) => ItemsOver<Exp>} */ (items => restoreItems(exps, items)))(step)
 
 /**
  * An entry as an expression, from the expressions of the entries before it,

@@ -54,6 +54,7 @@
 import { stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /**
  * Every node's rank: the longest path from the root, so every edge points
@@ -261,11 +262,54 @@ const clickOf = ({ to }) => typeof to === 'number' || to.click === undefined ? {
  * them: the node's kind, so a stylesheet can treat the whole node as one,
  * where `data-graph-kind`, on the box alone, styles the box. They are two
  * names because a rule meant for a box, a fill or a dash, would be wrong
- * on text.
+ * on text. A node with an `order` carries it on both groups too, so its
+ * box and its text fade as one.
  *
- * @type {(p: _Positioned) => { readonly 'data-graph-in-kind': string }}
+ * @type {(p: _Positioned) => { readonly 'data-graph-in-kind': string, readonly 'data-graph-order'?: string }}
  */
-const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
+const inKindOf = p => ({
+    'data-graph-in-kind': p.kind,
+    ...(p.order === undefined ? {} : { 'data-graph-order': String(p.order) }),
+})
+
+/**
+ * What an edge fades with: the node it leads to, if that one has an order,
+ * or else the node it leaves from — nothing when neither has one. So an
+ * edge into a node appears and goes with it, and an edge out of a node to
+ * one that stays goes with the node it leaves. Its kind and order are the
+ * ones the stylesheet reads off a node's groups.
+ *
+ * @type {(nodeOf: (id: number) => _Positioned) => (from: number, to: number) => { readonly 'data-graph-in-kind'?: string, readonly 'data-graph-order'?: string }}
+ */
+const fadeOf = nodeOf => (from, to) => {
+    const target = nodeOf(to)
+    const owner = target.order !== undefined ? target : nodeOf(from)
+    return owner.order !== undefined ? inKindOf(owner) : {}
+}
+
+/**
+ * An edge's or an entry's `data-key` in a keyed graph, from the keys of the
+ * nodes it joins, so a page that patches the drawing keeps the same path
+ * for it, and the site's stylesheet slides its route with its nodes. None
+ * when a node it joins has no key. The keys are written as a JSON array, so
+ * no key's own characters can make two edges' keys the same.
+ *
+ * @type {(part: string, ...keys: readonly (string | undefined)[]) => { readonly 'data-key'?: string }}
+ */
+const pathKeyOf = (part, ...keys) =>
+    keys.every(k => k !== undefined) ? { 'data-key': `${part}:${JSON.stringify(keys)}` } : {}
+
+/**
+ * Where a node's contents are drawn, and the attributes of the groups that
+ * hold them. A node with a `key` is drawn at the origin, its groups moved
+ * into place by a `transform` and keyed for the box and the text apart; any
+ * other is drawn where it is, as it always was.
+ *
+ * @type {(p: _Positioned) => { readonly local: _Positioned, readonly group: (part: string) => { readonly transform?: string, readonly 'data-key'?: string } }}
+ */
+const placeOf = p => p.key === undefined
+    ? { local: p, group: () => ({}) }
+    : { local: { ...p, x: 0, y: 0 }, group: part => ({ transform: `translate(${p.x},${p.y})`, 'data-key': `${part}:${p.key}` }) }
 
 /**
  * A node's ports: one row per outgoing edge, in the order the demo gave
@@ -571,7 +615,7 @@ const routesOf = placed => {
             }).flat(),
             [to.x, to.y + to.height / 2],
         ]
-        return [{ edge: port.edge, points }]
+        return [{ edge: port.edge, index: port.index, to: target, points }]
     }))
 }
 
@@ -717,11 +761,25 @@ export const graphSvg = g => {
         ...positioned.map(p => p.y + p.height),
         ...placed.lanes.map(lane => lane.y + laneSize / 2),
     ])
+    /** @type {(id: number) => _Positioned} */
+    const nodeOf = id => assertNotNullish(positioned.find(n => n.id === id))
+    const fade = fadeOf(nodeOf)
+    const keyed = positioned.some(p => p.key !== undefined)
+    // A keyed graph's routes all have one more point than their bend, a
+    // straight run doubled, so one route's shape can slide into another's.
+    /** @type {(points: readonly _Point[]) => readonly _Point[]} */
+    const even = points => keyed && points.length === 2 ? [points[0], ...points] : points
+    // An edge's slot among the edges leaving its node tells two edges
+    // between the same nodes apart.
+    /** @type {(index: number, from: number) => number} */
+    const slotOf = (index, from) => g.edges.slice(0, index).filter(e => e.from === from).length
     /** @type {readonly Element[]} */
-    const edgeEls = routesOf(placed).map(({ edge, points }) => ['path', {
-        d: `M${points.map(([x, y]) => `${x},${y}`).join(' L')}`,
+    const edgeEls = routesOf(placed).map(({ edge, index, to, points }) => ['path', {
+        d: `M${even(points).map(([x, y]) => `${x},${y}`).join(' L')}`,
         'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
         ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
+        ...fade(edge.from, to),
+        ...pathKeyOf('edge', nodeOf(edge.from).key, String(slotOf(index, edge.from)), nodeOf(to).key),
     }])
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge
@@ -733,6 +791,8 @@ export const graphSvg = g => {
             d: `M${p.x - entryLength},${y} L${p.x},${y}`,
             'data-graph-edge': '', 'data-graph-entry': '', 'marker-end': 'url(#graph-arrow)',
             ...(kind === undefined ? {} : { 'data-graph-edge-kind': kind }),
+            ...fade(p.id, p.id),
+            ...pathKeyOf('entry', p.key),
         }])
     }))
     /**
@@ -747,13 +807,29 @@ export const graphSvg = g => {
     const keyWidthOf = p => port => valueOf(port) === null ? p.width - p.title
         : port.edge.label === '' ? 0
         : p.keyWidth
+    // A keyed graph draws its keyed groups in an order of their own, by
+    // key, in a layer each: a page that patches it then finds a node's
+    // group among the same siblings, in the same order, from one drawing
+    // to the next, and never has to move it. Its edges are a layer too,
+    // sorted by key the same way, so the label layer after them stays the
+    // same element however many edges a drawing has, and an edge between
+    // nodes that stay is the same path, its route sliding with them.
+    /** @type {(el: Element) => string} */
+    const keyAttrOf = el => /** @type {{ readonly 'data-key'?: string }} */ (/** @type {readonly unknown[]} */ (el)[1])['data-key'] ?? ''
+    /** @type {(els: readonly Element[]) => readonly Element[]} */
+    const byKey = els => keyed ? els.toSorted((a, b) => keyAttrOf(a) < keyAttrOf(b) ? -1 : 1) : els
+    const drawn = keyed ? positioned.toSorted((a, b) => String(a.key) < String(b.key) ? -1 : 1) : positioned
+    /** @type {(els: readonly Element[]) => readonly Element[]} */
+    const layer = els => keyed ? [['g', ...els]] : els
     /** @type {readonly Element[]} */
-    const boxEls = positioned.map(p => ['g', inKindOf(p),
+    const boxEls = drawn.map(at => {
+        const { local: p, group } = placeOf(at)
+        return /** @type {Element} */ (['g', { ...inKindOf(p), ...group('box') },
         /** @type {Element} */ (['rect', {
             x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-node': '', 'data-graph-kind': p.kind,
         }]),
-        ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(p)})` },
+        ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(at)})` },
             ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x + p.title), y: String(p.y + port.y),
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
@@ -781,12 +857,18 @@ export const graphSvg = g => {
             x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-outline': '',
         }])]),
-    ])
+        ])
+    })
     /** @type {readonly Element[]} */
-    const clipEls = positioned.flatMap(p => p.ports.length === 0 ? [] : [/** @type {Element} */ (['clipPath', { id: clipIdOf(p) },
-        ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])])
+    const clipEls = positioned.flatMap(at => {
+        const { local: p } = placeOf(at)
+        return p.ports.length === 0 ? [] : [/** @type {Element} */ (['clipPath', { id: clipIdOf(at) },
+            ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])]
+    })
     /** @type {readonly Element[]} */
-    const labelEls = positioned.map(p => ['g', inKindOf(p),
+    const labelEls = drawn.map(at => {
+        const { local: p, group } = placeOf(at)
+        return /** @type {Element} */ (['g', { ...inKindOf(p), ...group('text') },
         ...(p.label === '' ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.title / 2), y: String(p.y + p.height / 2),
             'text-anchor': 'middle', 'data-graph-label': '',
@@ -809,7 +891,8 @@ export const graphSvg = g => {
             }, ...(to.parts === undefined ? [to.inline]
                 : to.parts.map(([text, kind]) => /** @type {Element} */ (['tspan', { 'data-graph-part': kind }, text])))])]
         }),
-    ])
+        ])
+    })
     return ['div', { 'data-graph': '' }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
         ['defs',
             ['marker', {
@@ -818,9 +901,8 @@ export const graphSvg = g => {
             },
                 ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-arrow': '' }]],
             ...clipEls],
-        ...boxEls,
-        ...edgeEls,
-        ...entryEls,
-        ...labelEls,
+        ...layer(boxEls),
+        ...layer(byKey([...edgeEls, ...entryEls])),
+        ...layer(labelEls),
     ]]
 }
