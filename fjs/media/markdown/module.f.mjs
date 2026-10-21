@@ -406,6 +406,9 @@ const isFence = line => line.startsWith('```')
 const foreignBlock = line => {
     const trimmed = line.trim()
     if (line.startsWith('    ')) { return 'an indented code block' }
+    // A tab stops at the next fourth column, so where its block starts
+    // depends on columns this reader does not count.
+    if (line.slice(0, line.length - line.trimStart().length).includes('\t')) { return 'a tab in an indent' }
     if (trimmed.startsWith('>')) { return 'a block quote' }
     if (trimmed.startsWith('|')) { return 'a table' }
     // A table's delimiter row: its header row need not open with a pipe, so

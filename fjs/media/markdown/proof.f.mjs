@@ -311,6 +311,8 @@ export const proof = {
             itemSpans: () => assertEq(refusal('- a\n- _b_\n')?.startsWith('line 1: an underscore'), true),
             paragraphSpans: () => assertEq(refusal('a\n_b_\n')?.startsWith('line 1: an underscore'), true),
             indentedCode: () => assertEq(refusal('    a\n'), 'line 1: an indented code block'),
+            // A tab reaches the fourth column, so the line is code on GitHub.
+            tabIndent: () => assertEq(refusal('\ta\n'), 'line 1: a tab in an indent'),
             quote: () => assertEq(refusal('> a\n'), 'line 1: a block quote'),
             table: () => assertEq(refusal('| a |\n'), 'line 1: a table'),
             tableUnderAHeader: () => assertEq(refusal('a | b\n--- | ---\n'), 'line 2: a table'),
