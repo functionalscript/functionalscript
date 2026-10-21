@@ -254,6 +254,16 @@ into FunctionalScript. Existing `.mjs` files that violate this rule are
 migration debt, not precedent: find or file a co-located `todo/` to extract the
 business logic as soon as possible.
 
+**Name a module by what the compiler accepts.** A module the current
+FunctionalScript compiler accepts whole is `.f.js`, never `.f.mjs`: write it as
+`.f.js` from the start when it compiles, and `git mv` an existing `.f.mjs` to
+`.f.js` in the same pull request that makes it compile — the change that removes
+the last construct the compiler refused, or the compiler change that starts
+accepting it. Update its importers, runtime and type references in that pull
+request, and run `npm start compile` from the repository root to confirm. Its
+`proof.f.mjs` keeps its name ([fjs/AGENTS.md §1.2](./fjs/AGENTS.md#12-proof-coverage-is-mandatory)).
+Do not leave a compilable module as `.f.mjs` for a later pull request.
+
 Every new `.f.mjs` or `.f.js` module ships a co-located `proof.f.mjs` with
 **100% proof coverage** — every export called, every line executed, every branch
 taken.
