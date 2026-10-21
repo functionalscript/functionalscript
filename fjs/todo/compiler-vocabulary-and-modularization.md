@@ -41,7 +41,7 @@ output and compiler orchestration, so it lives in `fjs/todo/`.
 | --- | --- |
 | JS tokens | Lexical tokens with the metadata needed to parse JS, including relevant line boundaries and source locations. |
 | AST | The syntax representation of a supported subset of JavaScript. That subset may be larger than FunctionalScript. It does not promise support for all JavaScript. |
-| FAST | Foundation AST: the desugared subset of the supported JavaScript AST, with explicit bindings, blocks and core loop forms. The same representation is used before EDAG construction and after EDAG-to-FAST conversion. Representability in FAST does not by itself establish FJS acceptance. |
+| FAST | Foundation AST: a foundation IR with explicit bindings, evaluation regions and core control flow. Its shape and primitives need not be a subset of the JavaScript AST; a core `loop` may replace source `while` syntax. The same foundation representation, with documented normalization stages, is used before EDAG construction and after EDAG-to-FAST conversion. Representability in FAST does not by itself establish FJS acceptance. |
 | Desugaring | AST-to-FAST rewriting that preserves the supported source semantics while expressing sugar through basic constructs. |
 | EDAG | Expression DAG: operations and their references, with explicit sharing, invocation scopes and required evaluation. One shared node is different from distinct equal nodes. |
 | Anchor | A required computation retained through a comma node even when the returned value does not otherwise require it. |
@@ -56,10 +56,17 @@ The older [demo document](../../todo/demo/README.md), explicitly marked stale,
 uses BAST for a different concept, "Binary Abstract Syntax Tree". That
 historical meaning is not renamed or adopted by this proposal.
 
-FAST retains core `let`, `while` and assignment forms for structured loop
-emission. `from_fast` lowers these forms to the existing tail-call EDAG;
-`to_fast` reconstructs eligible loops. This adds no EDAG loop node or new
-source-language syntax.
+FAST retains the semantics of local bindings, state updates and structured
+loops without requiring JavaScript-shaped `let` or `while` nodes. A core
+`loop` with explicit transfers is a possible foundation primitive.
+`from_fast` lowers normalized loops to the existing tail-call EDAG;
+`to_fast` reconstructs eligible loops. Several common FAST passes may normalize
+control flow, state and captures; each has explicit input/output invariants
+and a terminating pass order. This adds no EDAG loop node or new source keyword.
+The [general loops and tail calls epic](./general-loops-and-tail-calls.md)
+orders the relevant FAST prerequisites and the later grammar/analysis work.
+Introducing FAST and migrating the existing template do not themselves enable
+those broader source forms.
 
 The symmetry is in the conversion boundaries:
 
@@ -406,7 +413,8 @@ The architecture also adds no source-language feature by itself.
 ### Tasks
 
 - [ ] Publish the compiler architecture and vocabulary, settle conversion
-      names, define FAST's supported constructs and invariants, and record
+      names, define FAST's supported primitives and normalization-stage
+      invariants without requiring it to be a subset of JS AST, and record
       current versus proposed ownership. Link the document from contributor
       and agent entry points.
 - [ ] Name on every specification page the layer that implements its
@@ -441,6 +449,9 @@ The architecture also adds no source-language feature by itself.
 
 ### Related
 
+- [General loops and tail calls](./general-loops-and-tail-calls.md) — dependency
+  epic for the FAST prerequisites, general rebinding, loop normalization and
+  broader tail-call analysis; its later milestones do not block this migration.
 - [Compiler README](../compiler/README.md) and
   [parser README](../compiler/parser/README.md) — current architecture.
 - [EDAG](../edag/README.md) — graph identity, scopes and operations.

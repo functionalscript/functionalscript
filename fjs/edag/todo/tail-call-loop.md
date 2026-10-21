@@ -10,6 +10,11 @@ The implemented writer behavior below records the current contracts. The
 permission for writer-specific recursion decisions; it does not change the
 current implementation in this documentation-only proposal.
 
+The [general loops and tail calls epic](../../todo/general-loops-and-tail-calls.md)
+orders the FAST prerequisites and the broader analysis after this migration.
+Its canonical loop/exit forms supersede the template-only future direction,
+without changing the implemented contracts recorded below.
+
 ### Problem
 
 Both serializers spell a function that calls itself as recursion. The
@@ -229,13 +234,15 @@ proposal under
 drawbacks, and the approval, recorded there. The round trip of a `while` —
 source to EDAG to source to the same EDAG — is its proof.
 
-**Later.** The template is a strict subset of the general rule, under which
-a function is a loop whenever every reference to `self` is the callee of a
-call in tail position — the body root, an arm of a `?:` there, the last
-operand of a `,` there — whatever the number of state values, the arm the
-call stands in, or the number of exits. Widening to it changes no spelling
-written for the template, so it is a later step, taken with the grammar for
-`break` that the swapped arm needs.
+**Later.** The template is a strict subset of the occurrence-based analysis
+in the [epic](../../todo/general-loops-and-tail-calls.md#tail-position-analysis-and-output):
+the body root, either arm of a tail `?:`, and the last operand of a tail `,`
+may contain eligible self-calls. Other self references can remain ordinary
+calls or values, with the function's identity retained; only the eliminated
+recursive paths gain constant stack usage. Broader state, captures and exits
+use common FAST normalization, including a core loop with explicit transfers,
+rather than requiring another source template. The migration below retains
+the current recognizer first; the epic broadens it afterward with proofs.
 
 ### FAST migration
 
@@ -248,9 +255,10 @@ immediate call. It owns eliminating that call and function boundary, including
 establishing the initial argument and captures once in the enclosing scope.
 A function used as a value retains its function boundary and arity.
 
-FAST includes core `let`/`while`/assignment forms, and the common conversion
-makes their bindings and evaluation regions explicit. The JS and Rust
-serializers render these same decisions using their target syntax. The
+FAST represents local bindings, state updates and core loops; it need not
+mirror JavaScript's `let`/`while` syntax. The common conversion and any shared
+normalization passes make bindings, transfers and evaluation regions explicit.
+The JS and Rust serializers render these same decisions using their target syntax. The
 writer-specific fallbacks in the implemented design above are constraints
 to resolve in this common conversion, not exceptions allowing backend graph
 walks or separate loop policies:
@@ -319,6 +327,8 @@ source → EDAG → source → same EDAG round-trip cases.
 
 ### Related
 
+- [General loops and tail calls](../../todo/general-loops-and-tail-calls.md)
+  — prerequisites and staged broadening after the common FAST migration.
 - [Compiler vocabulary and modularization](../../todo/compiler-vocabulary-and-modularization.md)
   — the common conversion owns loop lowering in the MVP.
 - [stage 1 discussion §11](../../../todo/edag-stage1-discussion.md#11-let-loops-and-tail-calls)
