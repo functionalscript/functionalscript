@@ -11,8 +11,8 @@ case), `decodeCodePoints` (either case, over code points) and `decodeLower`
 (lowercase only) read a continuous run of pairs back, or refuse it. A
 separator, a prefix or a width stays the caller's grammar, checked around the
 codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
-`hexBytes`, `fjs/git/refstore/name`'s `nameForMessage` and
-`fjs/media/datajs/vectors`'s `bytes` are on it. These still spell their own:
+`hexBytes`, `fjs/zlib/testlib.f.mjs`'s `hex`, `fjs/git/refstore/name`'s
+`nameForMessage` and `fjs/media/datajs/vectors`'s `bytes` are on it. These still spell their own:
 
 - [`fjs/text/percent`](../../text/percent/module.f.mjs) — `escapeByte` reads
   the two digits after a `%`, at the front of a longer part; one byte, which
