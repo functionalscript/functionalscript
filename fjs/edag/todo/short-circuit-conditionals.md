@@ -1,7 +1,8 @@
 ## Replace short-circuit EDAG operations with conditionals
 
 **Priority:** P2
-**Status:** open — implement after the shared FAST foundation
+**Status:** wip — shared FAST foundation complete; conditional lowering and
+canonical schema migration in progress
 **Blocked by:** [Epic milestone C](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -85,6 +86,22 @@ contracts with implementation. Preserve exact-graph guarantees for unaffected
 graphs; former logical nodes have a documented new canonical shape. Repeated
 conversion must stabilize rather than accumulate bindings or wrappers.
 
+### D1 admission and identity record
+
+The canonical schema rejects the former `&&`, `||` and `??` tags. Repository
+producers and fixtures migrate together; no established versioned graph importer
+requires a compatibility adapter. Separately supplied data must pass the
+canonical expression schema at its existing admission boundary.
+
+CAS continues to store the same raw content-addressed bytes. An old blob or
+hash is not mapped to a replacement graph. Compiler `.edag.data.js` and
+`.edag.data.mjs` outputs are graph documents, not a versioned import protocol.
+Source operators remain admitted with their existing precedence and mixing
+rules; AST-to-FAST lowering constructs the new conditional graph identity.
+Function text can therefore change for affected graphs. Unaffected graphs keep
+their declared round-trip domain, and the new conditional form must stabilize
+under repeated supported conversions.
+
 ### Benefits and costs
 
 Conditionals become the single core choice mechanism, reducing evaluator,
@@ -106,7 +123,7 @@ migrating, without making a new optimizer a prerequisite.
 | D3 | Migrate canonical producers/consumers and remove tags | D2; any required boundary compatibility established by D1 |
 | D4 | Finish public contracts and remove obsolete paths | D3; evidence and affected docs accompany each implementation step |
 
-- [ ] **D1 — Settle compatibility.** Locate tags in schemas, types, classifiers,
+- [x] **D1 — Settle compatibility.** Locate tags in schemas, types, classifiers,
       evaluators, emitters, tests, demos and graph producers. Record the admission,
       identity and function-text decision; do not leave consumers to choose it.
 - [ ] **D2 — Lower in FAST.** Use fresh immutable bindings and conditionals in
