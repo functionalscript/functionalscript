@@ -768,6 +768,28 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-sul-px="a"] { background: var(--value) }
 [data-sul-px="b"] { background: var(--syntax-name) }
 [data-sul-pad] [data-sul-px] { opacity: .35 }
+/* A rendered README reads as GitHub renders it: prose in the platform's sans
+   face at GitHub's measure and leading, its title and sections ruled, inline
+   code and code fences shaded, and code itself in the site's monospace face.
+   This is the one place the site's single face gives way — a spec page is
+   prose to be read, and the rest of the page stays set in monospace
+   (render-readme's "prose face"). */
+[data-readme] { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; margin-block: 1.5rem; max-width: 60rem; overflow-wrap: break-word }
+[data-readme] > :first-child { margin-top: 0 }
+[data-readme] :is(h2, h3, h4, h5, h6) { font-weight: 600; line-height: 1.25; margin: 1.5em 0 1rem }
+[data-readme] h2 { border-bottom: 1px solid var(--border); font-size: 2em; padding-bottom: .3em }
+[data-readme] h3 { border-bottom: 1px solid var(--border); font-size: 1.5em; padding-bottom: .3em }
+[data-readme] h4 { font-size: 1.25em }
+[data-readme] h5 { font-size: 1em }
+[data-readme] h6 { color: var(--muted); font-size: .875em }
+[data-readme] :is(p, ul, pre) { margin: 0 0 1rem }
+[data-readme] ul { padding-left: 2em }
+[data-readme] li + li { margin-top: .25em }
+[data-readme] a, [data-readme] a:visited { color: var(--value); text-decoration: none }
+[data-readme] a:hover { text-decoration: underline }
+[data-readme] code { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border-radius: 6px; font: 85% ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: .2em .4em; white-space: break-spaces }
+[data-readme] pre { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-radius: 6px; line-height: 1.45; overflow: auto; padding: 1rem; white-space: pre }
+[data-readme] pre > code { background: transparent; font-size: 85%; padding: 0; white-space: pre }
 /* A code block — a demo's source, such as the rtti demo's schema — is a
    shaded, bordered box, so code reads apart from the prose around it. A
    reader's answer in the rtti demo is the same box, tinted green for a

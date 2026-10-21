@@ -23,6 +23,10 @@ export const proof = {
         absolute: () => assertStructurallySame(local('https://e.x/a:b'), ok('https://e.x/a:b')),
         mailto: () => assertStructurallySame(local('mailto:a@e.x'), ok('mailto:a@e.x')),
         fragment: () => assertStructurallySame(local('#x'), ok('#x')),
+        // A scheme that runs code, or that a page does not open, is refused.
+        javascript: () => assertStructurallySame(local('JavaScript:alert(1)'), error('a link with a scheme a page does not open: javascript:')),
+        query: () => assertStructurallySame(local('x.md?raw=1#L2'), ok('/spec/a/x.md?raw=1#L2')),
+        queryOnADirectory: () => assertStructurallySame(local('..?a#b'), ok('/spec/index.html?a#b')),
         // A colon after the first slash is part of a path, not a scheme.
         colonInAPath: () => assertStructurallySame(local('b/c:d'), ok('/spec/a/b/c%3Ad')),
         directory: () => assertStructurallySame(local('..'), ok('/spec/index.html')),

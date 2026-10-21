@@ -32,9 +32,18 @@ import { fileHref, pageHref } from '../page/module.f.mjs'
 export const readmeName = 'README.md'
 
 /**
+ * The schemes a README's absolute link may carry. Any other — `javascript:`
+ * above all, which would run in the site's origin when clicked — is
+ * refused rather than written into the page.
+ */
+const schemes = ['https:', 'http:', 'mailto:']
+
+/**
  * Where a README's link goes, from the directory the README is in.
  *
- * - An absolute URL, and a `#fragment` of the README itself, stay as written.
+ * - An absolute `https`, `http` or `mailto` link, and a `#fragment` of the
+ *   README itself, stay as written; a query and a fragment stay on the
+ *   address they follow.
  * - A link to a directory with a page of its own opens that page, and so
  *   does a link to that directory's `README.md`: the page is where it is
  *   rendered.
@@ -50,10 +59,15 @@ export const readmeName = 'README.md'
 export const resolveHref = commit => isPage => dir => href => {
     const colon = href.indexOf(':')
     const slash = href.indexOf('/')
-    if (href.startsWith('#') || (colon > 0 && (slash === -1 || colon < slash))) { return ok(href) }
-    const hash = href.indexOf('#')
-    const path = hash === -1 ? href : href.slice(0, hash)
-    const fragment = hash === -1 ? '' : href.slice(hash)
+    if (href.startsWith('#')) { return ok(href) }
+    if (colon > 0 && (slash === -1 || colon < slash)) {
+        const scheme = href.slice(0, colon + 1).toLowerCase()
+        return schemes.includes(scheme) ? ok(href) : error(`a link with a scheme a page does not open: ${scheme}`)
+    }
+    const end = [href.indexOf('?'), href.indexOf('#')].filter(i => i !== -1)
+    const cut = end.length === 0 ? href.length : Math.min(...end)
+    const path = href.slice(0, cut)
+    const fragment = href.slice(cut)
     const joined = path.startsWith('/') ? path.slice(1) : pathConcat(dir)(path)
     if (escapes(joined)) { return error(`a link that leaves the repository: ${href}`) }
     const target = normalize(joined)
