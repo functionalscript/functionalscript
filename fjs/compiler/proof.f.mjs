@@ -10,7 +10,7 @@
  */
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
-import { compile, outputText, noRuntime, runtimeSource } from './module.f.mjs'
+import { compile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
 import { resolve, unresolved } from './edag/module.f.mjs'
@@ -304,6 +304,12 @@ const roundTripCorpus = [
 ]
 
 export const proof = {
+    stringifyTree: () => {
+        // The proof dump retains undefined leaves and own members while
+        // sorting object keys independently of their insertion order.
+        assertEq(_stringifyTree(undefined), 'undefined')
+        assertEq(_stringifyTree({ z: undefined, a: [undefined] }), '{"a":[undefined],"z":undefined}')
+    },
     // A data output interprets the module under the package's runtime: a
     // module calling `startsWith` at initialization writes its value. The
     // runtime is loaded then and only then — a code output of the same
