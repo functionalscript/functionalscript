@@ -328,6 +328,14 @@ const unflanked = outer => inner => !isWordChar(inner) && inner !== ' '
     && outer !== undefined && outer !== ' ' && !isAsciiPunctuation(outer)
 
 /**
+ * Whether two code spans stand side by side: that is `a``b` between single
+ * backticks, and CommonMark reads the double run as content of one span.
+ *
+ * @type {(spans: readonly (Inline | Label)[]) => boolean}
+ */
+const codeSideBySide = spans => spans.some((s, i) => i !== 0 && s[0] === 'code' && spans[i - 1][0] === 'code')
+
+/**
  * An entry's spans with every prose run read by {@link proseSpans}: a text
  * run may become text and autolinks, a bold, emphasised or label run is
  * checked and kept. A link with an empty label is refused here, the one
@@ -338,12 +346,8 @@ const unflanked = outer => inner => !isWordChar(inner) && inner !== ' '
 const readProse = entry => {
     /** @type {readonly Inline[]} */
     let out = []
+    if (codeSideBySide(entry)) { return error('two code spans side by side, which GitHub reads as one') }
     for (const [i, span] of entry.entries()) {
-        // Two code spans side by side are `a``b` between single backticks:
-        // CommonMark reads the double run as content of one span.
-        if (span[0] === 'code' && i !== 0 && entry[i - 1][0] === 'code') {
-            return error('two code spans side by side, which GitHub reads as one')
-        }
         if (span[0] === 'code') { out = [...out, span]; continue }
         if ((span[0] === 'strong' || span[0] === 'em')
             && (unflanked(i === 0 ? undefined : lastChar(entry[i - 1]))(span[1][0])
@@ -360,6 +364,7 @@ const readProse = entry => {
             ? span[1].flatMap(l => l[0] === 'text' ? [l[1]] : [])
             : [span[1]]
         if (span[0] === 'link' && span[1].length === 0) { return error('a link with an empty label') }
+        if (span[0] === 'link' && codeSideBySide(span[1])) { return error('two code spans side by side, which GitHub reads as one') }
         // CommonMark reads an entity in a destination as the character it
         // names, and the page would keep it as written.
         if (span[0] === 'link' && [...span[2]].some((_, i) => entityAt(span[2], i))) {

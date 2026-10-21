@@ -267,6 +267,7 @@ export const proof = {
             emptyLabel: () => assertEq(tryParseEntry('[](u)')[1], 'a link with an empty label'),
             codeIsNotProse: () => assertStructurallySame(spans(`${tick}_a_${tick}`), [['code', '_a_']]),
             spacedCode: () => assertEq(tryParseEntry(`${tick}a${tick} ${tick}b${tick}`)[0], 'ok'),
+            adjacentCodeInALabel: () => assertEq(tryParseEntry(`[${tick}a${tick}${tick}b${tick}](u)`)[1], 'two code spans side by side, which GitHub reads as one'),
         },
         // An asterisk with a letter on one side and punctuation on the other
         // opens or closes nothing on GitHub.
