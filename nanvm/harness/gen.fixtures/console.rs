@@ -11,26 +11,28 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let c0: Any<A> = A::frame(self_)[0].clone();
         let c1: Any<A> = Any::dot(c0.clone(), string_any("length")).end()?;
         let c2: Any<A> = (strict_eq(c1, f64_any(0x0000000000000000)))?;
-        let c3 = || Ok(A::static_function(|self_, _args| { Ok([string_any("ok"), A::frame(self_)[0].clone()].to_array().to_any()) }, 0, [args.argument(0)].to_array(), Some("()=>[\"ok\",$0]")).to_any());
-        let c4 = || {
-            let c5: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-            let c6: Any<A> = Any::dot(c5, f64_any(0x0000000000000000)).end()?;
-            let c7: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-            let c8: Any<A> = Any::dot(c7, f64_any(0x3ff0000000000000)).end()?;
-            let c9: Any<A> = A::static_function(|self_, args| {
+        let c3: Any<A> = args.argument(0);
+        let c4 = || Ok(A::static_function(|self_, _args| { Ok([string_any("ok"), A::frame(self_)[0].clone()].to_array().to_any()) }, 0, [c3.clone()].to_array(), Some("()=>[\"ok\",$0]")).to_any());
+        let c5 = || {
+            let c6: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
+            let c7: Any<A> = Any::dot(c6, f64_any(0x0000000000000000)).end()?;
+            let c8: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
+            let c9: Any<A> = Any::dot(c8, f64_any(0x3ff0000000000000)).end()?;
+            let c10: Any<A> = A::static_function(|self_, args| {
                 let c0 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
                 let c1: Any<A> = Any::dot(A::frame(self_)[1].clone(), string_any("slice")).end_call(&A::frame(self_)[3], c0)?;
                 let c2: Any<A> = Any::call(A::frame(self_)[0].clone(), [c1].to_array().to_any())?;
-                let c3: Any<A> = Any::dot(args.argument(0), f64_any(0x3ff0000000000000)).end()?;
-                let c4: Any<A> = (strict_eq(c3, Nullish::Undefined.to_any()))?;
-                let c5 = || Ok([string_any("ok"), Nullish::Null.to_any()].to_array().to_any());
-                let c6: Any<A> = (Any::conditional(c4, c5, || Ok(args.argument(0))))?;
-                let c7: Any<A> = spread_array([spread_item(A::frame(self_)[2].clone()), value_item(c6)])?;
-                Any::call(c2, [c7].to_array().to_any())
-            }, 1, [A::frame(self_)[1].clone(), c0.clone(), args.argument(0), A::frame(self_)[2].clone()].to_array(), Some("($3)=>$0($1.slice(1))([...$2,$3[1]===undefined?[\"ok\",null]:$3])")).to_any();
-            Ok([(string_key("command"), c6), (string_key("payload"), c8), (string_key("continuation"), c9)].to_object().to_any())
+                let c3: Any<A> = args.argument(0);
+                let c4: Any<A> = Any::dot(c3.clone(), f64_any(0x3ff0000000000000)).end()?;
+                let c5: Any<A> = (strict_eq(c4, Nullish::Undefined.to_any()))?;
+                let c6 = || Ok([string_any("ok"), Nullish::Null.to_any()].to_array().to_any());
+                let c7: Any<A> = (Any::conditional(c5, c6, || Ok(c3.clone())))?;
+                let c8: Any<A> = spread_array([spread_item(A::frame(self_)[2].clone()), value_item(c7)])?;
+                Any::call(c2, [c8].to_array().to_any())
+            }, 1, [A::frame(self_)[1].clone(), c0.clone(), c3.clone(), A::frame(self_)[2].clone()].to_array(), Some("($3)=>$0($1.slice(1))([...$2,$3[1]===undefined?[\"ok\",null]:$3])")).to_any();
+            Ok([(string_key("command"), c7), (string_key("payload"), c9), (string_key("continuation"), c10)].to_object().to_any())
         };
-        Any::conditional(c2, c3, c4)
+        Any::conditional(c2, c4, c5)
     }, 1, [args.argument(0), Function::new(self_.clone()).to_any(), A::frame(self_)[0].clone()].to_array(), Some("($2)=>$0.length===0?()=>[\"ok\",$2]:{\"command\":$0[0][0],\"payload\":$0[0][1],\"continuation\":($3)=>$1($0.slice(1))([...$2,$3[1]===undefined?[\"ok\",null]:$3])}")).to_any()) }, 1, [runtime.clone()].to_array(), Some("(function $0($1){return (($2,$3)=>(($4)=>(((($2)[(\"length\")])===(0))?(($5)=>(()=>([(\"ok\"),($5)])))(($4)):({[(\"command\")]:((($2)[(0)])[(0)]),[(\"payload\")]:((($2)[(0)])[(1)]),[(\"continuation\")]:(($6,$7,$8)=>(($9)=>((0,((0,($6))((($7)[(\"slice\")]((1))))))(([...($8),(((($9)[(1)])===(undefined))?([(\"ok\"),(null)]):($9))])))))(($3),($2),($4))}))))(($1),($0));})")).to_any();
     let c1: Any<A> = A::static_function(|self_, _args| {
         let c0: Any<A> = [string_any("stdout"), bigint_any(-59497)].to_array().to_any();
