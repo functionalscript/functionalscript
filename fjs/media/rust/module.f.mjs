@@ -91,7 +91,10 @@ export const stringLiteral = v =>
  *
  * @type {(digits: number) => (n: number | bigint) => string}
  */
-const hexLiteral = digits => n => `0x${encodeScalar(digits)(n)}`
+const hexLiteral = digits => {
+    const hex = encodeScalar(digits)
+    return n => `0x${hex(n)}`
+}
 
 /** A `u16` in four hex digits. */
 const u16Hex = hexLiteral(4)
