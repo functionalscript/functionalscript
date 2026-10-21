@@ -14,7 +14,6 @@ still carrying their own:
 |-|-|
 |[`fjs/text/ascii`](../../../text/ascii/module.f.js)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges; `charIs`, any of them asked of a one-character string; `isDigits`, a string of decimal digits; and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
 |[`fjs/git/refstore/scope`](../../../git/refstore/scope/module.f.js)|`isPseudoref`, the capital letters as `'A'`..`'Z'` — a `.f.js`, which can import only what `fjs compile` accepts, as it accepts `text/ascii` now|
-|[`fjs/rtti/ts`](../../../rtti/ts/module.f.mjs)|`isIdStart` and `isIdPart`, JavaScript's identifier rule over string comparisons, which `isTypeName` reads|
 |[`fjs/website/browser-source`](../../../website/browser-source/module.f.mjs)|`nameChar`, JavaScript's identifier characters over string comparisons|
 |[`fjs/media/datajs/vectors/matrix`](../../../media/datajs/vectors/matrix/module.f.mjs)|`lower`, `upper` and `digits`, the classes spelled out as string literals|
 
@@ -90,7 +89,7 @@ written out again.
 - [ ] `fjs/git/refstore/scope`: `isPseudoref` over `isLatinCapitalLetter`, keeping
       the `-` and `_` it adds.
 - [x] `fjs/git/tree`: `lower` over the same class.
-- [ ] `fjs/rtti/ts`: `isIdStart`/`isIdPart` go; `isTypeName` asks
+- [x] `fjs/rtti/ts`: `isIdStart`/`isIdPart` go; `isTypeName` asks
       `isIdentifier`.
 - [x] `fjs/web` and `fjs/effects/node`: one `isDigits` over `isDigit`, in
       `text/ascii`.
