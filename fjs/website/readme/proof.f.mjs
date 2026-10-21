@@ -8,8 +8,8 @@ import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { anchors, readmeName, readmeNodes, readmeSection, resolveHref, slug } from './module.f.mjs'
 
-/** Pages for `spec` and `spec/a`, and none for anything else. @type {(path: string) => boolean} */
-const isPage = path => path === 'spec' || path === 'spec/a'
+/** Pages for the root, `spec` and `spec/a`, and none for anything else. @type {(path: string) => boolean} */
+const isPage = path => path === '.' || path === 'spec' || path === 'spec/a'
 
 /** Links from `spec/a`'s README, in a build with no commit. */
 const local = resolveHref(null)(isPage)('spec/a')
@@ -37,6 +37,8 @@ export const proof = {
         otherReadme: () => assertStructurallySame(local('b/README.md'), ok('/spec/a/b/README.md')),
         file: () => assertStructurallySame(local('./module.f.mjs#L1'), ok('/spec/a/module.f.mjs#L1')),
         rootRelative: () => assertStructurallySame(local('/doc/D.md'), ok('/doc/D.md')),
+        root: () => assertStructurallySame(local('/#x'), ok('/index.html#x')),
+        rootUp: () => assertStructurallySame(local('../..'), ok('/index.html')),
         github: () => assertStructurallySame(resolveHref('abc')(isPage)('spec/a')('x.md'),
             ok('https://github.com/functionalscript/functionalscript/blob/abc/spec/a/x.md')),
         escapes: () => assertStructurallySame(local('../../../x'), error('a link that leaves the repository: ../../../x')),
