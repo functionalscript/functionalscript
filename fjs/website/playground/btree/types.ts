@@ -38,14 +38,56 @@ export type Search = {
 export type Par = number | Search | null
 
 /**
- * The game: the level's depth, the tree before and after the last move —
- * `null` until the first random tree is built — the moves made on it, the
- * last of them, the start's par, and why the last request did nothing, if
- * it did nothing.
+ * What a frame does with the nodes the next tree does not share: `leave`
+ * fades them out, and `enter` slides the nodes that stay and fades in the
+ * nodes the tree before did not have. A tree just built is `still`: drawn
+ * as it is, with nothing moving from the tree it replaced.
+ */
+export type Mode = 'still' | 'leave' | 'enter'
+
+/**
+ * One frame of a move: the tree drawn and the tree it is drawn against,
+ * whether its nodes leave or enter, and what the board says meanwhile —
+ * `null` for a move's last frame, where the board says where the game
+ * stands.
+ *
+ * `base` is the tree the move started from, in its last frame only: every
+ * node the move built, against it, is drawn blue. A frame without one
+ * draws no node blue, so a move's nodes turn blue once the key is back.
+ */
+export type Frame = {
+    readonly versions: Versions<Tree<number>>
+    readonly mode: Mode
+    readonly note: string | null
+    readonly base: Tree<number> | null
+}
+
+/**
+ * The game: the level's depth, the frame on the board — its `versions`
+ * `null` until the first random tree is built — the frames of a move still
+ * to come, the moves made, the last of them, the start's par, and why the
+ * last request did nothing, if it did nothing.
+ *
+ * A move is four frames: the nodes the remove replaces leave, its new ones
+ * enter, the nodes the insert replaces leave, and its new ones enter.
+ *
+ * `shown` counts the frames put on the board, one per update that shows
+ * one: a move landed by the next one's click is not counted, so each
+ * update that shows a frame changes the count's parity, which restarts
+ * the drawing's fades.
+ *
+ * `animate` is the reader's choice to see a move frame by frame; without
+ * it a move lands at once, drawn against the tree it started from.
  */
 export type Game = {
     readonly depth: number
+    readonly animate: boolean
     readonly versions: Versions<Tree<number>> | null
+    readonly mode: Mode
+    readonly note: string | null
+    readonly base: Tree<number> | null
+    readonly pending: readonly Frame[]
+    readonly shown: number
     readonly moves: number
     readonly par: Par
     readonly last: Last | null

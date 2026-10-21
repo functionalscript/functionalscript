@@ -26,7 +26,8 @@ import type { Examples } from './examples/types.ts'
  * operation before it can show anything has somewhere to ask for it without
  * `init` becoming an effect. `input` carries the `name` attribute of the
  * element that changed, which is how a demo tells its fields apart without
- * ever holding a DOM node.
+ * ever holding a DOM node, and its value — empty for a checkbox that is not
+ * checked, as a form leaves one out.
  *
  * `click` is what a demo uses to ask for work rather than to react to typing:
  * a benchmark should start when a reader says so, not when a page loads. A
@@ -99,6 +100,14 @@ export type Demo<State, Event, O extends Operation = never> = {
      * on these turns. Queued reader input cancels a scheduled turn.
      */
     readonly nextEvent?: ((state: State) => Event | null) | undefined
+    /**
+     * How many milliseconds to wait before running the event `nextEvent`
+     * asks for, so a demo can hold a state on screen — a step of an
+     * animation — before the next. None, or `0`, runs it on the next turn,
+     * and so does a reader who has asked for less motion. A reader's event
+     * still cancels the wait.
+     */
+    readonly nextDelay?: ((state: State) => number) | undefined
 }
 
 /**

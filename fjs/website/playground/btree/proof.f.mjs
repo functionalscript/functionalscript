@@ -5,8 +5,9 @@
  * @import { Game, Par, Search } from './types.ts'
  */
 
-import { demo, depthOf, goalNodes, keyCount, move, nodeCount, parSearch, searchStep, searchTurn, start, statusLine } from './module.f.mjs'
+import { demo, depthOf, frameTime, goalNodes, keyCount, land, marked, move, nodeCount, orderGap, ordered, parSearch, searchStep, searchTurn, start, statusLine, step } from './module.f.mjs'
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
+import { graphOf } from '../../demo/versions/module.f.mjs'
 import { values } from '../../../types/btree/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { commandsOf } from '../../../effects/module.f.mjs'
@@ -39,7 +40,10 @@ const html = game => htmlToString(demo.view(game))
 const inOrder = tensUpTo(8).reduce((t, k) => structure.insert(k)(t), structure.empty)
 
 /** @type {Game} */
-const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, moves: 0, par: null, last: null, error: null }
+const level2 = { depth: 2, animate: true, versions: { before: inOrder, after: inOrder }, mode: 'enter', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null }
+
+/** A move made and landed. @type {(key: number) => (game: Game) => Game} */
+const played = key => game => land(move(key)(game))
 
 /** A search, asserted to be one. @type {(par: Par) => Search} */
 const searchOf = par => {
@@ -71,13 +75,13 @@ export const proof = {
     },
     start: {
         // One `randomInt` per key, and a tree of the level's keys, as both
-        // versions, with no moves made.
+        // versions, drawn still, with no moves made.
         builds: () => {
             const [asked, r] = counter(0)(start(3)(level2))
             assertEq(asked, 26)
             assert(r[0] === 'ok', '')
             const game = r[1]
-            assertEq(JSON.stringify([game.depth, game.moves, game.last, game.error]), '[3,0,null,null]')
+            assertEq(JSON.stringify([game.depth, game.mode, game.moves, game.last, game.error]), '[3,"still",0,null,null]')
             const versions = assertNotNullish(game.versions)
             assertEq(versions.before, versions.after)
             assertEq(JSON.stringify(keysOf(game)), JSON.stringify(tensUpTo(26)))
@@ -102,23 +106,52 @@ export const proof = {
         },
     },
     move: {
-        // A key that comes back in another place: counted, and drawn
-        // against the tree before it.
+        // A key that comes back in another place, in four frames, counted
+        // once: the nodes the remove replaces leave, its new ones enter,
+        // the nodes the insert replaces leave, and its new ones enter.
+        // Each frame draws its tree against the next one, or the one
+        // before, and the board says what the move is doing.
         changes: () => {
-            const game = move(40)(level2)
-            assertEq(JSON.stringify([game.moves, game.last]), '[1,{"key":40,"changed":true}]')
-            const versions = assertNotNullish(game.versions)
-            assertEq(versions.before, inOrder)
-            assert(versions.after !== inOrder, '')
-            assertEq(JSON.stringify(keysOf(game)), JSON.stringify(tensUpTo(8)))
+            const first = move(40)(level2)
+            assertEq(JSON.stringify([first.moves, first.last, first.mode, first.note, first.pending.length]),
+                '[1,{"key":40,"changed":true},"leave","40 comes out of the tree.",3]')
+            const out = assertNotNullish(first.versions)
+            assertEq(out.after, inOrder)
+            assertEq(JSON.stringify(toArray(values(out.before))), JSON.stringify(tensUpTo(8).filter(k => k !== 40)))
+            const second = step(first)
+            const removed = out.before
+            assertEq(JSON.stringify([second.mode, second.note, second.pending.length]), '["enter","40 is out of the tree.",2]')
+            assertEq(JSON.stringify(second.versions), JSON.stringify({ before: inOrder, after: removed }))
+            const third = step(second)
+            assertEq(JSON.stringify([third.mode, third.note, third.pending.length]), '["leave","40 goes back in.",1]')
+            const moved = assertNotNullish(third.versions).before
+            assertEq(JSON.stringify(third.versions), JSON.stringify({ before: moved, after: removed }))
+            const fourth = step(third)
+            assertEq(JSON.stringify([fourth.mode, fourth.note, fourth.pending.length, fourth.moves]), '["enter",null,0,1]')
+            assertEq(JSON.stringify(fourth.versions), JSON.stringify({ before: removed, after: moved }))
+            assertEq(JSON.stringify(keysOf(fourth)), JSON.stringify(tensUpTo(8)))
+            // With no frame to come, a step and a landing change nothing;
+            // a landing is the last frame at once, not counted as shown.
+            assertEq(step(fourth), fourth)
+            assertEq(land(fourth), fourth)
+            assertEq(JSON.stringify(land(first)), JSON.stringify({ ...fourth, shown: first.shown }))
+            assertEq(land(demo.init), demo.init)
         },
-        // A key that goes back where it was: counted too, the tree it was
-        // given kept, and said.
+        // A move made while another is showing lands that one first: 40 is
+        // back in the tree before 10 comes out.
+        landsFirst: () => {
+            const game = move(10)(move(40)(level2))
+            assertEq(JSON.stringify(assertNotNullish(game.versions).after), JSON.stringify(assertNotNullish(played(40)(level2).versions).after))
+            assertEq(JSON.stringify([game.moves, game.last, game.note]), '[2,{"key":10,"changed":true},"10 comes out of the tree."]')
+        },
+        // A key that goes back where it was: counted too, shown out and in
+        // again like any other, and said once it lands.
         goesBack: () => {
             const game = move(10)(level2)
-            assertEq(JSON.stringify([game.moves, game.last]), '[1,{"key":10,"changed":false}]')
-            assertEq(assertNotNullish(game.versions).after, inOrder)
-            assertEq(statusLine(game)(inOrder), '1 move. Depth 3, goal 2. 7 nodes, goal 4. 10 went back where it was.')
+            assertEq(JSON.stringify([game.moves, game.last, game.pending.length, game.note]), '[1,{"key":10,"changed":false},3,"10 comes out of the tree."]')
+            const landed = land(game)
+            assertEq(JSON.stringify(assertNotNullish(landed.versions).after), JSON.stringify(inOrder))
+            assertEq(statusLine(landed)(inOrder), '1 move. Depth 3, goal 2. 7 nodes, goal 4. 10 went back where it was.')
         },
         // Before the first tree there is nothing to move.
         noTree: () => {
@@ -129,19 +162,27 @@ export const proof = {
         // The depth and the nodes against the level's, while not perfect.
         playing: () => {
             assertEq(statusLine(level2)(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4.')
-            const game = move(40)(level2)
+            const game = played(40)(level2)
             assertEq(statusLine(game)(assertNotNullish(game.versions).after), '1 move. Depth 3, goal 2. 7 nodes, goal 4.')
+        },
+        // While a move shows, its trees are not counted: the board says
+        // what the move is doing.
+        halfway: () => {
+            const game = move(40)(level2)
+            assertEq(statusLine(game)(assertNotNullish(game.versions).after), '1 move. 40 comes out of the tree.')
+            const out = step(game)
+            assertEq(statusLine(out)(assertNotNullish(out.versions).after), '1 move. 40 is out of the tree.')
         },
         // Three moves make it perfect, and the game says so.
         won: () => {
-            const game = move(50)(move(10)(move(40)(level2)))
+            const game = played(50)(played(10)(played(40)(level2)))
             const tree = assertNotNullish(game.versions).after
             assertEq(JSON.stringify([depthOf(tree), nodeCount(tree)]), '[2,4]')
             assertEq(statusLine(game)(tree), 'Perfect, in 3 moves!')
         },
         // A tree that starts perfect is said to, not counted as a win.
         startedPerfect: () => {
-            const perfect = assertNotNullish(move(50)(move(10)(move(40)(level2))).versions).after
+            const perfect = assertNotNullish(played(50)(played(10)(played(40)(level2))).versions).after
             assertEq(statusLine({ ...level2, versions: { before: perfect, after: perfect } })(perfect), 'This tree started perfect. Press New tree for another.')
         },
     },
@@ -164,7 +205,7 @@ export const proof = {
         },
         // A perfect start has par 0, and nothing to search.
         perfect: () => {
-            const perfect = assertNotNullish(move(50)(move(10)(move(40)(level2))).versions).after
+            const perfect = assertNotNullish(played(50)(played(10)(played(40)(level2))).versions).after
             assertEq(parSearch(tensUpTo(8))(perfect), 0)
         },
         // Seven keys cannot fill every node, so the search meets every tree
@@ -189,7 +230,7 @@ export const proof = {
             const searching = { ...level2, par: parSearch(tensUpTo(8))(inOrder) }
             assertEq(statusLine(searching)(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4. Par: working it out…')
             assertEq(statusLine({ ...level2, par: 3 })(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4. Par: 3 moves.')
-            const won = move(50)(move(10)(move(40)({ ...level2, par: 3 })))
+            const won = played(50)(played(10)(played(40)({ ...level2, par: 3 })))
             assertEq(statusLine(won)(assertNotNullish(won.versions).after), 'Perfect, in 3 moves! Par: 3 moves.')
             assertEq(statusLine({ ...level2, par: 1 })(inOrder), '0 moves. Depth 3, goal 2. 7 nodes, goal 4. Par: 1 move.')
         },
@@ -206,8 +247,118 @@ export const proof = {
             const known = { ...level2, par: 3 }
             assertEq(searchTurn(known), known)
         },
+        // A move showing asks for its next frame, after the frame's time;
+        // its frames come before a search's next turn, which follows the
+        // last at once.
+        frames: () => {
+            const first = move(40)({ ...level2, par: parSearch(tensUpTo(8))(inOrder) })
+            const { nextEvent, nextDelay } = demo
+            assertEq(JSON.stringify(assertNotNullish(nextEvent)(first)), '{"kind":"click","name":"step"}')
+            assertEq(assertNotNullish(nextDelay)(first), frameTime(first))
+            const second = update({ kind: 'click', name: 'step' })(first)
+            assertEq(JSON.stringify(second), JSON.stringify(step(first)))
+            const last = land(first)
+            assertEq(JSON.stringify(assertNotNullish(nextEvent)(last)), '{"kind":"click","name":"par"}')
+            assertEq(assertNotNullish(nextDelay)(last), 0)
+        },
+        // A frame is held 150 ms for each order of its moving nodes, and one
+        // with none moving, or no tree, is not held at all.
+        frameTime: () => {
+            assertEq(frameTime(demo.init), 0)
+            assertEq(frameTime(level2), 0)
+            const time = frameTime(move(40)(level2))
+            assert(time > 0 && time % orderGap === 0, time)
+        },
+        // Leaving, the nodes the next tree does not share turn red (order 0)
+        // and fade out from the leaves up from order 1; entering, after the
+        // slide (order 0), the new ones fade in from the root down from order
+        // 1. A rank fades as one, and a shared node not at all. Every node is
+        // keyed by its keys.
+        ordered: () => {
+            /** @type {(kind: string, id: number, rank: number) => { readonly id: number, readonly kind: string, readonly label: string, readonly rank: number }} */
+            const node = (kind, id, rank) => ({ id, kind, label: '', rank })
+            const g = {
+                nodes: [node('new', 0, 0), node('shared', 1, 1), node('new', 2, 2), node('new', 3, 2)],
+                edges: [{ from: 1, to: { inline: '30' }, label: '' }, { from: 1, to: { inline: '40' }, label: '' }, { from: 0, to: 1, label: '' }],
+            }
+            const leave = ordered('leave')(g)
+            assertEq(JSON.stringify(leave.nodes.map(n => [n.kind, n.order ?? null, n.key])),
+                '[["leaving",2,""],["shared",null,"30,40"],["leaving",1,""],["leaving",1,""]]')
+            const enter = ordered('enter')(g)
+            assertEq(JSON.stringify(enter.nodes.map(n => [n.kind, n.order ?? null])),
+                '[["new",1],["shared",null],["new",2],["new",2]]')
+            // A tree just built is drawn as it is, unkeyed, so nothing slides
+            // from the tree it replaced.
+            assertEq(ordered('still')(g), g)
+        },
+        // The drawing's container alternates from frame to frame, so the
+        // fades run again; a leaving frame marks its nodes leaving.
+        replay: () => {
+            const first = move(40)(level2)
+            const h = html(first)
+            assert(h.includes('data-graph-replay="b"'), h)
+            assert(h.includes('data-graph-in-kind="leaving" data-graph-order="1"'), h)
+            assert(html(step(first)).includes('data-graph-replay="a"'), '')
+            // A click during the first or third frame lands that move and
+            // shows the next one's first frame, and the flag still flips.
+            /** @type {(game: Game) => string} */
+            const flag = game => html(game).split('data-graph-replay="')[1].slice(0, 1)
+            const third = step(step(first))
+            assert(flag(move(10)(first)) !== flag(first), '')
+            assert(flag(move(10)(third)) !== flag(third), '')
+        },
+        // No node is blue until the key is back: the remove's nodes fade
+        // in plain, and the last frame draws blue every node the move
+        // built, against the tree it started from.
+        coloured: () => {
+            /** @type {(game: Game) => readonly string[]} */
+            const kinds = game => html(game).split('data-graph-kind="').slice(1).map(t => t.slice(0, t.indexOf('"'))).filter(k => k !== 'shared')
+            const first = move(40)(level2)
+            const second = step(first)
+            assertEq(JSON.stringify(kinds(first).filter(k => k !== 'leaving')), '[]')
+            assert(kinds(second).length > 0 && kinds(second).every(k => k === 'entering'), JSON.stringify(kinds(second)))
+            const last = land(first)
+            assert(kinds(last).length > 0 && kinds(last).every(k => k === 'new'), JSON.stringify(kinds(last)))
+            const after = assertNotNullish(last.versions).after
+            const built = graphOf(structure)({ before: inOrder, after }).nodes.filter(n => n.kind === 'new').length
+            assertEq(kinds(last).length, built)
+        },
+        // The key moved is red where it comes out and green where it goes
+        // back in, and nothing else is marked; a tree just built marks
+        // nothing.
+        marked: () => {
+            /** @type {(game: Game) => readonly string[]} */
+            const kinds = game => html(game).split('data-graph-value-kind="').slice(1).map(t => t.slice(0, t.indexOf('"')))
+            const first = move(40)(level2)
+            assertEq(JSON.stringify(kinds(first)), '["removed","removed"]')
+            assertEq(JSON.stringify(kinds(step(first))), '[]')
+            assertEq(JSON.stringify(kinds(land(first))), '["added","added"]')
+            const g = { nodes: [], edges: [{ from: 0, to: { inline: '40' }, label: '' }], entries: [] }
+            assertEq(marked('still')({ key: 40, changed: true })(g), g)
+            assertEq(marked('enter')(null)(g), g)
+        },
     },
     demo: {
+        // The checkbox starts checked. Unchecked, a move lands at once,
+        // drawn still against the tree it started from, and a move in
+        // progress lands; a new tree keeps the choice.
+        animate: () => {
+            assert(html(level2).includes('<input type="checkbox" name="animate" checked="">'), html(level2))
+            const showing = move(40)(level2)
+            const off = update({ kind: 'input', name: 'animate', value: '' })(showing)
+            assertEq(JSON.stringify([off.animate, off.pending.length, off.mode, off.versions]),
+                JSON.stringify([false, 0, 'still', { before: inOrder, after: assertNotNullish(land(showing).versions).after }]))
+            assert(!html(off).includes('data-graph-order') && html(off).includes('data-graph-kind="new"'), html(off))
+            assert(html(off).includes('<input type="checkbox" name="animate">'), html(off))
+            const moved = move(40)(off)
+            const after = assertNotNullish(land(showing).versions).after
+            const next = assertNotNullish(moved.versions)
+            assertEq(JSON.stringify([moved.mode, moved.pending.length, moved.moves, moved.note]), '["still",0,2,null]')
+            assertEq(JSON.stringify(next.before), JSON.stringify(after))
+            assert(html(moved).includes('data-graph-kind="new"') && !html(moved).includes('entering'), html(moved))
+            assertEq(update({ kind: 'input', name: 'animate', value: 'on' })(off).animate, true)
+            assertEq(update({ kind: 'click', name: 'new' })(off).animate, false)
+        },
         // The page opens building its first tree, and the start event
         // builds it at the first level.
         opening: () => {

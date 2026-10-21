@@ -17,7 +17,16 @@
  * **A level starts from its keys inserted in random order**, one
  * `randomInt` per key, as the B-tree demo's Generate does; the first tree is
  * built when the page starts. The tree is drawn by the B-tree demo's
- * {@link structure}, so each move shows the nodes it built in blue.
+ * {@link structure}, so each move shows the nodes it built in blue, and the
+ * key moved red where it is removed and green where it is inserted.
+ *
+ * **A move is shown node by node, in four frames**: the nodes the remove
+ * replaces fade out, from the leaf up, once the key has turned red; the
+ * nodes it built fade in, from the root down — a leaf merged or borrowed from; then
+ * the same for the insert — a leaf split. Each node takes {@link orderGap} after the one before
+ * it, and a frame is held until its last node is done. A key that goes back
+ * where it was is shown the same way: its leaf fades out without it, and in
+ * with it again.
  *
  * **Par is the fewest moves from the start to a perfect tree**, found by a
  * breadth-first search over the move: every tree one move from the start,
@@ -34,7 +43,8 @@
  * @import { RandomInt } from '../../../effects/common/types.ts'
  * @import { Effect } from '../../../effects/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { Game, Par, Search } from './types.ts'
+ * @import { Frame, Game, Last, Mode, Par, Search } from './types.ts'
+ * @import { Graph } from '../../demo/graph/types.ts'
  */
 
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
@@ -80,6 +90,13 @@ export const nodeCount = tree => {
 
 /** The levels a par is searched for: depth 4's trees are too many. */
 export const parDepths = [2, 3]
+
+/**
+ * How long, in milliseconds, a node of a move takes to fade, and how long
+ * after the node before it it starts: the site's stylesheet fades each
+ * `data-graph-order` 150 ms after the one before.
+ */
+export const orderGap = 150
 
 /** How many trees one turn of the search tries. */
 export const turnBudget = 50
@@ -154,25 +171,87 @@ export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(dept
     const tree = r[1].reduce((t, k) => structure.insert(k)(t), structure.empty)
     const par = parDepths.includes(depth) ? parSearch(tensUpTo(keyCount(depth)))(tree) : null
     /** @type {Game} */
-    const started = { depth, versions: { before: tree, after: tree }, moves: 0, par, last: null, error: null }
+    const started = { depth, animate: game.animate, versions: { before: tree, after: tree }, mode: 'still', note: null, base: null, pending: [], shown: game.shown + 1, moves: 0, par, last: null, error: null }
     return pureOk(started)
 })
 
 /**
- * The move: `key` removed and inserted again, counted, and the tree drawn
- * against the one before it. One that comes back drawn as before answers
- * the tree it was given, so nothing is coloured.
+ * The game showing `frame`, with `pending` still to come.
+ *
+ * @type {(frame: Frame) => (pending: readonly Frame[]) => (game: Game) => Game}
+ */
+const showing = ({ versions, mode, note, base }) => pending => game => ({ ...game, versions, mode, note, base, pending })
+
+/**
+ * The game showing `frame` as a new frame on the board, counted in `shown`.
+ *
+ * @type {(frame: Frame) => (pending: readonly Frame[]) => (game: Game) => Game}
+ */
+const shownNext = frame => pending => game => showing(frame)(pending)({ ...game, shown: game.shown + 1 })
+
+/**
+ * The next frame of a move, or the game as it was when none is to come.
+ *
+ * @type {(game: Game) => Game}
+ */
+export const step = game => {
+    const [next, ...rest] = game.pending
+    return next === undefined ? game : shownNext(next)(rest)(game)
+}
+
+/**
+ * A move's last frame at once: what a move made while another is still
+ * showing starts from. With none showing, the game as it was.
+ *
+ * @type {(game: Game) => Game}
+ */
+export const land = game => {
+    const last = game.pending.at(-1)
+    return last === undefined ? game : showing(last)([])(game)
+}
+
+/**
+ * The game with the animation on or off. Turning it off during a move
+ * shows the move landed at once: its last frame's trees drawn `still`
+ * against the tree it started from, so nothing fades or slides.
+ *
+ * @type {(animate: boolean) => (game: Game) => Game}
+ */
+const animating = animate => game => {
+    const last = game.pending.at(-1)
+    if (animate || last === undefined) { return { ...game, animate } }
+    const base = /** @type {Tree<number>} */ (last.base)
+    return shownNext({ versions: { before: base, after: last.versions.after }, mode: 'still', note: null, base })([])({ ...game, animate })
+}
+
+/**
+ * The move: `key` removed and inserted again, and counted. It shows four
+ * frames, the first now and the rest through {@link step}: the remove's
+ * nodes leave and enter, then the insert's — even for a key that goes back
+ * where it was. A move made while another is showing lands that one first.
+ * Where the reader does not animate, a move lands at once, drawn `still`
+ * against the tree it started from, as the B-tree demo draws a step.
  *
  * @type {(key: number) => (game: Game) => Game}
  */
 export const move = key => game => {
-    if (game.versions === null) { return game }
-    const before = game.versions.after
-    const moved = moveTree(key)(before)
+    const landed = land(game)
+    if (landed.versions === null) { return landed }
+    const before = landed.versions.after
+    const removed = structure.remove(key)(before)
+    const moved = structure.insert(key)(removed)
     const changed = !same({ before, after: moved })
-    return { ...game, versions: { before, after: changed ? moved : before }, moves: game.moves + 1, last: { key, changed }, error: null }
+    const counted = { ...landed, moves: landed.moves + 1, last: { key, changed }, error: null }
+    if (!landed.animate) { return shownNext({ versions: { before, after: moved }, mode: 'still', note: null, base: before })([])(counted) }
+    /** @type {readonly [Frame, ...Frame[]]} */
+    const [first, ...rest] = [
+        { versions: { before: removed, after: before }, mode: 'leave', note: `${key} comes out of the tree.`, base: null },
+        { versions: { before, after: removed }, mode: 'enter', note: `${key} is out of the tree.`, base: null },
+        { versions: { before: moved, after: removed }, mode: 'leave', note: `${key} goes back in.`, base: null },
+        { versions: { before: removed, after: moved }, mode: 'enter', note: null, base: before },
+    ]
+    return shownNext(first)(rest)(counted)
 }
-
 /** @type {(n: number) => string} */
 const movesText = n => n === 1 ? '1 move' : `${n} moves`
 
@@ -180,12 +259,15 @@ const movesText = n => n === 1 ? '1 move' : `${n} moves`
 const parText = par => par === null ? '' : typeof par === 'number' ? ` Par: ${movesText(par)}.` : ' Par: working it out…'
 
 /**
- * Where the game stands: a win, or the depth and the node count against the
- * level's, and what the last move did if it changed nothing.
+ * Where the game stands: what a move is doing while it shows, a win, or the
+ * depth and the node count against the level's, and what the last move did
+ * if it changed nothing. While a move shows, its trees are not counted: a
+ * key short of 8, 7 keys can fill the 4 nodes a win at depth 2 needs.
  *
  * @type {(game: Game) => (tree: Tree<number>) => string}
  */
-export const statusLine = ({ depth, moves, par, last }) => tree => {
+export const statusLine = ({ depth, note, moves, par, last }) => tree => {
+    if (note !== null) { return `${movesText(moves)}. ${note}` }
     const nodes = nodeCount(tree)
     if (nodes === goalNodes(depth)) {
         return moves === 0 ? 'This tree started perfect. Press New tree for another.' : `Perfect, in ${movesText(moves)}!${parText(par)}`
@@ -212,18 +294,117 @@ const movedKey = name => name.startsWith('move:') ? decimal.parse(name.slice(5))
 /** @type {(value: string) => number | undefined} */
 const levelOf = value => depths.find(d => String(d) === value)
 
-/** @type {(game: Game) => Element} */
-const board = game => game.versions === null
-    ? ['p', 'Building a random tree…']
-    : ['div', ['p', statusLine(game)(game.versions.after)], graphSvg(graph(game.versions))]
+/**
+ * A frame's graph, its moving nodes in order. Leaving, the nodes the next
+ * tree does not share — new, against it — are `leaving`, and fade out from
+ * the leaves up, from order 1, once the key removed has turned red through
+ * order 0 ({@link marked}). Entering, the nodes that stay slide first to
+ * where the new tree puts them, through order 0, the edges between them
+ * sliding along; then the nodes it built fade in from the root down, one
+ * rank at a time, from order 1.
+ *
+ * Every node is keyed by its keys, so a node that stays is the same element
+ * from frame to frame, and slides. A tree just built is drawn `still`, as it
+ * is: unkeyed, so no node slides from where the tree before had it.
+ *
+ * @type {(mode: Mode) => (g: Graph) => Graph}
+ */
+export const ordered = mode => g => {
+    if (mode === 'still') { return g }
+    const ranks = [...new Set(g.nodes.flatMap(n => n.kind === 'new' ? [n.rank] : []))].toSorted((a, b) => mode === 'enter' ? a - b : b - a)
+    /** @type {(id: number) => string} */
+    const keyOf = id => g.edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : []).join(',')
+    return {
+        ...g,
+        nodes: g.nodes.map(n => ({
+            ...n,
+            key: keyOf(n.id),
+            ...(n.kind !== 'new' ? {} : { kind: mode === 'enter' ? 'new' : 'leaving', order: 1 + ranks.indexOf(n.rank) }),
+        })),
+    }
+}
+
+/**
+ * A frame's graph with the nodes a move built drawn blue — `new`, against
+ * `base`, the tree the move started from — once the key is back, and none
+ * before: without a base, a node that fades in is `entering`, which the
+ * site's stylesheet fades in like a new one but draws plain.
+ *
+ * @type {(base: Tree<number> | null) => (after: Tree<number>) => (g: Graph) => Graph}
+ */
+export const coloured = base => after => g => {
+    const built = base === null ? [] : graph({ before: base, after }).nodes.flatMap(n => n.kind === 'new' ? [n.id] : [])
+    return {
+        ...g,
+        nodes: g.nodes.map(n => built.includes(n.id) ? { ...n, kind: 'new' } : n.kind === 'new' ? { ...n, kind: 'entering' } : n),
+    }
+}
+
+/**
+ * A frame's graph with the last move's key marked: `removed`, drawn red,
+ * in a leaving frame, and `added`, drawn green, in an entering one. A
+ * frame without the key, and a tree just built, mark nothing.
+ *
+ * @type {(mode: Mode) => (last: Last | null) => (g: Graph) => Graph}
+ */
+export const marked = mode => last => g => {
+    if (mode === 'still' || last === null) { return g }
+    const inline = String(last.key)
+    const kind = mode === 'leave' ? 'removed' : 'added'
+    return { ...g, edges: g.edges.map(e => typeof e.to === 'number' || e.to.inline !== inline ? e : { ...e, to: { ...e.to, kind } }) }
+}
+
+/**
+ * The frame on the board, as a graph, or none before the first tree. A
+ * leaving frame draws the tree it shows against the next one, which is
+ * what it marks.
+ *
+ * @type {(game: Game) => Graph | null}
+ */
+const drawn = ({ versions, mode, last, base }) => versions === null ? null
+    : marked(mode)(last)(coloured(base)(versions.after)(ordered(mode)(graph(versions))))
+
+/**
+ * How long the frame on the board is held: 150 ms for each order of its
+ * moving nodes, so the last has faded before the next frame.
+ *
+ * @type {(game: Game) => number}
+ */
+export const frameTime = game => {
+    const g = drawn(game)
+    const orders = g === null ? [] : g.nodes.flatMap(n => n.order === undefined ? [] : [n.order])
+    return (orders.reduce((m, o) => o > m ? o : m, -1) + 1) * orderGap
+}
+
+/**
+ * The board: its status and the frame drawn. The drawing's container
+ * alternates `data-graph-replay` from frame to frame, by how many frames
+ * have been shown, which restarts its fades — a click that lands a move
+ * and starts the next one still shows one new frame: the page updates its
+ * elements in place, and an animation runs again only when its name does.
+ *
+ * @type {(game: Game) => Element}
+ */
+const board = game => {
+    const g = drawn(game)
+    return game.versions === null || g === null
+        ? ['p', 'Building a random tree…']
+        : ['div', ['p', statusLine(game)(game.versions.after)],
+            ['div', { 'data-graph-replay': game.shown % 2 === 0 ? 'a' : 'b' }, graphSvg(g)]]
+}
 
 /** @type {Demo<Game, DemoEvent, RandomInt>} */
 export const demo = {
-    init: { depth: depths[0], versions: null, moves: 0, par: null, last: null, error: null },
-    nextEvent: ({ par }) => par === null || typeof par === 'number' ? null : { kind: 'click', name: 'par' },
+    init: { depth: depths[0], animate: true, versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null },
+    nextEvent: ({ pending, par }) => pending.length > 0 ? { kind: 'click', name: 'step' }
+        : par === null || typeof par === 'number' ? null
+        : { kind: 'click', name: 'par' },
+    nextDelay: game => game.pending.length > 0 ? frameTime(game) : 0,
     update: game => event => {
         if (event.kind === 'start' || (event.kind === 'click' && event.name === 'new')) { return start(game.depth)(game) }
+        if (event.kind === 'click' && event.name === 'step') { return pureOk(step(game)) }
         if (event.kind === 'click' && event.name === 'par') { return pureOk(searchTurn(game)) }
+        if (event.kind === 'input' && event.name === 'animate') { return pureOk(animating(event.value !== '')(game)) }
         const level = event.kind === 'input' && event.name === 'level' ? levelOf(event.value) : undefined
         if (level !== undefined) { return start(level)(game) }
         const key = event.kind === 'click' ? movedKey(event.name) : null
@@ -238,6 +419,10 @@ export const demo = {
                 `Depth ${d}: ${keyCount(d)} keys`]))],
             ' ',
             ['button', { type: 'button', name: 'new' }, 'New tree'],
+            ' ',
+            ['label',
+                ['input', { type: 'checkbox', name: 'animate', ...(game.animate ? { checked: '' } : {}) }],
+                ' Animate moves'],
         ],
         ...(game.error === null ? [] : [refusal(game.error)]),
         board(game),

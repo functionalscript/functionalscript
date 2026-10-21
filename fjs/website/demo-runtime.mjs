@@ -380,6 +380,25 @@ const fail = (root, cause) => {
 }
 
 /**
+ * What an `input` event reports of a field: its value, but nothing for a
+ * checkbox that is not checked, as a form leaves one out — a checkbox's
+ * value is the same either way.
+ *
+ * @type {(field: HTMLInputElement) => string}
+ */
+const valueOf = field => field.type === 'checkbox' && !field.checked ? '' : field.value
+
+/**
+ * Whether the reader has asked for less motion, as the site's stylesheet
+ * reads it: `prefers-reduced-motion: reduce`. A host without `matchMedia`
+ * has not.
+ *
+ * @type {(root: Element) => boolean}
+ */
+const lessMotion = root =>
+    root.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+
+/**
  * A demo runs one event at a time.
  *
  * An operation is asynchronous, so an event can arrive while an `update` is
@@ -403,8 +422,11 @@ const fail = (root, cause) => {
  * input it cares about.
  *
  * `nextEvent` requests one automatic event on a later turn after the latest
- * state renders. Reader events cancel the scheduled turn, and automatic
- * updates keep controls available so a Stop button can interrupt the work.
+ * state renders, `nextDelay` milliseconds later if the demo says — at once
+ * where the reader has asked for less motion, since a delay only holds a
+ * step of an animation on screen. Reader
+ * events cancel the scheduled turn, and automatic updates keep controls
+ * available so a Stop button can interrupt the work.
  *
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => (event: DemoEvent) => void}
  */
@@ -442,7 +464,10 @@ const stepper = (root, demo) => {
                     render(root, demo.view(state))
                     const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
                     incremental = next !== null
-                    if (next !== null) { scheduled = setTimeout(() => step(next, true), 0) }
+                    if (next !== null) {
+                        const delay = demo.nextDelay === undefined || lessMotion(root) ? 0 : demo.nextDelay(state)
+                        scheduled = setTimeout(() => step(next, true), delay)
+                    }
                 }
             } catch (cause) {
                 incremental = false
@@ -512,7 +537,7 @@ export const startDemo = async root => {
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
             echo(target)
-            step({ kind: 'input', name: target.name, value: target.value })
+            step({ kind: 'input', name: target.name, value: valueOf(target) })
         })
         // A click is how a demo is *asked* for work rather than told about
         // typing: a benchmark starts when a reader says so. So only a named
@@ -595,7 +620,7 @@ export const startDemo = async root => {
         step({ kind: 'start' })
         for (const field of edits) {
             echo(field)
-            step({ kind: 'input', name: field.name, value: field.value })
+            step({ kind: 'input', name: field.name, value: valueOf(field) })
         }
     } catch (cause) {
         fail(root, cause)
