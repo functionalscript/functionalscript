@@ -3,7 +3,7 @@
 import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { jsOutput } from '../page/module.f.mjs'
-import program from './sample.f.mjs'
+import program from './sample.f.js'
 import { demo } from './demo.f.mjs'
 
 export const proof = {

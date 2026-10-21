@@ -2,7 +2,7 @@
  * Structural expansion remains independent of source name and key policy.
  *
  * @import { BindingTarget } from '../../../../compiler/parser/syntax/types.ts'
- * @import { DjsTokenWithMetadata } from '../../../../compiler/tokenizer/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../../../../compiler/tokenizer/types.ts'
  * @import { Policy } from './types.ts'
  */
 
@@ -10,10 +10,10 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { error, ok } from '../../../../types/result/module.f.js'
 import { planPattern } from './module.f.mjs'
 
-/** @type {(value: string, column?: number) => DjsTokenWithMetadata} */
+/** @type {(value: string, column?: number) => ModuleTokenWithMetadata} */
 const token = (value, column = 1) => ({ token: { kind: 'id', value }, metadata: { path: 'pattern', line: 1, column }, newline: false })
 
-/** @type {(value: DjsTokenWithMetadata) => string} */
+/** @type {(value: ModuleTokenWithMetadata) => string} */
 const word = value => { assert(value.token.kind === 'id'); return value.token.value }
 
 /** @type {Policy} */

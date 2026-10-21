@@ -34,7 +34,7 @@
 
 import {
     _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, body, callArguments,
-    circuitTail, conditionalTail, constStatement, djsModule, eagerTail, elements, end, entries, entry, func, group, groupOperand,
+    circuitTail, conditionalTail, constStatement, module, eagerTail, elements, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
     parenGroup, parenGroupOperand, parenthesized, primitive, statement, afterCase, caseTail, template, terminator, unary, unaryOperand,
@@ -64,7 +64,7 @@ const layers = eagerTail.map((rule, i) => [Object.keys(assertNotNullish(eagerLay
  * @type {readonly Selection[]}
  */
 export const diagrams = [
-    ['djsModule', djsModule],
+    ['module', module],
     ['importStatement', importStatement],
     ['importClause', importClause],
     ['namedImports', namedImports],
@@ -123,7 +123,7 @@ const categories = /** @type {const} */ ([
 ])
 
 export const demo = grammarDemo({
-    grammar: djsModule,
+    grammar: module,
     alphabet: tokens(encoding(_ordinaryTokenNames), categories),
     description: 'The FunctionalScript module grammar, drawn from the rules the parser reads a module with.',
     guide: 'Follow a track from left to right; a pill is a token, a grey one in italics any token of its kind, and a box is another diagram — select it to go there.',

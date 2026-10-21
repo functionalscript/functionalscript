@@ -9,7 +9,7 @@
  */
 
 import { parseFromTokens } from './module.f.mjs'
-import { stringifyDjsModule, tokenizeString } from './proof.f.mjs'
+import { stringifyModule, tokenizeString } from './proof.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
@@ -25,7 +25,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('export default (...a) => a;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"rest\"]]]]]")
             expect('export default (...a) => [a, a[0], a["x"], (...b) => b];', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"[]\",[[\"rest\"],[\".\",[\"rest\"],0],[\".\",[\"rest\"],\"x\"],[\"=>\",0,[],[\"rest\"]]]]]]]]")
@@ -47,7 +47,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('export default () => 1;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],1]]]]")
             expect('export default ( /* c */ ) => 1;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],1]]]]")
@@ -85,7 +85,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('export default () => { throw 1; };', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"throw\",1]]]]]")
             expect('export default () => { throw 1 };', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"throw\",1]]]]]")
@@ -126,7 +126,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('export default (a) => { if (a) { return 1; } return 2; };', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"arg\",0],1,2]]]]]")
             expect('export default (a) => {\n    if (a) { return 1 }\n    return 2\n}', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"arg\",0],1,2]]]]]")
@@ -215,7 +215,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('const c = 1; export default (...a) => c;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],1]]]]")
             expect('import m from "./m.f.js"; export default (...a) => m;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[[\".\",[\".\",[\"args\"],0],\"default\"]],[\"frame\",0]]]]]")
@@ -252,7 +252,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('export default (...a) => { return a; };', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"rest\"]]]]]")
             expect('export default (...a) => { return a[0]; };', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\"rest\"],0]]]]]")
@@ -274,7 +274,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('export default (...a) => { const x = 1; return x; };', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],1]]]]")
             expect('export default (...a) => { const x = 1; const y = 2; return [x, y]; };', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"[]\",[1,2]]]]]]")
@@ -334,7 +334,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('const f = (...a) => 1; export default f();', "[\"{}\",[[\":\",\"default\",[\"()\",[\"=>\",0,[],1],[]]]]]")
             expect('const f = (...a) => 1; export default f(1, 2);', "[\"{}\",[[\":\",\"default\",[\"()\",[\"=>\",0,[],1],[1,2]]]]]")
@@ -352,7 +352,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('export default (1);', "[\"{}\",[[\":\",\"default\",1]]]")
             expect('export default ((1));', "[\"{}\",[[\":\",\"default\",1]]]")
@@ -442,7 +442,7 @@ export const proof = {
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), ast)
+                assertEq(stringifyModule(value), ast)
             }
             expect('const o = {}; export default o.toString(1);', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[]],\"toString\",[\"|()\",[1]]]]]]")
             expect('const a = []; export default a["at"](0);', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[]],\"at\",[\"|()\",[0]]]]]]")
@@ -473,7 +473,7 @@ export const proof = {
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), ast)
+                assertEq(stringifyModule(value), ast)
             }
             expect('export default 1();', "[\"{}\",[[\":\",\"default\",[\"()\",1,[]]]]]")
             expect('export default -1();', "[\"{}\",[[\":\",\"default\",[\"-\",[\"()\",1,[]]]]]]")
@@ -496,7 +496,7 @@ export const proof = {
         bodyConstShadowsModule: () => {
             const [tag, value] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => { const c = 2; return c; };'))
             assert(tag === 'ok', value)
-            assertEq(stringifyDjsModule(value), "[\",\",[1,[\"{}\",[[\":\",\"default\",[\"=>\",0,[],2]]]]]]")
+            assertEq(stringifyModule(value), "[\",\",[1,[\"{}\",[[\":\",\"default\",[\"=>\",0,[],2]]]]]]")
         },
         // A function that is the whole value of a `const` has the `const`'s
         // name in its body: a read of it that no parameter or body `const`
@@ -509,7 +509,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('const f = () => f(); export default f;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"()\",[\"self\"],[]]]]]]")
             expect(
@@ -569,7 +569,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             const helper = 'const entry = (a, b) => {\n    const x = Object.getOwnPropertyDescriptor(a, b);\n    return x?.enumerable ? x.value : undefined;\n};'
             expect(`${helper} export default entry;`, "[\"{}\",[[\":\",\"default\",[\"entry\"]]]]")
@@ -712,7 +712,7 @@ export const proof = {
             const parsed = source => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                return stringifyDjsModule(value)
+                return stringifyModule(value)
             }
             /** @type {(source: string, message: string, column: number) => void} */
             const refused = (source, message, column) => {

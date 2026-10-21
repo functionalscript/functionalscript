@@ -24,6 +24,34 @@ shell a platform's developer enters runs everything that platform's CI does. A
 system that carries more says so at its own `devShells.<system>.default`, so
 what each one has is something you read rather than evaluate.
 
+## Devcontainer profile
+
+The same flake exposes `packages.<system>.devTools`, an installable environment
+for the [devcontainer](../../../.devcontainer/devcontainer.json). It takes its
+tools from the corresponding development shell's `nativeBuildInputs`, including
+the pinned Rust toolchain and Bun override. Those inputs can select development
+outputs, so `pkgs.buildEnv` also includes each package's `out` and `bin` outputs
+to retain executables such as Wasmtime and SpiderMonkey. It links the executables
+and the native `stdenv.cc` compiler into one package without entering the shell
+or running its hooks.
+
+`NixPerSystem.commands` adds named executable wrappers to that package. On x86
+Linux, `fjs-i686-cc` calls the same 32-bit compiler the shell hook uses, without
+shadowing the native `cc`. The devcontainer sets
+`CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER` to that wrapper's installed path.
+Only x86 Linux carries this target and wrapper; the variable is unused by
+native and WASM builds on either container architecture.
+
+The Dockerfile copies the generated flake and lock into the image. The existing
+Nix feature then installs `devTools` into `/nix/var/nix/profiles/default` and
+exposes its `bin` on the container-wide `PATH`. VS Code extensions, tasks and
+ordinary terminals can therefore run the tools directly. `npm ci` remains a
+workspace setup step after container creation.
+
+Rebuild the container when the copied flake or lock changes, including after a
+branch switch that changes tool definitions. This keeps the installed profile
+at the checkout's pins. Ordinary source edits reuse the image's installed tools.
+
 ## Everything in `gen.nix/` is generated
 
 The directory takes the `gen.` name every generated file has

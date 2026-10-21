@@ -46,8 +46,11 @@ import { graphSvg } from '../graph/module.f.mjs'
 import { examplePicker, name as exampleName } from '../examples/module.f.js'
 import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { randomInt } from '../../../effects/common/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
+import { digitsValue, one } from '../../../text/ascii/module.f.js'
+
+const readBinary = digitsValue(2n)
 
 /**
  * Keys as a reader types them unless a demo says otherwise: any safe
@@ -65,6 +68,29 @@ export const decimal = {
     show: String,
     label: 'Key',
     accepts: 'an integer',
+}
+
+/**
+ * Keys typed in binary, up to `width` digits, and shown in all `width`: the
+ * reading and the drawing of a demo's {@link Keys}, which names them itself.
+ * A key reads through `text/ascii`'s `digitsValue`, so an empty text and a
+ * character other than `0` or `1` are refused.
+ *
+ * @throws If `width` is not `1` to `53`: a key is a `number`, and a wider
+ * one would read two spellings as one key. A caller's mistake no text can
+ * cause.
+ *
+ * @type {(width: number) => Pick<Keys, 'parse' | 'show'>}
+ */
+export const binaryKeys = width => {
+    assert(Number.isInteger(width) && 1 <= width && width <= 53, ['binary key width out of range', width])
+    return {
+        parse: text => {
+            const key = text.length <= width ? readBinary([...text].map(one)) : null
+            return key === null ? null : Number(key)
+        },
+        show: key => key.toString(2).padStart(width, '0'),
+    }
 }
 
 /**
