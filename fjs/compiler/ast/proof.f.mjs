@@ -209,7 +209,7 @@ export const proof = {
     // order; a discarded operand that is no code — a primitive, a bare
     // reference, a function, the `entry` and `hasEntry` helpers, a static
     // function and an intrinsic's helper — it drops
-    // (`spec/operators/comma.md`).
+    // (`spec/operators/comma/README.md`).
     comma: {
         operands: () => {
             /** @type {import('./types.ts').AstConst} */

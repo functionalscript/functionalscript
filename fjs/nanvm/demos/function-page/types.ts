@@ -6,16 +6,14 @@
  */
 
 import type { Result } from '../../../types/result/types.ts'
-import type { State as PageState } from '../page/types.ts'
+import type { Place, State as PageState } from '../page/types.ts'
 
 /**
  * A sample whose default export is a function of a number, rather than a
- * program: the name it is known by, as a WASM demo sample's is; the
- * function, as the JavaScript run calls it; and the numbers Run calls it
- * with, in order.
+ * program: where it is, as a WASM demo sample is; the function, as the
+ * JavaScript run calls it; and the numbers Run calls it with, in order.
  */
-export type FunctionSample = {
-    readonly name: string
+export type FunctionSample = Place & {
     readonly entry: (input: number) => unknown
     readonly inputs: readonly number[]
 }

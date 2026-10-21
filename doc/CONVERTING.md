@@ -480,7 +480,7 @@ statement before; the call goes into the statement directly after it, or a
 `const` holds it, `const r = (0, o.f)(x);`. A statement that is no call,
 `a.b;`, made only for the read's failure, is spelled as a `const` or as a comma
 operand. Where no statement can stand, in an expression body, the comma
-operator is the spelling ([comma](../spec/operators/comma.md)):
+operator is the spelling ([comma](../spec/operators/comma/README.md)):
 
 ```js
 const ok = r => (assert(r[0] === 'ok', r), r[1])
