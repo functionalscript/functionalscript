@@ -171,7 +171,7 @@ export const start = depth => game => resultStep(shuffled(tensUpTo(keyCount(dept
     const tree = r[1].reduce((t, k) => structure.insert(k)(t), structure.empty)
     const par = parDepths.includes(depth) ? parSearch(tensUpTo(keyCount(depth)))(tree) : null
     /** @type {Game} */
-    const started = { depth, versions: { before: tree, after: tree }, mode: 'still', note: null, base: null, pending: [], shown: game.shown + 1, moves: 0, par, last: null, error: null }
+    const started = { depth, animate: game.animate, versions: { before: tree, after: tree }, mode: 'still', note: null, base: null, pending: [], shown: game.shown + 1, moves: 0, par, last: null, error: null }
     return pureOk(started)
 })
 
@@ -215,6 +215,8 @@ export const land = game => {
  * frames, the first now and the rest through {@link step}: the remove's
  * nodes leave and enter, then the insert's — even for a key that goes back
  * where it was. A move made while another is showing lands that one first.
+ * Where the reader does not animate, a move lands at once, drawn `still`
+ * against the tree it started from, as the B-tree demo draws a step.
  *
  * @type {(key: number) => (game: Game) => Game}
  */
@@ -226,6 +228,7 @@ export const move = key => game => {
     const moved = structure.insert(key)(removed)
     const changed = !same({ before, after: moved })
     const counted = { ...landed, moves: landed.moves + 1, last: { key, changed }, error: null }
+    if (!landed.animate) { return shownNext({ versions: { before, after: moved }, mode: 'still', note: null, base: before })([])(counted) }
     /** @type {readonly [Frame, ...Frame[]]} */
     const [first, ...rest] = [
         { versions: { before: removed, after: before }, mode: 'leave', note: `${key} comes out of the tree.`, base: null },
@@ -378,7 +381,7 @@ const board = game => {
 
 /** @type {Demo<Game, DemoEvent, RandomInt>} */
 export const demo = {
-    init: { depth: depths[0], versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null },
+    init: { depth: depths[0], animate: true, versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null },
     nextEvent: ({ pending, par }) => pending.length > 0 ? { kind: 'click', name: 'step' }
         : par === null || typeof par === 'number' ? null
         : { kind: 'click', name: 'par' },
@@ -387,6 +390,8 @@ export const demo = {
         if (event.kind === 'start' || (event.kind === 'click' && event.name === 'new')) { return start(game.depth)(game) }
         if (event.kind === 'click' && event.name === 'step') { return pureOk(step(game)) }
         if (event.kind === 'click' && event.name === 'par') { return pureOk(searchTurn(game)) }
+        // Turning the animation off lands a move in progress.
+        if (event.kind === 'input' && event.name === 'animate') { return pureOk(land({ ...game, animate: event.value !== '' })) }
         const level = event.kind === 'input' && event.name === 'level' ? levelOf(event.value) : undefined
         if (level !== undefined) { return start(level)(game) }
         const key = event.kind === 'click' ? movedKey(event.name) : null
@@ -401,6 +406,10 @@ export const demo = {
                 `Depth ${d}: ${keyCount(d)} keys`]))],
             ' ',
             ['button', { type: 'button', name: 'new' }, 'New tree'],
+            ' ',
+            ['label',
+                ['input', { type: 'checkbox', name: 'animate', ...(game.animate ? { checked: '' } : {}) }],
+                ' Animate moves'],
         ],
         ...(game.error === null ? [] : [refusal(game.error)]),
         board(game),

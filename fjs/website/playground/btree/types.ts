@@ -75,9 +75,13 @@ export type Frame = {
  * one: a move landed by the next one's click is not counted, so each
  * update that shows a frame changes the count's parity, which restarts
  * the drawing's fades.
+ *
+ * `animate` is the reader's choice to see a move frame by frame; without
+ * it a move lands at once, drawn against the tree it started from.
  */
 export type Game = {
     readonly depth: number
+    readonly animate: boolean
     readonly versions: Versions<Tree<number>> | null
     readonly mode: Mode
     readonly note: string | null

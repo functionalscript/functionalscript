@@ -369,6 +369,15 @@ const dom = path => {
             for (const f of listeners) { f({ target: field ?? { name, value } }) }
         },
         /**
+         * The reader ticking or unticking the checkbox named `name`, whose
+         * value is `on` either way.
+         *
+         * @type {(name: string, checked: boolean) => void}
+         */
+        toggle: (name, checked) => {
+            for (const f of listeners) { f({ target: { name, type: 'checkbox', value: 'on', checked } }) }
+        },
+        /**
          * The reader scrolling the field named `name`: its scroll is heard at
          * the section, as a capturing listener hears it.
          *
@@ -594,6 +603,27 @@ export const demo = {
      * has. A reader's event in between cancels it, as it cancels any
      * scheduled turn.
      */
+    /**
+     * **A checkbox reports whether it is checked**: its value when it is,
+     * nothing when it is not, though its value is the same either way.
+     */
+    checkboxInput: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: '',
+    update: state => event => () => ['ok', event.kind === 'input' ? \`\${event.name}=\${event.value}\` : state],
+    view: state => ['div', ['pre', state]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.toggle('animate', false)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>animate=</pre>'), d.root.innerHTML)
+        d.toggle('animate', true)
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>animate=on</pre>'), d.root.innerHTML)
+    },
     delayedEvents: async () => {
         const source = moduleUrl(`
 export const demo = {

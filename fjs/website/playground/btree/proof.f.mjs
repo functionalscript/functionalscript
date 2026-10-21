@@ -40,7 +40,7 @@ const html = game => htmlToString(demo.view(game))
 const inOrder = tensUpTo(8).reduce((t, k) => structure.insert(k)(t), structure.empty)
 
 /** @type {Game} */
-const level2 = { depth: 2, versions: { before: inOrder, after: inOrder }, mode: 'enter', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null }
+const level2 = { depth: 2, animate: true, versions: { before: inOrder, after: inOrder }, mode: 'enter', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null }
 
 /** A move made and landed. @type {(key: number) => (game: Game) => Game} */
 const played = key => game => land(move(key)(game))
@@ -339,6 +339,24 @@ export const proof = {
         },
     },
     demo: {
+        // The checkbox starts checked. Unchecked, a move lands at once,
+        // drawn still against the tree it started from, and a move in
+        // progress lands; a new tree keeps the choice.
+        animate: () => {
+            assert(html(level2).includes('<input type="checkbox" name="animate" checked="">'), html(level2))
+            const showing = move(40)(level2)
+            const off = update({ kind: 'input', name: 'animate', value: '' })(showing)
+            assertEq(JSON.stringify([off.animate, off.pending.length, off.versions]), JSON.stringify([false, 0, land(showing).versions]))
+            assert(html(off).includes('<input type="checkbox" name="animate">'), html(off))
+            const moved = move(40)(off)
+            const after = assertNotNullish(land(showing).versions).after
+            const next = assertNotNullish(moved.versions)
+            assertEq(JSON.stringify([moved.mode, moved.pending.length, moved.moves, moved.note]), '["still",0,2,null]')
+            assertEq(JSON.stringify(next.before), JSON.stringify(after))
+            assert(html(moved).includes('data-graph-kind="new"') && !html(moved).includes('entering'), html(moved))
+            assertEq(update({ kind: 'input', name: 'animate', value: 'on' })(off).animate, true)
+            assertEq(update({ kind: 'click', name: 'new' })(off).animate, false)
+        },
         // The page opens building its first tree, and the start event
         // builds it at the first level.
         opening: () => {

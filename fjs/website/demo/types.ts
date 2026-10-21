@@ -26,7 +26,8 @@ import type { Examples } from './examples/types.ts'
  * operation before it can show anything has somewhere to ask for it without
  * `init` becoming an effect. `input` carries the `name` attribute of the
  * element that changed, which is how a demo tells its fields apart without
- * ever holding a DOM node.
+ * ever holding a DOM node, and its value — empty for a checkbox that is not
+ * checked, as a form leaves one out.
  *
  * `click` is what a demo uses to ask for work rather than to react to typing:
  * a benchmark should start when a reader says so, not when a page loads. A

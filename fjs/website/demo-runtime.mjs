@@ -377,6 +377,15 @@ const fail = (root, cause) => {
 }
 
 /**
+ * What an `input` event reports of a field: its value, but nothing for a
+ * checkbox that is not checked, as a form leaves one out — a checkbox's
+ * value is the same either way.
+ *
+ * @type {(field: HTMLInputElement) => string}
+ */
+const valueOf = field => field.type === 'checkbox' && !field.checked ? '' : field.value
+
+/**
  * Whether the reader has asked for less motion, as the site's stylesheet
  * reads it: `prefers-reduced-motion: reduce`. A host without `matchMedia`
  * has not.
@@ -525,7 +534,7 @@ export const startDemo = async root => {
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
             echo(target)
-            step({ kind: 'input', name: target.name, value: target.value })
+            step({ kind: 'input', name: target.name, value: valueOf(target) })
         })
         // A click is how a demo is *asked* for work rather than told about
         // typing: a benchmark starts when a reader says so. So only a named
@@ -608,7 +617,7 @@ export const startDemo = async root => {
         step({ kind: 'start' })
         for (const field of edits) {
             echo(field)
-            step({ kind: 'input', name: field.name, value: field.value })
+            step({ kind: 'input', name: field.name, value: valueOf(field) })
         }
     } catch (cause) {
         fail(root, cause)
