@@ -140,9 +140,16 @@ which is what makes integers, lengths and tags preferred-form by construction.
   values, so they must not share bytes (a content hash would collide). This is
   D3.
 - The parser reads major 0 and 1 as a `number` within the safe range and as a
-  `bigint` outside it, and tags 2 and 3 as a `bigint` whatever the size. A blob
-  that spells a small integer as a bignum, or a large one as major 0, is valid
-  and is **not canonical**.
+  `bigint` outside it, and tags 2 and 3 as a `bigint` whatever the size.
+- **One rule says what is canonical:** `bytes` are canonical when
+  `serialize(parse(bytes))` is `bytes`. Under D3 that makes a small bignum
+  canonical (`c24105` is `5n`, which the serializer writes as `c24105`), and
+  makes these valid blobs **not canonical**: an integer outside the safe range
+  spelled as major 0 or 1 (it parses to a `bigint`, which is written as a
+  bignum), a bignum with a leading zero byte, and a bignum for zero that is not
+  the empty byte string. If the owner answers D3 the other way (major 0 and 1
+  for any integer that fits 64 bits), the same rule makes a small bignum
+  non-canonical instead; the rule is the stable part.
 
 #### Floats
 
