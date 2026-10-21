@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Rule } from '../../types.ts'
- * @import { Container, ContainerNode, Entry, EntryNode, JsonValue, Value } from './types.ts'
+ * @import { Container, ContainerNode, Entry, EntryNode, JsonValue, Value, ValueCases, ValueNode } from './types.ts'
  */
 
 import { assert } from "../../../asserts/module.f.js"
@@ -118,6 +118,27 @@ export const items = ([, , list]) => joined(unmapped(list)).map(pair => unmapped
 export const entry = node => {
     const [key, , , , value] = unmapped(node)
     return [key, value]
+}
+
+/**
+ * The dispatch over the branches `createValue` builds, as one function from
+ * a handler per branch: a container's handler receives its items, read out
+ * by `items`, and the three keywords share one handler that receives their
+ * constant. A reader of this grammar is one application of it; a reader of
+ * a grammar that adds branches handles those first and hands this the rest.
+ *
+ * @type {<T, E, S, N, R>(cases: ValueCases<T, E, S, N, R>) => (node: ValueNode<T, E, S, N>) => R}
+ */
+export const valueCases = ({ array, object, string, number, word }) => node => {
+    switch (node[0]) {
+        case 'array': { return array(items(unmapped(node[1]))) }
+        case 'object': { return object(items(unmapped(node[1]))) }
+        case 'string': { return string(node[1]) }
+        case 'number': { return number(node[1]) }
+        case 'true': { return word(true) }
+        case 'false': { return word(false) }
+        case 'null': { return word(null) }
+    }
 }
 
 /** @type {<const V extends Rule>(v: V) => Container<V>} */
