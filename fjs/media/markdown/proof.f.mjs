@@ -316,6 +316,10 @@ export const proof = {
             thematicBreak: () => assertEq(refusal('***\n'), 'line 1: a thematic break or a heading underline'),
             setextUnderline: () => assertEq(refusal('a\n===\n'), 'line 2: a thematic break or a heading underline'),
             hardBreak: () => assertEq(refusal('a  \nb\n'), 'line 1: a hard line break'),
+            indentedItem: () => assertEq(refusal('  - a\n'), 'line 1: an indented list item'),
+            indentedItemAfterAParagraph: () => assertEq(refusal('a\n  - b\n'), 'line 2: an indented list item'),
+            indentedHeading: () => assertEq(refusal('a\n # b\n'), 'line 2: an indented heading'),
+            indentedFence: () => assertEq(refusal('  ```\n'), 'line 1: an indented code fence'),
         },
     },
 }

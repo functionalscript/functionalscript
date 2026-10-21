@@ -365,6 +365,7 @@ const isFence = line => line.startsWith('```')
  *
  * **Each is refused, not read as prose.** A block quote, a table row, raw
  * HTML, a numbered list, another bullet, an indented code block, a
+ * fence, heading or list item indented by up to three spaces, a
  * thematic break and a heading's underline are each a structure on GitHub,
  * and prose here would be the README GitHub does not show.
  *
@@ -382,6 +383,11 @@ const foreignBlock = line => {
     }
     if (trimmed.startsWith('<')) { return 'raw HTML' }
     if (trimmed.startsWith('~~~')) { return 'a tilde code fence' }
+    // Indented by up to three spaces, each of these is still the block it
+    // opens on GitHub; unindented, the reader reads it before asking here.
+    if (trimmed.startsWith('```')) { return 'an indented code fence' }
+    if (headingLevel(trimmed) !== 0) { return 'an indented heading' }
+    if (trimmed.startsWith('- ')) { return 'an indented list item' }
     if (trimmed.startsWith('* ') || trimmed.startsWith('+ ')) { return 'a list marked other than with `- `' }
     let digits = 0
     while (charIs(isDigit)(trimmed[digits] ?? '')) { digits++ }
