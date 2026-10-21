@@ -1,4 +1,4 @@
-## The hosts copy what `effects` already shares: `all`, `io`, the window size
+## The hosts copy what `effects` already shares: `all` and the window size
 
 **Priority:** P3
 **Status:** open
@@ -20,16 +20,6 @@ copies of what those two own.
 all: async (...effects) => ok(await Promise.all(effects.map(runNodeEffect))),
 all: async (...effects) => ok(await Promise.all(effects.map(runShellEffect))),
 ```
-
-**`io`, by hand, with a second phrase.** The browser runner's `import`
-handler in
-[`fjs/emergent_testing/browser/module.mjs`](../../emergent_testing/browser/module.mjs)
-writes `io`'s two-level `try`/`catch` out — importing `_readThrown`,
-`toIoError` and `ioError` to do it — and names the unreadable value
-`unknownValue`, "Unknown thrown value", where every operation on the other
-two hosts says `_unreadableThrownValue`, "thrown value could not be read".
-One fact, two spellings in the reports, which is what `unknownValue`'s own
-doc says it exists to prevent.
 
 **The window.** Both hosts define `const maxFileSizeBytes =
 Number(maxLengthBytes)` and window `readWhole` into it, one with a `fill`
@@ -64,10 +54,6 @@ loop and one with `Array.from`; the Node host builds the `FileStat` literal
   into the map reads it in its own temporal dead zone, where the inline
   handlers only close over it. A map built by the runner, or one given a
   thunk of it, is the shape; the first needs nothing from the hosts.
-- The browser `import` handler is `io(() => import(specifier(…)))`, and one
-  phrase: either `_unreadableThrownValue` loses its underscore and
-  `unknownValue` is it, or `io` takes the phrase as an argument. The owner's
-  call; the first is simpler.
 - `maxFileSizeBytes` exported as `_maxFileSizeBytes` — linkage between the
   two hosts, not API — from [`node/module.f.mjs`](../node/module.f.mjs),
   which already builds `fileSizeRefusal` on the same number, and the
@@ -82,8 +68,9 @@ does not mention.
 - [ ] `asyncRunAll`, which the Node host takes, and `all` in
       `asyncPartialRun` where its commands name it, which gives the
       SpiderMonkey host its own, with proof; both hosts drop theirs.
-- [ ] The browser `import` through `io`; one phrase for the unreadable value,
-      pinned on every host's report.
+- [x] The browser `import` through `io`; one phrase for the unreadable value,
+      pinned on every host's report: `unreadableThrownValue` in
+      `module.f.mjs`.
 - [ ] `_maxFileSizeBytes` and the windowing shared; `fileStat` in the Node host.
 
 ### Related
