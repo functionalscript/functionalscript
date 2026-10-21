@@ -126,6 +126,44 @@ export const proof = {
         assertEq(invocationRootOf(wideFn), wide)
         assertStructurallySame(assertOk(evaluate(wideFn, Array.from({ length: 16 }, (_, i) => i))), Array.from({ length: 16 }, (_, i) => i))
     },
+    establishedPrefixAliases: () => {
+        // Debug indices deliberately collide; source identity and parameter
+        // position alone determine which aliases can initialize loop inputs.
+        const capture = id(0), captured = id(0), again = id(0), retainedSelf = id(0), second = id(0), hidden = id(0), external = id(0)
+        const loop = loopOf(body(['break', loopTarget, [['array', [ref(captured), ref(again), ['===', ref(retainedSelf), ref(self)], ref(x), ref(y)]]]]))
+        /** @type {readonly Statement[]} */
+        const prefix = [
+            ['define', alias, ref(a), 'lazy'], ['define', second, ref(b), 'required'],
+            ['define', captured, ref(capture), 'lazy'], ['define', again, ref(captured), 'required'],
+            ['define', retainedSelf, ref(self), 'lazy'],
+        ]
+        const entered = { ...loop, initial: [ref(alias), ref(second)] }
+        /** @type {FastFunction} */
+        const fn = { ...root(entered), self, captures: [{ binding: capture, value: ['array', [11]] }], body: body(['return', target, ref(output)], [...prefix, ['loop', entered]]) }
+        assertEq(invocationRootOf(fn), entered)
+        const result = assertOk(evaluate(fn, [2, 3]))
+        assert(result instanceof Array)
+        assertEq(result[0], result[1])
+        assertStructurallySame(result, [[11], [11], true, 2, 3])
+        const frame = /** @type {Exp} */ (['frame', 0])
+        const selfRead = /** @type {Exp} */ (['self'])
+        const expected = /** @type {Exp} */ (['=>', 2, [['[]', [11]]], ['[]', [frame, frame, ['===', selfRead, selfRead], ['arg', 0], ['arg', 1]]]])
+        const first = graph(fn)
+        const next = fromFast(assertOk(toFast(first)))
+        const last = fromFast(assertOk(toFast(next)))
+        for (const graph of [first, next, last]) { assertStructurallySame(assertOk(identityAnalysis(graph)), assertOk(identityAnalysis(expected))) }
+        for (const initial of [[ref(captured), ref(second)], [ref(retainedSelf), ref(second)], [ref(second), ref(alias)], [ref(id(0)), ref(second)]]) {
+            const changed = { ...entered, initial }
+            assertEq(invocationRootOf({ ...fn, body: body(['return', target, ref(output)], [...prefix, ['loop', changed]]) }), null)
+        }
+        for (const value of /** @type {readonly Value[]} */ ([ref(external), ['array', []], ['+', ref(a), 1], ['.', ref(capture), 0]])) {
+            assertEq(invocationRootOf({ ...fn, body: body(['return', target, ref(output)], [...prefix, ['define', hidden, value, 'lazy'], ['loop', entered]]) }), null)
+        }
+        const zero = { ...entered, parameters: [], initial: [], body: body(['break', loopTarget, [['array', [ref(captured), ref(again)]]]]) }
+        const noArguments = { ...fn, parameters: [], body: body(['return', target, ref(output)], [...prefix.slice(2), ['loop', zero]]) }
+        assertEq(invocationRootOf(noArguments), zero)
+        assertStructurallySame(assertOk(evaluate(noArguments, [])), [[11], [11]])
+    },
     partialAbruptRegions: () => {
         const value = id(30)
         const partial = body(['yield', [3]], [['if', [], ref(y), body(['return', target, 7]), body(['yield', []])]])

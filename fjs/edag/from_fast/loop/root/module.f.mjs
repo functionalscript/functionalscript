@@ -11,13 +11,15 @@
  */
 
 import { iterable } from '../../../../types/list/module.f.mjs'
+import { invocationAliases } from '../module.f.mjs'
 
 /** @type {(value: Value, binding: BindingId) => boolean} */
 const names = (value, binding) => value instanceof Array && value[0] === 'ref' && value[1] === binding
 
 /**
  * A fixed invocation layout with its whole public result returned directly.
- * Aliases retain their input position, so equal debug indices never merge slots.
+ * Established capture/self aliases are harmless prefix reads. Only parameter
+ * lineages retain an input position; equal debug indices never merge slots.
  * Rest invocation transitions belong to the shared argument recipe owner.
  * @type {(fn: FastFunction) => Loop | null}
  */
@@ -30,16 +32,8 @@ export const invocationRootOf = fn => {
     const loop = last[1]
     if (loop.parameters.length !== fn.parameters.length || loop.initial.length !== fn.parameters.length
         || loop.results.length !== 1 || !names(exit[2], loop.results[0])) { return null }
-    let aliases = fn.parameters.map((binding, position) => ({ binding, position }))
-    for (const statement of body.statements.slice(0, -1)) {
-        if (statement[0] !== 'define') { return null }
-        const value = statement[2]
-        if (!(value instanceof Array) || value[0] !== 'ref') { return null }
-        const original = aliases.find(({ binding }) => value[1] === binding)
-        if (original === undefined) { return null }
-        aliases = [...aliases, { binding: statement[1], position: original.position }]
-    }
-    return loop.initial.every((value, position) => aliases.some(alias => alias.position === position && names(value, alias.binding))) ? loop : null
+    const aliases = invocationAliases(fn, body.statements.slice(0, -1))
+    return aliases !== null && loop.initial.every((value, position) => aliases[position].some(binding => names(value, binding))) ? loop : null
 }
 
 /**
