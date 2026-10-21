@@ -267,7 +267,7 @@ export const proof = {
             // The keyed groups are drawn by key, in a layer each: `b`
             // before `k`, and the unkeyed node after both, in its layer.
             const keys = html.split('data-key="').slice(1).map(k => k.slice(0, k.indexOf('"')))
-            assertEq(JSON.stringify(keys), '["box:b","box:k","edge:k/b","entry:k","text:b","text:k"]')
+            assertEq(JSON.stringify(keys), '["box:b","box:k","edge:k/1/b","entry:k","text:b","text:k"]')
             assert(html.includes('</defs><g><g data-graph-in-kind="shared" transform="translate(124,10)" data-key="box:b">'), html)
             // A keyed node is drawn at the origin, its clip too; the unkeyed
             // one where it is.
@@ -279,7 +279,7 @@ export const proof = {
             // The edge to the unkeyed node has no key and comes first; every
             // route of a keyed graph is three points, a straight run doubled.
             assert(html.includes('<g><path d="M84,63 L84,63 L124,63" data-graph-edge="" marker-end="url(#graph-arrow)"></path>'), html)
-            assert(html.includes('<path d="M84,43 L84,43 L124,23" data-graph-edge="" marker-end="url(#graph-arrow)" data-key="edge:k/b">'), html)
+            assert(html.includes('<path d="M84,43 L84,43 L124,23" data-graph-edge="" marker-end="url(#graph-arrow)" data-key="edge:k/1/b">'), html)
             // The svg is the defs and three layers, boxes, edges and labels,
             // however many edges there are, so a patch meets each layer
             // where it was.
@@ -456,6 +456,18 @@ export const proof = {
             // Each from the middle of its own 20px row.
             assert(html.includes('d="M74,20 '), html)
             assert(html.includes('d="M74,40 '), html)
+            // Keyed, the two are told apart by their slots.
+            const keyed = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'container', label: 'root', rank: 0, key: 'r' },
+                    { id: 1, kind: 'leaf', label: 'shared', rank: 1, key: 's' },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: 'a' },
+                    { from: 0, to: 1, label: 'b' },
+                ],
+            }))
+            assert(keyed.includes('data-key="edge:r/0/s"') && keyed.includes('data-key="edge:r/1/s"'), keyed)
         },
         /**
          * **A node is as wide as its label column and its widest key

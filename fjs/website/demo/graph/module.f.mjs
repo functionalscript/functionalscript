@@ -614,7 +614,7 @@ const routesOf = placed => {
             }).flat(),
             [to.x, to.y + to.height / 2],
         ]
-        return [{ edge: port.edge, to: target, points }]
+        return [{ edge: port.edge, index: port.index, to: target, points }]
     }))
 }
 
@@ -768,13 +768,17 @@ export const graphSvg = g => {
     // straight run doubled, so one route's shape can slide into another's.
     /** @type {(points: readonly _Point[]) => readonly _Point[]} */
     const even = points => keyed && points.length === 2 ? [points[0], ...points] : points
+    // An edge's slot among the edges leaving its node tells two edges
+    // between the same nodes apart.
+    /** @type {(index: number, from: number) => number} */
+    const slotOf = (index, from) => g.edges.slice(0, index).filter(e => e.from === from).length
     /** @type {readonly Element[]} */
-    const edgeEls = routesOf(placed).map(({ edge, to, points }) => ['path', {
+    const edgeEls = routesOf(placed).map(({ edge, index, to, points }) => ['path', {
         d: `M${even(points).map(([x, y]) => `${x},${y}`).join(' L')}`,
         'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
         ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
         ...fade(edge.from, to),
-        ...pathKeyOf('edge', nodeOf(edge.from).key, nodeOf(to).key),
+        ...pathKeyOf('edge', nodeOf(edge.from).key, String(slotOf(index, edge.from)), nodeOf(to).key),
     }])
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge

@@ -635,8 +635,9 @@ svg text { font: inherit }
    changes at once. The page updates its elements in place, and an
    animation runs again only when its name changes, so the drawing's
    container alternates data-graph-replay between "a" and "b", and each
-   name has a twin. Seven orders are delayed, as many as a tree of 80
-   keys is deep; an order past them fades with the seventh. */
+   name has a twin. Orders 0 to 6 are timed: order 0 and one per rank of
+   the deepest tree the B-tree game draws, 80 keys in at most six ranks. A
+   higher order has no rule and no delay. */
 @media (prefers-reduced-motion: no-preference) {
   [data-graph-order] { animation-duration: .15s; animation-fill-mode: both; animation-timing-function: ease }
   /* A keyed node that stays but moves slides to its new place, and a keyed
