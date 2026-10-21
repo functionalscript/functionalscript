@@ -116,7 +116,7 @@ fjs/media/cbor/
 ```
 
 ```js
-serialize:   (value: Value) => Result<List<number>, string> // bytes, lazy; refuses a lone surrogate
+serialize:   (value: Value) => Result<List<number>, string> // bytes, lazy; refuses a lone surrogate or nesting past maxDepth
 parse:       (bytes: List<number>) => Result<Value, string>  // strict, bounded, total over byte lists
 isCanonical: (bytes: List<number>) => boolean
 mediaType = 'application/cbor'
@@ -151,6 +151,13 @@ and [`fjs/text/utf8`](../../text/utf8/module.f.mjs) round-trips only strings
 without one. The serializer refuses such a string, with an error that names it,
 and `parse` never produces one, so everything `parse` accepts serializes
 (`isCanonical` below needs that). This is D8.
+
+The same holds for depth. `parse` refuses nesting past `maxDepth` (below), so
+`serialize` refuses a `Value` nested past it too, counted the same way and with
+an error that says so: otherwise it could write bytes that `parse` rejects, and
+the round trip and `isCanonical` would be false for them. Both directions share
+the one constant, and the serializer's own recursion is bounded by it. This is
+D5.
 
 #### The head, and the item reader
 
@@ -214,7 +221,8 @@ which is what makes integers, lengths and tags preferred-form by construction.
 
 - One top-level item, then the end: bytes after it are an error.
 - A depth cap named `maxDepth` (D5), counted like the JSON recognizer's: a
-  scalar is depth 0 and an array or map adds one.
+  scalar is depth 0 and an array or map adds one. `serialize` applies the same
+  cap, so everything it writes parses.
 - A length that the bytes left cannot hold is an error **before** anything is
   allocated, so a head claiming `2^60` items costs nothing.
 - A single leading tag 55799 (`d9d9f7`) is unwrapped and recorded as
@@ -248,8 +256,9 @@ serializer; it costs one parse and one serialize, for a predicate that is rare
   RFC bytes already are the canonical form are taken from the RFC as they are;
   each of the others is listed with the bytes the serializer must write, and a
   comment naming the RFC example it replaces. Then `-0`, `NaN`, the infinities,
-  the half/single/double boundaries and the safe-integer edges, and a string
-  with an unpaired surrogate refused.
+  the half/single/double boundaries and the safe-integer edges, a string with an
+  unpaired surrogate refused, and nesting at `maxDepth` written and at
+  `maxDepth + 1` refused.
 - Parser admission: `[NaN]`, `[-0]`, `[1.5]`, `[256]`, `[-1]` and a non-number
   element each throw, at the position they are read and after the bytes before
   them were read, and never decode as the byte `0`; a list of valid bytes that is
@@ -259,7 +268,8 @@ serializer; it costs one parse and one serialize, for a predicate that is rare
   unsupported tag, a non-text key, depth `maxDepth` and `maxDepth + 1`, a length
   claiming more than the bytes hold, the 55799 wrapper.
 - Round trip: `parse(serialize(v))` is `v` for generated trees without an
-  unpaired surrogate (`Object.is` for numbers, so `-0` and `NaN` are tested), and
+  unpaired surrogate and no deeper than `maxDepth` (`Object.is` for numbers, so
+  `-0` and `NaN` are tested), and
   `isCanonical(serialize(v))` holds.
 - Node has no CBOR, so there is no reference to diff against as there was for
   `fjs/zlib`; the RFC's vectors and the generated round trips are the evidence.
@@ -300,8 +310,9 @@ Each is the session's proposal; none is built on until the owner answers.
 - **D4. Shortest floats.** The `todo` already says RFC 8949 4.2; the roadmap
   records the competing "always 8-byte doubles" (it is also simpler to encode).
   Shortest-form is the standard's and is recommended.
-- **D5. `maxDepth`.** A number for the DoS guard. A proposal: 64, as a named
-  constant exported by the module, so a caller can compare it.
+- **D5. `maxDepth`.** A number for the DoS guard, bounding the parser and the
+  serializer alike. A proposal: 64, as a named constant exported by the module,
+  so a caller can compare it.
 - **D6. Which of `parse`'s failures are one error type.** A message string, as
   the JSON parsers do, or a small closed set of codes a consumer can branch on
   (`truncated`, `trailing`, `unsupported`, `duplicate-key`, ...), which detection
