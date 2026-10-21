@@ -8,6 +8,8 @@
  * @import { Exp } from '../types.ts'
  * @import { Context, Done, Work } from './private.ts'
  * @import { Invocation } from './types.ts'
+ * @import { List, Result as ListResult } from '../../types/list/types.ts'
+ * @import { PersistentSet } from '../../types/set/types.ts'
  * @import { BindingId, Block, Function as FastFunction, FunctionTarget, Key, LoopTarget, Operator, Statement, Step, Value } from '../../js/ast/types.ts'
  */
 
@@ -16,6 +18,8 @@ import { checked, identityAnalysis, itemOperand, mergeable, operandsOf, scopeHol
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { mapOk, okThen } from '../../types/result/module.f.js'
+import { next, toArray } from '../../types/list/module.f.mjs'
+import { add, empty, has } from '../../types/set/module.f.mjs'
 
 /** An operation's operands in its invocation, excluding nested bodies. @type {(node: Node) => readonly Operand[]} */
 const ownOperands = node => node[0] === '=>' ? node[2] : operandsOf(node)
@@ -43,19 +47,24 @@ const eagerOperands = node => {
 
 /** Stable, invocation-local reachability; a binding stops traversal. @type {(a: Analysis, children: (node: Node) => readonly Operand[], bound: readonly number[]) => (roots: readonly Operand[]) => readonly number[]} */
 const reachable = (a, children, bound) => roots => {
-    /** @type {readonly number[]} */
-    let seen = []
+    const stops = new Set(bound)
+    /** @type {PersistentSet<number>} */
+    let seen = empty
+    /** @type {List<number>} */
+    let order = null
+    /** @type {List<Operand>} */
     let pending = roots
-    while (pending.length !== 0) {
-        const [value, ...rest] = pending
-        if (!(value instanceof Array) || bound.includes(value[1]) || seen.includes(value[1])) {
-            pending = rest
-            continue
-        }
-        seen = [...seen, value[1]]
-        pending = [...children(a.nodes[value[1]]), ...rest]
+    while (true) {
+        /** @type {ListResult<Operand>} */
+        const item = next(pending)
+        if (item === null) { return toArray(order).toReversed() }
+        const value = item.first
+        pending = item.tail
+        if (!(value instanceof Array) || stops.has(value[1]) || has(value[1])(seen)) { continue }
+        seen = add(value[1])(seen)
+        order = { first: value[1], tail: order }
+        pending = { head: children(a.nodes[value[1]]), tail: pending }
     }
-    return seen
 }
 
 /** Reads already have a stable invocation value. @type {(node: Node) => boolean} */
@@ -183,7 +192,15 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         const lazyRoots = eager.flatMap(i => lazyOperands(a.nodes[i]))
         const children = lazyRoots.map(root => reachable(a, ownOperands, bound)([root]))
         const places = [...roots, ...all.flatMap(i => ownOperands(a.nodes[i]))].flatMap(value => value instanceof Array ? [value[1]] : [])
-        const sharedHere = all.filter(i => places.filter(place => place === i).length > 1 && !isRead(a.nodes[i]))
+        /** @type {PersistentSet<number>} */
+        let once = empty
+        /** @type {PersistentSet<number>} */
+        let repeated = empty
+        for (const place of places) {
+            if (has(place)(once)) { repeated = add(place)(repeated) }
+            else { once = add(place)(once) }
+        }
+        const sharedHere = all.filter(i => has(i)(repeated) && !isRead(a.nodes[i]))
         const crosses = sharedHere.filter(i => !eager.includes(i) && children.filter(child => child.includes(i)).length !== 1)
         const splits = crosses.filter(i => reachable(a, ownOperands, [...bound, ...eager])([['#', i]]).every(j => mergeable(a.nodes[j]) && a.nodes[j][0] !== ','))
         const shared = sharedHere.filter(i => !splits.includes(i))

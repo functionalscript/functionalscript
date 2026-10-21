@@ -6,12 +6,14 @@
  * @import { Block, BindingId, Function as FastFunction, Value } from '../../js/ast/types.ts'
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { Analysis, Node } from '../analysis/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
 import { fromFast } from '../from_fast/module.f.mjs'
 import { fromAnalysis, functionFromAnalysis, toFast } from './module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 
 /** Compare semantic graph tables without merging allocation identities. @type {(graph: Exp) => void} */
 const roundTrip = graph => assertStructurallySame(assertOk(analysis(fromFast(assertOk(toFast(graph))))), assertOk(analysis(graph)))
@@ -147,8 +149,8 @@ export const proof = {
     deepExpressions: () => {
         /** @type {Exp} */
         let graph = 1
-        /** @type {readonly ExpOp[]} */
-        let exps = []
+        /** @type {List<ExpOp>} */
+        let expressions = null
         const count = 20_000
         const nodes = Array.from({ length: count }, (_, i) => {
             const operand = i === 0 ? 1 : /** @type {const} */ (['#', i - 1])
@@ -156,8 +158,9 @@ export const proof = {
         })
         for (let i = 0; i < count; i += 1) {
             graph = i % 3 === 0 ? ['!', graph] : i % 3 === 1 ? ['+', graph, 1] : ['.', graph, 'length']
-            exps = [...exps, graph]
+            expressions = { first: graph, tail: expressions }
         }
+        const exps = toArray(expressions).toReversed()
         /** @type {Analysis} */
         const table = { root: ['#', count - 1], nodes, scope: nodes.map(() => -1), shared: [], exps }
         let restored = fromFast(fromAnalysis(table))
