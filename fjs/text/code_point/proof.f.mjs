@@ -16,6 +16,7 @@ import {
     restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
+    unicodeNotation,
 } from './module.f.mjs'
 
 /**
@@ -191,4 +192,11 @@ export const proof = {
         () => assertEq(isTextCodePoint(0xa0), true), // NBSP
         () => assertEq(isTextCodePoint(0x10_ffff), true),
     ],
+    // padded to four digits, and no further
+    unicodeNotation: () => {
+        assertEq(unicodeNotation(0x0a), 'U+000A')
+        assertEq(unicodeNotation(0xfeff), 'U+FEFF')
+        assertEq(unicodeNotation(0x1_f600), 'U+1F600')
+        assertEq(unicodeNotation(0x10_ffff), 'U+10FFFF')
+    },
 }
