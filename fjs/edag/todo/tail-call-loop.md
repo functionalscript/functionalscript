@@ -11,8 +11,9 @@ permission for writer-specific recursion decisions; it does not change the
 current implementation in this documentation-only proposal.
 
 The [general loops and tail calls epic](../../todo/general-loops-and-tail-calls.md)
-orders the FAST prerequisites and the broader analysis after this migration.
-Its canonical loop/exit forms supersede the template-only future direction,
+orders the FAST prerequisites and broader analysis. The analysis can develop
+before every consumer migrates; integration uses the common FAST path.
+Its structured state/exit forms supersede the template-only future direction,
 without changing the implemented contracts recorded below.
 
 ### Problem
@@ -237,12 +238,20 @@ source to EDAG to source to the same EDAG — is its proof.
 **Later.** The template is a strict subset of the occurrence-based analysis
 in the [epic](../../todo/general-loops-and-tail-calls.md#tail-position-analysis-and-output):
 the body root, either arm of a tail `?:`, and the last operand of a tail `,`
-may contain eligible self-calls. Other self references can remain ordinary
+may contain eligible self-calls. The proposed
+[short-circuit normalization](./short-circuit-conditionals.md) removes
+`&&`, `||` and `??` from canonical EDAG, so they need no separate traversal.
+Candidate traversal must use evaluation-region and shared-value placement:
+an already-evaluated call result read in a return arm is not a tail call.
+For `const r = f(n - 1); return r === 0 ? r : 1`, the condition requires
+the call first, so reading `r` cannot become a loop transition.
+Other self references can remain ordinary
 calls or values, with the function's identity retained; only the eliminated
 recursive paths gain constant stack usage. Broader state, captures and exits
-use common FAST normalization, including a core loop with explicit transfers,
-rather than requiring another source template. The migration below retains
-the current recognizer first; the epic broadens it afterward with proofs.
+use structured FAST loop parameters/results and resolved transfers.
+The migration retains the current recognizer until its replacements preserve
+the corresponding contracts; broader cases land in complete increments with
+the epic's proofs, without waiting for unrelated module moves.
 
 ### FAST migration
 
@@ -255,10 +264,11 @@ immediate call. It owns eliminating that call and function boundary, including
 establishing the initial argument and captures once in the enclosing scope.
 A function used as a value retains its function boundary and arity.
 
-FAST represents local bindings, state updates and core loops; it need not
-mirror JavaScript's `let`/`while` syntax. The common conversion and any shared
-normalization passes make bindings, transfers and evaluation regions explicit.
-The JS and Rust serializers render these same decisions using their target syntax. The
+FAST represents immutable value bindings, branch results and structured loops
+with explicit state/results and resolved exit targets; it need not mirror
+JavaScript's `let`/`while` syntax. Common emission preparation materializes
+physical state slots, simultaneous next-state updates and capture snapshots.
+The JS and Rust serializers render the same decisions using their target syntax. The
 writer-specific fallbacks in the implemented design above are constraints
 to resolve in this common conversion, not exceptions allowing backend graph
 walks or separate loop policies:
@@ -291,6 +301,16 @@ in that contract and its proofs, rather than arriving as an incidental
 formatting change. Preserve the admitted
 [loop grammar](../../../spec/control-flow/loops.md) and its existing
 source → EDAG → source → same EDAG round-trip cases.
+The separate short-circuit schema migration explicitly records the affected
+graph/hash changes; unaffected exact-graph cases remain requirements.
+
+The reverse boundary has a separate concern: `from_fast` introduces recursive
+helpers for source loops when needed, with explicit state results and distinct
+enclosing-function return completions. Structured FAST normalization does not
+extract those helpers or move following code into each `break`. Inner helpers
+return to callers so self-tail-call elimination suffices for nested iteration.
+The epic owns this broader input work; it is not a prerequisite for migrating
+the existing output or analyzing generalized tail calls.
 
 ### Tasks
 
@@ -318,8 +338,9 @@ source → EDAG → source → same EDAG round-trip cases.
       approved, proven by the round trip.
 - [ ] Move the implemented loop decisions and eligible call elimination to
       common EDAG-to-FAST conversion, with the capture and region rules above.
-      Migrate all emitters and retire their graph-aware loop paths together;
-      update their JSDoc and specification ownership descriptions with them.
+      Migrate consumers incrementally once the shared path preserves their
+      contracts; retire each replaced graph-aware path with its consumer and
+      update JSDoc/specification ownership. The completed migration has one policy.
 - [ ] Carry over the million-round, source-round-trip, closure-capture,
       shared-condition, lazy-failure, rest-read and root-assert cases. Verify
       the common FAST decision across JS and Rust, function text's invocation
@@ -328,7 +349,9 @@ source → EDAG → source → same EDAG round-trip cases.
 ### Related
 
 - [General loops and tail calls](../../todo/general-loops-and-tail-calls.md)
-  — prerequisites and staged broadening after the common FAST migration.
+  — prerequisites, independent analysis and staged integration through FAST.
+- [Short-circuit conditionals](./short-circuit-conditionals.md)
+  — reduce canonical tail analysis to conditional and sequence forms.
 - [Compiler vocabulary and modularization](../../todo/compiler-vocabulary-and-modularization.md)
   — the common conversion owns loop lowering in the MVP.
 - [stage 1 discussion §11](../../../todo/edag-stage1-discussion.md#11-let-loops-and-tail-calls)

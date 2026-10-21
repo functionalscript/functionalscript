@@ -41,7 +41,7 @@ output and compiler orchestration, so it lives in `fjs/todo/`.
 | --- | --- |
 | JS tokens | Lexical tokens with the metadata needed to parse JS, including relevant line boundaries and source locations. |
 | AST | The syntax representation of a supported subset of JavaScript. That subset may be larger than FunctionalScript. It does not promise support for all JavaScript. |
-| FAST | Foundation AST: a foundation IR with explicit bindings, evaluation regions and core control flow. Its shape and primitives need not be a subset of the JavaScript AST; a core `loop` may replace source `while` syntax. The same foundation representation, with documented normalization stages, is used before EDAG construction and after EDAG-to-FAST conversion. Representability in FAST does not by itself establish FJS acceptance. |
+| FAST | Foundation AST: a foundation IR with immutable value bindings, evaluation regions, structured branches and loops with explicit state/results. Its shape and primitives need not be a subset of JavaScript AST; core `loop` replaces source `while` syntax. The same vocabulary, with documented stage invariants, is used before EDAG construction and after EDAG-to-FAST conversion. Representability in FAST does not by itself establish FJS acceptance. |
 | Desugaring | AST-to-FAST rewriting that preserves the supported source semantics while expressing sugar through basic constructs. |
 | EDAG | Expression DAG: operations and their references, with explicit sharing, invocation scopes and required evaluation. One shared node is different from distinct equal nodes. |
 | Anchor | A required computation retained through a comma node even when the returned value does not otherwise require it. |
@@ -56,13 +56,21 @@ The older [demo document](../../todo/demo/README.md), explicitly marked stale,
 uses BAST for a different concept, "Binary Abstract Syntax Tree". That
 historical meaning is not renamed or adopted by this proposal.
 
-FAST retains the semantics of local bindings, state updates and structured
-loops without requiring JavaScript-shaped `let` or `while` nodes. A core
-`loop` with explicit transfers is a possible foundation primitive.
-`from_fast` lowers normalized loops to the existing tail-call EDAG;
-`to_fast` reconstructs eligible loops. Several common FAST passes may normalize
-control flow, state and captures; each has explicit input/output invariants
-and a terminating pass order. This adds no EDAG loop node or new source keyword.
+FAST retains the semantics of local rebinding without requiring mutable cells
+or JavaScript-shaped `let`/`while` nodes. Assignments establish fresh values;
+branches produce results. A core `loop` has immutable iteration parameters,
+explicit results and targeted `continue`, `break` and source-function `return`.
+Several common FAST passes may normalize these forms; each has explicit
+input/output invariants and a terminating pass order. Structured loops stay
+in their original regions, including inside branches and other loops.
+
+`from_fast` introduces recursive helpers when constructing EDAG, not during
+FAST normalization. Normal loop completion returns state; an enclosing-function
+return propagates through a distinct completion only where needed. `to_fast`
+reconstructs eligible loops; common emission preparation then establishes
+physical state slots, simultaneous updates and immutable capture snapshots.
+This adds no EDAG loop node or new source keyword, and needs no general
+continuation-passing transformation or global liveness analysis.
 The [general loops and tail calls epic](./general-loops-and-tail-calls.md)
 orders the relevant FAST prerequisites and the later grammar/analysis work.
 Introducing FAST and migrating the existing template do not themselves enable
@@ -93,11 +101,11 @@ normalizations.
 | --- | --- |
 | `fjs/js/tokenizer` | JS text to tokens, and token rendering back to marked/plain text. Own lexical spelling, escaping and separation. Reuse the existing tokenizer. |
 | `fjs/js/ast` | AST and FAST definitions, with an explicit list of basic constructs and their invariants. |
-| `fjs/js/ast/sugar` | The `desugar` function: AST → FAST. |
+| `fjs/js/ast/sugar` | AST → FAST desugaring, including single-evaluation conditional forms for `&&`, `\|\|` and `??`. Common FAST normalization has a documented owner beside the shared representation. |
 | `fjs/js/ast/serializer` | FAST → JS tokens; marked-text output composes this with token rendering. |
 | `fjs/js/ast/parser` | A stream of JS tokens → AST. |
 | `fjs/edag` | EDAG definitions, operation shapes and invariants, independent of a particular producer or backend. |
-| `fjs/edag/from_fast` | FJS-admitted FAST → EDAG, preserving bindings as graph references and required evaluation as anchors. |
+| `fjs/edag/from_fast` | FJS-admitted FAST → EDAG; preserve references/anchors and introduce recursive helpers with explicit state and completion handling for structured loops. |
 | `fjs/edag/optimizer` | Explicit EDAG → EDAG transformations. |
 | `fjs/edag/to_fast` | EDAG → FAST; one shared implementation of semantic bindings, evaluation-region placement and tail-loop lowering for all backends. |
 | `fjs/rust/serializer` | FAST → Rust tokens or marked text, with Rust-specific syntax and runtime operation spelling. |
@@ -127,9 +135,20 @@ owners; this proposal does not require a Rust input parser.
   reinterpret destructuring or defaults. Preserve one evaluation of an
   initializer, use fresh bindings, retain relevant source origins, and
   preserve scope, conditional evaluation and observable function arity.
+  Normalize `&&`, `||` and `??` to conditionals with one established left
+  operand; normalized FAST and canonical EDAG have no dedicated operations
+  for them. The [operation-removal TODO](../edag/todo/short-circuit-conditionals.md)
+  owns the schema and producer/consumer migration, independent of optimization.
 - **Graph construction preserves source sharing.** References to one binding
   refer to one graph node. Distinct equal expressions remain distinct unless
   an explicit, permitted optimization merges them.
+- **Graph construction owns recursive loop helpers.** FAST keeps explicit
+  loop state/results and resolved exit destinations. `from_fast` introduces
+  helpers at the loop's execution point, returning state on normal completion
+  and propagating enclosing-function returns separately. Inner helpers return
+  to their callers; they do not call outer helpers to continue outer loops.
+  Reuse a canonical root loop's function only when its full invocation/state
+  contract matches, so one-time setup stays once and round trips add no wrappers.
 - **Optimization is independent of correct lowering.** Graph construction
   must produce a correct EDAG without relying on optimization. An anchor can
   be removed when the remaining computation already guarantees evaluation of
@@ -151,6 +170,10 @@ owners; this proposal does not require a Rust input parser.
   supersedes writer-specific decisions and records the closure, lazy-sharing
   and stack-safety requirements. Every target renders the same decision;
   none recognizes or lowers tail calls itself.
+  Broader analysis combines candidate traversal with evaluation placement:
+  reading an already-established recursive result is not a tail-call evaluation.
+  Common emission preparation materializes simultaneous next-state values,
+  invocation setup and capture snapshots before serializers render them.
 - **MVP backends own target spelling and runtime mapping.** Serializers render
   the bindings and computations already expressed in FAST, using the target's
   syntax and runtime operations. They do not traverse EDAG, rediscover graph
@@ -161,6 +184,9 @@ owners; this proposal does not require a Rust input parser.
 - **Graph identity is explicit.** Record whether an optimization changes the
   graph used for content identity and function text, or only an execution
   representation. Equivalent results alone do not settle that contract.
+  The same rule applies to schema changes such as removal of short-circuit
+  tags. State the old-graph admission policy and permitted round-trip changes;
+  do not silently rewrite a graph under its old identity.
 - **Validation respects boundaries.** Internal producers maintain their
   representation invariants. Separately supplied EDAG data is validated at
   its admission boundary, as today.
@@ -184,9 +210,9 @@ this issue owns the vocabulary the line uses and the placements below.
 | Tokenizer | Spelling: what is a token, escapes, line boundaries. |
 | Grammar | Shape: which token sequences are a module, a statement, a value. |
 | Binding | Names: what a word resolves to, captures, and JavaScript's own early errors that read a word — a name bound twice, a reserved word bound — checked before desugaring erases what they inspect. |
-| Desugaring | Sugar: a construct expressed through FAST's basic constructs. |
+| Desugaring | Sugar: a construct expressed through FAST's basic constructs, including short-circuit operators as single-evaluation conditionals. |
 | Admission | What FunctionalScript keeps of the supported JavaScript subset, and the refusals that are its own and no early error of JavaScript's — a prototype name as a key, `o.toString`, a reserved global, a bare `__proto__` key, a prohibited member call — run before desugaring erases what they inspect; `fjs/compiler` owns it. |
-| Graph construction (`from_fast`) | Sharing, scopes, anchors, and the lowering of FAST's loop forms to tail calls. |
+| Graph construction (`from_fast`) | Sharing, scopes, anchors, and recursive loop helpers with state results and enclosing-function completion handling. |
 | Linking | Loading and linking, what the records beside a module function ask of the host and of the modules loaded: a specifier resolved to a module identity, one load and one evaluation per identity, a cycle refused, the attribute's agreement with the file, the selected export's existence; and the module function applied to what was loaded. `fjs/compiler` owns it, `_walk` in `source` and `resolve` in `edag` today. |
 | Orchestration | Which steps run for an input and an output name: `fjs compile`'s dispatch by file type, a `.json` document against a module, which output evaluates and which writes a graph, the diagnostics' paths — the command-line pages' layer. `fjs/compiler`'s `module.f.mjs` and `fjs/cli` own it. |
 | Graph optimization | An EDAG-to-EDAG rewrite, recorded as one. |
@@ -428,6 +454,12 @@ The architecture also adds no source-language feature by itself.
       existing token and marked-text machinery.
 - [ ] Expose FAST-to-EDAG construction with explicit sharing, scope and
       anchoring contracts; keep graph optimization a separate operation.
+      Keep structured loops until this boundary; the epic owns the subsequent
+      generalized helper/state/completion implementation.
+- [ ] Coordinate single-evaluation short-circuit desugaring with the
+      [operation-removal TODO](../edag/todo/short-circuit-conditionals.md).
+      Reuse its lowering when the frontend boundary moves; it does not wait
+      for general loops or an EDAG optimizer.
 - [ ] Extract EDAG-to-FAST binding and block placement once and move every MVP
       target, including JS and Rust, onto it. Reuse existing sharing analysis
       and target helpers, move any necessary binding normalization into common
@@ -462,6 +494,8 @@ The architecture also adds no source-language feature by itself.
   separate EDAG-aware emission proposal.
 - [Tail-call loops](../edag/todo/tail-call-loop.md#fast-migration) — existing
   loop emission and its migration from writers into common FAST conversion.
+- [Short-circuit conditionals](../edag/todo/short-circuit-conditionals.md)
+  — source sugar and removal of redundant canonical EDAG operations.
 - [Operand classification ownership](../edag/todo/operand-classification-owner.md)
   — existing eager/lazy analysis work to reconcile with common placement.
 - [Marked text](../text/marked/README.md) — existing representation and demarking.
