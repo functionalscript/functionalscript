@@ -14,8 +14,6 @@
  *
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { Range } from '../../types/range/types.ts'
- * @import { RangeSet } from '../../types/range_set/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _IndentedString } from './types.ts'
  */
@@ -24,12 +22,13 @@ import { concat } from '../../types/string/module.f.mjs'
 import { findMap, includes, occurrences } from '../../types/array/module.f.mjs'
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import {
-    digitRange,
-    latinCapitalLetterRange,
-    latinSmallLetterRange,
-    range,
+    apostrophe,
+    charIs,
+    hyphenMinus,
+    isDigit,
+    isLatinLetter,
+    lowLine,
 } from '../../text/ascii/module.f.js'
-import { contains, fromRange, union } from '../../types/range_set/module.f.mjs'
 import { flat, flatMap, intersperse, map, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
 
 const reservedWords = /** @type {const} */ ([
@@ -48,40 +47,20 @@ const reservedWords = /** @type {const} */ ([
 const isReservedWord = includes(reservedWords)
 
 /**
- * The set of an inclusive ASCII range: `text/ascii` spells its ranges by their
- * last character, and a range set's upper boundary is exclusive.
+ * Nix's identifier rule over `text/ascii`'s classes: a letter or `_` first,
+ * then a letter, a digit, `_`, `'` or `-`. The classes are ASCII's; the
+ * marks each position adds are Nix's.
  *
- * @type {(r: Range) => RangeSet}
+ * @type {(codePoint: number) => boolean}
  */
-const asciiSet = ([a, b]) => fromRange([a, b + 1])
+const isInitial = c => isLatinLetter(c) || c === lowLine
 
-const letters = union
-    (asciiSet(latinCapitalLetterRange))
-    (asciiSet(latinSmallLetterRange))
+/** @type {(codePoint: number) => boolean} */
+const isTrailing = c => isInitial(c) || isDigit(c) || c === apostrophe || c === hyphenMinus
 
-const identifierInitial = union
-    (letters)
-    (asciiSet(range('_')))
+const isIdentifierInitial = charIs(isInitial)
 
-const containsIdentifierInitial = contains(identifierInitial)
-
-/** @type {(character: string) => boolean} */
-const isIdentifierInitial = character =>
-    containsIdentifierInitial(character.charCodeAt(0))
-
-const identifierTrailing = union
-    (union
-        (identifierInitial)
-        (asciiSet(digitRange)))
-    (union
-        (asciiSet(range("'")))
-        (asciiSet(range('-'))))
-
-const containsIdentifierTrailing = contains(identifierTrailing)
-
-/** @type {(character: string) => boolean} */
-const isIdentifierTrailing = character =>
-    containsIdentifierTrailing(character.charCodeAt(0))
+const isIdentifierTrailing = charIs(isTrailing)
 
 /** @type {(value: string) => boolean} */
 const isIdentifier = value => {

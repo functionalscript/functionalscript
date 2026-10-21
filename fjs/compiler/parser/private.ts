@@ -7,7 +7,7 @@ import type { SourceValue, SourceParameter, SourceStatement, SourceBlock, Source
 import type { PatternPlan } from '../../js/ast/sugar/pattern/types.ts'
 import type { StaticId, IntrinsicId } from '../../edag/types.ts'
 import type { BinaryTag, UnaryTag } from '../ast/types.ts'
-import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+import type { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
 import type { BindingOrigin, ParseError } from './types.ts'
 import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, If, Item as SyntaxItem, Key as SyntaxKey, Let, LoopBlock, Node, Switch, While } from './syntax/types.ts'
 
@@ -80,7 +80,7 @@ export type _LoopBodyFrame = _Counted<SourceStatement> & { readonly block: LoopB
 export type _GuardFrame = { readonly guard: If; readonly body: _BodyFrame; readonly condition: SourceValue; readonly then: SourceBlock | null }
 export type _SwitchFrame = { readonly switch: Switch; readonly body: _BodyFrame; readonly discriminant: SourceValue; readonly index: number; readonly label: number; readonly labels: readonly SourceValue[]; readonly arms: List<SourceCase> }
 export type _UnaryFrame = { readonly unary: UnaryTag }
-export type _InstanceOfFrame = { readonly instanceof: Node; readonly at: DjsTokenWithMetadata }
+export type _InstanceOfFrame = { readonly instanceof: Node; readonly at: ModuleTokenWithMetadata }
 export type _BinaryLeftFrame = { readonly tag: BinaryTag; readonly right: Node }
 export type _BinaryRightFrame = { readonly tag: BinaryTag; readonly left: SourceValue }
 export type _ConditionalFrame = _Counted<SourceValue> & { readonly conditional: readonly ['?:', Node, Node, Node] }

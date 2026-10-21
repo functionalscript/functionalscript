@@ -92,7 +92,7 @@ receives a real `Meta<I>` from the caller, so nothing has to invent one.
       With no synthesis there is no second marker to avoid: the tokenizer's
       `eof` token is the symbol the grammar's `eof` matches, its metadata
       rides along, and `eofMetadata` — threaded to `parseSyntax`'
-      `atEnd` branch — has nothing left to carry. `djsModule` requires `eof`,
+      `atEnd` branch — has nothing left to carry. `module` requires `eof`,
       so this caller is not optional: leaving it stripped fails every valid
       module at its final terminal.
 - [ ] Keep `splitEof`'s *validation* even where its stripping goes. It rejects a

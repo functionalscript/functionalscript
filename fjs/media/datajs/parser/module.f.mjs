@@ -39,7 +39,8 @@
  * @import { Ast, Children, Meta } from '../../../ebnf/ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
- * @import { Entry as EntryRule } from '../../../ebnf/lib/json/types.ts'
+ * @import { Entry as EntryRule, ValueCases } from '../../../ebnf/lib/json/types.ts'
+ * @import { string } from '../../../ebnf/lib/json/module.f.mjs'
  * @import { DataJsValue } from '../../../ebnf/lib/datajs/types.ts'
  * @import { constStatement, property } from '../../../ebnf/lib/datajs/module.f.mjs'
  * @import { Primitive, Unknown } from '../types.ts'
@@ -57,7 +58,7 @@ import { unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, units } from '../../../ebnf/utf16/module.f.mjs'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
-import { entry, items } from '../../../ebnf/lib/json/module.f.mjs'
+import { entry, valueCases } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { stringMappings, syntaxError, tagged, textAt } from '../../json/parser/module.f.mjs'
 
@@ -115,6 +116,23 @@ const member = node => {
 }
 
 /**
+ * A branch DataJS shares with JSON is the node JSON's dispatch makes of it:
+ * a container of its items' nodes, a string the text its mapping returned, a
+ * number the leaf its mapping returned, and a word its constant.
+ *
+ * @type {ValueCases<Ast<DataJsValue, Utf16, Out>, Ast<EntryRule<typeof property, DataJsValue>, Utf16, Out>, Ast<typeof string, Utf16, Out>, Ast<typeof number, Utf16, Out>, Meta<Value>>}
+ */
+const jsonCases = {
+    array: items => _valueSymbol(['array', items.map(nodeAt)]),
+    object: entries => _valueSymbol(['object', entries.map(member)]),
+    string: node => _valueSymbol(textAt(node)),
+    number: node => _valueSymbol(nodeAt(node)),
+    word: _valueSymbol,
+}
+
+const jsonNode = valueCases(jsonCases)
+
+/**
  * A value is the node its branch made: a container of its items' nodes, a
  * string the text its mapping returned, a number the leaf its mapping
  * returned, a word its constant, and a reference the name it spells.
@@ -123,16 +141,10 @@ const member = node => {
  */
 const toNode = node => {
     switch (node[0]) {
-        case 'array': { return _valueSymbol(['array', items(unmapped(node[1])).map(nodeAt)]) }
-        case 'object': { return _valueSymbol(['object', items(unmapped(node[1])).map(member)]) }
-        case 'string': { return _valueSymbol(textAt(node[1])) }
-        case 'number': { return _valueSymbol(nodeAt(node[1])) }
-        case 'true': { return _valueSymbol(true) }
-        case 'false': { return _valueSymbol(false) }
-        case 'null': { return _valueSymbol(null) }
         case 'nan': { return _valueSymbol(NaN) }
         case 'undefined': { return _valueSymbol(undefined) }
         case 'id': { return _valueSymbol(['ref', lexeme(node[1])]) }
+        default: { return jsonNode(node) }
     }
 }
 

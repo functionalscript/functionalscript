@@ -1,6 +1,6 @@
 /**
  * @import { Primitive } from '../../../media/datajs/types.ts'
- * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { Node, ParameterList } from './types.ts'
  */
 
@@ -11,10 +11,10 @@ import { fromEntries } from '../../../types/object/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 
-/** @type {(kind: 'null' | 'true' | 'false' | 'undefined' | 'eof' | ';', line: number) => DjsTokenWithMetadata} */
+/** @type {(kind: 'null' | 'true' | 'false' | 'undefined' | 'eof' | ';', line: number) => ModuleTokenWithMetadata} */
 const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 }, newline: false })
 
-/** @type {(value: string, line: number) => DjsTokenWithMetadata} */
+/** @type {(value: string, line: number) => ModuleTokenWithMetadata} */
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 }, newline: false })
 
 /**

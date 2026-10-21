@@ -105,7 +105,7 @@
  * - **Trivia is no symbol.** Whitespace, newlines and comments are not in
  *   the stream the grammar reads: the tokenizer leaves them out and marks
  *   each token with whether a newline stood before it, `newline` in
- *   `DjsTokenWithMetadata`. So no rule mentions them, none begins with
+ *   `ModuleTokenWithMetadata`. So no rule mentions them, none begins with
  *   them — the classical grammar's statement terminator and the module's
  *   final optional `;` both did, a first/first conflict on the trivia
  *   symbols — and the two places JavaScript forbids a line break, before
@@ -135,7 +135,7 @@
  *
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
- * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
@@ -144,29 +144,29 @@ import { assert } from '../../../asserts/module.f.js'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
-import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
+import { _moduleTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
 import { eagerLayers, lazyLayers } from '../../ast/module.f.mjs'
 
 const { fromEntries } = Object
 
 /**
- * The token kinds, every `DjsToken` kind but `eof`: the tokenizer's
+ * The token kinds, every `ModuleToken` kind but `eof`: the tokenizer's
  * physical end-of-input token is split off the stream before any name is
  * mapped, and the backend synthesizes its own logical one. The kinds are
- * the tokenizer's own list, {@link _djsTokenKinds}, rather than a copy of it.
+ * the tokenizer's own list, {@link _moduleTokenKinds}, rather than a copy of it.
  *
  * The names are the *token* vocabulary, not the tokenizer grammar's tag
- * vocabulary: only twelve punctuators survive into `DjsToken`, so the JS
+ * vocabulary: only twelve punctuators survive into `ModuleToken`, so the JS
  * operator set the tokenizer recognizes is far larger than what reaches
  * this layer.
  *
  * The `_…AreComplete` assertions in `./types.ts` check both halves
- * against `DjsToken` and `_FramingKeyword` at compile time, so a kind or
+ * against `ModuleToken` and `_FramingKeyword` at compile time, so a kind or
  * keyword added there breaks the build rather than going unrepresented.
  * Exported with a leading `_` for that linkage — the export is not API.
  */
-export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
+export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
 
 /**
  * The keywords a rule below *requires* in some position, which the
@@ -200,7 +200,7 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
 export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'switch', 'case', 'as', 'typeof', 'instanceof'])
 
 /**
- * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
+ * The complete alphabet: one name per `ModuleToken` kind except `eof`, plus
  * one per keyword above, plus `keyword`, the one symbol of every other
  * word `fjs/js/keywords` reserves, {@link symbolOf}. No keyword collides
  * with a kind, so the lists concatenate without a name being registered
@@ -229,7 +229,7 @@ export const sym = alphabet.encode
  * `eof` has no symbol: a stream reaching here has had it split off, and
  * one that has not is a caller's mistake, not bad input.
  *
- * @type {(t: DjsTokenWithMetadata) => Meta<DjsTokenWithMetadata>}
+ * @type {(t: ModuleTokenWithMetadata) => Meta<ModuleTokenWithMetadata>}
  */
 export const symbolOf = t => {
     const { token } = t
@@ -1049,7 +1049,7 @@ export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')
  * of what follows: `;` begins no statement and no statement's
  * continuation, so one symbol of lookahead still decides. Whether the
  * token after an omitted `;` begins a line is the token's to say,
- * `newline` in `DjsTokenWithMetadata`, and the reader in `../module.f.mjs`
+ * `newline` in `ModuleTokenWithMetadata`, and the reader in `../module.f.mjs`
  * refuses the same-line case JavaScript refuses.
  *
  * @type {End}
@@ -1077,7 +1077,7 @@ export const bindingTarget = { name: identifierName, array, object }
 /**
  * A `const` statement: what it binds, {@link bindingTarget}, `=`, the
  * value, and its {@link end}. A module's statement and a function body's
- * alike — {@link djsModule} takes a run of them after the imports, and
+ * alike — {@link module} takes a run of them after the imports, and
  * {@link block} a run of them before the `return`.
  *
  * Declared here, above {@link block}, rather than with the other module
@@ -1364,7 +1364,7 @@ export const lastStatement = () => ['const', {
  * at least one export, or a `throw`. Ending on `eof` is what makes a
  * trailing stray token a failure.
  */
-export const djsModule = /** @type {const} */ ([
+export const module = /** @type {const} */ ([
     repeatFrom0(importStatement),
     repeatFrom0(moduleStatement),
     lastStatement,

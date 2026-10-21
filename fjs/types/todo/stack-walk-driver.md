@@ -64,8 +64,9 @@ becomes a property of one loop.
 
 - [x] `stack_walk` with its proof, including the depth it carries.
 - [x] `datajs/parser` and `datajs/serializer` on it.
-- [ ] `ll1`, `compiler/parser` and `ebnf/data`'s `lower`, as each is next
-      touched.
+- [x] `ll1`'s `build`, through `walkFold` with the cursor as the
+      accumulator.
+- [ ] `compiler/parser` and `ebnf/data`'s `lower`, as each is next touched.
 
 ### Related
 

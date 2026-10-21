@@ -5,12 +5,13 @@
  * @module
  *
  * @import { Commands, Effect, IoError, IoResult, MatchResult, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
+ * @import { All } from './common/types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
 import { ioError, match, notImplemented, partialMatch, toIoError, unreadableThrownValue } from './module.f.mjs'
 import { asyncTryCatch } from '../types/result/module.mjs'
-import { error } from '../types/result/module.f.js'
+import { error, ok } from '../types/result/module.f.js'
 
 /**
  * Reads a thrown value into data FunctionalScript can build, before
@@ -82,6 +83,31 @@ export const io = async f => {
 export const asyncRun = map => _asyncLoop(match(map))
 
 /**
+ * The handler of `all` over the runner it is part of: every effect run at
+ * once, each to its own `Result`, the operation itself never failing. The
+ * runner arrives as a thunk because it is the binding being initialized, so
+ * the handler reads it only when an `all` is run.
+ *
+ * @type {(run: () => <T, E>(effect: Effect<never, T, E>) => Promise<Result<T, E>>) => ToAsyncOperationMap<All>['all']}
+ */
+const allOver = run => async (...effects) => ok(await Promise.all(effects.map(run())))
+
+/**
+ * {@link asyncRun} for a runner that declares {@link All}: `map` holds every
+ * other handler, and `all` runs its effects through this very runner, so no
+ * host writes the fan-out.
+ *
+ * @template {Operation} O
+ * @param {ToAsyncOperationMap<Exclude<O, All>>} map
+ * @returns {<T, E>(effect: Effect<O, T, E>) => Promise<Result<T, E>>}
+ */
+export const asyncRunAll = map => {
+    /** @type {<T, E>(effect: Effect<O, T, E>) => Promise<Result<T, E>>} */
+    const run = asyncRun(/** @type {ToAsyncOperationMap<O>} */ (/** @type {unknown} */ ({ ...map, all: allOver(() => run) })))
+    return run
+}
+
+/**
  * {@link asyncRun} for a runner that is *meant* to lack operations.
  *
  * A command in `commands` with no handler in `map` answers
@@ -97,6 +123,11 @@ export const asyncRun = map => _asyncLoop(match(map))
  * threads state, so its answer is a function of it. Each writes the one line
  * that says so.
  *
+ * Where `commands` name `all`, the runner answers it itself, as
+ * {@link asyncRunAll} does: a partial runner declares its vocabulary in
+ * `commands`, so one that names no `all` answers none, and a stray `all`
+ * node asserts as the command it is not.
+ *
  * @template {Operation} O
  * @param {Commands<O>} commands
  * @returns {(map: PartialAsyncOperationMap<O>) => <T, E>(effect: Effect<O, T, E>) => Promise<Result<T, E>>}
@@ -104,7 +135,10 @@ export const asyncRun = map => _asyncLoop(match(map))
 export const asyncPartialRun = commands => map => {
     /** @type {(command: O[0]) => Promise<any>} */
     const onMissing = async command => error(notImplemented(command))
-    return _asyncLoop(partialMatch(commands, onMissing)(map))
+    /** @type {<T, E>(effect: Effect<O, T, E>) => Promise<Result<T, E>>} */
+    const run = _asyncLoop(partialMatch(commands, onMissing)(
+        commands.includes('all') ? { ...map, all: allOver(() => run) } : map))
+    return run
 }
 
 /**

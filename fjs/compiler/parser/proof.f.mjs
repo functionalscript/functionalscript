@@ -1,5 +1,5 @@
 /**
- * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { SourceBlock, SourceValue } from '../../js/ast/sugar/source.ts'
  * @import { ResolvedModule } from './types.ts'
@@ -28,16 +28,16 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
- * {@link stringifyDjsModule}, for the proofs split off this one —
+ * {@link stringifyModule}, for the proofs split off this one —
  * `./operators.proof.f.mjs` and `./func.proof.f.mjs` — which read the same
  * parser the same way.
  *
- * @type {(s: string) => readonly DjsTokenWithMetadata[]}
+ * @type {(s: string) => readonly ModuleTokenWithMetadata[]}
  */
 export const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 
 /** Preserve the admitted graph behavior while the source representation changes. */
-export const stringifyDjsModule = (/** @type {ResolvedModule} */ module) => _stringifyTree(unresolved(module).edag)
+export const stringifyModule = (/** @type {ResolvedModule} */ module) => _stringifyTree(unresolved(module).edag)
 
 /**
  * `count` copies of `element`, comma-joined.
@@ -70,7 +70,7 @@ const numberedMembers = count =>
 export const expectModule = (source, expected) => {
     const [tag, value] = parseFromTokens(tokenizeString(source))
     assert(tag === 'ok', value)
-    assertEq(stringifyDjsModule(value), expected)
+    assertEq(stringifyModule(value), expected)
 }
 
 /**
@@ -255,21 +255,21 @@ export const proof = {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { switch (n[0]) { case 1: case 2: { const x = [1]; return [x, x]; } case 3: { throw 3; } } const y = [2]; return y; };'))
             assert(tag === 'ok')
-            assertEq(stringifyDjsModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"||\",[\"===\",[\".\",[\"arg\",0],0],1],[\"===\",[\".\",[\"arg\",0],0],2]],[\"[]\",[[\"[]\",[1]],[\"[]\",[1]]]],[\"?:\",[\"===\",[\".\",[\"arg\",0],0],3],[\"throw\",3],[\"[]\",[2]]]]]]]]")
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"||\",[\"===\",[\".\",[\"arg\",0],0],1],[\"===\",[\".\",[\"arg\",0],0],2]],[\"[]\",[[\"[]\",[1]],[\"[]\",[1]]]],[\"?:\",[\"===\",[\".\",[\"arg\",0],0],3],[\"throw\",3],[\"[]\",[2]]]]]]]]")
             // with a `default`, its block is the last alternate, and the
             // switch is the body's last statement
             const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { return 1; } default: { return 0; } } };'))
             assert(tag2 === 'ok')
-            assertEq(stringifyDjsModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"arg\",0],1],1,0]]]]]")
+            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"arg\",0],1],1,0]]]]]")
             // a switch in a case block is the arm's own, its discriminant an
             // entry of the arm's function, read through the arm's frame
             const [tag3, value3] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { switch (n) { case 2: { return 2; } } return 1; } } return 0; };'))
             assert(tag3 === 'ok')
-            assertEq(stringifyDjsModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"arg\",0],1],[\"?:\",[\"===\",[\"arg\",0],2],2,1],0]]]]]")
+            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"arg\",0],1],[\"?:\",[\"===\",[\"arg\",0],2],2,1],0]]]]]")
             // after a loop, the switch reads the variable's last binding
             const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { r = r + 1; } switch (r) { case 1: { return r; } } return 0; };'))
             assert(tag4 === 'ok')
-            assertEq(stringifyDjsModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]],1],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]],0]]]]]")
+            assertEq(stringifyModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]],1],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]],0]]]]]")
         },
         // a switch of thousands of cases, or of labels, is that many levels
         // of the grammar's tree, read as a list's are: each mapping puts one
@@ -293,29 +293,29 @@ export const proof = {
             expectRefused('export default n => { const c = 1; return () => { switch (c) { case 1: { return 1; } } const c = 2; return c; }; };', 'capture shadowed', 94)
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { const c = 1; return () => { switch (n) { case 1: { const c = 2; return c; } } return c; }; };'))
             assert(tag === 'ok')
-            assertEq(stringifyDjsModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"=>\",0,[[\"arg\",0]],[\"?:\",[\"===\",[\"frame\",0],1],2,1]]]]]]")
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"=>\",0,[[\"arg\",0]],[\"?:\",[\"===\",[\"frame\",0],1],2,1]]]]]]")
         },
     },
     loops: {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const d = [2]; r = r + d[0]; } return [r, r]; };'))
             assert(tag === 'ok')
-            assertEq(stringifyDjsModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"[]\",[[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\".\",[\"[]\",[2]],0]]]],[\"arg\",0]]],[0]],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\".\",[\"[]\",[2]],0]]]],[\"arg\",0]]],[0]]]]]]]]")
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"[]\",[[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\".\",[\"[]\",[2]],0]]]],[\"arg\",0]]],[0]],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\".\",[\"[]\",[2]],0]]]],[\"arg\",0]]],[0]]]]]]]]")
             // an assignment overwritten before any read is an anchor of
             // the block, established for what it does, as an unused
             // `const` is
             const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < 1) { r = null.x; r = 1; } return r; };'))
             assert(tag4 === 'ok')
-            assertEq(stringifyDjsModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[],[\"?:\",[\"<\",[\"arg\",0],1],[\",\",[[\".\",null,\"x\"],[\"()\",[\"self\"],[1]]]],[\"arg\",0]]],[0]]]]]]")
+            assertEq(stringifyModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[],[\"?:\",[\"<\",[\"arg\",0],1],[\",\",[[\".\",null,\"x\"],[\"()\",[\"self\"],[1]]]],[\"arg\",0]]],[0]]]]]]")
             // a block assigning nothing continues with the variable as it is
             const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { } return r; };'))
             assert(tag2 === 'ok')
-            assertEq(stringifyDjsModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"arg\",0]]],[\"arg\",0]]],[0]]]]]]")
+            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"arg\",0]]],[\"arg\",0]]],[0]]]]]]")
             // a `const` after the loop is the next entry; the variable is a
             // name a later function captures, as any `const` is
             const [tag3, value3] = parseFromTokens(tokenizeString('export default () => { let r = 0; while (r) { r = 1; } const s = [r]; return () => [r, s]; };'))
             assert(tag3 === 'ok')
-            assertEq(stringifyDjsModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",0,[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]],[\"[]\",[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]]]]],[\"[]\",[[\"frame\",0],[\"frame\",1]]]]]]]]")
+            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",0,[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]],[\"[]\",[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]]]]],[\"[]\",[[\"frame\",0],[\"frame\",1]]]]]]]]")
             // a nested function's own parameter shadows the variable, as in
             // JavaScript, and reads as itself
             assertEq(parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const f = (r) => r; r = f(r); } return r; };'))[0], 'ok')
@@ -489,7 +489,7 @@ export const proof = {
             ]) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', [source, tag])
-                assertEq(stringifyDjsModule(value), expected, source)
+                assertEq(stringifyModule(value), expected, source)
             }
         },
         () => {
@@ -693,7 +693,7 @@ export const proof = {
     membersAsWritten: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "1": 2, "b": 3};'))
         assert(tag === 'ok', tag)
-        assertEq(stringifyDjsModule(value), "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"b\",1],[\":\",\"1\",2],[\":\",\"b\",3]]]]]]")
+        assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"b\",1],[\":\",\"1\",2],[\":\",\"b\",3]]]]]]")
         const object = assertOk(toData(assertOk(read(ok(evaluate(value)), 'default'))))
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), '1,b')
@@ -709,7 +709,7 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
+                assertEq(stringifyModule(value), expected)
             }
             expect('const a = {}; export default a.b;', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[]],\"b\"]]]]")
             expect('const a = {}; export default a["b c"];', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[]],\"b c\"]]]]")
@@ -807,7 +807,7 @@ export const proof = {
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), ast)
+                assertEq(stringifyModule(value), ast)
             }
             expect('export default -1 .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",1,\"x\"]]]]]")
             expect('export default -0 .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",0,\"x\"]]]]]")
@@ -1082,7 +1082,7 @@ export const proof = {
         json: () => {
             const [tag, value] = parseFromTokens(tokenizeString('import x from "m" with { type: "json" };\nexport default x;'))
             assert(tag === 'ok', tag)
-            assertEq(stringifyDjsModule(value), "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]")
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]")
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
@@ -1105,140 +1105,140 @@ export const proof = {
             const tokenList = tokenizeString('export default null;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",null]]]")
         },
         () => {
             const tokenList = tokenizeString('export default true;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",true]]]")
         },
         () => {
             const tokenList = tokenizeString('export default false;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",false]]]")
         },
         () => {
             const tokenList = tokenizeString('export default undefined;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"undefined\"]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default 0.1;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",0.1]]]")
         },
         () => {
             const tokenList = tokenizeString('export default 1.1e+2;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",110]]]")
         },
         () => {
             const tokenList = tokenizeString('export default "abc";')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",\"abc\"]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [1];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [[]];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"[]\",[]]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [0,[1,[2,[]]],3];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[0,[\"[]\",[1,[\"[]\",[2,[\"[]\",[]]]]]],3]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [{}];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"{}\",[]]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",[\"undefined\"]]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",[\"{}\",[[\":\",\"c\",[\"[]\",[\"d\"]]]]]]]]]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {a: 1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default 1234567890n;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",1234567890n]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [1234567890n];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[1234567890n]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [1,];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {"a":1,};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]") { throw result }
         }
     ],
@@ -1252,7 +1252,7 @@ export const proof = {
             const tokenList = tokenizeString('export default {["a"]:1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
         },
         () => {
@@ -1260,7 +1260,7 @@ export const proof = {
             const tokenList = tokenizeString('export default {a:1,"b":2,["c"]:3,};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2],[\":\",\"c\",3]]]]]]")
         },
         () => {
@@ -1268,7 +1268,7 @@ export const proof = {
             const tokenList = tokenizeString('export default { [ /* c */ \n // c \n "a" /* c */ \n // c \n ] : 1 };')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
         },
         () => {
@@ -1276,7 +1276,7 @@ export const proof = {
             const tokenList = tokenizeString('export default {["__proto__"]:{"a":42}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"__proto__\",[\"{}\",[[\":\",\"a\",42]]]]]]]]]")
         },
         () => {
@@ -1674,28 +1674,28 @@ export const proof = {
             const tokenList = tokenizeString(' export default [ 0 , 1 , 2 ] ; ')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[0,1,2]]]]]")
         },
         () => {
             const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ; ')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n;\n')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[0,1,2]]]]]")
         },
         () => {
             const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r;\r')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]") { throw result }
         },
     ],
@@ -1704,7 +1704,7 @@ export const proof = {
             const tokenList = tokenizeString('export //comment \n default /* comment */ null; //comment')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",null]]]")
         },
     ],

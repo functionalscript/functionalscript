@@ -16,6 +16,7 @@
  */
 
 import { isDriveLetter, isDriveRoot, root, under } from '../../path/module.f.mjs'
+import { digitsValue, one as codePoint } from '../../text/ascii/module.f.js'
 import { codeUnitToString } from '../../text/utf16/module.f.mjs'
 import { untilNul } from '../bytes/module.f.js'
 
@@ -88,12 +89,8 @@ const escapes = /** @type {Readonly<Record<string, string>>} */ ({
     '"': '"', '\\': '\\',
 })
 
-/**
- * Whether `c` is one of the eight octal digits an escape may be written in.
- *
- * @type {(c: string) => boolean}
- */
-const isOctal = c => c >= '0' && c <= '7'
+/** The number a run of octal digits spells, or `null` where one is no octal digit. */
+const octal = digitsValue(8n)
 
 /**
  * The three octal digits at `i` as the byte they name, or `null` where they are
@@ -102,14 +99,13 @@ const isOctal = c => c >= '0' && c <= '7'
  * @type {(line: string, i: number) => Nullable<number>}
  */
 const octalAt = (line, i) => {
-    if (i + 2 >= line.length
-        || !isOctal(line[i]) || !isOctal(line[i + 1]) || !isOctal(line[i + 2])) { return null }
-    const v = parseInt(line.slice(i, i + 3), 8)
+    if (i + 2 >= line.length) { return null }
+    const v = octal([line[i], line[i + 1], line[i + 2]].map(codePoint))
     // `\400` and above name no byte, and Git calls the unquoting failed rather
     // than truncating: measured on Git 2.43.0, a line of `"x\400"` read objects
     // from a directory named `"x\400"` — the whole line, quotes included. So
     // this is `null`, which {@link alternateLine} turns into the raw line.
-    return v > 0xFF ? null : v
+    return v === null || v > 0xffn ? null : Number(v)
 }
 
 /**
