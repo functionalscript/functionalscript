@@ -102,6 +102,9 @@ export const proof = {
             // tells it from a letter it keeps.
             anchor: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'أ،ب']]]]),
                 error('a heading character whose anchor GitHub may make otherwise: أ')),
+            // `İ` is a cased letter, but its lowercase holds a combining dot.
+            lowercase: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'İ']]]]),
+                error('a heading character whose anchor GitHub may make otherwise: \u0307')),
         },
     },
     readmeSection: {
