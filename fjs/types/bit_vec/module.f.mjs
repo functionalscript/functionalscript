@@ -523,6 +523,9 @@ export const tryU8ListToVecMsb = tryU8ListToVec(msb)
  */
 export const u8ListToVecMsb = mapUnwrap(tryU8ListToVecMsb)
 
+/** `u8ListToVec(lsb)`, bound once for {@link u8ListToVecChunksMsb}. */
+const u8ListToVecLsb = u8ListToVec(lsb)
+
 /**
  * A byte list as the `Vec`s it takes to hold it, `chunkBytes` at a time and
  * the last one shorter, made as a consumer asks for them: one chunk is held
@@ -568,7 +571,7 @@ export const u8ListToVecChunksMsb = chunkBytes => {
         }
         return taken === 0
             ? null
-            : { first: u8ListToVec(lsb)(gathered), tail: chunks(rest) }
+            : { first: u8ListToVecLsb(gathered), tail: chunks(rest) }
     }
     return chunks
 }
