@@ -208,13 +208,17 @@ export const runBoth = ({ name, program }) => state => {
  */
 export const milliseconds = ms => `${ms.toFixed(1)} ms`
 
-/** @type {<T>(value: Loaded<T>, show: (t: T) => readonly Node[]) => readonly Node[]} */
-const loadedView = (value, show) => value[0] === 'loading'
+/**
+ * A file the page loads, as `show` draws it once it has arrived.
+ *
+ * @type {<T>(value: Loaded<T>, show: (t: T) => readonly Node[]) => readonly Node[]}
+ */
+export const loadedView = (value, show) => value[0] === 'loading'
     ? [['p', {}, 'Loading…']]
     : value[0] === 'ok' ? show(value[1]) : [refusal(value[1])]
 
-/** @type {(label: string, value: string) => Element} */
-const stat = (label, value) => ['p', {}, `${label}: ${value}`]
+/** One figure, as a line of its own. @type {(label: string, value: string) => Element} */
+export const stat = (label, value) => ['p', {}, `${label}: ${value}`]
 
 /** @type {(output: Result<string, string>) => readonly Node[]} */
 const outputView = output => output[0] === 'ok'

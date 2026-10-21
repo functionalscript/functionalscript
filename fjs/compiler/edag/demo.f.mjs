@@ -397,7 +397,7 @@ const drawn = module => {
  *
  * @type {(text: string) => Result<Graph, string>}
  */
-export const _graphOf = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast).edag))))
+export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast).edag))))
 
 /**
  * The drop-down is [the compiler's shared list](../examples/module.f.js), one
@@ -480,6 +480,6 @@ export const demo = stageDemo({
     intro: 'Lowers a FunctionalScript module to an expression graph. Arrows point to operands, multiple arrows to one node show sharing, and dashed arrows mark operands that may not be evaluated.',
     name: 'edag',
 })(text => {
-    const [kind, value] = _graphOf(text)
+    const [kind, value] = graphOfText(text)
     return [kind === 'ok' ? graphSvg(value) : refusal(value)]
 })

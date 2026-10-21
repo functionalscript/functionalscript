@@ -81,6 +81,7 @@ const root = {
             'hello': { 'sample.f.mjs': [utf8('export default () => 1;')] },
             'sort': { 'sample.f.mjs': [utf8('export default () => 2;')] },
             'collatz': { 'sample.f.mjs': [utf8('export default () => 3;')] },
+            'comma': { 'sample.f.mjs': [utf8('export default () => 4;')] },
         } },
     },
 }
