@@ -306,6 +306,27 @@ export const proseSpans = autolinks => text => {
     return ok([...out, ...(start === text.length ? [] : [/** @type {Inline} */(['text', text.slice(start)])])])
 }
 
+/** Whether a character is ASCII punctuation. @type {(c: string) => boolean} */
+const isAsciiPunctuation = c => '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'.includes(c)
+
+/** A span's first character, as the delimiter before it sees it. @type {(span: Inline) => string} */
+const firstChar = span => span[0] === 'text' ? span[1][0] : span[0] === 'code' ? '`' : span[0] === 'link' ? '[' : '*'
+
+/** A span's last character, as the delimiter after it sees it. @type {(span: Inline) => string} */
+const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : span[0] === 'link' ? ')' : '*'
+
+/**
+ * Whether an asterisk run between `outer` and `inner` fails to open or close
+ * emphasis on GitHub: punctuation inside it with a word character outside
+ * it, as in `a*"b"*`. A character outside ASCII that is no cased letter
+ * counts as punctuation inside and as a word character outside, so a run
+ * whose reading is unsure is refused.
+ *
+ * @type {(outer: string | undefined) => (inner: string) => boolean}
+ */
+const unflanked = outer => inner => !isWordChar(inner) && inner !== ' '
+    && outer !== undefined && outer !== ' ' && !isAsciiPunctuation(outer)
+
 /**
  * An entry's spans with every prose run read by {@link proseSpans}: a text
  * run may become text and autolinks, a bold, emphasised or label run is
@@ -317,8 +338,13 @@ export const proseSpans = autolinks => text => {
 const readProse = entry => {
     /** @type {readonly Inline[]} */
     let out = []
-    for (const span of entry) {
+    for (const [i, span] of entry.entries()) {
         if (span[0] === 'code') { out = [...out, span]; continue }
+        if ((span[0] === 'strong' || span[0] === 'em')
+            && (unflanked(i === 0 ? undefined : lastChar(entry[i - 1]))(span[1][0])
+                || unflanked(i === entry.length - 1 ? undefined : firstChar(entry[i + 1]))(span[1][span[1].length - 1]))) {
+            return error('bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
+        }
         if (span[0] === 'text') {
             const read = proseSpans(true)(span[1])
             if (read[0] === 'error') { return read }
