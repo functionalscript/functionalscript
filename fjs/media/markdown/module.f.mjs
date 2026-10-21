@@ -345,15 +345,16 @@ export const tryParse = text => {
 
 /**
  * The level of an ATX heading, `# ` through `###### `, or `0` for a line that
- * opens none: a `#` run with no space after it is prose in CommonMark, and
- * seven of them are too.
+ * opens none: a `#` run with a word after it is prose in CommonMark, and
+ * seven of them are too. A run that ends the line is an empty heading
+ * there, so it opens one here too, for the reader to refuse.
  *
  * @type {(line: string) => number}
  */
 const headingLevel = line => {
     let level = 0
     while (line[level] === '#') { level++ }
-    return level >= 1 && level <= 6 && line[level] === ' ' ? level : 0
+    return level >= 1 && level <= 6 && (line[level] === ' ' || line.length === level) ? level : 0
 }
 
 /** Whether a line opens a fenced code block. @type {(line: string) => boolean} */
