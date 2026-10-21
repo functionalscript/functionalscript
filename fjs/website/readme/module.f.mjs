@@ -116,11 +116,12 @@ const anchorChar = c => {
 
 /**
  * The first character of a heading whose anchor this cannot make as GitHub
- * does, or `undefined`.
+ * does, or `undefined`. It is asked of the lowercased words, as the anchor
+ * is made of them: `İ` lowercases to `i` and a combining dot.
  *
  * @type {(spans: readonly Inline[]) => string | undefined}
  */
-const unknownAnchorChar = spans => [...spans.map(words).join('')]
+const unknownAnchorChar = spans => [...spans.map(words).join('').toLowerCase()]
     .find(c => /** @type {number} */(c.codePointAt(0)) > 0x7f && anchorChar(c) === 'unknown')
 
 /**

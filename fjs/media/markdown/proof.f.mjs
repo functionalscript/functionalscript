@@ -279,7 +279,12 @@ export const proof = {
             letters: () => assertEq(tryParseEntry('a*b*c')[0], 'ok'),
             code: () => assertEq(tryParseEntry(`${tick}x${tick}*"b"*${tick}y${tick}`)[0], 'ok'),
             link: () => assertEq(tryParseEntry('[x](u)*"b"*[y](v)')[0], 'ok'),
-            emphasis: () => assertEq(tryParseEntry('*a**"b"**c*')[0], 'ok'),
+            emphasis: () => assertEq(tryParseEntry('*a* *"b"* *c*')[0], 'ok'),
+        },
+        sideBySide: {
+            em: () => assertEq(tryParseEntry('*foo**bar*')[1], 'bold or emphasis side by side, which GitHub reads otherwise'),
+            strong: () => assertEq(tryParseEntry('**a*b*')[0], 'error'),
+            emAfterStrong: () => assertEq(tryParseEntry('**a***b*')[0], 'error'),
         },
         // GitHub reads an address or an autolink in bold as a link too.
         autolinkInEmphasis: {

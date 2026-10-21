@@ -312,8 +312,14 @@ const isAsciiPunctuation = c => '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'.includes(c)
 /** A span's first character, as the delimiter before it sees it. @type {(span: Inline) => string} */
 const firstChar = span => span[0] === 'text' ? span[1][0] : span[0] === 'code' ? '`' : span[0] === 'link' ? '[' : '*'
 
-/** A span's last character, as the delimiter after it sees it. @type {(span: Inline) => string} */
-const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : span[0] === 'link' ? ')' : '*'
+/**
+ * A span's last character, as the delimiter after it sees it. Bold or
+ * emphasis right before emphasis is refused before this is asked, so any
+ * other span is a link.
+ *
+ * @type {(span: Inline) => string}
+ */
+const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : ')'
 
 /**
  * Whether an asterisk run between `outer` and `inner` fails to open or close
@@ -349,6 +355,10 @@ const readProse = entry => {
     if (codeSideBySide(entry)) { return error('two code spans side by side, which GitHub reads as one') }
     for (const [i, span] of entry.entries()) {
         if (span[0] === 'code') { out = [...out, span]; continue }
+        // `*a**b*` is one emphasis holding `**` in CommonMark, not two.
+        if ((span[0] === 'strong' || span[0] === 'em') && i !== 0 && (entry[i - 1][0] === 'strong' || entry[i - 1][0] === 'em')) {
+            return error('bold or emphasis side by side, which GitHub reads otherwise')
+        }
         if ((span[0] === 'strong' || span[0] === 'em')
             && (unflanked(i === 0 ? undefined : lastChar(entry[i - 1]))(span[1][0])
                 || unflanked(i === entry.length - 1 ? undefined : firstChar(entry[i + 1]))(span[1][span[1].length - 1]))) {
