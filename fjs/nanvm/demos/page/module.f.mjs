@@ -47,7 +47,7 @@ import { highlight } from '../../../website/demo/highlight/module.f.mjs'
 import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 
 /** A sample's source, repository-relative. @type {(name: string) => string} */
-export const samplePath = name => `fjs/nanvm/demos/${name}/sample.f.mjs`
+export const samplePath = name => `fjs/nanvm/demos/${name}/sample.f.js`
 
 /** Where the compiled samples go, a `gen.` name `gen:clean` empties. */
 export const rustDirectory = 'nanvm/demos/gen.samples'

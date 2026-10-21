@@ -15,7 +15,7 @@
  */
 
 import { parseFromTokens } from './module.f.mjs'
-import { expectModule, expectRefused, stringifyDjsModule, tokenizeString } from './proof.f.mjs'
+import { expectModule, expectRefused, stringifyModule, tokenizeString } from './proof.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
@@ -40,7 +40,7 @@ export const proof = {
     // `f(x);` is `const _ = f(x);` where nothing can read `_`: the same
     // AST, and the same graph as the comma, `(f(x), rest)`.
     sugar: () => {
-        assertEq(stringifyDjsModule(resolvedOf(`${f} f(1); export default 2;`)), stringifyDjsModule(resolvedOf(`${f} const _ = f(1); export default 2;`)))
+        assertEq(stringifyModule(resolvedOf(`${f} f(1); export default 2;`)), stringifyModule(resolvedOf(`${f} const _ = f(1); export default 2;`)))
         assertStructurallySame(edagOf(`${f} f(1); export default 2;`), edagOf(`${f} export default (f(1), 2);`))
         assertStructurallySame(
             edagOf(`${f} export default (...a) => { f(a[0]); return a; };`),
@@ -229,7 +229,7 @@ export const proof = {
             const tokenList = tokenizeString('import a from "a.f.js"; \n const b = 1; \n export default [a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"],1]]]]]")
         },
         () => {
@@ -282,28 +282,28 @@ export const proof = {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default 3;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\",\",[1,2,[\"{}\",[[\":\",\"default\",3]]]]]")
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default b;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\",\",[1,[\"{}\",[[\":\",\"default\",2]]]]]")
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default [b,a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[2,1,2]]]]]")
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default {"1st":b,"2nd":a,"3rd":b};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"1st\",2],[\":\",\"2nd\",1],[\":\",\"3rd\",2]]]]]]") { throw result }
         },
     ],
@@ -340,21 +340,21 @@ export const proof = {
             const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n export default a;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]")
         },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs"; \n import b from "second/test.f.mjs"; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],1],\"default\"],[\".\",[\".\",[\"args\"],0],\"default\"],[\".\",[\".\",[\"args\"],1],\"default\"]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n const b = null; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
+            const result = stringifyModule(obj[1])
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[null,[\".\",[\".\",[\"args\"],0],\"default\"],null]]]]]")
         },
     ],

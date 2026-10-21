@@ -18,14 +18,16 @@
  * @import { Marked } from '../../../text/marked/types.ts'
  */
 
+import { charIs, isDigit, isLatinLetter, lowLine } from '../../../text/ascii/module.f.js'
+
 /** The words the printer marks as keywords or literals. @type {readonly string[]} */
 const marked = ['let', 'pub', 'fn', 'use', 'true', 'false']
 
 /** @type {(c: string) => boolean} */
-const isDigit = c => c >= '0' && c <= '9'
+const isDigitChar = charIs(isDigit)
 
-/** @type {(c: string) => boolean} */
-const isWordChar = c => isDigit(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_'
+/** A letter, a digit or `_`, over `text/ascii`'s classes. @type {(c: string) => boolean} */
+const isWordChar = charIs(c => isDigit(c) || isLatinLetter(c) || c === lowLine)
 
 /**
  * The words of a text: maximal runs of letters, digits and `_`.
@@ -48,5 +50,5 @@ export const unmarkedWords = text =>
     text.flatMap(part => {
         const run = part[0]
         const kind = part[1]
-        return kind === undefined ? wordsOf(run).filter(word => marked.includes(word) || isDigit(word[0])) : []
+        return kind === undefined ? wordsOf(run).filter(word => marked.includes(word) || isDigitChar(word[0])) : []
     })

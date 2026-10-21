@@ -10,12 +10,13 @@ import type { Nullable } from '../../types/nullable/types.ts'
 
 /**
  * What the reader of a subsection carries from one character to the next:
- * `sub` is the subsection so far, `escape` says a `\` stood before this
+ * `part` is the subsection so far, `escape` says a `\` stood before this
  * character, and `after` is the text past the closing quote, `null` while
- * the quote has yet to close.
+ * the quote has yet to close. Not `sub`, which `String.prototype` gives a
+ * value, so reading it is a `prohibited property name`.
  */
 export type _SubState = {
-    readonly sub: string
+    readonly part: string
     readonly escape: boolean
     readonly after: Nullable<string>
 }

@@ -63,5 +63,6 @@ chain, a cost rather than a crash.
 
 - [`../module.f.mjs`](../module.f.mjs) — `lower` and the helpers it
   recurses through.
-- [`../../ll1/module.f.mjs`](../../ll1/module.f.mjs) — the explicit-stack
-  machine, the shape to follow.
+- [`../../../types/stack_walk/module.f.mjs`](../../../types/stack_walk/module.f.mjs)
+  — the explicit-stack driver, which
+  [`../../ll1/module.f.mjs`](../../ll1/module.f.mjs)'s machine runs on.

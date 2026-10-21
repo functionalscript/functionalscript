@@ -78,10 +78,10 @@ const root = {
     'fjs': {
         'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } },
         'nanvm': { 'demos': {
-            'hello': { 'sample.f.mjs': [utf8('export default () => 1;')] },
-            'sort': { 'sample.f.mjs': [utf8('export default () => 2;')] },
-            'collatz': { 'sample.f.mjs': [utf8('export default () => 3;')] },
-            'comma': { 'sample.f.mjs': [utf8('export default () => 4;')] },
+            'hello': { 'sample.f.js': [utf8('export default () => 1;')] },
+            'sort': { 'sample.f.js': [utf8('export default () => 2;')] },
+            'collatz': { 'sample.f.js': [utf8('export default () => 3;')] },
+            'comma': { 'sample.f.js': [utf8('export default () => 4;')] },
         } },
     },
 }

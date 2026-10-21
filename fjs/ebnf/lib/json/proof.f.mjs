@@ -5,7 +5,7 @@
  * @import { Rule, Variant } from '../../types.ts'
  * @import { RewriteSet } from '../../ll1/types.ts'
  * @import { Utf16 } from '../../utf16/types.ts'
- * @import { Container, ContainerNode, Entry, EntryNode } from './types.ts'
+ * @import { Container, ContainerNode, Entry, EntryNode, ValueCases } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -31,6 +31,7 @@ import {
     string,
     uint,
     value,
+    valueCases,
     ws,
     wsSymbol,
 } from './module.f.mjs'
@@ -196,6 +197,31 @@ export const proof = {
         assertStructurallySame(entriesOf('{}'), [])
         assertStructurallySame(entriesOf('{k:v}'), [[k, v]])
         assertStructurallySame(entriesOf('{ k : v , k:v }'), [[k, v], [k, v]])
+    },
+    // One handler per branch: a container's receives its items, and the
+    // three keywords share one handler, which receives their constant.
+    valueCases: () => {
+        /** @type {RewriteSet<Utf16, never>} */
+        const nothing = []
+        const parse = parser(json, nothing)
+        /** @type {ValueCases<unknown, unknown, unknown, unknown, unknown>} */
+        const cases = {
+            array: items => ['array', items.length],
+            object: entries => ['object', entries.length],
+            string: () => ['string'],
+            number: () => ['number'],
+            word: word => ['word', word],
+        }
+        const kind = valueCases(cases)
+        /** @type {(text: string) => unknown} */
+        const kindOf = text => kind(unwrap(parse(units(text)))[0][1])
+        assertStructurallySame(kindOf('[1, 2]'), ['array', 2])
+        assertStructurallySame(kindOf('{"a": 1}'), ['object', 1])
+        assertStructurallySame(kindOf('"a"'), ['string'])
+        assertStructurallySame(kindOf('1'), ['number'])
+        assertStructurallySame(kindOf('true'), ['word', true])
+        assertStructurallySame(kindOf('false'), ['word', false])
+        assertStructurallySame(kindOf('null'), ['word', null])
     },
     object: () => {
         assertStructurallySame(
