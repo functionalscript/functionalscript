@@ -60,10 +60,11 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let c21: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
         let c22 = || {
             let c23: Any<A> = A::static_function(|self_, args| {
-                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
-                let c1: Any<A> = (Any::lt(args.argument(0), c0))?;
-                let c2 = || Any::gt(args.argument(0), f64_any(0x3ff0000000000000));
-                Any::logical_and(c1, c2)
+                let c0: Any<A> = args.argument(0);
+                let c1: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c2: Any<A> = (Any::lt(c0.clone(), c1))?;
+                let c3 = || Any::gt(c0.clone(), f64_any(0x3ff0000000000000));
+                Any::logical_and(c2, c3)
             }, 1, [c1.clone()].to_array(), Some("($1)=>$1<$0[0]&&$1>1")).to_any();
             Ok([c23].to_array().to_any())
         };
@@ -119,9 +120,10 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let c45: Any<A> = [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
         let c46 = || {
             let c47: Any<A> = A::static_function(|self_, args| {
-                let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
-                let c1: Any<A> = (args.argument(0) * c0)?;
-                Ok([args.argument(0), c1].to_array().to_any())
+                let c0: Any<A> = args.argument(0);
+                let c1: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+                let c2: Any<A> = (c0.clone() * c1)?;
+                Ok([c0.clone(), c2].to_array().to_any())
             }, 1, [c1.clone()].to_array(), Some("($1)=>[$1,$1*$0[0]]")).to_any();
             Ok([c47].to_array().to_any())
         };

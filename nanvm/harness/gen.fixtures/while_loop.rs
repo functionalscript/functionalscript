@@ -38,9 +38,10 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let c0: Any<A> = args.argument(0);
         let mut c1: Any<A> = f64_any(0x0000000000000000);
         loop {
-            let c2: Any<A> = (Any::lt(c1.clone(), c0.clone()))?;
-            let c3 = || Any::ge(c1.clone(), f64_any(0x0000000000000000));
-            if !(Any::logical_and(c2, c3))?.to_boolean() { break }
+            let c2: Any<A> = c1.clone();
+            let c3: Any<A> = (Any::lt(c2.clone(), c0.clone()))?;
+            let c4 = || Any::ge(c2.clone(), f64_any(0x0000000000000000));
+            if !(Any::logical_and(c3, c4))?.to_boolean() { break }
             let c2: Any<A> = c1.clone();
             let c3: Any<A> = (c2.clone() % f64_any(0x4000000000000000))?;
             let c4: Any<A> = (strict_eq(c3, f64_any(0x0000000000000000)))?;
