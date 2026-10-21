@@ -26,7 +26,7 @@ export const proof = {
         const [state, result] = virtualAt(withRuntime(text))(generate())
         assertOk(result)
         const [, rust] = virtual(state)(readUtf8File(rustPath))
-        assert(assertOk(rust).includes('(string_key("Object.x"), c1)') && assertOk(rust).includes('Some("function x() { [native code] }")'))
+        assert(assertOk(rust).includes('(string_key("Object.x"), A::static_function(') && assertOk(rust).includes('Some("function x() { [native code] }")'))
         const [, edag] = virtual(state)(readUtf8File(edagPath))
         const data = assertOk(edag)
         assert(data.includes('export default ["{}",[') && data.includes('[":","Object.x",["=>",0,[],1]]') && data.includes('[":","static",["=>",1,'))
