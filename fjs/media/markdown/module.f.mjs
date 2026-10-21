@@ -565,18 +565,22 @@ export const tryParseBlocks = text => {
         }
         if (line.startsWith('- ')) {
             let end = i
+            let itemHasText = false
             while (end < lines.length && lines[end].trim() !== '') {
                 const item = lines[end]
                 if (!item.startsWith('- ') && !item.startsWith('  ')) {
                     return error(`line ${end + 1}: a line that GitHub reads as part of the list item above it`)
                 }
                 const content = item.trim().slice(item.startsWith('- ') ? 2 : 0).trim()
-                // The trim would drop the two spaces of a hard break, so it is asked first.
+                // Keep the original indentation: after an empty marker, two
+                // spaces belong to the item and four more open a code block.
                 const foreign = item.endsWith('  ') ? 'a hard line break'
+                    : !itemHasText && item.startsWith('      ') ? 'an indented code block'
                     : headingLevel(content) !== 0 ? 'a heading' : foreignBlock(content)
                 if (foreign !== null) {
                     return error(`line ${end + 1}: ${foreign} inside a list item`)
                 }
+                itemHasText = content !== ''
                 end++
             }
             let next = end
