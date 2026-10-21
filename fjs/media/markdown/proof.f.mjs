@@ -350,6 +350,10 @@ export const proof = {
             emptyItem: () => assertEq(refusal('- \n'), 'line 1: a list item whose text does not follow its marker'),
             itemIndentedPastItsMarker: () => assertEq(refusal('-  a\n'), 'line 1: a list item whose text does not follow its marker'),
             nestedRefusal: () => assertEq(refusal('- a\n\n  - b\n    > c\n'), 'line 4: a block quote'),
+            email: () => assertEq(refusal('mail a.b+c@x-y.example.org\n'), 'line 1: an email address, which GitHub reads as a link, at 10'),
+            linkTargetEntity: () => assertEq(refusal('[x](https://e.test/?a=1&amp;b=2)\n'), 'line 1: an entity in a link target'),
+            // Neither a handle nor a lone `@` is an address.
+            notAnEmail: () => assertEq(refusal('@codex, a @ b, x@y, x@.y, [a@b.c](u) and a&b\n'), null),
             lazyContinuation: () => assertEq(refusal('- a\nb\n'), 'line 2: a line that GitHub reads as part of the list item above it'),
             headingInAnItem: () => assertEq(refusal('- # a\n'), 'line 1: a heading inside a list item'),
             nestedList: () => assertEq(refusal('- a\n  * b\n'), 'line 2: a list marked other than with `- `'),
