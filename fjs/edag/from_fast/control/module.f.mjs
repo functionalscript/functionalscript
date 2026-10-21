@@ -91,4 +91,3 @@ export const freeBindings = (block, bound = []) => {
 
 /** A loop helper's body dependencies; entry expressions belong to its caller. @type {(loop: Loop) => readonly BindingId[]} */
 export const freeLoopBindings = loop => freeBindings(loop.body, loop.parameters)
-

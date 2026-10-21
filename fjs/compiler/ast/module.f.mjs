@@ -82,4 +82,3 @@ export const unaryTags = /** @type {const} */ (['-', '~', '!', 'typeof', 'Number
  * @returns {node is readonly [UnaryTag, unknown]}
  */
 export const isUnary = node => node.length === 2 && unaryTags.some(tag => tag === node[0])
-
