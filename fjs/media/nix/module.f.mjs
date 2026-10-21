@@ -28,7 +28,7 @@ import {
     latinCapitalLetterRange,
     latinSmallLetterRange,
     range,
-} from '../../text/ascii/module.f.mjs'
+} from '../../text/ascii/module.f.js'
 import { contains, fromRange, union } from '../../types/range_set/module.f.mjs'
 import { flat, flatMap, intersperse, map, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
 

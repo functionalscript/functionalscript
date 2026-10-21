@@ -29,7 +29,7 @@ import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/mod
 import {
     digitsValue, greaterThanSign as gt, hyphenMinus, isCanonicalDigits, isDigit, lessThanSign as lt, lf,
     plusSign, space as sp,
-} from '../../text/ascii/module.f.mjs'
+} from '../../text/ascii/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 

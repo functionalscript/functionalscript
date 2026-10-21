@@ -10,7 +10,7 @@
 import {
     fullStop, hexDigitValue, hyphenMinus, isDigit, isLatinCapitalLetter, isLatinSmallLetter, lowLine,
     solidus, tilde,
-} from '../ascii/module.f.mjs'
+} from '../ascii/module.f.js'
 import { fromU8List, stringToU8List } from '../utf8/module.f.mjs'
 import { codeUnitToString } from '../utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'

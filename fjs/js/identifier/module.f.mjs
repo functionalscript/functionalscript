@@ -2,7 +2,7 @@
  * JavaScript's lexical rules for a word — one source of truth.
  *
  * The characters are classified by code point through
- * [`text/ascii`](../../text/ascii/module.f.mjs), which owns the classes; this
+ * [`text/ascii`](../../text/ascii/module.f.js), which owns the classes; this
  * module adds only what JavaScript adds to them: `_` and `$` as identifier
  * characters. A case fold would not do: `'K'`, the Kelvin sign,
  * lowercases to `k` and is no letter the tokenizer takes.
@@ -10,7 +10,7 @@
  * @module
  */
 
-import { dollarSign, isCanonicalDigits, isDigit, isLatinLetter, lowLine } from '../../text/ascii/module.f.mjs'
+import { dollarSign, isCanonicalDigits, isDigit, isLatinLetter, lowLine } from '../../text/ascii/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 

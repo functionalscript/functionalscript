@@ -26,7 +26,7 @@
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { lf } from '../../text/ascii/module.f.mjs'
+import { lf } from '../../text/ascii/module.f.js'
 import { identity } from '../../types/function/module.f.js'
 import { error, mapOk, okList } from '../../types/result/module.f.js'
 import { field, hasNulHeader, optionalField, tryRead as readPayload, tryReadAtLeast, write as writePayload } from '../header/module.f.mjs'

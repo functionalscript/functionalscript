@@ -88,7 +88,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstComma, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstIntrinsic, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Container, Discard, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Lowered, _Parameter, _Pending, _PendingStack, _Plan, _Read, _Ref, _Scope, _Source, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
@@ -492,6 +492,58 @@ const checkedKey = (key, method) => {
 const pushed = (stack, item) => ({ top: item, rest: stack })
 
 /**
+ * Whether steps end in a call: the last of them a call, `(…)`, a guarded
+ * one, `?.(…)`, or the call a group put outside a region, `(a?.b)(…)` —
+ * and no property. Over an explicit loop, so a chain as long as the input
+ * allows costs no call stack.
+ *
+ * @type {(step: Step) => boolean}
+ */
+const endsInCall = step => {
+    let last = step
+    let next = stepAfter(last)
+    while (next !== undefined) {
+        last = next
+        next = stepAfter(last)
+    }
+    return last[0] !== '|.'
+}
+
+/** The steps a chain goes on with after `step`, where it has any. @type {(step: Step) => Step | undefined} */
+const stepAfter = ([, , next]) => next
+
+/**
+ * Whether a call statement's value is a call: of any value but the word of
+ * a conversion, `Number(x)` and `String(x)` being operators
+ * ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)),
+ * read here as the word alone, as {@link conversion} reads it; a guarded
+ * call, `f?.(x)`; or a chain whose last step is a call, `a?.b(x)`,
+ * {@link endsInCall}. A group is no node, so `(f(x))` is the call it holds.
+ *
+ * @type {(node: Node) => boolean}
+ */
+const isCall = node => {
+    switch (node[0]) {
+        case '()': { return node[1][0] !== 'ref' || !isConversionWord(nameOf(node[1][1])) }
+        case '?.()': { return node[3] === undefined || endsInCall(node[3]) }
+        case '?.': case '.': { return node[3] !== undefined && endsInCall(node[3]) }
+        default: { return false }
+    }
+}
+
+/**
+ * A `const`'s plan, {@link planned}: where it is a call statement, the
+ * `const` that binds nothing, `['discard', name]`, its value has to be a
+ * call, {@link isCall}, and any other is refused at the name — an
+ * operator's result discarded is almost always a mistake, and a conversion
+ * is an operator ([spec: call statements](../../../spec/functions/call-statements.md)).
+ *
+ * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, value: Node, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
+ */
+const constPlan = check => (target, value, namespace) =>
+    target[0] === 'discard' && !isCall(value) ? error(unexpectedToken(target[1])) : planned(check)(target, namespace)
+
+/**
  * A binding target checked, as the plan the lowering follows,
  * {@link lowered}: each name is checked as a `const`'s is, `check` —
  * {@link bindable} for a module's, {@link bodyBindable} for a body's — and
@@ -527,9 +579,14 @@ const pushed = (stack, item) => ({ top: item, rest: stack })
  * prototype name, `keys` or `toString`, at the key, and at the word
  * otherwise, as `Object.keys` is.
  *
- * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
+ * A call statement's target, `['discard', name]`, binds nothing: its plan
+ * is the one read of its value, which the lowering makes an entry no name
+ * reads, as an unused `const`'s is.
+ *
+ * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
 const planned = check => (target, namespace) => {
+    if (target[0] === 'discard') { return ok({ reads: [{ source: null, spread: false }], names: [] }) }
     /** @type {_PendingStack} */
     let pending = namespace === null || target[0] !== 'object'
         ? pushed(null, { target, source: null })
@@ -1241,7 +1298,7 @@ const bodyRound = (stack, scope, frame) => {
     }
     const { target, value } = statement
     const namespace = namespaceOf(target, value)
-    const [tag, plan] = planned(bodyBindable(scope))(target, namespace)
+    const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
     if (tag === 'error') { return [stack, scope, error(plan)] }
     return [{ top: { ...frame, plan }, rest: stack }, scope, constValue(target, value, namespace)]
 }
@@ -1254,7 +1311,7 @@ const bodyRound = (stack, scope, frame) => {
  * namespace's members alone, and the value it is lowered over is
  * `undefined`, read by no entry, {@link lowered}.
  *
- * @type {(target: BindingTarget, value: Node, namespace: DjsTokenWithMetadata | null) => _State[2]}
+ * @type {(target: BindingTarget | Discard, value: Node, namespace: DjsTokenWithMetadata | null) => _State[2]}
  */
 const constValue = (target, value, namespace) => namespace !== null ? ok(undefined)
     : target[0] === 'name' ? ['define', value, nameOf(target[1])] : ['enter', value]
@@ -1341,12 +1398,15 @@ const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
 const conversion = (stack, scope, [, callee, args]) => {
     if (callee[0] !== 'ref') { return null }
     const name = nameOf(callee[1])
-    if (name !== 'Number' && name !== 'String') { return null }
+    if (!isConversionWord(name)) { return null }
     if (args.length === 0) { return [stack, scope, ok(name === 'Number' ? 0 : '')] }
     const operand = args.length === 1 ? args[0] : null
     if (operand === null || operand[0] === '...') { return [stack, scope, error(conversionArity(name)(callee[1]))] }
     return [{ top: { unary: name }, rest: stack }, scope, ['enter', operand]]
 }
+
+/** Whether a word is a conversion's, `Number` or `String`, which the word alone decides, no scope binding it. @type {(name: string) => name is 'Number' | 'String'} */
+const isConversionWord = name => name === 'Number' || name === 'String'
 
 /**
  * Whether an access's key is the constant `name`, in either spelling: a
@@ -1422,7 +1482,7 @@ const isNamespace = word => staticIds.some(id => staticPath(id)[0] === word)
  * entered. Any other pattern over the word, and the word alone, is
  * entered and refused as every reserved global is.
  *
- * @type {(target: BindingTarget, value: Node) => DjsTokenWithMetadata | null}
+ * @type {(target: BindingTarget | Discard, value: Node) => DjsTokenWithMetadata | null}
  */
 const namespaceOf = (target, value) => target[0] === 'object' && value[0] === 'ref' && isNamespace(nameOf(value[1])) ? value[1] : null
 
@@ -1914,7 +1974,7 @@ const loopRound = (stack, scope, frame) => {
     if (kind === 'const') {
         const { target, value } = statement
         const namespace = namespaceOf(target, value)
-        const [tag, plan] = planned(bodyBindable(scope))(target, namespace)
+        const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
         if (tag === 'error') { return [stack, scope, error(plan)] }
         const shadowing = plan.names.find(([name]) => nameOf(name) === word)
         if (shadowing !== undefined) { return [stack, scope, error(loopVariableShadowed(shadowing[0]))] }
@@ -2124,7 +2184,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         if (unterminated(previous, declaration)) { return error(unexpectedToken(declaration.start)) }
         previous = declaration
         const namespace = namespaceOf(target, node)
-        const [tag, plan] = planned(bindable(env))(target, namespace)
+        const [tag, plan] = constPlan(bindable(env))(target, node, namespace)
         if (tag === 'error') { return error(plan) }
         const then = named ? plan.names.find(([name]) => nameOf(name) === 'then') : undefined
         if (then !== undefined) { return error({ message: 'reserved export name then', metadata: then[0].metadata }) }

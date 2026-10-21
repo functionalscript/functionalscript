@@ -142,7 +142,7 @@
 import { assert } from '../../../asserts/module.f.js'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
-import { literalWords } from '../../../js/keywords/module.f.js'
+import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
 import { eagerLayers, lazyLayers } from '../../ast/module.f.mjs'
@@ -200,11 +200,12 @@ export const _framingKeywords = /** @type {const} */ (['import', 'const', 'expor
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
- * one per keyword above. No keyword collides with a kind, so the two
- * lists concatenate without a name being registered twice — which
- * `encoding` would reject anyway.
+ * one per keyword above, plus `keyword`, the one symbol of every other
+ * word `fjs/js/keywords` reserves, {@link symbolOf}. No keyword collides
+ * with a kind, so the lists concatenate without a name being registered
+ * twice — which `encoding` would reject anyway.
  */
-export const _ordinaryTokenNames = [..._tokenKindNames, ..._framingKeywords]
+export const _ordinaryTokenNames = [..._tokenKindNames, ..._framingKeywords, /** @type {const} */ ('keyword')]
 
 const alphabet = encoding(_ordinaryTokenNames)
 
@@ -213,8 +214,16 @@ export const sym = alphabet.encode
 
 /**
  * One token as the parser's input: the symbol of its kind — of its word,
- * for a keyword with its own symbol — with the whole token as metadata, so that a fold
- * above still has its value and its position.
+ * for a keyword with its own symbol, and `keyword` for any other word
+ * `fjs/js/keywords` reserves, `else` or `var` — with the whole token as
+ * metadata, so that a fold above still has its value and its position.
+ *
+ * `keyword` stands wherever {@link identifier} does, so a reserved word is
+ * a key and a property name as in JavaScript, and a binding or a reference
+ * the fold refuses at the word; and it is kept out of
+ * {@link assignable}, the words a statement may begin with, so `else`,
+ * `var` or `for` opening a statement is refused at the word, as no rule
+ * begins with it.
  *
  * `eof` has no symbol: a stream reaching here has had it split off, and
  * one that has not is a caller's mistake, not bad input.
@@ -224,7 +233,7 @@ export const sym = alphabet.encode
 export const symbolOf = t => {
     const { token } = t
     const keyword = token.kind === 'id' ? _framingKeywords.find(k => k === token.value) : undefined
-    const name = keyword ?? token.kind
+    const name = keyword ?? (token.kind === 'id' && isKeyword(token.value) ? 'keyword' : token.kind)
     assert(name !== 'eof', ['eof token reached the parser alphabet', t])
     return { symbol: sym(name), meta: t }
 }
@@ -237,6 +246,7 @@ export const symbolOf = t => {
  */
 export const identifier = /** @type {const} */ ({
     id: sym('id'),
+    keyword: sym('keyword'),
     import: sym('import'),
     const: sym('const'),
     export: sym('export'),
@@ -1144,6 +1154,10 @@ export const terminator = /** @type {const} */ ({
  * block's ending to it. No {@link end} follows the loop's `}`, as none
  * follows the guard's.
  *
+ * A statement that begins with a name is a call statement,
+ * {@link nameStatement}: the keywords above each open a statement of
+ * their own, and a name is none of them.
+ *
  * @type {Statement}
  */
 export const statement = () => ['const', {
@@ -1151,35 +1165,57 @@ export const statement = () => ['const', {
     if: [sym('if'), sym('('), value, sym(')'), block],
     let: [sym('let'), identifierName, sym('='), value, end],
     while: [sym('while'), sym('('), value, sym(')'), loopBlock],
+    name: nameStatement,
 }]
 
 /**
- * The words a loop's assignment may name: `id`, and the two framing
- * keywords JavaScript leaves ordinary, `from` and `as` — the words a `let`
- * may bind. Not {@link identifier}: `const` opens the loop block's other
- * statement, so the two would open on one symbol, and the reserved words
- * among the rest are refused by the fold wherever they are bound.
+ * The words a statement may begin with where it is no keyword's: `id`, and
+ * the two framing keywords JavaScript leaves ordinary, `from` and `as` —
+ * the words a `let` may bind, and the words that may begin a reference
+ * where a statement starts. Not {@link identifier}: every other word with
+ * a symbol of its own opens a statement of its own, `const` or `if`, or is
+ * reserved, and the reserved words among these three are refused by the
+ * fold wherever they are bound.
  */
 export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from'), as: sym('as') })
 
 /**
- * The assignment to a loop's variable, `name = value`, with its
- * {@link end}: the one statement that rebinds a name, and it stands in a
- * loop's block alone ([spec: loops](../../../../spec/control-flow/loops.md)).
+ * A call statement, `assert(a);`: a name, the rest of the value it begins,
+ * as a value's name branch reads it, {@link arrowOrRest}, and its
+ * {@link end} ([spec: call statements](../../../../spec/functions/call-statements.md)).
+ * The grammar reads any value a name begins, and the fold admits a call
+ * alone, refusing any other at the name, as the grammar refused it before.
+ *
+ * A statement opening with anything but a name is not read: `(` and `[`
+ * continue the statement before it as a call and an index where no `;`
+ * ends it — JavaScript reads `f` on one line and `(g)(x)` on the next as
+ * `f(g)(x)` — so one symbol could not tell them from a new statement's;
+ * and a prefix or a literal opens no call worth a statement.
  */
-export const assignment = /** @type {const} */ ([assignable, sym('='), value, end])
+export const nameStatement = /** @type {const} */ ([assignable, arrowOrRest, end])
 
 /**
- * A statement of a loop's block: a `const`, or the {@link assignment}.
- * `const` and a name decide the two in one symbol. A thunk, as
- * {@link statement} is, since the block holds this rule and this rule
- * holds a value.
+ * A loop block's statement that begins with a name: the assignment to the
+ * loop's variable, `name = value` — the one statement that rebinds a name,
+ * and it stands in a loop's block alone
+ * ([spec: loops](../../../../spec/control-flow/loops.md)) — or a call
+ * statement, {@link nameStatement}, the rest of the value the name begins.
+ * `=` decides the assignment in one symbol, an assignment being no value
+ * of the language; and the {@link end} of either.
+ */
+export const loopNameStatement = /** @type {const} */ ([assignable, { assign: [sym('='), value], ...arrowOrRest }, end])
+
+/**
+ * A statement of a loop's block: a `const`, or what begins with a name,
+ * {@link loopNameStatement}. `const` and a name decide the two in one
+ * symbol. A thunk, as {@link statement} is, since the block holds this
+ * rule and this rule holds a value.
  *
  * @type {LoopStatement}
  */
 export const loopStatement = () => ['const', {
     const: constStatement,
-    assign: assignment,
+    name: loopNameStatement,
 }]
 
 /**
@@ -1271,6 +1307,12 @@ export const importStatement = /** @type {const} */ ([
 ])
 
 /**
+ * A module's statement before its exports: a `const`, or a call statement,
+ * {@link nameStatement}. `const` and a name decide the two in one symbol.
+ */
+export const moduleStatement = /** @type {const} */ ({ const: constStatement, name: nameStatement })
+
+/**
  * What a module ends with, after its imports and constants: its exports —
  * `export default value`, or an exported `const`, the statements after it,
  * and optionally the rest of this rule again — or a `throw`, which stands
@@ -1285,19 +1327,20 @@ export const importStatement = /** @type {const} */ ([
 export const lastStatement = () => ['const', {
     export: [sym('export'), {
         default: [sym('default'), value, end],
-        named: [constStatement, repeatFrom0(constStatement), option(lastStatement)],
+        named: [constStatement, repeatFrom0(moduleStatement), option(lastStatement)],
     }],
     throw: [sym('throw'), value, end],
 }]
 
 /**
- * The whole module: imports first, ordinary and exported constants in order,
- * and {@link lastStatement} — at least one export, or a `throw`. Ending on
- * `eof` is what makes a trailing stray token a failure.
+ * The whole module: imports first, ordinary and exported constants and call
+ * statements in order, {@link moduleStatement}, and {@link lastStatement} —
+ * at least one export, or a `throw`. Ending on `eof` is what makes a
+ * trailing stray token a failure.
  */
 export const djsModule = /** @type {const} */ ([
     repeatFrom0(importStatement),
-    repeatFrom0(constStatement),
+    repeatFrom0(moduleStatement),
     lastStatement,
     eof,
 ])

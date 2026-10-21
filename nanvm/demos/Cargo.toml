@@ -1,0 +1,13 @@
+[package]
+name = "nanvm-demos"
+version = "0.1.0"
+edition = "2024"
+
+# `cdylib` is the `.wasm` the demo pages load; `rlib` is what `cargo test`
+# links the native tests against.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+nanvm-lib = { path = "../lib" }
+nanvm-effects-node = { path = "../effects-node" }

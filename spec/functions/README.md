@@ -38,6 +38,7 @@ refused.
 - [Captures and Self Recursion](./captures.md)
 - [Names and Identity](./names-and-identity.md)
 - [Calls](./calls.md)
+- [Call Statements](./call-statements.md)
 - [Function Outputs](./function-outputs.md)
 
 ## Examples

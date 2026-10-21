@@ -14,7 +14,7 @@ import {
     quotationMark,
     reverseSolidus,
     solidus,
-} from '../../text/ascii/module.f.mjs'
+} from '../../text/ascii/module.f.js'
 import {
     codePointToEscape,
     escapeToCodePoint,

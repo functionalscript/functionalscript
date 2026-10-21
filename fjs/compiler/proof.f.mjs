@@ -1325,6 +1325,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Comma: a detached call': 'ooooo',
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
+                'Call statements': 'ooooo',
                 'Recursion': 'ooooo',
                 'Loop': 'xxooo',
                 'Throw': 'xxooo',

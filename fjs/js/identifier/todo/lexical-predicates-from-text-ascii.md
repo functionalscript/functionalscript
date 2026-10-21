@@ -12,9 +12,9 @@ still carrying their own:
 
 |Where|What|
 |-|-|
-|[`fjs/text/ascii`](../../../text/ascii/module.f.mjs)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges; `charIs`, any of them asked of a one-character string; `isDigits`, a string of decimal digits; and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
+|[`fjs/text/ascii`](../../../text/ascii/module.f.js)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges; `charIs`, any of them asked of a one-character string; `isDigits`, a string of decimal digits; and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
 |[`fjs/git/alternates`](../../../git/alternates/module.f.mjs)|`isOctal` over string comparisons, and `parseInt(…, 8)` for the value, where `fjs/git/tree` reads octal with `text/ascii`'s `digitsValue(8n)`|
-|[`fjs/git/refstore/scope`](../../../git/refstore/scope/module.f.js)|`isPseudoref`, the capital letters as `'A'`..`'Z'` — a `.f.js`, which can import only what `fjs compile` accepts, and it refuses `text/ascii` today|
+|[`fjs/git/refstore/scope`](../../../git/refstore/scope/module.f.js)|`isPseudoref`, the capital letters as `'A'`..`'Z'` — a `.f.js`, which can import only what `fjs compile` accepts, as it accepts `text/ascii` now|
 |[`fjs/rtti/ts`](../../../rtti/ts/module.f.mjs)|`isIdStart` and `isIdPart`, JavaScript's identifier rule over string comparisons, which `isTypeName` reads|
 |[`fjs/website/browser-source`](../../../website/browser-source/module.f.mjs)|`nameChar`, JavaScript's identifier characters over string comparisons|
 |[`fjs/media/nix`](../../../media/nix/module.f.mjs)|the same classes built as `RangeSet`s, for Nix's identifier rule|
@@ -89,8 +89,7 @@ written out again.
 - [ ] `fjs/git/alternates`: `isOctal` from the classes, and the octal value read
       with `digitsValue(8n)` as `fjs/git/tree` does, not `parseInt`.
 - [ ] `fjs/git/refstore/scope`: `isPseudoref` over `isLatinCapitalLetter`, keeping
-      the `-` and `_` it adds. Waits on `fjs compile` accepting `text/ascii`,
-      or on the module leaving `.f.js`.
+      the `-` and `_` it adds.
 - [x] `fjs/git/tree`: `lower` over the same class.
 - [ ] `fjs/rtti/ts`: `isIdStart`/`isIdPart` go; `isTypeName` asks
       `isIdentifier`.
@@ -111,7 +110,7 @@ written out again.
 
 ### Related
 
-- [`fjs/text/ascii/module.f.mjs`](../../../text/ascii/module.f.mjs) — the
+- [`fjs/text/ascii/module.f.js`](../../../text/ascii/module.f.js) — the
   owner of the classes, and of the hexadecimal codec that states the reason.
 - [`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs) — the writer
   whose Kelvin-sign hole raised this.

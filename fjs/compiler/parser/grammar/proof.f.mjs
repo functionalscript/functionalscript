@@ -18,9 +18,9 @@ import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
-    _ordinaryTokenNames as names, access, array, assignment, attribute, block, body, circuitTail, conditionalTail, constStatement,
+    _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
     djsModule, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopStatement, member, object, parameters, paren, statement,
-    afterCase, caseTail, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value,
+    afterCase, caseTail, loopNameStatement, moduleStatement, nameStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -109,7 +109,9 @@ export const proof = {
         block: () => { parser(/** @type {Rule} */ (block)) },
         loopBlock: () => { parser(/** @type {Rule} */ (loopBlock)) },
         loopStatement: () => { parser(/** @type {Rule} */ (loopStatement)) },
-        assignment: () => { parser(/** @type {Rule} */ (assignment)) },
+        nameStatement: () => { parser(/** @type {Rule} */ (nameStatement)) },
+        loopNameStatement: () => { parser(/** @type {Rule} */ (loopNameStatement)) },
+        moduleStatement: () => { parser(/** @type {Rule} */ (moduleStatement)) },
         attribute: () => { parser(attribute) },
         importStatement: () => { parser(/** @type {Rule} */ (importStatement)) },
         constStatement: () => { parser(/** @type {Rule} */ (constStatement)) },
@@ -130,6 +132,10 @@ export const proof = {
         assertEq(word.symbol, sym('export'))
         assertEq(id.symbol, sym('id'))
         assertEq(id.meta.token.kind, 'id')
+        // a reserved word no rule requires is the one `keyword` symbol
+        const reserved = symbolOf({ token: { kind: 'id', value: 'else' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false })
+        assertEq(reserved.symbol, sym('keyword'))
+        assertEq(reserved.meta.token.kind, 'id')
     },
     // A word that denotes a value has its own symbol, and where a *name*
     // may stand — a property's, a binding's — it is one of those symbols
@@ -345,7 +351,16 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { return a };'), ['ok'])
         // `return` is the only other statement a body holds
         assertStructurallySame(read('export default (...a) => {};'), ['error', '}'])
-        assertStructurallySame(read('export default (...a) => { a; };'), ['error', 'a'])
+        // a statement that begins with a name is read whatever value the
+        // name begins, the fold admitting a call alone; the body still
+        // ends in a terminator
+        assertStructurallySame(read('export default (...a) => { a; };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { a; a.b(1); a?.(2)\nreturn a; };'), ['ok'])
+        // one opening with anything but a name is no statement: `(` and `[`
+        // would continue the one before it, and a prefix opens no call
+        assertStructurallySame(read('export default (...a) => { (a)(1); return a; };'), ['error', '('])
+        assertStructurallySame(read('export default (...a) => { [a].at(0); return a; };'), ['error', '['])
+        assertStructurallySame(read('export default (...a) => { !a(1); return a; };'), ['error', '!'])
         assertStructurallySame(read('export default (...a) => { return a; return a; };'), ['error', 'return'])
         assertStructurallySame(read('export default (...a) => { return; };'), ['error', ';'])
         // the line terminator JavaScript forbids between `return` and the
@@ -419,9 +434,21 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { while (r) { } } return r; };'), ['error', 'while'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; }; return r; };'), ['error', ';'])
         assertStructurallySame(read('export default (...a) => { let r; while (r) { } return r; };'), ['error', ';'])
-        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { a.b = 1; } return r; };'), ['error', '.'])
+        // a name in the block begins the assignment or a call statement,
+        // and `=` after any other value is no assignment
+        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { a(r); r = 1; a.b(r) } return r; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { a.b = 1; } return r; };'), ['error', '='])
         assertStructurallySame(read('export default (...a) => { let r = 0; while r { r = 1; } return r; };'), ['error', 'r'])
-        assertStructurallySame(read('export default (...a) => { r = 1; return r; };'), ['error', 'r'])
+        // outside a loop's block a name begins a call statement alone, so
+        // an assignment there is refused at its `=`
+        assertStructurallySame(read('export default (...a) => { r = 1; return r; };'), ['error', '='])
+        // a reserved word begins no statement, so one opening a statement
+        // is refused at the word, as no rule begins with it
+        assertStructurallySame(read('export default (...a) => { var r = 1; return r; };'), ['error', 'var'])
+        assertStructurallySame(read('export default (...a) => { for (r of a) { } return r; };'), ['error', 'for'])
+        assertStructurallySame(read('const r = 1; eval(r); export default r;'), ['error', 'eval'])
+        // and stands where a name does elsewhere, a key and a property
+        assertStructurallySame(read('export default { var: 1 }.var;'), ['ok'])
         assertStructurallySame(read('let r = 0; while (r) { r = 1; } export default r;'), ['error', 'let'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { let = 1; } return r; };'), ['error', 'let'])
         // a switch, `switch ( value ) { case value : block … }`, is a
@@ -575,8 +602,11 @@ export const proof = {
         assertStructurallySame(read('const f = (...a) => 1; export default f(,);'), ['error', ','])
         assertStructurallySame(read('const f = (...a) => 1; export default f(1 2);'), ['error', 'number'])
         assertStructurallySame(read('const f = (...a) => 1; export default f(1;'), ['error', ';'])
-        // a call is no statement of its own: it stands where a value does
-        assertStructurallySame(read('const f = (...a) => 1; f(1); export default 1;'), ['error', 'f'])
+        // a call is a statement of its own, before the exports and among
+        // the exported `const`s
+        assertStructurallySame(read('const f = (...a) => 1; f(1); export default 1;'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export const a = 1; f(a)\nexport const b = 2;'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; f(1); export f(2);'), ['error', 'f'])
         // the grammar takes a call on a numeric literal, as it takes an
         // access on one: which callees a call may have is the fold's, since
         // the grammar sees a value and not what it is

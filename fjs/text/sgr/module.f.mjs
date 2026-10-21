@@ -12,7 +12,7 @@
 
 import { write } from '../../effects/common/module.f.mjs'
 import { utf8 } from "../module.f.mjs"
-import { isDigit, latinSmallLetterM, leftSquareBracket, semicolon } from '../ascii/module.f.mjs'
+import { isDigit, latinSmallLetterM, leftSquareBracket, semicolon } from '../ascii/module.f.js'
 
 /** @type {string} */
 const esc = '\x1b'
