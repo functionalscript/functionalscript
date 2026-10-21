@@ -7,6 +7,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
+import { encodeScalar } from '../../../basen/base16/module.f.mjs'
 import { curve, isPublicKey, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../../../crypto/secp/module.f.mjs'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
@@ -159,6 +160,6 @@ export const publicKey = (name, text) => {
     if (parsed[1] === 0n) { return error('The private scalar must satisfy 1 ≤ d < n.') }
     const q = assertNotNullish(c.mul(parsed[1])(c.g))
     assert(isPublicKey(c)(q))
-    const digits = Math.ceil(c.pf.p.toString(2).length / 8) * 2
-    return ok(`X = ${q[0].toString(16).padStart(digits, '0')}\nY = ${q[1].toString(16).padStart(digits, '0')}`)
+    const hex = encodeScalar(Math.ceil(c.pf.p.toString(2).length / 8) * 2)
+    return ok(`X = ${hex(q[0])}\nY = ${hex(q[1])}`)
 }

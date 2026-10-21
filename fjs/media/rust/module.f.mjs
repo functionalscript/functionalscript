@@ -39,6 +39,7 @@ import { map, toArray } from '../../types/list/module.f.mjs'
 import { isWellFormed, stringToList } from '../../text/utf16/module.f.mjs'
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { bigint } from '../../types/bigint/from_number/module.f.js'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
 /**
  * A character a Rust string literal cannot hold as it stands: a control
@@ -90,7 +91,7 @@ export const stringLiteral = v =>
  *
  * @type {(digits: number) => (n: number | bigint) => string}
  */
-const hexLiteral = digits => n => `0x${n.toString(16).padStart(digits, '0')}`
+const hexLiteral = digits => n => `0x${encodeScalar(digits)(n)}`
 
 /** A `u16` in four hex digits. */
 const u16Hex = hexLiteral(4)

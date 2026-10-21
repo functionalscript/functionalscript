@@ -47,6 +47,7 @@ import { computeSync, sha256 } from '../sha2/module.f.mjs'
 import { sandbox } from '../../effects/common/module.f.mjs'
 import { _formatDuration, _validDuration } from './performance/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
 const batch = 10n
@@ -80,7 +81,7 @@ export const parseHex = text => hexDigitsValue([...text].map(c => c.charCodeAt(0
 /** `y` in hex, padded to the width of `p`.
  * @type {(y: bigint) => string}
  */
-export const hexOfY = y => y.toString(16).padStart(yDigits, '0')
+export const hexOfY = encodeScalar(yDigits)
 
 /** Time only the evaluation call, keeping Stop and input available between batches.
  * @type {(state: DemoState, run: DemoRun) => Effect<Sandbox, DemoState, never>}
@@ -168,7 +169,7 @@ const verdictView = ({ verdict, steps }) =>
  */
 const xView = x => x === null
     ? [refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)]
-    : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(x.toString(16).padStart(64, '0'), 'Copy x')]
+    : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(encodeScalar(64)(x), 'Copy x')]
 
 /** The evaluated `y`, once every step is done.
  * @type {(run: DemoRun | null) => readonly Element[]}

@@ -42,6 +42,7 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
 /** A named curve, bound once.
  * @type {(name: string, curve: Curve) => DemoCurve}
@@ -67,11 +68,6 @@ const curves = [
 ]
 const curveOf = algorithmOf(curves)
 const hashOf = algorithmOf(sha2Algorithms)
-
-/** `n` in hexadecimal, lower case, padded to `digits`.
- * @type {(digits: number) => (n: bigint) => string}
- */
-const hexOf = digits => n => n.toString(16).padStart(digits, '0')
 
 /**
  * A hexadecimal field's value, or the message refusing it. The length is
@@ -110,7 +106,7 @@ export const signed = state => {
  * @type {(original: DemoPacket, attack: DemoAttack) => DemoIntercepted}
  */
 const intercepted = (original, attack) => {
-    const scalar = hexOf(curveOf(original.curve).scalarDigits)
+    const scalar = encodeScalar(curveOf(original.curve).scalarDigits)
     return { original, attack, message: original.message, r: scalar(original.r), s: scalar(original.s), key: '2' }
 }
 
@@ -233,13 +229,13 @@ const verdict = (valid, text) => ['p', { role: 'status', [resultMarker]: valid ?
 /** @type {(c: DemoCurve, u: Point2D, label: string) => readonly Node[]} */
 const publicKeyView = (c, [ux, uy], label) => [
     caption(`${label}, hex:`),
-    codeBlock(`Ux = ${hexOf(c.coordinateDigits)(ux)}\nUy = ${hexOf(c.coordinateDigits)(uy)}`, `Copy ${label}`),
+    codeBlock(`Ux = ${encodeScalar(c.coordinateDigits)(ux)}\nUy = ${encodeScalar(c.coordinateDigits)(uy)}`, `Copy ${label}`),
 ]
 
 /** @type {(c: DemoCurve, r: bigint, s: bigint) => readonly Node[]} */
 const signatureView = (c, r, s) => [
-    caption('Signature r, hex:'), codeBlock(hexOf(c.scalarDigits)(r), 'Copy r'),
-    caption('Signature s, hex:'), codeBlock(hexOf(c.scalarDigits)(s), 'Copy s'),
+    caption('Signature r, hex:'), codeBlock(encodeScalar(c.scalarDigits)(r), 'Copy r'),
+    caption('Signature s, hex:'), codeBlock(encodeScalar(c.scalarDigits)(s), 'Copy s'),
 ]
 
 /** Copyable public outputs; keep the local nonce in secondary details.
@@ -255,7 +251,7 @@ const signView = (c, result) => {
             ['summary', 'Signing details — RFC 6979'],
             ['p', 'Message → Hash → ECDSA Sign → (r, s). The page opens on RFC 6979 A.2.5: P-256, SHA-256 and the message sample. Compare these hexadecimal values with the published example.'],
             caption('Deterministic nonce k, hex (never transmitted):'),
-            codeBlock(hexOf(c.scalarDigits)(k), 'Copy k'),
+            codeBlock(encodeScalar(c.scalarDigits)(k), 'Copy k'),
             ['p', 'Keep k secret: knowing it reveals the private key. RFC 6979 derives k from the private key and message.'],
             ['p', 'r is the x coordinate of kG modulo q; s = (h + r·x) / k mod q. Bob checks this relation with the public key alone.'],
         ],

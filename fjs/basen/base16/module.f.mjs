@@ -16,6 +16,10 @@
  * `baseN` codes bits, and a byte list is what every reader of a hex
  * spelling holds.
  *
+ * {@link encodeScalar} is the codec's other writer: one number, not a byte
+ * list, spelled in a fixed width of digits, as a literal, an escape or a
+ * key of a given size spells it.
+ *
  * The writer's input is bytes by contract, integers `0..0xff`, as the `U8`
  * in its type says; it does not check them, as none of the spellings it
  * replaced did. The readers only ever answer such bytes.
@@ -45,6 +49,16 @@ export const encodeCodePoints = bytes => bytes.flatMap(digitsOf)
  * @type {(bytes: readonly U8[]) => string}
  */
 export const encode = bytes => codePointListToString(encodeCodePoints(bytes))
+
+/**
+ * A non-negative integer in lowercase hex, zero-padded to `width` digits:
+ * `encodeScalar(4)(0x61)` is `0061`. A value wider than `width` keeps all
+ * its digits, so the width is a minimum. A spelling in capitals is the
+ * caller's, over this one.
+ *
+ * @type {(width: number) => (value: number | bigint) => string}
+ */
+export const encodeScalar = width => value => value.toString(16).padStart(width, '0')
 
 /**
  * The bytes a run of hex digit code points spells, each read by

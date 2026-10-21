@@ -43,6 +43,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { assertOk } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { withoutNegativeZero } from '../corpus/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
 /** The first line of a generated expectation. @type {(fixture: string) => string} */
 const header = fixture =>
@@ -55,7 +56,7 @@ const none = '#[rustfmt::skip]\npub const JSON: Option<&[u8]> = None;'
 const throwsConstant = throws => `pub const THROWS: bool = ${throws};`
 
 /** A byte as a Rust hexadecimal literal. @type {(byte: number) => string} */
-const byteLiteral = byte => `0x${byte.toString(16).padStart(2, '0')}`
+const byteLiteral = byte => `0x${encodeScalar(2)(byte)}`
 
 /**
  * The `JSON` constant: the UTF-8 bytes of the text, or `None`. The bytes are
