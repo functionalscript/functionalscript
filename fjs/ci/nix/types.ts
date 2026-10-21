@@ -81,6 +81,14 @@ export type NixPerSystem = {
      * resolves, a `string` part is escaped.
      */
     readonly shellHook?: readonly (string | _Reference)[]
+    /** Commands installed in this system's `devTools` profile. */
+    readonly commands?: readonly NixCommand[]
+}
+
+/** A named shell command whose interpolations retain its Nix dependencies. */
+export type NixCommand = {
+    readonly name: string
+    readonly script: readonly (string | _Reference)[]
 }
 
 /** One downloadable archive, and the hash its content must have. */
