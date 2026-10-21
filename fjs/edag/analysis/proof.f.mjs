@@ -48,8 +48,11 @@ const an = e => sound(assertOk(analysis(e)))
 /** The identity table, checked as every table is. @type {(e: Exp) => Analysis} */
 const identity = e => sound(assertOk(identityAnalysis(e)))
 
-/** @type {(e: Exp, expected: Analysis) => void} */
-const table = (e, expected) => { assertStructurallySame(an(e), expected) }
+/** The table but its `exps`, which `exps` below is about. @type {(e: Exp, expected: Omit<Analysis, 'exps'>) => void} */
+const table = (e, expected) => {
+    const { root, nodes, scope, shared } = an(e)
+    assertStructurallySame({ root, nodes, scope, shared }, expected)
+}
 
 /** The nodes of a table, when that is all a case is about. @type {(e: Exp) => readonly Node[]} */
 const nodesOf = e => an(e).nodes
@@ -257,7 +260,7 @@ export const proof = {
         const cfg = ['args']
         /** @type {Exp} */
         const read = ['.', cfg, 'a']
-        /** @type {Analysis} */
+        /** @type {Omit<Analysis, 'exps'>} */
         const merged = {
             root: ['#', 2],
             nodes: [['args'], ['.', ['#', 0], 'a'], ['[]', [['#', 1], ['#', 1]]]],
@@ -423,6 +426,7 @@ export const proof = {
                 nodes: [['arg', 0], ['arg', 0], ['+', ['#', 0], ['#', 1]], ['+', ['#', 2], ['#', 2]], ['=>', 1, [], ['#', 3]]],
                 scope: [4, 4, 4, 4, -1],
                 shared: [2],
+                exps: [['arg', 0], ['arg', 0], x, ['+', x, x], e],
             })
             /** @type {() => Exp} */
             const twin = () => ['+', ['arg', 0], ['arg', 0]]
@@ -439,7 +443,7 @@ export const proof = {
             assertEq(identity(['[]', [['.', ['args'], 'a'], ['.', ['args'], 'a']]]).nodes.length, 5)
         },
         primitive: () => {
-            assertStructurallySame(identity(1), { root: 1, nodes: [], scope: [], shared: [] })
+            assertStructurallySame(identity(1), { root: 1, nodes: [], scope: [], shared: [], exps: [] })
         },
         // the count is `../sharing`'s, scope by scope: a frame's slot the
         // scope around the body's, and what the body shares the body's
@@ -456,6 +460,58 @@ export const proof = {
             assertStructurallySame(a.shared.map(i => a.nodes[i]), [['[]', []], ['.', ['#', 2], 0]])
             assertEq(a.shared.length, sharedNodesOf(e).length + sharedNodesOf(body).length)
             assertEq(assertError(identityAnalysis(['[]', [x, ['=>', 0, [], x]]])), 'a node shared across a function boundary')
+        },
+    },
+    // The expression each entry stands for: the node the walk was handed,
+    // where nothing merges, and the expression restored once from the table,
+    // with its sharing, where entries merge.
+    exps: {
+        identity: () => {
+            /** @type {Exp} */
+            const x = ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const body = ['+', x, x]
+            /** @type {Exp} */
+            const e = ['=>', 1, [], body]
+            const { exps } = identity(e)
+            assertEq(exps.length, 5)
+            assertEq(exps[2], x)
+            assertEq(exps[3], body)
+            assertEq(exps[4], e)
+        },
+        merged: () => {
+            /** @type {() => Exp} */
+            const twin = () => ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const e = ['=>', 1, [], ['+', twin(), twin()]]
+            const { nodes, exps } = an(e)
+            assertEq(exps.length, nodes.length)
+            assertStructurallySame(exps.at(-1), e)
+            // the twins are one entry, so one expression
+            const [, , , body] = /** @type {readonly ['=>', number, readonly Exp[], readonly ['+', Exp, Exp]]} */ (exps.at(-1))
+            assertEq(body[1], body[2])
+        },
+        // Every kind of position restores: items and spreads, properties,
+        // captures, a comma, calls, and chains with every kind of step.
+        restored: () => {
+            /** @type {Exp} */
+            const a = ['args']
+            /** @type {Exp} */
+            const e = ['[]', [
+                ['[]', [a, ['...', a]]],
+                ['{}', [[':', 'k', a], ['...', a]]],
+                ['=>', 0, [a], ['frame', 0]],
+                [',', [a, 1]],
+                ['()', a, [a, ['...', a]]],
+                ['?.()', a, [a]],
+                ['?.()', a, [], ['|.', 'm', ['|?.()', []]]],
+                ['.', a, 'k'],
+                ['.', a, 'k', ['|()', [a]]],
+                ['.', a, 'k', ['|?.()', [a], ['|.', 'm', ['|!()', [a]]]]],
+                ['?.', a, 'k', ['|()', [a], ['|.', 'm']]],
+            ]]
+            const { exps } = an(e)
+            assertStructurallySame(exps.at(-1), e)
         },
     },
     // A node reached from two scopes is not a graph the compiler emits, and

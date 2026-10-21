@@ -30,20 +30,18 @@ import {
     countsView, failureOf, groupLabel, groupStatus, groupView, loadProofs,
     pendingView, reportDuration, reportOf, reportView, resultView, runProofs, runnerSource, unreported,
 } from './module.f.mjs'
-// The phrase for a value that will not be read is the runners' shared one:
-// this host meets such a value at its `import` boundary, where the walk cannot.
-// So is the fold that counts results: a group's label counts as the run does.
-import { addResult, unknownValue, zeroTotals } from '../module.f.mjs'
+// The fold that counts results is the runners' shared one: a group's label
+// counts as the run does.
+import { addResult, zeroTotals } from '../module.f.mjs'
 // **One markup, two renderers.** What a report looks like is decided once, by
 // the pure views in `./module.f.mjs`: the runner's demo returns them for the
 // demo runtime to render, and this page turns the same views into nodes as
 // rows land.
 import { fill, macrotask, toDom } from '../../media/html/module.mjs'
-import { _readThrown, asyncRun } from '../../effects/module.mjs'
+import { asyncRun, io } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
-import { ioError, toIoError } from '../../effects/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
-import { error, ok, unwrap } from '../../types/result/module.f.js'
+import { ok, unwrap } from '../../types/result/module.f.js'
 import { specifierKind } from '../../path/import/module.f.mjs'
 
 /**
@@ -280,32 +278,13 @@ export const startBrowserTestSources = (root, sources) => {
         //
         // Obtaining the promise is itself a failure point — a synchronous
         // throw would escape past a `loading` state that no report ever
-        // replaces — so it is caught and answered through the operation's own
-        // error channel, where the walk reads it as that module's failure.
-        import: async (/** @type {string} */ source) => {
-            try {
-                return ok(await import(specifier(root.ownerDocument.baseURI, source)))
-            } catch (cause) {
-                // **Reading runs the value's own code too.** A module that
-                // evaluates `throw { toString() { throw … } }` rejects with a
-                // value `_readThrown` cannot read, and an unguarded call here
-                // rejects the whole run — leaving the page at `Loading 0/N`
-                // with no report and no completion event, which is the one
-                // outcome an automated controller cannot act on. The value
-                // that will not be read is named rather than propagated.
-                //
-                // No proof pins this one. The fixture has to be a module that
-                // throws, and bun does not reject a top-level `throw` in a
-                // `data:` module at all, so the proof would assert one engine's
-                // behaviour rather than this code's — the mistake this branch
-                // already paid for once.
-                try {
-                    return error(toIoError(_readThrown(cause)))
-                } catch {
-                    return error(ioError({ message: unknownValue }))
-                }
-            }
-        },
+        // replaces — so it is caught by `io` and answered through the
+        // operation's own error channel, where the walk reads it as that
+        // module's failure. So is a rejection whose value will not be read,
+        // which `io` names rather than propagates: an unguarded read would
+        // reject the whole run and leave the page at `Loading 0/N` with no
+        // report, the one outcome an automated controller cannot act on.
+        import: (/** @type {string} */ source) => io(() => import(specifier(root.ownerDocument.baseURI, source))),
         report: async (/** @type {_BrowserEvent} */ event) => {
             if (event[0] === 'loading') {
                 loaded += 1

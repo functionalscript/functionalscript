@@ -26,7 +26,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { hexDigitCodePoint, hexDigitValue, lowerHexDigitValue } from '../../text/ascii/module.f.mjs'
+import { hexDigitCodePoint, hexDigitValue, lowerHexDigitValue } from '../../text/ascii/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 
 /** The two lowercase hex digit code points of a byte, the high one first. @type {(byte: U8) => readonly [number, number]} */

@@ -30,7 +30,7 @@
  *
  * What a key means is its reader's business, not the grammar's: the
  * repository format and the id width it names are
- * [`fjs/git/store`](../store/module.f.mjs)'s `tryOidBytes`. This module
+ * [`fjs/git/format`](../format/module.f.mjs)'s `tryOidBytes`. This module
  * answers every assignment in the file, and the readers below take a key's
  * from there the way Git takes them — {@link values} every one,
  * {@link lastValue} the one that wins, and {@link lastInt} and
@@ -47,7 +47,7 @@
  */
 
 import { entry as objectEntry } from '../../types/object/entry/module.f.js'
-import { charIs, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.mjs'
+import { charIs, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { untilNul } from '../bytes/module.f.js'
 
@@ -231,7 +231,7 @@ const lines = text => {
  * The number digits spell in a radix, or `null` where they are none or
  * one of them is no digit of it: `0-9` below the radix, and for 16 the
  * letters `a-f` in either case as well, each through
- * [`fjs/text/ascii`](../../text/ascii/module.f.mjs)'s digit-run readers.
+ * [`fjs/text/ascii`](../../text/ascii/module.f.js)'s digit-run readers.
  *
  * @type {(digits: string, radix: bigint) => Nullable<bigint>}
  */

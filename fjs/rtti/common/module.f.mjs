@@ -32,6 +32,9 @@
  *   between `validate` and `parse`.
  * - `orVisit`: the shared `or` handler — try each variant's recursive walker,
  *   return the first match.
+ * - `readerOf`: a whole schema-form reader from what it collects and what it
+ *   builds of each container kind. Both schema-form readers are one call of
+ *   it, so the container shapes they read are written once.
  *
  * Keeping the kernel here gives schema-driven consumers a stable shared base
  * that does not depend on any one of them.
@@ -42,7 +45,7 @@
  * @import { ConstObject, Const, Info0, Primitive0, Struct, Tuple, Type } from '../types.ts'
  * @import { Error, Result as CommonResult } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { Finish, Fits, Validate, Visitor, IsContainer, Reader, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
+ * @import { Finish, Finishes, Fits, Validate, Visitor, IsContainer, Reader, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.js'
@@ -657,3 +660,72 @@ export const visit =
         }
         return visitConst(v)(rtti)
     }
+
+/** A bare tuple fits when it is no longer than declared. @type {Fits<ReadonlyArray<Unknown>>} */
+const tupleFits = (value, declared) => value.length <= declared
+
+/** An object fits whatever keys it holds besides the declared ones. @type {Fits<StringMap<Unknown>>} */
+const objectFits = () => true
+
+/** @type {(value: ReadonlyArray<Unknown>, k: string) => Unknown} */
+const tupleItem = (value, k) => value[Number(k)]
+
+/** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
+const structItem = (value, k) => value[k]
+
+/**
+ * A schema-form reader, whole: from what it collects of a container's members
+ * (`empty` and `cons`, as a {@link Reader} has them) and what it builds of each
+ * container kind once they are read (`finish`), the recursive function from a
+ * schema to its `ValidateE`. `validate` and `parse` are each one call of it.
+ *
+ * Everything else is the same for both, so it is written here once: the three
+ * container skeletons instantiated per kind, with the container test, the
+ * member accessor and the fit each kind is read with; the `rest` dispatch
+ * between a tuple and a struct; the `or`; and the handlers that read no
+ * container. So the readers agree on a container's shape by construction, not
+ * by keeping two instantiations alike.
+ *
+ * `emptyRest` decides when a rest admits nothing, which the array kind's
+ * length bound needs: an `array(or())` is the empty array and not any number
+ * of holes, and a `rest` whose set is empty bounds a tuple as the bare form
+ * does. It is the data form's (`../data/module.f.mjs`), and it is an argument
+ * because that module imports this one.
+ *
+ * @template A
+ * @param {Omit<Reader<A>, 'read'>} collect
+ * @param {Finishes<A>} finish
+ * @param {(c: ConstObject, r: Type) => boolean} emptyRest
+ * @returns {(rtti: Type) => ValidateE}
+ */
+export const readerOf = ({ empty, cons }, finish, emptyRest) => {
+    /** @type {(rtti: Type) => ValidateE} */
+    const read = rtti => visit(visitor)(rtti)
+    /** @type {Reader<A>} */
+    const reader = { read, empty, cons }
+    /** @type {(c: ConstObject, r: Type) => Fits<ReadonlyArray<Unknown>>} */
+    const tupleRestFits = (c, r) => (value, declared) => value.length <= declared || !emptyRest(c, r)
+    const container = containerRead(reader)
+    const constContainer = constContainerRead(reader)
+    const restContainer = restContainerRead(reader)
+    const restTuple = restContainer(isArray, tupleSchemaEntries, tupleItem, tupleRestFits, finish.tuple)
+    const restStruct = restContainer(isObject, structSchemaEntries, structItem, () => objectFits, finish.struct)
+    /** @type {Visitor<ValidateE>} */
+    const visitor = {
+        tuple: constContainer(isArray, tupleSchemaEntries, tupleItem, tupleFits, finish.tuple),
+        struct: constContainer(isObject, structSchemaEntries, structItem, objectFits, finish.struct),
+        rest: (c, r) => c instanceof Array ? restTuple(c, r) : restStruct(c, r),
+        array: container(isArray, item => tupleRestFits([], item), finish.array),
+        record: container(isObject, () => objectFits, finish.record),
+        or: orVisit(read),
+        constPrimitive: constPrimitiveValidate,
+        primitive0: primitive0Validate,
+        unknown: () => ok,
+        // Absence is decided by the container loop before dispatch, so a value
+        // that reaches this handler is present — and no present value is
+        // absent. An ordinary error is what lets `orVisit` try the other
+        // members of `or(option, t)`.
+        option: () => () => verror('unexpected value'),
+    }
+    return read
+}

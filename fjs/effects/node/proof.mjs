@@ -34,7 +34,7 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError, pureError, pureOk, resultMapStep, resultStep, step } from '../module.f.mjs'
+import { ioError, pureError, pureOk, resultMapStep, resultStep, step, unreadableThrownValue } from '../module.f.mjs'
 import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
 import { byteLength, length, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -52,7 +52,6 @@ import {
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
     writeFile as writeFileEffect,
 } from './module.f.mjs'
-import { _unreadableThrownValue } from '../module.mjs'
 import { _wrapInlineTest, readFlags, runEffect } from './module.mjs'
 import { isNode, loopback, within, withServer, withTemporary } from './testlib.mjs'
 
@@ -740,9 +739,9 @@ export const proof = {
             /** @type {readonly (readonly [string, string, string | undefined])[]} */
             const cases = [
                 ['throw new Error("plain")', 'plain', undefined],
-                ['throw { toString() { throw 1 } }', _unreadableThrownValue, undefined],
-                ['throw { get code() { throw 1 } }', _unreadableThrownValue, undefined],
-                ['throw { get message() { throw 1 } }', _unreadableThrownValue, undefined],
+                ['throw { toString() { throw 1 } }', unreadableThrownValue, undefined],
+                ['throw { get code() { throw 1 } }', unreadableThrownValue, undefined],
+                ['throw { get message() { throw 1 } }', unreadableThrownValue, undefined],
                 // A string on the first read, an object on any later one: each
                 // field is read once, so the string is what is kept.
                 ['let n = 0; throw { get message() { return n++ === 0 ? "a" : {} } }', 'a', undefined],

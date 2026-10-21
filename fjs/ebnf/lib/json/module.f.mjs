@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Rule } from '../../types.ts'
- * @import { Container, ContainerNode, Entry, JsonValue, Value } from './types.ts'
+ * @import { Container, ContainerNode, Entry, EntryNode, JsonValue, Value } from './types.ts'
  */
 
 import { assert } from "../../../asserts/module.f.js"
@@ -106,6 +106,19 @@ export const cj = (oc, item) => {
  * @type {<T>(node: ContainerNode<T>) => readonly T[]}
  */
 export const items = ([, , list]) => joined(unmapped(list)).map(pair => unmapped(pair)[0])
+
+/**
+ * The key and the value of an entry `object` built, read out of the node the
+ * machine built for it. The colon and the whitespace around it are
+ * scaffolding, as `items`' pairs are; the key and the value may be mapped,
+ * and are returned as they stand. Typed by the shape of the node.
+ *
+ * @type {<K, V>(node: EntryNode<K, V>) => readonly [K, V]}
+ */
+export const entry = node => {
+    const [key, , , , value] = unmapped(node)
+    return [key, value]
+}
 
 /** @type {<const V extends Rule>(v: V) => Container<V>} */
 export const array = v => cj('[]', v)

@@ -206,6 +206,18 @@ export const last = first => tail => {
 /** @type {<D>(def: D) => <T>(f: (value: T) => boolean) => (input: List<T>) => D | T} */
 export const find = def => f => compose(filter(f))(first(def))
 
+/**
+ * The first answer `f` gives for an item of `input` that is not `null`, or
+ * `null` when it gives none. `filterMap` drops the `null`s lazily, so `f` is
+ * not called past the first answer.
+ *
+ * [`fjs/types/array`](../array/module.f.mjs)'s `findMap` is the same over an
+ * array, for a recursive walk that cannot spend the frames a lazy list takes.
+ *
+ * @type {<I, O>(f: (value: I) => O | null) => (input: List<I>) => O | null}
+ */
+export const findMap = f => compose(filterMap(f))(first(null))
+
 /** @type {(input: List<boolean>) => boolean} */
 export const some = find(false)(identity)
 

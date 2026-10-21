@@ -11,7 +11,8 @@ import { throws } from 'node:assert/strict'
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { interpret, noRuntime } from '../../../compiler/transpiler/module.f.mjs'
-import { _unreadableThrownValue, asyncPartialRun, asyncRun } from '../../../effects/module.mjs'
+import { asyncPartialRun, asyncRun } from '../../../effects/module.mjs'
+import { unreadableThrownValue } from '../../../effects/module.f.mjs'
 import { virtualAt } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { isObject } from '../../../types/object/module.f.mjs'
@@ -155,7 +156,7 @@ export const proof = {
     unreadableThrown: async () => {
         /** @type {readonly (readonly [string, string, string | undefined])[]} */
         const cases = [
-            ['throw { get message() { throw 1 } }', _unreadableThrownValue, undefined],
+            ['throw { get message() { throw 1 } }', unreadableThrownValue, undefined],
             // A string on the first read, an object on any later one: each
             // field is read once, so the string is what is kept.
             ['let n = 0; throw { get message() { return n++ === 0 ? "a" : {} } }', 'a', undefined],

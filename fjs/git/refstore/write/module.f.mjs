@@ -49,7 +49,7 @@ import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive }
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { ancestors, parent, under } from '../../../path/module.f.mjs'
 import { length, maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
-import { solidus as slash } from '../../../text/ascii/module.f.mjs'
+import { solidus as slash } from '../../../text/ascii/module.f.js'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { startsWith } from '../../bytes/module.f.js'

@@ -25,4 +25,9 @@ const captures = [
     ['Recursion', 'const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);'],
 ]
 
-export default { index, parameters, captures, all: [...index, ...parameters, ...captures] }
+/** @type {Examples} */
+const callStatements = [
+    ['Call statements', 'const assert = (...a) => a[0] ? undefined : (() => { throw a[1]; })();\nconst at = (a, i) => {\n    assert(i < a.length, "out of range");\n    return a.at(i);\n};\nexport default at([1, 2, 3], 2);'],
+]
+
+export default { index, parameters, captures, callStatements, all: [...index, ...parameters, ...captures, ...callStatements] }

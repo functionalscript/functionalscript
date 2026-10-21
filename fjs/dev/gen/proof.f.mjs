@@ -21,6 +21,7 @@ import { main as ci } from '../../ci/self/module.f.mjs'
 import { main as rustTests } from '../../nanvm/update/module.f.mjs'
 import { corpus, main as matrix, modules as corpusModules } from '../../media/datajs/vectors/matrix/module.f.mjs'
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.mjs'
+import { main as demos } from '../../nanvm/demos/module.f.mjs'
 import { main as cloudflare } from '../../website/cloudflare/module.f.mjs'
 import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
@@ -74,7 +75,14 @@ const root = {
         },
     },
     'nanvm': { 'harness': { 'fixtures': {} } },
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } } },
+    'fjs': {
+        'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } },
+        'nanvm': { 'demos': {
+            'hello': { 'sample.f.mjs': [utf8('export default () => 1;')] },
+            'sort': { 'sample.f.mjs': [utf8('export default () => 2;')] },
+            'collatz': { 'sample.f.mjs': [utf8('export default () => 3;')] },
+        } },
+    },
 }
 
 /** A program that logs `s` and exits `0`. @type {(s: string) => NodeProgram} */
@@ -84,13 +92,14 @@ export const proof = {
     // The order is the design's: cleanup, then the generators, the one that
     // writes the flakes before the lock step that reads them.
     generators: () => {
-        assertEq(generators.length, 6)
+        assertEq(generators.length, 7)
         assert(generators[0] === clean)
         assert(generators[1] === ci)
         assert(generators[2] === rustTests)
         assert(generators[3] === matrix)
         assert(generators[4] === fixtures)
-        assert(generators[5] === cloudflare)
+        assert(generators[5] === demos)
+        assert(generators[6] === cloudflare)
     },
     sequence: {
         allSucceed: () => {

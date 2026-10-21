@@ -16,9 +16,9 @@ import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
 import { codeUnitToString, stringToList } from '../../text/utf16/module.f.mjs'
-import { includes } from '../../types/array/module.f.mjs'
+import { findMap, includes } from '../../types/array/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../text/ascii/module.f.mjs'
+import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../text/ascii/module.f.js'
 
 /**
  * Void Elements
@@ -188,9 +188,10 @@ export const pageRefusal = e => {
         return `media/html: the attribute '${name}' is not a plain name: a page would read other markup`
     }
     if (isVoidTag(tag) || isRawText(tag)) { return null }
-    return children.reduce(
-        (/** @type {string | null} */ found, child) => found ?? (typeof child === 'string' ? null : pageRefusal(child)),
-        null)
+    return findMap(
+        /** @type {(child: Node) => string | null} */
+        child => typeof child === 'string' ? null : pageRefusal(child))
+        (children)
 }
 
 /**

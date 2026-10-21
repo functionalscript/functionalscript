@@ -53,7 +53,7 @@ import {
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
-import { isDigits } from '../text/ascii/module.f.mjs'
+import { isDigits } from '../text/ascii/module.f.js'
 import { percentDecode, percentEncodePath } from '../text/percent/module.f.mjs'
 import { unwrap } from '../types/nullable/module.f.js'
 import { error, ok } from '../types/result/module.f.js'

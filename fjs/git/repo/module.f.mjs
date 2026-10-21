@@ -23,7 +23,7 @@
  *
  * The answer is where Git would look and not a promise that a repository
  * is there: reading `config` at it is what says whether one is, and that is
- * `fjs/git/store`'s `oidBytes`.
+ * `fjs/git/format`'s `oidBytes`.
  *
  * Two things about a path Git has and this does not, and both are answered
  * by refusing rather than by guessing. A path is bytes to Git and a string
@@ -288,7 +288,7 @@ const tryGitdir = (worktree, size, text) => {
  * is what a `gitdir:` line named, since the `commondir` under it is absent
  * exactly as it is absent under a main repository. Whether a repository is
  * at the answer is what reading `config` there says, and that is
- * `fjs/git/store`'s `oidBytes`.
+ * `fjs/git/format`'s `oidBytes`.
  *
  * @type {(worktree: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
  */

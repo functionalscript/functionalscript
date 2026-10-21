@@ -15,7 +15,7 @@
 import { resultMarker, powResultMarker } from '../../website/style/module.f.js'
 import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.mjs'
+import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'

@@ -55,6 +55,7 @@ so every DataJS document parses here.
 |combined imports|`import value, { name } from "./path";`|
 |JSON import|`import name from "./path.json" with { type: "json" };`|
 |constant|`const name = expression;`|
+|call statement|`name(expression);`|
 |named export|`export const name = expression;`|
 |default export|`export default expression;`|
 |throw|`throw expression;`|
@@ -68,7 +69,9 @@ export default [base, extra];      // optional, at most one, last
 ```
 
 These are the module-level statement forms. A statement begins with `import`,
-`const`, `export`, or `throw`, and never with a value; more forms land as the
+`const`, `export`, or `throw`, or with the name of a call statement, which
+stands wherever a `const` does
+([call statements](../functions/call-statements.md)); more forms land as the
 language grows ([`spec/todo/`](../todo/README.md)).
 
 JavaScript accepts `throw` at the top level of a module, and

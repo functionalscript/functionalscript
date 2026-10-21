@@ -51,7 +51,7 @@
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
-import { hexDigitsValue } from '../../../text/ascii/module.f.mjs'
+import { hexDigitsValue } from '../../../text/ascii/module.f.js'
 import { codeUnitToString } from '../../../text/utf16/module.f.mjs'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.js'
@@ -59,7 +59,7 @@ import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, unitAt, units } from '../../../ebnf/utf16/module.f.mjs'
-import { character, escape, items, json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'
+import { character, entry as jsonEntry, escape, items, json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'
 const { fromEntries } = Object
 
 /**
@@ -198,7 +198,7 @@ const pair = key => value => [key, value]
 const entry = node => {
     /** @type {Tagged<Out<P>, 'json', 'result'>} */
     const { at } = jsonTag()
-    const [key, , , , v] = unmapped(node)
+    const [key, v] = jsonEntry(node)
     return mapOk(pair(textAt(key)))(at(v))
 }
 

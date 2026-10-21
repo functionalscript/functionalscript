@@ -206,6 +206,9 @@ information — see [serialization](../design/serialization.md) and
    `length` is JavaScript's; no new EDAG node. Parameter defaults are
    implemented ([functions](../functions/README.md)); pattern defaults and
    the designer approval remain open.
+5. [x] [call statements](../functions/call-statements.md) — `assert(a);`, a
+   call evaluated for its failure, lowered as an unread `const` to the `,`
+   anchor; no new EDAG node.
 
 ### 3.5. Priority 4
 
