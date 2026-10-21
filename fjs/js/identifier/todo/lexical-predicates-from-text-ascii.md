@@ -14,7 +14,6 @@ still carrying their own:
 |-|-|
 |[`fjs/text/ascii`](../../../text/ascii/module.f.js)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges; `charIs`, any of them asked of a one-character string; `isDigits`, a string of decimal digits; and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
 |[`fjs/git/refstore/scope`](../../../git/refstore/scope/module.f.js)|`isPseudoref`, the capital letters as `'A'`..`'Z'` — a `.f.js`, which can import only what `fjs compile` accepts, as it accepts `text/ascii` now|
-|[`fjs/media/datajs/vectors/matrix`](../../../media/datajs/vectors/matrix/module.f.mjs)|`lower`, `upper` and `digits`, the classes spelled out as string literals|
 
 Most of these ask about a one-character *string*, where `text/ascii`'s
 classes take a code point, which is part of why each consumer wrote its own;
@@ -98,7 +97,7 @@ written out again.
 - [x] `fjs/path`: `isDriveLetter` over `isLatinLetter`.
 - [x] `fjs/media/nix`: its range sets over `text/ascii`'s classes, keeping
       Nix's own identifier rule.
-- [ ] `fjs/media/datajs/vectors/matrix`: `lower`, `upper` and `digits` over
+- [x] `fjs/media/datajs/vectors/matrix`: `lower`, `upper` and `digits` over
       the classes, keeping the punctuation each allowed set adds.
 - [x] `fjs/compiler/serializer`: `identifierKey` becomes `isIdentifier`, with
       nothing added. Its proof walks every keyword and expects `.k` for each,
