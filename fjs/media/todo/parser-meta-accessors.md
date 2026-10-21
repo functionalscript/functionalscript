@@ -48,7 +48,7 @@ constraint `tagged` below requires, so the twelve `id`-and-field steps are
 instances of it. The three members that carry more stay with their own
 readers: `value` and `paren`, read by `nodeAt` under either id, and `last`,
 read by `lastAt`. `outAt` is a different step and stays: a parser leaf's
-`meta` is `DjsTokenWithMetadata | Out`, and a token deliberately has no
+`meta` is `ModuleTokenWithMetadata | Out`, and a token deliberately has no
 `id`, so `outAt`'s `assert('id' in meta)` is the narrowing from the
 grammar's input alphabet to its output one, which `Tagged.at` — typed over
 `{ readonly id: string }` — cannot perform. `Tagged.at` takes the *node*

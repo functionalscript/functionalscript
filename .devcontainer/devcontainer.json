@@ -1,18 +1,16 @@
 {
     "name": "FunctionalScript",
-    "image": "mcr.microsoft.com/devcontainers/base:debian",
-    "features": {
-        "ghcr.io/devcontainers/features/nix:1": {}
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
     },
-    "postCreateCommand": "sh ./dev.sh npm ci",
-    "customizations": {
-        "vscode": {
-            "settings": {
-                "terminal.integrated.defaultProfile.linux": "FunctionalScript",
-                "terminal.integrated.profiles.linux": {
-                    "FunctionalScript": { "path": "sh", "args": ["./dev.sh"] }
-                }
-            }
+    "features": {
+        "ghcr.io/devcontainers/features/nix:1": {
+            "flakeUri": "path:/opt/fjs-nix#devTools"
         }
-    }
+    },
+    "containerEnv": {
+        "CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER": "/nix/var/nix/profiles/default/bin/fjs-i686-cc"
+    },
+    "postCreateCommand": "npm ci"
 }

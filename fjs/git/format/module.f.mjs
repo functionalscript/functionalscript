@@ -2,7 +2,7 @@
  * The repository format a `config` declares: the version, the extensions
  * Git 2.43 knows, and the id width that follows — 20 bytes for SHA-1, 32 for
  * SHA-256. {@link tryOidBytes} reads it from the entries
- * [`fjs/git/config`](../config/module.f.mjs)'s `tryEntries` reads, and
+ * [`fjs/git/config`](../config/module.f.js)'s `tryEntries` reads, and
  * {@link oidBytes} from a repository's `config` file.
  *
  * Every reader of an object takes the width as a parameter, so the object
@@ -24,7 +24,7 @@ import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
 import { map } from '../../types/nullable/module.f.js'
-import { lastBool, lastInt, lastValue, tryEntries, values } from '../config/module.f.mjs'
+import { lastBool, lastInt, lastValue, tryEntries, values } from '../config/module.f.js'
 
 /**
  * The extensions Git 2.43 reads whatever the version says, as it
@@ -156,7 +156,7 @@ const extensionValuesRead = entries =>
 
 /**
  * The id width a repository's `config` names, from its entries as
- * [`fjs/git/config`](../config/module.f.mjs)'s `tryEntries` reads them, or
+ * [`fjs/git/config`](../config/module.f.js)'s `tryEntries` reads them, or
  * `null` where the file is one Git refuses. 32 bytes needs
  * `extensions.objectFormat = sha256` under `repositoryformatversion = 1`,
  * which is what `git init --object-format=sha256` writes; everything else

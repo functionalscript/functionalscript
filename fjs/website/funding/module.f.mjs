@@ -32,6 +32,7 @@ import { array, open, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
+import { charIs, hyphenMinus, isDigit, isDigits, isLatinLetter } from '../../text/ascii/module.f.js'
 
 /**
  * Where the funding channels are read from, relative to the repository root.
@@ -53,16 +54,13 @@ export const fundingSchema = open(/** @type {const} */ ({
 
 const parseSchema = rttiParse(fundingSchema)
 
-/** @type {(c: string) => boolean} */
-const isDigit = c => c >= '0' && c <= '9'
-
 /**
  * Whether `c` may appear in a domain name's label: an ASCII letter, a digit,
  * or `-`.
  *
  * @type {(c: string) => boolean}
  */
-const isLabelChar = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || isDigit(c) || c === '-'
+const isLabelChar = charIs(c => isLatinLetter(c) || isDigit(c) || c === hyphenMinus)
 
 /** @type {(s: string) => boolean} */
 const isLabel = s => s !== '' && s.split('').every(isLabelChar)
@@ -81,7 +79,7 @@ const isLabel = s => s !== '' && s.split('').every(isLabelChar)
 const isAuthority = authority => {
     const [host, ...port] = authority.split(':')
     return host.split('.').every(isLabel)
-        && (port.length === 0 || (port.length === 1 && port[0] !== '' && port[0].split('').every(isDigit)))
+        && (port.length === 0 || (port.length === 1 && isDigits(port[0])))
 }
 
 /** The scheme every funding address must use. */

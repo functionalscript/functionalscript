@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import entry from './sample.f.mjs'
+import entry from './sample.f.js'
 import { demo } from './demo.f.mjs'
 
 export const proof = {

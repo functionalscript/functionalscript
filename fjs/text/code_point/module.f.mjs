@@ -18,6 +18,7 @@
 
 import { empty, flat, stateScan } from '../../types/list/module.f.mjs'
 import { contains } from '../../types/range/module.f.js'
+import { assert } from '../../asserts/module.f.js'
 
 //
 
@@ -234,3 +235,18 @@ const textWhitespace = contains(0x09, 0x0d)
  */
 export const isTextCodePoint = c =>
     textWhitespace(c) || !(c0Control(c) || delAndC1Control(c))
+
+/**
+ * A code point as Unicode writes it: `U+`, then its value in upper-case hex,
+ * at least four digits — `U+000A`, `U+0041`, `U+1F600`. A surrogate has the
+ * notation too (`U+D800`); a decoder's `errorMask`-tagged value, a
+ * non-integer and anything past `U+10FFFF` have none, and are refused.
+ *
+ * @throws If `c` is not an integer in `0`..`0x10FFFF`.
+ *
+ * @type {(c: CodePoint) => string}
+ */
+export const unicodeNotation = c => {
+    assert(Number.isInteger(c) && validRange(c), ['not a code point', c])
+    return `U+${c.toString(16).toUpperCase().padStart(4, '0')}`
+}

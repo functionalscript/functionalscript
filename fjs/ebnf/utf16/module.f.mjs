@@ -26,6 +26,7 @@ import { assert } from '../../asserts/module.f.js'
 import { listToString, stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { isUintUpTo } from '../../types/number/module.f.mjs'
+import { isObject } from '../../types/object/module.f.mjs'
 
 /**
  * The metadata of every unit: one frozen record, shared by every leaf, so
@@ -62,12 +63,9 @@ const isUnit = isUintUpTo(0xFFFF)
  * @type {(node: unknown) => number}
  */
 export const unitAt = node => {
-    assert(typeof node === 'object' && node !== null && !(node instanceof Array))
-    /** @type {{ readonly symbol?: unknown, readonly meta?: unknown }} */
-    const leaf = node
-    const { symbol, meta } = leaf
-    assert(typeof meta === 'object' && meta !== null)
-    /** @type {{ readonly id?: unknown }} */
+    assert(isObject(node))
+    const { symbol, meta } = node
+    assert(isObject(meta))
     const { id } = meta
     assert(id === utf16.id && isUnit(symbol))
     return symbol
