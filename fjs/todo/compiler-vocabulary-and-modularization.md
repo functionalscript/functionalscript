@@ -56,25 +56,10 @@ The older [demo document](../../todo/demo/README.md), explicitly marked stale,
 uses BAST for a different concept, "Binary Abstract Syntax Tree". That
 historical meaning is not renamed or adopted by this proposal.
 
-FAST retains the semantics of local rebinding without requiring mutable cells
-or JavaScript-shaped `let`/`while` nodes. Assignments establish fresh values;
-branches produce results. A core `loop` has immutable iteration parameters,
-explicit results and targeted `continue`, `break` and source-function `return`.
-Several common FAST passes may normalize these forms; each has explicit
-input/output invariants and a terminating pass order. Structured loops stay
-in their original regions, including inside branches and other loops.
-
-`from_fast` introduces recursive helpers when constructing EDAG, not during
-FAST normalization. Normal loop completion returns state; an enclosing-function
-return propagates through a distinct completion only where needed. `to_fast`
-reconstructs eligible loops; common emission preparation then establishes
-physical state slots, simultaneous updates and immutable capture snapshots.
-This adds no EDAG loop node or new source keyword, and needs no general
-continuation-passing transformation or global liveness analysis.
-The [general loops and tail calls epic](./general-loops-and-tail-calls.md)
-orders the relevant FAST prerequisites and the later grammar/analysis work.
-Introducing FAST and migrating the existing template do not themselves enable
-those broader source forms.
+The [FAST contract](#fast-contract) below defines the common representation.
+The [epic](./general-loops-and-tail-calls.md#implementation-order) requires its
+implementation and migration of the existing language before new features.
+Language admission and detailed conversion algorithms stay with their owners.
 
 The symmetry is in the conversion boundaries:
 
@@ -100,22 +85,20 @@ normalizations.
 | Module | Responsibility |
 | --- | --- |
 | `fjs/js/tokenizer` | JS text to tokens, and token rendering back to marked/plain text. Own lexical spelling, escaping and separation. Reuse the existing tokenizer. |
-| `fjs/js/ast` | AST and FAST definitions, with an explicit list of basic constructs and their invariants. |
-| `fjs/js/ast/sugar` | AST → FAST desugaring, including single-evaluation conditional forms for `&&`, `\|\|` and `??`. Common FAST normalization has a documented owner beside the shared representation. |
-| `fjs/js/ast/serializer` | FAST → JS tokens; marked-text output composes this with token rendering. |
+| `fjs/js/ast` | AST and shared FAST definitions, binding/target identities, and normalized/prepared stage contracts. |
+| `fjs/js/ast/sugar` | AST → normalized FAST, using common normalization routines; owns source sugar and explicit source branch/loop signatures. |
+| `fjs/js/ast/prepare` | Normalized → prepared FAST: shared slot/temporary lowering, invocation lifetimes and value captures for all serializers. |
+| `fjs/js/ast/serializer` | Prepared FAST → JS tokens; marked-text output composes this with token rendering. |
 | `fjs/js/ast/parser` | A stream of JS tokens → AST. |
 | `fjs/edag` | EDAG definitions, operation shapes and invariants, independent of a particular producer or backend. |
-| `fjs/edag/from_fast` | FJS-admitted FAST → EDAG; preserve references/anchors and introduce recursive helpers with explicit state and completion handling for structured loops. |
+| `fjs/edag/from_fast` | Normalized FAST → EDAG; consumes explicit bindings and loop signatures, preserving references/anchors and constructing recursion. |
 | `fjs/edag/optimizer` | Explicit EDAG → EDAG transformations. |
 | `fjs/edag/to_fast` | EDAG → FAST; one shared implementation of semantic bindings, evaluation-region placement and tail-loop lowering for all backends. |
-| `fjs/rust/serializer` | FAST → Rust tokens or marked text, with Rust-specific syntax and runtime operation spelling. |
+| `fjs/rust/serializer` | Prepared FAST → Rust tokens or marked text, with Rust-specific syntax and runtime operation spelling. |
 
-The module map is a proposal, not a description of the current directories.
-The initially proposed names `fjs/edag/parser` and `fjs/edag/serializer` remain
-alternatives to `from_fast` and `to_fast`. Prefer the explicit names because
-they identify the Foundation AST boundary and avoid confusion with reading or
-writing an EDAG document as data. Settle the names in the architecture
-increment before moving modules.
+The module map is the target organization, not the current directories.
+Use `from_fast` and `to_fast` for the graph boundaries; this distinguishes
+them from reading/writing an EDAG document as data.
 
 Token rendering owns target-specific lexical rules; the FAST serializers own
 syntactic structure and precedence. Marked-text representation and demarking
@@ -135,20 +118,15 @@ owners; this proposal does not require a Rust input parser.
   reinterpret destructuring or defaults. Preserve one evaluation of an
   initializer, use fresh bindings, retain relevant source origins, and
   preserve scope, conditional evaluation and observable function arity.
-  Normalize `&&`, `||` and `??` to conditionals with one established left
-  operand; normalized FAST and canonical EDAG have no dedicated operations
-  for them. The [operation-removal TODO](../edag/todo/short-circuit-conditionals.md)
-  owns the schema and producer/consumer migration, independent of optimization.
+  The [short-circuit owner](../edag/todo/short-circuit-conditionals.md) specifies
+  conditional lowering and schema migration after the FAST foundation gate.
 - **Graph construction preserves source sharing.** References to one binding
   refer to one graph node. Distinct equal expressions remain distinct unless
   an explicit, permitted optimization merges them.
-- **Graph construction owns recursive loop helpers.** FAST keeps explicit
-  loop state/results and resolved exit destinations. `from_fast` introduces
-  helpers at the loop's execution point, returning state on normal completion
-  and propagating enclosing-function returns separately. Inner helpers return
-  to their callers; they do not call outer helpers to continue outer loops.
-  Reuse a canonical root loop's function only when its full invocation/state
-  contract matches, so one-time setup stays once and round trips add no wrappers.
+- **Graph construction consumes explicit control flow.** State/result selection
+  belongs to AST-to-FAST. The [loop-construction owner](../edag/todo/fast-loop-construction.md)
+  specifies helper encoding, completion propagation and root-loop reuse.
+  `from_fast` has no source-mutability or liveness analysis.
 - **Optimization is independent of correct lowering.** Graph construction
   must produce a correct EDAG without relying on optimization. An anchor can
   be removed when the remaining computation already guarantees evaluation of
@@ -160,20 +138,10 @@ owners; this proposal does not require a Rust input parser.
   same placed FAST. Any additional expression-to-binding normalization needed
   for emission belongs in common FAST processing used by all targets, rather
   than a separate binding policy in the Rust serializer.
-- **Graph-to-FAST owns tail-loop lowering.** Reuse `edag/loop`'s `loopOf`
-  and `keepsRecursion` in the common conversion. It decides whether to keep
-  recursion, emit a loop within a function, or replace an eligible immediate
-  call with a loop in its enclosing block. Make per-iteration bindings and
-  value captures explicit in FAST before serialization; removing a call or
-  function boundary must preserve its capture and evaluation semantics.
-  The [tail-loop migration](../edag/todo/tail-call-loop.md#fast-migration)
-  supersedes writer-specific decisions and records the closure, lazy-sharing
-  and stack-safety requirements. Every target renders the same decision;
-  none recognizes or lowers tail calls itself.
-  Broader analysis combines candidate traversal with evaluation placement:
-  reading an already-established recursive result is not a tail-call evaluation.
-  Common emission preparation materializes simultaneous next-state values,
-  invocation setup and capture snapshots before serializers render them.
+- **Graph-to-FAST owns tail-loop lowering.** The
+  [tail-call owner](../edag/todo/tail-call-loop.md) defines existing-case migration,
+  evaluation-aware eligibility and invocation requirements. It uses the common
+  placement analysis; every serializer renders the same decisions.
 - **MVP backends own target spelling and runtime mapping.** Serializers render
   the bindings and computations already expressed in FAST, using the target's
   syntax and runtime operations. They do not traverse EDAG, rediscover graph
@@ -190,6 +158,85 @@ owners; this proposal does not require a Rust input parser.
 - **Validation respects boundaries.** Internal producers maintain their
   representation invariants. Separately supplied EDAG data is validated at
   its admission boundary, as today.
+
+#### FAST contract
+
+Milestone A implements this contract with shared types and its first consumer.
+The notation below describes semantics; constructor/type spelling is settled
+in that implementation and documented with the exported API.
+
+Use stable identities for bindings/values, functions and loop targets.
+Identifiers printed by a serializer are presentation. Source bindings may
+map to successive immutable values; that source mapping is not part of
+`from_fast`'s input.
+
+| Normalized construct | Contract |
+| --- | --- |
+| Value and reference | Literals, operations and functions retain existing EDAG semantics; a reference uses an established identity rather than copying its initializer. |
+| Required binding/evaluation | Establish an initializer at its position, even if its result is unused. Preserve eager anchors. |
+| Shared lazy definition | Where existing EDAG sharing requires it, establish a value on its first reached use and reuse it within the owning invocation/iteration. Reuse current sharing/memo semantics; do not make it eager. |
+| Result block and `yield(values)` | A normally completing block supplies its declared result list. An abrupt exit supplies no normal results. |
+| `if(condition, then, else)` | Evaluate the condition once and only the selected arm. Normally completing arms agree on the result signature. |
+| `loop L(parameters = initialValues) -> results` | Evaluate initial values once at entry. Parameters denote immutable values for one iteration; inputs and results have separate ordered signatures. |
+| `continue L(values)` | Evaluate every next value under the current iteration before transferring them simultaneously to L's parameters. |
+| `break L(values)` | Supply L's result signature and resume after L. |
+| `return F(value)` | Exit the identified enclosing function, through structured loops. It cannot target a different ordinary function's scope. |
+| `throw value` | Use the existing failure channel. |
+
+Loop bodies have explicit next-iteration or exit transfers; no implicit
+fallthrough remains. Break/continue targets are lexically enclosing loops in
+the same function. References remain within their value/capture scopes.
+Source labels and new EDAG operations are not implied by these internal
+identities.
+
+For example, a loop with two parameters and one result is:
+
+```text
+answer = loop L(a = initialA, b = initialB) -> (result) {
+    if (done(a, b)) { break L(a) }
+    continue L(b, a + b)
+}
+return F(answer)
+```
+
+The normalized representation has immutable values and semantic transfers.
+The prepared stage uses the same shared vocabulary plus explicit local slot
+declarations, reads and writes needed for target statements. Common `prepare`
+retains expression-valued conditionals where they suffice, and lowers transfers
+that need stateful statements to slots. Ordinary conditionals must not acquire
+a dependency on the later standalone-`let` grammar. Its slot lowering must:
+
+- Establish all next-state temporaries before writing any state slot.
+- Bind fresh immutable iteration values/snapshots before creating captures;
+  generated closures never capture mutable implementation slots.
+- Establish result slots on every normal exit before following code reads them.
+- Reset invocation-local shared values and memo storage on each new invocation
+  represented by an iteration; preserve conditional evaluation.
+- Keep slots private to their owning function/region and preserve lexical
+  transfer targets. Serializers map the resulting instructions to syntax.
+
+This is a stage distinction, not a second independent compiler IR.
+`from_fast` consumes normalized FAST only; serializers consume prepared FAST.
+Graph round-trip claims apply before physical preparation. No serializer
+repeats state selection, placement or parallel-update analysis.
+
+The fixed call order is source resolution/admission, AST-to-FAST normalization,
+then `from_fast`; output is `to_fast`, then `prepare`, then serialization.
+Normalization routines may be split into small common passes. Each states
+which constructs it consumes/produces and runs in a fixed order; no unbounded
+rewrite-until-stable driver or general optimizer is required. Source capture
+checks precede generated functions, and only graph construction introduces
+recursive helpers.
+
+A's examples/proofs cover a branch with results, a swapped-parameter loop,
+normal versus function exit, an overwritten required initializer, lazy shared
+evaluation and a captured iteration value. The API must express these before
+downstream work depends on it.
+
+A also records the supported exact-graph domains and any intentional
+normalization needed by the baseline scalar root-loop round trip. B implements
+that input capability before C migrates existing output. General signatures
+follow in E; a foundational round-trip dependency does not wait for them.
 
 #### Where a feature is implemented
 
@@ -428,9 +475,20 @@ Map current modules to the proposed responsibilities before moving them:
 `compiler/rust`, and the Rust media helpers.
 Distinguish responsibilities already shared from those still to extract.
 
-Implement small, complete changes with their consumers and documentation
-updated together. Reuse existing implementations, retire replaced paths, and
-reconcile overlapping TODOs rather than creating competing designs.
+Implement the epic's A-C in order: FAST model, existing input, existing output.
+Use small complete increments, reusing current implementations in their final
+owners and retiring each replaced path with its consumer. The foundation gate
+closes when all required existing consumers use the shared pipeline with their
+contracts preserved. New source features, broader tail-call handling and
+short-circuit tag removal follow that gate; none is first implemented in the
+old fold or a writer for later migration.
+
+The [let proposal](../../spec/todo/3220-let.md#later),
+[loop construction](../edag/todo/fast-loop-construction.md),
+[tail-call analysis](../edag/todo/tail-call-loop.md#general-tail-calls) and
+[short-circuit removal](../edag/todo/short-circuit-conditionals.md) own those
+extensions. This architecture issue owns the shared foundation.
+Unrelated tokenizer moves and general directory reorganization do not block it.
 
 General constant evaluation is **outside the MVP**. Naming its EDAG optimizer
 owner does not make implementing it a prerequisite for this modularization.
@@ -438,52 +496,45 @@ The architecture also adds no source-language feature by itself.
 
 ### Tasks
 
-- [ ] Publish the compiler architecture and vocabulary, settle conversion
-      names, define FAST's supported primitives and normalization-stage
-      invariants without requiring it to be a subset of JS AST, and record
-      current versus proposed ownership. Link the document from contributor
-      and agent entry points.
-- [ ] Name on every specification page the layer that implements its
-      feature, in this vocabulary, and move the placements the table records
-      — destructuring and the module function first — as their modules move,
-      each page updated with the code that moves.
-- [ ] Separate reusable JS AST parsing and desugaring from FJS admission,
-      recording binding/capture and source-location responsibilities; migrate
-      the relevant APIs and their consumers.
-- [ ] Establish the paired lexical APIs and FAST-to-JS serialization, reusing
-      existing token and marked-text machinery.
-- [ ] Expose FAST-to-EDAG construction with explicit sharing, scope and
-      anchoring contracts; keep graph optimization a separate operation.
-      Keep structured loops until this boundary; the epic owns the subsequent
-      generalized helper/state/completion implementation.
-- [ ] Coordinate single-evaluation short-circuit desugaring with the
-      [operation-removal TODO](../edag/todo/short-circuit-conditionals.md).
-      Reuse its lowering when the frontend boundary moves; it does not wait
-      for general loops or an EDAG optimizer.
-- [ ] Extract EDAG-to-FAST binding and block placement once and move every MVP
-      target, including JS and Rust, onto it. Reuse existing sharing analysis
-      and target helpers, move any necessary binding normalization into common
-      FAST processing, and retire parallel backend placement/binding policies.
-- [ ] Move tail-loop recognition, recursion decisions and eligible call
-      elimination into `to_fast`, representing per-iteration scope and value
-      captures in FAST. Migrate source, Rust and function-text consumers with
-      the [tail-loop requirements](../edag/todo/tail-call-loop.md#fast-migration),
-      preserving existing stack-safe cases and the function-text contract.
-- [ ] Prove the boundaries as their implementations move: shared versus equal
-      nodes, invocation/capture scopes, eager and lazy computations, unused
-      failing initializers, applicable desugaring and arity cases, common
-      binding decisions across targets, and semantic round trips for
-      FJS-admitted input. Verify plain output equals demarked output and keep affected
-      compiler demos working. Run the checks required by each implementation
-      diff.
-- [ ] Reconcile related TODOs and retired paths, retain the final design in
-      README/JSDoc owners, and delete this issue when the modularization ships.
+The A-C labels refer to the epic's ordered foundation milestones. Update
+documentation and run the affected checks with each implementation increment.
+
+- [ ] **A:** Implement the FAST contract with shared types, stage APIs and
+      common normalization/preparation facilities, starting with a real existing
+      consumer. Publish its vocabulary, ownership map and invariants.
+- [ ] **B:** Separate reusable JS AST parsing/desugaring from FJS admission.
+      Move existing source input through normalized FAST and `from_fast`,
+      preserving resolution, captures, source locations and graph contracts.
+- [ ] **B:** Preserve references, scopes and required-evaluation anchors in graph
+      construction. Keep existing loops structured until that boundary; the
+      loop-construction owner extends its capability later.
+- [ ] **C:** Extract EDAG-to-FAST placement once, using existing sharing analysis.
+      Move current tail-loop decisions and immediate-call elimination there
+      under the [migration contract](../edag/todo/tail-call-loop.md#fast-migration).
+- [ ] **C:** Complete common preparation and migrate source JS, runtime/function
+      text and Rust consumers. Reuse token/marked-text and target helpers;
+      retire each replaced graph-aware writer path with its consumer.
+- [ ] **C:** Prove existing shared-versus-equal nodes, invocation/capture scopes,
+      eager/lazy evaluation, unused failing initializers, arity, stack safety
+      and supported graph round trips. Verify plain output equals demarked output
+      and keep affected demos working.
+- [ ] Close the foundation gate before feature owners extend source sugar,
+      loop semantics or the EDAG operation set.
+
+The remaining architecture alignment accompanies relevant moves; unrelated
+parts do not delay the epic's foundation gate:
+
+- [ ] Establish the paired reusable lexical APIs using existing token machinery.
+- [ ] Name each specification feature's implementing layer. Update affected
+      pages with their code moves, then finish the remaining vocabulary alignment.
+- [ ] Reconcile related TODOs and retired paths, retain final contracts in
+      README/JSDoc owners, and delete this issue when its modularization ships.
 
 ### Related
 
 - [General loops and tail calls](./general-loops-and-tail-calls.md) — dependency
   epic for the FAST prerequisites, general rebinding, loop normalization and
-  broader tail-call analysis; its later milestones do not block this migration.
+  broader tail-call analysis; its feature milestones follow this foundation.
 - [Compiler README](../compiler/README.md) and
   [parser README](../compiler/parser/README.md) — current architecture.
 - [EDAG](../edag/README.md) — graph identity, scopes and operations.
@@ -495,7 +546,9 @@ The architecture also adds no source-language feature by itself.
 - [Tail-call loops](../edag/todo/tail-call-loop.md#fast-migration) — existing
   loop emission and its migration from writers into common FAST conversion.
 - [Short-circuit conditionals](../edag/todo/short-circuit-conditionals.md)
-  — source sugar and removal of redundant canonical EDAG operations.
+  — later source sugar and canonical EDAG schema change.
+- [FAST loop construction](../edag/todo/fast-loop-construction.md)
+  — later explicit-loop helper construction and graph round-trip rules.
 - [Operand classification ownership](../edag/todo/operand-classification-owner.md)
   — existing eager/lazy analysis work to reconcile with common placement.
 - [Marked text](../text/marked/README.md) — existing representation and demarking.

@@ -1,7 +1,8 @@
 ## Replace short-circuit EDAG operations with conditionals
 
 **Priority:** P2
-**Status:** open — design proposal; implementation has not started
+**Status:** open — implement after the shared FAST foundation
+**Blocked by:** [Epic milestone C](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
 
@@ -54,11 +55,13 @@ operator spelling is not an implementation prerequisite.
 
 ### Ownership and compatibility
 
-The target owner is AST-to-FAST desugaring under the
+Implement this as epic D, after A-C have implemented FAST and migrated the
+existing input/output paths. The sole source-lowering owner is AST-to-FAST
+desugaring under the
 [compiler architecture](../../todo/compiler-vocabulary-and-modularization.md).
-The existing frontend lowering boundary can host the change first; reuse/move
-that implementation as FAST is introduced. General loops, helper extraction
-and an EDAG optimizer are not prerequisites.
+Do not first add the rewrite to the existing fold or individual writers.
+Baseline migration preserves the existing operation set; D deliberately
+shrinks that set once its shared owners are in place.
 
 Remove the tags from the canonical schema and types only with all canonical
 graph producers and consumers migrated. Include manually built graphs and
@@ -68,11 +71,13 @@ Do not preserve separate logical-operator semantics in every backend.
 
 Removing a tag changes structure, hashes and potentially observable function
 text. This is an intentional schema migration, not a claim that equivalent
-graphs share an identity. Inventory existing persisted/imported EDAG consumers
-before choosing the release policy: either explicitly reject the former tags
-at the admission boundary or convert them through one documented compatibility
-adapter. If an adapter is needed, it produces a new graph/identity, preserves
-original node sharing, and does not add legacy cases to the canonical core.
+graphs share an identity. D1 records the old-graph admission decision before
+tag deletion, using actual persisted/imported consumers. Prefer a schema
+change that explicitly rejects former tags and updates repository producers,
+fixtures and documentation together. A compatibility adapter is not part of
+the default plan; add one only for an established compatibility requirement,
+at a named input boundary. Such conversion produces a new graph/identity and
+preserves original sharing. It adds no legacy cases to the canonical core.
 Do not silently associate the new graph with its old content hash.
 
 Record the chosen admission policy and affected round-trip/function-text
@@ -96,25 +101,23 @@ migrating, without making a new optimizer a prerequisite.
 
 | ID | Deliverable | Depends on |
 | --- | --- | --- |
-| S1 | Inventory producers/consumers; settle old-graph admission and identity policy | Existing EDAG conditional, sharing and content-identity contracts |
-| S2 | Single-evaluation conditional lowering in the shared frontend | S1's semantic contract; an existing lowering boundary, not full FAST migration |
-| S3 | Migrate all graph producers and canonical consumers; remove operation tags | S1, S2; compatibility adapter first if required by S1 |
-| S4 | Publish contracts, update fixtures/docs and remove obsolete paths | S3; evidence accompanies each prior step |
+| D1 | Record old-graph admission and identity policy; inventory affected producers/consumers | Epic C complete |
+| D2 | Single-evaluation conditional lowering in AST-to-FAST | D1; shared FAST bindings and conditional regions |
+| D3 | Migrate canonical producers/consumers and remove tags | D2; any required boundary compatibility established by D1 |
+| D4 | Finish public contracts and remove obsolete paths | D3; evidence and affected docs accompany each implementation step |
 
-- [ ] **S1 — Define the change.** Locate tags in schemas, types, classifiers,
-      evaluators, emitters, tests, demos and graph producers. Record whether old
-      input is rejected or explicitly converted; define identity and function-text
-      changes before removing compatibility behavior.
-- [ ] **S2 — Lower once.** Use fresh immutable bindings and conditionals in the
-      original scope/region. Use strict null/undefined tests without a new op.
-      Preserve source grammar, diagnostics and operand identity.
-- [ ] **S3 — Remove canonical tags.** Update producers and consumers together
-      in complete increments; eliminate logical/nullish cases from the final
-      canonical schema, analysis, interpreters and output. Retain only a named
-      boundary adapter if S1 establishes a need. Reconcile graph/hash fixtures.
-- [ ] **S4 — Finish migration.** Update EDAG operation documentation, affected
-      specifications, examples, function-text expectations and related TODOs.
-      State the stable conditional round-trip shape and retire duplicate logic.
+- [ ] **D1 — Settle compatibility.** Locate tags in schemas, types, classifiers,
+      evaluators, emitters, tests, demos and graph producers. Record the admission,
+      identity and function-text decision; do not leave consumers to choose it.
+- [ ] **D2 — Lower in FAST.** Use fresh immutable bindings and conditionals in
+      the original region. Preserve source grammar, diagnostics and operand
+      identity. No interim rewrite in the old frontend.
+- [ ] **D3 — Remove canonical tags.** Update producers and consumers in complete
+      increments. Remove logical/nullish cases from the schema, analysis,
+      interpreters and output; reconcile graph/hash fixtures.
+- [ ] **D4 — Finish.** Update operation/specification documentation, examples and
+      function-text expectations. State the stable conditional round-trip shape
+      and retire duplicate logic.
 
 ### Acceptance evidence
 
@@ -133,14 +136,14 @@ migrating, without making a new optimizer a prerequisite.
       read, not another call or an eligible loop transition.
 - [ ] Interpreted and generated outputs agree under the existing failure
       contract; canonical graphs contain none of the removed tags.
-- [ ] Old graph admission follows S1's explicit policy; sharing survives any
+- [ ] Old graph admission follows D1's explicit policy; sharing survives any
       adapter. Unaffected exact-graph cases remain stable, and repeated new
       round trips do not add bindings, wrappers or evaluations.
 
 ### Related
 
 - [General loops and tail calls](../../todo/general-loops-and-tail-calls.md)
-  — milestone S and the simplified tail-analysis domain.
+  — milestone D and the simplified tail-analysis domain.
 - [Compiler architecture](../../todo/compiler-vocabulary-and-modularization.md)
   — desugaring, graph construction and serialization responsibilities.
 - [Tail-call loops](./tail-call-loop.md) — existing output and broader analysis.

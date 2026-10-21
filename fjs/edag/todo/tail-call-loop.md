@@ -11,10 +11,9 @@ permission for writer-specific recursion decisions; it does not change the
 current implementation in this documentation-only proposal.
 
 The [general loops and tail calls epic](../../todo/general-loops-and-tail-calls.md)
-orders the FAST prerequisites and broader analysis. The analysis can develop
-before every consumer migrates; integration uses the common FAST path.
-Its structured state/exit forms supersede the template-only future direction,
-without changing the implemented contracts recorded below.
+requires FAST and migration of existing consumers before broader behavior.
+This file owns the output work: baseline migration in C and generalized
+tail-call analysis in F. The implemented contracts below stay historical.
 
 ### Problem
 
@@ -235,84 +234,43 @@ proposal under
 drawbacks, and the approval, recorded there. The round trip of a `while` —
 source to EDAG to source to the same EDAG — is its proof.
 
-**Later.** The template is a strict subset of the occurrence-based analysis
-in the [epic](../../todo/general-loops-and-tail-calls.md#tail-position-analysis-and-output):
-the body root, either arm of a tail `?:`, and the last operand of a tail `,`
-may contain eligible self-calls. The proposed
-[short-circuit normalization](./short-circuit-conditionals.md) removes
-`&&`, `||` and `??` from canonical EDAG, so they need no separate traversal.
-Candidate traversal must use evaluation-region and shared-value placement:
-an already-evaluated call result read in a return arm is not a tail call.
-For `const r = f(n - 1); return r === 0 ? r : 1`, the condition requires
-the call first, so reading `r` cannot become a loop transition.
-Other self references can remain ordinary
-calls or values, with the function's identity retained; only the eliminated
-recursive paths gain constant stack usage. Broader state, captures and exits
-use structured FAST loop parameters/results and resolved transfers.
-The migration retains the current recognizer until its replacements preserve
-the corresponding contracts; broader cases land in complete increments with
-the epic's proofs, without waiting for unrelated module moves.
+**Later.** The epic extends the template through the shared FAST pipeline.
+The [general analysis](#general-tail-calls) below owns that work; source
+admission and [loop construction](./fast-loop-construction.md) have separate owners.
 
 ### FAST migration
 
-The [compiler modularization proposal](../../todo/compiler-vocabulary-and-modularization.md)
-assigns this transformation to `fjs/edag/to_fast`. Reuse `loopOf` and
-`keepsRecursion` there; serializers no longer inspect EDAG or decide whether
-a function becomes a loop. The common conversion produces FAST containing
-either recursion, a function with a loop body, or a loop replacing an eligible
-immediate call. It owns eliminating that call and function boundary, including
-establishing the initial argument and captures once in the enclosing scope.
-A function used as a value retains its function boundary and arity.
+Milestone C follows the architecture's FAST model and input migration.
+Move `loopOf`, `keepsRecursion`, binding placement and eligible immediate-call
+elimination into `fjs/edag/to_fast`. Common
+[FAST preparation](../../todo/compiler-vocabulary-and-modularization.md#fast-contract)
+establishes invocation values, captures, slots and memo lifetimes.
+Serializers render its decisions without inspecting EDAG.
 
-FAST represents immutable value bindings, branch results and structured loops
-with explicit state/results and resolved exit targets; it need not mirror
-JavaScript's `let`/`while` syntax. Common emission preparation materializes
-physical state slots, simultaneous next-state updates and capture snapshots.
-The JS and Rust serializers render the same decisions using their target syntax. The
-writer-specific fallbacks in the implemented design above are constraints
-to resolve in this common conversion, not exceptions allowing backend graph
-walks or separate loop policies:
+Preserve the existing recognized cases before broadening them:
 
-- Preserve each invocation's values when a loop replaces recursive calls.
-  For `r => typeof r === 'number' ? self(() => r) : r`, the returned closure
-  must retain the value of the round that created it: `loop(1)()` is `1`.
-  A closure over mutable loop state is wrong. Establish fresh immutable
-  per-iteration capture bindings in FAST (conceptually `const snapshot = r`
-  before creating `() => snapshot`) or an equivalent common value-capture
-  representation. This normalization belongs before target serialization.
-- Recreate condition-local shared bindings on each test and body-local
-  bindings on each executed round, with lazy computations still conditional.
-  Function-text memo cells also have per-invocation lifetimes; they must not
-  become one cache shared by all iterations. Reuse the current shared-value
-  and capture cases to prove the common placement.
-- Retain `keepsRecursion`'s restrictions for root assertions, rest reads and
-  identity-bearing values shared by condition and body. The migration does
-  not broaden the recognized template. If a candidate cannot be represented
-  safely, the recursion decision belongs in the common conversion and applies
-  to every target, never in a serializer.
+- An eliminated immediate call establishes arguments and captures once at
+  its execution point; a function used as a value retains its boundary and arity.
+- A closure retains the creating invocation's value. For
+  `r => typeof r === 'number' ? self(() => r) : r`, `loop(1)()` remains `1`.
+- Condition/body bindings and lazy function-text memo cells keep their
+  per-invocation evaluation regions and lifetimes.
+- Keep current root-assert, rest-read and identity-sharing restrictions until
+  the common representation handles the corresponding cases. Preserve every
+  already stack-safe case, including Rust and function text.
+- Preserve admitted source syntax, existing exact-graph cases and the explicit
+  [function-text contract](../function-text.md). Any intended text change is
+  recorded with its proofs.
 
-Preserve the existing stack-safe cases, including loops used as values in
-Rust and function text. Falling back to recursion everywhere merely because
-the old source writer did so is not an acceptable migration: complete the
-shared capture/region representation before retiring an affected path.
-Likewise, the observable [function-text contract](../function-text.md) remains
-an explicit migration requirement; any intended text change must be recorded
-in that contract and its proofs, rather than arriving as an incidental
-formatting change. Preserve the admitted
-[loop grammar](../../../spec/control-flow/loops.md) and its existing
-source → EDAG → source → same EDAG round-trip cases.
-The separate short-circuit schema migration explicitly records the affected
-graph/hash changes; unaffected exact-graph cases remain requirements.
-
-The reverse boundary has a separate concern: `from_fast` introduces recursive
-helpers for source loops when needed, with explicit state results and distinct
-enclosing-function return completions. Structured FAST normalization does not
-extract those helpers or move following code into each `break`. Inner helpers
-return to callers so self-tail-call elimination suffices for nested iteration.
-The epic owns this broader input work; it is not a prerequisite for migrating
-the existing output or analyzing generalized tail calls.
+Migrate consumers in small complete increments and retire their replaced
+paths with them. All required consumers use common placement/preparation
+before the epic's foundation gate C closes. Generalized recognition is then
+implemented here, never first added to an old writer.
 
 ### Tasks
+
+These tasks retain the implemented history and complete baseline migration C.
+Broader milestone F work follows under [general tail calls](#general-tail-calls).
 
 - [x] `fjs/edag/loop`: recognize the template, with the refusals proven:
       another length, `self` read anywhere else, a call in the alternative,
@@ -346,10 +304,86 @@ the existing output or analyzing generalized tail calls.
       the common FAST decision across JS and Rust, function text's invocation
       lifetimes, and the existing stack-safe cases before removing old paths.
 
+### General tail calls
+
+Milestone F follows canonical short-circuit removal and general loop
+construction (epic D/E). It consumes their stable conditional and loop
+contracts. Integrate candidate traversal with shared-value placement and
+evaluation regions.
+
+| Tail-position form | Candidate traversal |
+| --- | --- |
+| Direct call of this invocation's resolved self | Consider this call evaluation. |
+| `A ? B : C` | Visit B and C, not A. |
+| Sequence/comma | Visit its last operand, retaining earlier required evaluations. |
+| Other expressions | These rules establish no candidate. |
+
+Short-circuit operators have already become conditionals. Do not cross into
+nested function bodies or identify self by printed names.
+
+Tail position belongs to a call's evaluation/use, not globally to its graph
+node. A return reading an established result is not a new call:
+
+```js
+const r = f(n - 1);
+return r === 0 ? r : 1;
+```
+
+The condition requires that call first; reading `r` cannot become a loop
+transition. Calls whose results feed conditions, arguments or arithmetic
+remain ordinary where further work consumes them. Preserve prior eager
+anchors and lazy sharing.
+
+For each eligible direct self-call, produce a normalized FAST loop transition.
+Other self calls/references may remain, with function identity preserved;
+only eliminated paths gain constant stack use. Match the graph-construction
+owner's [canonical root-loop contract](./fast-loop-construction.md#canonical-root-loops)
+so conversion back does not add helpers or wrappers.
+
+Common output preparation must retain a complete invocation:
+
+- Establish every argument and spread under the current invocation before
+  any state writes. `return f(b, a)` requires simultaneous next values,
+  not sequential `a = b; b = a`.
+- Preserve required evaluation/failures of unused extra arguments; missing
+  arguments become `undefined`. Rebuild rest arrays with fresh identity.
+- Run default/destructuring setup each invocation represented by an iteration,
+  preserving the [parameter/arity contract](../../../spec/functions/parameters.md).
+- Preserve iteration values in captures and recreate local shared objects,
+  functions and memo storage at their original lifetimes.
+
+For `f = (n, saved) => n === 0 ? saved : f(n - 1, () => n)`,
+`f(2, null)()` must remain `1`.
+
+Build the general conversions against normalized FAST/EDAG fixtures first.
+The source serializer's broader loop spelling is enabled with the corresponding
+source grammar in epic H. There is one implementation of conversion and
+preparation; connecting the source feature later does not rewrite it.
+
+#### General analysis tasks
+
+- [ ] After D/E, implement eligibility on placed evaluations. Cover either/both
+      conditional arms, sequences, the established-result example, lazy shared
+      calls, nested functions and mixed tail/non-tail self uses.
+- [ ] Produce the canonical invocation loop and common prepared output. Cover
+      swapped/dependent values, missing/extra/failing arguments, spreads, rest,
+      defaults/destructuring, arity and self identity.
+- [ ] Carry capture snapshots and per-invocation memo/object/function lifetimes
+      through all consumers; no backend-specific eligibility or placement.
+- [ ] Verify EDAG -> normalized FAST -> EDAG for the declared graph domain,
+      including stable repeated conversion and one-time setup.
+- [ ] Prove generalized tail-only cases and repeated nested generated loops
+      stack-safe in shared JS/Rust output. Lexical nesting may add stack depth;
+      iteration count must not. Ordinary non-tail user recursion stays ordinary.
+- [ ] Connect newly admitted source spellings in H with end-to-end source
+      round-trip and execution proofs, using this same shared path.
+
 ### Related
 
 - [General loops and tail calls](../../todo/general-loops-and-tail-calls.md)
-  — prerequisites, independent analysis and staged integration through FAST.
+  — FAST-first prerequisites and ordered integration gates.
+- [FAST loop construction](./fast-loop-construction.md)
+  — explicit normalized loop inputs/results and root-loop identity rules.
 - [Short-circuit conditionals](./short-circuit-conditionals.md)
   — reduce canonical tail analysis to conditional and sequence forms.
 - [Compiler vocabulary and modularization](../../todo/compiler-vocabulary-and-modularization.md)
