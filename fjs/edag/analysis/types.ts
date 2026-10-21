@@ -61,12 +61,19 @@ export type Node = Over<ExpOp, Operand, IndexOperand>
  * [`module.f.mjs`](./module.f.mjs). In the table that merges nothing,
  * `identityAnalysis`, every node is its own entry and `shared` is every
  * entry reached by more than one edge, as `fjs/edag/sharing` counts them.
+ *
+ * `exps` is the expression each entry stands for, by index: in the table
+ * that merges nothing, the node the walk was handed, so a consumer that
+ * wants an entry's `Exp` back gets the graph's own node; where entries
+ * merge, the expression restored from the table once, with the sharing the
+ * table has.
  */
 export type Analysis = {
     readonly root: Operand
     readonly nodes: readonly Node[]
     readonly scope: readonly number[]
     readonly shared: readonly number[]
+    readonly exps: readonly ExpOp[]
 }
 
 // A position of each kind translates as documented above; each claim was
