@@ -54,6 +54,7 @@
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
 import { errorExit, exitStep, readFile, writeFiles } from '../../../../effects/node/module.f.mjs'
+import { charIs, isDigit, isLatinLetter } from '../../../../text/ascii/module.f.js'
 import { fromVec } from '../../../../text/utf8/module.f.mjs'
 import { tryParse } from '../../module.f.mjs'
 import { difference } from '../module.f.mjs'
@@ -215,12 +216,8 @@ const render = cell =>
         : cell[0] === 'ids' ? cell[1].map(code).join(', ')
         : `not applicable, ${note(cell[1])}`
 
-/** @type {string} */
-const lower = 'abcdefghijklmnopqrstuvwxyz'
-/** @type {string} */
-const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-/** @type {string} */
-const digits = '0123456789'
+/** A Latin letter or a decimal digit, as `text/ascii` classes them. @type {(c: string) => boolean} */
+const isAlphanumeric = charIs(c => isLatinLetter(c) || isDigit(c))
 
 /**
  * What a cell may carry, as the characters it may be made of rather than
@@ -247,16 +244,21 @@ const digits = '0123456789'
  *
  * @type {string}
  */
-const proseChars = `${lower}${upper}${digits} .,;'"()/+-?!`
+const proseMarks = ` .,;'"()/+-?!`
 
 /** @type {string} */
-const nameChars = `${lower}${upper}${digits}/+-._:`
+const nameMarks = '/+-._:'
 
-/** @type {(allowed: string) => (s: string) => boolean} */
-const onlyFrom = allowed => s => [...s].every(c => allowed.includes(c))
+/**
+ * Whether every character of a string is a letter, a digit, or one of the
+ * marks `allowed` adds.
+ *
+ * @type {(allowed: string) => (s: string) => boolean}
+ */
+const onlyFrom = allowed => s => [...s].every(c => isAlphanumeric(c) || allowed.includes(c))
 
 /** @type {(s: string) => boolean} */
-const proseCharsOnly = onlyFrom(proseChars)
+const proseCharsOnly = onlyFrom(proseMarks)
 
 /**
  * Prose the cell shows as written, which for the space means *as spaced*.
@@ -271,7 +273,7 @@ const proseCharsOnly = onlyFrom(proseChars)
 const isProse = s => proseCharsOnly(s) && s.trim() === s && !s.includes('  ')
 
 /** @type {(s: string) => boolean} */
-const isName = onlyFrom(nameChars)
+const isName = onlyFrom(nameMarks)
 
 /**
  * A string the table can show, and that shows something. Blank is the one
