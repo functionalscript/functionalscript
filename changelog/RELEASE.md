@@ -70,7 +70,11 @@ release increments the minor and resets the patch: `0.X.0`. Urgent fixes follow
 
 Titled `Release X.Y.Z`. It changes `"version"` in `package.json` and both
 version fields at the root of `package-lock.json` —
-`npm version X.Y.Z --no-git-tag-version` writes all three — and nothing else.
+`npm version X.Y.Z --no-git-tag-version` writes all three — and the version
+the CAS MCP server advertises, `casConfig.serverInfo.version` in
+[`fjs/mcp/module.f.mjs`](../fjs/mcp/module.f.mjs), which
+[a host proof](../fjs/mcp/proof.mjs) holds equal to `package.json`'s; and
+nothing else.
 Fixes discovered while preparing a release belong in their own pull request.
 
 Before merging:
@@ -313,7 +317,8 @@ deliberately uses a different branch and window:
    branch. Once maintenance publishing is implemented, backport only the
    workflow support it needs; do not merge later development into the branch.
 3. Open the bump against the maintenance branch: `0.X.1`, then `0.X.2`, etc.,
-   in `package.json` and `package-lock.json`, and nothing else.
+   in `package.json`, `package-lock.json` and `fjs/mcp/module.f.mjs`, as in
+   [the bump](#2-open-the-bump-pull-request), and nothing else.
 4. Publishing this maintenance branch is tracked separately in
    [maintenance release publishing](../fjs/ci/todo/maintenance-release-publishing.md).
    The current generated workflow publishes only pushes to `main`; it does not
