@@ -546,7 +546,7 @@ export const tryParseBlocks = text => {
         if (line.trim() === '') { i++; continue }
         if (isFence(line)) {
             const info = line.slice(3)
-            if (info.includes('`') || info.includes(' ')) { return refuse('a code fence whose info string is not one word') }
+            if (info.includes('`') || info.includes(' ') || info.includes('\t')) { return refuse('a code fence whose info string is not one word') }
             const close = lines.indexOf('```', i + 1)
             if (close === -1) { return refuse('a code fence that is never closed') }
             out = [...out, ['code', info, lines.slice(i + 1, close).join('\n')]]

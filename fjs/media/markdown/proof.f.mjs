@@ -328,6 +328,8 @@ export const proof = {
             [['paragraph', [['text', '#a']]], ['paragraph', [['text', '####### b']]]]),
         refuses: {
             fenceInfo: () => assertEq(refusal('```js x\n```\n'), 'line 1: a code fence whose info string is not one word'),
+            // GitHub trims a tab around the info string as it does a space.
+            fenceInfoTab: () => assertEq(refusal('```\tjs\n```\n'), 'line 1: a code fence whose info string is not one word'),
             fenceBacktick: () => assertEq(refusal('```a`\n```\n')?.startsWith('line 1: a code fence'), true),
             unclosedFence: () => assertEq(refusal('a\n\n```\nb\n'), 'line 3: a code fence that is never closed'),
             emptyHeading: () => assertEq(refusal('# \n'), 'line 1: a heading that is empty or closed by `#`'),
