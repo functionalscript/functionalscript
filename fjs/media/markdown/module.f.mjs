@@ -376,9 +376,9 @@ export const tryParse = text => {
 /**
  * The level of an ATX heading, `# ` through `###### `, or `0` for a line that
  * opens none: a `#` run with a word after it is prose in CommonMark, and
- * a space or a tab after it opens the heading,
- * seven of them are too. A run that ends the line is an empty heading
- * there, so it opens one here too, for the reader to refuse.
+ * seven of them are too; a space or a tab after it opens the heading. A
+ * run that ends the line is an empty heading there, so it opens one here
+ * too, for the reader to refuse.
  *
  * @type {(line: string) => number}
  */
