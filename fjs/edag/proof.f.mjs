@@ -42,9 +42,9 @@
 import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
 import {
-    exp, fromValue, isStatic, op0Id, op1Id, op12Id, op2Id, op3Id,
+    exp, fromValue, isStatic, mapItems, mapSteps, op0Id, op1Id, op12Id, op2Id, op3Id,
     intrinsicIds, intrinsicLength, intrinsics, isIntrinsic,
-    noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText,
+    noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText, stepOperands,
 } from './module.f.mjs'
 
 /**
@@ -982,5 +982,38 @@ export const proof = {
             ['|()', [['.', 'obj', 'a']]],
         ])
         assertOk(v(value))
+    },
+    // The chain-step traversal: a fold listing what the steps hold, and the
+    // maps over the steps and over an item list, every tag, arity and spread
+    // kept. Over strings, so a mapped operand is told from the original.
+    traversal: {
+        mapItems: () => {
+            /** @type {(x: string) => string} */
+            const upper = x => x.toUpperCase()
+            assertStructurallySame(mapItems(upper)([]), [])
+            assertStructurallySame(mapItems(upper)(['a', ['...', 'b']]), ['A', ['...', 'B']])
+        },
+        stepOperands: () => {
+            /** @type {(k: string) => readonly string[]} */
+            const key = k => [`key ${k}`]
+            /** @type {(items: readonly (string | readonly ['...', string])[]) => readonly string[]} */
+            const args = items => [`${items.length} args`]
+            const operands = stepOperands(key, args)
+            assertStructurallySame(operands(undefined), [])
+            assertStructurallySame(
+                operands(['|.', 'a', ['|()', ['x', 'y'], ['|?.()', [], ['|.', 'b']]]]),
+                ['key a', '2 args', '0 args', 'key b'])
+            assertStructurallySame(operands(['|!()', ['x']]), ['1 args'])
+        },
+        mapSteps: () => {
+            /** @type {(k: string) => string} */
+            const key = k => `.${k}`
+            const steps = mapSteps(key, mapItems(/** @type {(x: string) => string} */ (x => x.toUpperCase())))
+            assertStructurallySame(steps(['|.', 'a']), ['|.', '.a'])
+            assertStructurallySame(
+                steps(['|.', 'a', ['|()', ['x', ['...', 'y']], ['|?.()', ['z']]]]),
+                ['|.', '.a', ['|()', ['X', ['...', 'Y']], ['|?.()', ['Z']]]])
+            assertStructurallySame(steps(['|!()', ['x']]), ['|!()', ['X']])
+        },
     },
 }

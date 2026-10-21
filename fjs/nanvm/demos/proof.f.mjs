@@ -16,13 +16,13 @@ const at = samples => ({ 'fjs': { 'nanvm': { 'demos': samples } } })
 
 /** Two samples, and a directory that is not one. @type {Dir} */
 const root = at({
-    'a': { 'sample.f.mjs': [utf8('export default () => 1;')] },
-    'b': { 'sample.f.mjs': [utf8('export default () => 2;')] },
+    'a': { 'sample.f.js': [utf8('export default () => 1;')] },
+    'b': { 'sample.f.js': [utf8('export default () => 2;')] },
     'c': { 'README.md': [utf8('# not a sample')] },
 })
 
 export const proof = {
-    samplePath: () => assertEq(samplePath('hello'), 'fjs/nanvm/demos/hello/sample.f.mjs'),
+    samplePath: () => assertEq(samplePath('hello'), 'fjs/nanvm/demos/hello/sample.f.js'),
     // Every listed sample is a directory beside the generator.
     samples: () => assertEq(samples.join(','), 'hello,sort,collatz,comma'),
     // In `rustfmt`'s order, not the list's.
@@ -45,7 +45,7 @@ export const proof = {
     // A sample the compiler refuses stops the sequence before `mod.rs` is
     // written: a list naming a module that does not exist would not build.
     generateStopsAtARefusedSample: () => {
-        const broken = at({ 'a': { 'sample.f.mjs': [utf8('export default (')] } })
+        const broken = at({ 'a': { 'sample.f.js': [utf8('export default (')] } })
         const [state, result] = virtualAt(broken)(generate(['a']))
         assertEq(result[0], 'error')
         assertEq(virtual(state)(readUtf8File(modulesPath))[1][0], 'error')

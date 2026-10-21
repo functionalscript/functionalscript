@@ -6,7 +6,7 @@
  * @import { _Cell, _List } from './private.ts'
  */
 
-import { census, decimal, graphOf, sameShape, shuffled, stepLine, versionsDemo } from './module.f.mjs'
+import { binaryKeys, census, decimal, graphOf, sameShape, shuffled, stepLine, versionsDemo } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { graphSvg } from '../graph/module.f.mjs'
 import { commandsOf, runPure } from '../../../effects/module.f.mjs'
@@ -65,8 +65,7 @@ const ofThree = listOf([1, 2, 3])
  * @type {Keys}
  */
 const nibble = {
-    parse: text => text.length >= 1 && text.length <= 4 && [...text].every(c => c === '0' || c === '1') ? parseInt(text, 2) : null,
-    show: key => key.toString(2).padStart(4, '0'),
+    ...binaryKeys(4),
     label: 'Bits',
     accepts: 'up to four binary digits',
 }
@@ -126,6 +125,25 @@ export const proof = {
         assertEq(decimal.parse('1e3'), null)
         assertEq(decimal.parse('NaN'), null)
         assertEq(decimal.show(12), '12')
+    },
+    // Up to `width` binary digits read, all `width` drawn; an empty text, a
+    // longer one and any other digit are refused.
+    binaryKeys: () => {
+        const { parse, show } = binaryKeys(4)
+        assertEq(parse('101'), 5)
+        assertEq(parse('0000'), 0)
+        assertEq(parse(''), null)
+        assertEq(parse('10101'), null)
+        assertEq(parse('12'), null)
+        assertEq(show(5), '0101')
+    },
+    // a key is a number, so a width past its 53 bits of precision is refused
+    binaryKeysWidth: {
+        widest: () => assertEq(binaryKeys(53).parse('1'.repeat(53)), 2 ** 53 - 1),
+        throw: {
+            wide: () => binaryKeys(54),
+            empty: () => binaryKeys(0),
+        },
     },
     graphOf: {
         // Inserting 0 in front builds one cell and shares the three after

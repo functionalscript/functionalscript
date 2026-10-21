@@ -11,7 +11,7 @@
  * @import { BindingEvent, BindingId } from '../../js/ast/types.ts'
  * @import { ExpansionPlan, SourceValue, SourceFunction, SourceParameter, SourceStatement, SourceBlock, SourceImport, SourceModule } from '../../js/ast/sugar/source.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
@@ -44,7 +44,7 @@ import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/m
  */
 const protoKey = '__proto__'
 
-/** @type {(message: string) => (t: DjsTokenWithMetadata) => ParseError} */
+/** @type {(message: string) => (t: ModuleTokenWithMetadata) => ParseError} */
 const foldError = message => ({ metadata }) => ({ message, metadata })
 
 /** A plain `__proto__` key, at the key. */
@@ -170,7 +170,7 @@ const reservedWord = foldError('reserved word')
  * `Number()` is `0`, and is read as the literal, {@link conversion}, as
  * `String()` is the empty string.
  *
- * @type {(name: 'Number' | 'String') => (token: DjsTokenWithMetadata) => ParseError}
+ * @type {(name: 'Number' | 'String') => (token: ModuleTokenWithMetadata) => ParseError}
  */
 const conversionArity = name => foldError(`${name} takes one argument`)
 
@@ -290,7 +290,7 @@ const sourceOrigin = (scope, word) => {
  * {@link conversion}, the namespace of a static function,
  * {@link staticRead}, and that of the `entry` helper, {@link entryFunction}.
  *
- * @type {(name: DjsTokenWithMetadata) => Result<string, ParseError>}
+ * @type {(name: ModuleTokenWithMetadata) => Result<string, ParseError>}
  */
 const identifierOf = name => {
     const word = nameOf(name)
@@ -387,7 +387,7 @@ export const _prohibitedAccess = method => name =>
         ? (prohibitedCallNames.has(name) ? 'member function' : null)
         : (prohibitedNames.has(name) ? 'property name' : null)
 
-/** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
+/** What an access's key token names: a name's word, the string's text, or the number. @type {(t: ModuleTokenWithMetadata) => string | number} */
 const keyNamed = t => {
     const { token } = t
     switch (token.kind) {
@@ -406,7 +406,7 @@ const keyNamed = t => {
  * either way: the lowering makes the callee access a method call,
  * `['.', a, 'b', ['|()', args]]`.
  *
- * @type {(key: DjsTokenWithMetadata, method: boolean, base: SourceValue) => Result<SourceValue, ParseError>}
+ * @type {(key: ModuleTokenWithMetadata, method: boolean, base: SourceValue) => Result<SourceValue, ParseError>}
  */
 const accessClosed = (key, method, base) => mapOk(
     /** @type {(named: string | number) => SourceValue} */
@@ -451,7 +451,7 @@ const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
  * key is read, and a member function a module may not call where it is
  * called, `method`, as {@link _prohibitedAccess} answers.
  *
- * @type {(key: DjsTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
+ * @type {(key: ModuleTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
  */
 const checkedKey = (key, method) => {
     const named = keyNamed(key)
@@ -510,7 +510,7 @@ const isCall = node => {
  * operator's result discarded is almost always a mistake, and a conversion
  * is an operator ([spec: call statements](../../../spec/functions/call-statements.md)).
  *
- * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, value: Node, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
+ * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
 const constPlan = check => (target, value, namespace) =>
     target[0] === 'discard' && !isCall(value) ? error(unexpectedToken(target[1])) : planned(check)(target, namespace)
@@ -520,7 +520,7 @@ const constPlan = check => (target, value, namespace) =>
  * planner. Callbacks run during its single source-order walk, preserving the
  * first diagnostic without assigning normalization decisions to the parser.
  *
- * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
+ * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
 const planned = check => planPattern({
     name: check,
@@ -532,7 +532,7 @@ const planned = check => planPattern({
 /** The source admission owner supplies each refused spelling's diagnostic. */
 const patternRefusals = { invalid: invalidTarget, rest: restTarget, computed: computedPatternKey, duplicate: duplicateId }
 
-/** @type {(namespace: DjsTokenWithMetadata, key: DjsTokenWithMetadata) => Result<ValueStatic, ParseError>} */
+/** @type {(namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<ValueStatic, ParseError>} */
 const namespaceMember = (namespace, key) => {
     const member = staticMember(nameOf(namespace), keyNamed(key))
     if (member !== null) { return ok(member) }
@@ -957,7 +957,7 @@ const functionScope = list => {
         const [tag, plan] = planned(bindable(seen))(target, null)
         if (tag === 'error') { return error(plan) }
         bound = parameterBindings(bound, plan, i < count)
-        seen = plan.names.reduce(/** @type {(env: _Env, name: readonly [DjsTokenWithMetadata, number]) => _Env} */ ((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[index], kind: 'own' })), seen)
+        seen = plan.names.reduce(/** @type {(env: _Env, name: readonly [ModuleTokenWithMetadata, number]) => _Env} */ ((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[index], kind: 'own' })), seen)
         if (i >= count) {
             bound = { ...bound, late: [...bound.late, { plan, init: parameter[0] === '=' ? parameter[3] : null, rest: false }] }
         } else {
@@ -1022,7 +1022,7 @@ const bodyRound = (stack, scope, frame) => {
  * pattern over a reserved namespace, nothing: the checked plan names its
  * static members directly, so sugar receives an unused `undefined` input.
  *
- * @type {(target: BindingTarget | Discard, value: Node, namespace: DjsTokenWithMetadata | null, plan: _Plan) => _State[2]}
+ * @type {(target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null, plan: _Plan) => _State[2]}
  */
 const constValue = (target, value, namespace, plan) => namespace !== null ? ok(undefined)
     : target[0] === 'name' ? ['define', value, [nameOf(target[1]), plan.ids[0]]] : ['enter', value]
@@ -1194,7 +1194,7 @@ const isNamespace = word => staticIds.some(id => staticPath(id)[0] === word)
  * entered. Any other pattern over the word, and the word alone, is
  * entered and refused as every reserved global is.
  *
- * @type {(target: BindingTarget | Discard, value: Node) => DjsTokenWithMetadata | null}
+ * @type {(target: BindingTarget | Discard, value: Node) => ModuleTokenWithMetadata | null}
  */
 const namespaceOf = (target, value) => target[0] === 'object' && value[0] === 'ref' && isNamespace(nameOf(value[1])) ? value[1] : null
 
@@ -1720,7 +1720,7 @@ const evaluate = (initial, self) => root => {
  * while the binding lands after, keeping the name out of its own
  * initializer's scope.
  *
- * @type {(env: _Env) => (name: DjsTokenWithMetadata) => Result<string, ParseError>}
+ * @type {(env: _Env) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
  */
 const bindable = env => name => {
     const [tag, word] = identifierOf(name)
@@ -1740,7 +1740,7 @@ const bindable = env => name => {
  * body's own initializer reads is refused once it has been, in
  * {@link returned}.
  *
- * @type {(scope: _Scope) => (name: DjsTokenWithMetadata) => Result<string, ParseError>}
+ * @type {(scope: _Scope) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
  */
 const bodyBindable = scope => name => {
     const [tag, word] = identifierOf(name)
@@ -1872,7 +1872,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
  * `./syntax`, and what the grammar accepts and this refuses is the fold's:
  * a name unbound or bound twice, and a plain `__proto__` key.
  *
- * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<ResolvedModule, ParseError>}
+ * @type {(tokenList: List<ModuleTokenWithMetadata>) => Result<ResolvedModule, ParseError>}
  */
 export const parseFromTokens = tokenList => {
     const [tag, module] = parseSyntax(tokenList)

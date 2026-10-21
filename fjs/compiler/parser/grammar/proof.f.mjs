@@ -3,7 +3,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Equal } from '../../../types/ts/types.ts'
- * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { Items } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  */
@@ -19,19 +19,19 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    djsModule, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopStatement, member, object, parameters, paren, statement,
+    module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopStatement, member, object, parameters, paren, statement,
     afterCase, caseTail, loopNameStatement, moduleStatement, nameStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
 // type for `tsc` to unroll through `parser`'s return type (TS2589); the
 // rules are widened to `Rule` here, where only acceptance is read.
-const parseModule = parser(/** @type {Rule} */ (djsModule))
+const parseModule = parser(/** @type {Rule} */ (module))
 
 /**
  * The parser's input for a text: its tokens, the final `eof` split off.
  *
- * @type {(s: string) => readonly Meta<DjsTokenWithMetadata>[]}
+ * @type {(s: string) => readonly Meta<ModuleTokenWithMetadata>[]}
  */
 const symbols = s => {
     const all = toArray(tokenize(stringToList(s))('a.js'))

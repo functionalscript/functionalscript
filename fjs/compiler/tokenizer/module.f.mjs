@@ -4,7 +4,7 @@
  *
  * ```text
  * code points ==fjs/js/tokenizer: the grammar, then its fold==> JsToken stream
- *             ==fold: keywords demoted, trivia dropped, newlines marked==> DjsToken stream
+ *             ==fold: keywords demoted, trivia dropped, newlines marked==> ModuleToken stream
  * ```
  *
  * The grammar is [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs) and
@@ -28,7 +28,7 @@
  * Trivia — whitespace, newlines and comments — is not in this stream: what
  * a rule of the language reads of it is whether a newline stands before
  * a token, and each token carries that answer, `newline` in
- * `DjsTokenWithMetadata` (`./types.ts`), which is the one state this
+ * `ModuleTokenWithMetadata` (`./types.ts`), which is the one state this
  * layer holds. The parser asks it where a statement is written without
  * its `;`, and where JavaScript forbids a line break, before `=>` and
  * after `return`. An operator is a token
@@ -48,7 +48,7 @@
  * @import { JsToken, JsTokenWithMetadata } from '../../ebnf/lib/js/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
+ * @import { ModuleToken, ModuleTokenWithMetadata } from './types.ts'
  */
 import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
 import { isTrivia } from '../../ebnf/lib/js/module.f.mjs'
@@ -56,18 +56,18 @@ import { isKeyword } from '../../js/keywords/module.f.js'
 import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
 import { flat, stateScan } from '../../types/list/module.f.mjs'
 
-// -- layer 3: the DjsToken stream -------------------------------------------
+// -- layer 3: the ModuleToken stream -------------------------------------------
 
 /**
- * Every `DjsToken` kind, `eof` included: the kinds a `JsToken` keeps
- * unchanged on its way to the module's stream. Pinned to `DjsToken['kind']` in
+ * Every `ModuleToken` kind, `eof` included: the kinds a `JsToken` keeps
+ * unchanged on its way to the module's stream. Pinned to `ModuleToken['kind']` in
  * `./types.ts`, so a kind added there and forgotten here breaks the build
  * rather than becoming an invalid-token error at run time. The parser's
  * alphabet is this list less `eof`.
  *
  * Exported with a leading `_` for that linkage — the export is not API.
  */
-export const _djsTokenKinds = /** @type {const} */ ([
+export const _moduleTokenKinds = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
     '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...', '-',
     '+', '*', '/', '%', '**',
@@ -80,7 +80,7 @@ export const _djsTokenKinds = /** @type {const} */ ([
 ])
 
 /** @type {ReadonlySet<string>} */
-const djsTokenKindSet = new Set(_djsTokenKinds)
+const moduleTokenKindSet = new Set(_moduleTokenKinds)
 
 /**
  * Whether a lexically valid JS template chunk uses FJS's spelling subset.
@@ -113,16 +113,16 @@ const templateSourceAccepted = source => {
 
 /**
  * A JavaScript token as a module token: kept when its kind is one of
- * {@link _djsTokenKinds} — the cast is that membership, which `Set#has`
+ * {@link _moduleTokenKinds} — the cast is that membership, which `Set#has`
  * cannot state as a narrowing — an `id` when it is any other keyword, and
  * an error otherwise: an operator or template spelling the language does
  * not admit. Template provenance is checked before the membership test.
  *
- * @type {(input: JsToken) => DjsToken}
+ * @type {(input: JsToken) => ModuleToken}
  */
-const mapDjsToken = input =>
+const toModuleToken = input =>
     'source' in input && !templateSourceAccepted(input.source) ? { kind: 'error', message: 'invalid token' }
-    : djsTokenKindSet.has(input.kind) ? /** @type {DjsToken} */ (input)
+    : moduleTokenKindSet.has(input.kind) ? /** @type {ModuleToken} */ (input)
     : isKeyword(input.kind) ? { kind: 'id', value: input.kind }
     : { kind: 'error', message: 'invalid token' }
 
@@ -135,12 +135,12 @@ const mapDjsToken = input =>
  * comment holding one — carried across any further trivia, and `false`
  * after any other token.
  *
- * @type {StateScan<JsTokenWithMetadata, boolean, List<DjsTokenWithMetadata>>}
+ * @type {StateScan<JsTokenWithMetadata, boolean, List<ModuleTokenWithMetadata>>}
  */
 const withNewline = ({ token, metadata }, newline) => [
-    isTrivia(token.kind) ? null : [{ token: mapDjsToken(token), metadata, newline }],
+    isTrivia(token.kind) ? null : [{ token: toModuleToken(token), metadata, newline }],
     token.kind === 'nl' || (newline && isTrivia(token.kind)),
 ]
 
-/** @type {(input: List<number>) => (path: string) => List<DjsTokenWithMetadata>} */
+/** @type {(input: List<number>) => (path: string) => List<ModuleTokenWithMetadata>} */
 export const tokenize = input => path => flat(stateScan(withNewline)(false)(tokenizeJs(input)(path)))

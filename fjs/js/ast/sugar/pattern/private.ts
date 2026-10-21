@@ -1,7 +1,7 @@
 /** Work items of the stack-safe source-pattern planner. @module */
 
 import type { BindingElement, BindingProperty, BindingTarget } from '../../../../compiler/parser/syntax/types.ts'
-import type { DjsTokenWithMetadata } from '../../../../compiler/tokenizer/types.ts'
+import type { ModuleTokenWithMetadata } from '../../../../compiler/tokenizer/types.ts'
 import type { ExpansionPlan } from '../source.ts'
 
 export type Source = ExpansionPlan['reads'][number]['source']
@@ -9,5 +9,5 @@ export type Read = ExpansionPlan['reads'][number]
 export type Pending =
     | { readonly target: BindingTarget; readonly source: Source }
     | { readonly element: BindingElement; readonly source: Source }
-    | { readonly property: BindingProperty; readonly parent: number | DjsTokenWithMetadata }
+    | { readonly property: BindingProperty; readonly parent: number | ModuleTokenWithMetadata }
 export type Stack = { readonly top: Pending; readonly rest: Stack } | null
