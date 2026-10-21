@@ -377,7 +377,8 @@ const codeSideBySide = spans => spans.some((s, i) => i !== 0 && s[0] === 'code' 
 
 /**
  * Tilde delimiters can surround other spans. Code contents and link targets
- * are not prose; a link label is checked separately in its own scope.
+ * are not prose; link labels and emphasis bodies are checked separately
+ * in their own scopes.
  *
  * @type {(spans: readonly (Inline | Label)[]) => boolean}
  */
@@ -429,7 +430,7 @@ const readProse = entry => {
         }
         // A label's code spans side by side are one span in CommonMark too.
         if (codeSideBySide(span[1])) { return error('two code spans side by side, which GitHub reads as one') }
-        if (span[0] === 'link' && proseTildePair(span[1])) { return error('a tilde pair in a link label, which GitHub may read as strikethrough') }
+        if (proseTildePair(span[1])) { return error('a tilde pair in a span body, which GitHub may read as strikethrough') }
         // CommonMark reads an entity in a destination as the character it
         // names, and the page would keep it as written.
         if (span[0] === 'link' && [...span[2]].some((_, i) => entityAt(span[2], i))) {
