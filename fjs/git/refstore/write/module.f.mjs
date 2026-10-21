@@ -654,6 +654,9 @@ const within = (dir, text, e) => {
     return step(madeFor(dir, text), made => finallyStep(e, r => r[0] === 'ok' ? pruned : emptied(made)))
 }
 
+/** {@link u8ListToVecChunksMsb} at the longest `Vec`, bound once for {@link chunked}. */
+const vecChunks = u8ListToVecChunksMsb(Number(maxLengthBytes))
+
 /**
  * `bytes` as the chunks {@link writeExclusive} takes, each as long as a `Vec` may
  * be. A `packed-refs` passes that length at about 1,870 refs; see
@@ -661,7 +664,7 @@ const within = (dir, text, e) => {
  *
  * @type {(bytes: readonly number[]) => readonly Vec[]}
  */
-const chunked = bytes => toArray(u8ListToVecChunksMsb(Number(maxLengthBytes))(bytes))
+const chunked = bytes => toArray(vecChunks(bytes))
 
 /**
  * What taking the name out of `packed-refs` comes to: a refusal, `false` where
