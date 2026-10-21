@@ -21,14 +21,16 @@
  *
  * `order`, when given, is the node's place in an animation, drawn as
  * `data-graph-order`: the site's stylesheet fades a `new` node in and a
- * `leaving` one out, a quarter of a second after the order before it, so a
- * change can appear node by node.
+ * `leaving` one out, 150 ms after the order before it, so a change can
+ * appear node by node.
  *
  * `key`, when given, names the node across drawings: its box and its text
  * are each drawn in a group moved into place by a `transform` and keyed
  * `data-key`, so a page that patches the drawing keeps the same groups for
  * the same node, and the site's stylesheet slides them from where they
- * were to where they are.
+ * were to where they are. An edge or entry between keyed nodes is keyed by
+ * their keys too, so its route slides with them where the browser animates
+ * a path's `d`, and is redrawn at once where it does not.
  */
 export type Node = {
     readonly id: number
@@ -132,18 +134,11 @@ export type Entry = {
 /**
  * A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every
  * edge named, and the {@link Entry} arrows into it, if it has any.
- *
- * `edgeOrder` is the order, and `new` the kind, an edge or entry takes when
- * neither of its nodes has an order of its own — so that, while keyed nodes
- * slide, the edges between them, whose routes cannot slide, wait hidden
- * and fade in once the nodes have arrived. Without it such an edge does
- * not fade.
  */
 export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
     readonly entries?: readonly Entry[] | undefined
-    readonly edgeOrder?: number | undefined
 }
 
 /**

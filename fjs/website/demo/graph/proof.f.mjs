@@ -251,8 +251,9 @@ export const proof = {
         },
         // A keyed node is drawn at the origin, its box and its text each in
         // a group moved into place and keyed apart, its clip local too; an
-        // unkeyed one is drawn where it is. An edge between nodes with no
-        // order takes the graph's edgeOrder, as new.
+        // unkeyed one is drawn where it is. An edge or entry between keyed
+        // nodes is keyed by them, drawn by key, its route one point longer
+        // than its bend so routes slide into one another.
         keyed: () => {
             const html = htmlToString(graphSvg({
                 nodes: [
@@ -262,21 +263,23 @@ export const proof = {
                 ],
                 edges: [{ from: 0, to: { inline: '5' }, label: '' }, { from: 0, to: 1, label: '' }, { from: 0, to: 2, label: '' }],
                 entries: [{ to: 0 }],
-                edgeOrder: 1,
             }))
             // The keyed groups are drawn by key, in a layer each: `b`
             // before `k`, and the unkeyed node after both, in its layer.
             const keys = html.split('data-key="').slice(1).map(k => k.slice(0, k.indexOf('"')))
-            assertEq(JSON.stringify(keys), '["box:b","box:k","text:b","text:k"]')
+            assertEq(JSON.stringify(keys), '["box:b","box:k","edge:k/b","entry:k","text:b","text:k"]')
             assert(html.includes('</defs><g><g data-graph-in-kind="shared" transform="translate(124,10)" data-key="box:b">'), html)
             // A keyed node is drawn at the origin, its clip too; the unkeyed
             // one where it is.
             assert(html.includes('transform="translate(34,13)" data-key="box:k"><rect x="0" y="0" width="50" height="60"'), html)
             assert(html.includes('<clipPath id="graph-clip-34-13-50-60"><rect x="0" y="0" width="50" height="60" rx="4"></rect></clipPath>'), html)
             assert(html.includes('<g data-graph-in-kind="shared"><rect x="124" y="50"'), html)
-            // Every edge and the entry are between nodes with no order, so
-            // they take the graph's edgeOrder.
-            assertEq(html.split('data-graph-in-kind="new" data-graph-order="1"').length - 1, 3)
+            // Nothing has an order, so nothing fades.
+            assert(!html.includes('data-graph-order'), html)
+            // The edge to the unkeyed node has no key and comes first; every
+            // route of a keyed graph is three points, a straight run doubled.
+            assert(html.includes('<g><path d="M84,63 L84,63 L124,63" data-graph-edge="" marker-end="url(#graph-arrow)"></path>'), html)
+            assert(html.includes('<path d="M84,43 L84,43 L124,23" data-graph-edge="" marker-end="url(#graph-arrow)" data-key="edge:k/b">'), html)
             // The svg is the defs and three layers, boxes, edges and labels,
             // however many edges there are, so a patch meets each layer
             // where it was.

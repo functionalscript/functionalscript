@@ -94,9 +94,9 @@ export const parDepths = [2, 3]
 /**
  * How long, in milliseconds, a node of a move takes to fade, and how long
  * after the node before it it starts: the site's stylesheet fades each
- * `data-graph-order` a quarter of a second after the one before.
+ * `data-graph-order` 150 ms after the one before.
  */
-export const orderGap = 250
+export const orderGap = 150
 
 /** How many trees one turn of the search tries. */
 export const turnBudget = 50
@@ -281,10 +281,10 @@ const levelOf = value => depths.find(d => String(d) === value)
  * A frame's graph, its moving nodes in order. Leaving, the nodes the next
  * tree does not share — new, against it — are `leaving`, and fade out from
  * the leaves up, from order 1, once the key removed has turned red through
- * order 0 ({@link marked}). Entering, the nodes that stay slide first to where the new
- * tree puts them, through order 0; then the nodes it built fade in from
- * the root down, one rank at a time, from order 1, and so do the edges
- * between nodes that stay, which waited hidden while they slid.
+ * order 0 ({@link marked}). Entering, the nodes that stay slide first to
+ * where the new tree puts them, through order 0, the edges between them
+ * sliding along; then the nodes it built fade in from the root down, one
+ * rank at a time, from order 1.
  *
  * Every node is keyed by its keys, so a node that stays is the same element
  * from frame to frame, and slides. A tree just built is drawn `still`, as it
@@ -304,7 +304,6 @@ export const ordered = mode => g => {
             key: keyOf(n.id),
             ...(n.kind !== 'new' ? {} : { kind: mode === 'enter' ? 'new' : 'leaving', order: 1 + ranks.indexOf(n.rank) }),
         })),
-        ...(mode === 'enter' && ranks.length > 0 ? { edgeOrder: 1 } : {}),
     }
 }
 
@@ -349,8 +348,8 @@ const drawn = ({ versions, mode, last, base }) => versions === null ? null
     : marked(mode)(last)(coloured(base)(versions.after)(ordered(mode)(graph(versions))))
 
 /**
- * How long the frame on the board is held: a quarter of a second for each
- * order of its moving nodes, so the last has faded before the next frame.
+ * How long the frame on the board is held: 150 ms for each order of its
+ * moving nodes, so the last has faded before the next frame.
  *
  * @type {(game: Game) => number}
  */

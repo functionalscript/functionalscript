@@ -279,19 +279,24 @@ const inKindOf = p => ({
  * one that stays goes with the node it leaves. Its kind and order are the
  * ones the stylesheet reads off a node's groups.
  *
- * Where neither has one, the graph's `edgeOrder`, if it has one.
- *
- * @type {(nodes: readonly _Positioned[], edgeOrder: number | undefined) => (from: number, to: number) => { readonly 'data-graph-in-kind'?: string, readonly 'data-graph-order'?: string }}
+ * @type {(nodeOf: (id: number) => _Positioned) => (from: number, to: number) => { readonly 'data-graph-in-kind'?: string, readonly 'data-graph-order'?: string }}
  */
-const fadeOf = (nodes, edgeOrder) => (from, to) => {
-    /** @type {(id: number) => _Positioned} */
-    const nodeOf = id => assertNotNullish(nodes.find(n => n.id === id))
+const fadeOf = nodeOf => (from, to) => {
     const target = nodeOf(to)
     const owner = target.order !== undefined ? target : nodeOf(from)
-    return owner.order !== undefined ? inKindOf(owner)
-        : edgeOrder === undefined ? {}
-        : { 'data-graph-in-kind': 'new', 'data-graph-order': String(edgeOrder) }
+    return owner.order !== undefined ? inKindOf(owner) : {}
 }
+
+/**
+ * An edge's or an entry's `data-key` in a keyed graph, from the keys of the
+ * nodes it joins, so a page that patches the drawing keeps the same path
+ * for it, and the site's stylesheet slides its route with its nodes. None
+ * when a node it joins has no key.
+ *
+ * @type {(part: string, ...keys: readonly (string | undefined)[]) => { readonly 'data-key'?: string }}
+ */
+const pathKeyOf = (part, ...keys) =>
+    keys.every(k => k !== undefined) ? { 'data-key': `${part}:${keys.join('/')}` } : {}
 
 /**
  * Where a node's contents are drawn, and the attributes of the groups that
@@ -755,13 +760,21 @@ export const graphSvg = g => {
         ...positioned.map(p => p.y + p.height),
         ...placed.lanes.map(lane => lane.y + laneSize / 2),
     ])
-    const fade = fadeOf(positioned, g.edgeOrder)
+    /** @type {(id: number) => _Positioned} */
+    const nodeOf = id => assertNotNullish(positioned.find(n => n.id === id))
+    const fade = fadeOf(nodeOf)
+    const keyed = positioned.some(p => p.key !== undefined)
+    // A keyed graph's routes all have one more point than their bend, a
+    // straight run doubled, so one route's shape can slide into another's.
+    /** @type {(points: readonly _Point[]) => readonly _Point[]} */
+    const even = points => keyed && points.length === 2 ? [points[0], ...points] : points
     /** @type {readonly Element[]} */
     const edgeEls = routesOf(placed).map(({ edge, to, points }) => ['path', {
-        d: `M${points.map(([x, y]) => `${x},${y}`).join(' L')}`,
+        d: `M${even(points).map(([x, y]) => `${x},${y}`).join(' L')}`,
         'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
         ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
         ...fade(edge.from, to),
+        ...pathKeyOf('edge', nodeOf(edge.from).key, nodeOf(to).key),
     }])
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge
@@ -774,6 +787,7 @@ export const graphSvg = g => {
             'data-graph-edge': '', 'data-graph-entry': '', 'marker-end': 'url(#graph-arrow)',
             ...(kind === undefined ? {} : { 'data-graph-edge-kind': kind }),
             ...fade(p.id, p.id),
+            ...pathKeyOf('entry', p.key),
         }])
     }))
     /**
@@ -791,10 +805,14 @@ export const graphSvg = g => {
     // A keyed graph draws its keyed groups in an order of their own, by
     // key, in a layer each: a page that patches it then finds a node's
     // group among the same siblings, in the same order, from one drawing
-    // to the next, and never has to move it. Its edges are a layer too, so
-    // the label layer after them stays the same element however many
-    // edges a drawing has.
-    const keyed = positioned.some(p => p.key !== undefined)
+    // to the next, and never has to move it. Its edges are a layer too,
+    // sorted by key the same way, so the label layer after them stays the
+    // same element however many edges a drawing has, and an edge between
+    // nodes that stay is the same path, its route sliding with them.
+    /** @type {(el: Element) => string} */
+    const keyAttrOf = el => /** @type {{ readonly 'data-key'?: string }} */ (/** @type {readonly unknown[]} */ (el)[1])['data-key'] ?? ''
+    /** @type {(els: readonly Element[]) => readonly Element[]} */
+    const byKey = els => keyed ? els.toSorted((a, b) => keyAttrOf(a) < keyAttrOf(b) ? -1 : 1) : els
     const drawn = keyed ? positioned.toSorted((a, b) => String(a.key) < String(b.key) ? -1 : 1) : positioned
     /** @type {(els: readonly Element[]) => readonly Element[]} */
     const layer = els => keyed ? [['g', ...els]] : els
@@ -879,7 +897,7 @@ export const graphSvg = g => {
                 ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-arrow': '' }]],
             ...clipEls],
         ...layer(boxEls),
-        ...layer([...edgeEls, ...entryEls]),
+        ...layer(byKey([...edgeEls, ...entryEls])),
         ...layer(labelEls),
     ]]
 }
