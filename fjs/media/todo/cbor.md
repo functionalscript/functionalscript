@@ -69,7 +69,13 @@ One encoding, not options:
 - RFC 8949 §4.2 core deterministic encoding — shortest-form integer heads,
   definite lengths only, no duplicate keys, keys in §4.2 bytewise order
   (detection is semantic — [detect-cbor.md](../type/todo/detect-cbor.md) §2 — so no
-  entry-order deviation is needed);
+  entry-order deviation is needed) — **with one deliberate exception, D3**: a
+  `bigint` is always a bignum, where the RFC's preferred serialization writes an
+  integer that fits major 0 or 1 as such. The encoding is therefore the **FJS
+  deterministic profile**, and says so wherever it is named; an encoder that
+  follows §4.2 to the letter writes different bytes for `5n`. Under the
+  alternative answer to D3 (below) the exception goes and this is §4.2 as it
+  stands;
 - no tag-55799 wrapper: the canonical form is the bare item (the dialect
   entry already identifies FJS blobs, and canonical bytes must not fork on
   an optional wrapper — the parser accepts the tag on input, but a wrapped blob
@@ -145,7 +151,9 @@ which is what makes integers, lengths and tags preferred-form by construction.
 - A `bigint` is tag 2 (non-negative) or tag 3 (negative, argument `-1 - n`) over
   a minimal big-endian byte string, **always**: `5n` and `5` are different FJS
   values, so they must not share bytes (a content hash would collide). This is
-  D3.
+  D3, and it is the one place the serializer departs from RFC 8949's preferred
+  serialization (a value that fits major 0 or 1 is not written as a bignum), so
+  the profile is the FJS one, not plain §4.2 core deterministic encoding.
 - The parser reads major 0 and 1 as a `number` within the safe range and as a
   `bigint` outside it, and tags 2 and 3 as a `bigint` whatever the size.
 - **One rule says what is canonical:** `bytes` are canonical when
@@ -248,13 +256,25 @@ Each is the session's proposal; none is built on until the owner answers.
   128 KiB; a list loses nothing and a `Vec` caps the model.
 - **D2. Reuse the extended JSON tree as `Value`.** One data model across JSON,
   DataJS and CBOR; the alternative is a CBOR-specific tree.
-- **D3. Every `bigint` is a bignum (tags 2 and 3).** It keeps `5n` and `5`
-  distinct on the wire, at the price that a small `bigint` is not in RFC 8949's
-  preferred integer form. The alternative is major 0 and 1 for any integer that
-  fits 64 bits, so a small `bigint` decodes as a `number`: then
-  `parse(serialize(5n))` is `5`, two distinct FJS values share bytes, and a hash
-  of the bytes cannot tell them apart. To be checked against RFC 8949 3.4.3 and
-  4.2.2 before it is written into the README.
+- **D3. How `number` and `bigint` stay distinct on the wire.** FJS has `5` and
+  `5n`, RFC 8949's preferred serialization has one form for the integer 5, and a
+  content hash must tell the two FJS values apart. Three answers:
+  - **(a) Every `bigint` is a bignum (tags 2 and 3); an integral `number` is
+    major 0 or 1.** Proposed. The two stay distinct, a `number` is the integer
+    every CBOR reader expects, and the price is the one deviation: the encoding is
+    an FJS profile of §4.2, named as such, not plain core deterministic encoding.
+  - **(b) Stay inside §4.2 exactly: a `bigint` is major 0 or 1 (a bignum only past
+    64 bits), and every `number` is a float** (`5` is `f94500`). Injective and
+    plain core deterministic, at the cost that an integral `number` is a float
+    to every generic reader, and a few more bytes for the small integers.
+  - **(c) Major 0 and 1 for both**, so `parse(serialize(5n))` is `5`: two distinct
+    FJS values share bytes, and a hash cannot tell them apart. Not recommended.
+
+  The RFC points (3.4.3 on preferred serialization of bignums, 4.2.1 on core
+  deterministic encoding) are to be checked against the text before they reach
+  the README; the exception in (a) rests on them. The producer rule in
+  [detect-cbor.md](../type/todo/detect-cbor.md) says "RFC 8949 §4.2 core
+  deterministic encoding" and is amended with this answer.
 - **D4. Shortest floats.** The `todo` already says RFC 8949 4.2; the roadmap
   records the competing "always 8-byte doubles" (it is also simpler to encode).
   Shortest-form is the standard's and is recommended.

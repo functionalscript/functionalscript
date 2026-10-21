@@ -80,8 +80,10 @@ exceeding the cap does the verdict fall back to `application/octet-stream` (or
 generic `application/cbor` on a tier-1 tag match).
 
 **Encoding rule for producers** (to be stated in the format specs): FJS-produced
-tagged CBOR MUST use RFC 8949 §4.2 core deterministic encoding (definite
-lengths, keys in deterministic bytewise order) and no tag-55799 wrapper — the
+tagged CBOR MUST use the FJS deterministic profile of [cbor.md](../../todo/cbor.md)
+(RFC 8949 §4.2 core deterministic encoding — definite lengths, keys in
+deterministic bytewise order — with the one exception that a `bigint` is always
+a bignum, so that it stays distinct from a `number`) and no tag-55799 wrapper — the
 dialect entry already identifies the blob, and the canonical bytes must not
 fork on an optional prefix. Detection does not depend on entry order, so no
 deviation from §4.2 ordering is needed. The wrapper is an input-side allowance
@@ -110,9 +112,10 @@ the honest answer.
       tier-2 dialect probe before emitting the generic verdict; proof cases
       including a tagged blob split across chunks and a tag-wrapped dialect map
       that must report the derived type, not generic `application/cbor`
-- [ ] Specify the FJS canonical tagged-CBOR form: RFC 8949 §4.2 core
-      deterministic encoding (definite lengths, deterministic key order), no
-      tag-55799 wrapper
+- [ ] Specify the FJS canonical tagged-CBOR form: the FJS deterministic profile
+      of [cbor.md](../../todo/cbor.md) (RFC 8949 §4.2 core deterministic encoding
+      plus its bignum exception, once that decision is settled), no tag-55799
+      wrapper
 - [ ] Implement tier 2: size-bounded (128 KiB inline cap) CBOR decode, with and
       without the tier-1 tag prefix; on a map, decode the `dialect` value,
       grammar-check `+`-separated segments, allowlist `vnd.fjs.*`, validate
