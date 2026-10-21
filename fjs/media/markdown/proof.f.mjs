@@ -297,6 +297,12 @@ export const proof = {
             link: () => assertEq(tryParseEntry('[x](u)*"b"*[y](v)')[0], 'ok'),
             emphasis: () => assertEq(tryParseEntry('*a**"b"**c*')[0], 'ok'),
         },
+        // GitHub reads an address or an autolink in bold as a link too.
+        autolinkInEmphasis: {
+            email: () => assertEq(tryParseEntry('**foo@example.com**')[1], 'an email address, which GitHub reads as a link, at 3'),
+            angle: () => assertEq(tryParseEntry('*<https://e.x>*')[1], 'an autolink inside bold or emphasis'),
+            label: () => assertEq(tryParseEntry('[foo@example.com](u)')[0], 'ok'),
+        },
     },
     /**
      * A README's blocks: headings, paragraphs, code fences and flat lists,
@@ -382,6 +388,10 @@ export const proof = {
             tildeFence: () => assertEq(refusal('~~~\n'), 'line 1: a tilde code fence'),
             starList: () => assertEq(refusal('* a\n'), 'line 1: a list marked other than with `- `'),
             plusList: () => assertEq(refusal('+ a\n'), 'line 1: a list marked other than with `- `'),
+            // A marker alone, or with a tab after it, opens an item too.
+            plusAlone: () => assertEq(refusal('+\n'), 'line 1: a list marked other than with `- `'),
+            plusTab: () => assertEq(refusal('+\ta\n'), 'line 1: a list marked other than with `- `'),
+            plusWord: () => assertEq(refusal('+a\n'), null),
             numbered: () => assertEq(refusal('1. a\n'), 'line 1: a numbered list'),
             numberedParen: () => assertEq(refusal('12)\n'), 'line 1: a numbered list'),
             numberIsProse: () => assertEq(refusal('1.5 is a number\n\n2024 a\n\n12\n'), null),

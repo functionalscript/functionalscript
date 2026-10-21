@@ -400,8 +400,13 @@ const readProse = entry => {
         if (span[0] === 'link' && [...span[2]].some((_, i) => entityAt(span[2], i))) {
             return error('an entity in a link target')
         }
-        const refused = texts.map(proseSpans(false)).find(r => r[0] === 'error')
-        if (refused !== undefined) { return /** @type {Result<Entry, string>} */(refused) }
+        // A link's label holds no link; bold and emphasis may, and an
+        // autolink there is a link the kept span would drop.
+        for (const t of texts) {
+            const read = proseSpans(span[0] !== 'link')(t)
+            if (read[0] === 'error') { return error(read[1]) }
+            if (read[1].some(s => s[0] === 'link')) { return error('an autolink inside bold or emphasis') }
+        }
         out = [...out, span]
     }
     return ok(out)
@@ -491,7 +496,10 @@ const foreignBlock = line => {
     if (trimmed.startsWith('```')) { return 'an indented code fence' }
     if (headingLevel(trimmed) !== 0) { return 'an indented heading' }
     if (trimmed.startsWith('- ')) { return 'an indented list item' }
-    if (trimmed.startsWith('* ') || trimmed.startsWith('+ ')) { return 'a list marked other than with `- `' }
+    // A marker that ends its line opens an empty item.
+    if ((trimmed[0] === '*' || trimmed[0] === '+') && (trimmed.length === 1 || trimmed[1] === ' ' || trimmed[1] === '\t')) {
+        return 'a list marked other than with `- `'
+    }
     let digits = 0
     while (charIs(isDigit)(trimmed[digits] ?? '')) { digits++ }
     if (digits !== 0 && (trimmed[digits] === '.' || trimmed[digits] === ')')
