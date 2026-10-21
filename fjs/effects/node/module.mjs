@@ -13,13 +13,14 @@
  * @module
  *
  * @import { Effect, IoChannel } from '../types.ts'
- * @import { Child, ExitStatus, Handle, Headers, IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, ServerResponse, WriteConsoles, TestContext, TestFn, } from './types.ts'
+ * @import { Child, ExitStatus, FileStat, Handle, Headers, IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, ServerResponse, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { _CloseRecord, _IncomingMessage, _Readable, _RequestBodyReader, _RequestListener, _Server, _ServerResponse } from './private.ts'
  * @import { Next } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { FileHandle } from 'node:fs/promises'
+ * @import { Stats } from 'node:fs'
  * @import { ChildProcess } from 'node:child_process'
  */
 
@@ -40,7 +41,7 @@ import { asyncRun, io } from '../module.mjs'
 import { asyncMemoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap, randomIntOperationMap } from '../common/module.mjs'
 import {
-    emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage,
+    _maxVecBytes, emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage,
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, toIoError, windowRefusal,
 } from './module.f.mjs'
@@ -49,7 +50,6 @@ import { definedEntries } from '../../types/object/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
-import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { _orderDirents } from './virtual/readdir/module.f.mjs'
 
 /**
@@ -506,6 +506,9 @@ const failSafe = res => {
 
 const { mkdir, open, readFile, readdir, rename, writeFile, rm, rmdir, access, stat, lstat } = fs.promises
 
+/** What `stat` and `fstat` answer of a host's `Stats`. @type {(s: Stats) => FileStat} */
+const fileStat = s => ({ size: s.size, isFile: s.isFile(), isDirectory: s.isDirectory() })
+
 const { exec, spawn } = childProcess
 
 /** The child a {@link Child} brands, as `asFileHandle` recovers a handle. @type {(child: Child) => ChildProcess} */
@@ -519,8 +522,6 @@ const asChild = child => /** @type {ChildProcess} */ (asBase(child))
  * @type {(code: number | null, signal: string | null) => ExitStatus}
  */
 const exitStatus = (code, signal) => code !== null ? ['exited', code] : ['signaled', /** @type {string} */ (signal)]
-
-const maxFileSizeBytes = Number(maxLengthBytes)
 
 /**
  * An `Error` carrying `code`, the shape Node gives its own I/O failures and
@@ -833,11 +834,11 @@ export const runNodeEffect = asyncRun({
             // through a handle instead.
             let chunks = /** @type {readonly Vec[]} */ ([])
             for (;;) {
-                const chunk = await fill(fh, Buffer.alloc(maxFileSizeBytes), null)
+                const chunk = await fill(fh, Buffer.alloc(_maxVecBytes), null)
                 if (chunk.length !== 0) {
                     chunks = [...chunks, toVec(chunk)]
                 }
-                if (chunk.length < maxFileSizeBytes) {
+                if (chunk.length < _maxVecBytes) {
                     return chunks
                 }
             }
@@ -858,7 +859,7 @@ export const runNodeEffect = asyncRun({
         // typings do not spell, so the shape is stated here, once, at the
         // boundary.
         const { buffer, engine } = /** @type {{ readonly buffer: Uint8Array, readonly engine: { readonly bytesWritten: number } }} */
-            (/** @type {unknown} */ (zlib.inflateSync(input, { info: true, maxOutputLength: maxFileSizeBytes })))
+            (/** @type {unknown} */ (zlib.inflateSync(input, { info: true, maxOutputLength: _maxVecBytes })))
         if (engine.bytesWritten !== input.length) {
             throw hostError(inflateTrailingCode, inflateTrailingMessage(input.length - engine.bytesWritten))
         }
@@ -913,10 +914,7 @@ export const runNodeEffect = asyncRun({
             written += bytesWritten
         }
     })),
-    stat: path => io(async () => {
-        const s = await stat(path)
-        return { size: s.size, isFile: s.isFile(), isDirectory: s.isDirectory() }
-    }),
+    stat: path => io(async () => fileStat(await stat(path))),
     // **The flag is the operation**, and without it the three that follow could
     // not be reached for the one entry they exist to refuse. A plain read-only
     // open of a FIFO with no writer never returns: measured on Darwin with Node
@@ -931,10 +929,7 @@ export const runNodeEffect = asyncRun({
     // bytes — and Windows, which has no `O_NONBLOCK` and no FIFO an `open` reaches,
     // gets `0` and the open it always had.
     open: path => io(async () => /** @type {Handle} */ (asNominal(await open(path, readFlags)))),
-    fstat: handle => io(async () => {
-        const s = await asFileHandle(handle).stat()
-        return { size: s.size, isFile: s.isFile(), isDirectory: s.isDirectory() }
-    }),
+    fstat: handle => io(async () => fileStat(await asFileHandle(handle).stat())),
     // `fill` rather than one `read`, for the reason it gives: one positional read
     // may answer less than it was asked for without the file being at its end, and
     // a caller counting bytes against a declared length would read that as a hole.
