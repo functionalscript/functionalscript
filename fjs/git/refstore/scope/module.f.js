@@ -17,7 +17,7 @@
 
 import { charIs, isLatinCapitalLetter } from '../../../text/ascii/module.f.js'
 
-/** Whether a character is an upper-case Latin letter. @type {(c: string) => boolean} */
+/** Whether a character is an upper-case Latin letter. */
 const isCapital = charIs(isLatinCapitalLetter)
 
 /**
