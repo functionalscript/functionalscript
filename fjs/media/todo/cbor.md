@@ -1,7 +1,7 @@
 ## cbor. A CBOR serializer/parser: `fjs/media/cbor`
 
 **Priority:** P3
-**Status:** wip — a draft pull request holds the task; the implementation design below awaits the owner's decisions D1 to D7
+**Status:** wip — a draft pull request holds the task; the implementation design below awaits the owner's decisions D1 to D8
 
 The codec (this todo) and CBOR *detection*
 ([detect-cbor.md](../type/todo/detect-cbor.md)) are two different tasks: this one builds the
@@ -110,8 +110,8 @@ fjs/media/cbor/
 ```
 
 ```js
-serialize:   (value: Value) => List<number>               // bytes, lazy; total over Value
-parse:       (bytes: List<number>) => Result<Value, string> // strict, bounded, total
+serialize:   (value: Value) => Result<List<number>, string> // bytes, lazy; refuses a lone surrogate
+parse:       (bytes: List<number>) => Result<Value, string>  // strict, bounded, total
 isCanonical: (bytes: List<number>) => boolean
 mediaType = 'application/cbor'
 ```
@@ -120,6 +120,13 @@ mediaType = 'application/cbor'
 (`null`, booleans, `string`, `number | bigint`, arrays, objects), so a CBOR
 dialect blob and its JSON twin are the same value. Every function is pure, and
 the errors are values with a message in the style of the sibling parsers.
+
+`serialize` is **not total over `Value`**: a JSON string may hold an unpaired
+surrogate (`"\uD800"`), which UTF-8, and so a CBOR text string, cannot spell,
+and [`fjs/text/utf8`](../../text/utf8/module.f.mjs) round-trips only strings
+without one. The serializer refuses such a string, with an error that names it,
+and `parse` never produces one, so everything `parse` accepts serializes
+(`isCanonical` below needs that). This is D8.
 
 #### The head, and the item reader
 
@@ -168,7 +175,8 @@ which is what makes integers, lengths and tags preferred-form by construction.
 #### Strings, arrays, maps
 
 - A text string is UTF-8 by [`fjs/text/utf8`](../../text/utf8/module.f.mjs);
-  invalid UTF-8 is a parse error. Lengths are definite.
+  invalid UTF-8, a surrogate sequence included, is a parse error, and a string
+  with an unpaired surrogate is a serialize error (D8). Lengths are definite.
 - A map has text keys only. The serializer sorts entries by the **bytewise
   order of the encoded key** (RFC 8949 4.2.1): the length head comes first, so
   a shorter key sorts before a longer one, and it is not the code-unit order the
@@ -188,9 +196,12 @@ which is what makes integers, lengths and tags preferred-form by construction.
 
 #### `isCanonical`
 
-`isCanonical(bytes)` is `parse(bytes)` succeeding and `serialize(value)` equal to
-`bytes`. It needs no second reader and cannot disagree with the serializer; it
-costs one parse and one serialize, for a predicate that is rare (CAS dedup).
+`isCanonical(bytes)` is `parse(bytes)` succeeding and `serialize(value)` being
+`ok` with the same bytes. The serialize step cannot fail on a parsed value
+(`parse` never yields an unpaired surrogate, D8), so a failure there is a bug,
+not an answer. It needs no second reader and cannot disagree with the
+serializer; it costs one parse and one serialize, for a predicate that is rare
+(CAS dedup).
 
 #### Proofs
 
@@ -199,14 +210,27 @@ costs one parse and one serialize, for a predicate that is rare (CAS dedup).
   (`18446744073709551616` is `c249010000000000000000`), the floats (`1.1` is
   `fb3ff199999999999a`, `65504.0` is `f97bff`), the strings, arrays and maps.
   The vectors outside the model are asserted **refused**, each with its reason.
-- Serializer: every vector is produced from its value; `-0`, `NaN`, the
-  infinities, the half/single/double boundaries and the safe-integer edges.
+  The vectors are **two lists, not one**. The RFC gives a value one example
+  encoding and the serializer writes exactly one, and they differ wherever the
+  RFC's example is not the canonical form here: `65504.0` and `1.0` are floats
+  in the RFC and integers to the serializer (`19ffe0`, `01`), and a bignum for a
+  value that fits is the RFC's major 0.
+- Parser: **every** in-model vector parses to its value, including the
+  non-shortest and integral-float ones; a vector the serializer would write
+  differently is also reported non-canonical.
+- Serializer: a second list of `value -> canonical bytes`. The vectors whose
+  RFC bytes already are the canonical form are taken from the RFC as they are;
+  each of the others is listed with the bytes the serializer must write, and a
+  comment naming the RFC example it replaces. Then `-0`, `NaN`, the infinities,
+  the half/single/double boundaries and the safe-integer edges, and a string
+  with an unpaired surrogate refused.
 - Parser: truncated items at every cut, trailing bytes, duplicate keys,
   indefinite lengths, reserved additional information, invalid UTF-8, an
   unsupported tag, a non-text key, depth `maxDepth` and `maxDepth + 1`, a length
   claiming more than the bytes hold, the 55799 wrapper.
-- Round trip: `parse(serialize(v))` is `v` for generated trees (`Object.is` for
-  numbers, so `-0` and `NaN` are tested), and `isCanonical(serialize(v))` holds.
+- Round trip: `parse(serialize(v))` is `v` for generated trees without an
+  unpaired surrogate (`Object.is` for numbers, so `-0` and `NaN` are tested), and
+  `isCanonical(serialize(v))` holds.
 - Node has no CBOR, so there is no reference to diff against as there was for
   `fjs/zlib`; the RFC's vectors and the generated round trips are the evidence.
   An independent implementation, if one is at hand, is for a **temporary**
@@ -244,6 +268,12 @@ Each is the session's proposal; none is built on until the owner answers.
 - **D7. Order of work and the size of the pull requests**: the stack below.
   Byte strings (major 2) as a model value, and a payload-free recognizer
   (detect-cbor tier 3), stay out of this task.
+- **D8. Strings with an unpaired surrogate.** JSON can hold one and CBOR text
+  cannot. Proposed: `serialize` refuses it (a `Result`, above), and `parse` never
+  yields one. The alternatives are narrowing `Value` to well-formed strings,
+  which changes the JSON data model this reuses (D2); or writing it as WTF-8 into
+  a text string, which the parser would then have to reject as invalid UTF-8, so
+  the codec would fail its own round trip. Refusing is recommended.
 
 ### Tasks
 
@@ -251,8 +281,8 @@ The stack, one pull request per bullet group, in order:
 
 1. This pull request: the claim (`wip`), the design above and the decisions.
 2. README, `types.ts` and `float/` with its proof.
-3. The serializer, against the vectors.
-4. The parser, and the round trips.
+3. The serializer, against the canonical vector list.
+4. The parser, against every in-model vector, and the round trips.
 5. `isCanonical`, the root module, the references from `fjs/media`, and the
    unblocking of detect-cbor tier 2; the pull request that takes the last step
    deletes this file.
