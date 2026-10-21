@@ -7,6 +7,8 @@
 
 Allow ordinary local rebinding and structured loops, and emit eligible tail
 self-calls as loops. Build these features on FAST and the common conversions.
+FAST describes execution steps; EDAG describes the requested result and its
+value dependencies. The architecture owner defines their semantic contracts.
 Simplicity and separation of concerns govern both the architecture and the
 order of work.
 

@@ -37,6 +37,13 @@ output and compiler orchestration, so it lives in `fjs/todo/`.
 
 #### Vocabulary
 
+**FAST describes the steps of computation; EDAG describes its goal and value
+dependencies.** FAST makes bindings, evaluation regions and control flow
+explicit. An EDAG is rooted in the requested result and records the values
+needed to compute it. Sharing, required evaluation and conditional evaluation
+remain part of the graph's semantics; graph-to-FAST conversion turns those
+constraints into an execution plan.
+
 | Term | Meaning |
 | --- | --- |
 | JS tokens | Lexical tokens with the metadata needed to parse JS, including relevant line boundaries and source locations. |
@@ -221,7 +228,7 @@ source mutability. Generated loop helpers are introduced only afterward.
 | Value and reference | Literals, operations and functions retain existing EDAG semantics; a reference uses an established identity rather than copying its initializer. |
 | Required binding/evaluation | Establish an initializer at its position, even if its result is unused. Preserve eager anchors. |
 | Shared lazy definition | Where existing EDAG sharing requires it, establish a value on its first reached use and reuse it within the owning invocation/iteration. Reuse current sharing/memo semantics; do not make it eager. |
-| Result block and `yield(values)` | A normally completing block supplies its declared result list. An abrupt exit supplies no normal results. |
+| Result block and `yield(values)` | A value-producing block with local bindings, without a function/invocation boundary. Normal completion supplies its declared result list; an abrupt exit supplies no normal results. |
 | `if(condition, then, else)` | Evaluate the condition once and only the selected arm. Normally completing arms agree on the result signature. |
 | `loop L(parameters = initialValues) -> results` | Evaluate initial values once at entry. Parameters denote immutable values for one iteration; inputs and results have separate ordered signatures. |
 | `continue L(values)` | Evaluate every next value under the current iteration before transferring them simultaneously to L's parameters. |
@@ -234,6 +241,25 @@ fallthrough remains. Break/continue targets are lexically enclosing loops in
 the same function. References remain within their value/capture scopes.
 Source labels and new EDAG operations are not implied by these internal
 identities.
+
+For example, a value-producing block can express these steps directly:
+
+```text
+result = block {
+    b = a + 1
+    yield(b * 2)
+}
+```
+
+JavaScript can express this example as
+`(() => { const b = a + 1; return b * 2; })()`. FAST represents the block
+directly, without introducing a function, invocation or capture boundary.
+`yield` supplies the block's results; `return F(value)` still exits the owning
+function. Any elimination of a source IIFE must preserve invocation semantics
+and follow source capture admission. This JavaScript spelling does not require
+serializers to emit an IIFE: common preparation determines the statements and
+temporaries needed by the target. In EDAG, this example's root is multiplication
+whose input depends on addition; no procedural block is needed.
 
 For example, a loop with two parameters and one result is:
 
@@ -284,10 +310,11 @@ G enables the new policy and general rebinding in these same passes; it does
 not introduce a second analysis or require retrofitting FAST.
 
 A's examples/proofs cover written/unwritten locals and parameters, destructured
-initialization, source `const` errors, a branch with results, a swapped-parameter
-loop, normal versus function exit, an overwritten required initializer, lazy
-shared evaluation and a captured iteration value. The API must express these
-before downstream work depends on it.
+initialization, source `const` errors, a value-producing block without a function
+boundary, a branch with results, a swapped-parameter loop, normal versus
+function exit, an overwritten required initializer, lazy shared evaluation and
+a captured iteration value. The API must express these before downstream work
+depends on it.
 
 A also records the supported exact-graph domains and any intentional
 normalization needed by the baseline scalar root-loop round trip. B implements
