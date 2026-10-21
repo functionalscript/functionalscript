@@ -1023,10 +1023,10 @@ export const values = items(item)
  * JavaScript's `Elision` does. `,` begins no item, so one symbol decides.
  *
  * An array of this language has no hole
- * ([spec: arrays](../../../../spec/values/arrays.md)), so the rule admits
+ * ([spec: arrays](../../../../spec/values/arrays/README.md)), so the rule admits
  * the elision for a pattern's sake alone: a pattern is read by this rule,
  * {@link bindingTarget}, and there an elision skips an element of the
- * source ([spec: destructuring](../../../../spec/bindings/destructuring.md)).
+ * source ([spec: destructuring](../../../../spec/bindings/destructuring/README.md)).
  * Which of the two the text is, the position alone decides, so the reader
  * records the elision and the fold refuses it in a value.
  *
@@ -1061,7 +1061,7 @@ export const end = option([sym(';')])
  * binding pattern — an array or an object, {@link array} and
  * {@link object}, the value rules' own, since a pattern spells the literal
  * the same text would and JavaScript reads the two apart by position alone
- * ([spec: destructuring](../../../../spec/bindings/destructuring.md)). A
+ * ([spec: destructuring](../../../../spec/bindings/destructuring/README.md)). A
  * name's word, `[` and `{` begin nothing else in either position, so one
  * symbol decides. What the literal reads that no pattern may hold — a
  * value in a binding position, a spread, a computed key — is the reader's
@@ -1095,7 +1095,7 @@ export const constStatement = [sym('const'), bindingTarget, sym('='), value, end
  * {@link block}, the guard's own, so the case ends as every block does,
  * in `return`, `throw` or a switch with a `default`, and never falls
  * through into the next
- * ([spec: switch](../../../../spec/control-flow/switch.md)), and then
+ * ([spec: switch](../../../../spec/control-flow/switch/README.md)), and then
  * what follows the case, {@link afterCase}. `case` and `{` decide the
  * two in one symbol. A case without braces, and `break`, are follow-ups.
  *
@@ -1141,7 +1141,7 @@ export const afterCase = () => ['const', {
  * it on to the statements after it, {@link afterCase} — the one statement
  * that holds the rest of its block, so that the block is a terminator
  * short exactly when the switch has the `default` the grammar then lets
- * nothing follow ([spec: switch](../../../../spec/control-flow/switch.md)).
+ * nothing follow ([spec: switch](../../../../spec/control-flow/switch/README.md)).
  * A switch with no case has no place here, so `switch (v) {}` is refused
  * at its `}` and `switch (v) { default: … }` at its `default`.
  * `return` and `throw` are each followed by their own {@link end}.
@@ -1174,7 +1174,7 @@ export const terminator = /** @type {const} */ ({
  *
  * A loop is two statements, `let name = value;` and `while (condition)
  * loopBlock`, the second right after the first — one form, read by the
- * fold as one ([spec: loops](../../../../spec/control-flow/loops.md)); the
+ * fold as one ([spec: loops](../../../../spec/control-flow/loops/README.md)); the
  * grammar reads each as a statement of its own, since one symbol decides
  * each, and leaves their adjacency to the fold, as it leaves the guard's
  * block's ending to it. No {@link end} follows the loop's `}`, as none
@@ -1208,7 +1208,7 @@ export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from
 /**
  * A call statement, `assert(a);`: a name, the rest of the value it begins,
  * as a value's name branch reads it, {@link arrowOrRest}, and its
- * {@link end} ([spec: call statements](../../../../spec/functions/call-statements.md)).
+ * {@link end} ([spec: call statements](../../../../spec/functions/call-statements/README.md)).
  * The grammar reads any value a name begins, and the fold admits a call
  * alone, refusing any other at the name, as the grammar refused it before.
  *
@@ -1224,7 +1224,7 @@ export const nameStatement = /** @type {const} */ ([assignable, arrowOrRest, end
  * A loop block's statement that begins with a name: the assignment to the
  * loop's variable, `name = value` — the one statement that rebinds a name,
  * and it stands in a loop's block alone
- * ([spec: loops](../../../../spec/control-flow/loops.md)) — or a call
+ * ([spec: loops](../../../../spec/control-flow/loops/README.md)) — or a call
  * statement, {@link nameStatement}, the rest of the value the name begins.
  * `=` decides the assignment in one symbol, an assignment being no value
  * of the language; and the {@link end} of either.

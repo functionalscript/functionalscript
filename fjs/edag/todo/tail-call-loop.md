@@ -115,7 +115,7 @@ for the same shapes, which no loop written as `let`/`while` produces:
   recursion in Rust, as in every writer;
 - a read of the rest array: each round of the recursion is a call of one
   argument, so from the second round on the array is empty
-  ([spec: parameters](../../../spec/functions/parameters.md)), and a loop
+  ([spec: parameters](../../../spec/functions/parameters/README.md)), and a loop
   that kept the first call's array would answer differently where that
   array had members;
 - a spread or a second argument as the next value. A next value that
@@ -281,7 +281,7 @@ Likewise, the observable [function-text contract](../function-text.md) remains
 an explicit migration requirement; any intended text change must be recorded
 in that contract and its proofs, rather than arriving as an incidental
 formatting change. Preserve the admitted
-[loop grammar](../../../spec/control-flow/loops.md) and its existing
+[loop grammar](../../../spec/control-flow/loops/README.md) and its existing
 source → EDAG → source → same EDAG round-trip cases.
 
 ### Tasks
@@ -306,7 +306,7 @@ source → EDAG → source → same EDAG round-trip cases.
       the graph again.
 - [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, with the grammar
-      ([spec: loops](../../../spec/control-flow/loops.md)), its proposal
+      ([spec: loops](../../../spec/control-flow/loops/README.md)), its proposal
       approved, proven by the round trip.
 - [ ] Move the implemented loop decisions and eligible call elimination to
       common EDAG-to-FAST conversion, with the capture and region rules above.

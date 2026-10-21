@@ -37,7 +37,7 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstGu
 
 /**
  * The `entry` helper, which the parser recognizes whole
- * ([spec: entry](../../../spec/property-access/entries.md)):
+ * ([spec: entry](../../../spec/property-access/entries/README.md)):
  *
  * ```js
  * (a, b) => {
@@ -365,7 +365,7 @@ export type AstInstanceOf = readonly ['instanceof', AstConst, ConstructorId]
  * The conversion `Number(v)`: the EDAG's `['Number', exp]`, `op1Id` — the
  * number JavaScript's `Number` answers when called, a `bigint` converted
  * where unary `+` throws
- * ([spec: number conversion](../../../spec/conversions/number.md)).
+ * ([spec: number conversion](../../../spec/conversions/number/README.md)).
  * The parser writes it for the call of the reserved word `Number` with one
  * argument, and for nothing else the word spells; like {@link AstTypeof}
  * it folds nothing, since what a value converts to is the interpreter's

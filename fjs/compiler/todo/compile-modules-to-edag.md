@@ -160,7 +160,7 @@ written and whether the import carries `with { type: "json" }` — see
 resolver/loader to validate under the host contract, even on cache hits. Its order
 defines the import parameter positions in `edag`. `edag` is the parameterized computation for the module,
 with the complete module export object as its root/result
-([named and default exports](../../../spec/modules/exports.md)).
+([named and default exports](../../../spec/modules/exports/README.md)).
 
 `Unresolved` is a compiler/loading structure only. It is **not part of EDAG**, and
 import specifiers and resolved loading locations must not be embedded into EDAG

@@ -72,7 +72,7 @@
  * the function `r => c ? (() => { …block…; return self(next); })() : r`
  * with `init`, the block the body of a parameterless function as a
  * guard's arm is, {@link loopRound}, and the variable names the call from
- * the loop on ([spec: loops](../../../spec/control-flow/loops.md)).
+ * the loop on ([spec: loops](../../../spec/control-flow/loops/README.md)).
  *
  * The resolution walks a value over an explicit stack of frames, so
  * nesting depth stays the input's.
@@ -112,7 +112,7 @@ import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/m
  * property, so FunctionalScript rejects them and accepts only the computed
  * spelling `{ ["__proto__"]: v }` and the shorthand `{ __proto__ }`, which
  * denote an ordinary property, as they do in JavaScript.
- * See [spec: the `__proto__` key](../../../spec/values/objects.md#the-__proto__-key).
+ * See [spec: the `__proto__` key](../../../spec/values/objects/README.md#the-__proto__-key).
  */
 const protoKey = '__proto__'
 
@@ -131,7 +131,7 @@ const duplicateId = foldError('duplicate id')
 /**
  * A `let` the statement after it is not a `while`, at the `let`: the two
  * are one loop, and the language has no `let` on its own
- * ([spec: loops](../../../spec/control-flow/loops.md)).
+ * ([spec: loops](../../../spec/control-flow/loops/README.md)).
  */
 const letWithoutWhile = foldError('let without while')
 
@@ -195,9 +195,9 @@ const restTarget = foldError('rest element not supported')
 /**
  * A hole in an array value, `[1, , 2]` or `[,]`, at the comma that makes
  * it: refused by design, an array of the language having none
- * ([spec: arrays](../../../spec/values/arrays.md)). The grammar admits
+ * ([spec: arrays](../../../spec/values/arrays/README.md)). The grammar admits
  * the comma for an array pattern's sake, where it is an elision and skips
- * an element ([spec: destructuring](../../../spec/bindings/destructuring.md)),
+ * an element ([spec: destructuring](../../../spec/bindings/destructuring/README.md)),
  * and the position alone tells the two apart, so the refusal is here.
  */
 const arrayHole = foldError('array hole')
@@ -261,7 +261,7 @@ const conversionArity = name => foldError(`${name} takes one argument`)
  * ([spec: module structure](../../../spec/modules/README.md)) —
  * and the tokens JavaScript forbids a newline before, an `=>` and the
  * value after `return` or `throw`
- * ([spec: line terminators](../../../spec/lexical/whitespace.md)).
+ * ([spec: line terminators](../../../spec/lexical/whitespace/README.md)).
  */
 const unexpectedToken = foldError('unexpected token')
 
@@ -269,7 +269,7 @@ const unexpectedToken = foldError('unexpected token')
  * A module that neither throws nor exports a name, at its last `export`:
  * every exported `const` was a pattern binding no name, `export const {} = o;`,
  * and no `export default` followed. A module that does not throw exports at
- * least one name ([spec: exports](../../../spec/modules/exports.md)),
+ * least one name ([spec: exports](../../../spec/modules/exports/README.md)),
  * which the grammar asked of the `export` keyword while a `const` always
  * bound one.
  */
@@ -546,7 +546,7 @@ const isCall = node => {
  * `const` that binds nothing, `['discard', name]`, its value has to be a
  * call, {@link isCall}, and any other is refused at the name — an
  * operator's result discarded is almost always a mistake, and a conversion
- * is an operator ([spec: call statements](../../../spec/functions/call-statements.md)).
+ * is an operator ([spec: call statements](../../../spec/functions/call-statements/README.md)).
  *
  * @type {(check: (name: DjsTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, value: Node, namespace: DjsTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
@@ -567,7 +567,7 @@ const constPlan = check => (target, value, namespace) =>
  * its source, its `length`, the one name every kind of value may own —
  * the read that fails on `null` and `undefined` as `RequireObjectCoercible`
  * fails, and whose value is no observation
- * ([spec: destructuring](../../../spec/bindings/destructuring.md)).
+ * ([spec: destructuring](../../../spec/bindings/destructuring/README.md)).
  *
  * One walk over an explicit stack of what is pending, {@link _Pending}, in
  * document order — an element or a property is judged where it is read,
@@ -704,7 +704,7 @@ const properties = (pending, list, parent) => list.reduceRight(
  * The entries a checked pattern makes of its source, numbered from `base`
  * — the position the first takes in the body being built — and the words
  * it binds, each to the entry holding its value, in the order written
- * ([spec: destructuring](../../../spec/bindings/destructuring.md)): one
+ * ([spec: destructuring](../../../spec/bindings/destructuring/README.md)): one
  * entry per read of the plan, one binding per name, linear in both.
  *
  * A name's one entry is the source itself, which is what a `const` of a
@@ -1195,7 +1195,7 @@ const captured = (body, word, [outer, ref]) => {
  * {@link planned} and {@link lowered}, its source the argument, so that
  * its reads are the first entries of the body and each name it binds is
  * bound to the entry holding its value
- * ([spec: destructuring](../../../spec/bindings/destructuring.md)). Nothing
+ * ([spec: destructuring](../../../spec/bindings/destructuring/README.md)). Nothing
  * else is the body's own; a name bound outside is a capture,
  * {@link resolve}. The `length` is what JavaScript gives the function, the
  * fixed parameters counted, a pattern as one, the rest parameter not.
@@ -1447,7 +1447,7 @@ const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === n
  * The static function the key `named` names in the namespace `global`, as
  * the AST holds it, `['Number.isInteger']`, or `null` where the language
  * admits none: `is` of `Object` and the four predicates of `Number`
- * ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)),
+ * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
  * each a tag of the EDAG's `staticIds`, where a later name is a row of
  * its own decision.
  *
@@ -1597,9 +1597,9 @@ const intrinsicFunction = ([, list, body]) => {
 
 /**
  * The `entry` helper, recognized whole
- * ([spec: entry](../../../spec/property-access/entries.md)), and the
+ * ([spec: entry](../../../spec/property-access/entries/README.md)), and the
  * `hasEntry` helper beside it, the same but for its `return`
- * ([spec: why two helpers](../../../spec/property-access/entries.md#why-two-helpers)):
+ * ([spec: why two helpers](../../../spec/property-access/entries/README.md#why-two-helpers)):
  *
  * ```js
  * (a, b) => {
@@ -1923,7 +1923,7 @@ const switchRound = (stack, scope, frame) => {
  * guard end it — the conditional of each arm over the next, the tail's
  * call the last alternate, so that the switch and the chain of guards it
  * abbreviates are one graph
- * ([spec: switch](../../../spec/control-flow/switch.md)).
+ * ([spec: switch](../../../spec/control-flow/switch/README.md)).
  *
  * @type {(stack: _Stack, scope: _Scope, frame: _SwitchFrame, value: AstConst) => _State}
  */
@@ -1953,7 +1953,7 @@ const switchReturned = (stack, scope, frame, value) => {
  * of the function the loop lowers to — its one parameter the variable,
  * bound to the first argument, the function itself under {@link loopSelf},
  * and the variable marked, {@link capturedLoopVariable}
- * ([spec: loops](../../../spec/control-flow/loops.md)). A `let` whose initializer
+ * ([spec: loops](../../../spec/control-flow/loops/README.md)). A `let` whose initializer
  * read the word from outside is refused as a `const`'s is.
  *
  * @type {(stack: _Stack, scope: _Scope, frame: Extract<_Frame, { readonly let: unknown }>, init: AstConst) => _State}

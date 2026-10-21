@@ -36,7 +36,7 @@ most JavaScript is not FunctionalScript. So the language is a **whitelist**,
 and it whitelists complete semantic patterns rather than individual operations
 in isolation. An otherwise-forbidden JavaScript construct may appear as a
 component of a recognized pattern that lowers to a FunctionalScript primitive
-— the bracketed `__proto__` key ([below](../values/objects.md#the-__proto__-key)) is the current
+— the bracketed `__proto__` key ([below](../values/objects/README.md#the-__proto__-key)) is the current
 example.
 
 **Every pattern instruction must be recognized after statement and expression
@@ -82,7 +82,7 @@ it does not serialize those values or instantiate their frames. Instances
 of the same function template have the same text even when their captures differ.
 A body reading `self` is rendered as a named function expression — unless
 the function is a loop, `r => c ? self(next) : r`, which is rendered as the
-loop it is, `let` and `while` over a `let` of its parameter ([loops](../control-flow/loops.md),
+loop it is, `let` and `while` over a `let` of its parameter ([loops](../control-flow/loops/README.md),
 [function text](../../fjs/edag/function-text.md)). This text
 need not be accepted by the FunctionalScript source parser: the total text
 renderer and the structural source serializer have separate contracts
@@ -140,19 +140,19 @@ of a receiver, `[1].slice(1)` or `"a".trim()`, is the third kind: a call on
 a value's prototype, which is no value of the language, since its read
 alone is refused ([property access](../property-access/README.md)), and
 whose call takes its arguments as a function's does, unchecked at compile
-time ([member functions](../built-ins/member-functions.md)).
+time ([member functions](../built-ins/member-functions/README.md)).
 
 A **function** is a value: `Object.is`, `Number.isSafeInteger`, the
-[`entry` helper](../property-access/entries.md), any arrow. A value can be
+[`entry` helper](../property-access/entries/README.md), any arrow. A value can be
 bound, passed and cached, `const f = Number.isSafeInteger;`, so the compiler
 cannot see every call of it, and **no call's argument count is checked at
 compile time**. Where the call is made — a guarded call on a nullish callee,
 `f?.(x)`, makes none and evaluates no argument
-([optional chaining](../property-access/optional-chaining.md)) — every
+([optional chaining](../property-access/optional-chaining/README.md)) — every
 argument is evaluated, and the function's parameter list binds them, as in
 JavaScript: a rest parameter collects the extra ones,
 `((...xs) => xs.length)(1, 2)` being `2`, a default fills a missing one
-([parameters](../functions/parameters.md)), and otherwise a missing one is
+([parameters](../functions/parameters/README.md)), and otherwise a missing one is
 `undefined` and an extra one is ignored, `Number.isInteger(1, 2)` being
 `true`.
 
@@ -178,7 +178,7 @@ so the call would fail, which the second requirement above forbids. So each
 word is reserved ([global names](../todo/2365-global-names.md)): an operator
 where the language calls it, `Number(x)` and `String(x)`, and a namespace of
 functions where it reads the members the language admits
-([built-in static functions](../built-ins/static-functions.md)). Being no
+([built-in static functions](../built-ins/static-functions/README.md)). Being no
 value, neither has a nullishness to guard: `Number?.(x)` and `Object?.is`
 ask nothing, and are refused by design (`reserved word`).
 

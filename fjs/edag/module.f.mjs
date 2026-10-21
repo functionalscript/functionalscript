@@ -698,7 +698,7 @@ export const intrinsicLength = id => intrinsics.filter(([i]) => i === id)[0][1]
  *
  * `hasEntry` is the helper beside it, the presence as a boolean, `true`
  * for an entry holding `undefined`: `['()', ['hasEntry'], [a, b]]`
- * ([spec: why two helpers](../../spec/property-access/entries.md#why-two-helpers)).
+ * ([spec: why two helpers](../../spec/property-access/entries/README.md#why-two-helpers)).
  *
  * The intrinsics, {@link intrinsicId}, are the helpers calling a member
  * function no body defines, `['slice']`.

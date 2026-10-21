@@ -253,7 +253,7 @@ export const proof = {
     // the block the body of a parameterless function, as a guard's arm is,
     // ending in the call of the loop's function with the variable's last
     // binding — and the variable names the entry from the loop on
-    // ([spec: loops](../../../spec/control-flow/loops.md)).
+    // ([spec: loops](../../../spec/control-flow/loops/README.md)).
     // A switch, `switch (d) { case a: case b: { … } … }`, is the fold's to
     // shape as a guard is: the discriminant an entry of the body, read by
     // the test of every label, `===`, the tests of one case joined by `||`
@@ -261,7 +261,7 @@ export const proof = {
     // function called where it stands, as a guard's arm is; and the `?:` of
     // each case's test over the next, the `default` block or the statements
     // after the switch the last alternate
-    // ([spec: switch](../../../spec/control-flow/switch.md)).
+    // ([spec: switch](../../../spec/control-flow/switch/README.md)).
     switches: {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { switch (n[0]) { case 1: case 2: { const x = [1]; return [x, x]; } case 3: { throw 3; } } const y = [2]; return y; };'))
@@ -1490,7 +1490,7 @@ export const proof = {
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')
         },
-        // an array has no hole (spec/values/arrays.md)
+        // an array has no hole (spec/values/arrays/README.md)
         () => {
             const tokenList = tokenizeString('export default [,]')
             const obj = parseFromTokens(tokenList)

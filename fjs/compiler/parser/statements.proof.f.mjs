@@ -2,7 +2,7 @@
  * The proof of a module's statements: call statements, `assert(a);` — a
  * call evaluated for its failure and its value discarded, read as a `const`
  * nothing can read
- * ([spec: call statements](../../../spec/functions/call-statements.md)) —
+ * ([spec: call statements](../../../spec/functions/call-statements/README.md)) —
  * and the order statements stand in, what begins one, and which error a
  * malformed run of them reports first. Split off `./proof.f.mjs`, as
  * `./operators.proof.f.mjs` is, when that file outgrew what the website's

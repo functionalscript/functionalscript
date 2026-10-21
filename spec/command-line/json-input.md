@@ -23,7 +23,7 @@ engine gives it, against principle 2.
 What the two languages share is *values*, not texts. Every JSON value is a
 FunctionalScript value, so a JSON document compiles into a module denoting the
 same value — with one key spelled differently on the way
-([`__proto__`](../values/objects.md#the-__proto__-key)).
+([`__proto__`](../values/objects/README.md#the-__proto__-key)).
 
 Two readers also means a `.json` file is JSON and nothing more. Comments,
 `bigint`, `undefined`, identifier keys, computed keys, and trailing commas

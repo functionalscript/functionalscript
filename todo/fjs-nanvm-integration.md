@@ -24,7 +24,7 @@ lands into an already-working pipeline and is verified end-to-end from day
 one, instead of a big-bang integration at the end.
 
 The EDAG module computation and generated Rust return the complete export
-object, as the [module contract](../spec/modules/exports.md) already
+object, as the [module contract](../spec/modules/exports/README.md) already
 requires on `main`. For example, `export const answer = 42; export default 7;`
 returns `{ answer: 42, default: 7 }`. Without `export default`, there is no
 `default` property. Module evaluation creates exported functions; invoking
@@ -146,7 +146,7 @@ contract and migration strategy.
 
 Measured on `7baae35`, `main` at
 [#3100](https://github.com/functionalscript/functionalscript/pull/3100),
-which admitted [elisions](../spec/bindings/destructuring.md). A leaf is as
+which admitted [elisions](../spec/bindings/destructuring/README.md). A leaf is as
 defined in the `5dcd94b` audit below, and the leaves were rediscovered as
 the `0c9ddf8` table below says: every authored non-proof module loaded
 through Node with a resolve hook recording each runtime import.
@@ -213,7 +213,7 @@ the remaining refusals.
 
 Measured on `e9df9df`, the head of
 [#3097](https://github.com/functionalscript/functionalscript/pull/3097),
-which implemented [call statements](../spec/functions/call-statements.md),
+which implemented [call statements](../spec/functions/call-statements/README.md),
 with `text/ascii` renamed. A leaf is as defined in the `5dcd94b` audit
 below, and the leaves were rediscovered as the `0c9ddf8` table below says:
 every authored non-proof module loaded through Node with a resolve hook
@@ -245,7 +245,7 @@ The authored `.f.js` population under `fjs/` grows from 42 to 43, and
 `npm start compile` checks 60.
 
 The `git/config` row moved once
-[elisions](../spec/bindings/destructuring.md) landed, measured on that
+[elisions](../spec/bindings/destructuring/README.md) landed, measured on that
 pull request's branch: the hole in `const [, list] = …` in `tryEntries`,
 its first refusal before, is read now. What remains was measured on a
 scratch copy, each refusal replaced by the spelling the language admits
@@ -315,7 +315,7 @@ The authored `.f.js` population under `fjs/` grows from 41 to 42, and
 `npm start compile` checks 59.
 
 The five rows are the `2a5b9c7` table's, each first refusal measured again.
-Three moved once [call statements](../spec/functions/call-statements.md)
+Three moved once [call statements](../spec/functions/call-statements/README.md)
 landed, measured on that pull request's branch: `assert(…);` is a call
 statement now, so the `assert` rows of `types/function/compare` and
 `zlib/bits` are refused at what comes after; and `types/map` is refused at
@@ -547,7 +547,7 @@ copy was accepted. Locations are `line:column`; paths are relative to
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `asserts/module.f.mjs` | 26:13 | `throw` as the body of an `if` without braces, in `assert` | In `assert`, no `return` after the guard ([rule 7](../doc/CONVERTING.md#7-a-body-that-ends-without-return)); the call `assert(…)` as a statement, last in `assertEq` and `assertStructurallySame`, and before the `return` in `assertNotNullish`, `assertOk` and `assertError`: a body holds only `const`s and guards before its terminating statement ([bodies and guards](../spec/control-flow/guards.md)) |
+| `asserts/module.f.mjs` | 26:13 | `throw` as the body of an `if` without braces, in `assert` | In `assert`, no `return` after the guard ([rule 7](../doc/CONVERTING.md#7-a-body-that-ends-without-return)); the call `assert(…)` as a statement, last in `assertEq` and `assertStructurallySame`, and before the `return` in `assertNotNullish`, `assertOk` and `assertError`: a body holds only `const`s and guards before its terminating statement ([bodies and guards](../spec/control-flow/guards/README.md)) |
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 
@@ -671,7 +671,7 @@ each now waits on an `.f.mjs` it imports, whatever it refuses itself.
 compiles whole since
 [#2963](https://github.com/functionalscript/functionalscript/pull/2963)
 admitted default parameters
-([spec: parameters](../spec/functions/parameters.md)), its one refusal.
+([spec: parameters](../spec/functions/parameters/README.md)), its one refusal.
 
 Both are converted with only their extension and their references changed,
 and each proof stays `proof.f.mjs`. `media/rust/item`'s six importers are
@@ -1106,7 +1106,7 @@ of what JavaScript already says, and this migration does not pay for one.
 then rewrote the two reads of a computed key the leaves still had as the
 language's own spellings: `nanvm/methods` reads `p[type]` as
 `entry(p, type)` and `types/list` reads `array[i]` as `array[Number(i)]`
-([reading an entry at run time](../spec/property-access/entries.md),
+([reading an entry at run time](../spec/property-access/entries/README.md),
 [property access](../spec/property-access/README.md)). That is not a rewrite
 of the kind above: each is the read JavaScript performed, in the one
 spelling the language has for it. `website/demo/code`'s `{ [codeMarker]: '' }`
@@ -1335,10 +1335,10 @@ leaf, directly or not — what a leaf's rename opens up, since a proof stays
 
 The table above is a historical measurement. `array_index` now calls
 `Number.isInteger`, admitted as a static function
-([spec: built-in static functions](../spec/built-ins/static-functions.md)),
+([spec: built-in static functions](../spec/built-ins/static-functions/README.md)),
 in place of the shared helper it once imported. Its bounds and canonical
 string round-trip are unchanged. With
-[`String` conversion](../spec/conversions/string.md) admitted,
+[`String` conversion](../spec/conversions/string/README.md) admitted,
 `array_index` now compiles through the predicate and its canonical string
 check; the rename above completes that migration step. `types/number`,
 ASCII digit parsing, Unicode surrogate conversion, and Node/web validation
@@ -1347,7 +1347,7 @@ call the same built-in.
 Compared with the previous measurement at `4c8ec55`, the `08d013b` snapshot
 had the same eighteen leaves and compiler progress on three of them.
 `Number(exp)` is in the language and `Number` a reserved word
-([number conversion](../spec/conversions/number.md)), so
+([number conversion](../spec/conversions/number/README.md)), so
 `array_index`'s `Number(key)` compiled at that snapshot, while the module
 still stopped at `Number.isInteger`, before reaching the `String` global.
 The shared integer predicate and admitted `String` call described above are
@@ -1358,7 +1358,7 @@ refused unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every
 row with a runtime key says which of the language's two rewrites it takes, a number
 key's `a[Number(i)]` or a string key's `entry(a, k)`. `structurally_same` no
 longer waits on `instanceof`: all three of its uses have `Array` on the right
-([`instanceof`](../spec/operators/instanceof.md)). Two leaves changed their
+([`instanceof`](../spec/operators/instanceof/README.md)). Two leaves changed their
 source: `keywords` builds a second `new Set`, the same feature, and `style`'s
 stylesheet now substitutes two string `const`s. `style` also has 25 modules
 behind it, not 5: `fjs/website/demo`, which every demo imports, imports it.
@@ -1373,18 +1373,18 @@ records that snapshot's blockers, including the since-migrated `array_index`:
 
 | Feature | Tracked in | Leaves it held at `08d013b` |
 | --- | --- | --- |
-| Template literals | now implemented ([spec: template literals](../spec/values/template-literals.md)) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
+| Template literals | now implemented ([spec: template literals](../spec/values/template-literals/README.md)) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
-| A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/property-access/entries.md)); the module rewrites `a[k]` as `entry(a, k)`, and `k in a` as `hasEntry(a, k)`, both imported from [`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js) | git/config, nanvm/methods |
+| A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/property-access/entries/README.md)); the module rewrites `a[k]` as `entry(a, k)`, and `k in a` as `hasEntry(a, k)`, both imported from [`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js) | git/config, nanvm/methods |
 | A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/property-access/README.md)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, git/config, browser-source |
-| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, the call `Number(exp)` is in the language ([spec: number conversion](../spec/conversions/number.md)), and so are the four predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, with `Object.is` ([spec: built-in static functions](../spec/built-ins/static-functions.md)), each other member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
+| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, the call `Number(exp)` is in the language ([spec: number conversion](../spec/conversions/number/README.md)), and so are the four predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, with `Object.is` ([spec: built-in static functions](../spec/built-ins/static-functions/README.md)), each other member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
 | `new` with a built-in constructor | nothing proposes it; `Map` and `Set` are undecided in [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, keywords, map, set, demo/examples |
 | `let`, reassignment, `+=`, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `+=` is [`3430-assignments.md`](../spec/todo/3430-assignments.md); `while` is [roadmap §3.2](../spec/todo/README.md#32-priority-2) | function, set, browser-source |
 | String escapes `\u{…}`, `\v`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
 | A non-terminating `if`, `break`, `continue` | [roadmap §3.2](../spec/todo/README.md#32-priority-2), the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
 | `for … of` | nothing proposes it | result |
 | `switch`, a default parameter | neither proposed; [`3120-parameters.md`](../spec/todo/3120-parameters.md) leaves a default parameter for later | ts |
-| A prohibited member function, `toLowerCase`, or property name, `sub` | `toLowerCase` is now admitted ([spec: built-in member functions](../spec/built-ins/member-functions.md)); `sub` stays a prohibited property name, [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prototypeNames` ([spec: property access](../spec/property-access/README.md)), and the module rewrites it, not the language | git/config |
+| A prohibited member function, `toLowerCase`, or property name, `sub` | `toLowerCase` is now admitted ([spec: built-in member functions](../spec/built-ins/member-functions/README.md)); `sub` stays a prohibited property name, [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prototypeNames` ([spec: property access](../spec/property-access/README.md)), and the module rewrites it, not the language | git/config |
 
 A leaf renames only when every feature it uses has landed. In that historical
 snapshot, these leaves waited on one feature alone: `style` on template literals,
@@ -1398,7 +1398,7 @@ has. `iterate` in `function` could lose its loop today, which would leave
 that module on nothing — `let`, reassignment and `while` are all inside
 `iterate`, a recursion that halves `n` compiles, and the shorthand `result`
 in the object `fn` returns is in the language
-([objects](../spec/values/objects.md)) — the one rename no language step
+([objects](../spec/values/objects/README.md)) — the one rename no language step
 gates. `okList` in `result` could lose its `for … of` the same way, but
 `unwrap` and `invert` take destructured parameters, so that root waits on
 destructuring either way. Template literals hold nine leaves and
@@ -1499,7 +1499,7 @@ nothing else moved.
 
 Template literals were the first refusal of two modules in five in these
 snapshots, almost all of them error messages and `assert` texts. Untagged
-templates are now implemented ([spec: template literals](../spec/values/template-literals.md)).
+templates are now implemented ([spec: template literals](../spec/values/template-literals/README.md)).
 Destructuring was next, and the string-escape row is tokenizer work. The leaf
 table above is what this count does not say: a module whose
 first refusal clears meets its next, and only a leaf whose every feature has

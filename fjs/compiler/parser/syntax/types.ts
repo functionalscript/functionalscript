@@ -111,7 +111,7 @@ export type BlockStatement = readonly ['const', Const] | readonly ['if', If] | r
  * block's own end, are what runs when no label matched — the grammar reads
  * them as the switch's tail, and the reader puts them after it in the
  * block's one list, so that the fold reads them as it reads the
- * statements after a guard ([spec: switch](../../../../spec/control-flow/switch.md)).
+ * statements after a guard ([spec: switch](../../../../spec/control-flow/switch/README.md)).
  */
 export type Switch = {
     readonly start: DjsTokenWithMetadata
@@ -139,7 +139,7 @@ export type SwitchEnd = readonly ['default', Block] | readonly ['rest', Block[1]
  * guard does not. The `let` before it, a {@link Let},
  * declares the variable the block assigns; the fold reads the two
  * statements as one loop and refuses either alone
- * ([spec: loops](../../../../spec/control-flow/loops.md)).
+ * ([spec: loops](../../../../spec/control-flow/loops/README.md)).
  */
 export type While = {
     readonly start: DjsTokenWithMetadata
@@ -239,7 +239,7 @@ export type OptionalCall =
  * An elision, a comma where an array's item would begin, by that comma:
  * `[, a]`. It skips an element of an array pattern's source, and is a hole
  * where the array is a value, which the fold refuses, an array of the
- * language having none ([spec: arrays](../../../../spec/values/arrays.md)).
+ * language having none ([spec: arrays](../../../../spec/values/arrays/README.md)).
  */
 export type Elision = readonly ['elision', DjsTokenWithMetadata]
 
@@ -339,7 +339,7 @@ export type Const = Statement & {
  * What a call statement binds: nothing, the value discarded, by the name
  * it begins with — `assert(a);` is `const _ = assert(a);` where `_` is a
  * name nothing can read
- * ([spec: call statements](../../../../spec/functions/call-statements.md)).
+ * ([spec: call statements](../../../../spec/functions/call-statements/README.md)).
  */
 export type Discard = readonly ['discard', DjsTokenWithMetadata]
 
@@ -347,7 +347,7 @@ export type Discard = readonly ['discard', DjsTokenWithMetadata]
  * A loop's `let`, `let x = init;`: the token naming the one variable the
  * loop's block assigns, and its initial value. It begins at its `let`. A
  * name and never a pattern, the loop having one variable
- * ([spec: loops](../../../../spec/control-flow/loops.md)).
+ * ([spec: loops](../../../../spec/control-flow/loops/README.md)).
  */
 export type Let = Statement & {
     readonly name: DjsTokenWithMetadata
@@ -359,7 +359,7 @@ export type Let = Statement & {
  * a name, by its token; an array pattern, `[t, …]`, by its `[` and its
  * elements; or an object pattern, `{ p, … }`, by its `{` and its
  * properties
- * ([spec: destructuring](../../../../spec/bindings/destructuring.md)). A
+ * ([spec: destructuring](../../../../spec/bindings/destructuring/README.md)). A
  * pattern is read by the value rules — one symbol cannot tell a
  * parenthesized parameter list from a group, so the grammar reads a value
  * and the mappings keep this reading of it beside the node, as
@@ -440,7 +440,7 @@ export type ParameterList =
  * pattern, {@link BindingTarget} — with its default where it has one,
  * {@link Parameter}, and the rest parameter's token, or `null` where the
  * list has none. A rest parameter keeps a plain name and takes no default
- * ([spec: destructuring](../../../../spec/bindings/destructuring.md)).
+ * ([spec: destructuring](../../../../spec/bindings/destructuring/README.md)).
  */
 export type Parameters = {
     readonly fixed: readonly Parameter[]

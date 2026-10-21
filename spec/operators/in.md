@@ -8,7 +8,7 @@ asks whether a property exists anywhere on the prototype chain, so
 prototype chain to consult, and answering for own entries only would give
 accepted text a different successful result than JavaScript gives it. Neither
 is acceptable, so the operator is refused rather than approximated. To read an
-entry, use [`entry`](../property-access/entries.md), and to ask whether
+entry, use [`entry`](../property-access/entries/README.md), and to ask whether
 there is one, `hasEntry` beside it: `true` for an enumerable own entry and
 `false` for an absent key. The reasons, the
 alternatives rejected and what a migration does are in

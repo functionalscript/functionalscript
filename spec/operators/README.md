@@ -12,12 +12,12 @@ language has arithmetic (`+ - * / % **`), comparison
 first the language had — and, above them, the lazy operators
 (`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
 logical not and the type tag, the prefixes neither stage had — and
-`instanceof Array`, the one instance check ([below](instanceof.md)) — and
+`instanceof Array`, the one instance check ([below](instanceof/README.md)) — and
 the comma operator, written in parentheses ([below](comma/README.md)).
 `==`/`!=` stay refused, since neither language reads them the same way
 twice, and so does `in` ([below](in.md)). Unary `+` is not in the language:
 the conversion to a number is `Number(x)`
-([number conversion](../conversions/number.md)). The EDAG admits every pure
+([number conversion](../conversions/number/README.md)). The EDAG admits every pure
 operation, unary `+` among them, and the language spells a subset of them;
 which is the language's decision, made on these pages, not the EDAG's.
 
@@ -32,7 +32,7 @@ them; and the comma above them all, in its parentheses. The shifts therefore sit
 right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), the conditional nests
 to the right (`a ? b : c ? d : e` is `a ? b : (c ? d : e)`), and every other
 operator here is left-associative; a group overrides both
-([grouping](grouping.md)). A prefix immediately before `**` is refused,
+([grouping](grouping/README.md)). A prefix immediately before `**` is refused,
 matching JavaScript exactly: `-2 ** 2`, `~2 ** 2`, `!2 ** 2` and
 `typeof 2 ** 2` are syntax errors here as there, at any depth of prefix
 nesting, and parentheses are the only way to write either reading —
@@ -139,7 +139,7 @@ stands in either bare, its body ending where `:` cannot continue it —
 
 The front end computes none of these — it builds the operation and passes
 it on. Unary `-` alone folds, over an operand that lowers to a number or a
-`bigint`, exact and total arithmetic ([numbers](../values/numbers.md)); every other
+`bigint`, exact and total arithmetic ([numbers](../values/numbers/README.md)); every other
 operator here reaches the EDAG as a node, over numbers too (`1 + 2`, `~1`),
 the lazy ones and the conditional included. `+` would need `ToPrimitive` to
 decide number or string, and folding the rest while leaving `+` a node would
@@ -168,14 +168,21 @@ and `7` as JSON.
 
 ## Pages
 
-- [Grouping](./grouping.md)
+- [Grouping](./grouping/README.md)
 - [Comma](./comma/README.md)
-- [`instanceof`](./instanceof.md)
+- [`instanceof`](./instanceof/README.md)
 - [`in` Is Refused](./in.md)
 
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.
+
+The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
+example as a function of one number — the arithmetic, bitwise, logical,
+`typeof` and conditional operators — with every output `fjs compile` makes
+of it: the expression graph (EDAG), the Rust and the WebAssembly that Rust
+builds to. Its Run button calls the default export with `1` and `2`, as
+JavaScript and as WebAssembly, and shows what each call returned or threw.
 
 ## Reference
 

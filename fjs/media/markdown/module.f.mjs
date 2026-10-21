@@ -381,7 +381,9 @@ const foreignBlock = line => {
     if (trimmed.includes('|') && trimmed.includes('-') && [...trimmed].every(c => '-:| '.includes(c))) {
         return 'a table'
     }
-    if (trimmed.startsWith('<')) { return 'raw HTML' }
+    // An autolink opens a paragraph on GitHub, not an HTML block: its
+    // scheme's `:` is no tag name's character.
+    if (trimmed.startsWith('<') && !autolinkSchemes.some(scheme => trimmed.startsWith(`<${scheme}`))) { return 'raw HTML' }
     if (trimmed.startsWith('~~~')) { return 'a tilde code fence' }
     // Indented by up to three spaces, each of these is still the block it
     // opens on GitHub; unindented, the reader reads it before asking here.

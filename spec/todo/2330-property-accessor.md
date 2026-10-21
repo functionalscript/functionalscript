@@ -17,13 +17,13 @@ string it names. Method calls follow the
 [current function specification](../functions/README.md).
 
 The runtime key is `entry`, in the language
-([spec: entry](../property-access/entries.md)): the explicit
+([spec: entry](../property-access/entries/README.md)): the explicit
 enumerable-entry helper, recognized whole and lowered to the EDAG's
 `['entry']`. It superseded the old descriptor-value-only source pattern and
 the `Object.hasOwn`-based alternative. `Object.hasOwn` and
 `obj.hasOwnProperty(...)` are prohibited source operations, not operations to
 reinterpret. `hasEntry` answers presence beside it
-([spec: entry](../property-access/entries.md)). All such instructions follow
+([spec: entry](../property-access/entries/README.md)). All such instructions follow
 [statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
 What this file still owns is `a[+i]`, beside the numeric index
@@ -108,7 +108,7 @@ select the enumerable-entry operation.
 | `a[0]` | `['.', A, 0]` | Current |
 | `a[Number(i)]` | `['.', A, ['Number', I]]` | Current |
 | `a.foo(x)` | `['.', A, 'foo', ['\|()', Args]]` | Current receiver-preserving lowering, for permitted names |
-| The `entry` helper, recognized whole | `['entry']` | Current ([spec: entry](../property-access/entries.md)) |
+| The `entry` helper, recognized whole | `['entry']` | Current ([spec: entry](../property-access/entries/README.md)) |
 | `entry(a, key)` | `['()', E, [A, K]]` | Current, an ordinary call of that helper |
 
 `A`, `K` and `E` denote lowered receiver, key and helper expressions;

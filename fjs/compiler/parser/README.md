@@ -242,8 +242,8 @@ the fold's:
   reaches the fold, and `{ typeof: 1 }` and `a.typeof` stay members;
 - a reserved conversion global, `Number` or `String`, bound or referenced
   anywhere but as the callee of `Number(x)` or `String(x)`
-  ([spec: number conversion](../../../spec/conversions/number.md),
-  [string conversion](../../../spec/conversions/string.md)) —
+  ([spec: number conversion](../../../spec/conversions/number/README.md),
+  [string conversion](../../../spec/conversions/string/README.md)) —
   [`fjs/js/keywords`](../../js/keywords/module.f.js)' `reservedGlobals`, a
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
@@ -261,7 +261,7 @@ the fold's:
   but as the namespace of a static function — `Object.is` and the four
   `Number` predicates, `Number.isInteger` — beside `Number`'s conversion
   and `Object` in the `entry` helper below
-  ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)).
+  ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)).
   The read of a static function, in either key spelling, is the AST's
   value of its name, `['Object.is']`, a chain's steps after it going on
   over that value; a guard on the namespace, `Object?.is`, is refused at
@@ -287,7 +287,7 @@ the fold's:
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
 - a binding pattern, `const { a, b: [c] } = v;` or `({ a, b: [c] }) => a`
-  ([spec: destructuring](../../../spec/bindings/destructuring.md)): the
+  ([spec: destructuring](../../../spec/bindings/destructuring/README.md)): the
   grammar reads the array or object literal the same text spells, and the
   reader keeps the pattern reading of it beside the node, so the fold is
   what refuses a value in a binding position (`invalid destructuring
@@ -322,7 +322,7 @@ the fold's:
   like any other while `a.at` stays a refused read: a detached built-in is a
   function that only fails;
 - the `entry` and `hasEntry` helpers, which are matched whole rather than
-  resolved ([spec: entry](../../../spec/property-access/entries.md)): a
+  resolved ([spec: entry](../../../spec/property-access/entries/README.md)): a
   function of two parameters whose block body binds the descriptor
   `Object.getOwnPropertyDescriptor` answers for them and returns the value
   an enumerable one holds, `x?.enumerable ? x.value : undefined`, or its
@@ -393,7 +393,7 @@ it, which the lowering inlines
 ([spec: functions](../../../spec/functions/README.md)), and a switch to the
 chain of such conditionals, each case's test the `===` of the discriminant
 — an entry of the body — and a label, a case's labels under `||`
-([spec: switch](../../../spec/control-flow/switch.md)). The grammar still
+([spec: switch](../../../spec/control-flow/switch/README.md)). The grammar still
 requires zero or more statements followed by one terminating statement — a
 switch is one, and holds the rest of its block where it has no `default`,
 which the reader puts back into the block's one list — and a

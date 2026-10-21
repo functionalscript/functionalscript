@@ -285,6 +285,9 @@ export const proof = {
         list: () => assertStructurallySame(blocks('- a\n  b\n- *c*\n\nd\n'),
             [['list', [[['text', 'a b']], [['em', 'c']]]], ['paragraph', [['text', 'd']]]]),
         empty: () => assertStructurallySame(blocks(''), []),
+        // A line that opens with an autolink is a paragraph, as on GitHub.
+        autolinkLine: () => assertStructurallySame(blocks('<https://e.x>.\n'),
+            [['paragraph', [['link', [['text', 'https://e.x']], 'https://e.x'], ['text', '.']]]]),
         // Seven `#`s, or one with no space after it, is prose.
         notAHeading: () => assertStructurallySame(blocks('#a\n\n####### b\n'),
             [['paragraph', [['text', '#a']]], ['paragraph', [['text', '####### b']]]]),

@@ -1435,7 +1435,7 @@ const scope = (s, path, start, returns = null, yields = true) => all => {
 
 /**
  * Whether entry `i` is a loop the scope spells as `let` and `while`
- * ([spec: loops](../../../spec/control-flow/loops.md)): a call, with one plain
+ * ([spec: loops](../../../spec/control-flow/loops/README.md)): a call, with one plain
  * argument, of a function written in place — reached by this one edge —
  * that is the template `fjs/edag/loop` recognizes and no shape every
  * writer keeps the recursion for (`keepsRecursion` there: an assert
@@ -1479,7 +1479,7 @@ const capturesParameter = (a, i) => a.nodes.some((n, j) => n[0] === '=>' && a.sc
  * variable and the initial value; `while`, the condition and the block of
  * the asserts, as `const`s, and the assignment of the next value, omitted
  * where that value is the variable itself — the text that reads back as
- * the template the loop is ([spec: loops](../../../spec/control-flow/loops.md)).
+ * the template the loop is ([spec: loops](../../../spec/control-flow/loops/README.md)).
  * The variable is the loop's function's parameter, written as its name
  * wherever the function reads it, and from the loop on the name of the
  * call, a `const` of the scope.

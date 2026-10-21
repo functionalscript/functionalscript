@@ -64,7 +64,7 @@ A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
 `module.f.js` keeps a `proof.f.mjs` for now: a proof's assertion calls are
 call statements the language reads
-([spec: call statements](../spec/functions/call-statements.md)), but each of
+([spec: call statements](../spec/functions/call-statements/README.md)), but each of
 its functions ends without a `return`, which a block body must not
 ([CONVERTING.md rule 7](../doc/CONVERTING.md#7-a-body-that-ends-without-return)),
 and many loop with `for`, which the language does not have
