@@ -346,7 +346,9 @@ export const proof = {
             assert(html(level2).includes('<input type="checkbox" name="animate" checked="">'), html(level2))
             const showing = move(40)(level2)
             const off = update({ kind: 'input', name: 'animate', value: '' })(showing)
-            assertEq(JSON.stringify([off.animate, off.pending.length, off.versions]), JSON.stringify([false, 0, land(showing).versions]))
+            assertEq(JSON.stringify([off.animate, off.pending.length, off.mode, off.versions]),
+                JSON.stringify([false, 0, 'still', { before: inOrder, after: assertNotNullish(land(showing).versions).after }]))
+            assert(!html(off).includes('data-graph-order') && html(off).includes('data-graph-kind="new"'), html(off))
             assert(html(off).includes('<input type="checkbox" name="animate">'), html(off))
             const moved = move(40)(off)
             const after = assertNotNullish(land(showing).versions).after

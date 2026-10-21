@@ -211,6 +211,20 @@ export const land = game => {
 }
 
 /**
+ * The game with the animation on or off. Turning it off during a move
+ * shows the move landed at once: its last frame's trees drawn `still`
+ * against the tree it started from, so nothing fades or slides.
+ *
+ * @type {(animate: boolean) => (game: Game) => Game}
+ */
+const animating = animate => game => {
+    const last = game.pending.at(-1)
+    if (animate || last === undefined) { return { ...game, animate } }
+    const base = /** @type {Tree<number>} */ (last.base)
+    return shownNext({ versions: { before: base, after: last.versions.after }, mode: 'still', note: null, base })([])({ ...game, animate })
+}
+
+/**
  * The move: `key` removed and inserted again, and counted. It shows four
  * frames, the first now and the rest through {@link step}: the remove's
  * nodes leave and enter, then the insert's — even for a key that goes back
@@ -390,8 +404,7 @@ export const demo = {
         if (event.kind === 'start' || (event.kind === 'click' && event.name === 'new')) { return start(game.depth)(game) }
         if (event.kind === 'click' && event.name === 'step') { return pureOk(step(game)) }
         if (event.kind === 'click' && event.name === 'par') { return pureOk(searchTurn(game)) }
-        // Turning the animation off lands a move in progress.
-        if (event.kind === 'input' && event.name === 'animate') { return pureOk(land({ ...game, animate: event.value !== '' })) }
+        if (event.kind === 'input' && event.name === 'animate') { return pureOk(animating(event.value !== '')(game)) }
         const level = event.kind === 'input' && event.name === 'level' ? levelOf(event.value) : undefined
         if (level !== undefined) { return start(level)(game) }
         const key = event.kind === 'click' ? movedKey(event.name) : null
