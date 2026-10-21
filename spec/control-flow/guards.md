@@ -41,8 +41,9 @@
   an object, so the spelling is refused rather than read another way, and the
   object is written in parentheses instead ([grouping](../operators/grouping.md)) —
   `(...args) => ({ a: 1 })`, as in JavaScript. The block
-  is any number of statements — `const`s, and guards, `if` (below) — and
-  then one terminating statement, a `return` or a `throw` (below), or a
+  is any number of statements — `const`s, call statements
+  ([call statements](../functions/call-statements.md)), and guards, `if`
+  (below) — and then one terminating statement, a `return` or a `throw` (below), or a
   switch with a `default` ([switch](./switch.md)), each
   ended as every statement is — by its `;`, or by the newline before the
   next statement, a guard's by its `}`, and the last one's by the `}`

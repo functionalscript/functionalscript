@@ -42,9 +42,10 @@ converted once parameter defaults landed. `msg = 'assertion failed'` in
 [`fjs/asserts`](../../fjs/asserts/module.f.js)'s `assert` compiles too, and
 the module is an `.f.js` since its bare `if` was braced and its call
 statements rewritten through the comma
-([CONVERTING.md rule 10](../../doc/CONVERTING.md#10-a-call-made-for-its-failure));
-what keeps a proof `proof.f.mjs` now is the proof's own assertion calls,
-written as statements ([`fjs/compiler`](../../fjs/compiler/README.md)).
+([CONVERTING.md rule 10](../../doc/CONVERTING.md#10-a-call-made-for-its-failure)),
+a rewrite [call statements](../functions/call-statements.md) have since made
+unnecessary; what keeps a proof `proof.f.mjs` now is its functions ending
+without a `return`, and its `for` loops ([`fjs/compiler`](../../fjs/compiler/README.md)).
 
 ### Proposal
 

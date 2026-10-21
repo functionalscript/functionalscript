@@ -320,9 +320,17 @@ export type ImportBinding = {
  * the `export` before one a module exports.
  */
 export type Const = Statement & {
-    readonly target: BindingTarget
+    readonly target: BindingTarget | Discard
     readonly value: Node
 }
+
+/**
+ * What a call statement binds: nothing, the value discarded, by the name
+ * it begins with — `assert(a);` is `const _ = assert(a);` where `_` is a
+ * name nothing can read
+ * ([spec: call statements](../../../../spec/functions/call-statements.md)).
+ */
+export type Discard = readonly ['discard', DjsTokenWithMetadata]
 
 /**
  * A loop's `let`, `let x = init;`: the token naming the one variable the

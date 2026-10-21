@@ -37,7 +37,7 @@
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, NameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -50,7 +50,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     afterCase, binaryOpTag, body, callArguments, caseTail, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, entries, entry, loopStatement, member, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, entries, entry, loopStatement, member, moduleStatement, nameStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -1206,16 +1206,18 @@ const toAfterCase = node => {
 const loopBlockOf = ([, statements]) => ['loop', unmapped(statements).map(loopStatementAt)]
 
 /**
- * A block's statement, tagged by its keyword: a `const`, its record; a
- * guard, `if ( condition ) block` — the `if` it begins at, its condition,
- * and its block read as a body's is; a loop's `let`, the record a `const`
- * has; or its `while ( condition ) loopBlock`, read as the guard is.
+ * A block's statement, tagged by its keyword: a `const`, its record, and a
+ * call statement the record of a `const` that binds nothing,
+ * {@link toNameStatement}; a guard, `if ( condition ) block` — the `if` it
+ * begins at, its condition, and its block read as a body's is; a loop's
+ * `let`, the record a `const` has; or its `while ( condition ) loopBlock`,
+ * read as the guard is.
  *
  * @type {(node: Children<Statement, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toStatement = ([kind, branch]) => {
     switch (kind) {
-        case 'const': { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
+        case 'const': case 'name': { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
         case 'let': { return symbol({ id: 'statement', statement: ['let', letOf(unmapped(branch))] }) }
         case 'while': {
             const [first, , condition, , blk] = unmapped(branch)
@@ -1230,15 +1232,39 @@ const toStatement = ([kind, branch]) => {
 }
 
 /**
- * A loop block's statement, tagged: a `const`, its record; or the
- * assignment, `name = value end`, which begins at the name.
+ * A call statement, `name rest end`: the record of a `const` that binds
+ * nothing, `['discard', name]`, its value the value the name begins, read
+ * as a value's name branch reads it, {@link continued}, and its beginning
+ * the name. Which values it may be — a call alone — is the fold's.
+ *
+ * @type {(name: DjsTokenWithMetadata, rest: Ast<ArrowOrRest, DjsTokenWithMetadata, Out>, end: _EndNode) => Const}
+ */
+const discarded = (name, rest, end) =>
+    ({ start: name, semicolon: ended(end), target: ['discard', name], value: continued({ fixed: [named(name)], rest: null }, ['ref', name], false, rest) })
+
+/** A call statement, {@link discarded}, as the record a `const` has. @type {(node: Children<NameStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+const toNameStatement = ([name, rest, end]) => symbol({ id: 'const', statement: discarded(tokenAt(unmapped(name)[1]), rest, end) })
+
+/** A module's statement before its exports, a `const` or a call statement, as the record a `const` has. @type {(node: Children<ModuleStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+const toModuleStatement = ([, branch]) => symbol({ id: 'const', statement: constAt(branch) })
+
+/**
+ * A loop block's statement, tagged: a `const`, its record; or what begins
+ * with a name — the assignment, `name = value end`, which begins at the
+ * name, where `=` follows it, and otherwise a call statement,
+ * {@link discarded}.
  *
  * @type {(node: Children<LoopStatementRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toLoopStatement = ([kind, branch]) => {
     if (kind === 'const') { return symbol({ id: 'loopStatement', statement: ['const', constAt(branch)] }) }
-    const [name, , v, end] = unmapped(branch)
+    const [name, rest, end] = unmapped(branch)
     const token = tokenAt(unmapped(name)[1])
+    const [tag, assigned] = unmapped(rest)
+    if (tag !== 'assign') {
+        return symbol({ id: 'loopStatement', statement: ['const', discarded(token, /** @type {Ast<ArrowOrRest, DjsTokenWithMetadata, Out>} */ (rest), end)] })
+    }
+    const [, v] = unmapped(assigned)
     return symbol({ id: 'loopStatement', statement: ['assign', { start: token, semicolon: ended(end), name: token, value: nodeAt(v) }] })
 }
 
@@ -1580,6 +1606,8 @@ export const mappings = [
     map(importBindings, toImportBindings),
     map(importStatement, toImport),
     map(constStatement, toConst),
+    map(nameStatement, toNameStatement),
+    map(moduleStatement, toModuleStatement),
     map(statement, toStatement),
     map(terminator, toEnd),
     map(caseTail, toCaseTail),

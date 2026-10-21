@@ -111,7 +111,7 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `st.let-while` | a `let` or `while` outside the one-variable loop, or its block holding a statement that is no `const` and no assignment to the loop variable | planned ([let](./3220-let.md)) |
+| `st.let-while` | a `let` or `while` outside the one-variable loop, or its block holding a statement that is no `const`, no assignment to the loop variable and no call statement | planned ([let](./3220-let.md)) |
 | `st.guard` | `else`, an unbraced `if`, a guard block that does not terminate (in `return`, `throw`, or a switch with a `default`), a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
 | `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
@@ -124,10 +124,9 @@ describes:
 | `st.label` | `x: while (c) { }` | open |
 | `st.var` | `var a = 1` | design ([constants](../bindings/constants.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) |
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md)) |
-| `st.call` | a call statement, `assert(a);`, `f(x);` | planned ([call statements](./3450-call-statements.md)) |
-| `st.expression` | any other expression statement (a body statement that is no `const`, `if`, `throw`, `return`, admitted `let`/`while` loop, assignment to a loop's variable in its block, `x = value;`, call or directive, `st.directive`), `x;`, `a.b;`, `Number(x);` | design ([call statements](./3450-call-statements.md): an operator's result is almost always a mistake, and a conversion is an operator) |
-| `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](./3450-call-statements.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
-| `st.literal-call` | a call statement opening with a literal, `"a".trim();`, `1 .toFixed(2);` | open ([call statements](./3450-call-statements.md) begin with a name; a literal continues no statement before it, so no hazard refuses it, and no record admits it) |
+| `st.expression` | an expression statement that is no call statement, no assignment to a loop's variable in its block and no directive (`st.directive`): one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with `(`, `[` or a backtick, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it) |
+| `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](../functions/call-statements.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
+| `st.literal-call` | a call statement opening with a literal, `"a".trim();`, `1 .toFixed(2);` | open ([call statements](../functions/call-statements.md) begin with a name; a literal continues no statement before it, so no hazard refuses it, and no record admits it) |
 | `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch.md)) — `{}` | design ([functions](../functions/README.md)) |
 | `st.unreachable` | a statement after `return`, `throw`, or a switch with a `default` | design ([functions](../functions/README.md)) |
 

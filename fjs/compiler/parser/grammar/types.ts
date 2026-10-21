@@ -20,7 +20,7 @@ import type {
     _ordinaryTokenNames,
     _tokenKindNames,
     _valueKinds,
-    assignment,
+    assignable,
     identifier,
     identifierName,
     primitive,
@@ -65,7 +65,8 @@ type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _Fra
 
 /**
  * A token name the grammar can name as a terminal: every `DjsToken` kind
- * except `eof`, plus the keywords with symbols of their own.
+ * except `eof`, plus the keywords with symbols of their own, and `keyword`,
+ * the symbol of every other reserved word.
  *
  * `eof` is excluded because the backend synthesizes its own logical
  * end-of-input; the tokenizer's physical `eof` token is split off the stream
@@ -74,7 +75,7 @@ type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _Fra
  * The kinds are derived from `DjsToken` rather than listed, so a token kind
  * added there cannot silently go unrepresented at the parser layer.
  */
-export type _OrdinaryTokenName = Exclude<DjsToken['kind'], 'eof'> | _FramingKeyword
+export type _OrdinaryTokenName = Exclude<DjsToken['kind'], 'eof'> | _FramingKeyword | 'keyword'
 
 type _KindsAreComplete = Assert<Equal<(typeof _tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>
 type _AlphabetIsComplete = Assert<Equal<(typeof _ordinaryTokenNames)[number], _OrdinaryTokenName>>
@@ -462,21 +463,34 @@ export type End = Option<readonly [number]>
  */
 export type Block = readonly [number, RepeatFrom<0, Statement>, Terminator, number]
 
-/** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a loop's `let`, or its `while` whose block is a {@link LoopBlock}. A thunk, as {@link Value} is, since it names itself through the block. */
+/** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a loop's `let`, its `while` whose block is a {@link LoopBlock}, or a call statement, {@link NameStatement}. A thunk, as {@link Value} is, since it names itself through the block. */
 export type Statement = () => readonly ['const', {
     readonly const: ConstStatement
     readonly if: readonly [number, number, Value, number, Block]
     readonly let: LetStatement
     readonly while: readonly [number, number, Value, number, LoopBlock]
+    readonly name: NameStatement
 }]
+
+/** A call statement: a name, the rest of the value it begins, and {@link End}. */
+export type NameStatement = readonly [typeof assignable, ArrowOrRest, End]
+
+/** A loop block's statement that begins with a name: the name, then `=` and the assigned value or the rest of the value the name begins, and {@link End}. */
+export type LoopNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [number, Value] }, End]
+
+/** A module's statement before its exports: a `const`, or a call statement. */
+export type ModuleStatement = {
+    readonly const: ConstStatement
+    readonly name: NameStatement
+}
 
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 
-/** A loop block's statement: a `const`, or the assignment to the loop's variable. A thunk, since it holds a value. */
+/** A loop block's statement: a `const`, or what begins with a name, {@link LoopNameStatement}. A thunk, since it holds a value. */
 export type LoopStatement = () => readonly ['const', {
     readonly const: ConstStatement
-    readonly assign: typeof assignment
+    readonly name: LoopNameStatement
 }]
 
 /**
@@ -584,7 +598,7 @@ type _FuncParameterIsAName = Assert<Equal<Parameter[1], typeof identifierName>>
 export type LastStatement = () => readonly ['const', {
     readonly export: readonly [number, {
         readonly default: readonly [number, Value, End]
-        readonly named: readonly [ConstStatement, RepeatFrom<0, ConstStatement>, Option<Rule>]
+        readonly named: readonly [ConstStatement, RepeatFrom<0, ModuleStatement>, Option<Rule>]
     }]
     readonly throw: readonly [number, Value, End]
 }]

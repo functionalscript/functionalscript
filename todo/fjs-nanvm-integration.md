@@ -175,17 +175,23 @@ against the same compiler, and converts none.
 The authored `.f.js` population under `fjs/` grows from 41 to 42, and
 `npm start compile` checks 59.
 
-The five rows are the `2a5b9c7` table's, unchanged: none of their modules
-has changed since, and each first refusal was measured again and is the
-same. Locations are `line:column`; paths are relative to `fjs/`.
+The five rows are the `2a5b9c7` table's, each first refusal measured again.
+Three moved once [call statements](../spec/functions/call-statements.md)
+landed, measured on that pull request's branch: `assert(…);` is a call
+statement now, so the `assert` rows of `types/function/compare` and
+`zlib/bits` are refused at what comes after; and `types/map` is refused at
+its `new`, a reserved word, since the `Map(...)` after it on its line reads
+as a call statement, which the fold refuses only after the `new`. No leaf
+became convertible. Locations are `line:column`; paths are relative to
+`fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `text/ascii/module.f.mjs` | 39:24 | `'\0'` in `nul`, an escape the language does not read (`lit.string-escape`; `'\u0000'` is the admitted spelling) | `void 0` in `at` (`op.void`); `assert(…)` as a statement in `digitsValue`, before its `const`s; `BigInt(…)` in `digitsValue` and `hexDigitsValue`, `const not found` ([rule 8](../doc/CONVERTING.md#8-bigint)) |
-| `types/function/compare/module.f.mjs` | 15:5 | `assert(…)` as a statement in `index3` | The same in `index5`; in `bsearch`, a `return` guard inside the loop, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
+| `text/ascii/module.f.mjs` | 39:24 | `'\0'` in `nul`, an escape the language does not read (`lit.string-escape`; `'\u0000'` is the admitted spelling) | `void 0` in `at` (`op.void`); `BigInt(…)` in `digitsValue` and `hexDigitsValue`, `const not found` ([rule 8](../doc/CONVERTING.md#8-bigint)) |
+| `types/function/compare/module.f.mjs` | 65:9 | `if (e < b) { return b }`, a `return` guard inside the loop in `bsearch` | In `bsearch`, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
-| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
-| `zlib/bits/module.f.mjs` | 25:5 | `assert(…)` as a statement in `read`, before its guards | The `for` loop in `read`; `let word`, with no `while` after it |
+| `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
 
 To recheck the current table without writing generated output, run this from
 the repository root inside `./dev.sh node --input-type=module`:
