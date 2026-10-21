@@ -661,6 +661,18 @@ export const visit =
         return visitConst(v)(rtti)
     }
 
+/** A bare tuple fits when it is no longer than declared. @type {Fits<ReadonlyArray<Unknown>>} */
+const tupleFits = (value, declared) => value.length <= declared
+
+/** An object fits whatever keys it holds besides the declared ones. @type {Fits<StringMap<Unknown>>} */
+const objectFits = () => true
+
+/** @type {(value: ReadonlyArray<Unknown>, k: string) => Unknown} */
+const tupleItem = (value, k) => value[Number(k)]
+
+/** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
+const structItem = (value, k) => value[k]
+
 /**
  * A schema-form reader, whole: from what it collects of a container's members
  * (`empty` and `cons`, as a {@link Reader} has them) and what it builds of each
@@ -693,14 +705,6 @@ export const readerOf = ({ empty, cons }, finish, emptyRest) => {
     const reader = { read, empty, cons }
     /** @type {(c: ConstObject, r: Type) => Fits<ReadonlyArray<Unknown>>} */
     const tupleRestFits = (c, r) => (value, declared) => value.length <= declared || !emptyRest(c, r)
-    /** @type {Fits<ReadonlyArray<Unknown>>} */
-    const tupleFits = (value, declared) => value.length <= declared
-    /** @type {Fits<StringMap<Unknown>>} */
-    const objectFits = () => true
-    /** @type {(value: ReadonlyArray<Unknown>, k: string) => Unknown} */
-    const tupleItem = (value, k) => value[Number(k)]
-    /** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
-    const structItem = (value, k) => value[k]
     const container = containerRead(reader)
     const constContainer = constContainerRead(reader)
     const restContainer = restContainerRead(reader)
