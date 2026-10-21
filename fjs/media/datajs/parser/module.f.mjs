@@ -56,7 +56,7 @@ import { unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, units } from '../../../ebnf/utf16/module.f.mjs'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
-import { items } from '../../../ebnf/lib/json/module.f.mjs'
+import { entry, items } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { stringMappings, syntaxError, tagged, textAt } from '../../json/parser/module.f.mjs'
 
@@ -106,7 +106,7 @@ const numberOf = node => {
  * @type {(node: Ast<EntryRule<typeof property, DataJsValue>, Utf16, Out>) => Entry}
  */
 const member = node => {
-    const [key, , , , v] = unmapped(node)
+    const [key, v] = entry(node)
     const k = unmapped(key)
     if (k[0] === 'proto') { return [protoKey, nodeAt(v)] }
     const name = textAt(k[1])

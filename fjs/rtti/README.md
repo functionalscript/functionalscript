@@ -163,9 +163,11 @@ result is thrown away. It shares the kernel rather than the pass: `visit` for
 schema recognition, `orVisit`, the primitive checks, and the container
 skeletons — `containerRead`, `constContainerRead` and `restContainerRead` in
 `common`, one per container shape. Each skeleton states its shape's read order
-once, so the two readers read a container in the same order by construction;
-what differs is the `Reader` each passes in, which collects nothing for
-`validate` and the parsed members for `parse`. The data form's `validate`
+once, and `readerOf` in `common` instantiates them for every container kind
+once, so the two readers read a container in the same order, and with the same
+shapes, by construction. What differs is what each passes to `readerOf`: what
+it collects of the members — nothing for `validate`, the parsed members for
+`parse` — and what it builds of each container kind. The data form's `validate`
 (`data/module.f.mjs`) is the same shape over `Data`, and `validate/proof.f.mjs`
 pins the acceptance agreement of all three as a table so they cannot drift.
 
