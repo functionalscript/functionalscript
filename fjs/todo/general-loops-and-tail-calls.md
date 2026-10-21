@@ -1,7 +1,8 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** wip — FAST foundation implementation stacked on #3127
+**Status:** wip — A-C shared FAST foundation implemented above #3127;
+short-circuit normalization is next
 
 ### Goal
 
@@ -79,17 +80,17 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
 
 ### Tasks
 
-- [ ] **A — FAST first.** Implement the architecture owner's small common model
+- [x] **A — FAST first.** Implement the architecture owner's small common model
       and stage APIs. Resolve representation questions there before consumers
       depend on them; include uniform local/parameter binding analysis, branch
       results, loop signatures and shared lazy evaluation, not just renamed
       AST types.
-- [ ] **B — Existing input.** Move source checks and lowering to their final
+- [x] **B — Existing input.** Move source checks and lowering to their final
       owners. Preserve scopes, diagnostics, captures, arity, required evaluations
       and established single-variable loop cases. Implement scalar root-loop
       reconstruction needed by C now; resolve any graph-normalization contract
       explicitly in A/B rather than introducing a temporary output exception.
-- [ ] **C — Existing output.** Move graph placement and current tail-loop
+- [x] **C — Existing output.** Move graph placement and current tail-loop
       decisions to `to_fast`; establish common emission preparation and migrate
       every required consumer before starting D.
 - [ ] **D — Smaller EDAG.** Complete the short-circuit owner's source lowering,
@@ -135,7 +136,8 @@ records the request for simplicity, separate responsibilities and FAST-first
 implementation. This ordering supersedes the earlier allowance to implement
 new features in the current frontend or writers and move them afterward.
 
-This PR records a plan, not compiler behavior. The language proposal owns
+The originating PR records the plan. The stacked foundation PRs implement A-C
+without enabling the later source extensions. The language proposal owns
 formal approval under
 [DESIGN.md section 12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions);
 the original single-variable approval does not authorize the broader source

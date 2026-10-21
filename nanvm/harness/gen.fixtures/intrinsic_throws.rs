@@ -4,10 +4,8 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| Any::dot(args.argument(0), string_any("slice")).end_call_native(|| Ok([args.argument(1), args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any();
-    let c1: Any<A> = Any::call(c0.clone(), [string_any("ab"), f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())?;
-    let c2: Any<A> = Any::call(c0.clone(), [f64_any(0x4014000000000000), f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())?;
-    let c3: Any<A> = [c1, c2].to_array().to_any();
-    Ok([(string_key("default"), c3)].to_object().to_any())
+    let _b0: Any<A> = A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("slice")).end_call_native(|| Ok([_args.argument(1), _args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any();
+    Ok([(string_key("default"), [(Any::call(_b0.clone(), [string_any("ab"), f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any()))?, (Any::call(_b0.clone(), [f64_any(0x4014000000000000), f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any()))?].to_array().to_any())].to_object().to_any())
 }

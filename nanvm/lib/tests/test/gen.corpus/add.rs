@@ -2,34 +2,32 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("wideBigintPlusOne", bigint_any_words(false, &[0xffffffffffffffff]) + bigint_any(1), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]));
-    check_throws::<A>("unreachedPlusOne", scope(|| {
-        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
-        c0 + f64_any(0x3ff0000000000000)
-    }));
-    check::<A>("nullPlusOne", Nullish::Null.to_any() + f64_any(0x3ff0000000000000), f64_any(0x3ff0000000000000));
-    check::<A>("undefinedPlusOne", Nullish::Undefined.to_any() + f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("truePlusTrue", true.to_any() + true.to_any(), f64_any(0x4000000000000000));
-    check::<A>("onePlusNegativeOne", f64_any(0x3ff0000000000000) + f64_any(0xbff0000000000000), f64_any(0x0000000000000000));
-    check::<A>("negativeZeroPlusZero", f64_any(0x8000000000000000) + f64_any(0x0000000000000000), f64_any(0x0000000000000000));
-    check::<A>("zeroPlusNegativeZero", f64_any(0x0000000000000000) + f64_any(0x8000000000000000), f64_any(0x0000000000000000));
-    check::<A>("negativeZeroPlusNegativeZero", f64_any(0x8000000000000000) + f64_any(0x8000000000000000), f64_any(0x8000000000000000));
-    check::<A>("emptyStringPlusOne", string_any("") + f64_any(0x3ff0000000000000), string_any("1"));
-    check::<A>("onePlusEmptyString", f64_any(0x3ff0000000000000) + string_any(""), string_any("1"));
-    check::<A>("stringOnePlusTwo", string_any("1") + f64_any(0x4000000000000000), string_any("12"));
-    check::<A>("onePlusStringTwo", f64_any(0x3ff0000000000000) + string_any("2"), string_any("12"));
-    check::<A>("bigOnePlusBigOne", bigint_any(1) + bigint_any(1), bigint_any(2));
-    check::<A>("bigOnePlusStringTwo", bigint_any(1) + string_any("2"), string_any("12"));
-    check::<A>("ownValueOfPlusOne", [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any())].to_object().to_any() + f64_any(0x3ff0000000000000), f64_any(0x4000000000000000));
-    check::<A>("ownBothPlusString", [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("t")) }, 0, Array::default(), Some("()=>\"t\"")).to_any())].to_object().to_any() + string_any("!"), string_any("1!"));
-    check::<A>("stringPlusOwnToString", string_any("a") + [(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("b")) }, 0, Array::default(), Some("()=>\"b\"")).to_any())].to_object().to_any(), string_any("ab"));
-    check::<A>("stringOnePlusBigTwo", string_any("1") + bigint_any(2), string_any("12"));
-    check::<A>("emptyArrayPlusOne", Array::default().to_any() + f64_any(0x3ff0000000000000), string_any("1"));
-    check::<A>("arrayOnePlusTwo", [f64_any(0x3ff0000000000000)].to_array().to_any() + f64_any(0x4000000000000000), string_any("12"));
-    check::<A>("emptyObjectPlusOne", Object::default().to_any() + f64_any(0x3ff0000000000000), string_any("[object Object]1"));
-    check_throws::<A>("numberPlusBigint", f64_any(0x3ff0000000000000) + bigint_any(1));
-    check_throws::<A>("bigintPlusNumber", bigint_any(1) + f64_any(0x3ff0000000000000));
-    check::<A>("functionPlusString", function_any() + string_any("!"), string_any("()=>undefined!"));
-    check::<A>("onePlusFunction", f64_any(0x3ff0000000000000) + function_any(), string_any("1()=>undefined"));
+    check::<A>("wideBigintPlusOne", scope(|| { bigint_any_words(false, &[0xffffffffffffffff]) + bigint_any(1) }), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]));
+    check_throws::<A>("unreachedPlusOne", scope(|| { (bigint_any(1) / bigint_any(0))? + f64_any(0x3ff0000000000000) }));
+    check::<A>("nullPlusOne", scope(|| { Nullish::Null.to_any() + f64_any(0x3ff0000000000000) }), f64_any(0x3ff0000000000000));
+    check::<A>("undefinedPlusOne", scope(|| { Nullish::Undefined.to_any() + f64_any(0x3ff0000000000000) }), f64_any(0x7ff8000000000000));
+    check::<A>("truePlusTrue", scope(|| { true.to_any() + true.to_any() }), f64_any(0x4000000000000000));
+    check::<A>("onePlusNegativeOne", scope(|| { f64_any(0x3ff0000000000000) + f64_any(0xbff0000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("negativeZeroPlusZero", scope(|| { f64_any(0x8000000000000000) + f64_any(0x0000000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("zeroPlusNegativeZero", scope(|| { f64_any(0x0000000000000000) + f64_any(0x8000000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("negativeZeroPlusNegativeZero", scope(|| { f64_any(0x8000000000000000) + f64_any(0x8000000000000000) }), f64_any(0x8000000000000000));
+    check::<A>("emptyStringPlusOne", scope(|| { string_any("") + f64_any(0x3ff0000000000000) }), string_any("1"));
+    check::<A>("onePlusEmptyString", scope(|| { f64_any(0x3ff0000000000000) + string_any("") }), string_any("1"));
+    check::<A>("stringOnePlusTwo", scope(|| { string_any("1") + f64_any(0x4000000000000000) }), string_any("12"));
+    check::<A>("onePlusStringTwo", scope(|| { f64_any(0x3ff0000000000000) + string_any("2") }), string_any("12"));
+    check::<A>("bigOnePlusBigOne", scope(|| { bigint_any(1) + bigint_any(1) }), bigint_any(2));
+    check::<A>("bigOnePlusStringTwo", scope(|| { bigint_any(1) + string_any("2") }), string_any("12"));
+    check::<A>("ownValueOfPlusOne", scope(|| { [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any())].to_object().to_any() + f64_any(0x3ff0000000000000) }), f64_any(0x4000000000000000));
+    check::<A>("ownBothPlusString", scope(|| { [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("t")) }, 0, Array::default(), Some("()=>\"t\"")).to_any())].to_object().to_any() + string_any("!") }), string_any("1!"));
+    check::<A>("stringPlusOwnToString", scope(|| { string_any("a") + [(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("b")) }, 0, Array::default(), Some("()=>\"b\"")).to_any())].to_object().to_any() }), string_any("ab"));
+    check::<A>("stringOnePlusBigTwo", scope(|| { string_any("1") + bigint_any(2) }), string_any("12"));
+    check::<A>("emptyArrayPlusOne", scope(|| { Array::default().to_any() + f64_any(0x3ff0000000000000) }), string_any("1"));
+    check::<A>("arrayOnePlusTwo", scope(|| { [f64_any(0x3ff0000000000000)].to_array().to_any() + f64_any(0x4000000000000000) }), string_any("12"));
+    check::<A>("emptyObjectPlusOne", scope(|| { Object::default().to_any() + f64_any(0x3ff0000000000000) }), string_any("[object Object]1"));
+    check_throws::<A>("numberPlusBigint", scope(|| { f64_any(0x3ff0000000000000) + bigint_any(1) }));
+    check_throws::<A>("bigintPlusNumber", scope(|| { bigint_any(1) + f64_any(0x3ff0000000000000) }));
+    check::<A>("functionPlusString", scope(|| { A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any() + string_any("!") }), string_any("()=>undefined!"));
+    check::<A>("onePlusFunction", scope(|| { f64_any(0x3ff0000000000000) + A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any() }), string_any("1()=>undefined"));
 }

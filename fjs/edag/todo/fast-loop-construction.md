@@ -1,7 +1,8 @@
 ## Construct EDAG from structured FAST loops
 
 **Priority:** P2
-**Status:** open — baseline scalar construction in B; general construction in E
+**Status:** wip — baseline scalar construction and root-loop reconstruction
+are implemented; general construction remains in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -133,7 +134,7 @@ domain, accounting for the separate short-circuit schema migration.
 Other supported conversions preserve semantics and explicit sharing under
 their documented normalization. Repeated conversions must stabilize.
 
-- [ ] **B:** Preserve the existing scalar construction and implement scalar
+- [x] **B:** Preserve the existing scalar construction and implement scalar
       root-loop reconstruction required by C. Pin its exact-graph domain and
       any explicit normalization before migrating output.
 - [ ] **E, after D:** Construct general helpers using explicit loop signatures.
