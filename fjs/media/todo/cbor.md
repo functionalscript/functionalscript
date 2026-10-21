@@ -124,13 +124,15 @@ mediaType = 'application/cbor'
 
 `Value` is the tree of [`fjs/media/json/extended`](../json/extended/types.ts)
 (`null`, booleans, `string`, `number | bigint`, arrays, objects): the same
-**type** as the JSON twin's, and the same value wherever the JSON side can spell
-it. It cannot spell everything: that serializer writes `NaN`, `Infinity` and
-`-Infinity` as `null`, as `JSON.stringify` does, where CBOR keeps them as floats
-(`f97e00`, `f97c00`, `f9fc00`), and a lone surrogate is refused here (below). So
-CBOR is the lossless encoding of a `number`, and a dialect served as both
-encodings keeps its values inside what both spell, which is its schema's to
-say (D9). Every function is pure, and the errors are values with a message in
+**type** as the JSON twin's, and the same value only for the values **both**
+codecs accept and keep. Each side takes values the other does not: the JSON
+serializer writes `NaN`, `Infinity` and `-Infinity` as `null`, as
+`JSON.stringify` does, where CBOR keeps them as floats (`f97e00`, `f97c00`,
+`f9fc00`); and the JSON serializer spells a lone surrogate, which CBOR refuses
+(below). So neither is a superset of the other: CBOR is the lossless encoding of
+a `number`, JSON the one that spells every string, and a dialect served as both
+encodings keeps its values inside what both accept, which is its schema's to say
+(D8 and D9). Every function is pure, and the errors are values with a message in
 the style of the sibling parsers.
 
 **Input admission.** `parse` and `isCanonical` read a list of numbers, and a
