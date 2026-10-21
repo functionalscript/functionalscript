@@ -1,7 +1,7 @@
 ## cbor. A CBOR serializer/parser: `fjs/media/cbor`
 
 **Priority:** P3
-**Status:** wip — a draft pull request holds the task; the implementation design below awaits the owner's decisions D1 to D8
+**Status:** wip — a draft pull request holds the task; the implementation design below awaits the owner's decisions D1 to D9
 
 The codec (this todo) and CBOR *detection*
 ([detect-cbor.md](../type/todo/detect-cbor.md)) are two different tasks: this one builds the
@@ -123,9 +123,15 @@ mediaType = 'application/cbor'
 ```
 
 `Value` is the tree of [`fjs/media/json/extended`](../json/extended/types.ts)
-(`null`, booleans, `string`, `number | bigint`, arrays, objects), so a CBOR
-dialect blob and its JSON twin are the same value. Every function is pure, and
-the errors are values with a message in the style of the sibling parsers.
+(`null`, booleans, `string`, `number | bigint`, arrays, objects): the same
+**type** as the JSON twin's, and the same value wherever the JSON side can spell
+it. It cannot spell everything: that serializer writes `NaN`, `Infinity` and
+`-Infinity` as `null`, as `JSON.stringify` does, where CBOR keeps them as floats
+(`f97e00`, `f97c00`, `f9fc00`), and a lone surrogate is refused here (below). So
+CBOR is the lossless encoding of a `number`, and a dialect served as both
+encodings keeps its values inside what both spell, which is its schema's to
+say (D9). Every function is pure, and the errors are values with a message in
+the style of the sibling parsers.
 
 `serialize` is **not total over `Value`**: a JSON string may hold an unpaired
 surrogate (`"\uD800"`), which UTF-8, and so a CBOR text string, cannot spell,
@@ -294,6 +300,16 @@ Each is the session's proposal; none is built on until the owner answers.
   which changes the JSON data model this reuses (D2); or writing it as WTF-8 into
   a text string, which the parser would then have to reject as invalid UTF-8, so
   the codec would fail its own round trip. Refusing is recommended.
+- **D9. Non-finite numbers.** CBOR keeps `NaN` and the infinities as floats and
+  the extended JSON serializer turns them into `null`, so a value that holds one
+  does not survive the JSON twin. Proposed: keep them in the CBOR model (a
+  `number` stays lossless, and nothing in the codec depends on excluding them),
+  state that the JSON twin does not spell them, and leave it to each dialect's
+  schema to exclude them when the dialect is served as both. The alternatives are
+  to exclude them from the model, which makes the serializer refuse them as it
+  does a lone surrogate (D8) and loses a value a `number` can be, or to define a
+  JSON representation for them, which is the JSON codec's decision and not this
+  task's.
 
 ### Tasks
 
