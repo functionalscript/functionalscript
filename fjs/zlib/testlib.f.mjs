@@ -15,6 +15,8 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
+import { assert } from '../asserts/module.f.js'
+import { decode } from '../basen/base16/module.f.mjs'
 import { u8ListMsb, u8ListToVecMsb, vec } from '../types/bit_vec/module.f.mjs'
 import { fold, toArray } from '../types/list/module.f.mjs'
 import { append as adlerAppend, init as adlerInit } from './adler32/module.f.mjs'
@@ -62,11 +64,17 @@ export const noise = n => {
 export const bytesOf = v => toArray(u8ListMsb(v))
 
 /**
- * The bytes a string of hex digits spells.
+ * The bytes a string of hex digits spells, read by `basen/base16`'s
+ * `decode`. A fixture that is not hex — an odd count, a stray character —
+ * fails the proof that holds it rather than reading as other bytes.
  *
  * @type {(text: string) => readonly number[]}
  */
-export const hex = text => Array.from({ length: text.length / 2 }, (_, i) => parseInt(text.slice(2 * i, 2 * i + 2), 16))
+export const hex = text => {
+    const bytes = decode(text)
+    assert(bytes !== null, ['not hex', text])
+    return bytes
+}
 
 /**
  * The Adler-32 of `data` as the four bytes that close a stream.

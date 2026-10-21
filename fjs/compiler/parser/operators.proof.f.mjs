@@ -9,7 +9,7 @@
  */
 
 import { parseFromTokens } from './module.f.mjs'
-import { stringifyDjsModule, tokenizeString } from './proof.f.mjs'
+import { stringifyModule, tokenizeString } from './proof.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
@@ -23,7 +23,7 @@ export const proof = {
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), ast)
+                assertEq(stringifyModule(value), ast)
             }
             expect('export default -1;', '[[],[["object",[[":","default",["-",1]]]]]]')
             expect('export default -1n;', '[[],[["object",[[":","default",["-",1n]]]]]]')
@@ -85,7 +85,7 @@ export const proof = {
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), ast)
+                assertEq(stringifyModule(value), ast)
             }
             // arithmetic, left-associative, and its own precedence within
             expect('export default 1 + 2 * 3;', '[[],[["object",[[":","default",["+",1,["*",2,3]]]]]]]')
@@ -237,7 +237,7 @@ export const proof = {
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), ast)
+                assertEq(stringifyModule(value), ast)
             }
             expect('export default 1 && 2;', '[[],[["object",[[":","default",["&&",1,2]]]]]]')
             expect('export default 1 || 2;', '[[],[["object",[[":","default",["||",1,2]]]]]]')
@@ -292,7 +292,7 @@ export const proof = {
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), ast)
+                assertEq(stringifyModule(value), ast)
             }
             expect('export default 1 ? 2 : 3;', '[[],[["object",[[":","default",["?:",1,2,3]]]]]]')
             expect('export default 1?2:3;', '[[],[["object",[[":","default",["?:",1,2,3]]]]]]')
@@ -352,7 +352,7 @@ export const proof = {
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), ast)
+                assertEq(stringifyModule(value), ast)
             }
             expect('export default (1, 2);', '[[],[["object",[[":","default",[",",[1,2]]]]]]]')
             expect('export default (1, 2, 3);', '[[],[["object",[[":","default",[",",[1,2,3]]]]]]]')
@@ -448,7 +448,7 @@ export const proof = {
             const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), ast)
+                assertEq(stringifyModule(value), ast)
             }
             expect('export default { in: 1 };', '[[],[["object",[[":","default",["object",[[":","in",1]]]]]]]]')
         },
