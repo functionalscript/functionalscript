@@ -75,7 +75,9 @@ export const resolveHref = commit => isPage => dir => href => {
     if (path.includes('%')) { return error(`a link with a percent escape: ${href}`) }
     const joined = path.startsWith('/') ? path.slice(1) : pathConcat(dir)(path)
     if (escapes(joined)) { return error(`a link that leaves the repository: ${href}`) }
-    const target = normalize(joined)
+    const normal = normalize(joined)
+    // The repository's root is the page `.`, not an empty path.
+    const target = normal === '' ? '.' : normal
     if (isPage(target)) { return ok(`${pageHref(target)}${fragment}`) }
     const owner = parent(target)
     if (basename(target) === readmeName && isPage(owner)) { return ok(`${pageHref(owner)}${fragment}`) }
