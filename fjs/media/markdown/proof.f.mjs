@@ -111,6 +111,8 @@ export const proof = {
             [['text', 'a '], ['code', `f${tick}x${tick}`]]),
         doubleCodeUnpadded: () => assertStructurallySame(spans(`${tick}${tick}a${tick}${tick}`), [['code', 'a']]),
         doubleCodeOneSpace: () => assertStructurallySame(spans(`${tick}${tick} ${tick}${tick}`), [['code', ' ']]),
+        // A body of spaces only keeps them all, as CommonMark keeps them.
+        doubleCodeSpaces: () => assertStructurallySame(spans(`${tick}${tick}  ${tick}${tick}`), [['code', '  ']]),
         doubleCodeInALabel: () => assertStructurallySame(spans(`[${tick}${tick}a${tick}${tick}](u)`), [['link', [['code', 'a']], 'u']]),
         // An asterisk with a space inside it is no delimiter on GitHub.
         spaceFlanked: () => assertEq(tryParseEntry('a * b * c')[1], 'bold or emphasis padded with a space'),

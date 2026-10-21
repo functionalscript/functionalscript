@@ -51,7 +51,8 @@ const arr = node => unmapped(/** @type {readonly unknown[]} */(node))
 /**
  * A code span's text. A single-backtick body is the code as written. A
  * double-backtick body runs through the two backticks that close it, and
- * CommonMark strips one space from each end when both ends have one, so
+ * CommonMark strips one space from each end when both ends have one and
+ * the body is not all spaces, so
  * ``` `` f`x` `` ``` is the code `` f`x` ``.
  *
  * @type {(node: unknown) => string}
@@ -60,7 +61,7 @@ const codeText = node => {
     const [kind, body] = arr(arr(node)[1])
     if (kind === 'single') { return lexeme(arr(body)[0]) }
     const text = lexeme(arr(body)[1]).slice(0, -2)
-    return text.length > 1 && text.startsWith(' ') && text.endsWith(' ') ? text.slice(1, -1) : text
+    return text.trim() !== '' && text.startsWith(' ') && text.endsWith(' ') ? text.slice(1, -1) : text
 }
 
 /**
