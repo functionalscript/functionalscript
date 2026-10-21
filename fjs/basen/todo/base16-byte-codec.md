@@ -52,13 +52,15 @@ at a time through `hexDigitValue`, by choice: the run has no length limit,
 and its decoder stops growing the value once it leaves Unicode's range,
 which reading the whole run as one `bigint` would not.
 
-The writing side has a sibling the codec above does not cover: a scalar
-spelled in fixed-width hex. `hexLiteral` in
-[`fjs/media/rust`](../../media/rust/module.f.mjs), `pathByte` in
-`fjs/text/percent`, `unicodeEscape` in
-[`fjs/media/json/serializer`](../../media/json/serializer/module.f.mjs) and
-`hexOfY` in the `vdf` demo each pad `toString(16)` to a width, upper or
-lower case as each one chose.
+The writing side has a sibling, a scalar spelled in fixed-width hex, and
+the codec covers it as `encodeScalar(width)(value)`: lowercase, padded to
+`width` and never cut to it. `hexLiteral` in
+[`fjs/media/rust`](../../media/rust/module.f.mjs), `byteLiteral` in
+`fjs/nanvm/expected`, `unicodeEscape` in `fjs/js/string_escape`,
+`pathByte` in `fjs/text/percent` (in capitals, over it), and the `vdf`,
+`sign`, `hash` and `secp` demos are on it.
+`fjs/types/uint8array`'s `hexOfByte` stays with the rest of that module,
+for the reason above.
 
 ### Proposal
 
@@ -102,8 +104,8 @@ unit, surrogates included.
       their admission and bounds — the tokenizer's braced `\u{…}` aside,
       as the problem says; landed by
       [#2938](https://github.com/functionalscript/functionalscript/pull/2938).
-- [ ] Decide whether a fixed-width hex formatter belongs beside it, and if
-      so move the writers above onto it.
+- [x] Decide whether a fixed-width hex formatter belongs beside it, and if
+      so move the writers above onto it: it does, as `encodeScalar`.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related

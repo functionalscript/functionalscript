@@ -30,13 +30,13 @@
 import { map } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { map as nullableMap } from '../../types/nullable/module.f.js'
-import { codePointToString, codeUnitToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { errorMask } from '../../text/code_point/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import {
     backspace,
     cr,
     ff,
-    hexDigitCodePoint,
     ht,
     latinSmallLetterB,
     latinSmallLetterF,
@@ -113,8 +113,8 @@ export const escapeToCodePoint = lookup(simpleEscapes)
 export const codePointToEscape = lookup(simpleEscapes.flatMap(([letter, codePoint]) =>
     codePoint === optionalEscape ? [] : [/** @type {const} */([codePoint, letter])]))
 
-/** @type {(value: number) => string} */
-const hexDigit = value => codeUnitToString(hexDigitCodePoint(value))
+/** A UTF-16 code unit as four hexadecimal digits. */
+const hexUnit = encodeScalar(4)
 
 /**
  * `\uXXXX` with lowercase hex digits, matching ECMAScript's `UnicodeEscape`.
@@ -122,7 +122,7 @@ const hexDigit = value => codeUnitToString(hexDigitCodePoint(value))
  * @type {(unit: number) => string}
  */
 const unicodeEscape = unit =>
-    `\\u${hexDigit(unit >> 12 & 0xf)}${hexDigit(unit >> 8 & 0xf)}${hexDigit(unit >> 4 & 0xf)}${hexDigit(unit & 0xf)}`
+    `\\u${hexUnit(unit)}`
 
 /**
  * The two-character escape a letter spells, projected over the lookup's
