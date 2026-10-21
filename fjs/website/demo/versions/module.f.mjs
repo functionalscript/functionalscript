@@ -48,6 +48,9 @@ import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effect
 import { randomInt } from '../../../effects/common/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
+import { digitsValue, one } from '../../../text/ascii/module.f.js'
+
+const readBinary = digitsValue(2n)
 
 /**
  * Keys as a reader types them unless a demo says otherwise: any safe
@@ -66,6 +69,22 @@ export const decimal = {
     label: 'Key',
     accepts: 'an integer',
 }
+
+/**
+ * Keys typed in binary, up to `width` digits, and shown in all `width`: the
+ * reading and the drawing of a demo's {@link Keys}, which names them itself.
+ * A key reads through `text/ascii`'s `digitsValue`, so an empty text and a
+ * character other than `0` or `1` are refused.
+ *
+ * @type {(width: number) => Pick<Keys, 'parse' | 'show'>}
+ */
+export const binaryKeys = width => ({
+    parse: text => {
+        const key = text.length <= width ? readBinary([...text].map(one)) : null
+        return key === null ? null : Number(key)
+    },
+    show: key => key.toString(2).padStart(width, '0'),
+})
 
 /**
  * Every node of each version, once: a node two paths reach — two rows of
