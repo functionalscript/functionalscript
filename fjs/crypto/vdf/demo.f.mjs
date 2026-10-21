@@ -47,6 +47,7 @@ import { computeSync, sha256 } from '../sha2/module.f.mjs'
 import { sandbox } from '../../effects/common/module.f.mjs'
 import { _formatDuration, _validDuration } from './performance/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
 const batch = 10n
@@ -80,7 +81,7 @@ export const parseHex = text => hexDigitsValue([...text].map(c => c.charCodeAt(0
 /** `y` in hex, padded to the width of `p`.
  * @type {(y: bigint) => string}
  */
-export const hexOfY = y => y.toString(16).padStart(yDigits, '0')
+export const hexOfY = encodeScalar(yDigits)
 
 /** Time only the evaluation call, keeping Stop and input available between batches.
  * @type {(state: DemoState, run: DemoRun) => Effect<Sandbox, DemoState, never>}
@@ -163,12 +164,15 @@ const verdictView = ({ verdict, steps }) =>
                         ? [['p', { role: 'status', [resultMarker]: 'ok' }, `✓ y verifies: squaring it ${steps} times returns x, up to sign.`]]
                         : [['p', { role: 'status', [resultMarker]: 'error' }, '✗ y does not verify for this x and number of steps.']]
 
+/** A SHA-256 digest as 64 hexadecimal digits. */
+const hexOfX = encodeScalar(64)
+
 /** `x` in hex, or the refusal of a text too long to hash.
  * @type {(x: bigint | null) => readonly Element[]}
  */
 const xView = x => x === null
     ? [refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)]
-    : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(x.toString(16).padStart(64, '0'), 'Copy x')]
+    : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(hexOfX(x), 'Copy x')]
 
 /** The evaluated `y`, once every step is done.
  * @type {(run: DemoRun | null) => readonly Element[]}
