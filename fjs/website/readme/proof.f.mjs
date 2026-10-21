@@ -40,13 +40,17 @@ export const proof = {
         github: () => assertStructurallySame(resolveHref('abc')(isPage)('spec/a')('x.md'),
             ok('https://github.com/functionalscript/functionalscript/blob/abc/spec/a/x.md')),
         escapes: () => assertStructurallySame(local('../../../x'), error('a link that leaves the repository: ../../../x')),
+        percentEscape: () => assertStructurallySame(local('my%20file.md'), error('a link with a percent escape: my%20file.md')),
     },
     slug: {
         words: () => assertEq(slug([['text', 'Hello, World!']]), 'hello-world'),
         spans: () => assertEq(slug([['code', 'a_b'], ['text', ' – '], ['link', [['text', 'C'], ['code', 'd']], 'u'], ['em', [['text', 'É']]]]), 'a_b--cdé'),
         // An uncased script stays, as GitHub keeps it; its punctuation, a
         // symbol and an emoji go.
-        uncased: () => assertEq(slug([['text', '中文、テスト → ok ✓ 😀']]), '中文テスト--ok--'),
+        uncased: () => assertEq(slug([['text', '中文、テスト → ok ✓ 😀 한 a×b§']]), '中文テスト--ok---한-ab'),
+        // A character it cannot class is left out of the slug; the README
+        // is refused before the slug is used.
+        unknown: () => assertEq(slug([['text', 'aأ']]), 'a'),
         digits: () => assertEq(slug([['strong', [['text', '10-'], ['code', '2']]]]), '10-2'),
     },
     anchors: () => assertStructurallySame(
@@ -87,6 +91,10 @@ export const proof = {
             list: () => assertStructurallySame(readmeNodes(href)([['list', false, [[['paragraph', [['link', [['text', 'x']], 'bad']]]]]]]), error('no')),
             header: () => assertStructurallySame(readmeNodes(href)([['table', [null], [[['link', [['text', 'x']], 'bad']]], []]]), error('no')),
             row: () => assertStructurallySame(readmeNodes(href)([['table', [null], [[]], [[[['link', [['text', 'x']], 'bad']]]]]]), error('no')),
+            // An Arabic comma is punctuation GitHub drops, and nothing here
+            // tells it from a letter it keeps.
+            anchor: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'أ،ب']]]]),
+                error('a heading character whose anchor GitHub may make otherwise: أ')),
         },
     },
     readmeSection: {
