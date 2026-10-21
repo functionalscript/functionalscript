@@ -1,5 +1,8 @@
 # FunctionalScript Compiler
 
+[Compiler architecture](./architecture.md) defines the representations, pass
+boundaries and shared FAST migration contracts.
+
 The front end: a grammar-based tokenizer over
 [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs), the
 [parser](./parser/README.md), the [AST](./ast/module.f.mjs), and the

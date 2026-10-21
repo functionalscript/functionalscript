@@ -265,6 +265,8 @@ JSDoc `@typedef`; function-local typedefs are allowed. Named types live in
 `types.ts` (the public declaration closure) or an optional `private.ts`.
 
 Testing, documentation, and the full coding style: [fjs/AGENTS.md](./fjs/AGENTS.md).
+Compiler representations and pass ownership:
+[compiler architecture](./fjs/compiler/architecture.md).
 
 ## 4. Rust (`nanvm/lib/`)
 

@@ -1,0 +1,261 @@
+/**
+ * Construct an EDAG from immutable FAST values and explicit evaluations.
+ * This pass knows no source declarations or mutable names. Value blocks do
+ * not create functions; only ordinary functions establish invocation scopes.
+ *
+ * @module
+ *
+ * @import { Exp, ExpOp } from '../types.ts'
+ * @import { BindingId, Block, Exit, Function as FastFunction, Operator, Value } from '../../js/ast/types.ts'
+ * @import { Environment, Lowered, Transfer } from './types.ts'
+ * @import { Results, Work } from './private.ts'
+ */
+
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
+
+/** @type {(exp: Exp) => Lowered} */
+const plain = exp => ({ exp, anchors: [] })
+
+/** Establish a region's required evaluations before its result. @type {(value: Lowered) => Exp} */
+export const anchored = ({ exp, anchors }) => anchors.length === 0 ? exp : [',', [...anchors, exp]]
+
+/** @type {(values: readonly Lowered[]) => readonly Exp[]} */
+const floated = values => values.flatMap(value => value.anchors)
+
+/** @type {(environment: Environment, binding: BindingId) => Exp} */
+const lookup = (environment, binding) => assertNotNullish(environment.find(([id]) => id === binding), 'unbound FAST value')[1]
+
+/** @type {(m: ExpOp, n: ExpOp) => boolean} */
+const sameCapture = (m, n) => m === n || (['arg', 'rest', 'frame', 'self'].includes(m[0]) && m.length === n.length && m.every((x, i) => x === n[i]))
+
+/** @type {(fn: FastFunction, environment: Environment) => Lowered} */
+const functionValue = (fn, environment) => {
+    const captures = fn.captures.map(capture => lowerValue(capture.value, environment))
+    const candidates = captures.map(capture => capture.exp).filter(exp => exp instanceof Array)
+    const slots = candidates.filter((node, i) => candidates.findIndex(other => sameCapture(other, node)) === i)
+    const reads = slots.map((_, i) => /** @type {Exp} */ (['frame', i]))
+    /** @type {Environment} */
+    const inner = [
+        ...fn.parameters.map((id, i) => /** @type {const} */ ([id, ['arg', i]])),
+        ...(fn.rest === null ? [] : [/** @type {const} */ ([fn.rest, ['rest']])]),
+        ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, ['self']])]),
+        ...fn.captures.map((capture, i) => /** @type {const} */ ([capture.binding,
+            captures[i].exp instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (captures[i].exp)))] : captures[i].exp,
+        ])),
+    ]
+    return { exp: ['=>', fn.parameters.length, slots, anchored(lowerBlock(fn.body, inner))], anchors: floated(captures) }
+}
+
+/**
+ * Positions whose required evaluations remain in their conditional region.
+ * The source expression itself never moves out of that region.
+ *
+ * @type {(operator: Operator<Value>, index: number) => boolean}
+ */
+const isLazyOperand = (operator, index) => {
+    if (['&&', '||', '??', '?:'].includes(operator[0])) { return index !== 0 }
+    if (operator[0] === '?.' || operator[0] === '?.()') { return index !== 0 }
+    if (operator[0] === '.') {
+        return index >= (operator[2] instanceof Array ? 2 : 1)
+    }
+    return false
+}
+
+/** Immediate eager dependencies retain binding identity, including primitives. @type {(root: Value) => readonly BindingId[]} */
+const eagerReferences = root => {
+    /** @type {readonly Value[]} */
+    let pending = [root]
+    /** @type {readonly BindingId[]} */
+    let result = []
+    while (pending.length !== 0) {
+        const [value, ...rest] = pending
+        if (value === null || typeof value !== 'object') { pending = rest; continue }
+        if (value[0] === 'ref') { result = [...result, value[1]]; pending = rest; continue }
+        if (value[0] === 'function') { pending = [...value[1].captures.map(capture => capture.value), ...rest]; continue }
+        if (value[0] === 'block') { result = [...result, ...blockReferences(value[1])]; pending = rest; continue }
+        if (value[0] === 'if') { pending = [value[1], ...rest]; continue }
+        pending = [...operatorOperands(value).filter((_, i) => !isLazyOperand(value, i)), ...rest]
+    }
+    return result
+}
+
+/** @type {(exit: Exit) => readonly BindingId[]} */
+const exitReferences = exit => exit[0] === 'yield' ? exit[1].flatMap(eagerReferences)
+    : exit[0] === 'break' || exit[0] === 'continue' ? exit[2].flatMap(eagerReferences)
+    : exit[0] === 'throw' ? eagerReferences(exit[1]) : eagerReferences(exit[2])
+
+/** @type {(block: Block) => readonly (readonly [BindingId, readonly BindingId[]])[]} */
+const dependencies = block => block.statements.flatMap(statement => statement[0] === 'define' ? [[statement[1], eagerReferences(statement[2])]] : [])
+
+/** @type {(relations: readonly (readonly [BindingId, readonly BindingId[]])[], roots: readonly BindingId[]) => readonly BindingId[]} */
+const closure = (relations, roots) => {
+    let pending = roots
+    /** @type {readonly BindingId[]} */
+    let found = []
+    while (pending.length !== 0) {
+        const [id, ...rest] = pending
+        if (found.includes(id)) { pending = rest; continue }
+        found = [...found, id]
+        pending = [...(relations.find(([binding]) => binding === id)?.[1] ?? []), ...rest]
+    }
+    return found
+}
+
+/** Evaluations every normal execution of this block reaches. @type {(block: Block) => readonly BindingId[]} */
+const requiredReferences = block => [
+    ...exitReferences(block.exit),
+    ...block.statements.flatMap(statement => statement[0] === 'define' ? statement[3] === 'required' ? eagerReferences(statement[2]) : []
+        : statement[0] === 'block' ? blockReferences(statement[2])
+        : statement[0] === 'if' ? eagerReferences(statement[2])
+        : statement[1].initial.flatMap(eagerReferences)),
+]
+
+/** A result block's dependencies outside the identities it establishes. @type {(block: Block) => readonly BindingId[]} */
+const blockReferences = block => {
+    const relations = dependencies(block)
+    return closure(relations, requiredReferences(block)).filter(id => !relations.some(([binding]) => binding === id))
+}
+
+/** Canonical required roots exclude computations already established eagerly. @type {(block: Block) => readonly BindingId[]} */
+const requiredRoots = block => {
+    const reached = closure(dependencies(block), requiredReferences(block))
+    return block.statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'required' && !reached.includes(statement[1]) ? [statement[1]] : [])
+}
+
+/** @type {(source: Operator<Value>, values: readonly Lowered[]) => Lowered} */
+const combined = (source, values) => {
+    const mapped = mapOperator((_, index) => {
+        const value = values[index]
+        return isLazyOperand(source, index) ? anchored(value) : value.exp
+    })(source)
+    const anchors = floated(values.filter((_, i) => !isLazyOperand(source, i)))
+    if (mapped[0] === 'array') { return { exp: ['[]', mapped[1]], anchors } }
+    if (mapped[0] === 'object') { return { exp: ['{}', mapped[1]], anchors } }
+    if (mapped[0] === ',') {
+        const before = values.slice(0, -1).flatMap(value => value.exp instanceof Array ? [...value.anchors, value.exp] : value.anchors)
+        const last = values[values.length - 1]
+        return { exp: last.exp, anchors: [...before, ...last.anchors] }
+    }
+    if (mapped[0] === '-' && mapped.length === 2 && (typeof mapped[1] === 'number' || typeof mapped[1] === 'bigint')) {
+        return { exp: -mapped[1], anchors }
+    }
+    if (mapped[0] === '()' && source[0] === '()') {
+        const callee = source[1]
+        const f = mapped[1]
+        if (callee instanceof Array && callee[0] === '.' && callee.length === 3 && f instanceof Array && f[0] === '.' && f.length === 3) {
+            return { exp: ['.', f[1], f[2], ['|()', mapped[2]]], anchors }
+        }
+    }
+    return { exp: /** @type {Exp} */ (mapped), anchors }
+}
+
+/**
+ * Lower a normalized expression with an explicit operator stack. A reference
+ * returns its established node, while separate equal operations stay separate.
+ *
+ * @type {(root: Value, environment: Environment, transfer?: Transfer) => Lowered}
+ */
+export const lowerValue = (root, environment, transfer = defaultTransfer) => {
+    /** @type {Work} */
+    let work = { kind: 'expand', value: root, rest: null }
+    /** @type {Results} */
+    let results = null
+    while (work !== null) {
+        if (work.kind === 'expand') {
+            const value = work.value
+            /** @type {Lowered | null} */
+            const leaf = value === undefined ? plain(['undefined'])
+                : value === null || typeof value !== 'object' ? plain(value)
+                : value[0] === 'ref' ? plain(lookup(environment, value[1]))
+                : value[0] === 'function' ? functionValue(value[1], environment)
+                : value[0] === 'block' ? lowerRegion(value[1], environment, transfer)
+                : value[0] === 'if' ? conditional(value[1], value[2], value[3], environment, transfer)
+                : null
+            if (leaf !== null) {
+                results = { value: leaf, rest: results }
+                work = work.rest
+                continue
+            }
+            const operator = /** @type {Operator<Value>} */ (value)
+            const operands = operatorOperands(operator)
+            work = operands.reduceRight((rest, value) => ({ kind: 'expand', value, rest }), /** @type {Work} */ ({ kind: 'operator', operator, operands, rest: work.rest }))
+            continue
+        }
+        /** @type {readonly Lowered[]} */
+        let values = []
+        let remaining = results
+        for (const _ of work.operands) {
+            const result = assertNotNullish(remaining, 'missing FAST operand')
+            values = [result.value, ...values]
+            remaining = result.rest
+        }
+        results = { value: combined(work.operator, values), rest: remaining }
+        work = work.rest
+    }
+    return assertNotNullish(results, 'missing FAST result').value
+}
+
+/** @type {(condition: Value, then: Block, otherwise: Block, environment: Environment, transfer: Transfer) => Lowered} */
+const conditional = (condition, then, otherwise, environment, transfer) => {
+    const test = lowerValue(condition, environment, transfer)
+    return { exp: ['?:', test.exp, anchored(lowerRegion(then, environment, transfer)), anchored(lowerRegion(otherwise, environment, transfer))], anchors: test.anchors }
+}
+
+/** Baseline value regions have normal results or fail; nonlocal exits follow in E. @type {(block: Block, environment: Environment, transfer: Transfer) => Lowered} */
+const lowerRegion = (block, environment, transfer) => {
+    if (transfer === defaultTransfer && block.exit[0] !== 'yield' && block.exit[0] !== 'throw') {
+        throw 'nonlocal transfers in value regions require structured completion lowering'
+    }
+    return lowerBlock(block, environment, transfer)
+}
+
+/** One result stays scalar; other signatures use their declared order. @type {(values: readonly Lowered[]) => Lowered} */
+const resultsValue = values => ({ exp: values.length === 1 ? values[0].exp : ['[]', values.map(value => value.exp)], anchors: floated(values) })
+
+/** @type {Transfer} */
+const defaultTransfer = (exit, environment) => {
+    if (exit[0] === 'yield') { return resultsValue(exit[1].map(value => lowerValue(value, environment))) }
+    if (exit[0] === 'return') { return lowerValue(exit[2], environment) }
+    if (exit[0] === 'throw') {
+        const value = lowerValue(exit[1], environment)
+        return { exp: ['throw', value.exp], anchors: value.anchors }
+    }
+    throw 'a loop transfer requires its owning loop'
+}
+
+/** Bind ordered results without changing their established identity. @type {(bindings: readonly BindingId[], exp: Exp) => Environment} */
+const resultBindings = (bindings, exp) => bindings.map((binding, i) => [binding, bindings.length === 1 ? exp : ['.', exp, i]])
+
+/**
+ * Required definitions retain their position as eager anchors. Lazy definitions
+ * provide node identity and establish no extra evaluation by themselves.
+ *
+ * @type {(block: Block, environment?: Environment, transfer?: Transfer) => Lowered}
+ */
+export const lowerBlock = (block, environment = [], transfer = defaultTransfer) => {
+    let scope = environment
+    const required = requiredRoots(block)
+    /** @type {readonly Exp[]} */
+    let anchors = []
+    for (const statement of block.statements) {
+        if (statement[0] === 'define') {
+            const value = lowerValue(statement[2], scope, transfer)
+            scope = [...scope, [statement[1], statement[3] === 'lazy' ? anchored(value) : value.exp]]
+            if (statement[3] === 'required') {
+                anchors = [...anchors, ...value.anchors, ...(required.includes(statement[1]) ? [value.exp] : [])]
+            }
+            continue
+        }
+        if (statement[0] === 'loop') { throw 'structured loop construction is not connected yet' }
+        const value = statement[0] === 'block' ? lowerRegion(statement[2], scope, transfer)
+            : conditional(statement[2], statement[3], statement[4], scope, transfer)
+        scope = [...scope, ...resultBindings(statement[1], value.exp)]
+        anchors = [...anchors, ...value.anchors, value.exp]
+    }
+    const result = transfer(block.exit, scope)
+    return { exp: result.exp, anchors: [...anchors, ...result.anchors] }
+}
+
+/** The graph at a normalized FAST block's result boundary. @type {(block: Block, environment?: Environment) => Exp} */
+export const fromFast = (block, environment = []) => anchored(lowerBlock(block, environment))
