@@ -131,6 +131,19 @@ export const proof = {
         }
         assertEq(fromAnalysis(assertOk(identityAnalysis(['args']))).exit[0], 'yield')
     },
+    enclosingOwners: () => {
+        const fn = /** @type {const} */ (['=>', 0, [], 7])
+        roundTrip([',', [fn, ['?:', true, ['()', fn, []], 0]]])
+        // Nested explicit anchors can normalize once; their output stabilizes.
+        const nested = /** @type {Exp} */ ([',', [fn, ['?:', true, [',', [
+            ['()', fn, []], [',', [['()', fn, []], ['()', fn, []]]],
+        ]], 0]]])
+        roundTrip(fromFast(assertOk(toFast(nested))))
+        const captured = /** @type {const} */ (['[]', [1]])
+        const closure = /** @type {const} */ (['=>', 0, [captured], ['frame', 0]])
+        const capture = /** @type {Exp} */ ([',', [captured, ['===', ['?:', true, ['()', closure, []], ['undefined']], captured]]])
+        roundTrip(fromFast(assertOk(toFast(capture))))
+    },
     chainRegions: () => {
         const optional = assertOk(toFast(['?.', null, 'x']))
         const value = /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (optional.exit)[1][0]
