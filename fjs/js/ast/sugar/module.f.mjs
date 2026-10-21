@@ -105,6 +105,37 @@ const references = root => {
 }
 
 /**
+ * An established read carries no evaluation or identity of its own.
+ * @param {Statement} statement
+ * @returns {statement is readonly ['define', BindingId, readonly ['ref', BindingId], 'required' | 'lazy']}
+ */
+const readAlias = statement => statement[0] === 'define' && statement[2] instanceof Array && statement[2][0] === 'ref'
+
+/**
+ * Used source aliases retain their lexical order for helper capture signatures.
+ * Discarding an unused established read must not introduce an unused capture.
+ * Results include state values whose continue is installed by the enclosing loop.
+ * @type {(block: Block, results: readonly Value[]) => Block}
+ */
+const pruneAliases = (block, results) => {
+    if (!block.statements.some(readAlias)) { return block }
+    let used = [
+        ...references({ ...block, statements: block.statements.filter(statement => !readAlias(statement)) }),
+        ...references({ statements: [], exit: ['yield', results] }),
+    ]
+    /** @type {readonly Statement[]} */
+    let statements = []
+    for (const statement of block.statements.toReversed()) {
+        if (readAlias(statement)) {
+            if (!used.includes(statement[1])) { continue }
+            used = [...used, statement[2][1]]
+        }
+        statements = [statement, ...statements]
+    }
+    return { ...block, statements }
+}
+
+/**
  * Alias declarations preserve the established value rather than minting a
  * second node. A real initializer remains required even when later overwritten.
  *
@@ -129,9 +160,6 @@ const expanded = (plan, value, environment, alias) => {
     }
     return { environment: inner, statements }
 }
-
-/** @type {(value: SourceValue) => boolean} */
-const isAlias = value => value instanceof Array && value[0] === 'ref'
 
 /**
  * Discarded source names and function values establish no computation. Flatten
@@ -262,22 +290,22 @@ const normalizedExit = (exit, environment, context) => {
  * Assignments retain their source identity until this complete scan. Scalar
  * loop inputs, iteration versions and results are chosen here, after analysis.
  *
- * @type {(source: SourceBlock, environment: Environment, context: Context) => Normalized}
+ * @type {(source: SourceBlock, environment: Environment, context: Context, retained?: readonly BindingId[]) => Normalized}
  */
-const normalizedBlock = (source, environment, context) => {
+const normalizedBlock = (source, environment, context, retained = []) => {
     let inner = environment
     /** @type {readonly Statement[]} */
     let statements = []
     for (const statement of source.statements) {
         if (statement[0] === 'initialize') {
-            const made = expanded(statement[1], normalizedValue(inner, context)(statement[2]), inner, isAlias(statement[2]))
+            const made = expanded(statement[1], normalizedValue(inner, context)(statement[2]), inner, false)
             inner = made.environment
             statements = [...statements, ...made.statements]
             continue
         }
         if (statement[0] === 'write') {
             assert(context.bindings.some(fact => fact.id === statement[1] && fact.isMutable), 'write without complete source analysis')
-            const made = establish(inner, statement[1], normalizedValue(inner, context)(statement[2]), isAlias(statement[2]))
+            const made = establish(inner, statement[1], normalizedValue(inner, context)(statement[2]), false)
             inner = made.environment
             statements = [...statements, ...made.statements]
             continue
@@ -286,7 +314,7 @@ const normalizedBlock = (source, environment, context) => {
         const parameter = binding(loop.variable.index)
         const result = binding(loop.variable.index)
         const scope = [...inner, /** @type {const} */ ([loop.variable, reference(parameter)])]
-        const step = normalizedBlock(loop.body, scope, context)
+        const step = normalizedBlock(loop.body, scope, context, [loop.variable])
         const condition = normalizedValue(scope, context)(loop.condition)
         statements = [...statements, ['loop', {
             target: loop.target, parameters: [parameter], initial: [lookup(inner, loop.variable)], results: [result],
@@ -301,7 +329,7 @@ const normalizedBlock = (source, environment, context) => {
         inner = [...inner, [loop.variable, reference(result)]]
     }
     const terminal = normalizedExit(source.exit, inner, context)
-    return { block: { statements: [...statements, ...terminal.statements], exit: terminal.exit }, environment: inner }
+    return { block: pruneAliases({ statements: [...statements, ...terminal.statements], exit: terminal.exit }, retained.map(id => lookup(inner, id))), environment: inner }
 }
 
 /**

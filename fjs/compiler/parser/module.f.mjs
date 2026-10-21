@@ -231,10 +231,19 @@ const sourceBinding = index => ({ index })
 const traced = (scope, events) => ({ ...scope, trace: { ...scope.trace, events: [...scope.trace.events, ...events] } })
 
 /** @type {(plan: _Plan, kind: 'const' | 'parameter') => readonly BindingOrigin[]} */
-const planOrigins = (plan, kind) => plan.ids.map((id, index) => {
-    const name = plan.names.find(([, at]) => at === index)?.[0]
-    return { id, name: name === undefined ? null : nameOf(name), kind: name === undefined ? 'temporary' : kind, metadata: name?.metadata ?? plan.metadata }
-})
+const planOrigins = (plan, kind) => {
+    /** @type {List<BindingOrigin>} */
+    let origins = null
+    let named = 0
+    // Names follow their read indices, so each name and hidden read is visited once.
+    for (let index = 0; index < plan.ids.length; index += 1) {
+        const entry = plan.names[named]
+        const name = entry !== undefined && entry[1] === index ? entry[0] : undefined
+        if (name !== undefined) { named += 1 }
+        origins = { first: { id: plan.ids[index], name: name === undefined ? null : nameOf(name), kind: name === undefined ? 'temporary' : kind, metadata: name?.metadata ?? plan.metadata }, tail: origins }
+    }
+    return toArray(reverse(origins))
+}
 
 /** Declare before initialization without making the name readable in its TDZ. @type {(scope: _Scope, plan: _Plan) => _Scope} */
 const declared = (scope, plan) => ({ ...scope, trace: { ...scope.trace, bindings: [...scope.trace.bindings, ...plan.ids] }, sourceOrigins: [...scope.sourceOrigins, ...planOrigins(plan, 'const')] })
