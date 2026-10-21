@@ -216,6 +216,37 @@ const isWordChar = c => c !== undefined
 const autolinkSchemes = ['https://', 'http://']
 
 /**
+ * Whether an `&` at `i` opens an entity: a name or a number and a `;`.
+ *
+ * @type {(text: string, i: number) => boolean}
+ */
+const entityAt = (text, i) => {
+    if (text[i] !== '&') { return false }
+    const semi = text.indexOf(';', i)
+    const name = semi === -1 ? '' : text.slice(i + 1, semi)
+    const body = name.startsWith('#') ? name.slice(1) : name
+    return body !== '' && [...body].every(isWordChar)
+}
+
+/** Whether a character may stand in an email address's domain. @type {(c: string | undefined) => boolean} */
+const isDomainChar = c => c !== undefined && (charIs(isDigit)(c) || charIs(isLatinLetter)(c) || c === '-' || c === '_')
+
+/**
+ * Whether an `@` at `i` is the middle of an email address GitHub links: a
+ * local part's character before it, and a domain of at least two labels
+ * after it.
+ *
+ * @type {(text: string, i: number) => boolean}
+ */
+const emailAt = (text, i) => {
+    const before = text[i - 1]
+    if (before === undefined || !(isDomainChar(before) || '.+'.includes(before))) { return false }
+    let j = i + 1
+    while (isDomainChar(text[j])) { j++ }
+    return j > i + 1 && text[j] === '.' && isDomainChar(text[j + 1])
+}
+
+/**
  * What GitHub reads in a run of prose that the grammar reads as text, found
  * in one scan after recognition — the place {@link hasImage} asks what a
  * rule with one symbol of lookahead cannot.
@@ -250,14 +281,8 @@ export const proseSpans = autolinks => text => {
             return error(`an underscore that GitHub may read as emphasis at ${i}`)
         }
         if (c === '~' && text.indexOf('~', i + 1) !== -1) { return error(`a tilde pair, which GitHub reads as strikethrough, at ${i}`) }
-        if (c === '&') {
-            const semi = text.indexOf(';', i)
-            const name = semi === -1 ? '' : text.slice(i + 1, semi)
-            const body = name.startsWith('#') ? name.slice(1) : name
-            if (body !== '' && [...body].every(isWordChar)) {
-                return error(`an entity, which GitHub reads as the character it names, at ${i}`)
-            }
-        }
+        if (entityAt(text, i)) { return error(`an entity, which GitHub reads as the character it names, at ${i}`) }
+        if (autolinks && c === '@' && emailAt(text, i)) { return error(`an email address, which GitHub reads as a link, at ${i}`) }
         if (rest.startsWith('http://') || rest.startsWith('https://') || rest.startsWith('www.')) {
             if (text[i - 1] !== '<') { return error(`a bare URL, which GitHub reads as a link, at ${i}`) }
         }
@@ -304,6 +329,11 @@ const readProse = entry => {
             ? span[1].flatMap(l => l[0] === 'text' ? [l[1]] : [])
             : [span[1]]
         if (span[0] === 'link' && span[1].length === 0) { return error('a link with an empty label') }
+        // CommonMark reads an entity in a destination as the character it
+        // names, and the page would keep it as written.
+        if (span[0] === 'link' && [...span[2]].some((_, i) => entityAt(span[2], i))) {
+            return error('an entity in a link target')
+        }
         const refused = texts.map(proseSpans(false)).find(r => r[0] === 'error')
         if (refused !== undefined) { return /** @type {Result<Entry, string>} */(refused) }
         out = [...out, span]
@@ -482,6 +512,9 @@ export const tryParseBlocks = text => {
             while (next < lines.length && lines[next].trim() === '') { next++ }
             if (next < lines.length && next !== end && lines[next].startsWith('- ')) {
                 return error(`line ${next + 1}: a list item after a blank line, which GitHub reads as a loose list`)
+            }
+            if (next < lines.length && next !== end && lines[next].startsWith('  ')) {
+                return error(`line ${next + 1}: an indented line after a blank line, which GitHub reads as part of the list item`)
             }
             const texts = entryTexts(lines.slice(i, end).join('\n'))
             if (texts[0] === 'error') { return refuse(texts[1]) }

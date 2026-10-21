@@ -298,6 +298,11 @@ export const proof = {
             markerOnlyHeading: () => assertEq(refusal('a\n\n###\n'), 'line 3: a heading that is empty or closed by `#`'),
             closedHeading: () => assertEq(refusal('## a ##\n')?.startsWith('line 1: a heading'), true),
             headingSpans: () => assertEq(refusal('\n# _a_\n')?.startsWith('line 2: an underscore'), true),
+            itemParagraph: () => assertEq(refusal('- first\n\n  second\n'), 'line 3: an indented line after a blank line, which GitHub reads as part of the list item'),
+            email: () => assertEq(refusal('mail a.b+c@x-y.example.org\n'), 'line 1: an email address, which GitHub reads as a link, at 10'),
+            linkTargetEntity: () => assertEq(refusal('[x](https://e.test/?a=1&amp;b=2)\n'), 'line 1: an entity in a link target'),
+            // Neither a handle nor a lone `@` is an address.
+            notAnEmail: () => assertEq(refusal('@codex, a @ b, x@y, x@.y, [a@b.c](u) and a&b\n'), null),
             lazyContinuation: () => assertEq(refusal('- a\nb\n'), 'line 2: a line that GitHub reads as part of the list item above it'),
             headingInAnItem: () => assertEq(refusal('- # a\n'), 'line 1: a heading inside a list item'),
             nestedList: () => assertEq(refusal('- a\n  * b\n'), 'line 2: a list marked other than with `- ` inside a list item'),
