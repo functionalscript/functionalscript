@@ -1,8 +1,8 @@
 ## Construct EDAG from structured FAST loops
 
 **Priority:** P2
-**Status:** wip — baseline scalar construction and root-loop reconstruction
-are implemented; general construction remains in E
+**Status:** wip — scalar construction and fixed-input root reconstruction
+are implemented; general helpers and completions remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -135,6 +135,13 @@ inner result and performs its own transition.
 
 ### Canonical root loops
 
+The fixed-input increment implements direct reconstruction for zero through
+sixteen fixed parameters, no rest binding and one opaque public result, while
+keeping the established scalar shape first. Its contract lives in
+[`from_fast/loop/root`](../from_fast/loop/root/README.md). This is part of E;
+general helpers, nested transfers, operand control and rest transitions remain
+open below.
+
 Implement the scalar form needed by common existing output during B, before
 output migration C. E extends it to general invocation/result signatures.
 The FAST contract in A names the exact-graph domain. If canonical root reuse
@@ -164,6 +171,41 @@ and negative graph fixtures rather than introducing a second heuristic.
 `to_fast`'s eligible direct-self-loop form follows this contract so reading
 its normalized FAST back does not add a wrapper. Physical prepared FAST is
 not the input to `from_fast`.
+
+### Pending member-resolution decision
+
+Lifting argument control must preserve the lookup boundary. In
+`null.f(argument-block-returning-7)`, lookup fails before that successful
+return; calling an already evaluated noncallable value instead reaches the
+arguments before callable validation. A nullish optional receiver skips its
+key and arguments. A plain property read cannot express the optional-call
+guard for native methods: it may yield undefined where a member call exists.
+
+The proposed minimal extension is `['memberPresent', receiver, key]`, returning
+the existing member-call guard's Boolean result or ordinary lookup failure.
+It must reuse the operation kernel's own/native/runtime resolution, including
+key coercion and null-receiver failure. An own null/undefined field is absent;
+an own noncallable nonnull value is present and fails only when invoked after
+its arguments. Native and runtime members use the existing guard, with no
+second method inventory. Normal optional-chain regions decide whether the
+query itself is reached. Bare optional calls need only their callee's nullish
+test. The proposed tag remains absent from the current canonical schema.
+
+This query would precede the existing member call after selected argument
+control. With pure lookup, repeating resolution preserves language outcomes;
+the straightforward query plus ordinary call performs three runtime `dot`
+lookups where the existing optional call performs two. That cost is explicit.
+The alternative is a first-class resolved-member value and invocation form,
+which avoid that repeated lookup but require a larger value/schema/runtime
+contract. The owner decision is pending; neither alternative is provisionally
+admitted. Full E must settle this boundary and common preparation's matching
+receiver/callee handling before its normalized contract is complete.
+
+Expand an earlier array/call spread before a later value operand can return or
+transfer. Snapshotting only the spread operand does not preserve a failing
+expansion before a successful transfer. This boundary belongs to common
+preparation and construction, alongside member resolution; target writers do
+not independently infer it.
 
 ### Identity and evidence
 

@@ -10,10 +10,13 @@
  * @module
  *
  * @import { BindingId, Block, Exit, Loop, Value } from '../../../js/ast/types.ts'
- * @import { Context, Task } from './private.ts'
+ * @import { Context, Link, Task } from './private.ts'
  */
 
 import { operatorOperands } from '../../../js/ast/module.f.mjs'
+
+/** @type {(tasks: readonly Task[], tail: Link<Task> | null) => Link<Task> | null} */
+const prepend = (tasks, tail) => tasks.reduceRight((tail, first) => ({ first, tail }), tail)
 
 /** @type {(values: readonly Value[], context: Context) => readonly Task[]} */
 const valueTasks = (values, context) => values.map(value => ({ kind: 'value', value, bound: context.bound }))
@@ -65,13 +68,13 @@ const blockTasks = (block, context) => {
  * @type {(block: Block, bound?: readonly BindingId[]) => readonly BindingId[]}
  */
 export const freeBindings = (block, bound = []) => {
-    /** @type {readonly Task[]} */
-    let pending = [blockTask(block, { bound })]
+    /** @type {Link<Task> | null} */
+    let pending = { first: blockTask(block, { bound }), tail: null }
     /** @type {readonly BindingId[]} */
     let bindings = []
-    while (pending.length !== 0) {
-        const [task, ...rest] = pending
-        if (task.kind === 'block') { pending = [...blockTasks(task.block, task), ...rest]; continue }
+    while (pending !== null) {
+        const { first: task, tail: rest } = /** @type {Link<Task>} */ (pending)
+        if (task.kind === 'block') { pending = prepend(blockTasks(task.block, task), rest); continue }
         const { value } = task
         if (value === null || typeof value !== 'object') { pending = rest; continue }
         switch (value[0]) {
@@ -80,10 +83,10 @@ export const freeBindings = (block, bound = []) => {
                 pending = rest
                 break
             }
-            case 'function': { pending = [...valueTasks(value[1].captures.map(capture => capture.value), task), ...rest]; break }
-            case 'block': { pending = [blockTask(value[1], task), ...rest]; break }
-            case 'if': { pending = [...valueTasks([value[1]], task), blockTask(value[2], task), blockTask(value[3], task), ...rest]; break }
-            default: { pending = [...valueTasks(operatorOperands(value), task), ...rest] }
+            case 'function': { pending = prepend(valueTasks(value[1].captures.map(capture => capture.value), task), rest); break }
+            case 'block': { pending = { first: blockTask(value[1], task), tail: rest }; break }
+            case 'if': { pending = prepend([...valueTasks([value[1]], task), blockTask(value[2], task), blockTask(value[3], task)], rest); break }
+            default: { pending = prepend(valueTasks(operatorOperands(value), task), rest) }
         }
     }
     return bindings

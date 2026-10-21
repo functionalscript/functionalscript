@@ -1,8 +1,8 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** wip — A-D shared FAST foundation and conditional schema implemented
-above #3127; general loop construction is next
+**Status:** wip — A-D and fixed-input invocation-root reconstruction implemented
+above #3127; general helper construction and tail-call work remain in E/F
 
 ### Goal
 
@@ -97,6 +97,8 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       schema/identity decision and producer/consumer migration.
 - [ ] **E — General graph construction.** Complete the loop-construction owner
       using explicit FAST inputs/results; no source-mutability analysis here.
+      Fixed-input invocation roots are implemented; general helpers, operand
+      completions and shared memo transport remain open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.
@@ -136,7 +138,8 @@ records the request for simplicity, separate responsibilities and FAST-first
 implementation. This ordering supersedes the earlier allowance to implement
 new features in the current frontend or writers and move them afterward.
 
-The originating PR records the plan. The stacked foundation PRs implement A-C
+The originating PR records the plan. The stacked implementation branches cover
+the shared foundation, conditional schema and fixed-input root increment
 without enabling the later source extensions. The language proposal owns
 formal approval under
 [DESIGN.md section 12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions);

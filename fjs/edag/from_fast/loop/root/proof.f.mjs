@@ -1,0 +1,178 @@
+/**
+ * Canonical roots retain the invocation ABI and one opaque public result.
+ * @import { BindingId, Block, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { Exp } from '../../../types.ts'
+ */
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
+import { identityAnalysis } from '../../../analysis/module.f.mjs'
+import { memo } from '../../../memo/module.f.mjs'
+import { toData } from '../../../value/to_unknown/module.f.mjs'
+import { toFast } from '../../../to_fast/module.f.mjs'
+import { fromFast } from '../../module.f.mjs'
+import { directInvocationRoot, invocationRootOf } from './module.f.mjs'
+
+/** @type {(index: number) => BindingId} */
+const id = index => ({ index })
+/** @type {(binding: BindingId) => Value} */
+const ref = binding => ['ref', binding]
+/** @type {(exit: Block['exit'], statements?: readonly Statement[]) => Block} */
+const body = (exit, statements = []) => ({ statements, exit })
+const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+const a = id(0), b = id(1), x = id(2), y = id(3), output = id(4), alias = id(5), self = id(6)
+/** @type {(region: Block, parameters?: readonly BindingId[]) => Loop} */
+const loopOf = (region, parameters = [x, y]) => ({ target: loopTarget, parameters, initial: parameters.map((_, i) => ref([a, b][i])), results: [output], body: region })
+/** @type {(loop: Loop) => FastFunction} */
+const root = loop => ({ target, parameters: [a, b], rest: null, self: null, captures: [], body: body(['return', target, ref(output)], [['loop', loop]]) })
+/** @type {(fn: FastFunction) => Exp} */
+const graph = fn => fromFast(body(['yield', [['function', fn]]]))
+/** @type {(fn: FastFunction, args: readonly Value[]) => import('../../../../types/result/types.ts').Result<unknown, unknown>} */
+const evaluate = (fn, args) => {
+    const result = memo(assertOk(identityAnalysis(fromFast(body(['yield', [['()', ['function', fn], args]]])))))({ args: [] })
+    return result[0] === 'error' ? result : toData(result[1])
+}
+
+export const proof = {
+    layout: () => {
+        const loop = loopOf(body(['break', loopTarget, [ref(x)]]))
+        const fn = root(loop)
+        assertEq(invocationRootOf(fn), loop)
+        const aliased = { ...loop, initial: [ref(alias), ref(b)] }
+        assertEq(invocationRootOf({ ...fn, body: body(['return', target, ref(output)], [['define', alias, ref(a), 'lazy'], ['loop', aliased]]) }), aliased)
+        const zero = { ...loop, parameters: [], initial: [] }
+        assertEq(invocationRootOf({ ...root(zero), parameters: [] }), zero)
+        assertEq(invocationRootOf({ ...fn, rest: alias }), null)
+        assertEq(invocationRootOf({ ...fn, body: body(['yield', [ref(output)]], [['loop', loop]]) }), null)
+        assertEq(invocationRootOf({ ...fn, body: body(['return', { ...target }, ref(output)], [['loop', loop]]) }), null)
+        assertEq(invocationRootOf({ ...fn, body: body(['return', target, ref(output)]) }), null)
+        assertEq(invocationRootOf({ ...fn, body: body(['return', target, ref(output)], [['define', output, 1, 'required']]) }), null)
+        for (const changed of [
+            { ...loop, parameters: [x] }, { ...loop, initial: [ref(a)] },
+            { ...loop, results: [] }, { ...loop, results: [output, alias] },
+            { ...loop, initial: [ref(b), ref(a)] }, { ...loop, initial: [ref({ ...a }), ref(b)] },
+        ]) { assertEq(invocationRootOf(root(changed)), null) }
+        for (const statement of /** @type {readonly Statement[]} */ ([
+            ['block', [], body(['yield', []])], ['define', alias, ['array', []], 'required'], ['define', alias, ref(x), 'lazy'],
+        ])) { assertEq(invocationRootOf({ ...fn, body: body(['return', target, ref(output)], [statement, ['loop', loop]]) }), null) }
+        assertEq(invocationRootOf({ ...fn, body: body(['return', target, 3], [['loop', loop]]) }), null)
+    },
+    directTailAndOpaqueResult: () => {
+        const loop = loopOf(body(['continue', loopTarget, [ref(x), ref(y)]], [
+            ['if', [], ['<', ref(x), 3], body(['continue', loopTarget, [['+', ref(x), 1], ['-', ref(y), 1]]]), body(['break', loopTarget, [['array', [ref(x), ref(y)]]]])],
+        ]))
+        const fn = root(loop)
+        const arg0 = /** @type {Exp} */ (['arg', 0]), arg1 = /** @type {Exp} */ (['arg', 1])
+        const expected = /** @type {Exp} */ (['=>', 2, [], ['?:', ['<', arg0, 3], ['()', ['self'], [['+', arg0, 1], ['-', arg1, 1]]], ['[]', [arg0, arg1]]]])
+        const initial = graph(fn)
+        assertStructurallySame(assertOk(identityAnalysis(initial)), assertOk(identityAnalysis(expected)))
+        const one = fromFast(assertOk(toFast(initial)))
+        const two = fromFast(assertOk(toFast(one)))
+        const three = fromFast(assertOk(toFast(two)))
+        for (const value of [one, two, three]) { assertStructurallySame(assertOk(identityAnalysis(value)), assertOk(identityAnalysis(expected))) }
+        assertStructurallySame(assertOk(evaluate(fn, [0, 10])), [3, 7])
+        const retained = { ...fn, self }
+        const normalized = directInvocationRoot(retained, loop)
+        assertEq(normalized.self, self)
+        assertEq(normalized.parameters, fn.parameters)
+        assertEq(normalized.captures, fn.captures)
+        assertStructurallySame(assertOk(identityAnalysis(graph(retained))), assertOk(identityAnalysis(expected)))
+    },
+    statementResultsAndRequiredValues: () => {
+        const local = id(10), first = id(11), second = id(12), marker = id(13)
+        const loop = loopOf(body(['break', loopTarget, [['array', [ref(first), ref(second), ref(local)]]]], [
+            ['define', local, ['array', []], 'required'],
+            ['block', [first, second], body(['yield', [ref(local), 8]])],
+            ['if', [marker], ref(x), body(['yield', [1]]), body(['yield', [2]])],
+        ]))
+        const result = assertOk(evaluate(root(loop), [0, 0]))
+        assert(result instanceof Array)
+        assertEq(result[0], result[2])
+        assertEq(result[1], 8)
+        const unused = loopOf(body(['break', loopTarget, [7]], [['block', [first], body(['yield', [['.', null, 'x']]])]]))
+        assertError(evaluate(root(unused), [0, 0]))
+        const thrown = loopOf(body(['break', loopTarget, [0]], [['if', [], ref(x), body(['throw', 'error']), body(['return', target, 9])]]))
+        assertEq(assertOk(evaluate(root(thrown), [false, 0])), 9)
+        assertEq(assertError(evaluate(root(thrown), [true, 0])), 'error')
+    },
+    zeroAndSingleInput: () => {
+        const zero = loopOf(body(['break', loopTarget, [['array', [1, 2]]]]), [])
+        const fn = { ...root(zero), parameters: [] }
+        assertStructurallySame(assertOk(evaluate(fn, [])), [1, 2])
+        const single = { ...loopOf(body(['return', target, ['array', [ref(x)]]])), parameters: [x], initial: [ref(a)] }
+        assertStructurallySame(assertOk(evaluate({ ...root(single), parameters: [a] }, [4])), [4])
+        const repeat = { ...zero, body: body(['continue', loopTarget, []]) }
+        assertStructurallySame(graph({ ...root(repeat), parameters: [] }), ['=>', 0, [], ['()', ['self'], []]])
+        const normal = { ...zero, body: body(['yield', [3]]) }
+        assertEq(assertOk(evaluate({ ...root(normal), parameters: [] }, [])), 3)
+    },
+    aliasFrameAndWideInvocation: () => {
+        const capture = id(40)
+        const loop = loopOf(body(['break', loopTarget, [['array', [ref(capture), ref(capture), ['===', ref(self), ref(self)]]]]]))
+        const fn = { ...root(loop), self, captures: [{ binding: capture, value: /** @type {Value} */ (['array', [11]]) }], body: body(['return', target, ref(output)], [['define', alias, ref(a), 'required'], ['loop', { ...loop, initial: [ref(alias), ref(b)] }]]) }
+        const result = assertOk(evaluate(fn, [0, 0]))
+        assert(result instanceof Array)
+        assertEq(result[0], result[1])
+        assertEq(result[2], true)
+        const expected = /** @type {Exp} */ (['=>', 2, [['[]', [11]]], ['[]', [['frame', 0], ['frame', 0], ['===', ['self'], ['self']]]]])
+        // One canonical node represents each frame/self read in the exact domain.
+        const frame = /** @type {Exp} */ (['frame', 0]), selfRead = /** @type {Exp} */ (['self'])
+        const canonical = /** @type {Exp} */ (['=>', 2, [['[]', [11]]], ['[]', [frame, frame, ['===', selfRead, selfRead]]]])
+        assertStructurallySame(graph(fn), expected)
+        assertStructurallySame(assertOk(identityAnalysis(graph(fn))), assertOk(identityAnalysis(canonical)))
+        const parameters = Array.from({ length: 16 }, () => id(0))
+        const states = Array.from({ length: 16 }, () => id(0))
+        const wide = { ...loop, parameters: states, initial: parameters.map(ref), body: body(['break', loopTarget, [['array', states.map(ref)]]]) }
+        const wideFn = { ...root(wide), parameters }
+        assertEq(invocationRootOf(wideFn), wide)
+        assertStructurallySame(assertOk(evaluate(wideFn, Array.from({ length: 16 }, (_, i) => i))), Array.from({ length: 16 }, (_, i) => i))
+    },
+    partialAbruptRegions: () => {
+        const value = id(30)
+        const partial = body(['yield', [3]], [['if', [], ref(y), body(['return', target, 7]), body(['yield', []])]])
+        const loop = loopOf(body(['break', loopTarget, [ref(value)]], [['if', [value], ref(x), partial, body(['yield', [4]])]]))
+        assertEq(assertOk(evaluate(root(loop), [true, false])), 3)
+        assertEq(assertOk(evaluate(root(loop), [true, true])), 7)
+        assertEq(assertOk(evaluate(root(loop), [false, true])), 4)
+    },
+    normalStatementGrowthAndDeepControl: () => {
+        /** @type {readonly Statement[]} */
+        let statements = []
+        let last = x
+        for (let depth = 0; depth < 24; ++depth) {
+            const next = id(depth + 20)
+            statements = [...statements, ['if', [next], ref(y), body(['yield', [['+', ref(last), 1]]]), body(['yield', [['-', ref(last), 1]]])]]
+            last = next
+        }
+        const loop = loopOf(body(['break', loopTarget, [ref(last)]], statements))
+        const analysis = assertOk(identityAnalysis(graph(root(loop))))
+        assert(analysis.nodes.length < 100)
+        assertEq(assertOk(evaluate(root(loop), [0, true])), 24)
+        /** @type {Block} */
+        let nested = body(['break', loopTarget, [ref(x)]])
+        for (let depth = 0; depth < 20_000; ++depth) { nested = body(['yield', []], [['block', [], nested]]) }
+        const deep = loopOf(nested)
+        assertStructurallySame(graph(root(deep)), ['=>', 2, [], ['arg', 0]])
+        nested = body(['break', loopTarget, [ref(x)]])
+        for (let depth = 0; depth < 20_000; ++depth) {
+            nested = body(['continue', loopTarget, [ref(x), ref(y)]], [['if', [], ref(y), nested, body(['break', loopTarget, [0]])]])
+        }
+        let conditional = graph(root(loopOf(nested)))
+        assert(conditional instanceof Array && conditional[0] === '=>')
+        conditional = conditional[3]
+        for (let depth = 0; depth < 20_000; ++depth) {
+            assert(conditional instanceof Array && conditional[0] === '?:')
+            assertEq(conditional[3], 0)
+            conditional = conditional[2]
+        }
+        assertStructurallySame(conditional, ['arg', 0])
+    },
+    throw: {
+        nestedLoop: () => { const inner = loopOf(body(['break', loopTarget, [0]])); directInvocationRoot(root(inner), { ...inner, body: body(['break', loopTarget, [0]], [['loop', inner]]) }) },
+        resultArity: () => { const loop = loopOf(body(['break', loopTarget, []])); directInvocationRoot(root(loop), loop) },
+        transitionArity: () => { const loop = loopOf(body(['continue', loopTarget, [0]])); directInvocationRoot(root(loop), loop) },
+        regionArity: () => { const loop = loopOf(body(['break', loopTarget, [0]], [['block', [alias], body(['yield', []], [['if', [], true, body(['return', target, 0]), body(['yield', []])]])]])); directInvocationRoot(root(loop), loop) },
+        returnOwner: () => { const loop = loopOf(body(['return', { ...target }, 0])); directInvocationRoot(root(loop), loop) },
+        loopOwner: () => { const loop = loopOf(body(['continue', { ...loopTarget }, [0, 0]])); directInvocationRoot(root(loop), loop) },
+        nonlocalValue: () => { const loop = loopOf(body(['break', loopTarget, [['block', body(['return', target, 4])]]])); graph(root(loop)) },
+    },
+}
