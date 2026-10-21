@@ -127,13 +127,16 @@ Every README has a heading, so today's reader renders none of them.
       each row read as GitHub reads it (an autolink is a link) or refused.
       Add the rows it lacks as they are found, starting with GFM's bare-URL
       autolink.
-- [ ] A block reader: headings and paragraphs, the changelog's list check
-      rebuilt on top of it.
-- [ ] The page generator renders a directory's `README.md` above its
-      catalogue when the reader accepts it, and shows the refusal beside the
-      file link when it does not.
-- [ ] Relative links resolved as above.
-- [ ] Fenced code blocks.
+- [x] A block reader: headings, paragraphs, fenced code and flat lists
+      (`tryParseBlocks` in [`media/markdown`](../../media/markdown/module.f.mjs)),
+      lists read by the changelog's own `entryTexts`.
+- [x] The page generator renders a directory's `README.md` at the top of
+      its page, above its demo, when the reader accepts it, and shows the
+      refusal with the file link when it does not
+      ([`readme`](../readme/module.f.mjs)). Rendered at build time.
+- [x] Relative links resolved as above, and heading ids made as GitHub
+      makes them, so a `#fragment` finds its heading.
+- [x] Fenced code blocks.
 - [ ] Tables.
 - [ ] Numbered and nested lists.
 - [ ] Links inside bold, and the other refusals in

@@ -25,7 +25,7 @@
  * @import { Utf16 } from '../../ebnf/utf16/types.ts'
  * @import { RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Document, Entry, Inline } from './types.ts'
+ * @import { Block, Blocks, Document, Entry, Inline, Label } from './types.ts'
  */
 
 import { unmapped } from '../../ebnf/ast/module.f.js'
@@ -34,6 +34,7 @@ import { eof } from '../../ebnf/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { lexeme, units } from '../../ebnf/utf16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
+import { charIs, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
 
 /** @type {RewriteSet<Utf16, never>} */
 const nothing = []
@@ -46,6 +47,24 @@ const parseEntry = parser([entryRule, eof], nothing)
 
 /** @type {(node: unknown) => readonly unknown[]} */
 const arr = node => unmapped(/** @type {readonly unknown[]} */(node))
+
+/**
+ * A link's label as its spans: text and code alternating, as an entry's do,
+ * a code span being the `code` rule's own tuple rather than a branch.
+ *
+ * @type {(node: unknown) => readonly Label[]}
+ */
+const labelOf = node => {
+    const [lead, rest] = arr(node)
+    /** @type {readonly Label[]} */
+    const head = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
+    return [...head, ...arr(rest).flatMap(pair => {
+        const [code, tail] = arr(pair)
+        /** @type {readonly Label[]} */
+        const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
+        return [/** @type {Label} */(['code', lexeme(arr(code)[1])]), ...after]
+    })]
+}
 
 /**
  * One delimited span, by the branch the grammar took. Each case indexes the
@@ -62,7 +81,7 @@ const spanOf = node => {
         const l = arr(body)
         // A target is its first symbol, which may not open the angle-bracket
         // form, then the rest of it.
-        return ['link', lexeme(l[1]), lexeme([l[3], l[4]])]
+        return ['link', labelOf(l[1]), lexeme([l[3], l[4]])]
     }
     const [kind, inner] = arr(arr(body)[1])
     return kind === 'strong'
@@ -189,6 +208,109 @@ const hasImage = entry => entry.some((span, i) => {
         && next !== undefined && next[0] === 'link'
 })
 
+/** Whether a character is a letter or a digit, in any script. @type {(c: string | undefined) => boolean} */
+const isWordChar = c => c !== undefined
+    && (charIs(isDigit)(c) || charIs(isLatinLetter)(c) || c.toLowerCase() !== c.toUpperCase())
+
+/** The schemes an autolink is read with here. */
+const autolinkSchemes = ['https://', 'http://']
+
+/**
+ * What GitHub reads in a run of prose that the grammar reads as text, found
+ * in one scan after recognition — the place {@link hasImage} asks what a
+ * rule with one symbol of lookahead cannot.
+ *
+ * **Each is refused, or read as GitHub reads it; none is passed through as
+ * text.** Passed through, each is a document GitHub does not build
+ * ([`commonmark-constructs`](../../ebnf/lib/markdown/todo/commonmark-constructs.md)):
+ *
+ * - `_` opens or closes emphasis there unless a letter or digit stands on
+ *   both sides of it, so only `snake_case` is admitted;
+ * - two `~` are GitHub's strikethrough, so a run holds one at most — the
+ *   "about" of `~100`;
+ * - `&` before a name or a number and a `;` is an entity, read as the
+ *   character it names;
+ * - `<` before a letter, `/`, `!` or `?` is raw HTML — unless it opens an
+ *   `http` autolink, the one form read here, as the link it is;
+ * - a bare `http://`, `https://` or `www.` is a link there too.
+ *
+ * `autolinks` says whether this run may hold an autolink: a link's label is
+ * prose too, but a link inside a link is a reading neither side has.
+ *
+ * @type {(autolinks: boolean) => (text: string) => Result<readonly Inline[], string>}
+ */
+export const proseSpans = autolinks => text => {
+    /** @type {readonly Inline[]} */
+    let out = []
+    let start = 0
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i]
+        const rest = text.slice(i)
+        if (c === '_' && !(isWordChar(text[i - 1]) && isWordChar(text[i + 1]))) {
+            return error(`an underscore that GitHub may read as emphasis at ${i}`)
+        }
+        if (c === '~' && text.indexOf('~', i + 1) !== -1) { return error(`a tilde pair, which GitHub reads as strikethrough, at ${i}`) }
+        if (c === '&') {
+            const semi = text.indexOf(';', i)
+            const name = semi === -1 ? '' : text.slice(i + 1, semi)
+            const body = name.startsWith('#') ? name.slice(1) : name
+            if (body !== '' && [...body].every(isWordChar)) {
+                return error(`an entity, which GitHub reads as the character it names, at ${i}`)
+            }
+        }
+        if (rest.startsWith('http://') || rest.startsWith('https://') || rest.startsWith('www.')) {
+            if (text[i - 1] !== '<') { return error(`a bare URL, which GitHub reads as a link, at ${i}`) }
+        }
+        if (c === '<') {
+            const close = text.indexOf('>', i)
+            const target = close === -1 ? '' : text.slice(i + 1, close)
+            if (autolinks && autolinkSchemes.some(scheme => target.startsWith(scheme))
+                && !target.includes(' ') && !target.includes('<')) {
+                out = [...out, ...(i === start ? [] : [/** @type {Inline} */(['text', text.slice(start, i)])]),
+                    ['link', [['text', target]], target]]
+                start = close + 1
+                i = close
+                continue
+            }
+            const next = text[i + 1]
+            if (next !== undefined && (charIs(isLatinLetter)(next) || '/!?'.includes(next))) {
+                return error(`raw HTML at ${i}`)
+            }
+        }
+    }
+    return ok([...out, ...(start === text.length ? [] : [/** @type {Inline} */(['text', text.slice(start)])])])
+}
+
+/**
+ * An entry's spans with every prose run read by {@link proseSpans}: a text
+ * run may become text and autolinks, a bold, emphasised or label run is
+ * checked and kept. A link with an empty label is refused here, the one
+ * place the grammar's alternation cannot.
+ *
+ * @type {(entry: Entry) => Result<Entry, string>}
+ */
+const readProse = entry => {
+    /** @type {readonly Inline[]} */
+    let out = []
+    for (const span of entry) {
+        if (span[0] === 'code') { out = [...out, span]; continue }
+        if (span[0] === 'text') {
+            const read = proseSpans(true)(span[1])
+            if (read[0] === 'error') { return read }
+            out = [...out, ...read[1]]
+            continue
+        }
+        const texts = span[0] === 'link'
+            ? span[1].flatMap(l => l[0] === 'text' ? [l[1]] : [])
+            : [span[1]]
+        if (span[0] === 'link' && span[1].length === 0) { return error('a link with an empty label') }
+        const refused = texts.map(proseSpans(false)).find(r => r[0] === 'error')
+        if (refused !== undefined) { return /** @type {Result<Entry, string>} */(refused) }
+        out = [...out, span]
+    }
+    return ok(out)
+}
+
 /**
  * One entry's joined text as its spans, or the position it stopped at.
  *
@@ -198,7 +320,7 @@ export const tryParseEntry = text => {
     const match = parseEntry(units(text))
     if (match[0] === 'error') { return error(`entry: unexpected symbol at ${match[1]}`) }
     const entry = entryOf(arr(arr(match[1])[0])[0])
-    return hasImage(entry) ? error('an image, which an entry does not hold') : ok(entry)
+    return hasImage(entry) ? error('an image, which an entry does not hold') : readProse(entry)
 }
 
 /**
@@ -217,6 +339,168 @@ export const tryParse = text => {
         const one = tryParseEntry(t)
         if (one[0] === 'error') { return error(`entry ${i}: ${one[1]}`) }
         out = [...out, one[1]]
+    }
+    return ok(out)
+}
+
+/**
+ * The level of an ATX heading, `# ` through `###### `, or `0` for a line that
+ * opens none: a `#` run with no space after it is prose in CommonMark, and
+ * seven of them are too.
+ *
+ * @type {(line: string) => number}
+ */
+const headingLevel = line => {
+    let level = 0
+    while (line[level] === '#') { level++ }
+    return level >= 1 && level <= 6 && line[level] === ' ' ? level : 0
+}
+
+/** Whether a line opens a fenced code block. @type {(line: string) => boolean} */
+const isFence = line => line.startsWith('```')
+
+/**
+ * What GitHub reads a line as when it starts a block this reader has no
+ * room for, or `null` for a line it reads as these do.
+ *
+ * **Each is refused, not read as prose.** A block quote, a table row, raw
+ * HTML, a numbered list, another bullet, an indented code block, a
+ * thematic break and a heading's underline are each a structure on GitHub,
+ * and prose here would be the README GitHub does not show.
+ *
+ * @type {(line: string) => string | null}
+ */
+const foreignBlock = line => {
+    const trimmed = line.trim()
+    if (line.startsWith('    ')) { return 'an indented code block' }
+    if (trimmed.startsWith('>')) { return 'a block quote' }
+    if (trimmed.startsWith('|')) { return 'a table' }
+    // A table's delimiter row: its header row need not open with a pipe, so
+    // the row under it is where a table is told from a paragraph.
+    if (trimmed.includes('|') && trimmed.includes('-') && [...trimmed].every(c => '-:| '.includes(c))) {
+        return 'a table'
+    }
+    if (trimmed.startsWith('<')) { return 'raw HTML' }
+    if (trimmed.startsWith('~~~')) { return 'a tilde code fence' }
+    if (trimmed.startsWith('* ') || trimmed.startsWith('+ ')) { return 'a list marked other than with `- `' }
+    let digits = 0
+    while (charIs(isDigit)(trimmed[digits] ?? '')) { digits++ }
+    if (digits !== 0 && (trimmed[digits] === '.' || trimmed[digits] === ')')
+        && (trimmed[digits + 1] === ' ' || trimmed.length === digits + 1)) { return 'a numbered list' }
+    if (trimmed.length !== 0 && '-=*_'.includes(trimmed[0])
+        && [...trimmed].every(c => c === trimmed[0] || c === ' ')) {
+        return 'a thematic break or a heading underline'
+    }
+    if (line.endsWith('  ')) { return 'a hard line break' }
+    return null
+}
+
+/**
+ * One block's inline text as its spans, refused with the line it began on.
+ *
+ * @type {(line: number, text: string) => Result<Entry, string>}
+ */
+const inlineAt = (line, text) => {
+    const spans = tryParseEntry(text)
+    return spans[0] === 'error' ? error(`line ${line}: ${spans[1]}`) : spans
+}
+
+/**
+ * A README as its blocks, or the first line GitHub reads as something these
+ * blocks cannot hold
+ * ([`render-readme`](../../website/todo/render-readme.md)).
+ *
+ * The blocks are the ones a README is written in: an ATX heading, a
+ * paragraph, a code fence opened by three backticks, and a list of `- `
+ * items. A list is read by {@link entryTexts}, the release file's own
+ * reader, so a README's list and a changelog's are one rule: wrapped lines
+ * indented by two spaces, no nested list, no blank line between items.
+ *
+ * **What GitHub reads differently is refused, not approximated.** A blank
+ * line between two items makes GitHub's list loose; a line after a list
+ * with no blank before it continues GitHub's last item; a heading closed
+ * by `#`s loses them there. Each would be a different page here, so each
+ * is the refusal that keeps the README a link to GitHub instead.
+ *
+ * @type {(text: string) => Result<Blocks, string>}
+ */
+export const tryParseBlocks = text => {
+    const lines = text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line)
+    /** @type {readonly Block[]} */
+    let out = []
+    let i = 0
+    while (i < lines.length) {
+        const line = lines[i]
+        const at = i + 1
+        /** @type {(why: string) => Result<Blocks, string>} */
+        const refuse = why => error(`line ${at}: ${why}`)
+        if (line.trim() === '') { i++; continue }
+        if (isFence(line)) {
+            const info = line.slice(3)
+            if (info.includes('`') || info.includes(' ')) { return refuse('a code fence whose info string is not one word') }
+            const close = lines.indexOf('```', i + 1)
+            if (close === -1) { return refuse('a code fence that is never closed') }
+            out = [...out, ['code', info, lines.slice(i + 1, close).join('\n')]]
+            i = close + 1
+            continue
+        }
+        const level = headingLevel(line)
+        if (level !== 0) {
+            const content = line.slice(level + 1).trim()
+            if (content === '' || content.endsWith('#')) { return refuse('a heading that is empty or closed by `#`') }
+            const spans = inlineAt(at, content)
+            if (spans[0] === 'error') { return spans }
+            out = [...out, ['heading', level, spans[1]]]
+            i++
+            continue
+        }
+        if (line.startsWith('- ')) {
+            let end = i
+            while (end < lines.length && lines[end].trim() !== '') {
+                const item = lines[end]
+                if (!item.startsWith('- ') && !item.startsWith('  ')) {
+                    return error(`line ${end + 1}: a line that GitHub reads as part of the list item above it`)
+                }
+                const content = item.trim().slice(item.startsWith('- ') ? 2 : 0).trim()
+                const foreign = headingLevel(content) !== 0 ? 'a heading' : foreignBlock(content)
+                if (foreign !== null) {
+                    return error(`line ${end + 1}: ${foreign} inside a list item`)
+                }
+                end++
+            }
+            let next = end
+            while (next < lines.length && lines[next].trim() === '') { next++ }
+            if (next < lines.length && next !== end && lines[next].startsWith('- ')) {
+                return error(`line ${next + 1}: a list item after a blank line, which GitHub reads as a loose list`)
+            }
+            const texts = entryTexts(lines.slice(i, end).join('\n'))
+            if (texts[0] === 'error') { return refuse(texts[1]) }
+            /** @type {readonly Entry[]} */
+            let entries = []
+            for (const t of texts[1]) {
+                const spans = inlineAt(at, t)
+                if (spans[0] === 'error') { return spans }
+                entries = [...entries, spans[1]]
+            }
+            out = [...out, ['list', entries]]
+            i = end
+            continue
+        }
+        const foreign = foreignBlock(line)
+        if (foreign !== null) { return refuse(foreign) }
+        let end = i + 1
+        while (end < lines.length && lines[end].trim() !== ''
+            && headingLevel(lines[end]) === 0 && !isFence(lines[end]) && !lines[end].startsWith('- ')) {
+            const continued = foreignBlock(lines[end].trimStart())
+            if (continued !== null) {
+                return error(`line ${end + 1}: ${continued}`)
+            }
+            end++
+        }
+        const spans = inlineAt(at, lines.slice(i, end).map(l => l.trim()).join(' '))
+        if (spans[0] === 'error') { return spans }
+        out = [...out, ['paragraph', spans[1]]]
+        i = end
     }
     return ok(out)
 }
