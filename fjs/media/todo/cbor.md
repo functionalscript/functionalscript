@@ -117,7 +117,7 @@ fjs/media/cbor/
 
 ```js
 serialize:   (value: Value) => Result<List<number>, string> // bytes, lazy; refuses a lone surrogate
-parse:       (bytes: List<number>) => Result<Value, string>  // strict, bounded, total
+parse:       (bytes: List<number>) => Result<Value, string>  // strict, bounded, total over byte lists
 isCanonical: (bytes: List<number>) => boolean
 mediaType = 'application/cbor'
 ```
@@ -132,6 +132,18 @@ CBOR is the lossless encoding of a `number`, and a dialect served as both
 encodings keeps its values inside what both spell, which is its schema's to
 say (D9). Every function is pure, and the errors are values with a message in
 the style of the sibling parsers.
+
+**Input admission.** `parse` and `isCanonical` read a list of numbers, and a
+list can hold what no byte is: `NaN`, `-0`, `1.5`, `256`, a string. Every element
+is checked **when it is read, before any arithmetic on it**: it must be an
+integer in `0..255`, and `-0` is not one. JavaScript's bit operations coerce
+`NaN` and `-0` to `0`, so a reader that skipped the check would decode
+`[NaN]` as the byte `0` and invalid input as a valid integer. A non-byte
+element **throws**, as in the other byte readers of this tree
+([`fjs/git/object`](../../git/object/module.f.mjs)'s `tryRead`, `@throws If an item
+of the input is not a byte`): it is a caller's mistake and not data, so it is
+not a `Result` error; only bytes that are bytes and are not CBOR are. The `Vec`
+adapters (D1) refuse a `Vec` that is not whole bytes the same way.
 
 `serialize` is **not total over `Value`**: a JSON string may hold an unpaired
 surrogate (`"\uD800"`), which UTF-8, and so a CBOR text string, cannot spell,
@@ -238,6 +250,10 @@ serializer; it costs one parse and one serialize, for a predicate that is rare
   comment naming the RFC example it replaces. Then `-0`, `NaN`, the infinities,
   the half/single/double boundaries and the safe-integer edges, and a string
   with an unpaired surrogate refused.
+- Parser admission: `[NaN]`, `[-0]`, `[1.5]`, `[256]`, `[-1]` and a non-number
+  element each throw, at the position they are read and after the bytes before
+  them were read, and never decode as the byte `0`; a list of valid bytes that is
+  no CBOR is a `Result` error.
 - Parser: truncated items at every cut, trailing bytes, duplicate keys,
   indefinite lengths, reserved additional information, invalid UTF-8, an
   unsupported tag, a non-text key, depth `maxDepth` and `maxDepth + 1`, a length
