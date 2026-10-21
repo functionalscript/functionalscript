@@ -1,43 +1,39 @@
-import type { StringMap } from "../../fjs/types/object/types.ts"
+type Lazy<T> = () => T
 
-const entry = (a: any, b: string) => {
-    const x = Object.getOwnPropertyDescriptor(a, b)
-    return x?.enumerable ? [x.value] : []
-}
+type Index = string|number
 
-type Member = (self: unknown) => ((...args: readonly unknown[]) => unknown) | undefined
-
-const members: StringMap<Member> = {
-    at: self => (...args) => {}
-}
-
-export const dot = (self: any, index: string) => {
-    const f = entry(self, index)
-    return f.length === 1 ? f[0] : entry(members, index)[0]?.(self)
-}
+type Args = readonly unknown[]
 
 type PropertyLambda = {
     readonly end: () => unknown
-    // `|?()`
-    readonly call: (...args: readonly unknown[]) => unknown
-    // `|?.()`
-    readonly optionCall: (...args: readonly unknown[]) => unknown
+    // `()`
+    readonly call: (args: Lazy<Args>) => unknown
+    // `?.()`
+    readonly optionCall: (args: Lazy<Args>) => OptionLambda
 }
 
 type OptionLambda = {
     readonly end: () => unknown
-    // `|()`
-    readonly call: (...args: readonly unknown[]) => OptionLambda
-    // `|.`
-    readonly dot: (index: string) => OptionPropertyLambda
+    // `()`
+    readonly call: (args: Lazy<Args>) => OptionLambda
+    // `.`
+    readonly dot: (index: Lazy<Index>) => OptionPropertyLambda
 }
 
 type OptionPropertyLambda = {
     readonly end: () => unknown
     // `?.()`
-    readonly optionCall: (...args: readonly unknown[]) => unknown
-    // `|!()`
-    readonly endCall: (...args: readonly[]) => unknown
+    readonly optionCall: (args: Lazy<Args>) => unknown
+    // `!()`
+    readonly endCall: (args: Lazy<Args>) => unknown
 }
 
-type Dot = (self: any, index: string) => PropertyLambda
+type Dot = (self: unknown, index: Index) => PropertyLambda
+
+type OptionDot = (self: unknown, index: Lazy<Index>) => OptionPropertyLambda
+
+type OptionCall = (self: unknown, args: Lazy<Args>) => OptionLambda
+
+export const dot: Dot = ...
+export const optionDot: OptionDot = ...
+export const optionCall: OptionCall = ...
