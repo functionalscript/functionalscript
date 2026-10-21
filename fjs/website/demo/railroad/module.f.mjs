@@ -47,6 +47,7 @@
 import { pureOk } from '../../../effects/module.f.mjs'
 import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
+import { sum } from '../../../types/number/module.f.mjs'
 import { toData } from '../../../ebnf/data/module.f.mjs'
 import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -58,9 +59,6 @@ const itemGap = 12
 const charWidth = 8
 const margin = 10
 const stub = 8
-
-/** @type {(values: readonly number[]) => number} */
-const sum = values => values.reduce((s, v) => s + v, 0)
 
 /** @type {(values: readonly number[]) => number} */
 const maxOf = values => values.reduce((m, v) => max(m, v), 0)

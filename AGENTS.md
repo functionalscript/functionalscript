@@ -12,8 +12,9 @@ work before starting, and check that no open pull request, draft or not, already
 works on the same `todo/`. Claim a task by opening a draft pull request for it
 at once ([SESSION.md](./doc/SESSION.md#claim-the-task)).
 
-Develop inside the Nix shell `./dev.sh` opens on Linux and ARM macOS; use
-the pinned tools directly on Intel macOS or bare Windows
+Develop inside the Nix shell `./dev.sh` opens on Linux and ARM macOS, or use
+the same tools installed in the devcontainer. Use the pinned tools directly on
+Intel macOS or bare Windows
 ([§2](#2-environment-and-running-tests)). The shell carries every tool below
 at the version CI uses.
 
@@ -174,7 +175,8 @@ which runs on the Node
 `setup-node` installs. The packed-package check that closes `node26` stays out
 of it too, by design: it installs the published tarball with `setup-node`'s
 Node and npm, as a consumer would. On supported Nix platforms, do not install
-those tools by hand or pick their versions; the shell is the environment.
+those tools by hand or pick their versions; use the shell or the devcontainer's
+profile, generated from the same tool definitions.
 Intel macOS uses the same pins
 directly; see [CONTRIBUTING.md](./CONTRIBUTING.md#direct-tools-on-intel-macos).
 
@@ -216,10 +218,12 @@ On ARM macOS and Linux, install Nix on the host. Intel macOS uses the
 pinned tools directly. Nix does not run natively on
 Windows: open the repository in the devcontainer —
 [`.devcontainer/`](./.devcontainer/devcontainer.json) builds a Debian image
-with Nix and runs `npm ci` in the shell on any host, and VS Code and Codespaces
-also open every terminal inside the shell — or work in WSL2 with Nix installed
-there. The shell is the same either way. Bare Windows, outside both, is on your
-own: install the tools [CONTRIBUTING.md](./CONTRIBUTING.md#requirements)'s table
+with the same pinned tools installed on its container-wide `PATH` and runs
+`npm ci`. Extensions, tasks and terminals use them directly; rebuild the
+container when the generated flake or lock changes. Or work in WSL2 with Nix
+installed there and enter the shell through `./dev.sh`. Bare Windows, outside
+both, is on your own: install the tools
+[CONTRIBUTING.md](./CONTRIBUTING.md#requirements)'s table
 names yourself, at the exact versions `fjs/ci/config/module.f.js` pins, which
 are what CI's Windows jobs install. A Claude Code cloud session runs `npm ci` in
 the shell and puts the shell's tools on its `PATH` before its first command,

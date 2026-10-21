@@ -7,7 +7,7 @@
 
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
-import type { _djsTokenKinds } from './module.f.mjs'
+import type { _moduleTokenKinds } from './module.f.mjs'
 import type {
     StringToken,
     TemplateToken,
@@ -38,9 +38,9 @@ import type {
  * `?.`, the optional step's, admitted with the optional chains. Trivia
  * is no member: whitespace, newlines and comments are not in the stream,
  * and what a rule reads of them is `newline` on the token after them,
- * {@link DjsTokenWithMetadata}.
+ * {@link ModuleTokenWithMetadata}.
  */
-export type DjsToken = |
+export type ModuleToken = |
   {readonly kind: 'true' | 'false' | 'null' | 'undefined' | 'NaN' | 'Infinity'} |
   {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' | ';' | '(' | ')' | '=>' | '...' | '-'
     | '+' | '*' | '/' | '%' | '**'
@@ -58,7 +58,7 @@ export type DjsToken = |
 
 // The kinds are listed a second time, as the value `./module.f.mjs` tests
 // membership against; this pin keeps the list and the union agreeing.
-type _KindsAreComplete = Assert<Equal<(typeof _djsTokenKinds)[number], DjsToken['kind']>>
+type _KindsAreComplete = Assert<Equal<(typeof _moduleTokenKinds)[number], ModuleToken['kind']>>
 
 /**
  * A token of the stream, where it is, and whether a newline stands between
@@ -71,8 +71,8 @@ type _KindsAreComplete = Assert<Equal<(typeof _djsTokenKinds)[number], DjsToken[
  * A token after leading trivia carries the newline that trivia holds, the
  * stream's first token included.
  */
-export type DjsTokenWithMetadata = {
-    readonly token: DjsToken
+export type ModuleTokenWithMetadata = {
+    readonly token: ModuleToken
     readonly metadata: TokenMetadata
     readonly newline: boolean
 }

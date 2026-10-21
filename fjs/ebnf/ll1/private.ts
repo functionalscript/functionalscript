@@ -6,6 +6,7 @@
 
 import type { List } from '../../types/list/types.ts'
 import type { RangeSet } from '../../types/range_set/types.ts'
+import type { Step } from '../../types/stack_walk/types.ts'
 import type { FirstMap } from './types.ts'
 
 /**
@@ -70,21 +71,12 @@ export type _RepeatFrame = {
 
 export type _Frame = _SequenceFrame | _VariantFrame | _RepeatFrame
 
-/** The frames a match has suspended, innermost first: an immutable stack. */
-export type _Stack = null | {
-    readonly top: _Frame
-    readonly rest: _Stack
-}
-
 /**
- * What the machine does next: enter the rule `name` at `pos`, or hand a
- * result to the innermost frame. A position is a cursor: `0 .. length` are
- * the physical positions, and `length + 1` is where the one synthesized end
- * of input has been consumed.
+ * What a visit leaves the machine: the cursor, and the step the
+ * `../../types/stack_walk` driver takes next — suspend a frame and enter the
+ * rule it names, hand a matched node to the innermost frame, or fail at a
+ * cursor. A position is a cursor: `0 .. length` are the physical positions,
+ * and `length + 1` is where the one synthesized end of input has been
+ * consumed.
  */
-export type _Step =
-    | readonly ['enter', name: string, pos: number]
-    | readonly ['ok', ast: unknown, pos: number]
-    | readonly ['error', pos: number]
-
-export type _State = readonly [stack: _Stack, step: _Step]
+export type _Visit = readonly [pos: number, step: Step<string, _Frame, unknown, number>]

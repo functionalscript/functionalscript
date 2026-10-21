@@ -24,10 +24,10 @@
  *
  * @module
  *
- * @import { Exp } from '../types.ts'
+ * @import { Exp, StepOver } from '../types.ts'
  */
 
-import { isIntrinsic, lazyOp2Id } from '../module.f.mjs'
+import { isIntrinsic, lazyOp2Id, stepOperands } from '../module.f.mjs'
 
 /**
  * The operations that establish every operand after the first only
@@ -145,35 +145,29 @@ export const operandsOf = node => {
 }
 
 /**
- * What a continuation `k` holds, the step's own key or arguments, then its
- * continuation's, and nothing where there is none: `key` reads a `|.`
- * step's key and `args` a call step's item list. A continuation is not a
- * node: it is a lambda over the chain's current value
+ * What a continuation holds, read by {@link stepOperands}: a continuation is
+ * not a node but a lambda over the chain's current value
  * (`fjs/edag/README.md`, Chains), so a walk never lists it, only what it
  * holds, every item of which is inside the chain and so lazy.
  *
  * @type {(key: (x: unknown) => readonly unknown[], args: (x: unknown) => readonly unknown[]) => (k: unknown) => readonly unknown[]}
  */
-const stepOperands = (key, args) => k => {
-    if (k === undefined) { return [] }
-    const [step, x, next] = /** @type {readonly any[]} */ (k)
-    return [...(step === '|.' ? key(x) : args(x)), ...stepOperands(key, args)(next)]
-}
+const continuationOperands = (key, args) => k => stepOperands(key, args)(/** @type {StepOver<unknown, unknown> | undefined} */ (k))
 
 /**
  * What a chain node holds in its lazy positions, each key read by `key`
  * and each argument list by `args`: a `?.` or `?.()` node's key or
  * arguments, inside the region its guard opens, and its continuation's,
- * {@link stepOperands}; a `.` node's continuation's, after an access that
+ * {@link continuationOperands}; a `.` node's continuation's, after an access that
  * may throw with them untouched; none for any other node.
  *
  * @type {(key: (x: unknown) => readonly unknown[], args: (x: unknown) => readonly unknown[]) => (node: readonly unknown[]) => readonly unknown[]}
  */
 export const chainLazy = (key, args) => node => {
     const [id, , b, k] = node
-    return id === '.' ? stepOperands(key, args)(k)
-        : id === '?.' ? [...key(b), ...stepOperands(key, args)(k)]
-        : id === '?.()' ? [...args(b), ...stepOperands(key, args)(k)]
+    return id === '.' ? continuationOperands(key, args)(k)
+        : id === '?.' ? [...key(b), ...continuationOperands(key, args)(k)]
+        : id === '?.()' ? [...args(b), ...continuationOperands(key, args)(k)]
         : []
 }
 

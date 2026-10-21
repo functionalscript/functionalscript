@@ -87,7 +87,8 @@ except the Intel macOS and two Windows platform jobs, which install their tools
 directly, and the publishing workflow, which runs on the Node `setup-node` installs. The packed-package
 check that closes `node26` stays out of it too, by design: it installs the
 published tarball with `setup-node`'s selected Node and npm, as a consumer would. Every
-developer and every agent on a supported Nix platform works inside the shell.
+developer and every agent on a supported Nix platform uses these tools, through
+the shell or the devcontainer's installed profile.
 
 ```bash
 ./dev.sh                   # an interactive shell
@@ -102,17 +103,19 @@ to reopen in a container is a slower detour there, and declining it changes
 nothing. Nix does not run natively on Windows: a Windows contributor opens the
 repository in that container —
 [`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) builds
-a Debian image with Nix and runs `npm ci` in the shell on any devcontainer
-host; in VS Code and Codespaces it also opens every terminal inside the shell,
-through a terminal profile only those two hosts read, which runs `./dev.sh`
-and so expects a terminal opened at the workspace root, VS Code's default — so
-on another host such
-as IntelliJ or the devcontainer CLI run `./dev.sh` yourself — or works in WSL2
-with Nix installed there. The shell is the same either way; only the VS Code
-devcontainer enters it for you, so everywhere else run `./dev.sh` yourself or
-set your own terminal profile to it. Bare Windows, outside both,
+a Debian image with the same pinned tools installed into Nix's global profile,
+then runs `npm ci`. The tools are on the container-wide `PATH`, so extensions,
+tasks and terminals can use them directly, without `./dev.sh` or a special
+terminal profile. Native linking and the x86 Linux 32-bit linker are available
+there too. A Windows contributor can also work in WSL2 with Nix installed
+there and enter the shell through `./dev.sh`. Bare Windows, outside both,
 means installing the [Requirements](#requirements) table by hand at the
 versions `fjs/ci/config/module.f.js` pins, as CI's Windows jobs do.
+
+The container installs the generated `devTools` flake output while building its
+image, from the checked-in `gen.nix/flake.nix` and `gen.nix/flake.lock`. Rebuild
+the container after those files change, including after switching to a branch
+with different tool pins. Ordinary source changes do not require a rebuild.
 
 ### Direct tools on Intel macOS
 

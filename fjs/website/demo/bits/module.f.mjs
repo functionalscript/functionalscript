@@ -43,7 +43,7 @@
 
 import { fromCodePointList } from '../../../text/utf8/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
-import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
+import { isValidCodePoint, unicodeNotation } from '../../../text/code_point/module.f.mjs'
 import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { toArray } from '../../../types/list/module.f.mjs'
@@ -60,7 +60,7 @@ const standIn = cp =>
     cp === 0x20 ? '␠'
     : cp === 0x0a ? '↵'
     : cp === 0x09 ? '⇥'
-    : cp < 0x20 || (0x7f <= cp && cp <= 0x9f) ? `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`
+    : cp < 0x20 || (0x7f <= cp && cp <= 0x9f) ? unicodeNotation(cp)
     : null
 
 /** @type {(b: number) => string} */
