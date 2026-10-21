@@ -375,8 +375,8 @@ const readProse = entry => {
     for (const [i, span] of entry.entries()) {
         if (span[0] === 'code') { out = [...out, span]; continue }
         if ((span[0] === 'strong' || span[0] === 'em')
-            && (unflanked(i === 0 ? undefined : lastChar(entry[i - 1]))(span[1][0])
-                || unflanked(i === entry.length - 1 ? undefined : firstChar(entry[i + 1]))(span[1][span[1].length - 1]))) {
+            && (unflanked(i === 0 ? undefined : lastChar(entry[i - 1]))(firstChar(span[1][0]))
+                || unflanked(i === entry.length - 1 ? undefined : firstChar(entry[i + 1]))(lastChar(span[1][span[1].length - 1])))) {
             return error('bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
         }
         if (span[0] === 'text') {
