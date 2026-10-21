@@ -1,7 +1,7 @@
 /**
  * @import { Exp } from '../../edag/types.ts'
  * @import { EdagValue, Values } from '../../edag/value/types.ts'
- * @import { AstConst } from '../ast/types.ts'
+ * @import { Value as FastValue } from '../../js/ast/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -32,6 +32,7 @@ import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
+import { fromFast } from '../../edag/from_fast/module.f.mjs'
 
 /**
  * `exp`'s shape, asserted to be a node rather than a value drawn inline.
@@ -131,18 +132,26 @@ const expectElseChain = depth => exp => {
 }
 
 /**
- * The default export's computation lowered from a body built by hand — the
- * one entry, exported — with no parse in front of it: what a stress case
+ * A normalized FAST value lowered with no parse in front of it: what a stress case
  * of the lowering needs, since parsing the same chain is the parser's own
  * proof and costs seconds at the depth this one is about, where the
  * lowering costs milliseconds.
  *
- * @type {(entry: AstConst) => Exp}
+ * @type {(entry: FastValue) => Exp}
  */
-const lowered = entry => _defaultExport(unresolved({
-    ast: [[], [entry, ['object', [[':', 'default', ['cref', 0]]]]]],
-    scope: { target: { kind: 'function', index: 0 }, bindings: [], events: [] }, bindings: [], origins: [],
-}).edag)
+const lowered = entry => fromFast({ statements: [], exit: ['yield', [entry]] })
+
+/** A value region with a required initializer whose value is discarded. @type {(initializer: FastValue) => FastValue} */
+const anchoredTwo = initializer => ['block', {
+    statements: [['define', { index: 0 }, initializer, 'required']],
+    exit: ['yield', [2]],
+}]
+
+/** A normalized zero-argument function answering one. @type {FastValue} */
+const returnsOne = ['function', {
+    target: { kind: 'function', index: 0 }, parameters: [], rest: null, self: null, captures: [],
+    body: { statements: [], exit: ['yield', [1]] },
+}]
 
 /** Interpret before choosing an output boundary. @type {(graph: Exp) => EdagValue} */
 export const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
@@ -719,13 +728,11 @@ export const proof = {
     // A group lowers to the node of the value it holds and adds none of its
     // own: `(x)` *is* `x`, so the graph and its sharing are the ones the
     // parentheses are not in.
-    // The optional chains lower as they are, the AST's shapes being the
-    // EDAG's — but for what an argument floats: an inlined call's anchors
-    // are anchored where the argument stands, by the comma, since the step
-    // is lazy, where a plain call's float on to the scope
+    // Normalized chain continuations preserve their receivers and regions.
+    // A value block's required roots remain at the argument position when
+    // the step is guarded; ordinary eager operands can float those roots.
     chains: () => {
-        /** @type {AstConst} */
-        const inlined = ['()', ['=>', 0, [['array', [1]], 2]], []]
+        const inlined = anchoredTwo(['array', [1]])
         expectEdag(lowered(['?.', 1, 'b']), ['?.', 1, 'b'])
         expectEdag(lowered(['?.', 1, 'b', ['|.', 'c']]), ['?.', 1, 'b', ['|.', 'c']])
         expectEdag(lowered(['?.', 1, 'b', ['|.', 'c', ['|()', [inlined]]]]), ['?.', 1, 'b', ['|.', 'c', ['|()', [[',', [['[]', [1]], 2]]]]]])
@@ -737,7 +744,7 @@ export const proof = {
         // a call over an access carrying a guarded call is the plain call,
         // not the method call: the region's own call spent the receiver
         expectEdag(lowered(['()', ['.', 1, 'b', ['|?.()', []]], [2]]), ['()', ['.', 1, 'b', ['|?.()', []]], [2]])
-        expectEdag(lowered(['()', ['.', 1, 'b'], [2]]), ['.', 1, 'b', ['|()', [2]]])
+        expectEdag(lowered(['.', 1, 'b', ['|()', [2]]]), ['.', 1, 'b', ['|()', [2]]])
     },
     group: () => {
         expectEdag(compile('export default (1);').edag, 1)
@@ -829,26 +836,24 @@ export const proof = {
             expectEdag(lowered(['String', 1n]), ['String', 1n])
             expectEdag(lowered(['String', ['Number', '0x10']]), ['String', ['Number', '0x10']])
             expectEdag(lowered(['Number', ['String', 16]]), ['Number', ['String', 16]])
-            expectEdag(lowered(['String', ['=>', 0, [1]]]), ['String', ['=>', 0, [], 1]])
+            expectEdag(lowered(['String', returnsOne]), ['String', ['=>', 0, [], 1]])
             assertStructurallySame(execute(lowered(['array', [
                 ['String', undefined], ['String', null], ['String', true],
                 ['String', -0], ['String', 1n], ['String', ['array', [1, null, 2]]],
-                ['String', ['object', []]], ['String', ['=>', 0, [1]]],
+                ['String', ['object', []]], ['String', returnsOne],
             ]])), ['undefined', 'null', 'true', '0', '1', '1,,2', '[object Object]', '()=>1'])
         },
         anchors: () => {
-            /** @type {AstConst} */
-            const inlined = ['()', ['=>', 0, [['array', [1]], 2]], []]
+            const inlined = anchoredTwo(['array', [1]])
             expectEdag(lowered(['String', inlined]), [',', [['[]', [1]], ['String', 2]]])
             expectEdag(lowered(['&&', false, ['String', inlined]]), ['&&', false, [',', [['[]', [1]], ['String', 2]]]])
             // an operand's unused initializer fails eagerly through String,
             // but stays behind the guard when the conversion is lazy
-            /** @type {AstConst} */
-            const failing = ['()', ['=>', 0, [['.', null, 'x'], 2]], []]
+            const failing = anchoredTwo(['.', null, 'x'])
             assertEq(execute(lowered(['&&', false, ['String', failing]])), false)
         },
         throw: {
-            anchoredOperand: () => execute(lowered(['String', ['()', ['=>', 0, [['.', null, 'x'], 2]], []]])),
+            anchoredOperand: () => execute(lowered(['String', anchoredTwo(['.', null, 'x'])])),
         },
     },
     // Stage B: the lazy operators are the EDAG's own `op2`, the same shape
@@ -1243,7 +1248,7 @@ export const proof = {
         const neg = `${'- '.repeat(5000)}1`
         expectEdag(compile(`export default ${neg};`).edag, 1)
         // conversions use the same iterative lowering as prefixes
-        /** @type {AstConst} */
+        /** @type {FastValue} */
         let converted = 1
         for (let i = 0; i < 5_000; i++) { converted = ['String', converted] }
         let node = lowered(converted)
@@ -1253,13 +1258,13 @@ export const proof = {
         }
         assertEq(node, 1)
         // a lazy chain, and a conditional nested through its else arm, at
-        // the depth the parser's own `lazyStackCost` proves — the AST built
+        // the depth the parser's own `lazyStackCost` proves — FAST built
         // here rather than parsed, `lowered`'s own comment has why
-        /** @type {AstConst} */
+        /** @type {FastValue} */
         let and = 1
         for (let i = 0; i < 20_000; i++) { and = ['&&', and, 1] }
         expectAndChain(20_000)(lowered(and))
-        /** @type {AstConst} */
+        /** @type {FastValue} */
         let otherwise = 3
         for (let i = 0; i < 20_000; i++) { otherwise = ['?:', 1, 2, otherwise] }
         expectElseChain(20_000)(lowered(otherwise))
@@ -1321,7 +1326,7 @@ export const proof = {
             const x = ['.', ['rest'], 0]
             expectEdag(compile('export default (...a) => { const x = a[0]; throw [x, x]; };').edag, ['=>', 0, [], ['throw', ['[]', [x, x]]]])
             expectEdag(compile('export default () => { const x = []; throw 1; };').edag, ['=>', 0, [], [',', [['[]', []], ['throw', 1]]]])
-            expectEdag(lowered(['throw', 1]), ['throw', 1])
+            expectEdag(fromFast({ statements: [], exit: ['throw', 1] }), ['throw', 1])
         },
         module: () => {
             const { imports, edag } = unresolved(unwrap(parse('')('throw "x";')))

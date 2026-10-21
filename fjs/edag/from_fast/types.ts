@@ -3,8 +3,11 @@
 import type { Exp } from '../types.ts'
 import type { BindingId, Exit } from '../../js/ast/types.ts'
 
-/** Established values supplied by the enclosing scope. */
-export type Environment = readonly (readonly [BindingId, Exp])[]
+/**
+ * Values supplied by the enclosing scope. The optional marker records a
+ * constructor-local deferred definition; external established values use pairs.
+ */
+export type Environment = readonly (readonly [BindingId, Exp, 'lazy'?])[]
 
 /** Required evaluations float through eager positions and stop at region roots. */
 export type Lowered = { readonly exp: Exp; readonly anchors: readonly Exp[] }

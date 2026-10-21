@@ -60,15 +60,36 @@ const mapItem = (map, offset) => (item, index) => isSpread(item) ? ['...', map(i
 /** @type {<T, U>(map: (value: T, index: number) => U, index: number) => (key: Key<T>) => Key<U>} */
 const mapKey = (map, index) => key => key instanceof Array ? ['Number', map(key[1], index)] : key
 
-/** @type {<T, U>(map: (value: T, index: number) => U, offset: number) => (step: Step<T>) => Step<U>} */
+/**
+ * @template T, U
+ * @param {(value: T, index: number) => U} map
+ * @param {number} offset
+ * @returns {(step: Step<T>) => Step<U>}
+ */
 const mapStep = (map, offset) => step => {
-    if (step[0] === '|.') {
-        const key = mapKey(map, offset)(step[1])
-        return step.length === 2 ? ['|.', key] : ['|.', key, mapStep(map, offset + keyOperands(step[1]).length)(step[2])]
+    /** @type {readonly Step<U>[]} */
+    let reversed = []
+    /** @type {Step<T> | undefined} */
+    let current = step
+    let position = offset
+    while (current !== undefined) {
+        if (current[0] === '|.') {
+            reversed = [['|.', mapKey(map, position)(current[1])], ...reversed]
+            position += keyOperands(current[1]).length
+        } else {
+            const items = current[1].map(mapItem(map, position))
+            reversed = [[current[0], items], ...reversed]
+            position += items.length
+        }
+        current = current[2]
     }
-    const items = step[1].map(mapItem(map, offset))
-    if (step[0] === '|!()') { return ['|!()', items] }
-    return step.length === 2 ? [step[0], items] : [step[0], items, mapStep(map, offset + items.length)(step[2])]
+    let result = reversed[0]
+    for (const segment of reversed.slice(1)) {
+        // Only the final segment can close its region with |!().
+        const previous = /** @type {Exclude<Step<U>, readonly ['|!()', unknown]>} */ (segment)
+        result = previous[0] === '|.' ? ['|.', previous[1], result] : [previous[0], previous[1], result]
+    }
+    return result
 }
 
 /**

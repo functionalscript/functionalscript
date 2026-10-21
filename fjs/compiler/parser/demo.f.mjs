@@ -1,14 +1,11 @@
 /**
- * A FunctionalScript module as the AST the parser builds from it: type a
- * module, read the flat list of constants and the import list the
- * [`AST`](../ast/module.f.mjs) holds — `cref` references where a `const` is
- * shared, `arg` and `fref` where a function reads its parameters and its
- * frame.
+ * Inspect a FunctionalScript module after source resolution: import bindings,
+ * original declaration identities, parameter plans and lexical control blocks.
+ * The common sugar pass expands this structure into normalized FAST.
  *
- * **The AST field is shown as DataJS text**, so it is the structure itself
- * and not a drawing of it. The parser also retains source binding facts for
- * admission and normalization. A shared constant is a `const` of its own
- * in the AST too, which is its reason for being a list.
+ * **The source structure is shown as DataJS text**, so it is the structure
+ * itself rather than a drawing. The parser retains source binding evidence
+ * alongside it for admission and normalization.
  *
  * **A refusal is shown in the parser's own words** — `unexpected token`,
  * `unexpected end` — rather than as an empty box, and the shared examples
@@ -37,10 +34,10 @@ import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
  *
  * @type {(text: string) => Result<Marked, string>}
  */
-export const _astOf = parsed(({ ast }) => tryMarked(ast))
+export const _astOf = parsed(({ imports, body }) => tryMarked({ imports, body }))
 
 export const demo = stageDemo({
-    intro: 'Parses a FunctionalScript module and shows its abstract syntax tree as DataJS. The constants and imports describe the structure passed to the next compiler stage.',
+    intro: 'Parses a FunctionalScript module and shows its abstract syntax tree as DataJS. The blocks, bindings and parameter plans describe the resolved source passed to the sugar stage.',
     name: 'parser',
 })(text => {
     const [kind, value] = _astOf(text)

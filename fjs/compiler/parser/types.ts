@@ -9,7 +9,7 @@
 
 import type { TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
 import type { Binding, BindingId, BindingScope } from '../../js/ast/types.ts'
-import type { AstModule } from '../ast/types.ts'
+import type { SourceModule } from '../../js/ast/sugar/source.ts'
 
 /** Source evidence retained until admission and assignment normalization finish. */
 export type BindingOrigin = {
@@ -21,10 +21,9 @@ export type BindingOrigin = {
 
 /**
  * An admitted source tree and the complete resolved source binding facts.
- * Synthetic value/loop regions do not create source function boundaries.
+ * Lexical value/loop regions do not create source function boundaries.
  */
-export type ResolvedModule = {
-    readonly ast: AstModule
+export type ResolvedModule = SourceModule & {
     readonly scope: BindingScope
     readonly bindings: readonly Binding[]
     readonly origins: readonly BindingOrigin[]

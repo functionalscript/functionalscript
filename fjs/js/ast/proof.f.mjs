@@ -1,7 +1,7 @@
 /**
  * Resolved write/capture facts and operand mappings preserve identity and metadata.
  *
- * @import { BindingScope, Operator, Value } from './types.ts'
+ * @import { BindingScope, Operator, Step, Value } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
@@ -58,6 +58,17 @@ export const proof = {
             assertEq(facts[0].id, a)
             assertEq(facts[5].id, innerLocal)
         },
+    },
+    deepChains: () => {
+        /** @type {Step<number>} */
+        let step = ['|!()', [2]]
+        for (let i = 0; i < 20_000; i += 1) { step = ['|.', ['Number', 1], step] }
+        const mapped = mapOperator((value, index) => value + index)(['?.', 0, 'x', step])
+        const operands = operatorOperands(mapped)
+        assertEq(operands.length, 20_002)
+        assertEq(operands[1], 2)
+        assertEq(operands[20_000], 20_001)
+        assertEq(operands[20_001], 20_003)
     },
     operators: () => {
         /** @type {readonly (readonly [Operator<number>, Operator<number>, readonly number[]])[]} */

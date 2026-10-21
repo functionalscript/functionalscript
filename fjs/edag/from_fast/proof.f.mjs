@@ -1,10 +1,13 @@
 /**
- * @import { BindingId, Block, Function as FastFunction, Statement, Value } from '../../js/ast/types.ts'
+ * @import { BindingId, Block, Function as FastFunction, Loop, Statement, Value } from '../../js/ast/types.ts'
  * @import { Exp } from '../types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { anchored, fromFast, lowerBlock, lowerValue } from './module.f.mjs'
+import { identityAnalysis } from '../analysis/module.f.mjs'
+import { memo } from '../memo/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.mjs'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -16,6 +19,28 @@ const ref = binding => ['ref', binding]
 const result = (value, statements = []) => ({ statements, exit: ['yield', [value]] })
 
 const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+
+/** @type {(loop: Loop, value: Value) => Block} */
+const afterLoop = (loop, value) => result(value, [['loop', loop]])
+
+/** @type {(initial?: Value, limit?: Value) => Loop} */
+const counting = (initial = 0, limit = 3) => {
+    const state = id(10)
+    const output = id(11)
+    const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    return {
+        target, parameters: [state], initial: [initial], results: [output],
+        body: {
+            statements: [['if', [], ['<', ref(state), limit],
+                { statements: [], exit: ['continue', target, [['+', ref(state), 1]]] },
+                { statements: [], exit: ['break', target, [ref(state)]] }]],
+            exit: ['continue', target, [ref(state)]],
+        },
+    }
+}
+
+/** @type {(graph: Exp) => unknown} */
+const evaluate = graph => assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [] }))))
 
 export const proof = {
     values: () => {
@@ -85,6 +110,13 @@ export const proof = {
         const sameReads = /** @type {FastFunction} */ ({ ...closure, captures: [{ binding: left, value: ref(outer) }, { binding: right, value: ref(extra) }] })
         assertEq(/** @type {readonly ['=>', number, readonly Exp[], Exp]} */ (fromFast(result(['function', sameReads]), [[outer, ['arg', 0]], [extra, ['arg', 0]]]))[2].length, 1)
     },
+    unusedCapture: () => {
+        const capture = id(0)
+        const fn = /** @type {FastFunction} */ ({ target, parameters: [], rest: null, self: null, captures: [{ binding: capture, value: ['.', null, 'x'] }], body: result(0) })
+        const graph = fromFast(result(['function', fn]))
+        assertStructurallySame(graph, ['=>', 0, [['.', null, 'x']], 0])
+        assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] }))
+    },
     operations: () => {
         const value = /** @type {Value} */ (['block', result(1, [['define', id(0), ['.', null, 'x'], 'required']])])
         assertStructurallySame(fromFast(result(['.', 1, ['Number', value], ['|()', [value]]])), [',', [['.', null, 'x'], ['.', 1, ['Number', 1], ['|()', [[',', [['.', null, 'x'], 1]]]]]]])
@@ -94,11 +126,79 @@ export const proof = {
         assertStructurallySame(fromFast(result(['()', ['block', result(['.', ['object', []], 'f'])], []])), ['()', ['.', ['{}', []], 'f'], []])
         assertStructurallySame(fromFast(result([',', [1, ['.', null, 'x'], 2]])), [',', [['.', null, 'x'], 2]])
     },
+    scalarLoops: () => {
+        const loop = counting()
+        const graph = fromFast(afterLoop(loop, ref(loop.results[0])))
+        assertStructurallySame(graph, ['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 3], ['()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [0]])
+        assertEq(evaluate(graph), 3)
+        const next = counting(ref(loop.results[0]), 5)
+        assertStructurallySame(evaluate(fromFast(result(['array', [ref(loop.results[0]), ref(next.results[0])]], [['loop', loop], ['loop', next]]))), [3, 5])
+        assertStructurallySame(fromFast(afterLoop(loop, 7)), [',', [graph, 7]])
+        assertEq(evaluate(fromFast(result(['if', false, afterLoop(counting(['.', null, 'x']), 1), result(8)]))), 8)
+    },
+    scalarCaptures: () => {
+        const limit = id(12)
+        const alias = id(13)
+        const loop = counting(0, ['.', ref(alias), 0])
+        const graph = fromFast(result(ref(loop.results[0]), [
+            ['define', limit, ['array', [3]], 'required'],
+            ['define', alias, ref(limit), 'lazy'],
+            ['loop', loop],
+        ]))
+        assertEq(evaluate(graph), 3)
+        assertStructurallySame(graph, ['()', ['=>', 1, [['[]', [3]]], ['?:', ['<', ['arg', 0], ['.', ['frame', 0], 0]], ['()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [0]])
+        const constant = counting(0, ref(alias))
+        assertEq(evaluate(fromFast(result(ref(constant.results[0]), [['define', alias, 2, 'lazy'], ['loop', constant]]))), 2)
+    },
+    scalarStepRegions: () => {
+        const loop = counting()
+        const statement = /** @type {Extract<Statement, readonly ['if', ...unknown[]]>} */ (loop.body.statements[0])
+        const inspected = id(12)
+        const step = { ...statement[3], statements: /** @type {readonly Statement[]} */ ([['define', inspected, ['array', [ref(loop.parameters[0])]], 'required']]), exit: /** @type {Block['exit']} */ (['continue', loop.target, [['block', result(['+', ref(loop.parameters[0]), 1])]]]) }
+        const asserted = { ...loop, body: { ...loop.body, statements: /** @type {readonly Statement[]} */ ([['if', [], statement[2], step, statement[4]]]) } }
+        const graph = fromFast(afterLoop(asserted, ref(loop.results[0])))
+        assertEq(evaluate(graph), 3)
+        assertStructurallySame(graph, ['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 3], [',', [['[]', [['arg', 0]]], ['()', ['self'], [['+', ['arg', 0], 1]]]]], ['arg', 0]]], [0]])
+        const inner = counting(0, 2)
+        const nestedStep = { ...step, statements: /** @type {readonly Statement[]} */ ([['define', inspected, ['block', afterLoop(inner, ref(inner.results[0]))], 'required']]) }
+        const nested = { ...loop, body: { ...loop.body, statements: /** @type {readonly Statement[]} */ ([['if', [], statement[2], nestedStep, statement[4]]]) } }
+        assertEq(evaluate(fromFast(afterLoop(nested, ref(loop.results[0])))), 3)
+    },
+    canonicalRootLoops: () => {
+        const parameter = id(20)
+        const alias = id(21)
+        const loop = counting(ref(alias))
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [parameter], rest: null, self: null, captures: [],
+            body: { statements: [['define', alias, ref(parameter), 'lazy'], ['loop', loop]], exit: ['return', target, ref(loop.results[0])] },
+        })
+        const graph = fromFast(result(['function', fn]))
+        const argument = /** @type {const} */ (['arg', 0])
+        const expected = /** @type {Exp} */ (['=>', 1, [], ['?:', ['<', argument, 3], ['()', ['self'], [['+', argument, 1]]], argument]])
+        assertStructurallySame(assertOk(identityAnalysis(graph)), assertOk(identityAnalysis(expected)))
+        const ownSelf = id(23)
+        assertStructurallySame(fromFast(result(['function', { ...fn, self: ownSelf }])), expected)
+        const setup = id(22)
+        const wrapped = fromFast(result(['function', { ...fn, body: { ...fn.body, statements: [['define', setup, ['array', []], 'required'], ...fn.body.statements] } }]))
+        assertStructurallySame(wrapped, ['=>', 1, [], [',', [['[]', []], ['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 3], ['()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [['arg', 0]]]]]])
+    },
     throw: {
         unbound: () => { fromFast(result(ref(id(0)))) },
         transfer: () => { fromFast({ statements: [], exit: ['continue', { kind: 'loop', index: 0 }, []] }) },
         valueReturn: () => { fromFast(result(['block', { statements: [], exit: ['return', target, 1] }])) },
         statementReturn: () => { fromFast(result(1, [['if', [], true, { statements: [], exit: ['return', target, 1] }, result(2)]])) },
         loop: () => { fromFast(result(1, [['loop', { target: { kind: 'loop', index: 0 }, parameters: [], initial: [], results: [], body: result(1) }]])) },
+        rootLoopShape: () => {
+            const parameter = id(0)
+            const loop = counting(ref(parameter))
+            const fn = /** @type {FastFunction} */ ({ target, parameters: [parameter], rest: null, self: null, captures: [], body: { statements: [['loop', { ...loop, body: { statements: [], exit: ['break', loop.target, [ref(loop.parameters[0])]] } }]], exit: ['return', target, ref(loop.results[0])] } })
+            fromFast(result(['function', fn]))
+        },
+        lazyLoopCapture: () => {
+            const limit = id(0)
+            const alias = id(1)
+            const loop = counting(0, ref(alias))
+            fromFast(result(ref(loop.results[0]), [['define', limit, ['.', null, 'x'], 'lazy'], ['define', alias, ref(limit), 'lazy'], ['loop', loop]]))
+        },
     },
 }
