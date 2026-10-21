@@ -5,7 +5,7 @@
  *
  * @module
  *
- * @import { Exp, ExpOp, Index, Op12, Op2, Spread, StepOver } from '../../edag/types.ts'
+ * @import { Exp, ExpOp, Index, Op12, Op2, ItemsOver, Spread, StepOver } from '../../edag/types.ts'
  * @import { AstAccess, AstBinary, AstInstanceOf, AstKey, AstBody, AstCall, AstComma, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstSpread, AstStep, AstThrow, AstUnary, UnaryTag } from '../ast/types.ts'
  * @import { _Load } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
@@ -16,7 +16,7 @@
  */
 
 import { anchors, commaOperands, isBinary, isInlinedCall, isLazy, isSpread, isUnary, readCaptures } from '../ast/module.f.mjs'
-import { isIntrinsic, isStatic } from '../../edag/module.f.mjs'
+import { isIntrinsic, isStatic, mapItems, mapSteps } from '../../edag/module.f.mjs'
 import { _jsonModule, _program } from '../source/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -153,18 +153,15 @@ const lowerSpread = nodes => ([, operand]) => {
 const lowerItem = nodes => item => isSpread(item) ? lowerSpread(nodes)(item) : lower(nodes)(item)
 
 /**
- * A lazy item's EDAG, an argument inside a chain's region: what its
- * lowering floats is anchored where the item stands, by the comma
- * {@link anchoring} puts under it, as a lazy operand's is — the step runs
- * only where the chain's guard lets it, so nothing of the item's may be
- * established before the guard.
+ * A lazy item list's EDAG, the arguments inside a chain's region: what each
+ * operand's lowering floats is anchored where the item stands, by the comma
+ * {@link anchoring} puts under it, a spread's under its operand, as a lazy
+ * operand's is — the step runs only where the chain's guard lets it, so
+ * nothing of the item's may be established before the guard.
  *
- * @type {(nodes: _Nodes) => (item: AstItem) => Exp | Spread}
+ * @type {(nodes: _Nodes) => (items: ItemsOver<AstConst>) => ItemsOver<Exp>}
  */
-const lazyItem = nodes => item => {
-    const { exp, anchors } = lowerItem(nodes)(item)
-    return exp instanceof Array && exp[0] === '...' ? ['...', anchoring({ exp: exp[1], anchors })] : anchoring({ exp, anchors })
-}
+const lazyItems = nodes => mapItems(/** @type {(operand: AstConst) => Exp} */ (operand => anchoring(lower(nodes)(operand))))
 
 /**
  * A key's EDAG, {@link AstKey}: a constant as it is, and the conversion
@@ -184,7 +181,7 @@ const lowerKey = nodes => key => {
 
 /**
  * A key inside a chain's region, established only where the guard lets
- * the chain go on, as a step's argument is, {@link lazyItem}: what its
+ * the chain go on, as a step's argument is, {@link lazyItems}: what its
  * operand floats anchored under the conversion — the EDAG's index takes
  * the conversion and no other node, so the comma stands in its operand.
  *
@@ -214,20 +211,11 @@ const access = nodes => ast => {
 /**
  * A chain's steps lowered, the AST's shape being the EDAG's: each key a
  * lazy one, {@link lazyKey}, and each call step's arguments lazy,
- * {@link lazyItem}.
+ * {@link lazyItems}.
  *
  * @type {(nodes: _Nodes) => (step: AstStep | undefined) => StepOver<Exp, Index> | undefined}
  */
-const lowerStep = nodes => step => {
-    if (step === undefined) { return undefined }
-    const next = lowerStep(nodes)(step[2])
-    if (step[0] === '|.') {
-        const key = lazyKey(nodes)(step[1])
-        return next === undefined ? ['|.', key] : ['|.', key, next]
-    }
-    const items = step[1].map(lazyItem(nodes))
-    return /** @type {StepOver<Exp, Index>} */ (next === undefined ? [step[0], items] : [step[0], items, next])
-}
+const lowerStep = nodes => step => step === undefined ? undefined : mapSteps(lazyKey(nodes), lazyItems(nodes))(step)
 
 /**
  * A chain node over its steps, where it has any: the AST's shape is the
@@ -240,14 +228,14 @@ const stepped = (node, step) => /** @type {Exp} */ (step === undefined ? node : 
 
 /**
  * A guarded call's EDAG: its callee eager, its arguments and its steps
- * lazy, inside the region the guard opens, {@link lazyItem} and
+ * lazy, inside the region the guard opens, {@link lazyItems} and
  * {@link lowerStep}.
  *
  * @type {(nodes: _Nodes) => (ast: AstGuardedCall) => _Lowered}
  */
 const guardedCall = nodes => ast => {
     const f = lower(nodes)(ast[1])
-    return { exp: stepped(['?.()', f.exp, ast[2].map(lazyItem(nodes))], lowerStep(nodes)(ast[3])), anchors: f.anchors }
+    return { exp: stepped(['?.()', f.exp, lazyItems(nodes)(ast[2])], lowerStep(nodes)(ast[3])), anchors: f.anchors }
 }
 
 /**

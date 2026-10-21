@@ -17,7 +17,6 @@ still carrying their own:
 |[`fjs/git/refstore/scope`](../../../git/refstore/scope/module.f.js)|`isPseudoref`, the capital letters as `'A'`..`'Z'` — a `.f.js`, which can import only what `fjs compile` accepts, as it accepts `text/ascii` now|
 |[`fjs/rtti/ts`](../../../rtti/ts/module.f.mjs)|`isIdStart` and `isIdPart`, JavaScript's identifier rule over string comparisons, which `isTypeName` reads|
 |[`fjs/website/browser-source`](../../../website/browser-source/module.f.mjs)|`nameChar`, JavaScript's identifier characters over string comparisons|
-|[`fjs/media/nix`](../../../media/nix/module.f.mjs)|the same classes built as `RangeSet`s, for Nix's identifier rule|
 
 Most of these ask about a one-character *string*, where `text/ascii`'s
 classes take a code point, which is part of why each consumer wrote its own;
@@ -97,7 +96,7 @@ written out again.
 - [ ] `fjs/website/browser-source`: `nameChar` over the identifier rule.
 - [x] `fjs/website/changelog`: `isDigit` and `isHex` from `text/ascii`.
 - [x] `fjs/path`: `isDriveLetter` over `isLatinLetter`.
-- [ ] `fjs/media/nix`: its range sets over `text/ascii`'s classes, keeping
+- [x] `fjs/media/nix`: its range sets over `text/ascii`'s classes, keeping
       Nix's own identifier rule.
 - [x] `fjs/media/datajs/vectors/matrix`: `lower`, `upper` and `digits` over
       the classes, keeping the punctuation each allowed set adds.
