@@ -70,6 +70,9 @@ export const resolveHref = commit => isPage => dir => href => {
     const cut = end.length === 0 ? href.length : Math.min(...end)
     const path = href.slice(0, cut)
     const fragment = href.slice(cut)
+    // A percent escape names one file on GitHub and another once the path
+    // is encoded again for the page.
+    if (path.includes('%')) { return error(`a link with a percent escape: ${href}`) }
     const joined = path.startsWith('/') ? path.slice(1) : pathConcat(dir)(path)
     if (escapes(joined)) { return error(`a link that leaves the repository: ${href}`) }
     const target = normalize(joined)
@@ -84,23 +87,37 @@ const words = span => span[0] === 'link' ? span[1].map(words).join('') : span[1]
 
 /**
 /**
- * Whether a character outside ASCII stays in an anchor: a letter, a mark or
- * a digit of any script, cased or not. GitHub drops punctuation and symbols,
- * which outside ASCII are the blocks from General Punctuation to
- * Miscellaneous Symbols and Arrows, the CJK symbols and punctuation, the
- * fullwidth forms' punctuation, and the emoji planes; everything else is a
- * script's own character.
+ * What GitHub's anchor does with a character outside ASCII: keeps a letter
+ * of any script, and drops punctuation and symbols. A cased letter and the
+ * Han, kana and Hangul blocks are letters; Latin-1's punctuation and its
+ * `×` and `÷`, General Punctuation to
+ * Miscellaneous Symbols and Arrows, CJK symbols and punctuation, fullwidth
+ * punctuation and the emoji planes are dropped. Anything else is `unknown`:
+ * telling an Arabic comma from an Arabic letter takes the Unicode tables
+ * GitHub's slugger reads, so such a heading is refused rather than given an
+ * anchor that may differ.
  *
- * @type {(c: string) => boolean}
+ * @type {(c: string) => 'keep' | 'drop' | 'unknown'}
  */
-const keptBeyondAscii = c => {
+const anchorChar = c => {
     const code = /** @type {number} */(c.codePointAt(0))
-    return code > 0x7f
-        && !(code >= 0x2000 && code <= 0x2bff)
-        && !(code >= 0x3000 && code <= 0x303f)
-        && !(code >= 0xff00 && code <= 0xff0f)
-        && code < 0x1f000
+    const within = /** @type {(from: number, to: number) => boolean} */((from, to) => code >= from && code <= to)
+    if (within(0xa0, 0xbf) || code === 0xd7 || code === 0xf7 || within(0x2000, 0x2bff) || within(0x3000, 0x303f) || within(0xff00, 0xff0f) || code >= 0x1f000) { return 'drop' }
+    if (c.toLowerCase() !== c.toUpperCase()
+        || within(0x3040, 0x30ff) || within(0x3400, 0x4dbf) || within(0x4e00, 0x9fff) || within(0xac00, 0xd7a3)) {
+        return 'keep'
+    }
+    return 'unknown'
 }
+
+/**
+ * The first character of a heading whose anchor this cannot make as GitHub
+ * does, or `undefined`.
+ *
+ * @type {(spans: readonly Inline[]) => string | undefined}
+ */
+const unknownAnchorChar = spans => [...spans.map(words).join('')]
+    .find(c => /** @type {number} */(c.codePointAt(0)) > 0x7f && anchorChar(c) === 'unknown')
 
 /**
  * A heading's anchor as GitHub makes it: its words lowercased, spaces as
@@ -112,7 +129,8 @@ const keptBeyondAscii = c => {
  */
 export const slug = spans => [...spans.map(words).join('').toLowerCase()]
     .flatMap(c => c === ' ' ? ['-']
-        : c === '-' || c === '_' || charIs(isDigit)(c) || charIs(isLatinLetter)(c) || keptBeyondAscii(c) ? [c]
+        : c === '-' || c === '_' || charIs(isDigit)(c) || charIs(isLatinLetter)(c)
+            || (/** @type {number} */(c.codePointAt(0)) > 0x7f && anchorChar(c) === 'keep') ? [c]
         : [])
     .join('')
 
@@ -147,6 +165,10 @@ export const anchors = blocks => {
  * @type {(href: (href: string) => Result<string, string>) => (blocks: Blocks) => Result<readonly Element[], string>}
  */
 export const readmeNodes = href => blocks => {
+    for (const block of blocks) {
+        const c = block[0] === 'heading' ? unknownAnchorChar(block[2]) : undefined
+        if (c !== undefined) { return error(`a heading character whose anchor GitHub may make otherwise: ${c}`) }
+    }
     const ids = anchors(blocks)
     /** @type {readonly Element[]} */
     let out = []
