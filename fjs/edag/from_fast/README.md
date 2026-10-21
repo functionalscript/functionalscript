@@ -37,8 +37,12 @@ following result processing retains a separate helper.
 The next supported root domain generalizes the fixed invocation signature:
 zero through sixteen fixed parameters, no rest binding, and one opaque public
 result. [`loop/root`](./loop/root/module.f.mjs) checks that each loop entry
-aliases the corresponding current argument, only argument aliases precede the
-loop, and the function directly returns that loop's one result. Binding and
+aliases the corresponding current argument and the function directly returns
+that loop's one result. The shared invocation-alias inventory also admits
+prefix references to already established captures and self values. Those
+references introduce no computation or identity; they do not qualify as loop
+entry arguments. Computations, allocations and unestablished lazy values
+remain outside the root prefix. Binding and
 target object identities determine correspondence; presentation indices do not.
 The existing scalar reconstruction takes priority and retains its exact shape.
 
