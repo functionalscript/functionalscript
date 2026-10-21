@@ -17,7 +17,8 @@ identities, including writes and references in nested or unreachable regions.
 facts. It expands pattern reads and defaults, chooses invocation parameters and
 rest layout, and maps every source declaration to its current immutable value.
 Used aliases retain an established value and their lexical order, so generated
-helper capture signatures survive source round trips. Unused aliases of already
+helper capture signatures survive source round trips. These retained reads add no
+evaluation demand to their already established value. Unused aliases of already
 established values are removed without introducing captures. Initializers and
 assignment computations remain required even if a later write discards their
 result. A late parameter's raw argument read is established once before default

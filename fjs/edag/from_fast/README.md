@@ -27,8 +27,9 @@ loop statement, including inside conditional regions. Unused loop results do
 not discard the loop's required evaluation.
 
 A canonical scalar invocation loop reuses its enclosing function. Its body
-contains only aliases of the current fixed argument before the loop, then a
-direct return of the loop's single result. Its arity is one, it reads no rest
+contains only aliases of established arguments, captures or self before the
+loop, then a direct return of the loop's single result. Capture and self aliases
+cannot replace the current argument at the loop entry. Its arity is one, it reads no rest
 array, and the loop enters with that current argument. Reuse keeps the same
 frame and self identity. One-time setup, a different invocation layout or
 following result processing retains a separate helper.
