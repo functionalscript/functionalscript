@@ -18,6 +18,7 @@ const constants = [
 /** @type {Examples} */
 const destructuring = [
     ['Destructuring', 'const { a, "b": [c, d] } = { a: 1, b: [2, 3] };\nconst [e] = "hi";\nconst f = ([x, { y }], z) => [x, y, z];\nexport default [a, c, d, e, f([4, { y: 5 }], 6)];'],
+    ['Destructuring: an elision', 'const [, b, , d] = [1, 2, 3, 4];\nconst second = ([, x]) => x;\nexport default [b, d, second("ab")];'],
 ]
 
 export default { constants, destructuring, all: [...constants, ...destructuring] }

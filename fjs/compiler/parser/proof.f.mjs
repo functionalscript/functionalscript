@@ -566,7 +566,7 @@ export const proof = {
                 // is refused is the reference, at the name
                 ["export default {a}", "const not found", [1, 17]],
                 ["export default {:1}", "unexpected token", [1, 17]],
-                ["export default [,]", "unexpected token", [1, 17]],
+                ["export default [,]", "array hole", [1, 17]],
                 ["import x from y\nexport default x", "unexpected token", [1, 15]],
                 ["export x from \"m\"\nexport default 1", "unexpected token", [1, 8]],
                 ["const = 1\nexport default 1", "unexpected token", [1, 7]],
@@ -1490,11 +1490,12 @@ export const proof = {
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')
         },
+        // an array has no hole (spec/values/arrays.md)
         () => {
             const tokenList = tokenizeString('export default [,]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assertEq(obj[1].message, 'unexpected token')
+            assertEq(obj[1].message, 'array hole')
         },
         () => {
             const tokenList = tokenizeString('export default [1 2]')
@@ -1506,7 +1507,7 @@ export const proof = {
             const tokenList = tokenizeString('export default [1,,2]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assertEq(obj[1].message, 'unexpected token')
+            assertEq(obj[1].message, 'array hole')
         },
         () => {
             const tokenList = tokenizeString('export default []]')
@@ -1524,7 +1525,7 @@ export const proof = {
             const tokenList = tokenizeString('export default [,1]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assertEq(obj[1].message, 'unexpected token')
+            assertEq(obj[1].message, 'array hole')
         },
         () => {
             const tokenList = tokenizeString('export default [:]')
@@ -1721,7 +1722,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             const errorString = stringifySorted(obj[1])
-            if (errorString !== '{"message":"unexpected token","metadata":{"column":17,"line":1,"path":""}}') { throw errorString }
+            if (errorString !== '{"message":"array hole","metadata":{"column":17,"line":1,"path":""}}') { throw errorString }
         },
     ],
     validWhiteSpaces:[

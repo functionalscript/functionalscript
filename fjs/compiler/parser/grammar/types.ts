@@ -116,6 +116,20 @@ export type Items<Item extends Rule> = () => readonly ['const', readonly [
 /** An opening symbol, an optional list, and the closing symbol. */
 export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>, number]
 
+/**
+ * The elements of an array: an elision, a comma where an item would begin,
+ * and optionally the rest of the list; or an item, then optionally a comma
+ * and the rest — or nothing after the comma, which is the trailing one.
+ * The rest is left as `Rule` for the reason {@link Items} gives.
+ */
+export type Elements = () => readonly ['const', {
+    readonly elision: readonly [number, Option<Rule>]
+    readonly item: readonly [Item, Option<readonly [number, Option<Rule>]>]
+}]
+
+/** An array's brackets and its optional {@link Elements}. */
+export type ArrayLiteral = readonly [number, Option<Elements>, number]
+
 /** A cooked template chunk alone, or a head, full-expression substitutions and chunks, and a tail. */
 export type Template = () => readonly ['const', {
     readonly plain: number
@@ -189,7 +203,7 @@ export type Unary = () => readonly ['const', {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
-    readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail]
+    readonly array: readonly [readonly [ArrayLiteral, RepeatFrom<0, Access>], PowTail]
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
 }]
@@ -210,7 +224,7 @@ export type UnaryOperand = () => readonly ['const', {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>]]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
-    readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>]]
+    readonly array: readonly [readonly [ArrayLiteral, RepeatFrom<0, Access>]]
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>]]
     readonly group: ParenGroupOperand
 }]
@@ -331,7 +345,7 @@ export type ValueBranches = {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly name: readonly [typeof identifier, ArrowOrRest]
-    readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly array: readonly [readonly [ArrayLiteral, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
 }
 
@@ -505,7 +519,7 @@ export type LoopStatement = () => readonly ['const', {
  */
 export type BindingTarget = {
     readonly name: typeof identifierName
-    readonly array: Container<Item>
+    readonly array: ArrayLiteral
     readonly object: Container<Entry>
 }
 

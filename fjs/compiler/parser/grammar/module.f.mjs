@@ -68,7 +68,8 @@
  * access ::= '.' id | '[' value ']' | '(' [ items(item) ] ')'
  *          | '?.' optionalStep
  * optionalStep ::= id | '[' value ']' | '(' [ items(item) ] ')'
- * array  ::= '[' [ items(item) ] ']'
+ * array  ::= '[' [ elements ] ']'
+ * elements ::= ',' [ elements ] | item [ ',' [ elements ] ]
  * item   ::= '...' value | value
  * object ::= '{' [ items(entry) ] '}'
  * entry  ::= '...' value | member
@@ -136,7 +137,7 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
@@ -375,8 +376,7 @@ export const template = () => ['const', {
 }]
 
 /**
- * A call's arguments: the items an array holds, {@link values}, reached
- * through a thunk.
+ * A call's arguments: {@link values}, reached through a thunk.
  *
  * This is where the grammar's cycle is broken a second time — a value takes
  * steps, a step may be a call, and a call holds values, so `access` would
@@ -1009,10 +1009,36 @@ export const entries = items(entry)
  */
 export const item = { spread: [sym('...'), value], value }
 
-/** The items of an array. A rule of its own, so that a reader may map it. */
+/**
+ * The items of a call's arguments, {@link item}s with no elision between
+ * them, as JavaScript's `Arguments` have none: `f(a, , b)` stops at its
+ * second comma. A rule of its own, so that a reader may map it.
+ */
 export const values = items(item)
 
-export const array = /** @type {const} */ ([sym('['), option(values), sym(']')])
+/**
+ * The elements of an array: {@link item}s, as a call's {@link values} are,
+ * and an **elision** before any of them — a comma where an item would
+ * begin, `[, a]`, `[a, , b]` and `[a, ,]`, each skipping a position, as
+ * JavaScript's `Elision` does. `,` begins no item, so one symbol decides.
+ *
+ * An array of this language has no hole
+ * ([spec: arrays](../../../../spec/values/arrays.md)), so the rule admits
+ * the elision for a pattern's sake alone: a pattern is read by this rule,
+ * {@link bindingTarget}, and there an elision skips an element of the
+ * source ([spec: destructuring](../../../../spec/bindings/destructuring.md)).
+ * Which of the two the text is, the position alone decides, so the reader
+ * records the elision and the fold refuses it in a value.
+ *
+ * @type {Elements}
+ */
+export const elements = () => ['const', {
+    elision: [sym(','), option(elements)],
+    item: [item, option([sym(','), option(elements)])],
+}]
+
+/** @type {ArrayLiteral} */
+export const array = [sym('['), option(elements), sym(']')]
 
 export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')])
 

@@ -2,8 +2,8 @@
 
 **Priority:** P2
 **Status:** wip — the design approved, and `const` and parameter
-destructuring implemented ([destructuring](../bindings/destructuring.md));
-the rest element and the elision remain
+destructuring implemented ([destructuring](../bindings/destructuring.md)),
+the elision included; the rest element remains
 
 ```js
 const { a, "%": [c, d] } = { a: null, "%": [true, false] };
@@ -69,13 +69,13 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   spells, and gets a node or a helper of its own when it comes;
 - an **elision**, `[, b]` and `[a, , c]`, which skips a position of the
   iteration — a read the spread lowering gives for free, the element after
-  it taking the next index, `$0[1]`, so nothing is a hole. What it costs
-  is the grammar: an array literal has no elision, since an array of this
+  it taking the next index, `$0[1]`, so nothing is a hole. What it cost
+  was the grammar: an array literal has no elision, since an array of this
   language has no hole ([arrays](../values/arrays.md)), and the pattern is
-  read as the literal is, so the literal rule would have to admit the
-  elision for the fold to refuse it in a value and read it in a pattern.
-  That is the next stage with rest, and no rule of the language: an
-  elision in a pattern is harmless JavaScript
+  read as the literal is, so the literal rule admits the elision now for
+  the fold to refuse it in a value (`array hole`) and read it in a
+  pattern. It has landed since, its deferral having been no rule of the
+  language: an elision in a pattern is harmless JavaScript
   ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions));
 - a **default**, `{ a = 1 }` and `[a = 1]`, deferred with default
   parameters ([default parameters](./3125-default-parameters.md)), since
@@ -102,9 +102,6 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   machinery a conversion key, rare in a pattern, does not yet earn. A key
   of any type is the `entry` helper's to read
   ([reading an entry at run time](../property-access/entries.md)).
-
-Until then an elision stops at its second comma, as it does in an array
-literal.
 
 #### Semantics, by lowering
 
@@ -243,11 +240,11 @@ of; and two familiar spellings — rest and defaults — are refused for now, ea
       over the same converter and binder; the specification's
       [functions](../functions/README.md) section loses "destructuring is
       not supported yet".
-- [ ] Array rest, `[a, ...r]`, as a slice of the spread array, and
-      elisions, `[, b]`, the element after one taking the next index, the
+- [x] Elisions, `[, b]`, the element after one taking the next index, the
       array literal's rule admitting the elision for the fold to refuse in
-      a value; file the object rest and the defaults as follow-ups of
-      their own.
+      a value (`array hole`).
+- [ ] Array rest, `[a, ...r]`, as a slice of the spread array; file the
+      object rest and the defaults as follow-ups of their own.
 
 ### Related
 

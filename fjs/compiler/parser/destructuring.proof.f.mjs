@@ -173,11 +173,58 @@ export const proof = {
             expectRefused('const x = {}; const { [(3)]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             expectRefused('const x = {}; const { [-1]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             expectRefused('const x = {}; const { ["toString"]: a } = x; export default 1;', 'prohibited property name', 24)
-            // a default is no literal, so the grammar stops at its `=`; an
-            // elision is no array of this language
+            // a default is no literal, so the grammar stops at its `=`
             expectRefused('const x = []; const [a = 1] = x; export default 1;', 'unexpected token', 24)
             expectRefused('const x = {}; const { a = 1 } = x; export default 1;', 'unexpected token', 25)
-            expectRefused('const x = []; const [a, , b] = x; export default 1;', 'unexpected token', 25)
+            // a rest element after an elision is still the rest element
+            expectRefused('const x = []; const [, ...r] = x; export default 1;', 'rest element not supported', 24)
+        },
+        // An elision skips a position of an array pattern: it binds and
+        // reads nothing, and the element after it reads the next index of
+        // the spread — leading, medial, trailing, alone, nested, in a body,
+        // and in a parameter, the head of a list and after it
+        // (spec/bindings/destructuring.md).
+        elision: () => {
+            expectModule('const x = [1, 2]; const [, b] = x; export default b;',
+                '[[],[["array",[1,2]],["array",[["...",["cref",0]]]],[".",["cref",1],1],["object",[[":","default",["cref",2]]]]]]')
+            expectModule('const x = [1, 2, 3]; const [a, , c] = x; export default [a, c];',
+                '[[],[["array",[1,2,3]],["array",[["...",["cref",0]]]],[".",["cref",1],0],[".",["cref",1],2],["object",[[":","default",["array",[["cref",2],["cref",3]]]]]]]]')
+            // after a trailing elision's comma nothing follows, as after a
+            // trailing comma
+            expectModule('const x = [1, 2]; const [a, ,] = x; export default a;',
+                '[[],[["array",[1,2]],["array",[["...",["cref",0]]]],[".",["cref",1],0],["object",[[":","default",["cref",2]]]]]]')
+            // elisions alone bind nothing and keep the spread's failure, as
+            // the empty pattern does
+            expectModule('const x = [1]; const [, ,] = x; export default 1;',
+                '[[],[["array",[1]],["array",[["...",["cref",0]]]],["object",[[":","default",1]]]]]')
+            expectModule('const x = [[1, 2]]; const [[, b], , { c }] = x; export default [b, c];',
+                '[[],[["array",[["array",[1,2]]]],["array",[["...",["cref",0]]]],["array",[["...",[".",["cref",1],0]]]],[".",["cref",2],1],[".",["cref",1],2],[".",["cref",4],"c"],["object",[[":","default",["array",[["cref",3],["cref",5]]]]]]]]')
+            expectModule('export default () => { const [, b] = [1, 2]; return b; };',
+                '[[],[["object",[[":","default",["=>",0,[["array",[["...",["array",[1,2]]]]],[".",["cref",0],1],["cref",1]]]]]]]]')
+            expectModule('export default ([, v]) => v;',
+                '[[],[["object",[[":","default",["=>",1,[["array",[["...",["arg",0]]]],[".",["cref",0],1],["cref",1]]]]]]]]')
+            expectModule('export default (a, [, , v]) => [a, v];',
+                '[[],[["object",[[":","default",["=>",2,[["array",[["...",["arg",1]]]],[".",["cref",0],2],["array",[["arg",0],["cref",1]]]]]]]]]]')
+            // the names around an elision are bound by every rule of a name
+            expectRefused('const x = []; const [a, a, , ] = x; export default 1;', 'duplicate id', 25)
+            expectRefused('export default ([, a], [, a]) => 1;', 'duplicate id', 27)
+        },
+        // A hole in an array value is refused by design, at the comma that
+        // makes it: an array of this language has none
+        // (spec/values/arrays.md). A value's earlier failure comes first,
+        // errors being first-to-last; and the grammar admits no elision in
+        // a call's arguments, as JavaScript admits none, so it stops there.
+        holes: () => {
+            expectRefused('export default [1, , 2];', 'array hole', 20)
+            expectRefused('export default [, 1];', 'array hole', 17)
+            expectRefused('export default [1, ,];', 'array hole', 20)
+            expectRefused('export default { a: [1, , 2] };', 'array hole', 25)
+            expectRefused('const [a] = [, 1]; export default a;', 'array hole', 14)
+            // a group that no `=>` follows is a value
+            expectRefused('const a = 1; export default ([, a]);', 'array hole', 31)
+            expectRefused('export default [missing, , 1];', 'const not found', 17)
+            expectRefused('const f = (...a) => 1; export default f(1, , 2);', 'unexpected token', 44)
+            expectRefused('const f = (...a) => 1; export default f(,);', 'unexpected token', 41)
         },
         // The walk is one over an explicit stack, so a pattern as deep as
         // the lazy operators' bar costs no call stack, and its names are

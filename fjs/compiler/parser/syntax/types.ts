@@ -235,9 +235,20 @@ export type OptionalCall =
     | readonly ['|?.()', readonly Item[]]
     | readonly ['|?.()', readonly Item[], Step]
 
-/** An array of its items, or an object of its entries, each in the order written. */
+/**
+ * An elision, a comma where an array's item would begin, by that comma:
+ * `[, a]`. It skips an element of an array pattern's source, and is a hole
+ * where the array is a value, which the fold refuses, an array of the
+ * language having none ([spec: arrays](../../../../spec/values/arrays.md)).
+ */
+export type Elision = readonly ['elision', DjsTokenWithMetadata]
+
+/** An element of an array literal: an item, or an {@link Elision}. */
+export type Element = Item | Elision
+
+/** An array of its elements, or an object of its entries, each in the order written. */
 export type Container =
-    | readonly ['array', readonly Item[]]
+    | readonly ['array', readonly Element[]]
     | readonly ['object', readonly Entry[]]
 
 /**
@@ -365,11 +376,12 @@ export type BindingTarget =
     | readonly ['invalid', DjsTokenWithMetadata]
 
 /**
- * An element of an array pattern: a target, or a rest element,
+ * An element of an array pattern: a target; an {@link Elision}, which
+ * skips the source's element at its position; or a rest element,
  * `...target`, by its `...` — JavaScript's, which the fold refuses for now
  * ([destructuring](../../../../spec/todo/2450-destructuring.md)).
  */
-export type BindingElement = BindingTarget | readonly ['...', DjsTokenWithMetadata, BindingTarget]
+export type BindingElement = BindingTarget | Elision | readonly ['...', DjsTokenWithMetadata, BindingTarget]
 
 /**
  * A property of an object pattern: its key, as an access's — the token a
@@ -475,7 +487,8 @@ export type Out =
     // whether a trailing comma ends it
     | { readonly id: 'parenItems', readonly fixed: List<Parameter>, readonly rest: DjsTokenWithMetadata | null, readonly operands: List<Node>, readonly refusal: DjsTokenWithMetadata | null, readonly trailing: boolean }
     | { readonly id: 'item', readonly item: Item, readonly target: BindingElement }
-    | { readonly id: 'values', readonly items: List<Item>, readonly targets: List<BindingElement> }
+    | { readonly id: 'values', readonly items: List<Item> }
+    | { readonly id: 'elements', readonly items: List<Element>, readonly targets: List<BindingElement> }
     | { readonly id: 'member', readonly member: Member, readonly target: BindingProperty }
     | { readonly id: 'entry', readonly entry: Entry, readonly target: BindingProperty }
     | { readonly id: 'entries', readonly items: List<Entry>, readonly targets: List<BindingProperty> }

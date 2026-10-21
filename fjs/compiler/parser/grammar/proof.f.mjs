@@ -19,7 +19,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    djsModule, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopStatement, member, object, parameters, paren, statement,
+    djsModule, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopStatement, member, object, parameters, paren, statement,
     afterCase, caseTail, loopNameStatement, moduleStatement, nameStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value,
 } from './module.f.mjs'
 
@@ -96,6 +96,7 @@ export const proof = {
         entry: () => { parser(/** @type {Rule} */ (entry)) },
         value: () => { parser(/** @type {Rule} */ (value)) },
         array: () => { parser(/** @type {Rule} */ (array)) },
+        elements: () => { parser(/** @type {Rule} */ (elements)) },
         object: () => { parser(/** @type {Rule} */ (object)) },
         parameters: () => { parser(parameters) },
         func: () => { parser(/** @type {Rule} */ (func)) },
@@ -201,6 +202,12 @@ export const proof = {
         assertStructurallySame(read('export default\n1\n;'), ['ok'])
         assertStructurallySame(read('export default {};'), ['ok'])
         assertStructurallySame(read('export default [];'), ['ok'])
+        // an elision is an array's element, before any item, for a
+        // pattern's sake: the fold refuses it in a value
+        assertStructurallySame(read('export default [1,,2];'), ['ok'])
+        assertStructurallySame(read('export default [,];'), ['ok'])
+        assertStructurallySame(read('export default [, 1, , ,];'), ['ok'])
+        assertStructurallySame(read('const [, a, , b,] = [1]; export default (c, [, d]) => d;'), ['ok'])
     },
     templates: () => {
         for (const source of [
@@ -580,7 +587,8 @@ export const proof = {
     // A call is a step after a value, as an access is: `(` decides it, and
     // what it applies to is everything written before it. Its arguments are
     // the list an array holds — none, one, several, a trailing comma — so
-    // `f(1,)` is `[1,]`'s rule, and `f(,)` is refused where `[,]` is.
+    // `f(1,)` is `[1,]`'s rule; but no elision, which only an array holds,
+    // so `f(,)` is refused where `[,]` is read.
     call: () => {
         assertStructurallySame(read('const f = (...a) => 1; export default f();'), ['ok'])
         assertStructurallySame(read('const f = (...a) => 1; export default f(1);'), ['ok'])
@@ -727,7 +735,6 @@ export const proof = {
     },
     refused: () => {
         assertStructurallySame(read(''), ['error', 'end'])
-        assertStructurallySame(read('export default [1,,2];'), ['error', ','])
         assertStructurallySame(read('export default {,};'), ['error', ','])
         assertStructurallySame(read('export default [1 2];'), ['error', 'number'])
         assertStructurallySame(read('export default 1; const a = 2;'), ['error', 'const'])
