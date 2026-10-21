@@ -3,7 +3,8 @@
  *
  * It runs a `NodeProgram` through {@link asyncPartialRun} over
  * `nodeCommands` with the operations `fjs t` and `fjs compile` need and no
- * others: `sandbox` and `catch` from `commonOperationMap`, and `all`,
+ * others: `sandbox` and `catch` from `commonOperationMap`, `all` from the
+ * runner itself, which answers it because `nodeCommands` name it, and
  * `readdir`, `import`, `resolveFileModule`, `readWhole`, `mkdir`, `rm`,
  * `writeFile`, `writeBytes`, and `write` here. Every other Node operation
  * answers `NotImplemented`, so another `fjs` command fails naming what this
@@ -124,7 +125,6 @@ const writeText = (stream, text) => {
 /** @type {<T, E>(effect: Effect<NodeOp, T, E>) => Promise<Result<T, E>>} */
 const runShellEffect = asyncPartialRun(nodeCommands)({
     ...commonOperationMap,
-    all: async (...effects) => ok(await Promise.all(effects.map(runShellEffect))),
     readdir: (path, { recursive }) => io(async () => {
         if (recursive === true) { throw new Error('a recursive readdir is not implemented in the SpiderMonkey shell') }
         const parentPath = normalize(path)

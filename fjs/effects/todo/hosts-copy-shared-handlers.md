@@ -65,7 +65,7 @@ does not mention.
 
 ### Tasks
 
-- [ ] `asyncRunAll`, which the Node host takes, and `all` in
+- [x] `asyncRunAll`, which the Node host takes, and `all` in
       `asyncPartialRun` where its commands name it, which gives the
       SpiderMonkey host its own, with proof; both hosts drop theirs.
 - [x] The browser `import` through `io`; one phrase for the unreadable value,
