@@ -21,7 +21,7 @@
  */
 
 import { concat } from '../../types/string/module.f.mjs'
-import { includes, occurrences } from '../../types/array/module.f.mjs'
+import { findMap, includes, occurrences } from '../../types/array/module.f.mjs'
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import {
     digitRange,
@@ -169,21 +169,6 @@ const protectLeadingWhitespace = line => {
     return `${leading}${line.slice(contentStart)}`
 }
 
-/**
- * The first reason `f` gives for any of `items`, or `null` when it gives none.
- *
- * `f` is not called once a reason is found, so nothing after the first
- * reason is checked. The walk is a plain `reduce` rather than a lazy list on
- * purpose: `check` recurses once per level of nesting, and every frame a
- * level costs is depth a legal expression loses before the stack runs out.
- *
- * @type {<T>(f: (item: T, index: number) => Nullable<string>) => (items: readonly T[]) => Nullable<string>}
- */
-const firstReasonOf = f => items => items.reduce(
-    /** @type {(reason: Nullable<string>, item: typeof items[number], index: number) => Nullable<string>} */
-    (reason, item, index) => reason ?? f(item, index),
-    null)
-
 /** @type {(reference: _Reference) => Nullable<string>} */
 const checkReference = ([, name]) =>
     isIdentifier(name) ? null : `reference root is not an identifier: ${quoted(name)}`
@@ -191,7 +176,7 @@ const checkReference = ([, name]) =>
 /** @type {(pattern: _OpenSetPattern) => Nullable<string>} */
 const checkPattern = ([, ...names]) => {
     const { indexOf } = occurrences(names)
-    return firstReasonOf(
+    return findMap(
         /** @type {(name: string, index: number) => Nullable<string>} */
         (name, index) =>
             !isIdentifier(name) ? `pattern name is not an identifier: ${quoted(name)}`
@@ -215,7 +200,7 @@ const pathsConflict = (a, b) =>
  *
  * @type {(bindings: readonly _Binding[]) => Nullable<string>}
  */
-const checkConflicts = bindings => firstReasonOf(
+const checkConflicts = bindings => findMap(
     /** @type {(binding: _Binding, index: number) => Nullable<string>} */
     ([, path], index) => {
         const previous = bindings.slice(0, index).find(([, p]) => pathsConflict(path, p))
@@ -234,8 +219,8 @@ const valueReason = (reason, [, , value]) => reason ?? check(value)
  * reported without walking a value on either side of it, however deep.
  *
  * The values are walked by a `reduce` of their own rather than through
- * {@link firstReasonOf}: this is the walk every level of a nested set takes,
- * and the frames it saves are nesting depth.
+ * `findMap`: this is the walk every level of a nested set takes, and the
+ * frame it saves is nesting depth.
  *
  * @type {(bindings: readonly _Binding[]) => Nullable<string>}
  */
@@ -246,10 +231,10 @@ const checkBindings = bindings =>
 const checkSet = ([, ...bindings]) => checkBindings(bindings)
 
 /** @type {(list: _NixList) => Nullable<string>} */
-const checkList = ([, ...items]) => firstReasonOf(check)(items)
+const checkList = ([, ...items]) => findMap(check)(items)
 
 /** @type {(application: _Application) => Nullable<string>} */
-const checkApplication = ([, fn, ...args]) => firstReasonOf(check)([fn, ...args])
+const checkApplication = ([, fn, ...args]) => findMap(check)([fn, ...args])
 
 /** @type {(lambda: _Lambda) => Nullable<string>} */
 const checkLambda = ([, pattern, body]) => checkPattern(pattern) ?? check(body)
@@ -258,7 +243,7 @@ const checkLambda = ([, pattern, body]) => checkPattern(pattern) ?? check(body)
 const checkLet = ([, bindings, body]) => checkBindings(bindings) ?? check(body)
 
 /** @type {(indented: _IndentedString) => Nullable<string>} */
-const checkIndentedString = ([, ...parts]) => firstReasonOf(check)(parts)
+const checkIndentedString = ([, ...parts]) => findMap(check)(parts)
 
 /**
  * The reason `expression` is not legal Nix, or `null` when it is.
