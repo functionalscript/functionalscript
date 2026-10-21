@@ -285,6 +285,18 @@ export const proof = {
             emptyLabel: () => assertEq(tryParseEntry('[](u)')[1], 'a link with an empty label'),
             codeIsNotProse: () => assertStructurallySame(spans(`${tick}_a_${tick}`), [['code', '_a_']]),
         },
+        // An asterisk with a letter on one side and punctuation on the other
+        // opens or closes nothing on GitHub.
+        flanking: {
+            opener: () => assertEq(tryParseEntry('a*"b"*')[1], 'bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside'),
+            closer: () => assertEq(tryParseEntry('**"b"**c')[0], 'error'),
+            spaced: () => assertEq(tryParseEntry('a *"b"* c')[0], 'ok'),
+            punctuation: () => assertEq(tryParseEntry('(*"b"*)')[0], 'ok'),
+            letters: () => assertEq(tryParseEntry('a*b*c')[0], 'ok'),
+            code: () => assertEq(tryParseEntry(`${tick}x${tick}*"b"*${tick}y${tick}`)[0], 'ok'),
+            link: () => assertEq(tryParseEntry('[x](u)*"b"*[y](v)')[0], 'ok'),
+            emphasis: () => assertEq(tryParseEntry('*a**"b"**c*')[0], 'ok'),
+        },
     },
     /**
      * A README's blocks: headings, paragraphs, code fences and flat lists,
