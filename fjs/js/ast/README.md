@@ -53,6 +53,11 @@ does. This records facts; source declaration legality and capture admission
 remain the compiler's policies. In particular, computing the new facts does
 not itself enable the broader source policy.
 
+The complete declaration index groups references by binding identity once;
+stable grouping retains each binding's source reference order. One cursor then
+collects writes and capture targets without rescanning all references for each
+declaration. Grouping costs O(R log R + B) for R references and B declarations.
+
 Normalized FAST has no reassignments. `from_fast` consumes it without
 rediscovering source writes or loop state. Output preparation owns physical
 slots, simultaneous updates, invocation resets and capture snapshots; target

@@ -84,7 +84,7 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
- * @import { BindingEvent, BindingId } from '../../js/ast/types.ts'
+ * @import { BindingEvent, BindingId, BindingScope } from '../../js/ast/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstInstanceOf, AstKey, AstSelf, AstCall, AstComma, AstConditional, AstConst, AstEntryFunction, AstHasEntryFunction, AstIntrinsic, AstFrameRef, AstEntry, AstFunction, AstItem, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstStatic, AstRest, AstSpread, AstStep, AstThrow, AstUnary } from '../ast/types.ts'
@@ -318,7 +318,10 @@ const restBinding = ['rest']
 const sourceBinding = index => ({ index })
 
 /** @type {(scope: _Scope, events: readonly BindingEvent[]) => _Scope} */
-const traced = (scope, events) => ({ ...scope, trace: { ...scope.trace, events: [...scope.trace.events, ...events] } })
+const traced = (scope, events) => ({ ...scope, trace: { ...scope.trace, events: concat(scope.trace.events)(events), count: scope.trace.count + events.length } })
+
+/** Materialize ordered evidence once at a source function or region boundary. @type {(scope: _Scope) => BindingScope} */
+const completedTrace = scope => ({ target: scope.trace.target, bindings: scope.trace.bindings, events: toArray(scope.trace.events) })
 
 /** @type {(plan: _Plan, kind: 'const' | 'parameter') => readonly BindingOrigin[]} */
 const planOrigins = (plan, kind) => {
@@ -347,13 +350,13 @@ const initialized = (scope, plan) => traced({
 /** @type {() => _Scope} */
 const moduleScope = () => ({
     names: empty, origins: empty, count: 0, captures: [], enclosing: null, outer: null, self: null, loop: null, loopReads: [], region: false,
-    trace: { target: { kind: 'function', index: 0 }, bindings: [], events: [] }, sourceOrigins: [],
+    trace: { target: { kind: 'function', index: 0 }, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
 /** A block or loop shares its source function's capture boundary. @type {(outer: _Scope, names: _Env, count: number, enclosing: List<_Env>, self: string | null, loop: string | null) => _Scope} */
 const regionScope = (outer, names, count, enclosing, self, loop) => ({
     names, origins: empty, count, captures: [], enclosing, outer, self, loop, loopReads: [], region: true,
-    trace: { target: outer.trace.target, bindings: [], events: [] }, sourceOrigins: [],
+    trace: { target: outer.trace.target, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
 /** @type {(scope: _Scope, word: string) => BindingId} */
@@ -1772,7 +1775,7 @@ const templateScope = (scope, node) => {
     } else {
         events = [...events, ...templateReads(node[2], origins)]
     }
-    return traced({ ...scope, sourceOrigins: [...scope.sourceOrigins, ...sourceOrigins] }, [['function', { target: { kind: 'function', index: scope.trace.events.length + 1 }, bindings, events }]])
+    return traced({ ...scope, sourceOrigins: [...scope.sourceOrigins, ...sourceOrigins] }, [['function', { target: { kind: 'function', index: scope.trace.count + 1 }, bindings, events }]])
 }
 
 /**
@@ -1804,12 +1807,12 @@ const entered = (stack, scope, node, self) => {
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const { names, count, entries, late } = bound
-    const target = /** @type {const} */ ({ kind: 'function', index: scope.trace.events.length + 1 })
+    const target = /** @type {const} */ ({ kind: 'function', index: scope.trace.count + 1 })
     /** @type {_Scope} */
     const inner = {
         names, count, captures: [], enclosing: null, outer: scope, self: self?.[0] ?? null, loop: null, loopReads: [], region: false,
         origins: self === null || at(self[0])(bound.origins) !== null ? bound.origins : setReplace(self[0])(self[1])(bound.origins),
-        trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]) }, sourceOrigins: bound.sourceOrigins,
+        trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]), count: bound.initialized.length }, sourceOrigins: bound.sourceOrigins,
     }
     return lateRound(stack, inner, { late, index: 0, entries: entries.length, done: entries, body: node[2] })
 }
@@ -2169,11 +2172,11 @@ const capturedLoopVariable = (scope, word) => {
  */
 const closed = (stack, scope, body) => {
     const outer = assertNotNullish(scope.outer, ['a function body with no scope around it', body])
+    const trace = completedTrace(scope)
+    /** @type {BindingEvent} */
+    const event = scope.region ? ['region', trace.events] : ['function', trace]
     const restored = {
-        ...outer,
-        trace: scope.region
-            ? { ...outer.trace, bindings: [...outer.trace.bindings, ...scope.trace.bindings], events: [...outer.trace.events, /** @type {BindingEvent} */ (['region', scope.trace.events])] }
-            : { ...outer.trace, events: [...outer.trace.events, /** @type {BindingEvent} */ (['function', scope.trace])] },
+        ...traced({ ...outer, trace: scope.region ? { ...outer.trace, bindings: [...outer.trace.bindings, ...trace.bindings] } : outer.trace }, [event]),
         sourceOrigins: [...outer.sourceOrigins, ...scope.sourceOrigins],
     }
     /** @type {AstFunction} */
@@ -2291,7 +2294,10 @@ const extended = env => (word, ref) => setReplace(word)(ref)(env)
 const exportMember = ([name, value]) => [':', name, value]
 
 /** Run shared analysis only after the complete resolved source scope exists. @type {(ast: AstModule, scope: _Scope) => ResolvedModule} */
-const resolvedModule = (ast, scope) => ({ ast, scope: scope.trace, bindings: analyzeBindings(scope.trace), origins: scope.sourceOrigins })
+const resolvedModule = (ast, scope) => {
+    const trace = completedTrace(scope)
+    return { ast, scope: trace, bindings: analyzeBindings(trace), origins: scope.sourceOrigins }
+}
 
 /**
  * The statements of a module, in order: each imported binding names

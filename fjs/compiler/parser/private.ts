@@ -10,7 +10,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { BindingId, BindingScope } from '../../js/ast/types.ts'
+import type { BindingEvent, BindingId, FunctionTarget } from '../../js/ast/types.ts'
 import type { AstCall, AstConst, AstFrameRef, AstItem, AstMember, AstModuleRef, AstRest, AstStatic, AstSelf, BinaryTag, UnaryTag } from '../ast/types.ts'
 import type { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
 import type { BindingOrigin, ParseError } from './types.ts'
@@ -87,6 +87,15 @@ export type _Lowered = {
     readonly bound: readonly (readonly [string, AstModuleRef])[]
 }
 
+/** Open source events append without copying; closing materializes their array. */
+export type _Trace = {
+    readonly target: FunctionTarget
+    readonly bindings: readonly BindingId[]
+    readonly events: List<BindingEvent>
+    /** Top-level event count keeps source target indices deterministic. */
+    readonly count: number
+}
+
 /**
  * The scope a node is resolved in: the names it binds itself — its own,
  * and the words it has read from the scope around it, each bound to the
@@ -115,7 +124,7 @@ export type _Lowered = {
 export type _Scope = {
     readonly names: _Env
     readonly origins: OrderedMap<BindingId>
-    readonly trace: BindingScope
+    readonly trace: _Trace
     readonly sourceOrigins: readonly BindingOrigin[]
     /** A synthetic execution region retains its source function target. */
     readonly region: boolean

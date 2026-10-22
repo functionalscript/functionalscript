@@ -30,6 +30,33 @@ const allEvents = events => events.flatMap(event => event[0] === 'function'
     ? allEvents(event[1].events) : event[0] === 'region' ? allEvents(event[1]) : [event])
 
 export const proof = {
+    manyReadEvents: () => {
+        const count = 20_000
+        const module = parsed(`const value=1;export default [${Array.from({ length: count }, () => 'value').join(',')}];`)
+        assertEq(module.scope.events.length, count + 1)
+        assertEq(module.bindings.length, 1)
+        const fact = module.bindings[0]
+        assertEq(fact.isMutable, false)
+        assertEq(fact.capturedBy.length, 0)
+        assertStructurallySame(module.scope.events[0], ['initialize', fact.id])
+        for (const event of module.scope.events.slice(1)) {
+            assertEq(event[0], 'read')
+            assertEq(event[1], fact.id)
+        }
+    },
+    traceOrder: () => {
+        const module = parsed('const value=1;export default [value,()=>value,value];')
+        const id = module.bindings[0].id
+        const child = module.scope.events[2]
+        assert(child[0] === 'function')
+        assertEq(child[1].target.index, 3)
+        assertStructurallySame(module.scope.events, [
+            ['initialize', id], ['read', id], ['function', child[1]], ['read', id],
+        ])
+        assertStructurallySame(child[1].events, [['read', id]])
+        assertStructurallySame(Object.keys(module.scope).toSorted(), ['bindings', 'events', 'target'])
+        assertStructurallySame(Object.keys(child[1]).toSorted(), ['bindings', 'events', 'target'])
+    },
     foldedAliases: () => {
         const module = parsed('const original=1; const alias=original; export default ()=>alias;')
         const original = named(module, 'original')

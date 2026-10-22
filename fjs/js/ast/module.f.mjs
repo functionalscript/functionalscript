@@ -49,12 +49,29 @@ export const analyzeBindings = root => {
         }
         pending = rest
     }
-    const orderedReferences = toArray(reverse(references))
-    return toArray(declarations).map(({ id, owner }) => ({
-        id,
-        isMutable: orderedReferences.some(reference => reference.id === id && reference.write),
-        capturedBy: [...new Set(orderedReferences.filter(reference => reference.id === id && reference.scope !== owner).map(reference => reference.scope))],
-    }))
+    const ordered = toArray(declarations)
+    const positions = new Map(ordered.map(({ id }, position) => [id, position]))
+    // Stable grouping keeps each binding's source reference order. References
+    // to declarations outside this scope sort after every declaration here.
+    const grouped = toArray(reverse(references)).map(reference => ({
+        ...reference, position: positions.get(reference.id) ?? ordered.length,
+    })).toSorted((a, b) => a.position - b.position)
+    let cursor = 0
+    /** @type {List<Binding>} */
+    let facts = null
+    for (const [position, { id, owner }] of ordered.entries()) {
+        let isMutable = false
+        /** @type {List<FunctionTarget>} */
+        let captures = null
+        while (cursor < grouped.length && grouped[cursor].position === position) {
+            const reference = grouped[cursor]
+            isMutable = isMutable || reference.write
+            if (reference.scope !== owner) { captures = { first: reference.scope, tail: captures } }
+            cursor += 1
+        }
+        facts = { first: { id, isMutable, capturedBy: [...new Set(toArray(reverse(captures)))] }, tail: facts }
+    }
+    return toArray(reverse(facts))
 }
 
 /**
