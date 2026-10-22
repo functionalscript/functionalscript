@@ -9,6 +9,7 @@
  * @import { Add } from './level/hash/types.ts'
  * @import { Id } from './id/types.ts'
  * @import { InternalState } from '../types/patricia_trie/types.ts'
+ * @import { List } from '../types/list/types.ts'
  * @import { EncodeState, Encode } from './types.ts'
  * @import { EncodeState as LiteralEncodeState, PipelineState } from './level/literal/types.ts'
  */
@@ -16,6 +17,7 @@
 import { emptyPipelineState, levels } from './level/literal/module.f.mjs'
 import { encode as hashEncode } from './level/hash/module.f.mjs'
 import { level3Id } from './id/module.f.mjs'
+import { toArray } from '../types/list/module.f.mjs'
 
 /**
  * `ps` with literal level `i`'s state replaced.
@@ -103,13 +105,18 @@ export const encode =
          * @type {Encode<S>['endWithHeights']}
          */
         const endWithHeights = state => {
-            /** @type {(bit: bigint, s: EncodeState<S>, heights: readonly number[]) => readonly [readonly number[], Id]} */
-            const pad = (bit, s, heights) => {
-                const [height, id, next] = bitStep(bit, s)
-                const hs = [...heights, height]
-                return id === undefined ? pad(0n, next, hs) : [hs, id]
+            // A loop, not a recursion: the padding can run to thousands of
+            // bits, and a frame per bit overflows the stack. The heights are
+            // kept newest first as a list, so each bit adds one node rather
+            // than copying every height before it.
+            let [height, id, s] = bitStep(1n, state)
+            /** @type {List<number>} */
+            let reversed = { first: height, tail: null }
+            while (id === undefined) {
+                [height, id, s] = bitStep(0n, s)
+                reversed = { first: height, tail: reversed }
             }
-            return pad(1n, state, [])
+            return [toArray(reversed).toReversed(), id]
         }
 
         return {

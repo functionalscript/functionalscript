@@ -91,6 +91,16 @@ export const proof = {
         assert(log.every(([l, r, m, isSymbol]) => !isSymbol || m === compress(l, r)))
     },
 
+    // Padding can run to thousands of bits — 20,000 zeros take more than
+    // 20,000 — and `end` pads in a loop, so the stack does not grow with it.
+    longPadding: () => {
+        const { push, end, endWithHeights } = encode(() => null)
+        const state = zeros(20_000).reduce((s, b) => push(b, s), emptyEncodeState(null))
+        const [heights, root] = endWithHeights(state)
+        assert(heights.length > 20_000)
+        assertEq(root, end(state))
+    },
+
     /**
      * **Each bit's height is how many levels close a word on it.** `Hi` is
      * `01 00 100 00 11 01 00 1·1` in L1, its L2 words end on its 7th and
