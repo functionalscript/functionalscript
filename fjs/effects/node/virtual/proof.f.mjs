@@ -10,6 +10,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assertIoMessage } from '../../testlib.f.js'
 import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.mjs'
@@ -187,15 +188,6 @@ const pulled = one => one[0] === 'error'
 const assertIoCode = (e, code) => {
     assert(e[0] === 'ioError', e)
     assertEq(e[1].code, code)
-}
-
-/**
- * Asserts that a channel error is a host failure carrying `message`.
- * @type {(e: IoChannel, message: string) => void}
- */
-const assertIoMessage = (e, message) => {
-    assert(e[0] === 'ioError', e)
-    assertEq(e[1].message, message)
 }
 
 /** @type {(name: string) => (parent: string | null) => import('../types.ts').IoResult<import('../types.ts').FileModule>} */
