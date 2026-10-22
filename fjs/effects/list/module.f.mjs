@@ -7,10 +7,13 @@
  *
  * @import { Operation } from "../types.ts"
  * @import { Effect } from "../types.ts"
+ * @import { List } from "../../types/list/types.ts"
  * @import { EffectList, Next } from "./types.ts"
  */
 
 import { pureOk } from "../module.f.mjs"
+import { next } from "../../types/list/module.f.mjs"
+import { ok } from "../../types/result/module.f.js"
 
 /**
  * The empty `EffectList`: a pure end-of-stream marker (`undefined`).
@@ -37,3 +40,25 @@ export const empty = () =>
  */
 export const nonEmpty = (first, tail) =>
     pureOk({ first, tail })
+
+/**
+ * A strict list as a stream: one pure cell per item, each made as the
+ * consumer reaches it, so a list longer than an array would hold is streamed
+ * as it is and never built whole. Pure cells issue no command, which is
+ * what lets a producer that already has its bytes — a blob read out of a
+ * Git object — answer the `EffectList` a consumer of `Cas<O>.read` expects.
+ *
+ * @template {Operation} O
+ * @template T
+ * @template E
+ * @param {List<T>} list
+ * @returns {Effect<O, Next<O, T, E>, E>}
+ */
+export const fromList = list => {
+    /** @type {(l: List<T>) => Effect<O, Next<O, T, E>, E>} */
+    const cells = l => () => {
+        const n = next(l)
+        return ok(n === null ? undefined : { first: n.first, tail: cells(n.tail) })
+    }
+    return cells(list)
+}
