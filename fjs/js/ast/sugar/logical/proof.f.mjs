@@ -13,7 +13,7 @@ import { memo } from '../../../../edag/memo/module.f.mjs'
 import { toData } from '../../../../edag/value/to_unknown/module.f.mjs'
 import { parse } from '../../../../compiler/source/module.f.mjs'
 import { normalize } from '../module.f.mjs'
-import { logicalValue } from './module.f.mjs'
+import { logicalValue } from './module.f.js'
 
 /** @type {(value: Value) => Block} */
 const yielded = value => ({ statements: [], exit: ['yield', [value]] })

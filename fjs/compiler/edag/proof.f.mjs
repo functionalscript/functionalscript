@@ -33,7 +33,7 @@ import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStruct
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { fromFast } from '../../edag/from_fast/module.f.mjs'
-import { logicalValue } from '../../js/ast/sugar/logical/module.f.mjs'
+import { logicalValue } from '../../js/ast/sugar/logical/module.f.js'
 
 /**
  * `exp`'s shape, asserted to be a node rather than a value drawn inline.

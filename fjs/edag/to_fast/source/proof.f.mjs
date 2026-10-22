@@ -7,7 +7,7 @@
  * @import { Block, Value } from '../../../js/ast/types.ts'
  */
 
-import { conditional } from '../../testlib.f.mjs'
+import { conditional } from '../../testlib.f.js'
 import { assertEq, assertOk } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.mjs'
 import { fromAnalysis } from '../module.f.mjs'

@@ -17,7 +17,7 @@ import { ok, unwrap } from '../../types/result/module.f.js'
 import { bindingLine, braced, expExpr, expExprTagged, holdsFunction, needsRuntime, nodeExpr, readsArgs, readsFrame, readsSelf, restLine, scope, scopeTagged, statementsOf, useLines, useLinesTagged, helperExpr } from './module.f.mjs'
 import { fromTagged, toText, untagged } from '../../text/marked/module.f.mjs'
 import { unmarkedWords } from './unmarked/module.f.js'
-import { conditional } from '../testlib.f.mjs'
+import { conditional } from '../testlib.f.js'
 
 /** A node as a value in a scope whose runtime value is `runtime`, a compiled module's. @type {(e: Exp) => string} */
 const printed = e => {

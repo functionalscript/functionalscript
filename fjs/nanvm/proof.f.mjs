@@ -50,7 +50,7 @@ import {
     valueExp,
     valuesExp,
 } from './module.f.mjs'
-import { conditional } from '../edag/testlib.f.mjs'
+import { conditional } from '../edag/testlib.f.js'
 
 const { fromEntries, is } = Object
 

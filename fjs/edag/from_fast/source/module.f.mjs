@@ -7,7 +7,7 @@
  * @import { LogicalTag } from '../../../js/ast/sugar/source.ts'
  */
 
-import { logicalValue } from '../../../js/ast/sugar/logical/module.f.mjs'
+import { logicalValue } from '../../../js/ast/sugar/logical/module.f.js'
 import { fromFast } from '../module.f.mjs'
 
 /** Source logical selection as canonical conditionals, retaining operand identities. @type {(tag: LogicalTag, left: Exp, right: Exp) => Exp} */

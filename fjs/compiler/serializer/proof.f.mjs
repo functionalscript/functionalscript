@@ -17,7 +17,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { conditional } from '../../edag/testlib.f.mjs'
+import { conditional } from '../../edag/testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'

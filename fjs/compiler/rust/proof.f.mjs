@@ -17,7 +17,7 @@ import { parse } from '../transpiler/module.f.mjs'
 import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { conditional } from '../../edag/testlib.f.mjs'
+import { conditional } from '../../edag/testlib.f.js'
 
 /** The shared examples the Rust output refuses: the two the front end does, and the imports it has no file set for. */
 const refusedByRust = ['An import', 'A named import and a call', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error']

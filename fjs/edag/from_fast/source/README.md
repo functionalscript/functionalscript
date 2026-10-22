@@ -2,7 +2,7 @@
 
 `logicalExp(tag, left, right)` lets a producer label a source or native
 `&&`, `||` or `??` case while constructing a canonical conditional graph.
-It delegates the choice to the shared [source FAST sugar](../../../js/ast/sugar/logical/module.f.mjs)
+It delegates the choice to the shared [source FAST sugar](../../../js/ast/sugar/logical/module.f.js)
 and constructs the graph through [`fromFast`](../README.md).
 
 The operands enter once as external binding identities. Their existing graph

@@ -8,7 +8,7 @@
  * @import { Exp } from '../../../edag/types.ts'
  */
 
-import { conditional } from '../../../edag/testlib.f.mjs'
+import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
 

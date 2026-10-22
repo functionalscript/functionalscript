@@ -1,7 +1,7 @@
 /** Source/native labels construct canonical graphs without copying operands. */
 
 import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
-import { conditional } from '../../testlib.f.mjs'
+import { conditional } from '../../testlib.f.js'
 import { logicalExp } from './module.f.mjs'
 
 export const proof = {
