@@ -1,20 +1,20 @@
 /**
- * Helpers shared by the proofs of the schemas pages: each page's proof names
+ * Helpers shared by the proofs of the guide's pages: each page's proof names
  * its lessons and the verdicts its text promises, and these do the checking.
  *
  * @module
  *
- * @import { Demo, DemoEvent } from '../../../website/demo/types.ts'
- * @import { DemoExample, DemoState, Type } from '../../types.ts'
- * @import { Unknown } from '../../ts/types.ts'
+ * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
+ * @import { DemoExample, DemoState, Type } from '../types.ts'
+ * @import { Unknown } from '../ts/types.ts'
  */
 
-import { assert, assertEq } from '../../../asserts/module.f.js'
-import { htmlToString } from '../../../media/html/module.f.mjs'
-import { _readersOf } from '../../schema-demo/module.f.mjs'
-import { parse } from '../../parse/module.f.mjs'
-import { validate } from '../../validate/module.f.mjs'
-import { toData, validate as dataValidate } from '../../data/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { _readersOf } from '../schema-demo/module.f.mjs'
+import { parse } from '../parse/module.f.mjs'
+import { validate } from '../validate/module.f.mjs'
+import { toData, validate as dataValidate } from '../data/module.f.mjs'
 
 /**
  * What both readers make of a lesson's value against each of its schemas:

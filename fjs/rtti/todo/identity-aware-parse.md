@@ -55,7 +55,7 @@ out[0] === shared     // false — neither output equals the original either
 config file, a protocol frame. Nothing in that domain treats `a === a` as part of the
 data's meaning — two structurally equal values are just two equal values, and rebuilding
 fresh containers is what makes `parse` a safe reader of untrusted, possibly-aliased
-input in the first place (see `../README.md`, "The two schema-form readers").
+input in the first place (see [`parse` and `validate`](../guide/readers/parse-and-validate/README.md)).
 
 #### `validate`'s cycle-unsafety
 
@@ -137,4 +137,4 @@ generic engine or as an edag-specific layer on top — isn't decided yet.
 - [`../parse/module.f.mjs`](../parse/module.f.mjs) — today's identity-oblivious reader.
 - [`../validate/module.f.mjs`](../validate/module.f.mjs) — today's non-memoizing,
   cycle-unsafe reader.
-- [`../README.md`](../README.md) — "The two schema-form readers."
+- [`parse` and `validate`](../guide/readers/parse-and-validate/README.md) — the two schema-form readers.

@@ -7,6 +7,21 @@ skeletons `readerOf` instantiates for both readers. Its module comment lists
 each export. What a schema *means* is in [the guide](../guide/README.md); this
 page keeps the implementation notes behind some of the guide's rules.
 
+## One kernel, two readers
+
+`validate` is not a `parse` whose result is thrown away. The two share the
+kernel rather than the pass: `visit` for schema recognition, `orVisit`, the
+primitive checks, and the container skeletons — `containerRead`,
+`constContainerRead` and `restContainerRead`, one per container shape. Each
+skeleton states its shape's read order once, and `readerOf` instantiates them
+for every container kind once, so the two readers read a container in the same
+order, and with the same shapes, by construction. What differs is what each
+passes to `readerOf`: what it collects of the members — nothing for
+`validate`, the parsed members for `parse` — and what it builds of each
+container kind. The data form's `validate` ([`data`](../data/module.f.mjs)) is
+the same shape over `Data`, and [`validate/proof.f.mjs`](../validate/proof.f.mjs)
+pins the acceptance agreement of all three as a table so they cannot drift.
+
 ## Reading a tuple schema
 
 A `Tuple` schema is read by **length**, so a hole in the schema is a declared
@@ -43,7 +58,7 @@ index range and held every readable index, inherited ones included, to the
 schema. Together with a presence re-check, that cost roughly 40% of validation
 time on a graph of small containers, to defend against values FunctionalScript
 cannot build ([what the readers assume of a
-value](../README.md#what-the-readers-assume-of-a-value)). An index at or above
+value](../guide/readers/assumptions/README.md)). An index at or above
 `length` is not answered either, on any reader.
 
 A *declared* member's presence is asked with `in` (HasProperty), because

@@ -17,7 +17,8 @@ corresponds to, and the module that implements it.
 
 `●` has a demo of its own, a lesson the page owns run through
 [`schemaDemo`](../schema-demo/module.f.mjs), the machinery behind the module
-page's demo; `◌` is planned and has a `todo/`. The areas not linked yet are
+page's demo; `○` has none, and says why; `◌` is planned and has a
+`todo/`. The areas not linked yet are
 still sections of [the RTTI README](../README.md), and move here one area at a
 time ([the plan](../todo/rtti-guide.md)).
 
@@ -32,7 +33,9 @@ time ([the plan](../todo/rtti-guide.md)).
   - `●` [recursion and sharing](./schemas/recursion/README.md)
   - `◌` [function types](../todo/668-rtti-function-types.md)
   - `◌` [excluded string values](../todo/excluded-string-values.md)
-- Readers: `parse` and `validate`, the error shape, what the readers assume of
-  a value
+- [Readers](./readers/README.md): reading a value against a schema
+  - `●` [`parse` and `validate`](./readers/parse-and-validate/README.md)
+  - `●` [errors](./readers/errors/README.md)
+  - `○` [what the readers assume of a value](./readers/assumptions/README.md)
 - Outputs: the TypeScript type, JSON Schema, the canonical data form
 - In the project: the schemas the repository itself declares

@@ -1,6 +1,6 @@
 import { assert } from '../../../../asserts/module.f.js'
 import { array, number, or, record, string } from '../../../module.f.mjs'
-import { admits, drawsFirst, verdicts as verdictsOf } from '../testlib.f.mjs'
+import { admits, drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.mjs'
 import { demo } from './demo.f.mjs'
 

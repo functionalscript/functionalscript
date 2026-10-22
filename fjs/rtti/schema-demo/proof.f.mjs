@@ -127,7 +127,8 @@ const demoProof = /** @type {const} */ ({
             const html = page('Recursion')
             for (const e of examples) { assert(html.includes(`>${e.name}</option>`), e.name) }
             assert(html.includes('<option value="Recursion" selected="">'), html)
-            assert(html.includes('<optgroup label="Lessons"><option value="Closed vs open">'), html)
+            assert(html.includes('<optgroup label="Schemas"><option value="Closed vs open">'), html)
+            assert(html.includes('<optgroup label="Readers"><option value="Built or handed back">'), html)
             assert(html.includes('<optgroup label="Used in this project"><option value="JSON-RPC request">'), html)
         },
         // A project schema shows where it comes from as the import a user of

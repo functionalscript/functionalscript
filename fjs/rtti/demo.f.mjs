@@ -14,16 +14,16 @@
  * back the shared value it was given while `parse` builds a copy per use. The
  * results are written back as DataJS by the same codec.
  *
- * **Lessons, then the project's own schemas.** The drop-down has two groups.
- * The lessons are schemas written to show one rule each, every one owned by
- * the guide page that explains the rule and shown on that page too. The
- * others are schemas the project itself uses, imported from the modules that
- * declare them, each with a value it accepts.
+ * **Lessons, then the project's own schemas.** The drop-down has a group of
+ * lessons for each area of the guide — schemas written to show one rule each,
+ * every one owned by the guide page that explains the rule and shown on that
+ * page too — and then one more group, of schemas the project itself uses,
+ * imported from the modules that declare them, each with a value it accepts.
  *
  * **One schema, or two where the difference is the lesson.** A lesson shows
- * a single schema or a pair. A pair shows both
- * schemas, each a block with a radio dot, and the reader picks one while the
- * value stays put, so the one thing that changes is the schema. The schemas'
+ * a single schema or a pair. A pair shows both schemas, each a block with a
+ * radio dot, and the reader picks one while the value stays put, so the one
+ * thing that changes is the schema. The schemas'
  * own code tells them apart, so they carry no names.
  *
  * **The graph is the schema as written**, walked by
@@ -68,6 +68,7 @@
  */
 
 import { lessons as schemaLessons } from './guide/schemas/module.f.mjs'
+import { lessons as readerLessons } from './guide/readers/module.f.mjs'
 import { schemaDemo } from './schema-demo/module.f.mjs'
 import { request } from '../protocol/json_rpc/module.f.mjs'
 import { tool } from '../protocol/mcp/module.f.mjs'
@@ -87,12 +88,13 @@ import { fundingSchema } from '../website/funding/module.f.mjs'
 
 /**
  * The lessons: schemas written to show one rule each, every one owned by the
- * guide page that explains its rule
- * ([`guide/schemas`](./guide/schemas/module.f.mjs)).
+ * guide page that explains its rule, one group per area of the guide
+ * ([`guide/schemas`](./guide/schemas/module.f.mjs),
+ * [`guide/readers`](./guide/readers/module.f.mjs)).
  *
  * @type {readonly DemoExample[]}
  */
-export const lessons = schemaLessons
+export const lessons = [...schemaLessons, ...readerLessons]
 
 /**
  * A schema the project itself declares, shown as the import of its export
@@ -210,7 +212,11 @@ export const projectSchemas = [
 export const examples = [...lessons, ...projectSchemas]
 
 /**
- * The module page's demo: every example, the lessons and then the schemas
- * the project uses, in a group each.
+ * The module page's demo: every example, the lessons of each area of the
+ * guide and then the schemas the project uses, in a group each.
  */
-export const demo = schemaDemo([['Lessons', lessons], ['Used in this project', projectSchemas]])
+export const demo = schemaDemo([
+    ['Schemas', schemaLessons],
+    ['Readers', readerLessons],
+    ['Used in this project', projectSchemas],
+])

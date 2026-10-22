@@ -89,7 +89,7 @@ or an index at or above `length`, is not one of them, so a closed schema does
 not reject it and a `rest` does not check it. A DataJS value inherits no
 members, so for the values the readers are written for the two readings agree
 ([what the readers assume of a
-value](../../../README.md#what-the-readers-assume-of-a-value)); a foreign
+value](../../readers/assumptions/README.md)); a foreign
 value is converted to DataJS at the host boundary before it reaches a reader.
 
 ## Examples

@@ -120,7 +120,7 @@ siblings there are single data structures and type-level helpers.
 - `validate/module.f.mjs` — runtime validation: `validate(schema)(value)`
   returns the *original* value on success. Same acceptance as `parse`, so the
   two differ only in what a success carries — see
-  [The two schema-form readers](#the-two-schema-form-readers)
+  [`parse` and `validate`](./guide/readers/parse-and-validate/README.md)
 - `data/module.f.mjs` — the serializable data form: `toData(schema)` converts a
   thunk-form schema into a function-free, canonical representation with `cmp`,
   `equal`, `subset`, and a data-driven `validate` (see `data/README.md`)
@@ -131,79 +131,9 @@ siblings there are single data structures and type-level helpers.
   examples it offers: the module page's demo and every guide page's demo are
   this one function of their lessons
 
-## The two schema-form readers
+## Readers
 
-Both walk a `Type` against an unknown value, both accept exactly the same
-values, and both report the same `{ path, message }` on failure. They differ in
-what a success carries:
-
-| | `parse` | `validate` |
-| --- | --- | --- |
-| result on success | a freshly constructed value | the value it was given |
-| undeclared member (where admitted) | accepted, absent from the result | accepted, still there |
-| absent optional member | still absent | still absent |
-| `Object.is(result, input)` | false for containers | true |
-
-```js
-const alice = { name: 'Alice', age: 30, admin: true }
-parse(open(person))(alice)     // ['ok', { name: 'Alice', age: 30 }]
-validate(open(person))(alice)  // ['ok', alice] — the same object, `admin` included
-```
-
-`parse` is the reader for a value coming *in* — from JSON, from a protocol
-frame — where a value built to the schema is what the caller wants next, and
-where dropping what the schema does not name is a feature.
-
-`validate` is the reader for a value the caller already holds and must keep. A
-content-addressed document is the clear case: its bytes are its identity, so a
-reconstruction is a different document under a different hash, and "the payer
-did not report this figure" (absent) is not "the payer reported nothing here"
-(present, `undefined`). Answering "is this a `T`?" must not edit the thing
-being asked about. Against an `open` schema, `validate` also lets a consumer
-check the part it understands without discarding the part it does not.
-
-Neither is more fundamental than the other; `validate` is not a `parse` whose
-result is thrown away. It shares the kernel rather than the pass: `visit` for
-schema recognition, `orVisit`, the primitive checks, and the container
-skeletons — `containerRead`, `constContainerRead` and `restContainerRead` in
-`common`, one per container shape. Each skeleton states its shape's read order
-once, and `readerOf` in `common` instantiates them for every container kind
-once, so the two readers read a container in the same order, and with the same
-shapes, by construction. What differs is what each passes to `readerOf`: what
-it collects of the members — nothing for `validate`, the parsed members for
-`parse` — and what it builds of each container kind. The data form's `validate`
-(`data/module.f.mjs`) is the same shape over `Data`, and `validate/proof.f.mjs`
-pins the acceptance agreement of all three as a table so they cannot drift.
-
-For reading a value straight from JSON text against a schema, see
-[`../media/json/todo/rtti-parse.md`](../media/json/todo/rtti-parse.md) —
-one pass, no intermediate value, and it can reject `1.00000000000000001`
-against a `bigint`, which no reader over an already-materialized value can do.
-
-## What the readers assume of a value
-
-The readers are written for **DataJS values**: plain arrays and objects of
-primitives, the values FunctionalScript itself can build. Reading a member of
-one of those has no effect, and every guarantee the readers make rests on that.
-
-This is the language's assumption, not one the readers add. `fjs/AGENTS.md`
-§3.1 "One realm, one prototype chain" says a value an `.f.mjs` function sees
-was built by this realm's constructors, and §1.6 says the readers are not
-proven against anything else. A value carrying a getter, a `Proxy` trap or a
-replaced prototype is not such a value, and keeping one from reaching a reader
-is the host boundary's job — the thin `.mjs` that converts a foreign value
-before any `.f.mjs` sees it — not a defence each reader re-implements.
-
-So the readers ask each question once and trust the answer: a container's
-shape is settled before its members are read, a tuple's positions are its own
-indices below `length`, and nothing is re-asked afterwards. Defending against
-values the language cannot produce cost speed on every value it can — the
-prototype-chain walk for inherited indices and the presence re-check together
-accounted for roughly 40% of validation time on a graph of small containers.
-
-What holds for any DataJS value: a reader returns a `Result` rather than throwing,
-the three readers agree, and `validate` hands back the value it was given
-rather than a reconstruction. A caller holding genuinely untrusted JavaScript
-should convert it to DataJS first — or parse from text, where
-[`../media/json/todo/rtti-parse.md`](../media/json/todo/rtti-parse.md) reads
-against a schema in one pass with no intermediate value at all.
+`parse` builds a value from what a schema declares, `validate` hands back the
+value it was given, and both accept exactly the same values. The
+[readers area](./guide/readers/README.md) of the guide says what each is for,
+what a refusal carries, and what the readers assume of a value.
