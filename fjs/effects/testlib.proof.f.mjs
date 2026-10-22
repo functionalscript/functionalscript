@@ -1,8 +1,6 @@
 /**
  * The proof of [`testlib.f.js`](./testlib.f.js): a host failure with the
  * message asked for passes, and anything else throws.
- *
- * @module
  */
 
 import { assertIoMessage } from './testlib.f.js'
