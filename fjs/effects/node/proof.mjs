@@ -36,7 +36,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError, pureError, pureOk, resultMapStep, resultStep, step, unreadableThrownValue } from '../module.f.mjs'
 import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
-import { byteLength, length, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, length, maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
@@ -146,7 +146,7 @@ const unalignedBytes = n => Uint8Array.from({ length: n }, (_, i) => i % 251)
  *
  * @type {(chunks: readonly Vec[]) => readonly number[]}
  */
-const chunkBytes = chunks => chunks.flatMap(v => toArray(u8ListMsb(v)))
+const chunkBytes = chunks => chunks.flatMap(v => u8ArrayMsb(v))
 
 /**
  * Asserts that two byte sequences are the same, by length and then by the first
@@ -637,7 +637,7 @@ export const proof = {
             /** @type {NodeProgram} */
             const program = () => resultMapStep(inflate(toVec(deflated(data))), r => {
                 if (r[0] === 'error') { return error(1) }
-                const out = toArray(u8ListMsb(r[1]))
+                const out = u8ArrayMsb(r[1])
                 return out.length === data.length && out.every((b, i) => b === data[i]) ? ok(0) : error(2)
             })
             assertEq(await exitCode(program), 0)
@@ -651,7 +651,7 @@ export const proof = {
             /** @type {NodeProgram} */
             const program = () => resultMapStep(inflate(u8ListToVecMsb(tagLoose)), r => {
                 if (r[0] === 'error') { return error(1) }
-                const out = toArray(u8ListMsb(r[1]))
+                const out = u8ArrayMsb(r[1])
                 return out.length === envelope.length && out.every((b, i) => b === envelope[i]) ? ok(0) : error(2)
             })
             assertEq(await exitCode(program), 0)
