@@ -57,8 +57,12 @@ parameter is a variable too, fixed or rest.
   refused rather than read another way. Two spellings say what is meant:
   a function called where it is written, `r = (() => r + 1)();`, reads
   the value of that moment in both languages and is admitted, through any
-  depth of such functions; and a **snapshot**, `const s = r; return () =>
-  s;`, holds what the capture would hold, as a `const` does. A variable
+  depth of such functions — reads alone: an assignment from inside it,
+  `(() => { r = 1; return 0; })();`, is refused the same way, since the
+  compiler inlines such a function's block with values of its own, which
+  the scope around it never sees, where JavaScript's assignment reaches the
+  variable; and a **snapshot**, `const s = r; return () => s;`, holds what
+  the capture would hold, as a `const` does. A variable
   never assigned is captured as a `const` is: a `let` nothing assigns and
   a parameter nothing assigns are a `const` by another spelling, and the
   rule is one for both.

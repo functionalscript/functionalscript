@@ -70,7 +70,10 @@ const constAssignment = foldError('assignment to const')
  * function's capture holds the value it had when the function was made, so
  * the program is refused rather than read another way — whether the
  * assignment comes before or after the reference. A function called where
- * it is written reads the value of that moment in both, and is admitted
+ * it is written reads the value of that moment in both, and is admitted;
+ * an assignment from inside it is refused all the same, at the name, since
+ * the lowering inlines the function's block with values of its own, which
+ * the scope around it never sees
  * ([spec: variables](../../../spec/bindings/variables/README.md)).
  */
 const reassignedCaptured = foldError('reassigned variable captured')
@@ -568,8 +571,9 @@ const landed = (round, stack, scope, frame, kind, value) => {
  * The target of an assignment, `name = value`, resolved before the value is
  * entered: the word, then the binding it names — a name nothing binds is
  * `const not found` — which is refused unless a variable's, a `let`'s or a
- * parameter's; and the write to it, traced in the scope with the capture it
- * is where a nested function makes it, {@link referenced}.
+ * parameter's, and refused from a nested function, held or called where it
+ * is written, {@link reassignedCaptured}; and the write to it, traced in
+ * the scope.
  *
  * @type {(scope: _Scope, name: ModuleTokenWithMetadata) => Result<readonly [_Scope, BindingId], ParseError>}
  */
@@ -578,9 +582,10 @@ const assigned = (scope, name) => {
     if (tag === 'error') { return error(word) }
     const found = resolve(scope, word)
     if (found === null) { return error(constNotFound(name)) }
-    const [, ref] = found
+    const [inner, ref, crossed] = found
     if (!ref.assignable) { return error(constAssignment(name)) }
-    return ok([traced(referenced(found, name), [['write', ref.id]]), ref.id])
+    if (crossed) { return error(reassignedCaptured(name)) }
+    return ok([traced(inner, [['write', ref.id]]), ref.id])
 }
 
 /**

@@ -354,6 +354,11 @@ export const proof = {
                 ['export default n => { let r = 0; r = 1; const f = () => r; return f; };', 'reassigned variable captured', 57],
                 ['export default n => { let r = 0; const f = () => { r = 1; return r; }; return f; };', 'reassigned variable captured', 52],
                 ['export default n => { n = 1; return () => n; };', 'reassigned variable captured', 43],
+                // a function called where it is written reads a variable, and
+                // assigns none: its block is inlined with values of its own,
+                // which the scope around it never sees, where JavaScript's
+                // assignment reaches the variable
+                ['export default () => { let r = 0; const x = (() => { r = 1; return 0; })(); return r; };', 'reassigned variable captured', 54],
                 // a variable is a name of the body as a `const` is
                 ['export default n => { x = 1; return n; };', 'const not found', 23],
                 ['export default n => { let r = r; return r; };', 'const not found', 31],
@@ -462,6 +467,7 @@ export const proof = {
                 ['export default n => { let r = 0; while (r < n) { r = ((f) => f())(() => r); } return r; };', 'reassigned variable captured', 73],
                 ['export default n => { let r = 0; while (r < n) { r = (() => () => r)()(); } return r; };', 'reassigned variable captured', 67],
                 ['export default n => { let r = 0; while (r < n) { r = (() => { const g = () => r; return g(); })(); } return r; };', 'reassigned variable captured', 79],
+                ['export default n => { let r = 0; while (r < n) { r = (() => { r = r + 1; return r; })(); } return r; };', 'reassigned variable captured', 63],
                 // the read is every enclosing function's up to the one that
                 // declares the variable: a function held as a value is
                 // refused for a read a function it calls where written makes,
