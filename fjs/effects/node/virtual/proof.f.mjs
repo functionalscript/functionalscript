@@ -16,8 +16,7 @@ import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bi
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.mjs'
 import { empty as endOfBody, nonEmpty } from '../../list/module.f.mjs'
 import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.js'
-import { byteLength, repeat, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { byteLength, repeat, u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual, virtualAt } from './module.f.mjs'
@@ -1782,8 +1781,8 @@ export const proof = {
             // By length and then by the first byte that differs: a body of
             // three hundred chunks printed whole names nothing a reader can act
             // on, where an index names where the order went wrong.
-            const got = r.body.flatMap(v => toArray(u8ListMsb(v)))
-            const sent = chunks.flatMap(v => toArray(u8ListMsb(v)))
+            const got = r.body.flatMap(v => u8ArrayMsb(v))
+            const sent = chunks.flatMap(v => u8ArrayMsb(v))
             assertEq(got.length, sent.length)
             assertEq(got.findIndex((b, i) => b !== sent[i]), -1)
             // Drained: nothing left to hand out, and the cursor is at the end.

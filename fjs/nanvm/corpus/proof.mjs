@@ -12,7 +12,7 @@ import { pureOk } from '../../effects/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
-import runtimeEdag from '../../js/runtime/gen.edag.data.mjs'
+import runtimeEdag from '../../js/runtime/gen.edag.data.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.mjs'
 

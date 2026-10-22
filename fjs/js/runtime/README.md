@@ -121,7 +121,7 @@ body, and no other pair is.
   without a body.
 
 The generator also writes the module's EDAG as
-`gen.edag.data.mjs` beside it, for the one consumer that needs the runtime
+`gen.edag.data.js` beside it, for the one consumer that needs the runtime
 as data without the compiler: the corpus proof
 [`../../nanvm/proof.f.mjs`](../../nanvm/proof.f.mjs), which runs every
 member-function case through `amnesia` with this runtime and against the
@@ -138,7 +138,7 @@ flowchart LR
     src["fjs/js/runtime/module.f.js<br/>the source"]
     compiler["fjs compile<br/>on the host engine, no runtime needed"]
     host["host function<br/>import"]
-    edag["gen.edag.data.mjs<br/>EDAG"]
+    edag["gen.edag.data.js<br/>EDAG"]
     rust["nanvm/lib/src/vm/gen.runtime.rs<br/>Rust"]
     proof["runtime proof<br/>the body on host values"]
     corpus["corpus proofs<br/>evaluate once, pass as the context's runtime"]

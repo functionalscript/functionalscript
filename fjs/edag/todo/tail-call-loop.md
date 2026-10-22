@@ -1,14 +1,14 @@
 ## Write a tail self-call as a loop
 
 **Priority:** P2
-**Status:** wip — the recognizer, the function text, the Rust output and
-the source spelling with its grammar are implemented, the grammar's
-proposal approved; common FAST migration remains
+**Status:** wip — baseline input/output and tail-loop emission use shared FAST;
+general tail-call analysis remains in F
 
-The implemented writer behavior below records the current contracts. The
-[FAST migration](#fast-migration) supersedes its writer ownership, including
-permission for writer-specific recursion decisions; it does not change the
-current implementation in this documentation-only proposal.
+The implemented writer behavior below records the historical baseline. The
+[FAST migration](#fast-migration) is complete: common conversion and preparation
+now own those decisions for every target. The shared pass contracts are
+[`edag/to_fast`](../to_fast/README.md) and
+[`js/ast/prepare`](../../js/ast/prepare/README.md).
 
 The [general loops and tail calls epic](../../todo/general-loops-and-tail-calls.md)
 requires FAST and migration of existing consumers before broader behavior.
@@ -120,7 +120,7 @@ for the same shapes, which no loop written as `let`/`while` produces:
   recursion in Rust, as in every writer;
 - a read of the rest array: each round of the recursion is a call of one
   argument, so from the second round on the array is empty
-  ([spec: parameters](../../../spec/functions/parameters.md)), and a loop
+  ([spec: parameters](../../../spec/functions/parameters/README.md)), and a loop
   that kept the first call's array would answer differently where that
   array had members;
 - a spread or a second argument as the next value. A next value that
@@ -292,14 +292,14 @@ Broader milestone F work follows under [general tail calls](#general-tail-calls)
       the graph again.
 - [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, with the grammar
-      ([spec: loops](../../../spec/control-flow/loops.md)), its proposal
+      ([spec: loops](../../../spec/control-flow/loops/README.md)), its proposal
       approved, proven by the round trip.
-- [ ] Move the implemented loop decisions and eligible call elimination to
+- [x] Move the implemented loop decisions and eligible call elimination to
       common EDAG-to-FAST conversion, with the capture and region rules above.
       Migrate consumers incrementally once the shared path preserves their
       contracts; retire each replaced graph-aware path with its consumer and
       update JSDoc/specification ownership. The completed migration has one policy.
-- [ ] Carry over the million-round, source-round-trip, closure-capture,
+- [x] Carry over the million-round, source-round-trip, closure-capture,
       shared-condition, lazy-failure, rest-read and root-assert cases. Verify
       the common FAST decision across JS and Rust, function text's invocation
       lifetimes, and the existing stack-safe cases before removing old paths.
@@ -348,7 +348,7 @@ Common output preparation must retain a complete invocation:
 - Preserve required evaluation/failures of unused extra arguments; missing
   arguments become `undefined`. Rebuild rest arrays with fresh identity.
 - Run default/destructuring setup each invocation represented by an iteration,
-  preserving the [parameter/arity contract](../../../spec/functions/parameters.md).
+  preserving the [parameter/arity contract](../../../spec/functions/parameters/README.md).
 - Preserve iteration values in captures and recreate local shared objects,
   functions and memo storage at their original lifetimes.
 
@@ -384,7 +384,7 @@ preparation; connecting the source feature later does not rewrite it.
   — FAST-first prerequisites and ordered integration gates.
 - [FAST loop construction](./fast-loop-construction.md)
   — explicit normalized loop inputs/results and root-loop identity rules.
-- [Short-circuit conditionals](./short-circuit-conditionals.md)
+- [Short-circuit conditionals](../README.md#source-logical-operators)
   — reduce canonical tail analysis to conditional and sequence forms.
 - [Compiler vocabulary and modularization](../../todo/compiler-vocabulary-and-modularization.md)
   — the common conversion owns loop lowering in the MVP.

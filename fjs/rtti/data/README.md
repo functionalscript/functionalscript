@@ -7,14 +7,14 @@ consumer actually needs it.
 
 ## Two forms, one job each
 
-1. **Thunk form** — what users construct. `or(...types)` simply captures its
-   arguments; no flattening, no deduplication, no subset analysis. Recursion
-   uses self-referencing thunks. This is the construction surface and nothing
-   more, so schemas that are built but never consumed pay nothing.
-2. **Data form** (this module) — function-free, comparable, sortable,
-   serializable. All schema algebra lives here: union normalization, coverage
-   collapse, structural equality (`equal`), inclusion (`subset`), and canonical
-   ordering (`cmp`).
+- **Thunk form** — what users construct. `or(...types)` simply captures its
+  arguments; no flattening, no deduplication, no subset analysis. Recursion
+  uses self-referencing thunks. This is the construction surface and nothing
+  more, so schemas that are built but never consumed pay nothing.
+- **Data form** (this module) — function-free, comparable, sortable,
+  serializable. All schema algebra lives here: union normalization, coverage
+  collapse, structural equality (`equal`), inclusion (`subset`), and canonical
+  ordering (`cmp`).
 
 A consequence is two readers: the thunk-direct
 [`../parse`](../parse/module.f.mjs) walks the thunk graph at dispatch time —
@@ -167,11 +167,11 @@ A bare `Tuple` schema is **closed** on all three readers, and says so here as
 `{ prefix }` with no `rest`: nothing past the prefix, so the array is at most
 `prefix.length` long — and at least as long as its last position excluding
 absence (see
-[Structs and tuples are closed](../README.md#structs-and-tuples-are-closed)).
+[Structs and tuples are closed](../guide/schemas/closed-containers/README.md)).
 `open(c)` is the thunk-form schema that widens it, converting to a `rest` of
 `unknown`, and `rest(c, R)` to that `R`; a `rest` of `never` normalizes back to
 no `rest` at all on this kind, so `rest(c, never)` and the bare `c` are one
-`Node`. See [Open containers](../README.md#open-containers).
+`Node`. See [Open containers](../guide/schemas/open-containers/README.md).
 
 ```js
 parse([42])([42, 'extra'])                       // ['error', …]

@@ -37,6 +37,6 @@ layered check is probably simpler than growing the `Type` ADT for one consumer.
   notes the gap and points here.
 - [`../../../spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
   — the prohibited-name list this would enforce.
-- [Structs and tuples are closed](../README.md#structs-and-tuples-are-closed) — the other extension to the
+- [Structs and tuples are closed](../guide/schemas/closed-containers/README.md) — the other extension to the
   `Type` ADT (exact/closed containers), for comparison: it shipped because its
   data-form mapping was worked out end to end first; this one has no mapping yet.

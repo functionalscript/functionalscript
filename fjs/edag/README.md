@@ -54,8 +54,8 @@ and `typeof`; its `binary` table supplies `===` and `!==`. Both tables
 accept evaluated values and return `Result` successes. Callers own operand
 evaluation and failure propagation.
 
-[`value/control`](value/control/module.f.mjs) adds Result-based `throw`, `&&`,
-`||`, `??` and `?:`, taking an evaluated first operand and deferring the rest
+[`value/control`](value/control/module.f.mjs) adds Result-based `throw` and
+`?:`, taking an evaluated first operand and deferring conditional arms
 with thunks. Its `sequence` helper runs deferred operands in order and returns
 the first failure or last success unchanged; an empty sequence yields tagged
 undefined. Earlier values may be discarded, but their failures still stop the
@@ -316,7 +316,7 @@ vocabularies.
 | `['rest']` | the invocation's rest array, after the fixed prefix |
 | `['self']` | the owning function itself, as a value, the same every read: recursion is `['()', ['self'], args]`, and a nested function captures its parent's `self` as a slot |
 | `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a`: its value, or `undefined` where there is none |
-| `['hasEntry']` | the `hasEntry` helper beside it, the same function but for its answer: `['()', ['hasEntry'], [a, b]]` is whether the enumerable own property is there, `true` for one holding `undefined` ([spec: entry](../../spec/property-access/entries.md)) |
+| `['hasEntry']` | the `hasEntry` helper beside it, the same function but for its answer: `['()', ['hasEntry'], [a, b]]` is whether the enumerable own property is there, `true` for one holding `undefined` ([spec: entry](../../spec/property-access/entries/README.md)) |
 | `['slice']`, `['charCodeAt']` | an intrinsic, as a value: the helper calling a member function no body defines, `(s, a, b) => s.slice(a, b)` recognized whole, a function of its helper's `length`, `3` for `slice`, capturing nothing, fresh where it is established as `entry` is, whose call `['()', ['slice'], [s, a, b]]` is the member call `s.slice(a, b)` as an executor answers it with no runtime — the receiver's own property, else the native, else the `TypeError` — so the runtime's bodies reach a native without naming what the runtime defines (`intrinsics`; [`fjs/js/intrinsic`](../js/intrinsic/module.f.js)) |
 | `['Object.is']`, `['Object.entries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` function answers for the id, `runtime.static('Object.is')`, the id a path [`fjs/js/static`](../js/static/module.f.js) admits joined by `.` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.mjs)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
@@ -328,7 +328,7 @@ vocabularies.
 | `['\|()', items[], k?]`, `['\|.', index, k?]`, `['\|?.()', items[], k?]`, `['\|!()', items[]]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` `throw` — `throw` establishes its operand and fails with it as the thrown value, so it is the one node that never has a value |
-| `[id, exp, exp]` | binary operation, `id` one of `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+| `[id, exp, exp]` | binary operation, `id` one of `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
 | `['instanceof', exp, constructor]` | instance check, `x instanceof Array`: `true` of an array, `false` of every other value, never throws; `constructor` is a *name* from a closed list — `'Array'` alone today, not an operand — since no global is a value here. A reader walking operands generically needs an arm for it, or walks the name as a string literal |
@@ -681,6 +681,49 @@ not an `exp`: the `a.b` inside `['.', a, 'b', ['|?.()', c]]` cannot be
 shared, substituted, or hashed. That is the price of expressing control flow
 that no value can carry, and it is confined to exactly the positions that
 need it.
+
+## Source logical operators
+
+Source `&&`, `||` and `??` are lowered once by
+[`js/ast/sugar/logical`](../js/ast/sugar/logical/module.f.js) to conditional
+FAST. Establish the left operand in an immutable binding `t` in its original
+execution region, or reuse its existing reference:
+
+| Source | Core value |
+| --- | --- |
+| `a && b` | `t ? b : t` |
+| `a \|\| b` | `t ? t : b` |
+| `a ?? b` | `(t === null ? true : t === undefined) ? b : t` |
+
+Every use of `t` denotes the same established value; calls, allocations and
+functions retain their identity. Only the selected right operand executes.
+The `undefined` is the primitive value even when source code shadows its name.
+Source precedence and unparenthesized mixing restrictions remain unchanged.
+Normalized FAST and canonical EDAG contain no logical tags, so evaluators,
+placement and renderers use the common conditional mechanism.
+
+Canonical EDAG rejects the former logical tags, including in separately
+supplied graphs. Repository producers use the conditional schema. This changes
+graph structure, content hashes and affected function text; it does not map an
+old CAS hash to a replacement graph. Existing blobs retain their original bytes.
+Graph documents have no legacy import adapter. The declared round-trip domain
+for unaffected graphs is unchanged, and supported conditional conversions
+stabilize without accumulating bindings or wrappers.
+
+The migration deliberately adds nodes for nullish selection. Representative
+two-parameter functions, measured before and after the schema change, have:
+
+| Source body | Unique graph nodes, before → after | Source output bytes, before → after |
+| --- | --- | --- |
+| `a && b` | 4 → 4 | 31 → 33 |
+| `a \|\| b` | 4 → 4 | 31 → 33 |
+| `a ?? b` | 4 → 8 | 31 → 62 |
+| `f() ?? g()` | 6 → 10 | 35 → 88 |
+
+Counts include the function node and invocation-binding reads. Output counts
+include `export default` and the trailing semicolon. The final example binds
+`f()` once and reuses that value in both nullish tests and the selected result.
+No new optimizer is required by this lowering.
 
 ## Caveats
 

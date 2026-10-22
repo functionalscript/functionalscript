@@ -106,7 +106,7 @@ logical/nullish operators and parameter syntax, which have since landed. The
 and expressions have already been recognized correctly.**
 
 The former `entry` design, since landed as
-[the helper](../spec/property-access/entries.md), proposed a fixed token
+[the helper](../spec/property-access/entries/README.md), proposed a fixed token
 shape that could bypass syntactic support for the constructs inside it.
 Ignoring whitespace before statement recognition is the root problem, not a
 missing newline exception in one intrinsic. This whitespace-only change to the
@@ -205,7 +205,7 @@ result of the program, so the `.js` writer's names — a hoisted function
 bound as `$0`, an inlined one taking the name of the position it is written
 in — are no compatibility question, and neither is the function text the
 exception above covers. No FJS program reads a function's name at all:
-[`entry`](../spec/property-access/entries.md) replaced the own-property read with
+[`entry`](../spec/property-access/entries/README.md) replaced the own-property read with
 the enumerable-entry helper so that it cannot — `person.name` is enumerable
 where `f.name` and `f.length` are not — and retired the proposals that would
 have exposed it, `own-access.md` and `function-name.md`, in `4f4da828`;
@@ -222,7 +222,7 @@ it.
 
 **Decision:** prohibit `Object.hasOwn` in FJS source rather than redefine it
 as an enumerability test. Presence is the
-[`hasEntry` helper](../spec/property-access/entries.md)'s to answer, beside
+[`hasEntry` helper](../spec/property-access/entries/README.md)'s to answer, beside
 `entry`, which reads the value:
 
 ```js
@@ -239,7 +239,7 @@ records that API choice rather than silently deciding it.
 The old `hasOwn` proposal already required extending or refusing unsupported
 receivers rather than returning a fabricated boolean. Its enumerability
 redefinition came with the `entry` helper
-([spec: entry](../spec/property-access/entries.md)), not from
+([spec: entry](../spec/property-access/entries/README.md)), not from
 that receiver rule. The new
 direction retires standard-call recognition and its unresolved undefined-value
 answer instead of requiring an implementation of it.

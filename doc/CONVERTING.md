@@ -65,7 +65,7 @@ key an **object literal defines**, `{ [k]: v }`, and a key an **access reads**,
 
 An object literal takes any value between its brackets, converted as
 JavaScript converts it
-([property keys](../spec/values/objects.md#property-keys)): `{ [k]: 1 }`,
+([property keys](../spec/values/objects/README.md#property-keys)): `{ [k]: 1 }`,
 `{ [k + 'b']: 2 }` and `{ [i]: 3 }` are all in the language and need no
 change. A constant string in brackets is the constant key, `{ ["a"]: 1 }` is
 `{ a: 1 }`, and `{ [0]: 1 }` is `{ "0": 1 }`.
@@ -119,7 +119,7 @@ name, so a converted key is never refused as one.
 
 **Anything else — a member of an object by a string, or a key of unknown
 type:** read it with the `entry` helper
-([reading an entry at run time](../spec/property-access/entries.md)).
+([reading an entry at run time](../spec/property-access/entries/README.md)).
 Its implementation is
 [`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js), an
 authored `.f.js` the compiler accepts, and the import below is the whole of
@@ -174,7 +174,7 @@ source text: `a[-0]` is `a["0"]`, since `-0` converts to `"0"`, and
 refused too; drop the group.
 
 The `Number(...)` form applies to an optional access alike, `a?.[Number(i)]`
-([optional chaining](../spec/property-access/optional-chaining.md)), and to a call
+([optional chaining](../spec/property-access/optional-chaining/README.md)), and to a call
 through the access, `a[Number(i)](x)`, which calls what it reads with `a` as
 the receiver, as `a[0](x)` does. The `entry` form has no optional spelling:
 `a?.[k]` is `undefined` where `a` is `null` or `undefined`, and `entry(a, k)`
@@ -207,7 +207,7 @@ on `undefined` where the chain read nothing, and throw where it returned.
 
 `Number.isInteger` is admitted, with `Number.isSafeInteger`,
 `Number.isNaN` and `Number.isFinite`
-([built-in static functions](../spec/built-ins/static-functions.md)),
+([built-in static functions](../spec/built-ins/static-functions/README.md)),
 so a module keeps each as written: the call, the function as a value, and
 the destructuring `const { isInteger } = Number` alike. Nothing is
 converted, and nothing is imported in its place: each body is the
@@ -288,7 +288,7 @@ checked, not rewritten.
 ## 6. `Object.is` and `Object.entries`
 
 `Object.is` is admitted
-([built-in static functions](../spec/built-ins/static-functions.md)),
+([built-in static functions](../spec/built-ins/static-functions/README.md)),
 so a module keeps it as written: the call `Object.is(a, b)`, the function
 as a value, and the destructuring `const { is } = Object` alike, which is
 sugar for `const is = Object.is`. Nothing is converted.
@@ -331,7 +331,7 @@ each pair.
 
 A block body ends in a terminating statement, a `return` or a `throw`, and
 every statement before it is a `const` or a guard
-([bodies and guards](../spec/control-flow/guards.md)). JavaScript lets
+([bodies and guards](../spec/control-flow/guards/README.md)). JavaScript lets
 a body run off its closing brace and answers `undefined`; the compiler
 refuses to infer that return, and reports the brace (`unexpected token`).
 The rewrite spells the value JavaScript supplied:
@@ -386,7 +386,7 @@ const twoPow = exp => 1n << bigint(exp)   // accepted
 `bigint(n)` is the bigint with the value of `n`, exact at every magnitude:
 the lowest bit of an integral double is `n % 2`, the bits above it are
 those of `(n - n % 2) / 2`, both exact, and a `let`/`while` loop over one
-variable ([loops](../spec/control-flow/loops.md)) reads them one per round, at
+variable ([loops](../spec/control-flow/loops/README.md)) reads them one per round, at
 most 1024 for the largest double. `-0` gives `0n`, as
 `BigInt(-0)` does. A fraction, `NaN` or an infinity has no bigint:
 `BigInt` throws a `RangeError` on it, and `bigint` throws too
@@ -469,7 +469,7 @@ the `Set` was linear, the optimization the module drops with it.
 
 A call written as a statement, `assert(a > 0);`, converts as written: it is a
 call statement, evaluated where it stands and its value discarded
-([call statements](../spec/functions/call-statements.md)). Such a call is made
+([call statements](../spec/functions/call-statements/README.md)). Such a call is made
 for the one thing a discarded call can do in a pure language, fail, and the
 statement keeps its place among the others, so a converted module throws the
 error it threw before.
@@ -480,7 +480,7 @@ statement before; the call goes into the statement directly after it, or a
 `const` holds it, `const r = (0, o.f)(x);`. A statement that is no call,
 `a.b;`, made only for the read's failure, is spelled as a `const` or as a comma
 operand. Where no statement can stand, in an expression body, the comma
-operator is the spelling ([comma](../spec/operators/comma.md)):
+operator is the spelling ([comma](../spec/operators/comma/README.md)):
 
 ```js
 const ok = r => (assert(r[0] === 'ok', r), r[1])
