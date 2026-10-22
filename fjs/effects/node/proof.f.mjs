@@ -18,6 +18,7 @@ import { create as memCreate, read as memRead, write as memWrite } from "../memo
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual, virtualAt } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assertIoMessage } from '../testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { toArray } from '../../types/list/module.f.mjs'
 import { min } from '../../types/number/min/module.f.js'
@@ -34,17 +35,6 @@ const readHelloMap = {
 }
 
 const readHello = match(readHelloMap)
-
-/**
- * Asserts that a channel error is a host failure carrying `message`. Every
- * runner reports through the same normalized {@link IoError}, so a proof
- * against the virtual filesystem names the message rather than the shape.
- * @type {(e: IoChannel, message: string) => void}
- */
-const assertIoMessage = (e, message) => {
-    assert(e[0] === 'ioError', e)
-    assertEq(e[1].message, message)
-}
 
 /** `n` zero bytes as a `Vec`.
  * @type {(n: number) => Vec} */
