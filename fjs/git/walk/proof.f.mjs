@@ -13,6 +13,7 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
@@ -297,7 +298,7 @@ const idOf = /** @type {(k: number) => Oid} */ (k => idAt(hexOf(k)))
 const wideId = idAt('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')
 
 /** The 40 hex digits a number spells, as an id is written. */
-const hexOf = /** @type {(k: number) => string} */ (k => k.toString(16).padStart(40, '0'))
+const hexOf = encodeScalar(40)
 
 /** A tag naming an id, declaring a type for it, as the format writes one. */
 const tagAt = /** @type {(target: string, type: ObjectType) => Bytes} */ ((target, type) =>
