@@ -176,6 +176,8 @@ export const proof = {
         const first = text(view([1, -1])(init))
         assert(first.includes('Loading…'))
         assert(first.includes('with 1, then -1'))
+        // The verdict first, as on a refused or undecided page.
+        assert(first.includes('In FunctionalScript'))
         assert(!first.includes('startup'))
         // Loaded: the graph, drawn and as text, and the Rust and the WAT.
         const shown = text(view([1, -1])(perform(page({}, null))(runCalls(plus2)(ready))))

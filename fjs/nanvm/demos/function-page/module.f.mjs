@@ -59,7 +59,7 @@ import { graphOfText } from '../../../compiler/edag/demo.f.mjs'
 import { caption, refusal } from '../../../website/demo/module.f.mjs'
 import { graphSvg } from '../../../website/demo/graph/module.f.mjs'
 import { codeOutput } from '../../../website/demo/highlight/module.f.mjs'
-import { codeMarker } from '../../../website/style/module.f.js'
+import { admittedMarker, codeMarker } from '../../../website/style/module.f.js'
 import { decode, filesView, load as loadFiles, startupView, stat } from '../page/module.f.mjs'
 import { spell } from '../spell/module.f.mjs'
 
@@ -248,8 +248,21 @@ const callsView = calls => [
 ]
 
 
+/**
+ * The verdict a spec page opens with, as a refused construct's page opens
+ * with its refusal: this one is in the language, and runs both ways.
+ *
+ * @type {readonly Node[]}
+ */
+const admittedBanner = [
+    ['div', { [admittedMarker]: '' },
+        ['strong', {}, 'In FunctionalScript'],
+        ['p', {}, 'fjs compile accepts this module, and it runs as JavaScript and as WebAssembly alike.']],
+]
+
 /** @type {(inputs: readonly number[]) => (state: State) => Element} */
 export const view = inputs => state => ['div', {},
+    ...admittedBanner,
     ['p', {},
         'A FunctionalScript module and what fjs compile makes of it: the expression graph it lowers to, ',
         'the Rust it compiles to on the NaNVM runtime, and the WebAssembly that Rust builds to. ',
