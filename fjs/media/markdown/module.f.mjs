@@ -205,11 +205,14 @@ export const entryTexts = text => {
             out = [...out, content.trimStart()]
         }
         else if (line.startsWith('  ') && out.length !== 0) {
-            const content = line.trim()
+            // Only the list's two-column indent is layout. Further spaces
+            // can be content of a code span opened on the preceding line.
+            const content = line.slice(2)
+            const marker = content.trimStart()
             // An indented marker opens a nested list, which CommonMark
             // reads as a list inside the item and `Entry` cannot hold.
             // Joining it would make one line of prose out of two items.
-            if (content.startsWith('- ') || content.startsWith('* ') || content.startsWith('+ ')) {
+            if (marker.startsWith('- ') || marker.startsWith('* ') || marker.startsWith('+ ')) {
                 return refuse('a nested list item')
             }
             out = [...out.slice(0, -1), `${out[out.length - 1]} ${content}`]
