@@ -1,7 +1,7 @@
 ## Report each bit's height: the levels that close a word on it
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
