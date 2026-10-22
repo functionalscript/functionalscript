@@ -443,6 +443,11 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  *   opens — and `n?.(2)` one `?.()` link over a `null` callee. `(o?.a).b`
  *   is a `.` node over a `?.` node: the parentheses ended the region, so the
  *   access after them is a node of its own, where `o?.a.b` is one.
+ * - **Optional chaining: a long chain** is the table at length:
+ *   `o?.a.f(1)[Number(i)].length` is one node of six rows — `?.` beside
+ *   `obj` and `a`, then `.f`, `()`, `.` beside its broken `idx` edge, and
+ *   `.length` — and `(o?.a.f)(...[i, 2])` ends with a `(?.)()` link whose
+ *   arguments, a `[]` node with its spread, run regardless and draw solid.
  * - **Named exports** draws the module as the object of its exports, each
  *   a port: a module that is not only a default is that object, and there
  *   is no `.default` to read off it.
