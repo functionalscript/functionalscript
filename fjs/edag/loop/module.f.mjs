@@ -37,7 +37,7 @@
  * @import { Loop } from './types.ts'
  */
 
-import { mergeable, operandsOf, scopeHolds } from '../analysis/module.f.mjs'
+import { mergeable, ownOperandsOf, scopeHolds } from '../analysis/module.f.mjs'
 
 /**
  * The node an operand names where it is reached by one edge, and `null`
@@ -69,14 +69,6 @@ const names = (a, v, tag, index) => {
 }
 
 /**
- * The operands a node establishes in its own scope: its own, but a nested
- * function's body, which is that function's scope and not this one's.
- *
- * @type {(node: Node) => readonly Operand[]}
- */
-const own = node => node[0] === '=>' ? node[2] : operandsOf(node)
-
-/**
  * How many edges the nodes of function `i`'s scope hold into its `self`:
  * the reads of the function itself, as a callee, a value, or a nested
  * function's capture.
@@ -87,7 +79,7 @@ const selfReads = (a, i) => {
     const { nodes, scope } = a
     /** @type {(v: Operand) => boolean} */
     const isSelf = v => v instanceof Array && nodes[v[1]][0] === 'self' && scope[v[1]] === i
-    return nodes.flatMap((node, j) => scope[j] === i ? own(node).filter(isSelf) : []).length
+    return nodes.flatMap((node, j) => scope[j] === i ? ownOperandsOf(node).filter(isSelf) : []).length
 }
 
 /**
@@ -125,7 +117,7 @@ export const loopOf = (a, i) => {
  */
 const reached = a => v => {
     /** @type {(seen: readonly number[], v: Operand) => readonly number[]} */
-    const go = (seen, v) => !(v instanceof Array) || seen.includes(v[1]) ? seen : own(a.nodes[v[1]]).reduce(go, [...seen, v[1]])
+    const go = (seen, v) => !(v instanceof Array) || seen.includes(v[1]) ? seen : ownOperandsOf(a.nodes[v[1]]).reduce(go, [...seen, v[1]])
     return go([], v)
 }
 
