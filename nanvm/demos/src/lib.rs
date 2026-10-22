@@ -188,7 +188,10 @@ mod tests {
         );
     }
 
+    // Seconds in a debug build, multiplied by every emulated CI target;
+    // every `cargo test --release` run, on each of those targets, runs it.
     #[test]
+    #[cfg_attr(debug_assertions, ignore = "slow unoptimized; runs under --release")]
     fn sort_reports_what_it_sorted() {
         assert_eq!(
             perform(&load(samples::sort::module::<Naive>).unwrap()).unwrap(),
@@ -196,7 +199,10 @@ mod tests {
         );
     }
 
+    // Seconds in a debug build, multiplied by every emulated CI target;
+    // every `cargo test --release` run, on each of those targets, runs it.
     #[test]
+    #[cfg_attr(debug_assertions, ignore = "slow unoptimized; runs under --release")]
     fn collatz_reports_the_longest_chain() {
         assert_eq!(
             perform(&load(samples::collatz::module::<Naive>).unwrap()).unwrap(),
