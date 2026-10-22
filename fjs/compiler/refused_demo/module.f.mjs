@@ -14,10 +14,12 @@
  * the file beside the page, not a copy of an answer that could go stale.
  *
  * **JavaScript's answer is the reason.** The sample is a plain `.mjs`: valid
- * JavaScript the compiler refuses, so it cannot be an `.f.js`. The page
- * imports it as any module and shows its default export as `String` spells
- * it, which for a refused construct is usually the answer the specification
- * gives as the reason, such as `"toString" in {}` being `true`.
+ * JavaScript the compiler refuses, so it cannot be an `.f.js`, and a
+ * FunctionalScript module never imports it. The page states what JavaScript
+ * answers for it, its default export as `String` spells it, which for a
+ * refused construct is usually the answer the specification gives as the
+ * reason, such as `"toString" in {}` being `true`; a host proof beside the
+ * page (`proof.mjs`) imports the sample and holds the stated answer to it.
  *
  * **It proposes the message the refusal should print.** The compiler's
  * message says where it stopped, `unexpected token`, not why or what to
@@ -169,18 +171,18 @@ const alternativeView = alternative => text => [
     ['div', { [codeMarker]: '' }, ['pre', String(alternative)]],
 ]
 
-/** @type {(entry: unknown) => readonly Node[]} */
-const javaScriptView = entry => [
+/** @type {(answer: string) => readonly Node[]} */
+const javaScriptView = answer => [
     caption('What JavaScript answers for the same module, its default export:'),
-    ['div', { [codeMarker]: '' }, ['pre', String(entry)]],
+    ['div', { [codeMarker]: '' }, ['pre', answer]],
 ]
 
 /** @type {(sample: RefusedSample) => (state: State) => Element} */
-export const view = ({ entry, alternative, suggestion }) => ({ source, alternative: text }) => ['div', {},
+export const view = ({ answer, alternative, suggestion }) => ({ source, alternative: text }) => ['div', {},
     ...loadedView(source, verdictView(suggestion)),
     caption(`JavaScript source, ${sampleName}:`),
     ...loadedView(source, text => [codeBlock(text, 'Copy the source', highlight(text))]),
-    ...javaScriptView(entry),
+    ...javaScriptView(answer),
     ['h3', {}, 'What to write instead'],
     caption(`The FunctionalScript spelling, ${alternativeName}:`),
     ...loadedView(text, alternativeView(alternative)),

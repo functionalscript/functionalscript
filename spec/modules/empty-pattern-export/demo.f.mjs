@@ -8,7 +8,6 @@
  * @import { Suggestion } from '../../../fjs/compiler/refused_demo/types.ts'
  */
 
-import * as sample from './sample.mjs'
 import alternative from './alternative.f.js'
 import { refusedDemo } from '../../../fjs/compiler/refused_demo/module.f.mjs'
 
@@ -27,7 +26,11 @@ export const suggestion = {
     note: "refused by design, see spec/modules/empty-pattern-export/README.md",
 }
 
-/** The sample's default export, which it does not have: `undefined`. */
-const entry = /** @type {{ readonly default?: unknown }} */ (sample).default
+/**
+ * What JavaScript answers for `sample.mjs`, its default export as `String`
+ * spells it. No FunctionalScript module imports the sample, which is none:
+ * the host proof, `proof.mjs`, holds this to it.
+ */
+export const answer = 'undefined'
 
-export const demo = refusedDemo({ directory: 'spec/modules/empty-pattern-export', entry, alternative, suggestion })
+export const demo = refusedDemo({ directory: 'spec/modules/empty-pattern-export', answer, alternative, suggestion })

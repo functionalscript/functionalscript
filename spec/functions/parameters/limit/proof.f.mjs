@@ -1,6 +1,5 @@
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { report, suggestedText } from '../../../../fjs/compiler/refused_demo/module.f.mjs'
-import entry from './sample.mjs'
 import alternative from './alternative.f.js'
 import { demo, suggestion } from './demo.f.mjs'
 
@@ -8,8 +7,6 @@ import { demo, suggestion } from './demo.f.mjs'
 const sample = "/** @type {(...p: number[]) => number} */\nconst f = (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q) => q;\nexport default f(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17);\n"
 
 export const proof = {
-    // What JavaScript answers, which the refusal keeps FunctionalScript from contradicting.
-    javaScript: () => assertEq(String(entry), "17"),
     // `decl.parameter-limit` (spec/todo/refused-constructs.md): the message and the position.
     refused: () => {
         const r = report(sample)

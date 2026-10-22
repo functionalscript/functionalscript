@@ -1,6 +1,5 @@
 import { assert, assertEq } from '../../../fjs/asserts/module.f.js'
 import { report, suggestedText } from '../../../fjs/compiler/refused_demo/module.f.mjs'
-import * as module from './sample.mjs'
 import alternative from './alternative.f.js'
 import { demo, suggestion } from './demo.f.mjs'
 
@@ -8,8 +7,6 @@ import { demo, suggestion } from './demo.f.mjs'
 const sample = "const a = 1;\n"
 
 export const proof = {
-    // What JavaScript answers, which the refusal keeps FunctionalScript from contradicting.
-    javaScript: () => assertEq(Object.keys(module).length, 0),
     // `mod.no-export` (spec/todo/refused-constructs.md): the message and the position.
     refused: () => {
         const r = report(sample)

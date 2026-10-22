@@ -1,6 +1,5 @@
 import { assert, assertEq } from '../../../fjs/asserts/module.f.js'
 import { report, suggestedText } from '../../../fjs/compiler/refused_demo/module.f.mjs'
-import entry from './sample.mjs'
 import alternative from './alternative.f.js'
 import { demo, suggestion } from './demo.f.mjs'
 
@@ -8,8 +7,6 @@ import { demo, suggestion } from './demo.f.mjs'
 const sample = "/** @type {(a: readonly string[], i: number) => string | undefined} */\nconst at = (a, i) => a[i];\nexport default at([\"x\", \"y\"], 1);\n"
 
 export const proof = {
-    // What JavaScript answers, which the refusal keeps FunctionalScript from contradicting.
-    javaScript: () => assertEq(String(entry), "y"),
     // `acc.runtime-key` (spec/todo/refused-constructs.md): the message and the position.
     refused: () => {
         const r = report(sample)

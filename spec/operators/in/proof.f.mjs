@@ -1,6 +1,5 @@
 import { assert, assertEq } from '../../../fjs/asserts/module.f.js'
 import { report, reportText, suggestedText } from '../../../fjs/compiler/refused_demo/module.f.mjs'
-import entry from './sample.mjs'
 import alternative from './alternative.f.js'
 import { demo, suggestion } from './demo.f.mjs'
 
@@ -8,8 +7,6 @@ import { demo, suggestion } from './demo.f.mjs'
 const sample = 'export default "toString" in {};\n'
 
 export const proof = {
-    // JavaScript finds `toString` on the prototype chain: the reason `in` is refused.
-    javaScript: () => assert(entry === true),
     // `op.in` (spec/todo/refused-constructs.md): refused at the `in`.
     refused: () => {
         const r = report(sample)

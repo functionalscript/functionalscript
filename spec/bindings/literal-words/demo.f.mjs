@@ -8,7 +8,6 @@
  * @import { Suggestion } from '../../../fjs/compiler/refused_demo/types.ts'
  */
 
-import entry from './sample.mjs'
 import alternative from './alternative.f.js'
 import { refusedDemo } from '../../../fjs/compiler/refused_demo/module.f.mjs'
 
@@ -27,4 +26,11 @@ export const suggestion = {
     note: "refused by design, see spec/bindings/literal-words/README.md",
 }
 
-export const demo = refusedDemo({ directory: 'spec/bindings/literal-words', entry, alternative, suggestion })
+/**
+ * What JavaScript answers for `sample.mjs`, its default export as `String`
+ * spells it. No FunctionalScript module imports the sample, which is none:
+ * the host proof, `proof.mjs`, holds this to it.
+ */
+export const answer = '1'
+
+export const demo = refusedDemo({ directory: 'spec/bindings/literal-words', answer, alternative, suggestion })

@@ -30,12 +30,14 @@ export type Suggestion = {
 
 /**
  * A spec page's refused sample: the page's directory, where `sample.mjs`
- * and `alternative.f.js` are; each module's default export, as JavaScript
- * evaluates it; and the message the page proposes for the refusal.
+ * and `alternative.f.js` are; what JavaScript answers for the sample, its
+ * default export as `String` spells it, which the page's host proof holds
+ * to the sample; the alternative's default export; and the message the page
+ * proposes for the refusal.
  */
 export type RefusedSample = {
     readonly directory: string
-    readonly entry: unknown
+    readonly answer: string
     readonly alternative: unknown
     readonly suggestion: Suggestion
 }

@@ -20,7 +20,7 @@ import { compileAs, excerpt, init, refusedDemo, report, reportText, suggestedTex
 const suggestion = { message: 'no in', width: 2, label: 'here', help: 'use h:', fix: 'h(o, "a")', note: 'see in' }
 
 /** A sample JavaScript answers `true` for, and its alternative `false`. @type {RefusedSample} */
-const sample = { directory: 'spec/in', entry: true, alternative: false, suggestion }
+const sample = { directory: 'spec/in', answer: 'true', alternative: false, suggestion }
 
 /** @type {(files: StringMap<string>) => MemOperationMap<FetchText, null>} */
 const page = files => ({
