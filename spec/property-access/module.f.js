@@ -17,7 +17,7 @@ const index = [
 /** @type {Examples} */
 const optionalChaining = [
     ['Optional chaining', 'const o = { a: { b: 1 }, f: x => [x, x] };\nconst n = null;\nexport default [o?.a.b, n?.a.b, n?.[0], o.f?.(2), n?.(2), (o?.a).b];'],
-    ['Optional chaining: a long chain', 'const o = { a: { f: x => [x, x] } };\nexport default i => [o?.a.f(1)[Number(i)].length, (o?.a.f)(...[i, 2])];'],
+    ['Optional chaining: a long chain', 'const o = { a: { f: x => [x, x] } };\nexport default i => [o?.a.f(1)[Number(i)].length, (o?.a.f)(...[i, 2]), 3];'],
 ]
 
 /** @type {Examples} */
