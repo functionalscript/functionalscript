@@ -1,5 +1,9 @@
 # RTTI guide
 
+Start with [the RTTI README](../README.md): it says what RTTI is for, what
+it gives a program, and which modules make it up. This guide assumes that
+purpose and goes concept by concept.
+
 The guide explains RTTI one concept per page, the way [the language
 specification](../../../spec/README.md) explains FunctionalScript one feature
 per page. The module READMEs beside the code ([`data`](../data/README.md),
