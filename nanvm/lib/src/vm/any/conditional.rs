@@ -3,7 +3,7 @@ use crate::vm::{Any, IVm};
 impl<A: IVm> Any<A> {
     /// `?:`. Not a `core::ops` trait — Rust has no operator for a ternary
     /// conditional (`if`/`else` takes a `bool`, not an `Any<A>`) — so this
-    /// is a plain method, the same as `logical_and`/`logical_or`.
+    /// is a plain method over the native VM's values.
     ///
     /// Coerces `self` via `ToBoolean`, establishes the arm that selects —
     /// `consequent` or `alternate` — and returns its value. The arms are

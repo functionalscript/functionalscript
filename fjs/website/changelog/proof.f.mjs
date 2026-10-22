@@ -28,12 +28,12 @@ const local = { commit: null, branch: null, funding: [] }
 // The pure reading half: a reference, a group, a scan, and the order.
 const core = {
     reference: {
-        pull: () => assertStructurallySame(_reference('#1807'), ['link', '#1807', pull('1807')]),
+        pull: () => assertStructurallySame(_reference('#1807'), ['link', [['text', '#1807']], pull('1807')]),
         // A short SHA is the form for a change whose commit carried no
         // number. No entry in the tree uses it; it is supported against the
         // documented format rather than against data.
         commit: () => assertStructurallySame(
-            _reference('7b979e74'), ['link', '7b979e74', `${repository}/commit/7b979e74`]),
+            _reference('7b979e74'), ['link', [['text', '7b979e74']], `${repository}/commit/7b979e74`]),
         // Shorter than a short SHA is a word, and a word is prose.
         // **A run of hex is a SHA only if it is neither a number nor a
         // word.** Every digit is hex, so a decimal in a note about integer
@@ -49,13 +49,13 @@ const core = {
         empty: () => assertEq(_reference(''), null),
     },
     group: {
-        one: () => assertStructurallySame(_group('#1807'), [['link', '#1807', pull('1807')]]),
+        one: () => assertStructurallySame(_group('#1807'), [['link', [['text', '#1807']], pull('1807')]]),
         // The separator between two references is text, so the group reads
         // as it was written.
         several: () => assertStructurallySame(_group('#1807, #1813'), [
-            ['link', '#1807', pull('1807')],
+            ['link', [['text', '#1807']], pull('1807')],
             ['text', ', '],
-            ['link', '#1813', pull('1813')],
+            ['link', [['text', '#1813']], pull('1813')],
         ]),
         // "Mixing the two in one entry is fine" — changelog/README.md.
         mixed: () => assertEq(_group('#1807, 7b979e74')?.length, 3),
@@ -67,7 +67,7 @@ const core = {
         // The parentheses stay text; only what is inside becomes a link.
         tail: () => assertStructurallySame(_linked('throws (#1421)'), [
             ['text', 'throws ('],
-            ['link', '#1421', pull('1421')],
+            ['link', [['text', '#1421']], pull('1421')],
             ['text', ')'],
         ]),
         prose: () => assertStructurallySame(
@@ -87,12 +87,12 @@ const core = {
             [
                 ['code', 'f(#1)'],
                 ['text', ' x ('],
-                ['link', '#7', pull('7')],
+                ['link', [['text', '#7']], pull('7')],
                 ['text', ')'],
             ]),
         keepsAnExistingLink: () => assertStructurallySame(
-            linked([['link', '#1553', 'https://example.com/1553']]),
-            [['link', '#1553', 'https://example.com/1553']]),
+            linked([['link', [['text', '#1553']], 'https://example.com/1553']]),
+            [['link', [['text', '#1553']], 'https://example.com/1553']]),
     },
     /**
      * **Releases do not sort by their names.** Text ordering puts `0.11.10`
@@ -147,10 +147,10 @@ const render = {
         // two thirds of every entry.
         text: () => assertEq(spanNode(['text', 'a']), 'a'),
         code: () => assertStructurallySame(spanNode(['code', 'a']), ['code', 'a']),
-        strong: () => assertStructurallySame(spanNode(['strong', 'a']), ['strong', 'a']),
-        em: () => assertStructurallySame(spanNode(['em', 'a']), ['em', 'a']),
+        strong: () => assertStructurallySame(spanNode(['strong', [['text', 'a'], ['code', 'b']]]), ['strong', 'a', ['code', 'b']]),
+        em: () => assertStructurallySame(spanNode(['em', [['text', 'a']]]), ['em', 'a']),
         link: () => assertStructurallySame(
-            spanNode(['link', 'a', 'u']), ['a', { href: 'u' }, 'a']),
+            spanNode(['link', [['text', 'a'], ['code', 'b']], 'u']), ['a', { href: 'u' }, 'a', ['code', 'b']]),
     },
     /** An entry's references are linked on the way to the page. */
     entry: () => assert(

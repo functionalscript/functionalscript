@@ -22,7 +22,7 @@ only on previous commands.
 
 |format|any                     |          |Notes                                           |
 |------|------------------------|----------|------------------------------------------------|
-|DJS   |const_ref               |u32       |[const](../bindings/constants.md)                       |
+|DJS   |const_ref               |u32       |[const](../bindings/constants/README.md)                       |
 |      |bigint_plus             |Array<u64>|[bigint](../values/README.md)                     |
 |      |bigint_minus            |Array<u64>|[bigint](../values/README.md)                     |
 |      |undefined               |          |[undefined](../values/README.md)               |

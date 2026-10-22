@@ -1,7 +1,7 @@
 /**
  * @import { Exp } from '../../edag/types.ts'
  * @import { EdagValue, Values } from '../../edag/value/types.ts'
- * @import { AstConst } from '../ast/types.ts'
+ * @import { Value as FastValue } from '../../js/ast/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -32,6 +32,8 @@ import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
+import { fromFast } from '../../edag/from_fast/module.f.mjs'
+import { logicalValue } from '../../js/ast/sugar/logical/module.f.js'
 
 /**
  * `exp`'s shape, asserted to be a node rather than a value drawn inline.
@@ -76,70 +78,26 @@ export const expectEdag = (edag, expected) => {
 }
 
 /**
- * Confirms `exp` is a left-associative `+` chain `depth` terms deep, bottoming
- * out at `1` — `((1+1)+1)+…`. `validate`/`assertStructurallySame` are
- * themselves recursive (`fjs/edag/todo/stack-safety.md` tracks that, one
- * layer down from this one), so a chain deep enough to prove `lower` stack-safe
- * overflows them before it says anything about `lower`. This walks the same
- * shape iteratively instead, the one comparison this proof needs at a depth
- * the two shared helpers cannot reach.
- * @type {(depth: number) => (exp: Exp) => void}
- */
-const expectPlusChain = depth => exp => {
-    let node = exp
-    let remaining = depth
-    while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '+' && node[2] === 1, node)
-        node = node[1]
-        remaining = remaining - 1
-    }
-    assertEq(node, 1)
-}
-
-/**
- * Confirms `exp` is a left-associative `&&` chain `depth` terms deep,
- * bottoming out at `1` — `((1 && 1) && 1) && …` — walked iteratively as
- * {@link expectPlusChain} is, for the same reason.
- * @type {(depth: number) => (exp: Exp) => void}
- */
-const expectAndChain = depth => exp => {
-    let node = exp
-    let remaining = depth
-    while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '&&' && node[2] === 1, node)
-        node = node[1]
-        remaining = remaining - 1
-    }
-    assertEq(node, 1)
-}
-
-/**
- * Confirms `exp` is a conditional nested `depth` deep through its else arm
- * — `1 ? 2 : (1 ? 2 : …)` — bottoming out at `3`, walked iteratively as
- * {@link expectPlusChain} is, for the same reason.
- * @type {(depth: number) => (exp: Exp) => void}
- */
-const expectElseChain = depth => exp => {
-    let node = exp
-    let remaining = depth
-    while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '?:' && node[1] === 1 && node[2] === 2, node)
-        node = node[3]
-        remaining = remaining - 1
-    }
-    assertEq(node, 3)
-}
-
-/**
- * The default export's computation lowered from a body built by hand — the
- * one entry, exported — with no parse in front of it: what a stress case
+ * A normalized FAST value lowered with no parse in front of it: what a stress case
  * of the lowering needs, since parsing the same chain is the parser's own
  * proof and costs seconds at the depth this one is about, where the
  * lowering costs milliseconds.
  *
- * @type {(entry: AstConst) => Exp}
+ * @type {(entry: FastValue) => Exp}
  */
-const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':', 'default', ['cref', 0]]]]]]).edag)
+export const lowered = entry => fromFast({ statements: [], exit: ['yield', [entry]] })
+
+/** A value region with a required initializer whose value is discarded. @type {(initializer: FastValue) => FastValue} */
+const anchoredTwo = initializer => ['block', {
+    statements: [['define', { index: 0 }, initializer, 'required']],
+    exit: ['yield', [2]],
+}]
+
+/** A normalized zero-argument function answering one. @type {FastValue} */
+const returnsOne = ['function', {
+    target: { kind: 'function', index: 0 }, parameters: [], rest: null, self: null, captures: [],
+    body: { statements: [], exit: ['yield', [1]] },
+}]
 
 /** Interpret before choosing an output boundary. @type {(graph: Exp) => EdagValue} */
 export const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
@@ -670,19 +628,19 @@ export const proof = {
             expectEdag(compile('export default -(() => { const x = null.x; return 1; })();').edag, [',', [x, -1]])
             expectEdag(compile('export default ~(() => { const x = null.x; return 1; })();').edag, [',', [x, ['~', 1]]])
             expectEdag(compile('export default 1 + (() => { const x = null.x; return 2; })();').edag, [',', [x, ['+', 1, 2]]])
-            expectEdag(compile('export default (() => { const x = null.x; return 1; })() && 2;').edag, [',', [x, ['&&', 1, 2]]])
+            expectEdag(compile('export default (() => { const x = null.x; return 1; })() && 2;').edag, [',', [x, ['?:', 1, 2, 1]]])
             expectEdag(compile('export default (() => { const x = null.x; return 1; })() ? 2 : 3;').edag, [',', [x, ['?:', 1, 2, 3]]])
             expectEdag(compile('const f = (...a) => 1; export default f((() => { const x = null.x; return 2; })());').edag, [',', [x, ['()', ['=>', 0, [], 1], [2]]]])
             expectEdag(compile('const o = { b: 1 }; export default o.b((() => { const x = null.x; return 2; })());').edag, [',', [x, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [2]]]]])
             // a lazy operand is a block root: the anchor stays under it
-            expectEdag(compile('export default 1 && (() => { const x = null.x; return 2; })();').edag, ['&&', 1, [',', [x, 2]]])
-            expectEdag(compile('export default 1 || (() => { const x = null.x; return 2; })();').edag, ['||', 1, [',', [x, 2]]])
-            expectEdag(compile('export default 1 ?? (() => { const x = null.x; return 2; })();').edag, ['??', 1, [',', [x, 2]]])
+            expectEdag(compile('export default 1 && (() => { const x = null.x; return 2; })();').edag, ['?:', 1, [',', [x, 2]], 1])
+            expectEdag(compile('export default 1 || (() => { const x = null.x; return 2; })();').edag, ['?:', 1, 1, [',', [x, 2]]])
+            expectEdag(compile('export default 1 ?? (() => { const x = null.x; return 2; })();').edag, ['?:', ['?:', ['===', 1, null], true, ['===', 1, ['undefined']]], [',', [x, 2]], 1])
             expectEdag(compile('export default 1 ? (() => { const x = null.x; return 2; })() : 3;').edag, ['?:', 1, [',', [x, 2]], 3])
             expectEdag(compile('export default 1 ? 2 : (() => { const x = null.x; return 3; })();').edag, ['?:', 1, 2, [',', [x, 3]]])
             // and one nested in an eager position under the lazy operand
             // floats to the operand, not past it
-            expectEdag(compile('export default 1 && [(() => { const x = null.x; return 2; })()];').edag, ['&&', 1, [',', [x, ['[]', [2]]]]])
+            expectEdag(compile('export default 1 && [(() => { const x = null.x; return 2; })()];').edag, ['?:', 1, [',', [x, ['[]', [2]]]], 1])
             // the anchors of an entry come before the entry, and an
             // anchored entry keeps its own anchors before it too; the
             // module's unbound imports come first of all
@@ -698,7 +656,7 @@ export const proof = {
             // a body `const` its own lazy positions alone reach is anchored
             // by the body's rule, so it stands eagerly under the block root
             const shared = compile('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;').edag
-            expectEdag(shared, ['=>', 0, [], ['?:', ['.', ['rest'], 0], [',', [['[]', [1]], ['[]', [['&&', ['.', ['rest'], 1], ['[]', [1]]], ['&&', ['.', ['rest'], 2], ['[]', [1]]]]]]], 4]])
+            expectEdag(shared, ['=>', 0, [], ['?:', ['.', ['rest'], 0], [',', [['[]', [1]], ['[]', [['?:', ['.', ['rest'], 1], ['[]', [1]], ['.', ['rest'], 1]], ['?:', ['.', ['rest'], 2], ['[]', [1]], ['.', ['rest'], 2]]]]]], 4]])
             // the executor: what floats is established where the call was,
             // once, and a lazy operand's anchor only when the operand is
             assertStructurallySame(execute(compile('export default [(() => { const x = [1]; return 2; })()];').edag), [2])
@@ -716,13 +674,11 @@ export const proof = {
     // A group lowers to the node of the value it holds and adds none of its
     // own: `(x)` *is* `x`, so the graph and its sharing are the ones the
     // parentheses are not in.
-    // The optional chains lower as they are, the AST's shapes being the
-    // EDAG's — but for what an argument floats: an inlined call's anchors
-    // are anchored where the argument stands, by the comma, since the step
-    // is lazy, where a plain call's float on to the scope
+    // Normalized chain continuations preserve their receivers and regions.
+    // A value block's required roots remain at the argument position when
+    // the step is guarded; ordinary eager operands can float those roots.
     chains: () => {
-        /** @type {AstConst} */
-        const inlined = ['()', ['=>', 0, [['array', [1]], 2]], []]
+        const inlined = anchoredTwo(['array', [1]])
         expectEdag(lowered(['?.', 1, 'b']), ['?.', 1, 'b'])
         expectEdag(lowered(['?.', 1, 'b', ['|.', 'c']]), ['?.', 1, 'b', ['|.', 'c']])
         expectEdag(lowered(['?.', 1, 'b', ['|.', 'c', ['|()', [inlined]]]]), ['?.', 1, 'b', ['|.', 'c', ['|()', [[',', [['[]', [1]], 2]]]]]])
@@ -734,7 +690,7 @@ export const proof = {
         // a call over an access carrying a guarded call is the plain call,
         // not the method call: the region's own call spent the receiver
         expectEdag(lowered(['()', ['.', 1, 'b', ['|?.()', []]], [2]]), ['()', ['.', 1, 'b', ['|?.()', []]], [2]])
-        expectEdag(lowered(['()', ['.', 1, 'b'], [2]]), ['.', 1, 'b', ['|()', [2]]])
+        expectEdag(lowered(['.', 1, 'b', ['|()', [2]]]), ['.', 1, 'b', ['|()', [2]]])
     },
     group: () => {
         expectEdag(compile('export default (1);').edag, 1)
@@ -826,50 +782,44 @@ export const proof = {
             expectEdag(lowered(['String', 1n]), ['String', 1n])
             expectEdag(lowered(['String', ['Number', '0x10']]), ['String', ['Number', '0x10']])
             expectEdag(lowered(['Number', ['String', 16]]), ['Number', ['String', 16]])
-            expectEdag(lowered(['String', ['=>', 0, [1]]]), ['String', ['=>', 0, [], 1]])
+            expectEdag(lowered(['String', returnsOne]), ['String', ['=>', 0, [], 1]])
             assertStructurallySame(execute(lowered(['array', [
                 ['String', undefined], ['String', null], ['String', true],
                 ['String', -0], ['String', 1n], ['String', ['array', [1, null, 2]]],
-                ['String', ['object', []]], ['String', ['=>', 0, [1]]],
+                ['String', ['object', []]], ['String', returnsOne],
             ]])), ['undefined', 'null', 'true', '0', '1', '1,,2', '[object Object]', '()=>1'])
         },
         anchors: () => {
-            /** @type {AstConst} */
-            const inlined = ['()', ['=>', 0, [['array', [1]], 2]], []]
+            const inlined = anchoredTwo(['array', [1]])
             expectEdag(lowered(['String', inlined]), [',', [['[]', [1]], ['String', 2]]])
-            expectEdag(lowered(['&&', false, ['String', inlined]]), ['&&', false, [',', [['[]', [1]], ['String', 2]]]])
+            expectEdag(lowered(logicalValue('&&', false, ['String', inlined])), ['?:', false, [',', [['[]', [1]], ['String', 2]]], false])
             // an operand's unused initializer fails eagerly through String,
             // but stays behind the guard when the conversion is lazy
-            /** @type {AstConst} */
-            const failing = ['()', ['=>', 0, [['.', null, 'x'], 2]], []]
-            assertEq(execute(lowered(['&&', false, ['String', failing]])), false)
+            const failing = anchoredTwo(['.', null, 'x'])
+            assertEq(execute(lowered(logicalValue('&&', false, ['String', failing]))), false)
         },
         throw: {
-            anchoredOperand: () => execute(lowered(['String', ['()', ['=>', 0, [['.', null, 'x'], 2]], []]])),
+            anchoredOperand: () => execute(lowered(['String', anchoredTwo(['.', null, 'x'])])),
         },
     },
-    // Stage B: the lazy operators are the EDAG's own `op2`, the same shape
-    // as an eager one — laziness is the EDAG's positional rule, `op2Id`'s
-    // own comment, and no shape of its own — and the conditional its
-    // `op3`, `['?:', c, t, e]`, the first node of three operands the
-    // lowering builds. The EDAG interpreter (`fjs/edag/analysis`, through
-    // `memo`) is where their laziness is proven: an unselected operand that
-    // throws is never established.
+    // Source logical operations become canonical conditional regions. The
+    // left node is established once and reused as the selected value; work
+    // in an unchosen arm remains unestablished, including thrown failures.
     lazy: () => {
-        expectEdag(compile('export default 1 && 2;').edag, ['&&', 1, 2])
-        expectEdag(compile('export default 1 || 2;').edag, ['||', 1, 2])
-        expectEdag(compile('export default 1 ?? 2;').edag, ['??', 1, 2])
+        expectEdag(compile('export default 1 && 2;').edag, ['?:', 1, 2, 1])
+        expectEdag(compile('export default 1 || 2;').edag, ['?:', 1, 1, 2])
+        expectEdag(compile('export default 1 ?? 2;').edag, ['?:', ['?:', ['===', 1, null], true, ['===', 1, ['undefined']]], 2, 1])
         expectEdag(compile('export default 1 ? 2 : 3;').edag, ['?:', 1, 2, 3])
-        expectEdag(compile('export default 1 || 2 && 3 ? 4 | 5 : 6 ?? 7;').edag, ['?:', ['||', 1, ['&&', 2, 3]], ['|', 4, 5], ['??', 6, 7]])
+        expectEdag(compile('export default 1 || 2 && 3 ? 4 | 5 : 6 ?? 7;').edag, ['?:', ['?:', 1, 1, ['?:', 2, 3, 2]], ['|', 4, 5], ['?:', ['?:', ['===', 6, null], true, ['===', 6, ['undefined']]], 7, 6]])
         expectEdag(compile('export default 1 ? 2 : 3 ? 4 : 5;').edag, ['?:', 1, 2, ['?:', 3, 4, 5]])
-        expectEdag(compile('export default -1 ?? ~2;').edag, ['??', -1, ['~', 2]])
-        expectEdag(compile('export default (...a) => a && a[0];').edag, ['=>', 0, [], ['&&', ['rest'], ['.', ['rest'], 0]]])
+        expectEdag(compile('export default -1 ?? ~2;').edag, ['?:', ['?:', ['===', -1, null], true, ['===', -1, ['undefined']]], ['~', 2], -1])
+        expectEdag(compile('export default (...a) => a && a[0];').edag, ['=>', 0, [], ['?:', ['rest'], ['.', ['rest'], 0], ['rest']]])
         // a `const` reached through a lazy position is the one node it is
-        // anywhere: sharing survives the position, as `op2Id` states it
+        // anywhere: sharing survives the selected-result position
         const shared = compile('const a = [1]; export default a && a;').edag
-        expectEdag(shared, ['&&', ['[]', [1]], ['[]', [1]]])
-        assert(shared instanceof Array && shared[0] === '&&', shared)
-        assert(shared[1] === shared[2], shared)
+        expectEdag(shared, ['?:', ['[]', [1]], ['[]', [1]], ['[]', [1]]])
+        assert(shared instanceof Array && shared[0] === '?:', shared)
+        assert(shared[1] === shared[2] && shared[1] === shared[3], shared)
         // and the laziness is the interpreter's: `false && (1n / 0n)` is
         // `false` with the throwing operand never established, `true ? 1
         // : 1n / 0n` is `1`, and the selected operand is established
@@ -880,6 +830,31 @@ export const proof = {
         assertEq(execute(compile('export default true ? 1 : 1n / 0n;').edag), 1)
         assertEq(execute(compile('export default false ? 1n / 0n : 2;').edag), 2)
         assertEq(execute(compile('export default 1 && 2 || 3;').edag), 2)
+    },
+    logicalLeftIdentity: () => {
+        for (const [source, branch] of /** @type {const} */ ([
+            ['export default f=>f()&&1;', 3],
+            ['export default f=>f()||1;', 2],
+        ])) {
+            const graph = compile(source).edag
+            assert(graph instanceof Array && graph[0] === '=>')
+            const body = graph[3]
+            assert(body instanceof Array && body[0] === '?:')
+            const left = body[1]
+            assert(left instanceof Array && left[0] === '()')
+            assert(body[branch] === left)
+        }
+        const graph = compile('export default f=>f()??1;').edag
+        assert(graph instanceof Array && graph[0] === '=>')
+        const body = graph[3]
+        assert(body instanceof Array && body[0] === '?:')
+        const condition = body[1]
+        assert(condition instanceof Array && condition[0] === '?:')
+        const nullTest = condition[1]
+        const undefinedTest = condition[3]
+        assert(nullTest instanceof Array && nullTest[0] === '===')
+        assert(undefinedTest instanceof Array && undefinedTest[0] === '===')
+        assert(nullTest[1] === undefinedTest[1] && body[3] === nullTest[1])
     },
     // A `const` reached only through lazy positions is anchored — the
     // comma establishes it at load, as the source's own `const c = null.x;`
@@ -892,38 +867,38 @@ export const proof = {
         /** `c`'s node, `null.x`, and the array `[a && c, b && c]` over `a = 1`, `b = 2`. @type {Exp} */
         const c = ['.', null, 'x']
         const both = compile('const a = 1; const b = 2; const c = null.x; export default [a && c, b && c];').edag
-        expectEdag(both, [',', [c, ['[]', [['&&', 1, c], ['&&', 2, c]]]]])
+        expectEdag(both, [',', [c, ['[]', [['?:', 1, c, 1], ['?:', 2, c, 2]]]]])
         assert(both instanceof Array && both[0] === ',', both)
         const [anchored, exported] = both[1]
         assert(exported instanceof Array && exported[0] === '[]', both)
         const [first, second] = exported[1]
-        assert(first instanceof Array && second instanceof Array && first[0] === '&&' && second[0] === '&&', both)
+        assert(first instanceof Array && second instanceof Array && first[0] === '?:' && second[0] === '?:', both)
         assert(first[2] === anchored && second[2] === anchored, both)
-        expectEdag(compile('const a = 1; const c = null.x; export default [c, a && c];').edag, ['[]', [c, ['&&', 1, c]]])
-        expectEdag(compile('const a = 1; const c = null.x; export default a && c;').edag, [',', [c, ['&&', 1, c]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default [c, a && c];').edag, ['[]', [c, ['?:', 1, c, 1]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a && c;').edag, [',', [c, ['?:', 1, c, 1]]])
         expectEdag(compile('const c = null.x; export default c ? 2 : 3;').edag, ['?:', c, 2, 3])
         // a leaf `const` is anchored as a container is, reached lazily
         expectEdag(compile('const a = 1; const c = null.x; export default c ? a : a;').edag, [',', [1, ['?:', c, 1, 1]]])
         expectEdag(compile('const a = 1; const c = null.x; export default a ? c : 2;').edag, [',', [c, ['?:', 1, c, 2]]])
         expectEdag(compile('const a = 1; const c = null.x; export default a ? 2 : c;').edag, [',', [c, ['?:', 1, 2, c]]])
-        expectEdag(compile('const a = 1; const c = null.x; export default a || c;').edag, [',', [c, ['||', 1, c]]])
-        expectEdag(compile('const a = 1; const c = null.x; export default a ?? c;').edag, [',', [c, ['??', 1, c]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a || c;').edag, [',', [c, ['?:', 1, 1, c]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a ?? c;').edag, [',', [c, ['?:', ['?:', ['===', 1, null], true, ['===', 1, ['undefined']]], c, 1]]])
         // the transitive case: `c = a && d` reaches `d` lazily, so `d` is
         // anchored beside `c` — anchoring `c` establishes `a && d`, not `d`
         /** @type {Exp} */
         const d = ['.', null, 'y']
         expectEdag(
             compile('const a = 1; const b = 2; const d = null.y; const c = a && d; export default b && c;').edag,
-            [',', [d, ['&&', 1, d], ['&&', 2, ['&&', 1, d]]]])
+            [',', [d, ['?:', 1, d, 1], ['?:', 2, ['?:', 1, d, 1], 2]]])
         // and `c = d && a` reaches `d` eagerly, so `c`'s anchor covers it —
         // while `a`, reached lazily and by nothing else, keeps its own
         expectEdag(
             compile('const a = 1; const b = 2; const d = null.y; const c = d && a; export default b && c;').edag,
-            [',', [1, ['&&', d, 1], ['&&', 2, ['&&', d, 1]]]])
+            [',', [1, ['?:', d, 1, d], ['?:', 2, ['?:', d, 1, d], 2]]])
         // an import likewise, evaluated at load whatever reaches it
-        expectEdag(compile('import m from "./m.f.js"; export default 1 && m;').edag, [',', [['.', ['.', ['args'], 0], 'default'], ['&&', 1, ['.', ['.', ['args'], 0], 'default']]]])
+        expectEdag(compile('import m from "./m.f.js"; export default 1 && m;').edag, [',', [['.', ['.', ['args'], 0], 'default'], ['?:', 1, ['.', ['.', ['args'], 0], 'default'], 1]]])
         // a function body is a scope of its own with the same rule
-        expectEdag(compile('export default (...a) => { const c = null.x; return a && c; };').edag, ['=>', 0, [], [',', [c, ['&&', ['rest'], c]]]])
+        expectEdag(compile('export default (...a) => { const c = null.x; return a && c; };').edag, ['=>', 0, [], [',', [c, ['?:', ['rest'], c, ['rest']]]]])
         // and the anchored `const` is the one node the lazy positions
         // share: the interpreter answers the value with `c` established
         // once, at the comma, and taken by the position that selects it
@@ -935,9 +910,9 @@ export const proof = {
     // block root, or the lazy operand it stands in — and one that is no
     // code, a reference, a literal or a function, is dropped, its `const`
     // anchored by the scope where nothing else reaches it
-    // (`spec/operators/comma.md`).
+    // (`spec/operators/comma/README.md`).
     comma: {
-        // the two examples of `spec/operators/comma.md`: an alias is the
+        // the two examples of `spec/operators/comma/README.md`: an alias is the
         // node it names, which the result reaches, and a `const` of its
         // own is anchored
         spec: () => {
@@ -961,7 +936,7 @@ export const proof = {
         // a lazy operand is a block root: what the comma anchors there is
         // established only when the operator selects the operand
         lazy: () => {
-            expectEdag(compile('export default (...a) => a[0] && (a.x, 1);').edag, ['=>', 0, [], ['&&', ['.', ['rest'], 0], [',', [['.', ['rest'], 'x'], 1]]]])
+            expectEdag(compile('export default (...a) => a[0] && (a.x, 1);').edag, ['=>', 0, [], ['?:', ['.', ['rest'], 0], [',', [['.', ['rest'], 'x'], 1]], ['.', ['rest'], 0]]])
             expectEdag(compile('export default (...a) => a[0] ? (a.x, 1) : 2;').edag, ['=>', 0, [], ['?:', ['.', ['rest'], 0], [',', [['.', ['rest'], 'x'], 1]], 2]])
         },
         // a reference, a literal, a function, the `entry` helper, a static
@@ -1046,7 +1021,7 @@ export const proof = {
     // EDAG has: an object pattern's property an access of the source, an
     // array pattern a spread of the source and accesses of the array it
     // made, nested patterns reading through — no node of its own, and the
-    // written form is the lowered one (spec/bindings/destructuring.md).
+    // written form is the lowered one (spec/bindings/destructuring/README.md).
     destructuring: {
         lowered: () => {
             /** @type {Exp} */
@@ -1225,42 +1200,6 @@ export const proof = {
             expectEdag(program({ ...twice, 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default 1;') })('a.f.js'), [',', [['[]', [1]], 1]])
         },
     },
-    // A chain of operators, as deep as the source that built it: `lower`
-    // walks one with an explicit stack rather than recursion, so 5,000
-    // terms — the depth `fjs/compiler/parser/proof.f.mjs`'s own `stackSafety`
-    // uses — cost no call stack. Left-associative for a binary operator,
-    // the EDAG nests on its own left, `((1+1)+1)+…`, checked by
-    // `expectPlusChain` rather than `expectEdag` for the reason given on
-    // it; right-associative for `-`, on its right, `-(-(-…))`, folding away
-    // to the leaf it started from since 5,000 negations is even — a single
-    // number, so `expectEdag` never recurses into it.
-    stackSafety: () => {
-        const plus = `1${' + 1'.repeat(5000)}`
-        expectPlusChain(5_000)(compile(`export default ${plus};`).edag)
-        const neg = `${'- '.repeat(5000)}1`
-        expectEdag(compile(`export default ${neg};`).edag, 1)
-        // conversions use the same iterative lowering as prefixes
-        /** @type {AstConst} */
-        let converted = 1
-        for (let i = 0; i < 5_000; i++) { converted = ['String', converted] }
-        let node = lowered(converted)
-        for (let i = 0; i < 5_000; i++) {
-            assert(node instanceof Array && node[0] === 'String', node)
-            node = node[1]
-        }
-        assertEq(node, 1)
-        // a lazy chain, and a conditional nested through its else arm, at
-        // the depth the parser's own `lazyStackCost` proves — the AST built
-        // here rather than parsed, `lowered`'s own comment has why
-        /** @type {AstConst} */
-        let and = 1
-        for (let i = 0; i < 20_000; i++) { and = ['&&', and, 1] }
-        expectAndChain(20_000)(lowered(and))
-        /** @type {AstConst} */
-        let otherwise = 3
-        for (let i = 0; i < 20_000; i++) { otherwise = ['?:', 1, 2, otherwise] }
-        expectElseChain(20_000)(lowered(otherwise))
-    },
     // A `throw` lowers to the EDAG's own `['throw', v]`, the node a body or
     // a module that ends in the statement is: a body's value, with the
     // `const`s it does not reach anchored before it as any body's are; a
@@ -1318,7 +1257,7 @@ export const proof = {
             const x = ['.', ['rest'], 0]
             expectEdag(compile('export default (...a) => { const x = a[0]; throw [x, x]; };').edag, ['=>', 0, [], ['throw', ['[]', [x, x]]]])
             expectEdag(compile('export default () => { const x = []; throw 1; };').edag, ['=>', 0, [], [',', [['[]', []], ['throw', 1]]]])
-            expectEdag(lowered(['throw', 1]), ['throw', 1])
+            expectEdag(fromFast({ statements: [], exit: ['throw', 1] }), ['throw', 1])
         },
         module: () => {
             const { imports, edag } = unresolved(unwrap(parse('')('throw "x";')))
@@ -1547,22 +1486,14 @@ export const proof = {
                 assertStructurallySame(shape.children, [
                     ['cond', ['a']], ['then', 1, 'lazy'], ['else', 2, 'lazy']])
             },
-            /**
-             * **An operand a node may never evaluate is marked on its
-             * edge.** `&&`, `||` and `??` establish their right operand
-             * only where the left has not decided the answer, and `?:`
-             * exactly one arm.
-             *
-             * Built by hand here because `_shapeOf` is what these pin, one
-             * tag at a time; `lazyThroughTheParser` below reads the same
-             * four out of source, which the compiler accepts since Stage B.
-             */
-            lazyRightOperand: () => {
-                for (const tag of ['&&', '||', '??']) {
-                    const shape = nodeShapeOf([tag, ['a'], ['b']], tag)
-                    assertStructurallySame(shape.children, [
-                        ['left', ['a']], ['right', ['b'], 'lazy']])
-                }
+            // Returning a left operand keeps the very same graph node in its
+            // eager condition and its lazy selected-result position.
+            selectedLeftOperand: () => {
+                const left = /** @type {const} */ (['.', ['rest'], 0])
+                const shape = nodeShapeOf(['?:', left, ['b'], left], 'selected left')
+                assertStructurallySame(shape.children, [
+                    ['cond', left], ['then', ['b'], 'lazy'], ['else', left, 'lazy']])
+                assert(shape.children[0][1] === shape.children[2][1])
             },
             // An eager binary operator marks neither operand.
             eagerOperandsAreUnmarked: () => {
@@ -1632,9 +1563,6 @@ export const proof = {
             // dispatch is one membership test per group, so one tag from
             // each syntactic corner — comparison, arithmetic, bitwise — is
             // what could vary.
-            // The logical corner is not sampled here: `&&`, `||` and `??`
-            // mark their right operand, and `lazyRightOperand` above covers
-            // all three rather than one standing for them.
             op2: () => {
                 for (const tag of ['===', '*', '&']) {
                     const shape = nodeShapeOf([tag, ['a'], ['b']], tag)
@@ -1749,7 +1677,7 @@ export const proof = {
             assert(html.includes('data-graph-value-label="">undefined<'), html)
             // `1`, `2`, `3`, `4`, `undefined`, the key `"x"`, the length
             // `0`, and `rest`, each in a cell; only the input is a terminal.
-            // The other eight cells name the nodes their edges lead to.
+            // The other eight cells name nodes, preserving shared operand references.
             const refs = html.split('data-graph-value-label="" data-graph-value-ref=""').length - 1
             assertEq(refs, 8)
             assertEq(html.split('data-graph-value=""').length - 1 - refs, 8)
@@ -1763,7 +1691,8 @@ export const proof = {
          * `a * 3`, and once as `m && a`'s right operand — so one node
          * carries three solid lines and one broken, each from a port of its
          * own. A mark on the box could not have said which of the four was
-         * conditional. The other broken line is the function's body.
+         * conditional. The selected-left arm returns the established test;
+         * the function's body has its own broken line.
          */
         // The initial source has two edges that skip ranks — the array's
         // `0` and `1`, reaching `+` past the row `*` sits in — and neither
@@ -1773,20 +1702,20 @@ export const proof = {
         },
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))
-            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 2)
+            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 3)
         },
         /**
          * Every lazy position, through the parser rather than by hand —
          * which the compiler accepts since Stage B landed.
          */
         lazyThroughTheParser: () => {
-            // Each source is a function, whose body is one marked edge of
-            // its own; the count past it is the operator's.
+            // Each function contributes its lazy body edge. Logical results add
+            // both conditional arms; nullishness also tests undefined lazily.
             const of = /** @type {(src: string) => number} */(src =>
                 htmlToString(demo.view(src)).split('data-graph-edge-kind="lazy"').length - 2)
-            assertEq(of('export default (...a) => a[0] && a[1];'), 1)
-            assertEq(of('export default (...a) => a[0] || a[1];'), 1)
-            assertEq(of('export default (...a) => a[0] ?? a[1];'), 1)
+            assertEq(of('export default (...a) => a[0] && a[1];'), 2)
+            assertEq(of('export default (...a) => a[0] || a[1];'), 2)
+            assertEq(of('export default (...a) => a[0] ?? a[1];'), 4)
             // Both arms of a conditional, and neither its condition.
             assertEq(of('export default (...a) => a[0] ? a[1] : a[2];'), 2)
             // An eager operator marks nothing.

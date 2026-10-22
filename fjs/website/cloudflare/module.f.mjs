@@ -89,7 +89,7 @@ sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-
 export PATH="$HOME/.cargo/bin:$PATH"
 rustup target add ${wasmTarget}
 cargo build -p nanvm-demos --release --target ${wasmTarget}
-cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${buildDirectory} ${samples.join(' ')}
+cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${buildDirectory} ${samples.map(({ name }) => name).join(' ')}
 npm run rustdoc-bars
 RUSTDOCFLAGS="--html-in-header $PWD/${rustdocHeadPath} --html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
 npm run website

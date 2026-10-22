@@ -6,11 +6,13 @@
  * JavaScript engine, and [`rust/module.f.mjs`](./rust/module.f.mjs) prints it
  * as the Rust tests in `nanvm/lib/tests/test/gen.corpus/`.
  *
- * Operation identity and operand contract are **not** defined here: they come
+ * Canonical operation identity and operand contract come
  * from [`fjs/edag`](../edag/README.md), the data model of record, through
  * {@link Op1Id}, {@link Op2Id}, {@link Op12Id} and {@link Op3Id} — one
  * vocabulary per operand count, and one for the two tags legal at both of the
- * first two. Everything else — case names, inputs, expectations, and the
+ * first two. Source logical labels retain their independent native cases and
+ * lower through source FAST sugar when a consumer requests a canonical graph.
+ * Everything else — case names, inputs, expectations, and the
  * test-only markers — is the corpus's own.
  *
  * @module
@@ -21,6 +23,7 @@ import type { ConstructorId, Exp, Op12Id, Op1Id, Op2, Op2Id, Op3Id, Plain } from
 import type { AllowedCall } from '../js/prototype/types.ts'
 import type { FixedArray } from '../types/array/types.ts'
 import type { Equal } from '../types/ts/types.ts'
+import type { LogicalTag } from '../js/ast/sugar/source.ts'
 
 /**
  * A value under test, written as itself — anywhere, nesting included.
@@ -76,7 +79,7 @@ export type Info =
  * A function value. Every operator here coerces one through `ToPrimitive`,
  * which never calls it, so there is nothing to carry: it lowers to
  * `() => undefined`, the smallest closure, which `amnesia` establishes and
- * the Rust printer renders as the harness's one function value. Legal
+ * the Rust serializer builds as a native closure. Legal
  * anywhere a {@link Value} is. A function that is called is a
  * {@link Callback} or a {@link Returns}.
  *
@@ -211,14 +214,14 @@ export type Group1 = {
 }
 
 /**
- * The cases of one binary EDAG operation.
+ * The cases of one canonical binary operation or source/native logical label.
  *
  * `commutative` additionally checks every case with its arguments swapped,
  * which is what the hand-written tests did for `*`. It lives here and not on
  * {@link Group1}, so it is binary-only by construction.
  */
 export type Group2 = {
-    readonly op: Op2Id
+    readonly op: Op2Id | LogicalTag
     readonly commutative?: boolean
     readonly cases: readonly Case<2>[]
 }

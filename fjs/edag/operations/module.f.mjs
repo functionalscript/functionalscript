@@ -7,7 +7,7 @@
  * node's — a bare `()` or `?.()`, or the last call step of a chain, where the
  * callee is a represented function — is prepared and left for the executor
  * to make in the invocation's place, and the arms of `?:`, the last operand
- * of `,` and the right operand of `&&`, `||` and `??` are demanded through
+ * of `,` and the selected arm of `?:` are demanded through
  * the executor's `tail`, so the call they leave is the node's outcome. Every
  * other operand is demanded through `operand`, a value.
  *
@@ -325,10 +325,6 @@ export const operation = evaluator => {
                 const [next, result] = operand(node[1], state)
                 return [next, throwValue(result)]
             }
-            case '&&': case '||': case '??': { return then(operand(node[1], state), (value, next) => {
-                const take = node[0] === '&&' ? truthy(value) : node[0] === '||' ? !truthy(value) : nullish(value)
-                return take ? tail(node[2], next) : [next, ok(value)]
-            }) }
             case '?:': { return then(operand(node[1], state), (value, next) => tail(node[truthy(value) ? 2 : 3], next)) }
             case '!': case 'typeof': {
                 const apply = semanticUnary[node[0]]

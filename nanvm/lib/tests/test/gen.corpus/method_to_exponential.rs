@@ -2,26 +2,27 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("digits", Any::dot(f64_any(0x40fe240000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("1.23e+5"));
-    check::<A>("noArgument", Any::dot(f64_any(0x40fe240000000000), string_any("toExponential")).end_call(&rt, || Ok(Array::default().to_any())), string_any("1.23456e+5"));
-    check::<A>("passedUndefined", Any::dot(f64_any(0x3ff8000000000000), string_any("toExponential")).end_call(&rt, || Ok([Nullish::Undefined.to_any()].to_array().to_any())), string_any("1.5e+0"));
-    check::<A>("zero", Any::dot(f64_any(0x0000000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("0.00e+0"));
-    check::<A>("zeroNoArgument", Any::dot(f64_any(0x0000000000000000), string_any("toExponential")).end_call(&rt, || Ok(Array::default().to_any())), string_any("0e+0"));
-    check::<A>("negativeZero", Any::dot(f64_any(0x8000000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("0.00e+0"));
-    check::<A>("tie", Any::dot(f64_any(0x3ff4000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("1.3e+0"));
-    check::<A>("negativeTie", Any::dot(f64_any(0xc004000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("-3e+0"));
-    check::<A>("negativeSmall", Any::dot(f64_any(0xbf23a92a30553261), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("-1.5e-4"));
-    check::<A>("roundsUp", Any::dot(f64_any(0x4023fae147ae147b), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("1.0e+1"));
-    check::<A>("belowAPower", Any::dot(f64_any(0x44b52d02c7e14af6), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4034000000000000)].to_array().to_any())), string_any("9.99999999999999916114e+22"));
-    check::<A>("belowAPowerRounded", Any::dot(f64_any(0x44b52d02c7e14af6), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("1e+23"));
-    check::<A>("subnormal", Any::dot(f64_any(0x0000000000000001), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("4.94e-324"));
-    check::<A>("subnormalNoArgument", Any::dot(f64_any(0x0000000000000001), string_any("toExponential")).end_call(&rt, || Ok(Array::default().to_any())), string_any("5e-324"));
-    check::<A>("largest", Any::dot(f64_any(0x7fefffffffffffff), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())), string_any("1.798e+308"));
-    check::<A>("infinityTooManyDigits", Any::dot(f64_any(0x7ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4059400000000000)].to_array().to_any())), string_any("Infinity"));
-    check::<A>("nanDigits", Any::dot(f64_any(0x3ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x7ff8000000000000)].to_array().to_any())), string_any("1e+0"));
-    check_throws::<A>("bigintOnInfinity", Any::dot(f64_any(0x7ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())));
-    check_throws::<A>("tooManyDigits", Any::dot(f64_any(0x3ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4059400000000000)].to_array().to_any())));
-    check_throws::<A>("bigint", Any::dot(f64_any(0x3ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())));
+    check::<A>("digits", scope(|| { Any::dot(f64_any(0x40fe240000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("1.23e+5"));
+    check::<A>("noArgument", scope(|| { Any::dot(f64_any(0x40fe240000000000), string_any("toExponential")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("1.23456e+5"));
+    check::<A>("passedUndefined", scope(|| { Any::dot(f64_any(0x3ff8000000000000), string_any("toExponential")).end_call(&rt, || Ok([Nullish::Undefined.to_any()].to_array().to_any())) }), string_any("1.5e+0"));
+    check::<A>("zero", scope(|| { Any::dot(f64_any(0x0000000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("0.00e+0"));
+    check::<A>("zeroNoArgument", scope(|| { Any::dot(f64_any(0x0000000000000000), string_any("toExponential")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("0e+0"));
+    check::<A>("negativeZero", scope(|| { Any::dot(f64_any(0x8000000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("0.00e+0"));
+    check::<A>("tie", scope(|| { Any::dot(f64_any(0x3ff4000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("1.3e+0"));
+    check::<A>("negativeTie", scope(|| { Any::dot(f64_any(0xc004000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("-3e+0"));
+    check::<A>("negativeSmall", scope(|| { Any::dot(f64_any(0xbf23a92a30553261), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("-1.5e-4"));
+    check::<A>("roundsUp", scope(|| { Any::dot(f64_any(0x4023fae147ae147b), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("1.0e+1"));
+    check::<A>("belowAPower", scope(|| { Any::dot(f64_any(0x44b52d02c7e14af6), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4034000000000000)].to_array().to_any())) }), string_any("9.99999999999999916114e+22"));
+    check::<A>("belowAPowerRounded", scope(|| { Any::dot(f64_any(0x44b52d02c7e14af6), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("1e+23"));
+    check::<A>("subnormal", scope(|| { Any::dot(f64_any(0x0000000000000001), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("4.94e-324"));
+    check::<A>("subnormalNoArgument", scope(|| { Any::dot(f64_any(0x0000000000000001), string_any("toExponential")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("5e-324"));
+    check::<A>("largest", scope(|| { Any::dot(f64_any(0x7fefffffffffffff), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), string_any("1.798e+308"));
+    check::<A>("infinityTooManyDigits", scope(|| { Any::dot(f64_any(0x7ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4059400000000000)].to_array().to_any())) }), string_any("Infinity"));
+    check::<A>("nanDigits", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x7ff8000000000000)].to_array().to_any())) }), string_any("1e+0"));
+    check_throws::<A>("bigintOnInfinity", scope(|| { Any::dot(f64_any(0x7ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())) }));
+    check_throws::<A>("tooManyDigits", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([f64_any(0x4059400000000000)].to_array().to_any())) }));
+    check_throws::<A>("bigint", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("toExponential")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())) }));
 }

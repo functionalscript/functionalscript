@@ -1,5 +1,4 @@
 mod add;
-mod and;
 mod bitand;
 mod bitor;
 mod bitxor;
@@ -13,10 +12,8 @@ mod instanceof_;
 mod mul;
 mod neg;
 mod not;
-mod nullish_coalescing;
 mod object_spread;
 mod option_call;
-mod or;
 mod partial_eq;
 mod relational;
 mod rem;
@@ -169,7 +166,7 @@ impl<A: IVm> Any<A> {
     /// names is there, `true` for an entry holding `undefined`, which
     /// [`Any::entry`] reads as none, the receiver and the key treated as
     /// `entry` treats them, so a nullish receiver throws and a key converts
-    /// first (`spec/property-access/entries.md`).
+    /// first (`spec/property-access/entries/README.md`).
     pub fn has_entry(self, key: Self) -> Result<bool, Self> {
         Ok(self.own_entry(key)?.is_some())
     }

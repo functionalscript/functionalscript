@@ -28,22 +28,30 @@ export default (a, b, c, ...x) => [a, b, c, x];
 Bare `a => a`, `(a) => a`, and a fixed list with a trailing comma are also
 accepted. No parameter or comma may follow rest. A fixed parameter takes a
 pattern, `({ a }, [b]) => [a, b]`, as a `const` does
-([destructuring](../bindings/destructuring.md)), and a default, `(a, b = a) => [a, b]`
+([destructuring](../bindings/destructuring/README.md)), and a default, `(a, b = a) => [a, b]`
 (below); the rest parameter takes neither. A newline before `=>` is
 refused.
 
 ## Pages
 
-- [Parameters](./parameters.md)
-- [Captures and Self Recursion](./captures.md)
-- [Names and Identity](./names-and-identity.md)
-- [Calls](./calls.md)
-- [Call Statements](./call-statements.md)
-- [Function Outputs](./function-outputs.md)
+- [Parameters](./parameters/README.md)
+- [Captures and Self Recursion](./captures/README.md)
+- [Names and Identity](./names-and-identity/README.md)
+- [Calls](./calls/README.md)
+- [Call Statements](./call-statements/README.md)
+- [Function Outputs](./function-outputs/README.md)
 
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.
+
+The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
+example as a function of one number — a function with a rest parameter: the
+argument count, and the first argument times ten — with every output `fjs
+compile` makes of it: the expression graph (EDAG), the Rust and the
+WebAssembly that Rust builds to. Its Run button calls the default export
+with `1` and `2`, as JavaScript and as WebAssembly, and shows what each call
+returned or threw.
 
 ## Reference
 

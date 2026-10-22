@@ -2,16 +2,17 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("twice", Any::dot(string_any("ab"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("abab"));
-    check::<A>("truncated", Any::dot(string_any("ab"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x4007333333333333)].to_array().to_any())), string_any("abab"));
-    check::<A>("zero", Any::dot(string_any("ab"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any(""));
-    check::<A>("noArgument", Any::dot(string_any("ab"), string_any("repeat")).end_call(&rt, || Ok(Array::default().to_any())), string_any(""));
-    check::<A>("string", Any::dot(string_any("a"), string_any("repeat")).end_call(&rt, || Ok([string_any("3")].to_array().to_any())), string_any("aaa"));
-    check::<A>("emptyMany", Any::dot(string_any(""), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x408f400000000000)].to_array().to_any())), string_any(""));
-    check_throws::<A>("negative", Any::dot(string_any("a"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())));
-    check_throws::<A>("infinity", Any::dot(string_any("a"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x7ff0000000000000)].to_array().to_any())));
-    check_throws::<A>("emptyInfinity", Any::dot(string_any(""), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x7ff0000000000000)].to_array().to_any())));
-    check_throws::<A>("bigint", Any::dot(string_any("a"), string_any("repeat")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())));
+    check::<A>("twice", scope(|| { Any::dot(string_any("ab"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("abab"));
+    check::<A>("truncated", scope(|| { Any::dot(string_any("ab"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x4007333333333333)].to_array().to_any())) }), string_any("abab"));
+    check::<A>("zero", scope(|| { Any::dot(string_any("ab"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any(""));
+    check::<A>("noArgument", scope(|| { Any::dot(string_any("ab"), string_any("repeat")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any(""));
+    check::<A>("string", scope(|| { Any::dot(string_any("a"), string_any("repeat")).end_call(&rt, || Ok([string_any("3")].to_array().to_any())) }), string_any("aaa"));
+    check::<A>("emptyMany", scope(|| { Any::dot(string_any(""), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x408f400000000000)].to_array().to_any())) }), string_any(""));
+    check_throws::<A>("negative", scope(|| { Any::dot(string_any("a"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())) }));
+    check_throws::<A>("infinity", scope(|| { Any::dot(string_any("a"), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x7ff0000000000000)].to_array().to_any())) }));
+    check_throws::<A>("emptyInfinity", scope(|| { Any::dot(string_any(""), string_any("repeat")).end_call(&rt, || Ok([f64_any(0x7ff0000000000000)].to_array().to_any())) }));
+    check_throws::<A>("bigint", scope(|| { Any::dot(string_any("a"), string_any("repeat")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())) }));
 }

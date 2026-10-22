@@ -47,7 +47,7 @@
  */
 
 import { entry as objectEntry } from '../../types/object/entry/module.f.js'
-import { charIs, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
+import { charIs, codePoints, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { untilNul } from '../bytes/module.f.js'
 
@@ -236,7 +236,7 @@ const lines = text => {
  * @type {(digits: string, radix: bigint) => Nullable<bigint>}
  */
 const tryDigits = (digits, radix) => {
-    const codes = [...digits].map(c => c.charCodeAt(0))
+    const codes = codePoints(digits)
     return radix === 16n ? hexDigitsValue(codes) : digitsValue(radix)(codes)
 }
 

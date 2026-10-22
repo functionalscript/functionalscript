@@ -2,45 +2,47 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("number", f64_any(0x405ec00000000000).to_string().map(|v| v.to_any()), string_any("123"));
-    check::<A>("negativeNumber", f64_any(0xc07c800000000000).to_string().map(|v| v.to_any()), string_any("-456"));
-    check::<A>("zero", f64_any(0x0000000000000000).to_string().map(|v| v.to_any()), string_any("0"));
-    check::<A>("negativeZero", f64_any(0x8000000000000000).to_string().map(|v| v.to_any()), string_any("0"));
-    check::<A>("infinity", f64_any(0x7ff0000000000000).to_string().map(|v| v.to_any()), string_any("Infinity"));
-    check::<A>("negativeInfinity", f64_any(0xfff0000000000000).to_string().map(|v| v.to_any()), string_any("-Infinity"));
-    check::<A>("nan", f64_any(0x7ff8000000000000).to_string().map(|v| v.to_any()), string_any("NaN"));
-    check::<A>("booleanTrue", true.to_any().to_string().map(|v| v.to_any()), string_any("true"));
-    check::<A>("booleanFalse", false.to_any().to_string().map(|v| v.to_any()), string_any("false"));
-    check::<A>("null", Nullish::Null.to_any().to_string().map(|v| v.to_any()), string_any("null"));
-    check::<A>("undefined", Nullish::Undefined.to_any().to_string().map(|v| v.to_any()), string_any("undefined"));
-    check::<A>("string", string_any("already").to_string().map(|v| v.to_any()), string_any("already"));
-    check::<A>("bigint", bigint_any(123).to_string().map(|v| v.to_any()), string_any("123"));
-    check::<A>("negativeBigint", bigint_any(-456).to_string().map(|v| v.to_any()), string_any("-456"));
-    check::<A>("wideBigint", bigint_any_words(false, &[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6]).to_string().map(|v| v.to_any()), string_any("123456789012345678901234567890"));
-    check::<A>("wideNegativeBigint", bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001]).to_string().map(|v| v.to_any()), string_any("-18446744073709551616"));
-    check::<A>("emptyArray", Array::default().to_any().to_string().map(|v| v.to_any()), string_any(""));
-    check::<A>("singletonArray", [f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1"));
-    check::<A>("array", [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1,2,3"));
-    check::<A>("nestedArray", [f64_any(0x3ff0000000000000), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), f64_any(0x4010000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1,2,3,4"));
-    check::<A>("arrayWithNullish", [Nullish::Null.to_any(), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any(",,1"));
-    check::<A>("arrayWithOwnToString", [[(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("x")) }, 0, Array::default(), Some("()=>\"x\"")).to_any())].to_object().to_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("x,1"));
-    check::<A>("emptyObject", Object::default().to_any().to_string().map(|v| v.to_any()), string_any("[object Object]"));
-    check::<A>("object", [(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any().to_string().map(|v| v.to_any()), string_any("[object Object]"));
-    check::<A>("objectOwnToString", [(string_key("toString"), function_any())].to_object().to_any().to_string().map(|v| v.to_any()), string_any("undefined"));
-    check::<A>("objectOwnToStringMethod", [(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("custom string")) }, 0, Array::default(), Some("()=>\"custom string\"")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()), string_any("custom string"));
-    check::<A>("objectOwnValueOf", [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()), string_any("[object Object]"));
-    check::<A>("objectOwnBoth", [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("t")) }, 0, Array::default(), Some("()=>\"t\"")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()), string_any("t"));
-    check_throws::<A>("objectOwnToStringNotAFunction", [(string_key("toString"), string_any("h"))].to_object().to_any().to_string().map(|v| v.to_any()));
-    check::<A>("objectOwnValueOfNotAFunction", [(string_key("valueOf"), string_any("x"))].to_object().to_any().to_string().map(|v| v.to_any()), string_any("[object Object]"));
-    check::<A>("objectOwnToStringNotPrimitive", [(string_key("toString"), A::static_function(|_self, _args| { Ok(Object::default().to_any()) }, 0, Array::default(), Some("()=>{return {};}")).to_any()), (string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()), string_any("1"));
-    check_throws::<A>("objectOwnNoPrimitive", [(string_key("toString"), A::static_function(|_self, _args| { Ok(Array::default().to_any()) }, 0, Array::default(), Some("()=>[]")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()));
-    check_throws::<A>("objectOwnToStringThrows", [(string_key("toString"), A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default(), Some("()=>1n/0n")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()));
-    check::<A>("function", function_any().to_string().map(|v| v.to_any()), string_any("()=>undefined"));
-    check::<A>("callback", A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        c0 * f64_any(0x4000000000000000)
-    }, 0, Array::default(), Some("(...$0)=>$0[0]*2")).to_any().to_string().map(|v| v.to_any()), string_any("(...$0)=>$0[0]*2"));
-    check::<A>("arrayOfFunction", [function_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("()=>undefined,1"));
+    check::<A>("number", scope(|| { f64_any(0x405ec00000000000).to_string().map(|v| v.to_any()) }), string_any("123"));
+    check::<A>("negativeNumber", scope(|| { f64_any(0xc07c800000000000).to_string().map(|v| v.to_any()) }), string_any("-456"));
+    check::<A>("zero", scope(|| { f64_any(0x0000000000000000).to_string().map(|v| v.to_any()) }), string_any("0"));
+    check::<A>("negativeZero", scope(|| { f64_any(0x8000000000000000).to_string().map(|v| v.to_any()) }), string_any("0"));
+    check::<A>("infinity", scope(|| { f64_any(0x7ff0000000000000).to_string().map(|v| v.to_any()) }), string_any("Infinity"));
+    check::<A>("negativeInfinity", scope(|| { f64_any(0xfff0000000000000).to_string().map(|v| v.to_any()) }), string_any("-Infinity"));
+    check::<A>("nan", scope(|| { f64_any(0x7ff8000000000000).to_string().map(|v| v.to_any()) }), string_any("NaN"));
+    check::<A>("booleanTrue", scope(|| { true.to_any().to_string().map(|v| v.to_any()) }), string_any("true"));
+    check::<A>("booleanFalse", scope(|| { false.to_any().to_string().map(|v| v.to_any()) }), string_any("false"));
+    check::<A>("null", scope(|| { Nullish::Null.to_any().to_string().map(|v| v.to_any()) }), string_any("null"));
+    check::<A>("undefined", scope(|| { Nullish::Undefined.to_any().to_string().map(|v| v.to_any()) }), string_any("undefined"));
+    check::<A>("string", scope(|| { string_any("already").to_string().map(|v| v.to_any()) }), string_any("already"));
+    check::<A>("bigint", scope(|| { bigint_any(123).to_string().map(|v| v.to_any()) }), string_any("123"));
+    check::<A>("negativeBigint", scope(|| { bigint_any(-456).to_string().map(|v| v.to_any()) }), string_any("-456"));
+    check::<A>("wideBigint", scope(|| { bigint_any_words(false, &[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6]).to_string().map(|v| v.to_any()) }), string_any("123456789012345678901234567890"));
+    check::<A>("wideNegativeBigint", scope(|| { bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001]).to_string().map(|v| v.to_any()) }), string_any("-18446744073709551616"));
+    check::<A>("emptyArray", scope(|| { Array::default().to_any().to_string().map(|v| v.to_any()) }), string_any(""));
+    check::<A>("singletonArray", scope(|| { [f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()) }), string_any("1"));
+    check::<A>("array", scope(|| { [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any().to_string().map(|v| v.to_any()) }), string_any("1,2,3"));
+    check::<A>("nestedArray", scope(|| { [f64_any(0x3ff0000000000000), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), f64_any(0x4010000000000000)].to_array().to_any().to_string().map(|v| v.to_any()) }), string_any("1,2,3,4"));
+    check::<A>("arrayWithNullish", scope(|| { [Nullish::Null.to_any(), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()) }), string_any(",,1"));
+    check::<A>("arrayWithOwnToString", scope(|| { [[(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("x")) }, 0, Array::default(), Some("()=>\"x\"")).to_any())].to_object().to_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()) }), string_any("x,1"));
+    check::<A>("emptyObject", scope(|| { Object::default().to_any().to_string().map(|v| v.to_any()) }), string_any("[object Object]"));
+    check::<A>("object", scope(|| { [(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any().to_string().map(|v| v.to_any()) }), string_any("[object Object]"));
+    check::<A>("objectOwnToString", scope(|| { [(string_key("toString"), A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()) }), string_any("undefined"));
+    check::<A>("objectOwnToStringMethod", scope(|| { [(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("custom string")) }, 0, Array::default(), Some("()=>\"custom string\"")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()) }), string_any("custom string"));
+    check::<A>("objectOwnValueOf", scope(|| { [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()) }), string_any("[object Object]"));
+    check::<A>("objectOwnBoth", scope(|| { [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("t")) }, 0, Array::default(), Some("()=>\"t\"")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()) }), string_any("t"));
+    check_throws::<A>("objectOwnToStringNotAFunction", scope(|| { [(string_key("toString"), string_any("h"))].to_object().to_any().to_string().map(|v| v.to_any()) }));
+    check::<A>("objectOwnValueOfNotAFunction", scope(|| { [(string_key("valueOf"), string_any("x"))].to_object().to_any().to_string().map(|v| v.to_any()) }), string_any("[object Object]"));
+    check::<A>("objectOwnToStringNotPrimitive", scope(|| { [(string_key("toString"), A::static_function(|_self, _args| { Ok(Object::default().to_any()) }, 0, Array::default(), Some("()=>{return {};}")).to_any()), (string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()) }), string_any("1"));
+    check_throws::<A>("objectOwnNoPrimitive", scope(|| { [(string_key("toString"), A::static_function(|_self, _args| { Ok(Array::default().to_any()) }, 0, Array::default(), Some("()=>[]")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()) }));
+    check_throws::<A>("objectOwnToStringThrows", scope(|| { [(string_key("toString"), A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default(), Some("()=>1n/0n")).to_any())].to_object().to_any().to_string().map(|v| v.to_any()) }));
+    check::<A>("function", scope(|| { A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any().to_string().map(|v| v.to_any()) }), string_any("()=>undefined"));
+    check::<A>("callback", scope(|| {
+        A::static_function(|_self, _args| {
+            let _b132: Any<A> = _args.rest(0).to_any();
+            (Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end())? * f64_any(0x4000000000000000)
+        }, 0, Array::default(), Some("(...$0)=>$0[0]*2")).to_any().to_string().map(|v| v.to_any())
+    }), string_any("(...$0)=>$0[0]*2"));
+    check::<A>("arrayOfFunction", scope(|| { [A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()) }), string_any("()=>undefined,1"));
 }

@@ -39,7 +39,8 @@
  * A `Struct` or a `Tuple` on its own is **closed** — it admits the members it
  * declares and no others. `rest(c, r)` states the set every undeclared member
  * belongs to, and `open(c)` is `rest(c, unknown)`: any undeclared member at
- * all. See "Structs and tuples are closed" in `./README.md`.
+ * all. See "Structs and tuples are closed" in
+ * `./guide/schemas/closed-containers/README.md`.
  *
  * ## Converting to TypeScript types
  *
@@ -224,6 +225,12 @@ export type DemoExample = {
     readonly schemas: readonly [DemoSchema] | readonly [DemoSchema, DemoSchema]
     readonly value: string
 }
+
+/**
+ * A group of examples in the rtti demo's drop-downs: its label and its
+ * examples, in the order they list.
+ */
+export type DemoGroup = readonly [string, readonly DemoExample[]]
 
 /**
  * One reader's answer in the rtti demo: the value it succeeded with, as the

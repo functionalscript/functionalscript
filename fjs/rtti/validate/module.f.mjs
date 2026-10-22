@@ -28,10 +28,10 @@
  *
  * ## Structs and tuples are closed
  *
- * Closedness is the shared rule, not a `parse` detail — see "Structs and
- * tuples are closed" in `../README.md`. A bare `Struct` or `Tuple` admits the
- * members it declares and no others, so an undeclared key or an index past the
- * prefix rejects the value. A tuple answers by **length** as well as by
+ * Closedness is the shared rule, not a `parse` detail — see
+ * `../guide/schemas/closed-containers/README.md`. A bare `Struct` or `Tuple`
+ * admits the members it declares and no others, so an undeclared key or an
+ * index past the prefix rejects the value. A tuple answers by **length** as well as by
  * member, because a hole past the prefix is no member and would slip through
  * the member check alone.
  *
@@ -40,7 +40,8 @@
  * — the `option` bit of its union — so a schema whose trailing position says
  * `or(option, t)` still accepts a shorter array. A tuple schema declares by
  * length, so a hole in the *schema* is a position whose schema is `undefined`
- * — see "A hole is a declared position" in `../README.md`.
+ * — see "A hole is a declared position" in
+ * `../guide/schemas/closed-containers/README.md`.
  *
  * The length check is the model rather than an inference from `Ts<>`. #1622
  * added one by reading `Ts<readonly[42]>`'s exact tuple as the value model
