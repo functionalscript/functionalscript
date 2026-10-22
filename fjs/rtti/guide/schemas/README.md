@@ -26,7 +26,7 @@ tuple; unary schemas (`array`, `record`) return a tag and the inner type.
 | `option` | `['option']` | nothing but **absence**: `or(option, t)` is a member that may be left out | [absence](./option/README.md) |
 | `or(...ts)` | `['or', ...ts]` | a value any member admits; `never` is `or()` | [unions](./unions/README.md) |
 | `array(t)` | `['array', t]` | `readonly Ts<t>[]` | [arrays and records](./arrays-and-records/README.md) |
-| `record(t)` | `['record', t]` | `{ readonly[K: string]: Ts<t> }` | [arrays and records](./arrays-and-records/README.md) |
+| `record(t)` | `['record', t]` | `{ readonly[K in string]?: Ts<t> }` | [arrays and records](./arrays-and-records/README.md) |
 | `rest(c, r)` | `['rest', c, r]` | `c`'s members, and only members of `r` besides | [open containers](./open-containers/README.md) |
 | `open(c)` | `['rest', c, unknown]` | `c`'s members, and anything else | [open containers](./open-containers/README.md) |
 

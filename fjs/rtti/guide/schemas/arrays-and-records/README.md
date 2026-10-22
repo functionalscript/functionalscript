@@ -7,7 +7,7 @@
 
 ```js
 const tags = array(string)       // readonly string[]
-const stock = record(number)     // { readonly [k: string]: number }
+const stock = record(number)     // { readonly [k in string]?: number }
 ```
 
 Both are homogeneous. An array whose positions differ is a
