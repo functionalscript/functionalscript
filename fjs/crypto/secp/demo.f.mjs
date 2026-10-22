@@ -12,7 +12,7 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
-import { inputField, caption, refusal, radios } from '../../website/demo/module.f.mjs'
+import { inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.mjs'
 
@@ -207,7 +207,7 @@ const realSamples = Array.from({ length: 481 }, (_, i) => assertNotNullish(realP
 const curvePath = branch => realSamples.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${realXY([x, branch * y]).join(' ')}`).join(' ')
 
 /** @type {(operation: string, p: RealPoint, q: RealPoint, c: Construction) => Element} */
-const realGraph = (operation, p, q, c) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', 'data-demo-x-min': '-1.5', 'data-demo-x-max': '3.5', 'data-demo-x-left': '40', 'data-demo-x-right': '480', role: 'img', 'aria-label': 'Real-number curve, secant or tangent, third intersection and reflection' },
+const realGraph = (operation, p, q, c) => ['svg', { viewBox: '0 0 530 530', 'data-secp-graph': '', ...dragAxis({ min: -1.5, max: 3.5, left: 40, right: 480 }), role: 'img', 'aria-label': 'Real-number curve, secant or tangent, third intersection and reflection' },
     ['title', 'Geometric analogy over the real numbers: y² = x³ − x + 1'],
     ['defs', ['clipPath', { id: 'secp-real-clip' }, ['rect', { x: '40', y: '40', width: '440', height: '440' }]]],
     ['g', { 'clip-path': 'url(#secp-real-clip)' },

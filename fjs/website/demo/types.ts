@@ -44,6 +44,24 @@ export type DemoEvent =
     | { readonly kind: 'click', readonly name: string }
 
 /**
+ * How a graph maps a drag onto a slider's value: the values `min` to `max`
+ * are drawn from the x `left` to the x `right`, in the graph's own
+ * coordinates.
+ */
+export type DragAxis = {
+    readonly min: number
+    readonly max: number
+    readonly left: number
+    readonly right: number
+}
+
+/** The values a slider admits, `min` to `max`. */
+export type DragBounds = {
+    readonly min: number
+    readonly max: number
+}
+
+/**
  * A demo: an initial state, how an event changes it, and what it looks like.
  *
  * `view` answers an `Element` rather than a `Node`, because the runtime
