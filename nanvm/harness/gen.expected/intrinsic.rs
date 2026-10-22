@@ -4,11 +4,9 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [f64_any(0x4020000000000000)].to_array().to_any();
-    let c1: Any<A> = [string_any("yz"), string_any("yz")].to_array().to_any();
-    let c2: Any<A> = [string_any("bc"), string_any("cdef"), string_any("abcdef"), string_any("ef"), string_any(""), string_any("abcdef"), string_any(""), c0, string_any("own"), f64_any(0x4008000000000000), string_any("function"), false.to_any(), c1, f64_any(0x4058800000000000), true.to_any(), f64_any(0x40ebc00000000000), f64_any(0x4000000000000000)].to_array().to_any();
-    Ok([(string_key("default"), c2)].to_object().to_any())
+    Ok([(string_key("default"), [string_any("bc"), string_any("cdef"), string_any("abcdef"), string_any("ef"), string_any(""), string_any("abcdef"), string_any(""), [f64_any(0x4020000000000000)].to_array().to_any(), string_any("own"), f64_any(0x4008000000000000), string_any("function"), false.to_any(), [string_any("yz"), string_any("yz")].to_array().to_any(), f64_any(0x4058800000000000), true.to_any(), f64_any(0x40ebc00000000000), f64_any(0x4000000000000000)].to_array().to_any())].to_object().to_any())
 }
 
 #[rustfmt::skip]

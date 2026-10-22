@@ -2,17 +2,18 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("zeros", Any::dot(string_any("5"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000), string_any("0")].to_array().to_any())), string_any("005"));
-    check::<A>("cut", Any::dot(string_any("abc"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4020000000000000), string_any("xy")].to_array().to_any())), string_any("xyxyxabc"));
-    check::<A>("spaces", Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())), string_any("  a"));
-    check::<A>("undefinedFill", Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000), Nullish::Undefined.to_any()].to_array().to_any())), string_any("  a"));
-    check::<A>("nullFill", Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000), Nullish::Null.to_any()].to_array().to_any())), string_any("nua"));
-    check::<A>("emptyFill", Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4014000000000000), string_any("")].to_array().to_any())), string_any("a"));
-    check::<A>("shorter", Any::dot(string_any("abc"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4000000000000000), string_any("x")].to_array().to_any())), string_any("abc"));
-    check::<A>("negative", Any::dot(string_any("abc"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0xbff0000000000000), string_any("x")].to_array().to_any())), string_any("abc"));
-    check::<A>("noArgument", Any::dot(string_any("abc"), string_any("padStart")).end_call(&rt, || Ok(Array::default().to_any())), string_any("abc"));
-    check::<A>("numberFill", Any::dot(string_any("7"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000), f64_any(0x0000000000000000)].to_array().to_any())), string_any("007"));
-    check_throws::<A>("bigintLength", Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([bigint_any(3)].to_array().to_any())));
+    check::<A>("zeros", scope(|| { Any::dot(string_any("5"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000), string_any("0")].to_array().to_any())) }), string_any("005"));
+    check::<A>("cut", scope(|| { Any::dot(string_any("abc"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4020000000000000), string_any("xy")].to_array().to_any())) }), string_any("xyxyxabc"));
+    check::<A>("spaces", scope(|| { Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), string_any("  a"));
+    check::<A>("undefinedFill", scope(|| { Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000), Nullish::Undefined.to_any()].to_array().to_any())) }), string_any("  a"));
+    check::<A>("nullFill", scope(|| { Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000), Nullish::Null.to_any()].to_array().to_any())) }), string_any("nua"));
+    check::<A>("emptyFill", scope(|| { Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4014000000000000), string_any("")].to_array().to_any())) }), string_any("a"));
+    check::<A>("shorter", scope(|| { Any::dot(string_any("abc"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4000000000000000), string_any("x")].to_array().to_any())) }), string_any("abc"));
+    check::<A>("negative", scope(|| { Any::dot(string_any("abc"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0xbff0000000000000), string_any("x")].to_array().to_any())) }), string_any("abc"));
+    check::<A>("noArgument", scope(|| { Any::dot(string_any("abc"), string_any("padStart")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("abc"));
+    check::<A>("numberFill", scope(|| { Any::dot(string_any("7"), string_any("padStart")).end_call(&rt, || Ok([f64_any(0x4008000000000000), f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("007"));
+    check_throws::<A>("bigintLength", scope(|| { Any::dot(string_any("a"), string_any("padStart")).end_call(&rt, || Ok([bigint_any(3)].to_array().to_any())) }));
 }

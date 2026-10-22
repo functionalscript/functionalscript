@@ -2,18 +2,19 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("first", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("a"));
-    check::<A>("last", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("c"));
-    check::<A>("negative", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())), string_any(""));
-    check::<A>("pastTheEnd", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())), string_any(""));
-    check::<A>("noArgument", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok(Array::default().to_any())), string_any("a"));
-    check::<A>("truncated", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x3ffe666666666666)].to_array().to_any())), string_any("b"));
-    check::<A>("string", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([string_any("2")].to_array().to_any())), string_any("c"));
-    check::<A>("nan", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x7ff8000000000000)].to_array().to_any())), string_any("a"));
-    check::<A>("infinity", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x7ff0000000000000)].to_array().to_any())), string_any(""));
-    check::<A>("codeUnit", Any::dot(string_any("😀"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any_utf16(&[0xde00]));
-    check::<A>("empty", Any::dot(string_any(""), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any(""));
-    check_throws::<A>("bigint", Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([bigint_any(0)].to_array().to_any())));
+    check::<A>("first", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("a"));
+    check::<A>("last", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("c"));
+    check::<A>("negative", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())) }), string_any(""));
+    check::<A>("pastTheEnd", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), string_any(""));
+    check::<A>("noArgument", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("a"));
+    check::<A>("truncated", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x3ffe666666666666)].to_array().to_any())) }), string_any("b"));
+    check::<A>("string", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([string_any("2")].to_array().to_any())) }), string_any("c"));
+    check::<A>("nan", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x7ff8000000000000)].to_array().to_any())) }), string_any("a"));
+    check::<A>("infinity", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x7ff0000000000000)].to_array().to_any())) }), string_any(""));
+    check::<A>("codeUnit", scope(|| { Any::dot(string_any("😀"), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any_utf16(&[0xde00]));
+    check::<A>("empty", scope(|| { Any::dot(string_any(""), string_any("charAt")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any(""));
+    check_throws::<A>("bigint", scope(|| { Any::dot(string_any("abc"), string_any("charAt")).end_call(&rt, || Ok([bigint_any(0)].to_array().to_any())) }));
 }

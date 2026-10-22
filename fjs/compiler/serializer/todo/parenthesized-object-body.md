@@ -22,7 +22,7 @@ export default ()=>({"a":1});
 
 ### Proposal
 
-In `lambdaBody`, where a body needing no `const` is written as an
+In `functionText` of the prepared JavaScript serializer, where a body needing no `const` is written as an
 expression, wrap the text in `(` and `)` instead of turning it into
 `{return …;}` when its first chunk opens with `{`. The parser reads the
 group back to the same graph — `(x)` is `x` — so the round-trip the writer
@@ -40,7 +40,7 @@ the shape of the decision does not change, only its answer.
 
 ### Tasks
 
-- [ ] Write the parenthesized expression body in `lambdaBody` where the
+- [ ] Write the parenthesized expression body in `functionText` where the
       block is chosen only because the text opens with `{`.
 - [ ] Update the proofs that pin the block spelling, in
       [`../proof.f.mjs`](../proof.f.mjs) and
@@ -50,7 +50,7 @@ the shape of the decision does not change, only its answer.
 
 ### Related
 
-- [`../module.f.mjs`](../module.f.mjs) — `lambdaBody`, which chooses the
-  spelling.
+- [`../../../js/ast/serializer/module.f.mjs`](../../../js/ast/serializer/module.f.mjs)
+  — `functionText`, which chooses the prepared JavaScript spelling.
 - [`../../parser/grammar/module.f.mjs`](../../parser/grammar/module.f.mjs) —
   `group`, the rule that reads it back.

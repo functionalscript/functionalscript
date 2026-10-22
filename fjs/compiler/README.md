@@ -249,7 +249,7 @@ through one, `-((...a) => 1)`, and the refusal falls on the `...` where
 JavaScript's does rather than on the `(`. The writer spells that group, for
 a negated function and for a negation under an access, `(-[1])[0]`, alike;
 a negated *number* is the number by the time the writer sees it, and a
-number under an access takes a `const`, `const $0=-1;export default $0[0];`.
+number under an access is grouped, `export default (-1)[0];`.
 
 Stage A of [`spec/operators/README.md`](../../spec/operators/README.md)
 gave the language the rest: arithmetic, strict comparison, and bitwise —
@@ -317,11 +317,12 @@ states the source rule. The writer
 spells the same idiom back where a lazy operand shares a value nothing else
 reaches. [`serializer`](serializer/module.f.mjs) writes both ordinary and method
 calls, including chained calls, spreads and calls shared through a `const`.
-An operator callee is grouped, `(x+1)()`. A function callee takes a binding so
-reading the output does not inline away the original call node. A negative
-callee needs the same care as an access base: `-1()` is `-(1())`, so a negative
-numeric leaf uses a binding, such as `const f=-1;export default f();`, while a
-negation node is grouped, `(-[])()`. The `calls`, `neg` and `operators` groups in the
+Common graph placement establishes computed callees before the call, as in
+`const f=x+1;export default f();`. A function callee takes a binding so reading
+the output does not inline away the original call node. A negative callee
+needs the same care as an access base: `-1()` is `-(1())`, so a negative numeric
+leaf is grouped, `export default (-1)();`, while a computed negation is
+established by a temporary. The `calls`, `neg` and `operators` groups in the
 [serializer proofs](./serializer/proof.f.mjs) pin these spellings and their
 structural round trips. Calls and arithmetic can therefore reach source, EDAG
 and Rust output, and can compute data for JSON/DataJS output.
@@ -332,9 +333,13 @@ layouts and lazy sharing can be refused. Total code-only
 [runtime-value compilation](../edag/values.md#runtime-compilation) have separate
 contracts and may emit JavaScript beyond FJS; they do not make structural
 source serialization total.
-Source rendering still uses the host stack for nested expressions; deep
-`Number`/`String` chains can throw `RangeError` after parsing and lowering
-succeed, as recorded in
+Common graph-to-FAST conversion, preparation and JavaScript syntax rendering
+now use explicit work stacks for expression chains and final result regions.
+Their direct stage proofs cover 20,000-deep inputs, including required
+definitions in final result blocks. This does not make the public raw-graph
+boundary stack-safe: `identityAnalysis` still has recursive walks and can
+overflow before those output stages run. Remaining input and graph-admission
+limits are tracked in
 [deep-nesting-recursion](./todo/deep-nesting-recursion.md#source-conversion-chains).
 
 Outside optional chaining, a group, `(x)`, is the value it holds: no node in
