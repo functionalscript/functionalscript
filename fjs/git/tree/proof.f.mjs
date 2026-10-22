@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { hole, latin1, modesTree, rootTree, sha256Tree } from '../testlib.f.mjs'
 import { isSubtree, mode, tryRead, validate, write } from './module.f.mjs'
@@ -140,7 +140,7 @@ export const proof = {
         const payload = [...latin1('100644 a\0'), ...Array.from({ length: 32 }, () => 0xAB)]
         const [e] = tryRead(32)(payload) ?? []
         assert(e !== undefined)
-        assertStructurallySame(toArray(u8ListMsb(e.oid)), Array.from({ length: 32 }, () => 0xAB))
+        assertStructurallySame(u8ArrayMsb(e.oid), Array.from({ length: 32 }, () => 0xAB))
         assertStructurallySame(toArray(write(32)([e])), payload)
         assertEq(read20(payload), null)
     },

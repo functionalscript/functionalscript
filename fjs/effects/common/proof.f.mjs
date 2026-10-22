@@ -10,10 +10,9 @@ import { assert, assertEq } from '../../asserts/module.f.js'
 import { run as mockRun } from '../mock/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
-import { u8ListMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { toCodePointList, utf8ToString } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write,
 } from './module.f.mjs'
@@ -105,7 +104,7 @@ const reader = mockRun(/** @type {Parameters<typeof mockRun<Read, readonly numbe
 }))
 
 /** @type {(s: string) => readonly number[]} */
-const bytes = s => toArray(u8ListMsb(utf8(s)))
+const bytes = s => u8ArrayMsb(utf8(s))
 
 // Decoded the way `readLine` decodes, rather than through a second
 // round-trip: the assertion is about which bytes are left, and a helper that

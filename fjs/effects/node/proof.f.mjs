@@ -8,7 +8,7 @@
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { byteLength, empty, isVec, maxLengthBytes, u8ArrayMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8 } from "../../text/module.f.mjs"
 import { utf8ToString } from "../../text/utf8/module.f.mjs"
 import { match } from "../module.f.mjs"
@@ -797,7 +797,7 @@ export const proof = {
                 assert(t === 'ok', result)
                 assertStructurallySame(
                     toArray(/** @type {List<number>} */ (result)),
-                    chunks.flatMap(v => toArray(u8ListMsb(v))))
+                    chunks.flatMap(v => u8ArrayMsb(v)))
             }
         },
         // A whole file is not bounded by a `Vec`, which is the reason the
