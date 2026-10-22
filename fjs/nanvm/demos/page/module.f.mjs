@@ -20,10 +20,15 @@
  * `run_sample`, which performs the same program on the NaNVM host and keeps
  * its output for the page to read back.
  *
+ * **The JavaScript heap is shown only where the browser reports it**, which
+ * Chromium alone does, as its change across the run, with the readings just
+ * before and just after. Elsewhere the line is left out, as the page shows no
+ * figure it cannot measure.
+ *
  * @module
  *
  * @import { Sandbox, SandboxResult, Write } from '../../../effects/common/types.ts'
- * @import { FetchText, Instantiate, WasmInstance } from '../../../effects/browser/types.ts'
+ * @import { FetchText, Instantiate, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { Element, Node } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
@@ -31,11 +36,11 @@
  * @import { List } from '../../../types/list/types.ts'
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { Demo, DemoEvent } from '../../../website/demo/types.ts'
- * @import { Loaded, Place, Run, Runs, Sample, State, WasmRun } from './types.ts'
+ * @import { JsHeap, JsRun, Loaded, Place, Run, Runs, Sample, State, WasmRun } from './types.ts'
  */
 
 import { sandbox } from '../../../effects/common/module.f.mjs'
-import { fetchText, instantiate } from '../../../effects/browser/module.f.mjs'
+import { fetchText, instantiate, jsHeapSize } from '../../../effects/browser/module.f.mjs'
 import { errorMessage, history, historyStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
@@ -134,17 +139,30 @@ const timed = r => r[0] === 'error'
         : ok({ value: r[1].result[1], time: r[1].duration })
 
 /**
- * Performs the program in a `sandbox`, and decodes its output after: the time
- * holds the run alone, as the WebAssembly run's does.
+ * The JavaScript heap in use, or `null` where the page cannot read it.
  *
- * @type {(program: Sample['program']) => Effect<Sandbox, Result<Run, string>, never>}
+ * @type {Effect<JsHeapSize, number | null, never>}
  */
-export const runJs = program => resultStep(sandbox(() => jsPerform(program)), r => {
+const heapSize = resultMapStep(jsHeapSize(), r => ok(r[0] === 'ok' ? r[1] : null))
+
+/** Both readings, or `null` unless there are both. @type {(before: number | null, after: number | null) => JsHeap | null} */
+const jsHeap = (before, after) => before === null || after === null ? null : { before, after }
+
+/**
+ * Performs the program in a `sandbox`, and decodes its output after: the time
+ * holds the run alone, as the WebAssembly run's does. The heap is read just
+ * before the run and just after it.
+ *
+ * @type {(program: Sample['program']) => Effect<Sandbox | JsHeapSize, Result<JsRun, string>, never>}
+ */
+export const runJs = program => step(heapSize, before => resultStep(sandbox(() => jsPerform(program)), r => {
     const t = timed(/** @type {Result<SandboxResult<readonly [Vec, Result<unknown, unknown>]>, IoChannel>} */ (r))
-    /** @type {Result<Run, string>} */
-    const run = t[0] === 'error' ? t : ok({ output: jsText(t[1].value), time: t[1].time })
-    return pureOk(run)
-})
+    return step(heapSize, after => {
+        /** @type {Result<JsRun, string>} */
+        const run = t[0] === 'error' ? t : ok({ output: jsText(t[1].value), time: t[1].time, heap: jsHeap(before, after) })
+        return pureOk(run)
+    })
+}))
 
 /**
  * Loads the sample with its export, untimed, as the JavaScript run's module
@@ -189,7 +207,7 @@ export const runWasm = name => ({ exports }) => {
  * Both runs, JavaScript first; the WebAssembly one only once the module has
  * loaded.
  *
- * @type {(sample: Sample) => (state: State) => Effect<Sandbox, State, never>}
+ * @type {(sample: Sample) => (state: State) => Effect<Sandbox | JsHeapSize, State, never>}
  */
 export const runBoth = ({ place, program }) => state => {
     const { wasm } = state
@@ -240,6 +258,24 @@ export const ratio = ({ js, wasm }) => js[0] === 'ok' && wasm[0] === 'ok'
     ? `${(wasm[1].run.time / js[1].time).toFixed(1)}×`
     : 'Not available'
 
+/**
+ * How the heap changed across the run, signed, and the two readings.
+ *
+ * @type {(heap: JsHeap) => string}
+ */
+export const heapChange = ({ before, after }) =>
+    `${after < before ? '-' : '+'}${Math.abs(after - before)} bytes, ${before} → ${after}`
+
+/**
+ * The change in the JavaScript heap across the run, where the browser reports
+ * it. The heap is the whole page's, so the label says so.
+ *
+ * @type {(heap: JsHeap | null) => readonly Node[]}
+ */
+const heapView = heap => heap === null
+    ? []
+    : [stat('Change in the whole page’s JavaScript heap across the run (Chromium)', heapChange(heap))]
+
 /** @type {(runs: Runs) => readonly Node[]} */
 const runsDetail = ({ js, wasm }) => [
     ['h3', {}, 'JavaScript'],
@@ -247,7 +283,7 @@ const runsDetail = ({ js, wasm }) => [
         ? [
             ...outputView(js[1].output),
             stat('Running time', milliseconds(js[1].time)),
-            stat('Memory', 'Not available'),
+            ...heapView(js[1].heap),
         ]
         : [refusal(js[1])]),
     ['h3', {}, 'WebAssembly'],
@@ -289,11 +325,11 @@ export const view = name => state => ['div', {},
     ...(state.runs === null ? [] : runsView(state.runs)),
 ]
 
-/** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox, State, never>} */
+/** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox | JsHeapSize, State, never>} */
 export const update = sample => state => event =>
     event.kind === 'start' ? load(sample.place)
     : event.kind === 'click' && event.name === 'run' ? runBoth(sample)(state)
     : pureOk(state)
 
-/** @type {(sample: Sample) => Demo<State, DemoEvent, FetchText | Instantiate | Sandbox>} */
+/** @type {(sample: Sample) => Demo<State, DemoEvent, FetchText | Instantiate | Sandbox | JsHeapSize>} */
 export const wasmDemo = sample => ({ init, update: update(sample), view: view(sample.place.name) })

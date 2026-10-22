@@ -38,6 +38,20 @@ export type Run = {
     readonly time: number
 }
 
+/** The JavaScript heap in use just before and just after a run, in bytes. */
+export type JsHeap = {
+    readonly before: number
+    readonly after: number
+}
+
+/**
+ * The JavaScript run, and the heap around it, or `null` in a browser that
+ * does not report it: Chromium alone does.
+ */
+export type JsRun = Run & {
+    readonly heap: JsHeap | null
+}
+
 /** The WASM run, and the module's linear memory size after it, in bytes. */
 export type WasmRun = {
     readonly run: Run
@@ -46,7 +60,7 @@ export type WasmRun = {
 
 /** Both runs of one press of Run, or why one could not happen. */
 export type Runs = {
-    readonly js: Result<Run, string>
+    readonly js: Result<JsRun, string>
     readonly wasm: Result<WasmRun, string>
 }
 
