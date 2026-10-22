@@ -36,8 +36,8 @@ JSON cannot write every value a schema describes, so the conversion is
 
 - a `bigint` becomes an integer, and a bigint constant the nearest double:
   `9007199254740993n` is written `9007199254740992`;
-- `-0` is a constant of its own to rtti, and JSON writes it `0`, so
-  `toJsonSchema(-0)` is `{ "const": 0 }`, the same as `toJsonSchema(0)`;
+- `-0` is a constant of its own to rtti, but JSON Schema compares numbers by
+  value, so `toJsonSchema(-0)`, `{ "const": -0 }`, admits `0` as well;
 - `undefined` has no JSON value, so the constant becomes `{ "not": {} }`;
 - `NaN` and the infinities are numbers to rtti and not JSON values at all;
 - JSON has no holes, so absence is kept only at the end of a tuple:
