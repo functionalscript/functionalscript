@@ -31,9 +31,11 @@ Inside a recursive definition a constant is written as a thunk,
 
 ## Examples
 
-The [RTTI demo](../../../README.md) shows constants in its *Used in this
-project* group: the `vnd.fjs.*` media formats are structs whose `dialect` is a
-string constant.
+The demo on this page runs the *Tagged union* lesson:
+`or({ kind: 'circle', r: number }, { kind: 'square', side: number })` against
+`{"kind":"circle","r":1}`. Change the kind to `"triangle"`, or give the
+circle a `side`, to see both readers refuse it. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+[module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
 

@@ -28,9 +28,11 @@ builds `{}`, with no key `a`, and `validate` hands back the `{}` it was given.
 
 ## Examples
 
-The [RTTI demo](../../../README.md) shows this in its *Absent vs undefined*
-lesson: `{}` is accepted by `{ a: or(option, number) }` and refused by
-`{ a: or(number, undefined) }`.
+The demo on this page runs the *Absent vs undefined* lesson: `{}` is
+accepted by `{ a: or(option, number) }` and refused by
+`{ a: or(number, undefined) }`. Type `export default {"a":undefined};` to see
+the answers swap. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+[module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
 

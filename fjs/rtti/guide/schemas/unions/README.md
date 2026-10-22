@@ -27,9 +27,11 @@ what is left canonically. So two spellings of one set have one data form, and
 
 ## Examples
 
-The [RTTI demo](../../../README.md) shows this in its *Two spellings, one set*
-lesson, where the comparison under the graph reports `equal → true` for
-`or(true, false)` and `boolean`.
+The demo on this page runs the *Two spellings, one set* lesson: pick
+`or(true, false)` or `boolean`, and the comparison under the graph reports
+`equal → true`; the TypeScript type and the JSON Schema of the two are the
+same. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+[module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
 

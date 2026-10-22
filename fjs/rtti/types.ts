@@ -227,6 +227,12 @@ export type DemoExample = {
 }
 
 /**
+ * A group of examples in the rtti demo's drop-downs: its label and its
+ * examples, in the order they list.
+ */
+export type DemoGroup = readonly [string, readonly DemoExample[]]
+
+/**
  * One reader's answer in the rtti demo: the value it succeeded with, as the
  * marked DataJS document that denotes it, or where and why it failed.
  */

@@ -1,7 +1,7 @@
 ## RTTI guide
 
 **Priority:** P2
-**Status:** wip — the schemas area is done
+**Status:** wip — the schemas area, with its demos, is done
 
 ### Problem
 
@@ -43,7 +43,9 @@ Each step is its own pull request and leaves the site working.
 
 - **Done:** the RTTI READMEs render on the site, and the `schemas/` area moved
   out of the root README.
-- Extract `schemaDemo` from [`demo.f.mjs`](../demo.f.mjs), the root demo
-  unchanged, and give each `schemas/` page its demo, `sample`, and proof.
+- **Done:** `schemaDemo` ([`schema-demo`](../schema-demo/module.f.mjs)) is the
+  demo as a factory; each `schemas/` page has its `sample.f.mjs`, `demo.f.mjs`
+  and proof, and the root demo's lessons are assembled from the pages by
+  [`guide/schemas/module.f.mjs`](../guide/schemas/module.f.mjs).
 - Move `readers/`, then `outputs/`, then `in-the-project/`.
 - Shrink the root README to the index, as `spec/README.md` became.

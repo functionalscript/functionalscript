@@ -124,9 +124,9 @@ siblings there are single data structures and type-level helpers.
   through `equal` and `subset`; type a value as a DataJS document (so
   `undefined` and bigints can be written), and see what `parse` and
   `validate` make of it, with the member a refusal points at marked in the
-  value. The examples come in two groups. Seven lessons are written for the
-  demo: three show one schema and four are pairs whose difference is the
-  lesson; a pair shows both schemas, and the reader picks one while the
+  value. The examples come in two groups. Nine lessons come from the
+  [guide's](./guide/README.md) pages, each written to show one rule: five
+  show one schema and four are pairs whose difference is the lesson; a pair shows both schemas, and the reader picks one while the
   value stays put. Fourteen more are schemas the project itself uses —
   JSON-RPC and MCP messages, MCP tool arguments, the `vnd.fjs.*` media
   formats, JSON and JSON Schema, CI workflows, edag's unary operators and
@@ -134,6 +134,9 @@ siblings there are single data structures and type-level helpers.
   funding channels — imported from the modules that declare them, each shown
   as the import a user of the `functionalscript` package writes, with the
   module path linked to the module's page
+- `schema-demo/module.f.mjs` — the demo as a factory, `schemaDemo`, over the
+  examples it offers: the module page's demo and every guide page's demo are
+  this one function of their lessons
 
 ## The two schema-form readers
 

@@ -118,11 +118,13 @@ about what the FunctionalScript subset assumes of its host.
 
 ## Examples
 
-The [RTTI demo](../../../README.md) shows this rule in its *Closed vs open* lesson: the value
+The demo on this page runs the *Closed vs open* lesson: the value
 `{"name":"Alice","age":30,"admin":true}` is refused by
-`{ name: string, age: number }` and accepted by its `open` form. Its *Tuple vs
-rest* lesson shows the same rule on a tuple. This page gets a demo of its own
-in a later step ([the plan](../../../todo/rtti-guide.md)).
+`{ name: string, age: number }` and accepted by its `open` form. Pick either
+schema to see its graph, its TypeScript type, its JSON Schema and the two
+readers' answers, and the comparison under them reports that the closed
+schema is a subset of the open one. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+[module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
 

@@ -8,7 +8,8 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
-import { _compare, _graphOf, _marked, _outputsOf, _readersOf, demo, examples, lessons, projectSchemas } from './demo.f.mjs'
+import { demo, examples, lessons, projectSchemas } from './demo.f.mjs'
+import { _compare, _graphOf, _marked, _outputsOf, _readersOf } from './schema-demo/module.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
@@ -168,11 +169,11 @@ const demoProof = /** @type {const} */ ({
         // An example no one has is refused, not answered with a plausible page.
         throw: () => step({ kind: 'input', name: 'example', value: 'nope' })(demo.init),
     },
-    // The module comment and the README count the examples — seven lessons,
-    // three single and four pairs, and fourteen project schemas — so a change
+    // The module comment and the README count the examples — nine lessons,
+    // five single and four pairs, and fourteen project schemas — so a change
     // to either list fails here and points at the two places that say it.
     counts: () => {
-        assertEq(lessons.length, 7)
+        assertEq(lessons.length, 9)
         assertEq(lessons.filter(e => e.schemas.length === 2).length, 4)
         assertEq(projectSchemas.length, 14)
         assertEq(examples.length, lessons.length + projectSchemas.length)

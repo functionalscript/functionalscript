@@ -64,9 +64,11 @@ arriving through the other spelling: `array(or())` is the empty array and not
 
 ## Examples
 
-The [RTTI demo](../../../README.md) shows `open` in its *Closed vs open* lesson and `rest` in its
-*Tuple vs rest* lesson: `[1,"a","b"]` is refused by `[number, string]` and
-accepted by `rest([number], string)`.
+The demo on this page runs the *Tuple vs rest* lesson: `[1,"a","b"]` is
+refused by `[number, string]` and accepted by `rest([number], string)`. Pick
+either schema to see its graph, its TypeScript type with the rest as a tail,
+its JSON Schema with `items`, and the two readers' answers. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+[module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
 

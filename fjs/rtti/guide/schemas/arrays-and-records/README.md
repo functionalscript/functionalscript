@@ -18,8 +18,11 @@ only the empty array, an empty rest bounding the length.
 
 ## Examples
 
-The [RTTI demo](../../../README.md) shows `record(number)` in its *Dictionary*
-lesson and `array` inside the *Shared parts* and *Recursion* lessons.
+The demo on this page runs the *Dictionary* lesson: `record(number)` against
+`{"apples":3,"pears":5}`, with its graph, its TypeScript type, its JSON
+Schema, and what `parse` and `validate` make of the value. Change a count to
+a string to see both refuse it. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+[module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
 

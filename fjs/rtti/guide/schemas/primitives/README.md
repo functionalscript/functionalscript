@@ -22,8 +22,11 @@ values, which the data form's `equal` confirms
 
 ## Examples
 
-The [RTTI demo](../../../README.md) compares `or(true, false)` with `boolean`
-in its *Two spellings, one set* lesson.
+The demo on this page runs the *Primitives* lesson: a struct of `boolean`,
+`number`, `string`, `bigint` and `unknown` against a value with `NaN` for the
+number and `7n` for the bigint, written as DataJS. Put a number where the
+bigint is to see both readers refuse it. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+[module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
 
