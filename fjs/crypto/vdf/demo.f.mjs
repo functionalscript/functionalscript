@@ -39,7 +39,7 @@
 import { resultMarker } from '../../website/style/module.f.js'
 import { p, sloth } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
-import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.js'
+import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { pureOk, resultStep } from '../../effects/module.f.mjs'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
@@ -53,7 +53,6 @@ import { encodeScalar } from '../../basen/base16/module.f.mjs'
 const batch = 10n
 
 const sha256Sync = computeSync(sha256)
-const decimalValue = digitsValue(10n)
 const yDigits = p.toString(16).length
 
 /** Verification steps per second, measured in Node at `aa87d8cd`. */
@@ -71,12 +70,12 @@ export const xOf = text => {
 /** A non-negative decimal step count, or null while its field is invalid.
  * @type {(text: string) => bigint | null}
  */
-export const parseSteps = text => decimalValue([...text].map(c => c.charCodeAt(0)))
+export const parseSteps = text => decimalValue(codePoints(text))
 
 /** A non-empty hexadecimal number, or null.
  * @type {(text: string) => bigint | null}
  */
-export const parseHex = text => hexDigitsValue([...text].map(c => c.charCodeAt(0)))
+export const parseHex = text => hexDigitsValue(codePoints(text))
 
 /** `y` in hex, padded to the width of `p`.
  * @type {(y: bigint) => string}

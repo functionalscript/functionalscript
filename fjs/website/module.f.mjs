@@ -55,6 +55,7 @@
  */
 
 import { utf8 } from '../text/module.f.mjs'
+import { codePoints } from '../text/ascii/module.f.js'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
@@ -841,12 +842,12 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
 const commitOf = env => {
     const value = env.WORKERS_CI_COMMIT_SHA
     if (value === undefined) { return null }
-    const units = value.split('').map(c => c.charCodeAt(0))
+    const points = codePoints(value)
     // `tryFromHex` reads bytes and throws on anything wider; an environment
-    // variable can hold any text, so a wider unit is refused before it gets
-    // there.
-    if (units.some(u => u > 0x7f)) { return null }
-    const id = tryFromHexOf(20)(units)
+    // variable can hold any text, so a wider code point is refused before it
+    // gets there.
+    if (points.some(c => c > 0x7f)) { return null }
+    const id = tryFromHexOf(20)(points)
     return id === null ? null : hexText(id)
 }
 
