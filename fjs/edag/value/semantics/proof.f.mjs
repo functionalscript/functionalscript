@@ -5,8 +5,8 @@
  * @import { EdagValue } from '../types.ts'
  */
 
-import { assertEq, assertOk } from '../../../asserts/module.f.js'
-import { untagUndefined, truthy, typeOf, strictEqual, is, unary, binary } from './module.f.mjs'
+import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { tagUndefined, untagUndefined, truthy, typeOf, strictEqual, is, unary, binary } from './module.f.mjs'
 
 /** @type {readonly (readonly [EdagValue, boolean, string])[]} */
 const classifications = [
@@ -47,6 +47,17 @@ export const proof = {
     untag: () => {
         for (const [value, , type] of classifications) {
             assertEq(Object.is(untagUndefined(value), type === 'undefined' ? undefined : value), true)
+        }
+    },
+    tag: () => {
+        // a statically `undefined` argument still types as an EdagValue
+        /** @type {EdagValue} */
+        const tagged = tagUndefined(undefined)
+        assertStructurallySame(tagged, ['undefined'])
+        assertEq(tagUndefined(null), null)
+        assertEq(tagUndefined(0), 0)
+        for (const [value] of classifications) {
+            assertEq(Object.is(untagUndefined(tagUndefined(untagUndefined(value))), untagUndefined(value)), true)
         }
     },
     truthiness: () => {
