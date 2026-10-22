@@ -961,9 +961,10 @@ export const proof = {
         outputs: () => {
             const source = 'export default (a, b = a, ...r) => [a, b, r];'
             assertEq(compileSource(source)('output.js'), 'export default ($0,...$1)=>[$0,$1[0]===undefined?$0:$1[0],$1.slice(1)];')
+            // Fixed argument reads share their established invocation value.
             assertEq(compileSource(source)('output.edag.data.js'),
-                'const $0=["rest"];export default ["{}",[[":","default",["=>",1,[],["[]",[["arg",0],["?:",["===",[".",$0,0],["undefined"]],["arg",0],[".",$0,0]],[".",$0,"slice",["|()",[1]]]]]]]]];')
-            assert(compileSource(source)('output.rs').includes('Any::conditional(c2, || Ok(args.argument(0)), c3)'))
+                'const $0=["arg",0];const $1=["rest"];export default ["{}",[[":","default",["=>",1,[],["[]",[$0,["?:",["===",[".",$1,0],["undefined"]],$0,[".",$1,0]],[".",$1,"slice",["|()",[1]]]]]]]]];')
+            assert(compileSource(source)('output.rs').includes('Any::conditional(c3, || Ok(c0.clone()), c4)'))
             assertEq(compileSource('export default (a = 1) => { const b = [a]; return [b, b]; };')('output.js'), 'export default (...$0)=>{const $1=[$0[0]===undefined?1:$0[0]];return [$1,$1];};')
             assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), 'const $0={};export default ($1,...$2)=>[$1,$2[0]===undefined?$0:$2[0],$2.slice(1)];')
         },

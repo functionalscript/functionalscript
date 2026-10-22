@@ -1,7 +1,7 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** open — coordination epic; implementation has not started
+**Status:** wip — FAST foundation implementation stacked on #3127
 
 ### Goal
 
