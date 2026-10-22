@@ -114,6 +114,17 @@ identity are one application, shared, as
 - [Exporting a Value](./exports/README.md)
 - [Importing Other Modules](./imports.md)
 
+Refused by design, each page showing what `fjs compile` prints and what to write instead:
+
+- [An Export That Binds Nothing Is Refused](./empty-pattern-export/README.md)
+- [An Empty Statement Is Refused](./empty-statements/README.md)
+- [An Export After `export default` Is Refused](./export-after-default/README.md)
+- [`export let` Is Refused](./export-let/README.md)
+- [Exporting `then` Is Refused](./exports/then/README.md)
+- [An Import After an Export Is Refused](./import-after-export/README.md)
+- [A Module With No Export Is Refused](./no-export/README.md)
+- [A `throw` Beside an Export Is Refused](./throw-position/README.md)
+
 ## Examples
 
 No programs yet: this page's accepted and refused examples are a follow-up.

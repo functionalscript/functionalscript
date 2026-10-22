@@ -35,6 +35,7 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 | [`runtime/module.f.mjs`](runtime/module.f.mjs) | Where [`fjs/js/runtime`](../js/runtime/module.f.js) is, where `npm run gen` compiles it to — Rust for `nanvm-lib`, EDAG for the proof here — and the runtime loaded from its source for the harness's expectations. |
 | [`corpus/module.f.mjs`](corpus/module.f.mjs) | The call-contract corpus: the `nanvm-harness` fixtures, every one compared unless an exception names it and says why. Its host proof runs each in Node and through the FJS interpreter. |
 | [`update/module.f.mjs`](update/module.f.mjs) | Writes both printers' output. Run by `npm run gen`. |
+| [`demos/`](demos/README.md) | The [WASM demo pages](demos/README.md): FunctionalScript run as JavaScript and compiled to WebAssembly, side by side. |
 
 Rust *literal* syntax — string escaping, `f64`/`i64` spelling, `snake_case`
 identifiers — is not specific to this generator and lives in

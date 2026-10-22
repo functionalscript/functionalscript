@@ -41,6 +41,13 @@ refused.
 - [Call Statements](./call-statements/README.md)
 - [Function Outputs](./function-outputs/README.md)
 
+Refused by design, each page showing what `fjs compile` prints and what to write instead:
+
+- [A Body That Does Not Terminate Is Refused](./body-end/README.md)
+- [An Expression Statement That Is No Call Is Refused](./call-statements/expression-statements/README.md)
+- [More Than 16 Fixed Parameters Are Refused](./parameters/limit/README.md)
+- [A Statement After `return` Is Refused](./unreachable/README.md)
+
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.

@@ -48,6 +48,12 @@ reference reaches it, as `JSON.stringify` writes it ([output](../command-line/ou
 - [Arrays](./arrays/README.md)
 - [Objects](./objects/README.md)
 
+Refused by design, each page showing what `fjs compile` prints and what to write instead:
+
+- [An Array Hole Is Refused](./arrays/holes/README.md)
+- [A `__proto__:` Key Is Refused](./objects/proto-key/README.md)
+- [`\'` in a Double-Quoted String Is Refused](./strings/apostrophe-escape/README.md)
+
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.

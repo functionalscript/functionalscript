@@ -176,7 +176,13 @@ and `7` as JSON.
 - [Grouping](./grouping/README.md)
 - [Comma](./comma/README.md)
 - [`instanceof`](./instanceof/README.md)
+
+Refused by design, each page showing what `fjs compile` prints and what to write instead:
+
 - [`in` Is Refused](./in/README.md)
+- [`instanceof` Other Than `Array` Is Refused](./instanceof/other-classes/README.md)
+- [`==` Is Refused](./loose-equality/README.md)
+- [`this` Is Refused](./this/README.md)
 
 ## Examples
 

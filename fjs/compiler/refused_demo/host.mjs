@@ -33,6 +33,19 @@ import { alternativeName, dependency, dependencyName, sampleName } from './modul
 const read = url => name => readFileSync(new URL(name, url), 'utf8')
 
 /**
+ * The README of the page's area, `spec/<area>/README.md`, and the page's
+ * link in it, from the area's directory: `./<path>/README.md`.
+ *
+ * @type {(url: string) => readonly [URL, string]}
+ */
+const areaLink = url => {
+    const page = new URL('.', url).pathname
+    const at = page.lastIndexOf('/spec/')
+    const [area, ...rest] = page.slice(at + '/spec/'.length).split('/').filter(part => part !== '')
+    return [new URL(`${page.slice(0, at)}/spec/${area}/README.md`, url), `(./${rest.join('/')}/README.md)`]
+}
+
+/**
  * The proof of the page whose `proof.mjs` is at `url`: what JavaScript
  * answers for the sample, its default export `value`, as `demo.f.mjs`
  * states it, or as one of `hosts` answers it where an engine departs from
@@ -48,6 +61,11 @@ export const hostProof = (url, value, { answer, sample: text, suggestion }, host
         sample: () => assertEq(file(sampleName), text),
         readme: () => assert(file('README.md').includes(text.trimEnd()), 'the README does not show sample.mjs'),
         fix: () => assert(file(alternativeName).includes(suggestion.fix), 'the suggested fix is not a line of alternative.f.js'),
+        // The area's README lists the page, so a reader reaches it from there.
+        linked: () => {
+            const [readme, link] = areaLink(url)
+            assert(readFileSync(readme, 'utf8').includes(link), `the area's README does not link ${link}`)
+        },
         dependency: () => assert(!existsSync(new URL(dependencyName, url)) || file(dependencyName) === dependency, 'a.f.js is not the module the page compiles beside the sample'),
     }
 }
