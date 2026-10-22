@@ -525,15 +525,8 @@ export type BindingTarget = {
 /** A `const` statement: `const`, what it binds, `=`, the value, and {@link End}. */
 export type ConstStatement = readonly [number, BindingTarget, number, Value, End]
 
-/** What a `let` binds: a name with an optional `=` and value, or an array or an object pattern, each with `=` and its value. */
-export type LetTarget = {
-    readonly name: readonly [typeof identifierName, Option<readonly [number, Value]>]
-    readonly array: readonly [ArrayLiteral, number, Value]
-    readonly object: readonly [Container<Entry>, number, Value]
-}
-
-/** A `let` statement: `let`, what it binds and its value, {@link LetTarget}, and {@link End} — the {@link ConstStatement} under the other keyword. */
-export type LetStatement = readonly [number, LetTarget, End]
+/** A `let` statement: `let`, what it binds, `=`, the value, and {@link End} — the {@link ConstStatement} under the other keyword, its initializer required as a `const`'s is. */
+export type LetStatement = readonly [number, BindingTarget, number, Value, End]
 
 /**
  * The statement a block ends with: `return` or `throw`, its value, and

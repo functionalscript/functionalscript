@@ -143,6 +143,7 @@ describes:
 | `decl.method` | `{ f() { return 1 } }` | open |
 | `decl.pattern-array-rest` | `[a, ...r]` in a pattern or a parameter | planned ([destructuring](./2450-destructuring.md), the next task) |
 | `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) |
+| `decl.let-uninitialized` | `let x;` | planned ([definite assignment](./3225-definite-assignment.md), P5: admitted where every path assigns the variable before a read; refused by design until then — [variables](../bindings/variables/README.md): a variable names its value where it is declared, as a body ends in an explicit `return`, and no path is tracked to a first assignment) |
 | `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | planned ([default parameters](./3125-default-parameters.md)) |
 | `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) |
 | `decl.parameter-limit` | 17 fixed parameters | design ([functions](../functions/README.md); page: [More Than 16 Fixed Parameters Are Refused](../functions/parameters/limit/README.md)) |

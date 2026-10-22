@@ -305,16 +305,12 @@ export const proof = {
     },
     namedExports: {
         syntax: () => {
-            const source = unwrap(parseSyntax(tokenizeString('const x=1; export const a=x; let y=a; y=x; export const b=y; let z;')))
+            const source = unwrap(parseSyntax(tokenizeString('const x=1; export const a=x; let y=a; y=x; export const b=y;')))
             assertEq(source.exported, null)
-            assertStructurallySame(source.statements.map(s => s[0]), ['const', 'const', 'let', 'assign', 'const', 'let'])
+            assertStructurallySame(source.statements.map(s => s[0]), ['const', 'const', 'let', 'assign', 'const'])
             assertStructurallySame(source.statements.map(s => s[0] === 'assign' ? s[1].name.token : [s[1].exported, s[1].declaration.target[1].token]), [
-                [false, { kind: 'id', value: 'x' }], [true, { kind: 'id', value: 'a' }], [false, { kind: 'id', value: 'y' }], { kind: 'id', value: 'y' }, [true, { kind: 'id', value: 'b' }], [false, { kind: 'id', value: 'z' }],
+                [false, { kind: 'id', value: 'x' }], [true, { kind: 'id', value: 'a' }], [false, { kind: 'id', value: 'y' }], { kind: 'id', value: 'y' }, [true, { kind: 'id', value: 'b' }],
             ])
-            // a `let` with no initializer binds the literal `undefined`
-            const last = source.statements[5]
-            assert(last[0] === 'let')
-            assertStructurallySame(last[1].declaration.value, ['primitive', undefined])
         },
     },
     // The tokenizer's EOF contract, checked through the parser rather than

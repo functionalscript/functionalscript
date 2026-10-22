@@ -36,7 +36,7 @@
  * block  ::= '{' statement* terminator '}'
  * statement ::= const | 'if' '(' value ')' block | let
  *             | 'while' '(' value ')' loopBlock | bodyNameStatement
- * let    ::= 'let' ( id [ '=' value ] | array '=' value | object '=' value ) end
+ * let    ::= 'let' bindingTarget '=' value end
  * terminator ::= 'return' value end | 'throw' value end
  *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
  * caseTail ::= 'case' value ':' caseTail | block afterCase
@@ -139,7 +139,7 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LetTarget, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
@@ -1197,26 +1197,17 @@ export const statement = () => ['const', {
 }]
 
 /**
- * What a `let` binds, {@link letStatement}: a name, with or without `=` and
- * its value — `let x;` is JavaScript's, the variable `undefined` until
- * assigned — or a pattern, {@link bindingTarget}'s array or object, which
- * JavaScript gives no `let` without an initializer. A name's word, `[` and
- * `{` decide the three in one symbol, as {@link bindingTarget}'s do.
- *
- * @type {LetTarget}
- */
-export const letTarget = { name: [identifierName, option([sym('='), value])], array: [array, sym('='), value], object: [object, sym('='), value] }
-
-/**
- * A `let` statement: `let`, what it binds and its value, {@link letTarget},
- * and its {@link end} — the {@link constStatement} under the other keyword,
- * which declares a variable: a name an assignment,
- * {@link bodyNameStatement}, may rebind
+ * A `let` statement: `let`, what it binds, {@link bindingTarget}, `=`, the
+ * value, and its {@link end} — the {@link constStatement} under the other
+ * keyword, which declares a variable: a name an assignment,
+ * {@link bodyNameStatement}, may rebind. The initializer is required, as a
+ * `const`'s is: JavaScript's `let x;` is refused at the `;`, by design — a
+ * variable names its value where it is declared
  * ([spec: variables](../../../../spec/bindings/variables/README.md)).
  *
  * @type {LetStatement}
  */
-export const letStatement = [sym('let'), letTarget, end]
+export const letStatement = [sym('let'), bindingTarget, sym('='), value, end]
 
 /**
  * The words a statement may begin with where it is no keyword's: `id`, and

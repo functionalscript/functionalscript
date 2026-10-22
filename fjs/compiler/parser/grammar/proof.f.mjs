@@ -441,10 +441,9 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { let [r, { s }] = a; while (r) { r = 1; } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { while (r) { } } return r; };'), ['error', 'while'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; }; return r; };'), ['error', ';'])
-        // a `let` of a name takes no initializer; a `let` of a pattern takes one
-        assertStructurallySame(read('export default (...a) => { let r; while (r) { } return r; };'), ['ok'])
+        // a `let` takes its initializer as a `const` does: `let x;` is refused
+        assertStructurallySame(read('export default (...a) => { let r; while (r) { } return r; };'), ['error', ';'])
         assertStructurallySame(read('export default (...a) => { let [r]; while (r) { } return r; };'), ['error', ';'])
-        assertStructurallySame(read('export default (...a) => { let { r }; while (r) { } return r; };'), ['error', ';'])
         // a name in the block begins the assignment or a call statement,
         // and `=` after any other value is no assignment
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { a(r); r = 1; a.b(r) } return r; };'), ['ok'])
@@ -455,7 +454,7 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { r = 1; return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { r = 1; return r; } return a; };'), ['ok'])
         assertStructurallySame(read('r = 1; export default r;'), ['ok'])
-        assertStructurallySame(read('let r; let [s] = r; s = 1; export default r;'), ['ok'])
+        assertStructurallySame(read('let r = 0; let [s] = [r]; s = 1; export default r;'), ['ok'])
         // a reserved word begins no statement, so one opening a statement
         // is refused at the word, as no rule begins with it
         assertStructurallySame(read('export default (...a) => { var r = 1; return r; };'), ['error', 'var'])

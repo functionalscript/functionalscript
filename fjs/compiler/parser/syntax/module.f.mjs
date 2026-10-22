@@ -37,7 +37,7 @@
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopStatement, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -1469,27 +1469,7 @@ const moduleStatementAt = node => {
     return out.statement
 }
 
-/**
- * A `let` from `let letTarget end`: the record a `const` has, under the
- * other keyword — a name alone binding `undefined`, as JavaScript's `let x;`
- * does, the literal the value would spell; it begins at the `let`.
- *
- * @type {(node: Children<LetStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
- */
-const toLet = ([first, letTarget, end]) => {
-    const [tag, branch] = unmapped(letTarget)
-    const start = tokenAt(first)
-    if (tag === 'name') {
-        const [name, initializer] = unmapped(branch)
-        const init = unmapped(initializer)
-        /** @type {Node} */
-        const value = init.length === 0 ? ['primitive', undefined] : nodeAt(unmapped(init[0])[1])
-        return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: ['name', tokenAt(unmapped(name)[1])], value } })
-    }
-    const [literal, , v] = unmapped(branch)
-    const [open, list] = unmapped(literal)
-    return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: containerTarget(tag, tokenAt(open), list), value: nodeAt(v) } })
-}
+
 
 /**
  * What a module ends with: the `throw` that stands in place of its exports,
@@ -1670,7 +1650,8 @@ export const mappings = [
     map(importBindings, toImportBindings),
     map(importStatement, toImport),
     map(constStatement, toConst),
-    map(letStatement, toLet),
+    // a `let` is the record a `const` is, under the other keyword
+    map(letStatement, toConst),
     map(bodyNameStatement, toBodyNameStatement),
     map(moduleStatement, toModuleStatement),
     map(statement, toStatement),

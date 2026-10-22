@@ -20,9 +20,19 @@ standing where a `const` stands, in a module, a function body, a guard's or
 a case's block and a loop's block, that binds a name or a pattern
 ([destructuring](../destructuring/README.md)) to the value of its
 initializer, evaluated as its own statement whether or not anything reads
-it ([constants](../constants/README.md)). A name may go without one,
-`let x;`: the variable is `undefined` until assigned, as in JavaScript; a
-pattern takes its initializer, as JavaScript's does. The name is a name of the body as
+it ([constants](../constants/README.md)). The initializer is required, as
+a `const`'s is: JavaScript's `let x;`, the variable `undefined` until its
+first assignment, is refused by design. A variable names its value where it
+is declared, as a body names what it returns in an explicit `return`
+([bodies and guards](../../control-flow/guards/README.md)); a declaration
+that names none asks the reader to find the first assignment on every path,
+and this compiler tracks no such thing, so it admits no program that needs
+it ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+Write the value the variable starts from, `let x = undefined;` where that is
+what is meant. A later proposal may admit the declaration where every path
+assigns the variable before a read, `let x; if (c) { x = 2; } else { x = 3;
+}` as `const x = c ? 2 : 3`
+([definite assignment](../../todo/3225-definite-assignment.md)). The name is a name of the body as
 a `const`'s is: it takes the words a `const` takes, bound twice is
 `duplicate id`, read in its own initializer or before its declaration
 `const not found`, and from outside a nested function it is a capture. A

@@ -334,16 +334,9 @@ export const proof = {
             const [tag7, value7] = parseFromTokens(tokenizeString('export default n => { let r = 0; r = (() => r + 1)(); return r; };'))
             assert(tag7 === 'ok')
             assertEq(stringifyModule(value7), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"+\",0,1]]]]]")
-            // a `let` with no initializer is `undefined` until assigned, the
-            // literal established as an unused `const` is
-            const [tag10, value10] = parseFromTokens(tokenizeString('export default () => { let x; x = 2; return x; };'))
-            assert(tag10 === 'ok')
-            assertEq(stringifyModule(value10), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\",\",[[\"undefined\"],2]]]]]]")
-            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('export default () => { let x; return x; };')))), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"undefined\"]]]]]")
             // a module's variables: a module is a function, and its `let`,
             // its assignments and its captures follow a body's rules
             assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let a = 0; a = a + 1; export default a;')))), "[\"{}\",[[\":\",\"default\",[\"+\",0,1]]]]")
-            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let a; a = 1; export default [a];')))), "[\",\",[[\"undefined\"],[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]]]")
             assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let [a] = [1]; export default a;')))), "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[[\"...\",[\"[]\",[1]]]]],0]]]]")
             assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let a = 0; a = a + 1; export const b = a; export default 1;')))), "[\"{}\",[[\":\",\"b\",[\"+\",0,1]],[\":\",\"default\",1]]]")
             assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let r = 0; export const f = () => r; export default 1;')))), "[\"{}\",[[\":\",\"default\",1],[\":\",\"f\",[\"=>\",0,[],0]]]]")
@@ -413,8 +406,11 @@ export const proof = {
                 ['let a = 1; let a = 2; export default a;', 'duplicate id', 16],
                 ['let a = 1; export const a = 2;', 'duplicate id', 25],
                 ['let r = 0; const f = () => r; r = 1; export default f;', 'reassigned variable captured', 28],
-                // a pattern takes an initializer, as JavaScript's does, and a
-                // module's `let` is no export: `export let` stays refused
+                // a `let` takes its initializer, as a `const` does: a variable
+                // names its value where it is declared, and `let x;` is refused
+                // by design; a module's `let` is no export, `export let` refused
+                ['export default () => { let x; return x; };', 'unexpected token', 29],
+                ['let a; export default a;', 'unexpected token', 6],
                 ['export default () => { let [a]; return a; };', 'unexpected token', 31],
                 ['export let a = 1; export default a;', 'unexpected token', 8],
                 ['let r = 0; while (r) { r = 1; } export default r;', 'unexpected token', 12],

@@ -75,7 +75,7 @@ clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
 binding ::= id [ 'as' id ]
 const  ::= 'const' target '=' value end
-let    ::= 'let' ( id [ '=' value ] | array '=' value | object '=' value ) end
+let    ::= 'let' target '=' value end
 target ::= id | array | object
 last   ::= 'export' ( 'default' value end | const const* [ last ] )
          | 'throw' value end
