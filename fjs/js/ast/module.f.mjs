@@ -5,7 +5,7 @@
  *
  * @module
  *
- * @import { Binding, BindingId, BindingEvent, BindingScope, FunctionTarget, Item, Key, Operator, Step } from './types.ts'
+ * @import { Binding, BindingId, BindingEvent, BindingScope, Entry, FunctionTarget, Item, Key, Operator, Step } from './types.ts'
  * @import { List, Result as ListResult } from '../../types/list/types.ts'
  */
 
@@ -49,12 +49,29 @@ export const analyzeBindings = root => {
         }
         pending = rest
     }
-    const orderedReferences = toArray(reverse(references))
-    return toArray(declarations).map(({ id, owner }) => ({
-        id,
-        isMutable: orderedReferences.some(reference => reference.id === id && reference.write),
-        capturedBy: [...new Set(orderedReferences.filter(reference => reference.id === id && reference.scope !== owner).map(reference => reference.scope))],
-    }))
+    const ordered = toArray(declarations)
+    const positions = new Map(ordered.map(({ id }, position) => [id, position]))
+    // Stable grouping keeps each binding's source reference order. References
+    // to declarations outside this scope sort after every declaration here.
+    const grouped = toArray(reverse(references)).map(reference => ({
+        ...reference, position: positions.get(reference.id) ?? ordered.length,
+    })).toSorted((a, b) => a.position - b.position)
+    let cursor = 0
+    /** @type {List<Binding>} */
+    let facts = null
+    for (const [position, { id, owner }] of ordered.entries()) {
+        let isMutable = false
+        /** @type {List<FunctionTarget>} */
+        let captures = null
+        while (cursor < grouped.length && grouped[cursor].position === position) {
+            const reference = grouped[cursor]
+            isMutable = isMutable || reference.write
+            if (reference.scope !== owner) { captures = { first: reference.scope, tail: captures } }
+            cursor += 1
+        }
+        facts = { first: { id, isMutable, capturedBy: [...new Set(toArray(reverse(captures)))] }, tail: facts }
+    }
+    return toArray(reverse(facts))
 }
 
 /**
@@ -109,18 +126,25 @@ const mapStep = (map, offset) => step => {
  * The callback index is the operand's position in operatorOperands, including
  * repeated equal operands. This does not establish values or move regions.
  *
- * @type {<T, U>(map: (value: T, index: number) => U) => (operator: Operator<T>) => Operator<U>}
+ * @template T, U
+ * @param {(value: T, index: number) => U} map
+ * @returns {(operator: Operator<T>) => Operator<U>}
  */
 export const mapOperator = map => operator => {
     if (operator.length === 1) { return operator }
     switch (operator[0]) {
         case 'array': { return ['array', operator[1].map(mapItem(map, 0))] }
         case 'object': {
-            const entries = operator[1].map((entry, index, entries) => {
-                const offset = entries.slice(0, index).reduce((count, previous) => count + (previous[0] === '...' ? 1 : 2), 0)
-                return entry[0] === '...' ? /** @type {const} */ (['...', map(entry[1], offset)]) : /** @type {const} */ ([':', map(entry[1], offset), map(entry[2], offset + 1)])
-            })
-            return ['object', entries]
+            /** @type {List<Entry<U>>} */
+            let entries = null
+            let offset = 0
+            for (const entry of operator[1]) {
+                const mapped = entry[0] === '...' ? /** @type {const} */ (['...', map(entry[1], offset)])
+                    : /** @type {const} */ ([':', map(entry[1], offset), map(entry[2], offset + 1)])
+                entries = { first: mapped, tail: entries }
+                offset += entry[0] === '...' ? 1 : 2
+            }
+            return ['object', toArray(reverse(entries))]
         }
         case ',': { return [',', operator[1].map(map)] }
         case '()': { return ['()', map(operator[1], 0), operator[2].map(mapItem(map, 1))] }
