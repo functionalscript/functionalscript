@@ -22,7 +22,7 @@ export const samples = {
     'op.void': 'export default void 0;\n',
     'op.arguments': 'export default typeof arguments;\n',
     'op.unary-plus': 'export default +"1";\n',
-    'op.import-call': 'export default import("./a.mjs");\n',
+    'op.import-call': 'export default import("./a.f.js");\n',
     'op.import-meta': 'export default import.meta.url;\n',
     'op.tagged-template': 'const tag = s => s[0];\nexport default tag`x`;\n',
     'acc.property-assignment': 'const f = o => { o.b = 1; return o; };\nexport default f({});\n',
