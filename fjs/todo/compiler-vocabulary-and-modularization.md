@@ -1,7 +1,8 @@
 ## Compiler vocabulary and modularization
 
 **Priority:** P2
-**Status:** open
+**Status:** wip — normalized FAST and the first source graph consumer are
+implemented; direct source input and shared output migration remain
 
 ### Problem
 

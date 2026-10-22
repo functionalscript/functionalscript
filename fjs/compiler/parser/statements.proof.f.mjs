@@ -21,18 +21,18 @@ import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
-/** A module's AST, which the source must be accepted to have. @type {(source: string) => import('../ast/types.ts').AstModule} */
-const astOf = source => {
+/** A module's AST, which the source must be accepted to have. @type {(source: string) => import('./types.ts').ResolvedModule} */
+const resolvedOf = source => {
     const [tag, value] = parseFromTokens(tokenizeString(source))
     assert(tag === 'ok', value)
     return value
 }
 
 /** A module's EDAG, as the lowering makes it. @type {(source: string) => unknown} */
-const edagOf = source => unresolved(astOf(source)).edag
+const edagOf = source => unresolved(resolvedOf(source)).edag
 
 /** A module run on the represented interpreter: its result, or its failure. @type {(source: string) => import('../../types/result/types.ts').Result<unknown, unknown>} */
-const run = source => memo(assertOk(analysis(unresolved(astOf(source)).edag)))({ args: [] })
+const run = source => memo(assertOk(analysis(unresolved(resolvedOf(source)).edag)))({ args: [] })
 
 const f = 'const f = (...a) => a[0] ? 1 : (() => { throw a[1]; })();'
 
@@ -40,7 +40,7 @@ export const proof = {
     // `f(x);` is `const _ = f(x);` where nothing can read `_`: the same
     // AST, and the same graph as the comma, `(f(x), rest)`.
     sugar: () => {
-        assertStructurallySame(astOf(`${f} f(1); export default 2;`), astOf(`${f} const _ = f(1); export default 2;`))
+        assertStructurallySame(resolvedOf(`${f} f(1); export default 2;`).ast, resolvedOf(`${f} const _ = f(1); export default 2;`).ast)
         assertStructurallySame(edagOf(`${f} f(1); export default 2;`), edagOf(`${f} export default (f(1), 2);`))
         assertStructurallySame(
             edagOf(`${f} export default (...a) => { f(a[0]); return a; };`),

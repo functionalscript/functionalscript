@@ -16,7 +16,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../assert
 
 /** The parsed module's sole default expression. @type {(source: string) => AstConst} */
 const expression = source => {
-    const [, body] = assertOk(parseFromTokens(tokenizeString(`export default ${source};`)))
+    const { ast: [, body] } = assertOk(parseFromTokens(tokenizeString(`export default ${source};`)))
     const exported = body[body.length - 1]
     assert(exported instanceof Array && exported[0] === 'object')
     const [member] = exported[1]

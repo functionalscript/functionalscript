@@ -113,6 +113,7 @@ export type Function = {
 export type Binding = {
     readonly id: BindingId
     readonly isMutable: boolean
+    /** Source functions containing direct resolved reads/writes, excluding frame forwarding. */
     readonly capturedBy: readonly FunctionTarget[]
 }
 

@@ -11,6 +11,25 @@ export const proof = {
     bindings: {
         empty: () => {
             assertStructurallySame(analyzeBindings({ target: { kind: 'function', index: 0 }, bindings: [], events: [] }), [])
+            assertStructurallySame(analyzeBindings({ target: { kind: 'function', index: 0 }, bindings: [], events: [['read', { index: 0 }]] }), [])
+        },
+        wideCaptures: () => {
+            const ids = Array.from({ length: 20_000 }, (_, index) => ({ index }))
+            const outer = /** @type {const} */ ({ kind: 'function', index: 0 })
+            const first = /** @type {const} */ ({ kind: 'function', index: 1 })
+            const second = /** @type {const} */ ({ kind: 'function', index: 1 })
+            const facts = analyzeBindings({ target: outer, bindings: ids, events: [
+                ['function', { target: first, bindings: [], events: ids.flatMap(id => /** @type {const} */ ([['read', id], ['read', id]])) }],
+                ['function', { target: second, bindings: [], events: ids.map(id => ['write', id]) }],
+            ] })
+            assertEq(facts.length, ids.length)
+            for (const [index, fact] of facts.entries()) {
+                assertEq(fact.id, ids[index])
+                assertEq(fact.isMutable, true)
+                assertEq(fact.capturedBy.length, 2)
+                assertEq(fact.capturedBy[0], first)
+                assertEq(fact.capturedBy[1], second)
+            }
         },
         /** Locals, parameters and expanded patterns share exactly one write rule. */
         wholeScope: () => {

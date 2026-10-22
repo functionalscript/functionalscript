@@ -6,8 +6,8 @@
  * @module
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { ParseError } from '../parser/types.ts'
- * @import { AstImport, AstModule } from '../ast/types.ts'
+ * @import { ParseError, ResolvedModule } from '../parser/types.ts'
+ * @import { AstImport } from '../ast/types.ts'
  * @import { _Context, _ImportSource, _Load, _Source } from './types.ts'
  * @import { Operation, Effect } from '../../effects/types.ts'
  * @import { IoChannel, ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
@@ -81,7 +81,7 @@ const readSource = path => step(
  * front end rather than a second assembly of its parts. `path` names the
  * text in the positions an error carries.
  *
- * @type {(path: string) => (text: string) => Result<AstModule, ParseError>}
+ * @type {(path: string) => (text: string) => Result<ResolvedModule, ParseError>}
  */
 export const parse = path => text => parseFromTokens(tokenize(stringToList(text))(path))
 
@@ -93,7 +93,7 @@ export const parse = path => text => parseFromTokens(tokenize(stringToList(text)
  * EDAG linker in `../edag`, which reads a module the same way; the `_` says
  * that export is linkage rather than API.
  *
- * @type {(path: string) => Effect<ReadWhole, AstModule, ParseError>}
+ * @type {(path: string) => Effect<ReadWhole, ResolvedModule, ParseError>}
  */
 export const _parseModule = path => step(readSource(path), text => pure(parse(path)(text)))
 
@@ -232,7 +232,7 @@ export const _walk = load => {
         const entered = { ...context, stack: { first: id, tail: context.stack } }
         if (json) { return mapStep(_parseJson(path), value => completed(id, entered)(load.json(value))) }
         const parsed = history(_parseModule(path))
-        const loaded = historyStep(parsed, module => foldStep(_importSources(source)(module[0]), { context: entered, imports: [] }, walkImport))
+        const loaded = historyStep(parsed, module => foldStep(_importSources(source)(module.ast[0]), { context: entered, imports: [] }, walkImport))
         const initialized = historyStep(loaded, ({ imports }, module) => pure(load.module(source, imports, module)))
         return mapStep(initialized, ([value, { context: next }]) => completed(id, next)(value))
     }

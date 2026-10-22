@@ -7,6 +7,7 @@
  * @module
  *
  * @import { AstBody, AstConst, AstFunction, AstModule } from '../../../compiler/ast/types.ts'
+ * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
  * @import { BindingId, Block, Function as FastFunction, Operator, Statement, Value } from '../types.ts'
  * @import { Module } from './types.ts'
  * @import { Results, Scope, Work } from './private.ts'
@@ -131,9 +132,9 @@ const normalizedBody = (body, scope, requiredImports) => {
  * Linking supplies selected export nodes; unresolved compilation supplies the
  * corresponding import reads. Equal imports retain one established identity.
  *
- * @type {(module: AstModule, imports: readonly unknown[]) => Module}
+ * @type {(resolved: ResolvedModule, imports: readonly unknown[]) => Module}
  */
-export const normalize = (module, imports) => {
+export const normalize = ({ ast: module }, imports) => {
     const parameters = module[0].map((_, i) => binding(i))
     const body = normalizedBody(module[1], {
         imports: parameters.map(reference), consts: [], parameters: [], rest: undefined, self: undefined, frame: [],

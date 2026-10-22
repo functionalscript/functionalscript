@@ -33,6 +33,6 @@ export const proof = {
     },
     primitiveCapture: () => {
         const ast = /** @type {AstModule} */ ([[], [['object', [[':', 'default', ['()', ['=>', 0, [['fref', 0]], [null]], []]]]]]])
-        assertStructurallySame(fromFast(normalize(ast, []).body), ['{}', [[':', 'default', null]]])
+        assertStructurallySame(fromFast(normalize({ ast, scope: { target: { kind: 'function', index: 0 }, bindings: [], events: [] }, bindings: [], origins: [] }, []).body), ['{}', [[':', 'default', null]]])
     },
 }

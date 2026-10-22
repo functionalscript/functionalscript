@@ -6,7 +6,7 @@ Every statement ends with `;`, or where JavaScript inserts one, and at least
 one export is required.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
-tokens, and this turns tokens into an `AstModule`. Both layers are an LL(1)
+tokens, and this turns tokens into a `ResolvedModule`. Both layers are an LL(1)
 grammar read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
 the grammar matched; only the alphabet differs — code points there, token
 symbols here. This layer is two modules along the line its two questions
@@ -18,6 +18,38 @@ a word or a line can tell, and `parseFromTokens`, the two in sequence. Trivia is
 long: the tokenizer reads it and leaves it out, keeping of it the one fact a
 rule of the language asks, whether a newline stood before a token
 ([`fjs/compiler/tokenizer`](../tokenizer/module.f.mjs)).
+
+## Resolved source bindings
+
+`parseFromTokens` returns one record with `ast`, the admitted tree, and its
+complete source binding evidence. `scope` records initialization, reads, writes,
+execution regions and ordinary source function boundaries. `bindings` is the
+result of one shared `analyzeBindings` pass after that complete scope exists;
+`origins` retains each binding's name, declaration kind and source position.
+Open scopes append their trace events with immutable lists, so another read
+does not copy all preceding reads. Closing a function or region materializes
+its public event array once; a separate count preserves source target indices.
+
+Each declaration gets its own identity even when its initializer aliases an
+existing value. A snapshot of a loop variable is therefore a different source
+binding, and later writes to the variable do not make the snapshot mutable.
+Pattern expansion gives destructured locals their own identities; parameter
+and destructuring initialization is not reassignment. Loop assignments retain
+the original source identity across the value versions used by graph lowering.
+
+Synthetic guard and loop regions retain their owning source function target.
+They create no source capture boundary. An ordinary nested function does, even
+when it is called immediately. Whole-helper recognition retains its parameter
+and local facts before replacing the helper with an intrinsic operation.
+
+These facts preserve the current source admission policy, including its loop
+capture exceptions. The broader write-based capture policy remains a later
+language milestone. The fold's remaining sugar moves to the common FAST owner
+in subsequent input-migration increments.
+
+`capturedBy` names source functions containing a direct resolved read or write.
+Intermediate frame forwarding for a deeper closure is a graph-construction
+concern and adds no synthetic source reads.
 
 ## The grammar is written down
 

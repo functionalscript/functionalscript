@@ -16,7 +16,7 @@
  *
  * @module
  *
- * @import { AstModule } from '../ast/types.ts'
+ * @import { ResolvedModule } from '../parser/types.ts'
  * @import { Node } from '../../media/html/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Demo, DemoEvent, TextDemoOptions } from '../../website/demo/types.ts'
@@ -45,10 +45,10 @@ export const stageDemo = ({ intro, name }) => textDemo({
 })
 
 /**
- * `stage` over the AST of `text`, or the parser's message where `text` does
+ * `stage` over the resolved source of `text`, or the parser's message where `text` does
  * not parse.
  *
- * @type {<T>(stage: (ast: AstModule) => Result<T, string>) => (text: string) => Result<T, string>}
+ * @type {<T>(stage: (module: ResolvedModule) => Result<T, string>) => (text: string) => Result<T, string>}
  */
 export const parsed = stage => text => {
     const result = parse('')(text)
