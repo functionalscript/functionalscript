@@ -68,7 +68,7 @@ describes:
 | ID | Construct | Why |
 |---|---|---|
 | `op.loose-equality` | `a == b`, `a != b` | design ([operators](../operators/README.md)) |
-| `op.in` | `"a" in o` | design ([in](./2346-in-operator.md)) |
+| `op.in` | `"a" in o` | design ([in](./2346-in-operator.md); page: [`in` Is Refused](../operators/in/README.md)) |
 | `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof/README.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma/README.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
 | `op.assignment` | `a = 1` outside a loop's block | planned ([let](./3220-let.md), "Later": a `let` outside a loop is a rebinding) |

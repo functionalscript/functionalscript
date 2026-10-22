@@ -15,7 +15,7 @@ logical not and the type tag, the prefixes neither stage had — and
 `instanceof Array`, the one instance check ([below](instanceof/README.md)) — and
 the comma operator, written in parentheses ([below](comma/README.md)).
 `==`/`!=` stay refused, since neither language reads them the same way
-twice, and so does `in` ([below](in.md)). Unary `+` is not in the language:
+twice, and so does `in` ([below](in/README.md)). Unary `+` is not in the language:
 the conversion to a number is `Number(x)`
 ([number conversion](../conversions/number/README.md)). The EDAG admits every pure
 operation, unary `+` among them, and the language spells a subset of them;
@@ -176,7 +176,7 @@ and `7` as JSON.
 - [Grouping](./grouping/README.md)
 - [Comma](./comma/README.md)
 - [`instanceof`](./instanceof/README.md)
-- [`in` Is Refused](./in.md)
+- [`in` Is Refused](./in/README.md)
 
 ## Examples
 

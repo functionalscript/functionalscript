@@ -62,7 +62,7 @@ output; the others say under *Examples* that theirs are still to come
 - [Bindings](./bindings/README.md): [constants](./bindings/constants/README.md),
   [destructuring](./bindings/destructuring/README.md)
 - [Operators](./operators/README.md): [grouping](./operators/grouping/README.md),
-  [`instanceof`](./operators/instanceof/README.md), [`in`](./operators/in.md)
+  [`instanceof`](./operators/instanceof/README.md), [`in`](./operators/in/README.md)
 - [Conversions](./conversions/README.md): [`Number`](./conversions/number/README.md),
   [`String`](./conversions/string/README.md)
 - [Property access](./property-access/README.md):
