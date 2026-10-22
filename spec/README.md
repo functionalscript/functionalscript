@@ -76,6 +76,8 @@ output; the others say under *Examples* that theirs are still to come
   [loops](./control-flow/loops/README.md), [switch](./control-flow/switch/README.md)
 - [Built-ins](./built-ins/README.md): [member functions](./built-ins/member-functions/README.md),
   [static functions](./built-ins/static-functions/README.md)
+- [Undecided constructs](./undecided/README.md): the valid JavaScript
+  refused today while its decision is still owed
 - [Command line](./command-line/README.md): [checking](./command-line/checking.md),
   [source text](./command-line/source-text.md), [file types](./command-line/file-types.md),
   [JSON input](./command-line/json-input.md), [output](./command-line/output.md)
