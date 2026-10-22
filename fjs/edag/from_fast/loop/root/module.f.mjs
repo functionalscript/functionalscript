@@ -10,7 +10,7 @@
  * @import { Frame, Link, Normal, Owner, Task, TerminalBlock, Visit } from './private.ts'
  */
 
-import { iterable } from '../../../../types/list/module.f.mjs'
+import { concat, iterable, toArray } from '../../../../types/list/module.f.mjs'
 import { maxLength } from '../../../../types/function/length/module.f.mjs'
 import { invocationAliases, readsEntryParameters } from '../module.f.mjs'
 
@@ -96,14 +96,15 @@ const run = input => {
     }
 }
 
-/** @type {(statements: readonly Statement[], result: Task) => Task} */
-const before = (statements, result) => bind(result, block => done({ ...block, statements: [...statements, ...block.statements] }))
+/** Keep prefixes as immutable segments until a public FAST block is needed. @type {(statements: readonly Statement[], result: Task) => Task} */
+const before = (statements, result) => bind(result, block => done({ ...block, statements: concat(statements)(block.statements) }))
 
 /** The owning public return becomes a conditional arm's normal value. @type {(block: TerminalBlock) => Block} */
 const arm = block => {
+    const statements = toArray(block.statements)
     const exit = block.exit
-    if (exit[0] === 'throw') { return block }
-    return { ...block, exit: ['yield', [exit[2]]] }
+    if (exit[0] === 'throw') { return { statements, exit } }
+    return { statements, exit: ['yield', [exit[2]]] }
 }
 
 /** @type {(values: readonly Value[], owner: Owner) => Task} */
@@ -165,6 +166,6 @@ export const directInvocationRoot = (fn, loop) => {
         const alias = /** @type {Extract<Statement, readonly ['define', ...unknown[]]>} */ (statement)
         return /** @type {Statement} */ (['define', alias[1], alias[2], 'lazy'])
     })
-    const body = run(before([...prefix, ...aliases], blockTask(loop.body, owner, () => { throw 'a normalized loop body requires an explicit transfer' })))
-    return { ...fn, self, body }
+    const result = run(before([...prefix, ...aliases], blockTask(loop.body, owner, () => { throw 'a normalized loop body requires an explicit transfer' })))
+    return { ...fn, self, body: { statements: toArray(result.statements), exit: result.exit } }
 }

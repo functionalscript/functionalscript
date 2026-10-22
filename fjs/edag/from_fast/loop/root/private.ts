@@ -1,6 +1,7 @@
 import type { Block, Function as FastFunction, Loop, Value, Statement, Exit } from '../../../../js/ast/types.ts'
+import type { List } from '../../../../types/list/types.ts'
 
-export type TerminalBlock = { readonly statements: readonly Statement[]; readonly exit: Extract<Exit, readonly ['return' | 'throw', ...unknown[]]> }
+export type TerminalBlock = { readonly statements: List<Statement>; readonly exit: Extract<Exit, readonly ['return' | 'throw', ...unknown[]]> }
 
 export type Task =
     | { readonly kind: 'done'; readonly block: TerminalBlock }

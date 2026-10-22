@@ -243,6 +243,45 @@ export const proof = {
         assertEq(assertOk(evaluate(root(loop), [true, true])), 7)
         assertEq(assertOk(evaluate(root(loop), [false, true])), 4)
     },
+    deepPrefixChain: () => {
+        const bindings = Array.from({ length: 20_000 }, (_, index) => id(index + 100))
+        const allocation = /** @type {Value} */ (['array', []])
+        const definitions = bindings.map((binding, index) => /** @type {Statement} */ (['define', binding,
+            index === 0 ? allocation : ref(bindings[index - 1]), index % 2 === 0 ? 'required' : 'lazy']))
+        const value = /** @type {Value} */ (['array', [ref(bindings[0]), ref(bindings[bindings.length - 1])]])
+        let nested = body(['break', loopTarget, [value]])
+        for (let index = definitions.length - 1; index >= 0; --index) {
+            nested = body(['yield', []], [definitions[index], ['block', [], nested]])
+        }
+        const loop = loopOf(nested)
+        // Isolate prefix construction from the separate free-binding inventory.
+        const normalized = directInvocationRoot(root(loop), loop)
+        const { statements, exit } = normalized.body
+        assertEq(statements.length, definitions.length + 2)
+        assertStructurallySame(statements.slice(0, 2), [['define', x, ref(a), 'lazy'], ['define', y, ref(b), 'lazy']])
+        definitions.forEach((definition, index) => assertEq(statements[index + 2], definition))
+        assert(exit[0] === 'return')
+        assertEq(exit[1], target)
+        assertEq(exit[2], value)
+    },
+    prefixRegions: () => {
+        const first = id(40), second = id(41), allocation = id(42), alias = id(43)
+        const inner = body(['break', loopTarget, [['array', [ref(second), ref(alias), ref(allocation)]]]], [['define', alias, ref(allocation), 'lazy']])
+        const middle = body(['yield', []], [['define', second, ['*', ref(first), 2], 'lazy'], ['define', allocation, ['array', [ref(first)]], 'required'], ['block', [], inner]])
+        const loop = loopOf(body(['continue', loopTarget, [ref(x), ref(y)]], [['define', first, ['+', ref(x), 1], 'required'], ['block', [], middle]]))
+        const result = assertOk(evaluate(root(loop), [3, 0]))
+        assert(result instanceof Array)
+        assertEq(result[0], 8)
+        assertEq(result[1], result[2])
+        assertStructurallySame(result[1], [4])
+        const fail = id(44), unused = id(45)
+        const branches = loopOf(body(['continue', loopTarget, [ref(x), ref(y)]], [['if', [], ref(y),
+            body(['throw', 'body'], [['define', fail, ['block', body(['throw', 'prefix'])], 'required']]),
+            body(['break', loopTarget, [7]], [['define', unused, ['block', body(['throw', 'lazy'])], 'lazy']]),
+        ]]))
+        assertEq(assertOk(evaluate(root(branches), [0, false])), 7)
+        assertEq(assertError(evaluate(root(branches), [0, true])), 'prefix')
+    },
     normalStatementGrowthAndDeepControl: () => {
         /** @type {readonly Statement[]} */
         let statements = []
