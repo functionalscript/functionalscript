@@ -28,12 +28,13 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
+import { fixpoint } from '../../types/function/module.f.js'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, definedEntries, definedValues, structurallySame } from '../../types/object/module.f.mjs'
 import { contains, empty, intersection, union } from '../../types/range_set/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.mjs'
-import { _fixpoint, _nullable as nullable, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from '../data/module.f.mjs'
+import { _nullable as nullable, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from '../data/module.f.mjs'
 import { min as minNumber } from '../../types/number/min/module.f.js'
 import { walkFold } from '../../types/stack_walk/module.f.mjs'
 
@@ -201,7 +202,7 @@ const followMap = (ruleSet, first, nullable, names) => {
             follow)
     // `structurallySame`, not `===`: a round rebuilds every set it unions
     // into, whether or not its contents changed.
-    return _fixpoint(step, structurallySame)(fromEntries(names.map(name => [name, empty])))
+    return fixpoint(step, structurallySame)(fromEntries(names.map(name => [name, empty])))
 }
 
 /**

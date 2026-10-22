@@ -1,4 +1,4 @@
-import { fn, iterate } from './module.f.js'
+import { fixpoint, fn, iterate } from './module.f.js'
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = () => {
@@ -31,4 +31,13 @@ export const proof = () => {
 
     // A linear recursive rewrite would exhaust the stack at this count.
     assertEq(iterate(100_000n)(0n)(x => x + 1n), 100_000n, iterate)
+
+    // A round per step, and no frame per round: a hundred thousand rounds
+    // are a stack overflow as a recursion and nothing as a loop.
+    assertEq(fixpoint((/** @type {number} */ n) => n < 100_000 ? n + 1 : n, (a, b) => a === b)(0), 100_000, fixpoint)
+    // `same` decides the last round, so a round that rebuilds an equal array
+    // ends the loop where `===` never would.
+    /** @type {(a: readonly number[]) => readonly number[]} */
+    const grow = a => a.length < 3 ? [...a, a.length] : [...a]
+    assertStructurallySame(fixpoint(grow, (a, b) => a.length === b.length)([]), [0, 1, 2], fixpoint)
 }
