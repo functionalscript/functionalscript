@@ -3,8 +3,10 @@
 See [run-time type information](https://en.wikipedia.org/wiki/Run-time_type_information) on Wikipedia.
 
 A type-safe schema system for describing TypeScript types at runtime and validating unknown values against them.
-The [guide](./guide/README.md) explains it one concept per page, starting
-with [the schemas](./guide/schemas/README.md).
+The [guide](./guide/README.md) explains it one concept per page, in four
+areas: [schemas](./guide/schemas/README.md),
+[readers](./guide/readers/README.md), [outputs](./guide/outputs/README.md) and
+[in the project](./guide/in-the-project/README.md).
 
 ## Why
 
@@ -38,45 +40,21 @@ parse(open(person))({ name: 'Ann', age: 3, x: 1 })  // ['ok', …] — open says
 ```
 
 The [outputs area](./guide/outputs/README.md) of the guide has a page for each
-row but the readers. The module page has a demo: pick a lesson or one of the project's own
-schemas, see it drawn as a graph with its TypeScript type, JSON Schema and
-canonical form, compare it with any other schema, and type a value to see
-what `parse` and `validate` make of it ([`demo.f.mjs`](./demo.f.mjs)).
+row but the readers. The module page has a demo: pick a lesson or one of the
+project's own schemas, see it drawn as a graph with its TypeScript type, JSON
+Schema and canonical form, compare it with any other schema, and type a value
+to see what `parse` and `validate` make of it ([`demo.f.mjs`](./demo.f.mjs)).
 
 ## Who uses it
 
 Everything the repository reads from outside, and the compiler's own
-intermediate form, is declared as a schema:
-
-- **Protocols** — the JSON-RPC envelopes ([`protocol/json_rpc`](../protocol/json_rpc/module.f.mjs))
-  and the MCP messages ([`protocol/mcp`](../protocol/mcp/module.f.mjs)): one
-  declaration is both the decoder and the static type.
-- **MCP tools** — the arguments of [`mcp/cas`](../mcp/cas/module.f.mjs) and
-  [`mcp/evo`](../mcp/evo/module.f.mjs): one schema is both the `inputSchema`
-  the server advertises and the check its arguments pass.
-- **Media formats** — the [`note`](../media/note/module.f.mjs),
-  [`lock`](../media/lock/module.f.mjs) and
-  [`revision`](../media/revision/module.f.mjs) BLOBs, the dialect registry in
-  [`media`](../media/module.f.mjs), and the JSON data model itself
-  ([`media/json/rtti`](../media/json/rtti/module.f.mjs)).
-- **The expression graph** — [`edag`](../edag/module.f.mjs) is its grammar
-  as a schema, [`edag/value`](../edag/value/module.f.mjs) its evaluated
-  values; the compiler's output is checked against it, and
-  [`nanvm`](../nanvm/module.f.mjs) checks operator names with `validate`.
-- **Effects** — [`effects/schema`](../effects/schema/module.f.mjs) describes
-  data-shaped requests and results for validation. Its
-  [`types.ts`](../effects/schema/types.ts) checks the corresponding handwritten
-  TypeScript declarations against schema-derived types. These schemas are not
-  a native runner ABI or the complete native effect set; that set follows
-  [`effects/node/`](../effects/node/) within the
-  [native scope](../../todo/nanvm-effects-node-operations.md).
-- **Files the tooling reads** — generated CI workflows
-  ([`ci/common`](../ci/common/module.f.mjs)) and the site's funding manifest
-  ([`website/funding`](../website/funding/module.f.mjs)).
-- **Responses the website reads from GitHub** — the sign-in exchange
-  ([`website/github`](../website/github/module.f.mjs)) and the open pull
-  requests with their checks ([`website/prs`](../website/prs/module.f.mjs)),
-  declared `open` because GitHub adds fields.
+intermediate form, is declared as a schema: the
+[protocols](./guide/in-the-project/protocols/README.md) and MCP tools, the
+[media formats](./guide/in-the-project/media/README.md) and JSON itself,
+[the expression graph](./guide/in-the-project/expression-graph/README.md),
+data-shaped [effects](./guide/in-the-project/effects/README.md), and the files
+and responses the [tooling](./guide/in-the-project/tooling/README.md) reads.
+Each of those pages names the modules and offers their schemas in its demo.
 
 ## Where it is going
 

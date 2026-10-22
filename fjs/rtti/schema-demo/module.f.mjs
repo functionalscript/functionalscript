@@ -157,6 +157,16 @@ const answerOf = r => r[0] === 'ok'
     : { ok: false, text: `at ${pathText(r[1].path)}: ${r[1].message}`, path: r[1].path }
 
 /**
+ * A schema the project itself declares, shown as the import of its export
+ * from the module that holds it, so what the reader picks is the schema the
+ * code runs, not a copy that could drift from it. `module` is the module's
+ * directory under `fjs/`.
+ *
+ * @type {(name: string, module: string, schema: Type) => readonly [DemoSchema]}
+ */
+export const projectSchema = (name, module, schema) => [{ source: name, schema, module: `fjs/${module}` }]
+
+/**
  * What `parse` and `validate` make of `text` against `schema`, and the value
  * the text denotes, or the parser's error when `text` is not a DataJS
  * document.

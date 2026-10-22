@@ -13,14 +13,22 @@ status line, the rule with its example, an *Examples* section describing the
 page's demo, a *Reference* to the TypeScript and JSON Schema constructs it
 corresponds to, and the module that implements it.
 
+## How a page is built
+
+A page is a directory, `guide/<area>/<page>/`, beside the modules rather than
+among them, so a concept directory is never mistaken for a module. It holds
+the `README.md`, a `sample.f.mjs` with the page's lessons, a `demo.f.mjs` that
+runs them through [`schemaDemo`](../schema-demo/module.f.mjs), and a
+`proof.f.mjs` that checks the page's examples and the values its text invites
+the reader to type. Each area's `module.f.mjs` lists its pages' lessons, and
+the [module page's demo](../demo.f.mjs) offers them in a group per area.
+
 ## Contents
 
 `●` has a demo of its own, a lesson the page owns run through
 [`schemaDemo`](../schema-demo/module.f.mjs), the machinery behind the module
 page's demo; `○` has none, and says why; `◌` is planned and has a
-`todo/`. The areas not linked yet are
-still sections of [the RTTI README](../README.md), and move here one area at a
-time ([the plan](../todo/rtti-guide.md)).
+`todo/`.
 
 - [Schemas](./schemas/README.md): the vocabulary
   - `●` [constants](./schemas/constants/README.md)
@@ -41,4 +49,10 @@ time ([the plan](../todo/rtti-guide.md)).
   - `●` [the TypeScript type](./outputs/typescript/README.md)
   - `●` [JSON Schema](./outputs/json-schema/README.md)
   - `●` [the canonical data form](./outputs/data-form/README.md)
-- In the project: the schemas the repository itself declares
+- [In the project](./in-the-project/README.md): the schemas the repository
+  itself declares
+  - `●` [protocols](./in-the-project/protocols/README.md)
+  - `●` [media formats](./in-the-project/media/README.md)
+  - `●` [the expression graph](./in-the-project/expression-graph/README.md)
+  - `●` [effects](./in-the-project/effects/README.md)
+  - `●` [tooling](./in-the-project/tooling/README.md)
