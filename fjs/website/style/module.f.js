@@ -763,24 +763,26 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-stand-in] { color: var(--muted) }
 [data-bit="fill"] { color: var(--muted); text-decoration: underline dotted }
 [data-bit="stop"] { color: var(--value); font-weight: 700 }
-/* SUL's literal levels as stripes: each unit — a character, eight typed
-   bits, the padding — is a column of its label, its bits, and a row of
-   pixels for each level, one pixel a bit wide. The units touch, so a word
-   that spans two of them is one unbroken stripe; a unit's label is boxed,
-   as a byte's is, to show where one ends. A level's pixels take one of two
-   colours, switching where a word ends. The padding's pixels are faded, as
-   they carry no data. A label never widens its unit, which would open a gap
-   in the stripes: it is as wide as the unit's bits. The padding's label is
-   the exception: the padding is the last unit, so nothing follows to leave a
-   gap before, and its box grows to hold its word even over a single bit.
-   Typed bits have no label, and no box. A label's height is fixed, not a
-   minimum: a stand-in such as ␠ is missing from most monospace fonts, and
-   the font the browser borrows it from can have a taller line, which would
-   make that one box taller than the others. The rows' names are the first
-   unit, on the first line only. */
-[data-sul-units] { display: flex; flex-wrap: wrap; margin-block: .5rem; row-gap: .75rem }
+/* SUL's levels as stripes: each unit — a character, eight typed bits, eight
+   padding bits — is a column of its label, its bits, and a row of pixels
+   for each level, one pixel a bit wide. The units touch, so a word that
+   spans two of them is one unbroken stripe; a unit's label is boxed, as a
+   byte's is, to show where one ends. A level's pixels take one of two
+   colours, switching where a word ends, and a hash's are hatched over
+   them. The padding's pixels are faded, as they carry no data. A label
+   never widens its unit, which would open a gap in the stripes: it is as
+   wide as the unit's bits. The padding's first label is the exception: the
+   padding is the last run of units, and its box grows to hold its word
+   even over a single bit. Typed bits have no label, and no box. A label's
+   height is fixed, not a minimum: a stand-in such as ␠ is missing from most
+   monospace fonts, and the font the browser borrows it from can have a
+   taller line, which would make that one box taller than the others. The
+   units are one line that scrolls sideways, so no stripe breaks; the rows'
+   names are the first unit, pinned to the left edge as the line scrolls. */
+[data-sul-scroll] { margin-block: .5rem; overflow-x: auto; padding-bottom: .25rem }
+[data-sul-units] { display: flex; width: max-content }
 [data-sul-unit] { display: flex; flex-direction: column; gap: 2px }
-[data-sul-names] { color: var(--muted); padding-right: .5rem }
+[data-sul-names] { background: var(--bg); color: var(--muted); left: 0; padding-right: .5rem; position: sticky; z-index: 1 }
 [data-sul-label] { border: 1px solid var(--border); box-sizing: border-box; height: 1.5em; line-height: calc(1.5em - 2px); margin-left: -1px; min-width: calc(100% + 1px); text-align: center; white-space: nowrap; width: 0 }
 [data-sul-label]:empty { border-color: transparent }
 [data-sul-pad] [data-sul-label] { width: auto }
@@ -790,6 +792,7 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-sul-px="a"] { background: var(--value) }
 [data-sul-px="b"] { background: var(--syntax-name) }
 [data-sul-pad] [data-sul-px] { opacity: .35 }
+[data-sul-hash] { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--bg) 70%, transparent) 0 2px, transparent 2px 5px) }
 /* A rendered README reads as GitHub renders it: prose in the platform's sans
    face at GitHub's measure and leading, its title and sections ruled, inline
    code and code fences shaded, and code itself in the site's monospace face.
