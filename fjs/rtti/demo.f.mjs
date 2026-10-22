@@ -69,6 +69,7 @@
 
 import { lessons as schemaLessons } from './guide/schemas/module.f.mjs'
 import { lessons as readerLessons } from './guide/readers/module.f.mjs'
+import { lessons as outputLessons } from './guide/outputs/module.f.mjs'
 import { schemaDemo } from './schema-demo/module.f.mjs'
 import { request } from '../protocol/json_rpc/module.f.mjs'
 import { tool } from '../protocol/mcp/module.f.mjs'
@@ -90,11 +91,12 @@ import { fundingSchema } from '../website/funding/module.f.mjs'
  * The lessons: schemas written to show one rule each, every one owned by the
  * guide page that explains its rule, one group per area of the guide
  * ([`guide/schemas`](./guide/schemas/module.f.mjs),
- * [`guide/readers`](./guide/readers/module.f.mjs)).
+ * [`guide/readers`](./guide/readers/module.f.mjs),
+ * [`guide/outputs`](./guide/outputs/module.f.mjs)).
  *
  * @type {readonly DemoExample[]}
  */
-export const lessons = [...schemaLessons, ...readerLessons]
+export const lessons = [...schemaLessons, ...readerLessons, ...outputLessons]
 
 /**
  * A schema the project itself declares, shown as the import of its export
@@ -218,5 +220,6 @@ export const examples = [...lessons, ...projectSchemas]
 export const demo = schemaDemo([
     ['Schemas', schemaLessons],
     ['Readers', readerLessons],
+    ['Outputs', outputLessons],
     ['Used in this project', projectSchemas],
 ])

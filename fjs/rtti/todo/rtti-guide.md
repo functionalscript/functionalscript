@@ -49,5 +49,7 @@ Each step is its own pull request and leaves the site working.
   [`guide/schemas/module.f.mjs`](../guide/schemas/module.f.mjs).
 - **Done:** the `readers/` area, with a demo for each page that has a value to
   show, and the root demo's lessons grouped by area.
-- Move `outputs/`, then `in-the-project/`.
+- **Done:** the `outputs/` area: the TypeScript type, JSON Schema and the
+  data form, a lesson and a demo each.
+- Move `in-the-project/`.
 - Shrink the root README to the index, as `spec/README.md` became.
