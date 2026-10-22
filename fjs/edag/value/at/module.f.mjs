@@ -16,6 +16,7 @@
 
 import { ok } from '../../../types/result/module.f.js'
 import { primitiveToNumber } from '../coercion/module.f.mjs'
+import { tagUndefined } from '../semantics/module.f.mjs'
 
 /** Array.at and String.at over represented receivers. @type {(receiver: ValueArray | string, index: Primitive) => ValueResult} */
 export const at = (receiver, index) => {
@@ -24,5 +25,5 @@ export const at = (receiver, index) => {
     if (kind === 'error') { return numeric }
     const values = typeof receiver === 'string' ? receiver : receiver[1]
     const value = values.at(number)
-    return ok(value === undefined ? ['undefined'] : value)
+    return ok(tagUndefined(value))
 }
