@@ -44,6 +44,12 @@ export const isFunction = value => isArray(value) && (value[0] === '=>' || value
 /** JavaScript typeof of the represented value. @type {(value: EdagValue) => string} */
 export const typeOf = value => isFunction(value) ? 'function' : typeof untagUndefined(value)
 
+/** Whether a value is `undefined`, tagged or absent: an argument not given reads as one. @type {(value: EdagValue) => boolean} */
+export const isUndefined = value => typeOf(value) === 'undefined'
+
+/** Whether a value is `null` or `undefined`: what `??` and `?.` step past. @type {(value: EdagValue) => boolean} */
+export const isNullish = value => value === null || isUndefined(value)
+
 /**
  * Whether two values are one static function: a built-in is identified by
  * its name, so two reads of `Object.is` are one function however they are

@@ -9,7 +9,7 @@
 import { conditional } from '../../testlib.f.js'
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
-import { toPrimitive, toString, toNumber } from './module.f.mjs'
+import { toPrimitive, toString, toNumber, toIntegerOrInfinity } from './module.f.mjs'
 import { tryFunctionText } from '../../../compiler/serializer/module.f.mjs'
 
 /** @type {Invoke} */
@@ -19,6 +19,17 @@ const fn = /** @type {const} */ (['=>', 0, [], 5])
 const failed = error(/** @type {const} */ (['{}', [[':', 'failure', 1]]]))
 
 export const proof = {
+    // Truncation toward zero; `NaN` and `-0` become `+0`, and the
+    // infinities stay.
+    toIntegerOrInfinity: () => {
+        assertEq(toIntegerOrInfinity(2.7), 2)
+        assertEq(toIntegerOrInfinity(-2.7), -2)
+        assert(Object.is(toIntegerOrInfinity(NaN), 0))
+        assert(Object.is(toIntegerOrInfinity(-0), 0))
+        assert(Object.is(toIntegerOrInfinity(-0.5), 0))
+        assertEq(toIntegerOrInfinity(Infinity), Infinity)
+        assertEq(toIntegerOrInfinity(-Infinity), -Infinity)
+    },
     primitives: () => {
         for (const value of [undefinedValue, null, false, 0, -0, NaN, 4n, 'text']) {
             assertEq(Object.is(assertOk(toPrimitive(value, 'number', skipped)), value), true)
