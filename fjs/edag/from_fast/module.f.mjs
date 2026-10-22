@@ -8,11 +8,13 @@
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { BindingId, Block, Exit, Function as FastFunction, Operator, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
- * @import { Results, Work } from './private.ts'
+ * @import { Binding, Results, Scope, ScopedTransfer, Work } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
+import { step } from '../../common/monoid/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 
 /** @type {(exp: Exp) => Lowered} */
 const plain = exp => ({ exp, anchors: [] })
@@ -23,15 +25,44 @@ export const anchored = ({ exp, anchors }) => anchors.length === 0 ? exp : [',',
 /** @type {(values: readonly Lowered[]) => readonly Exp[]} */
 const floated = values => values.flatMap(value => value.anchors)
 
-/** @type {(environment: Environment, binding: BindingId) => Exp} */
-const lookup = (environment, binding) => assertNotNullish(environment.find(([id]) => id === binding), 'unbound FAST value')[1]
+/** @type {(scope: Scope, binding: BindingId) => Binding | undefined} */
+const bindingOf = (scope, binding) => {
+    let index = scope.index
+    while (index !== null) {
+        const found = index.value.get(binding)
+        if (found !== undefined) { return found }
+        index = index.rest
+    }
+    return undefined
+}
+
+/** @type {(earlier: ReadonlyMap<BindingId, Binding>) => (later: ReadonlyMap<BindingId, Binding>) => ReadonlyMap<BindingId, Binding>} */
+const mergeIndex = earlier => later => new Map([...earlier, ...later])
+
+/** Immutable map runs give logarithmic lookup and amortized logarithmic append. @type {(run: ReadonlyMap<BindingId, Binding>) => (scope: Scope['index']) => Scope['index']} */
+const appendIndex = step(mergeIndex)
+
+/** Preserve first-entry lookup and every entry's transfer order. @type {(scope: Scope, entry: Binding) => Scope} */
+const established = (scope, entry) => ({
+    index: bindingOf(scope, entry[0]) === undefined ? appendIndex(new Map([[entry[0], entry]]))(scope.index) : scope.index,
+    entries: { head: scope.entries, tail: [entry] },
+})
+
+/** @type {(environment: Environment) => Scope} */
+const scopeOf = environment => environment.reduce(established, /** @type {Scope} */ ({ index: null, entries: null }))
+
+/** @type {(scope: Scope, binding: BindingId) => Exp} */
+const lookup = (scope, binding) => assertNotNullish(bindingOf(scope, binding), 'unbound FAST value')[1]
+
+/** Materialize the public environment only when an external transfer needs it. @type {(transfer: Transfer | undefined) => ScopedTransfer} */
+const transferOf = transfer => transfer === undefined ? defaultTransfer : (exit, scope) => transfer(exit, toArray(scope.entries))
 
 /** @type {(m: ExpOp, n: ExpOp) => boolean} */
 const sameCapture = (m, n) => m === n || (['arg', 'rest', 'frame', 'self'].includes(m[0]) && m.length === n.length && m.every((x, i) => x === n[i]))
 
-/** @type {(fn: FastFunction, environment: Environment) => Lowered} */
+/** @type {(fn: FastFunction, environment: Scope) => Lowered} */
 const functionValue = (fn, environment) => {
-    const captures = fn.captures.map(capture => lowerValue(capture.value, environment))
+    const captures = fn.captures.map(capture => scopedValue(capture.value, environment))
     const candidates = captures.map(capture => capture.exp).filter(exp => exp instanceof Array)
     const slots = candidates.filter((node, i) => candidates.findIndex(other => sameCapture(other, node)) === i)
     const reads = slots.map((_, i) => /** @type {Exp} */ (['frame', i]))
@@ -44,7 +75,7 @@ const functionValue = (fn, environment) => {
             captures[i].exp instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (captures[i].exp)))] : captures[i].exp,
         ])),
     ]
-    return { exp: ['=>', fn.parameters.length, slots, anchored(lowerBlock(fn.body, inner))], anchors: floated(captures) }
+    return { exp: ['=>', fn.parameters.length, slots, anchored(scopedBlock(fn.body, scopeOf(inner)))], anchors: floated(captures) }
 }
 
 /**
@@ -154,9 +185,9 @@ const combined = (source, values) => {
  * Lower a normalized expression with an explicit operator stack. A reference
  * returns its established node, while separate equal operations stay separate.
  *
- * @type {(root: Value, environment: Environment, transfer?: Transfer) => Lowered}
+ * @type {(root: Value, environment: Scope, transfer?: ScopedTransfer) => Lowered}
  */
-export const lowerValue = (root, environment, transfer = defaultTransfer) => {
+const scopedValue = (root, environment, transfer = defaultTransfer) => {
     /** @type {Work} */
     let work = { kind: 'expand', value: root, rest: null }
     /** @type {Results} */
@@ -196,29 +227,29 @@ export const lowerValue = (root, environment, transfer = defaultTransfer) => {
     return assertNotNullish(results, 'missing FAST result').value
 }
 
-/** @type {(condition: Value, then: Block, otherwise: Block, environment: Environment, transfer: Transfer) => Lowered} */
+/** @type {(condition: Value, then: Block, otherwise: Block, environment: Scope, transfer: ScopedTransfer) => Lowered} */
 const conditional = (condition, then, otherwise, environment, transfer) => {
-    const test = lowerValue(condition, environment, transfer)
+    const test = scopedValue(condition, environment, transfer)
     return { exp: ['?:', test.exp, anchored(lowerRegion(then, environment, transfer)), anchored(lowerRegion(otherwise, environment, transfer))], anchors: test.anchors }
 }
 
-/** Baseline value regions have normal results or fail; nonlocal exits follow in E. @type {(block: Block, environment: Environment, transfer: Transfer) => Lowered} */
+/** Baseline value regions have normal results or fail; nonlocal exits follow in E. @type {(block: Block, environment: Scope, transfer: ScopedTransfer) => Lowered} */
 const lowerRegion = (block, environment, transfer) => {
     if (transfer === defaultTransfer && block.exit[0] !== 'yield' && block.exit[0] !== 'throw') {
         throw 'nonlocal transfers in value regions require structured completion lowering'
     }
-    return lowerBlock(block, environment, transfer)
+    return scopedBlock(block, environment, transfer)
 }
 
 /** One result stays scalar; other signatures use their declared order. @type {(values: readonly Lowered[]) => Lowered} */
 const resultsValue = values => ({ exp: values.length === 1 ? values[0].exp : ['[]', values.map(value => value.exp)], anchors: floated(values) })
 
-/** @type {Transfer} */
+/** @type {ScopedTransfer} */
 const defaultTransfer = (exit, environment) => {
-    if (exit[0] === 'yield') { return resultsValue(exit[1].map(value => lowerValue(value, environment))) }
-    if (exit[0] === 'return') { return lowerValue(exit[2], environment) }
+    if (exit[0] === 'yield') { return resultsValue(exit[1].map(value => scopedValue(value, environment))) }
+    if (exit[0] === 'return') { return scopedValue(exit[2], environment) }
     if (exit[0] === 'throw') {
-        const value = lowerValue(exit[1], environment)
+        const value = scopedValue(exit[1], environment)
         return { exp: ['throw', value.exp], anchors: value.anchors }
     }
     throw 'a loop transfer requires its owning loop'
@@ -231,17 +262,17 @@ const resultBindings = (bindings, exp) => bindings.map((binding, i) => [binding,
  * Required definitions retain their position as eager anchors. Lazy definitions
  * provide node identity and establish no extra evaluation by themselves.
  *
- * @type {(block: Block, environment?: Environment, transfer?: Transfer) => Lowered}
+ * @type {(block: Block, environment: Scope, transfer?: ScopedTransfer) => Lowered}
  */
-export const lowerBlock = (block, environment = [], transfer = defaultTransfer) => {
+const scopedBlock = (block, environment, transfer = defaultTransfer) => {
     let scope = environment
     const required = requiredRoots(block)
     /** @type {readonly Exp[]} */
     let anchors = []
     for (const statement of block.statements) {
         if (statement[0] === 'define') {
-            const value = lowerValue(statement[2], scope, transfer)
-            scope = [...scope, [statement[1], statement[3] === 'lazy' ? anchored(value) : value.exp]]
+            const value = scopedValue(statement[2], scope, transfer)
+            scope = established(scope, [statement[1], statement[3] === 'lazy' ? anchored(value) : value.exp])
             if (statement[3] === 'required') {
                 anchors = [...anchors, ...value.anchors, ...(required.includes(statement[1]) ? [value.exp] : [])]
             }
@@ -250,12 +281,18 @@ export const lowerBlock = (block, environment = [], transfer = defaultTransfer) 
         if (statement[0] === 'loop') { throw 'structured loop construction is not connected yet' }
         const value = statement[0] === 'block' ? lowerRegion(statement[2], scope, transfer)
             : conditional(statement[2], statement[3], statement[4], scope, transfer)
-        scope = [...scope, ...resultBindings(statement[1], value.exp)]
+        scope = resultBindings(statement[1], value.exp).reduce(established, scope)
         anchors = [...anchors, ...value.anchors, value.exp]
     }
     const result = transfer(block.exit, scope)
     return { exp: result.exp, anchors: [...anchors, ...result.anchors] }
 }
+
+/** Lower a value under externally established bindings. @type {(root: Value, environment: Environment, transfer?: Transfer) => Lowered} */
+export const lowerValue = (root, environment, transfer) => scopedValue(root, scopeOf(environment), transferOf(transfer))
+
+/** Construct a block without rescanning accumulated bindings on every read. @type {(block: Block, environment?: Environment, transfer?: Transfer) => Lowered} */
+export const lowerBlock = (block, environment = [], transfer) => scopedBlock(block, scopeOf(environment), transferOf(transfer))
 
 /** The graph at a normalized FAST block's result boundary. @type {(block: Block, environment?: Environment) => Exp} */
 export const fromFast = (block, environment = []) => anchored(lowerBlock(block, environment))

@@ -1,10 +1,10 @@
 /**
  * Resolved write/capture facts and operand mappings preserve identity and metadata.
  *
- * @import { BindingScope, Operator, Value } from './types.ts'
+ * @import { BindingScope, Entry, Operator, Value } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { analyzeBindings, mapOperator, operatorOperands } from './module.f.mjs'
 
 export const proof = {
@@ -122,5 +122,22 @@ export const proof = {
         /** @type {Operator<number>} */
         const helper = ['Object.is']
         assertEq(mapOperator(value => value + 10)(helper), helper)
+    },
+    wideObject: () => {
+        const width = 20_000
+        const shared = { index: 0 }
+        /** @type {readonly Entry<typeof shared>[]} */
+        const entries = Array.from({ length: width }, (_, index) => index % 2 === 0 ? [':', shared, shared] : ['...', shared])
+        const mapped = mapOperator((value, index) => /** @type {const} */ ([value, index]))(['object', entries])
+        assert(mapped[0] === 'object')
+        assertEq(mapped[1].length, width)
+        for (const [index, entry] of mapped[1].entries()) { assertEq(entry[0], index % 2 === 0 ? ':' : '...') }
+        const operands = operatorOperands(mapped)
+        assertEq(operands.length, width * 3 / 2)
+        for (const [index, operand] of operands.entries()) {
+            assertEq(operand[0], shared)
+            assertEq(operand[1], index)
+        }
+        assertStructurallySame(mapOperator(value => value)(['object', []]), ['object', []])
     },
 }
