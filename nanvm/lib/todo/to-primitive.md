@@ -399,7 +399,7 @@ that needs a spike first.
 ### Related, not covered here
 
 General property-key conversion is implemented by `Any::entry`, through the
-[`entry`](../../../spec/property-access/entries.md) helper.
+[`entry`](../../../spec/property-access/entries/README.md) helper.
 `Object::member_access` receives only a string or number under its EDAG
 contract; it is not the general conversion boundary. `entry` checks for a
 nullish receiver before converting its key with `ToString` (FunctionalScript
@@ -433,6 +433,6 @@ key syntax.
       [function-text.md](../../../fjs/edag/function-text.md) records canonical
       represented conversion and the separate host-callable exception.
 - [x] Place the property-key conversion: it is
-      [`entry`](../../../spec/property-access/entries.md)'s key conversion.
+      [`entry`](../../../spec/property-access/entries/README.md)'s key conversion.
 - [x] Finish native function-key corpus coverage in
       [member-functions](./member-functions.md)'s `Function` checklist.

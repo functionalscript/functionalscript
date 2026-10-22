@@ -6,7 +6,7 @@ Every statement ends with `;`, or where JavaScript inserts one, and at least
 one export is required.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
-tokens, and this turns tokens into an `AstModule`. Both layers are an LL(1)
+tokens, and this turns tokens into a `ResolvedModule`. Both layers are an LL(1)
 grammar read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
 the grammar matched; only the alphabet differs — code points there, token
 symbols here. This layer is two modules along the line its two questions
@@ -18,6 +18,42 @@ a word or a line can tell, and `parseFromTokens`, the two in sequence. Trivia is
 long: the tokenizer reads it and leaves it out, keeping of it the one fact a
 rule of the language asks, whether a newline stood before a token
 ([`fjs/compiler/tokenizer`](../tokenizer/module.f.mjs)).
+
+## Resolved source bindings
+
+`parseFromTokens` returns one record with `imports`, a structured source `body`,
+and complete source binding evidence. Source values refer to original
+declaration identities; blocks retain initialization plans, assignments,
+scalar loops and terminal branches for the common sugar pass. `scope` records initialization, reads, writes,
+execution regions and ordinary source function boundaries. `bindings` is the
+result of one shared `analyzeBindings` pass after that complete scope exists;
+`origins` retains each binding's name, declaration kind and source position.
+Open scopes append their trace events with immutable lists, so another read
+does not copy all preceding reads. Closing a function or region materializes
+its public event array once; a separate count preserves source target indices.
+
+Each declaration gets its own identity even when its initializer aliases an
+existing value. A snapshot of a loop variable is therefore a different source
+binding, and later writes to the variable do not make the snapshot mutable.
+Pattern expansion gives destructured locals their own identities; parameter
+and destructuring initialization is not reassignment. Loop assignments retain
+the original source identity across the value versions used by graph lowering.
+
+Guard and loop lexical regions retain their owning source function target.
+They create no source capture boundary. An ordinary nested function does, even
+when it is called immediately. Whole-helper recognition retains its parameter
+and local facts before replacing the helper with an intrinsic operation.
+
+These facts preserve the current source admission policy, including its loop
+capture exceptions. The broader write-based capture policy remains a later
+language milestone. [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs) owns
+pattern planning, invocation layout, defaults, branch normalization and
+immutable assignment versions. Its pattern planner runs source admission
+callbacks during one ordered walk before shared binding analysis.
+
+`capturedBy` names source functions containing a direct resolved read or write.
+Intermediate frame forwarding for a deeper closure is a graph-construction
+concern and adds no synthetic source reads.
 
 ## The grammar is written down
 
@@ -108,7 +144,7 @@ becomes a parameter, rejecting `(a + b) => 1` while preserving `(a + b)`.
 After the comma the items are read the same way, `parenItems`, a cover of
 the parameters and of the comma operator's operands, which agree up to the
 `)`: `(a, b) => 1` is a function and `(a, b)` a comma
-([spec: comma](../../../spec/operators/comma.md)). The fold refuses an item
+([spec: comma](../../../spec/operators/comma/README.md)). The fold refuses an item
 that is no binding target where `=>` follows, and a default, a rest or a
 trailing comma where it does not, at the `=`, the `...` or the `)`. A
 group no function may open, under a prefix or as an operator's operand,
@@ -242,8 +278,8 @@ the fold's:
   reaches the fold, and `{ typeof: 1 }` and `a.typeof` stay members;
 - a reserved conversion global, `Number` or `String`, bound or referenced
   anywhere but as the callee of `Number(x)` or `String(x)`
-  ([spec: number conversion](../../../spec/conversions/number.md),
-  [string conversion](../../../spec/conversions/string.md)) —
+  ([spec: number conversion](../../../spec/conversions/number/README.md),
+  [string conversion](../../../spec/conversions/string/README.md)) —
   [`fjs/js/keywords`](../../js/keywords/module.f.js)' `reservedGlobals`, a
   list beside the keywords rather than among them, since JavaScript has no
   such keyword and its tokenizer keeps the word an `id`. The fold reads the
@@ -261,7 +297,7 @@ the fold's:
   but as the namespace of a static function — `Object.is` and the four
   `Number` predicates, `Number.isInteger` — beside `Number`'s conversion
   and `Object` in the `entry` helper below
-  ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)).
+  ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)).
   The read of a static function, in either key spelling, is the AST's
   value of its name, `['Object.is']`, a chain's steps after it going on
   over that value; a guard on the namespace, `Object?.is`, is refused at
@@ -287,7 +323,7 @@ the fold's:
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
 - a binding pattern, `const { a, b: [c] } = v;` or `({ a, b: [c] }) => a`
-  ([spec: destructuring](../../../spec/bindings/destructuring.md)): the
+  ([spec: destructuring](../../../spec/bindings/destructuring/README.md)): the
   grammar reads the array or object literal the same text spells, and the
   reader keeps the pattern reading of it beside the node, so the fold is
   what refuses a value in a binding position (`invalid destructuring
@@ -297,10 +333,10 @@ the fold's:
   read yet, a rest element and a computed key beyond a literal alone in its
   brackets, each by name — and a module whose exports are all patterns
   binding no name, which exports nothing where a name was owed (`module
-  exports nothing`). The fold then writes the reads the pattern is sugar
-  for, one entry per name and one hidden entry per nested source, as it
-  writes a guard's conditional — a parameter's as the first entries of the
-  function's body, the argument their source;
+  exports nothing`). The common sugar planner records each expanded read
+  and its original identity, with the fold supplying name and key policy
+  callbacks. Executable definitions and parameter layout are chosen by sugar
+  after source binding analysis;
 - an access naming a property of a built-in prototype, `a.push`,
   `a["toString"]` or `a.__proto__` in either spelling — every name
   [`fjs/js/prototype`](../../js/prototype/module.f.js) lists but `length`,
@@ -322,7 +358,7 @@ the fold's:
   like any other while `a.at` stays a refused read: a detached built-in is a
   function that only fails;
 - the `entry` and `hasEntry` helpers, which are matched whole rather than
-  resolved ([spec: entry](../../../spec/property-access/entries.md)): a
+  resolved ([spec: entry](../../../spec/property-access/entries/README.md)): a
   function of two parameters whose block body binds the descriptor
   `Object.getOwnPropertyDescriptor` answers for them and returns the value
   an enumerable one holds, `x?.enumerable ? x.value : undefined`, or its
@@ -341,33 +377,23 @@ the fold's:
   and the helpers [`fjs/js/intrinsic`](../../js/intrinsic/module.f.js). A
   step from the shape is an ordinary function with an ordinary member call.
 
-The fold is where a symbol table already exists, because turning an identifier
-into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar
-to approximate these.
+The fold is where a symbol table already exists: `['ref', bindingId]` names
+one resolved source declaration. The grammar does not approximate this lookup.
 
-A reference in a function's body to a name bound outside it — a `const`, an
-import, an enclosing function's parameter or an enclosing body's `const` —
-is a **capture**. The body is resolved against its own names first — its
-parameter, and the `const`s it declares before the reference — and then
-against each scope around it, innermost first; a name found outside becomes
-a capture, one per binding in first-use order, which the function node
-lists as its third element and the body reads as `['fref', i]`. The frame
-is the lowering's: it gives each distinct captured value one slot, so two
-bindings of one value share one. A function nested in another captures through it, so the
-middle function takes the capture too.
+A reference in a function body resolves its own parameters and prior locals
+before walking outward. The resolver remembers names read through intermediate
+scopes for the existing capture-shadow admission rule. Shared `capturedBy`
+facts record direct references from source functions; sugar constructs capture
+forwarding and snapshots the current immutable value of each source identity.
+Graph construction then compacts equal capture values into frame slots.
 
-A `const`'s value is resolved *before* its own name is bound, so `const a = a;`
-is `const not found` — a reference to a name before its declaration, as it is
-in JavaScript, and as the DataJS reject corpus's `reference-self` requires.
-Where the value is a function, that function has the name as its own: a read
-of it in the body that no parameter or body `const` answers first is
-`['self']`, the function itself, and a function nested in the body captures
-it as it captures any other name. The name is the function's alone —
-`const f = [() => f];` reads no function's own name — and a body `const` of
-it after the body has read it is `capture shadowed`, as any such read is.
-A name binds before the values that *follow* it, so a later statement may name
-an earlier `const`, which is what a `cref` always is: a reference to an earlier
-entry.
+A `const` value is resolved before its name is initialized, so `const a = a;`
+is `const not found`, as required by JavaScript's declaration ordering. A
+function that is the whole initializer of one name retains that declaration
+as its `self` identity, unless a parameter or local shadows it. A function
+nested inside it resolves the same declaration identity. The name is the
+function's alone: `const f = [() => f];` reads no function's own name. A later
+local of a name already read from outside remains `capture shadowed`.
 
 ## The rewrite set builds nodes; the fold resolves them
 
@@ -380,25 +406,20 @@ container of nodes, a record per statement — and the names are resolved after
 the grammar has matched the whole module, statement by statement, on the
 pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.mjs) set.
 
-Function blocks retain an ordered list of tagged statements — `const`
-declarations, `if` guards, each guard holding its condition and a block of
-its own, and switches, each holding its discriminant, its cases and its
-`default` block where it has one — and a tagged `return` or `throw` in this
-source tree. `() => 7` and
-`() => { return 7; }` therefore have different source bodies; the fold lowers
-them to the same executable body, a `throw` to one whose value is the
-`['throw', v]` node, a guard to the conditional of two calls of
-parameterless functions, one of its block and one of the statements after
-it, which the lowering inlines
-([spec: functions](../../../spec/functions/README.md)), and a switch to the
-chain of such conditionals, each case's test the `===` of the discriminant
-— an entry of the body — and a label, a case's labels under `||`
-([spec: switch](../../../spec/control-flow/switch.md)). The grammar still
-requires zero or more statements followed by one terminating statement — a
-switch is one, and holds the rest of its block where it has no `default`,
-which the reader puts back into the block's one list — and a
-module ends in an export or a `throw` the same way. This representation
-change adds no ASI.
+The syntax reader retains function declarations, scalar loop statements,
+terminal guards and switches as source constructs. Resolution preserves them
+as checked source blocks and original binding references. `() => 7` and
+`() => { return 7; }` resolve to the same targeted return. A guard retains its
+condition and two lexical blocks: the written block and the remaining
+statements. A switch retains the discriminant, ordered labels, cases and final
+fallback. A scalar loop retains its source variable and assignments; it creates
+no parser-generated function or recursive call.
+
+The common sugar pass expands these records into normalized FAST regions,
+immutable definitions and explicit loop transfers. The grammar still requires
+zero or more statements followed by a terminating `return`, `throw` or switch,
+and a module ends in exports or a throw. Source admission and ASI rules remain
+the same.
 
 `parseSyntax`, in `./syntax`, exposes that tree for proofs before the
 fold. It does not establish binding validity, JavaScript early errors or FunctionalScript

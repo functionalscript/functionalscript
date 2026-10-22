@@ -2,16 +2,17 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("ascii", Any::dot(string_any("aBc"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())), string_any("ABC"));
-    check::<A>("latin1", Any::dot(string_any("äö"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())), string_any("ÄÖ"));
-    check::<A>("sharpS", Any::dot(string_any("ß"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())), string_any("SS"));
-    check::<A>("apostropheN", Any::dot(string_any("ŉ"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())), string_any("ʼN"));
-    check::<A>("kelvinSign", Any::dot(string_any("K"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())), string_any("K"));
-    check::<A>("titlecase", Any::dot(string_any("ǅ"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())), string_any("Ǆ"));
-    check::<A>("pair", Any::dot(string_any("𐐨"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())), string_any("𐐀"));
-    check::<A>("loneSurrogate", Any::dot(string_any_utf16(&[0x0061, 0xd800, 0x0062, 0xdc00]), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())), string_any_utf16(&[0x0041, 0xd800, 0x0042, 0xdc00]));
-    check::<A>("empty", Any::dot(string_any(""), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())), string_any(""));
-    check::<A>("argumentIgnored", Any::dot(string_any("a"), string_any("toUpperCase")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("A"));
+    check::<A>("ascii", scope(|| { Any::dot(string_any("aBc"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("ABC"));
+    check::<A>("latin1", scope(|| { Any::dot(string_any("äö"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("ÄÖ"));
+    check::<A>("sharpS", scope(|| { Any::dot(string_any("ß"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("SS"));
+    check::<A>("apostropheN", scope(|| { Any::dot(string_any("ŉ"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("ʼN"));
+    check::<A>("kelvinSign", scope(|| { Any::dot(string_any("K"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("K"));
+    check::<A>("titlecase", scope(|| { Any::dot(string_any("ǅ"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("Ǆ"));
+    check::<A>("pair", scope(|| { Any::dot(string_any("𐐨"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("𐐀"));
+    check::<A>("loneSurrogate", scope(|| { Any::dot(string_any_utf16(&[0x0061, 0xd800, 0x0062, 0xdc00]), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any_utf16(&[0x0041, 0xd800, 0x0042, 0xdc00]));
+    check::<A>("empty", scope(|| { Any::dot(string_any(""), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any(""));
+    check::<A>("argumentIgnored", scope(|| { Any::dot(string_any("a"), string_any("toUpperCase")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("A"));
 }

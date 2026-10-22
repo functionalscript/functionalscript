@@ -13,7 +13,7 @@ asks a refusal to say which of the two it is). The same word in `for (k in o)`
 is a different grammar, a statement the language does not have yet (see the
 [roadmap](./README.md)), and this record does not decide it.
 
-[Reading an entry](../property-access/entries.md) holds this boundary for
+[Reading an entry](../property-access/entries/README.md) holds this boundary for
 `Object.hasOwn`; this record gives `in` the reasons it stated only in
 passing. The way to ask whether an object has an entry is the `hasEntry`
 helper beside `entry`, not a spelling of `in`: `hasEntry(o, k)` is the
@@ -52,7 +52,7 @@ give it a second, more convenient meaning." There are three ways to implement
   the price of the chain, so that `"toString" in {}` can be `true`. It is
   rejected because the language was built without one: "FunctionalScript has no prototype chains"
   ([specification](../property-access/README.md)), and a name a prototype would
-  give a value reads as absent, as the [`entry` helper](../property-access/entries.md)
+  give a value reads as absent, as the [`entry` helper](../property-access/entries/README.md)
   states. A chain that exists only to answer `in` is the whole feature
   smuggled back for one operator, and every VM would have to carry it.
 - *Answer by receiver-type dispatch.* This is compatible, within the
@@ -94,7 +94,7 @@ whitelist of *complete semantic patterns*, not of operations in isolation
 ([principles](../principles/README.md)). The question programs actually ask is
 "does this object hold an enumerable data entry under this key?", and that has
 a pattern: the `hasEntry` helper beside `entry`, spelled with JavaScript's
-own names ([reading an entry](../property-access/entries.md)). `in` asks something wider and different
+own names ([reading an entry](../property-access/entries/README.md)). `in` asks something wider and different
 (the chain, non-enumerable names, anything `Object.prototype` defines), so no
 pattern lowers to it without changing what it means.
 
@@ -144,7 +144,7 @@ question two spellings with different answers.
   inherited or non-enumerable names (`"toString" in o`, `"length" in a`),
   neither replacement is equivalent, and it needs a rewrite that states what
   it really wants to know.
-- The word `in` stays reserved ([lexical grammar](../lexical/identifiers.md)).
+- The word `in` stays reserved ([lexical grammar](../lexical/identifiers/README.md)).
 
 ### When to revisit
 
@@ -168,5 +168,5 @@ questions it adds.
 ### Related
 
 - [Undefined-valued properties](./1010-undefined-property.md).
-- [Reading an entry at run time](../property-access/entries.md).
+- [Reading an entry at run time](../property-access/entries/README.md).
 - [Operators](../operators/README.md).

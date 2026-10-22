@@ -12,9 +12,15 @@
  */
 
 import { specifierKind } from '../../path/import/module.f.mjs'
+import { isIdentifierPart } from '../../js/identifier/module.f.mjs'
+import { charIs } from '../../text/ascii/module.f.js'
+
+/** A one-character string that may continue a JavaScript identifier. */
+const isNamePart = charIs(isIdentifierPart)
 
 /**
- * The characters a name is spelled with. A name outside this set — a Unicode
+ * The characters a name is spelled with: those that continue a JavaScript
+ * identifier, as `fjs/js/identifier` states them. A name outside this set — a Unicode
  * identifier, a quoted export name — reads as punctuation and so never matches
  * `proof`, `from` or `import`, the only names looked for here.
  *
@@ -24,12 +30,7 @@ import { specifierKind } from '../../path/import/module.f.mjs'
  *
  * @type {(char: string | undefined) => boolean}
  */
-const nameChar = char =>
-    char !== undefined
-    && ((char >= 'a' && char <= 'z')
-    || (char >= 'A' && char <= 'Z')
-    || (char >= '0' && char <= '9')
-    || char === '_' || char === '$')
+const nameChar = char => char !== undefined && isNamePart(char)
 
 /** @type {(char: string) => boolean} */
 const space = char => char === ' ' || char === '\t' || char === '\n' || char === '\r'

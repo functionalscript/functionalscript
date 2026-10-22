@@ -4,52 +4,7 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_any_utf16, string_key}
 use nanvm_lib::vm::{Any, Array, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0 = || Ok([f64_any(0x3ff0000000000000), f64_any(0x4010000000000000)].to_array().to_any());
-    let c1: Any<A> = Any::dot(string_any("hello, wörld"), string_any("slice")).end_call(&runtime, c0)?;
-    let c2 = || Ok([f64_any(0xc008000000000000)].to_array().to_any());
-    let c3: Any<A> = Any::dot(string_any("hello, wörld"), string_any("slice")).end_call(&runtime, c2)?;
-    let c4 = || Ok([f64_any(0x4010000000000000), f64_any(0x3ff0000000000000)].to_array().to_any());
-    let c5: Any<A> = Any::dot(string_any("hello, wörld"), string_any("substring")).end_call(&runtime, c4)?;
-    let c6 = || Ok([f64_any(0x402c000000000000), string_any("*")].to_array().to_any());
-    let c7: Any<A> = Any::dot(string_any("hello, wörld"), string_any("padStart")).end_call(&runtime, c6)?;
-    let c8 = || Ok([f64_any(0x402c000000000000), string_any("ab")].to_array().to_any());
-    let c9: Any<A> = Any::dot(string_any("hello, wörld"), string_any("padEnd")).end_call(&runtime, c8)?;
-    let c10 = || Ok([f64_any(0x4000000000000000)].to_array().to_any());
-    let c11: Any<A> = Any::dot(string_any("hello, wörld"), string_any("repeat")).end_call(&runtime, c10)?;
-    let c12 = || Ok([string_any(", ")].to_array().to_any());
-    let c13: Any<A> = Any::dot(string_any("hello, wörld"), string_any("split")).end_call(&runtime, c12)?;
-    let c14 = || Ok([string_any("l"), string_any("L")].to_array().to_any());
-    let c15: Any<A> = Any::dot(string_any("hello, wörld"), string_any("replace")).end_call(&runtime, c14)?;
-    let c16 = || Ok([string_any("l"), string_any("L")].to_array().to_any());
-    let c17: Any<A> = Any::dot(string_any("hello, wörld"), string_any("replaceAll")).end_call(&runtime, c16)?;
-    let c18 = || Ok([string_any("o")].to_array().to_any());
-    let c19: Any<A> = Any::dot(string_any("hello, wörld"), string_any("indexOf")).end_call(&runtime, c18)?;
-    let c20 = || Ok([string_any("o")].to_array().to_any());
-    let c21: Any<A> = Any::dot(string_any("hello, wörld"), string_any("lastIndexOf")).end_call(&runtime, c20)?;
-    let c22 = || Ok([string_any("wör")].to_array().to_any());
-    let c23: Any<A> = Any::dot(string_any("hello, wörld"), string_any("includes")).end_call(&runtime, c22)?;
-    let c24 = || Ok([string_any("hello")].to_array().to_any());
-    let c25: Any<A> = Any::dot(string_any("hello, wörld"), string_any("startsWith")).end_call(&runtime, c24)?;
-    let c26 = || Ok([string_any("wörld")].to_array().to_any());
-    let c27: Any<A> = Any::dot(string_any("hello, wörld"), string_any("endsWith")).end_call(&runtime, c26)?;
-    let c28 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
-    let c29: Any<A> = Any::dot(string_any("hello, wörld"), string_any("at")).end_call(&runtime, c28)?;
-    let c30 = || Ok([f64_any(0xbff0000000000000)].to_array().to_any());
-    let c31: Any<A> = Any::dot(string_any("hello, wörld"), string_any("at")).end_call(&runtime, c30)?;
-    let c32 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
-    let c33: Any<A> = Any::dot(string_any("hello, wörld"), string_any("charAt")).end_call(&runtime, c32)?;
-    let c34 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
-    let c35: Any<A> = Any::dot(string_any("hello, wörld"), string_any("charCodeAt")).end_call(&runtime, c34)?;
-    let c36 = || Ok([f64_any(0x4020000000000000)].to_array().to_any());
-    let c37: Any<A> = Any::dot(string_any("hello, wörld"), string_any("codePointAt")).end_call(&runtime, c36)?;
-    let c38: Any<A> = Any::dot(string_any("  x "), string_any("trim")).end_call(&runtime, || Ok(Array::default().to_any()))?;
-    let c39: Any<A> = Any::dot(string_any("  x "), string_any("trimStart")).end_call(&runtime, || Ok(Array::default().to_any()))?;
-    let c40: Any<A> = Any::dot(string_any("  x "), string_any("trimEnd")).end_call(&runtime, || Ok(Array::default().to_any()))?;
-    let c41 = || Ok([string_any("!"), f64_any(0x3ff0000000000000)].to_array().to_any());
-    let c42: Any<A> = Any::dot(string_any("hello, wörld"), string_any("concat")).end_call(&runtime, c41)?;
-    let c43: Any<A> = Any::dot(string_any_utf16(&[0x0061, 0xd800]), string_any("isWellFormed")).end_call(&runtime, || Ok(Array::default().to_any()))?;
-    let c44: Any<A> = Any::dot(string_any_utf16(&[0x0061, 0xd800]), string_any("toWellFormed")).end_call(&runtime, || Ok(Array::default().to_any()))?;
-    let c45: Any<A> = [c1, c3, c5, c7, c9, c11, c13, c15, c17, c19, c21, c23, c25, c27, c29, c31, c33, c35, c37, c38, c39, c40, c42, c43, c44].to_array().to_any();
-    Ok([(string_key("default"), c45)].to_object().to_any())
+    Ok([(string_key("default"), [(Any::dot(string_any("hello, wörld"), string_any("slice")).end_call(&runtime, || Ok([f64_any(0x3ff0000000000000), f64_any(0x4010000000000000)].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("slice")).end_call(&runtime, || Ok([f64_any(0xc008000000000000)].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("substring")).end_call(&runtime, || Ok([f64_any(0x4010000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("padStart")).end_call(&runtime, || Ok([f64_any(0x402c000000000000), string_any("*")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("padEnd")).end_call(&runtime, || Ok([f64_any(0x402c000000000000), string_any("ab")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("repeat")).end_call(&runtime, || Ok([f64_any(0x4000000000000000)].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("split")).end_call(&runtime, || Ok([string_any(", ")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("replace")).end_call(&runtime, || Ok([string_any("l"), string_any("L")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("replaceAll")).end_call(&runtime, || Ok([string_any("l"), string_any("L")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("indexOf")).end_call(&runtime, || Ok([string_any("o")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("lastIndexOf")).end_call(&runtime, || Ok([string_any("o")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("includes")).end_call(&runtime, || Ok([string_any("wör")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("startsWith")).end_call(&runtime, || Ok([string_any("hello")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("endsWith")).end_call(&runtime, || Ok([string_any("wörld")].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("at")).end_call(&runtime, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("at")).end_call(&runtime, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("charAt")).end_call(&runtime, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("charCodeAt")).end_call(&runtime, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("codePointAt")).end_call(&runtime, || Ok([f64_any(0x4020000000000000)].to_array().to_any())))?, (Any::dot(string_any("  x "), string_any("trim")).end_call(&runtime, || Ok(Array::default().to_any())))?, (Any::dot(string_any("  x "), string_any("trimStart")).end_call(&runtime, || Ok(Array::default().to_any())))?, (Any::dot(string_any("  x "), string_any("trimEnd")).end_call(&runtime, || Ok(Array::default().to_any())))?, (Any::dot(string_any("hello, wörld"), string_any("concat")).end_call(&runtime, || Ok([string_any("!"), f64_any(0x3ff0000000000000)].to_array().to_any())))?, (Any::dot(string_any_utf16(&[0x0061, 0xd800]), string_any("isWellFormed")).end_call(&runtime, || Ok(Array::default().to_any())))?, (Any::dot(string_any_utf16(&[0x0061, 0xd800]), string_any("toWellFormed")).end_call(&runtime, || Ok(Array::default().to_any())))?].to_array().to_any())].to_object().to_any())
 }

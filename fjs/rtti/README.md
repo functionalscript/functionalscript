@@ -1,8 +1,9 @@
 # Run-time Type Information (RTTI)
 
-See https://en.wikipedia.org/wiki/Run-time_type_information.
+See [run-time type information](https://en.wikipedia.org/wiki/Run-time_type_information) on Wikipedia.
 
 A type-safe schema system for describing TypeScript types at runtime and validating unknown values against them.
+The [guide](./guide/README.md) explains it one concept per page.
 
 ## Why
 
@@ -99,6 +100,7 @@ siblings there are single data structures and type-level helpers.
 
 ## Modules
 
+- `guide/` — the concept pages: what a schema means, one page per concept
 - `module.f.mjs` — schema construction: defines `Type`, `Info`, and schema builder values
 - `ts/types.ts` — type-level transformer: `Ts<T>` maps a schema to its TypeScript type
   (see `ts/README.md`)
@@ -122,9 +124,9 @@ siblings there are single data structures and type-level helpers.
   through `equal` and `subset`; type a value as a DataJS document (so
   `undefined` and bigints can be written), and see what `parse` and
   `validate` make of it, with the member a refusal points at marked in the
-  value. The examples come in two groups. Seven lessons are written for the
-  demo: three show one schema and four are pairs whose difference is the
-  lesson; a pair shows both schemas, and the reader picks one while the
+  value. The examples come in two groups. Nine lessons come from the
+  [guide's](./guide/README.md) pages, each written to show one rule: five
+  show one schema and four are pairs whose difference is the lesson; a pair shows both schemas, and the reader picks one while the
   value stays put. Fourteen more are schemas the project itself uses —
   JSON-RPC and MCP messages, MCP tool arguments, the `vnd.fjs.*` media
   formats, JSON and JSON Schema, CI workflows, edag's unary operators and
@@ -132,6 +134,9 @@ siblings there are single data structures and type-level helpers.
   funding channels — imported from the modules that declare them, each shown
   as the import a user of the `functionalscript` package writes, with the
   module path linked to the module's page
+- `schema-demo/module.f.mjs` — the demo as a factory, `schemaDemo`, over the
+  examples it offers: the module page's demo and every guide page's demo are
+  this one function of their lessons
 
 ## The two schema-form readers
 
@@ -206,210 +211,16 @@ against a schema in one pass with no intermediate value at all.
 
 ## Schema types
 
-A `Type` is one of:
-
-- **`Const`** — used directly as its own schema:
-  - `Primitive` (`null`, `undefined`, `true`, `42`, `'hello'`, `7n`) — validates exact equality
-  - `Tuple` (`readonly[schema, ...]`) — validates each element by position
-  - `Struct` (`{ key: schema, ... }`) — validates each declared property
-- **`Thunk`** (`() => Info`) — a lazy schema for tag-based and recursive types
-
-### Structs and tuples are closed
-
-A bare `Struct` or `Tuple` admits **the members it declares and no others**. A
-value carrying more is not one of its values, on either reader:
-
-| schema | value | `parse` | `validate` |
-| --- | --- | --- | --- |
-| `{ a: 42 }` | `{ a: 42, b: 'x' }` | error | error |
-| `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` |
-| `[42]` | `[42, 'extra']` | error | error |
-| `[number, or(option, string)]` | `[42]` | `[42]` | `[42]` |
-| `[42]` | `[]` | error | error |
-
-A tuple answers by **length** as well as by member: a hole past the prefix is
-no member, so `[42, , ]` would slip through a member check alone while the
-array is still that long.
-
-The last two rows are one rule, and closedness leaves it alone — it is about
-*undeclared* members, and a declared position admitting **absence** stays
-omittable. A member is absent when its key or index is neither an own
-property nor an inherited one, and it is **required exactly when its set
-excludes absence** — the `option` member of its union. Position 1 of
-`[number, or(option, string)]` admits absence, so a shorter array is fine —
-and neither reader materializes anything: `parse` builds `[42]`, omitting the
-absent member — while `42` excludes it, so position 0 of `[42]` is required
-and `[]` fails for both. Absence is not a spelling of `undefined`: `{}` and
-`{ a: undefined }` are two distinct values, `or(option, t)` admits the first
-and `or(t, undefined)` the second. This is the same rule the data form
-states for object keys, as the `absentBit` of a member's unit bitset.
-
-The data form says the same thing in its own vocabulary — a bare container's
-`rest` is `never` on both kinds — so `validate(toData(s))` accepts exactly what
-`parse(s)` and `validate(s)` do. `validate/proof.f.mjs` runs one acceptance
-table through all three readers.
-
-**A schema that admits more says so** — see [Open containers](#open-containers)
-below. What a container admits beyond what it declares is stated, never
-inferred.
-
-#### A hole is a declared position
-
-A `Tuple` schema is read by **length**, so a sparse one declares as many
-positions as it is long and a hole is a position whose schema is `undefined`:
-
-| schema | value | all three readers |
-| --- | --- | --- |
-| `new Array(1)` | `[undefined]` | ok |
-| `new Array(1)` | `[1, 2, 3]` | error |
-| `[, number]` | `[undefined, 5]` | ok |
-| `[, number]` | `[9, 5]` | error |
-
-Reading index `0` of `new Array(1)` yields `undefined`, and `undefined` is a
-`Const` schema in its own right, so this is what follows from `Tuple` being
-`readonly Type[]`. `Object.entries` — which skips holes — was the schema-form
-readers' entry list until it disagreed with the data form's `for…of` on exactly
-these rows; `tupleSchemaEntries` in `common/module.f.mjs` is now the one place
-that says how a tuple schema is read, and `structSchemaEntries` is its struct
-counterpart. The alternative reading would make `new Array(1)` and `[]` the
-same schema while `[undefined]` stayed different from both.
-
-The same rule settles a tuple schema's **non-index** enumerable own properties,
-which are no positions either. `Object.assign([number], { foo: string })`
-declares one position and nothing named `foo`: a tuple is read by index, so the
-entry reading declared `foo` and then matched it against `value[NaN]` — the
-property literally named `NaN`, which no ordinary value carries. The data form
-ignored it all along; now so do the schema-form readers. (On the *value* side
-such a key is an undeclared member like any other, so a bare schema rejects it.)
-
-"By length" is how every schema anyone can write is read; the mechanism is the
-iterator, the same one `containerUnion` walks, so the two agree by construction
-rather than by two rules that happen to coincide. That matters only for a schema
-carrying an overridden `Symbol.iterator` — which FunctionalScript cannot build,
-having neither symbols nor mutation — where reading indices here would put the
-schema-form readers back at odds with the data form.
-
-Nothing about a dense schema changes: on an array with neither holes nor extra
-own properties the two entry lists are identical.
-
-#### `Ts<>` renders the closed form exactly
-
-The exact-length tuple `TupleTs` (`ts/types.ts`) renders **is** the closed set,
-so the rendering and the schema denote the same values and `validate`'s success
-cast is sound. That was not true while a bare tuple was open, and it is the
-defect this default removes: `validate([42])([42, 'extra'])` used to hand back a
-two-element array whose static type said `.length` was `1`.
-
-An earlier length check, added in #1622 and reverted, was right about the
-behaviour and wrong about the reason — it read `Ts<T>` as the value model rather
-than the other way round. What has changed since is the model.
-
-`Struct` is the kind TypeScript cannot render exactly: an object type is
-structurally open, so `StructTs` renders a closed struct as an
-**over-approximation** — every value the schema accepts inhabits the rendered
-type (the cast stays sound), and the rendered type additionally admits values
-the schema rejects. A static type cannot certify acceptance; that direction is
-the harmless one.
-
-`parse/proof.f.mjs` and `validate/proof.f.mjs` pin closedness on both kinds.
-
-#### Beyond `length`
-
-A tuple's members are the indices below `length`, including ones the
-**prototype** supplies rather than the value's own entries — `undeclaredMembers`
-in `common/module.f.mjs` walks the range and holds each readable index to the
-schema, which is what keeps `rest([42], string)` from accepting an array whose
-index 1 inherits a number.
-
-An index **at or above** `length` is not answered, on any reader, and no walk
-bounded by the value reaches it: with `Array.prototype[10] = 99`,
-`validate([42])([42])` is `ok` and `v[10]` reads `99`. Neither obvious remedy
-settles it — a prototype-identity check closes only the per-value half, and
-"check the intrinsic" is a realm-wide property that can change between the check
-and the read — so this is a stated caveat rather than a rule, and it applies to
-`array`, `record` and every container schema alike. It is really a question
-about what the FunctionalScript subset assumes of its host.
-
-### Open containers
-
-`open(c)` is the counterpart: the members `c` declares, plus anything else.
-`rest(c, r)` states the middle ground — those members, plus any number of
-members belonging to `r`.
-
-| schema | admits |
-| --- | --- |
-| `[number]` | arrays of exactly one number |
-| `open([number])` | any array whose position 0 is a number |
-| `rest([number], string)` | one number, then any number of strings |
-| `{ a: number }` | objects with `a` and no other key |
-| `open({ a: number })` | any object whose `a` is a number |
-| `rest({ a: number }, string)` | `a`, plus any number of string-valued keys |
-
-Openness is what makes a reader forward-compatible: a schema that says `open`
-keeps reading a serialization format that has grown fields. So a schema read
-against a wire format someone else may extend says `open`, and one describing a
-closed vocabulary — an ADT's nodes, a tool's arguments — does not. The protocol
-and media modules say `open` with the reason written beside them; `edag` says
-nothing, because its grammar claims each JS chain has exactly one spelling.
-
-Three things follow from stating openness this way rather than inferring it.
-
-**It needs no new concept underneath.** The data form's array and object sets
-are both `{ members, rest? }` already, so `rest` is the schema-form spelling of
-a `rest` that form has always carried: `never` is the bare, closed container,
-`unknown` is openness, and a stated `rest` is itself. `rest(c, unknown)`
-therefore normalizes to `open(c)` — the same `Node`, the same acceptance — and
-`rest(c, never)` normalizes back to the bare `c`. A container whose undeclared
-members must be the *value* `undefined` states that rest as a wrapped const,
-`() => ['const', undefined]`.
-
-**Both parameters of `rest` are required.** An optional one would need a
-sentinel for "no undeclared member", and every candidate — `undefined` most of
-all — is a `Type` in its own right, so the sentinel would collide with the
-schema it spells. `never` carries no such ambiguity, and there is no overload.
-
-**It widens acceptance, not construction.** `parse` builds the declared members
-and nothing else, exactly as it does for the bare form; a member matching a
-`rest` is checked on the way in and absent on the way out. `rest` says what an
-undeclared member must be, not that the reader should keep it — the reader that
-keeps every member is `validate`, which returns the value it was given here as
-everywhere else.
-
-**`Ts<>` renders the tail.** `RestTs` renders `rest(c, r)`'s tuple tail as
-`...(Ts<r> | undefined)[]`: a hole past the prefix is no member, so a reader
-skips it and the index reads `undefined`. An **empty** rest renders no tail —
-`rest(c, or())` is the bare `c`, one set and so one rendering. What counts as
-empty is `emptyRest`'s question in `data/module.f.mjs`, a `toData` conversion
-compared with `subset` both ways, which `types.ts` cannot invoke; `RestTs`
-recognizes the one directly spellable empty rest, `or()`, and keeps the tail
-whenever it cannot tell. A kept tail is wider than the schema but sound, which
-is the direction a success cast needs. The runtime printer goes through the data
-form and recognizes the rest semantically, so the two differ on
-`rest([42], [or()])` — the printer drops the tail there and `Ts<>` does not.
-
-An **empty rest bounds an array's length**, which is the bare form's rule
-arriving through the other spelling: `array(or())` is the empty array and not
-"any number of holes", and `rest([42], or())` rejects `[42, , ]` exactly as
-`[42]` does.
-
-## Built-in schemas
-
-The built-in schemas are all `Thunk`s — functions that return an `Info` descriptor.
-Nullary schemas (`boolean`, `string`, etc.) return `Info0` (a single-tag tuple);
-unary schemas (`array`, `record`) return `Info1` (a tag + inner type tuple).
-
-| Schema      | Returns              | Validates                        |
-|-------------|----------------------|----------------------------------|
-| `boolean`   | `['boolean']`        | any `boolean`                    |
-| `number`    | `['number']`         | any `number`                     |
-| `string`    | `['string']`         | any `string`                     |
-| `bigint`    | `['bigint']`         | any `bigint`                     |
-| `unknown`   | `['unknown']`        | any DataJS value                 |
-| `option`    | `['option']`         | nothing — **absence**: `or(option, t)` is a member that may be left out |
-| `array(t)`  | `['array', t]`       | `readonly Ts<t>[]`               |
-| `record(t)` | `['record', t]`      | `{ readonly[K: string]: Ts<t> }` |
-| `rest(c, r)` | `['rest', c, r]` | `c`'s members, and only members of `r` besides |
-| `open(c)`   | `['rest', c, unknown]` | `c`'s members, and anything else |
+The schema vocabulary is explained one concept per page in
+[the guide's schemas area](./guide/schemas/README.md):
+[constants](./guide/schemas/constants/README.md),
+[primitives](./guide/schemas/primitives/README.md),
+[structs and tuples are closed](./guide/schemas/closed-containers/README.md),
+[open containers](./guide/schemas/open-containers/README.md),
+[absence](./guide/schemas/option/README.md),
+[unions](./guide/schemas/unions/README.md),
+[arrays and records](./guide/schemas/arrays-and-records/README.md) and
+[recursion](./guide/schemas/recursion/README.md).
 
 ## Example
 

@@ -85,8 +85,8 @@ export const proof = {
             [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
             // the constructor name is metadata, never an operand
             [['instanceof', a, 'Array'], [a]], [['instanceof', 'Array', 'Array'], ['Array']],
-            [['&&', false, a], [false, a]], [['||', true, b], [true, b]],
-            [['??', null, a], [null, a]], [['?:', true, a, b], [true, a, b]],
+            [['?:', false, a, false], [false, a, false]], [['?:', true, true, b], [true, true, b]],
+            [['?:', null, a, null], [null, a, null]], [['?:', true, a, b], [true, a, b]],
             [['[]', []], []], [['{}', []], []], [[',', []], []],
             [['[]', [a, ['...', b], '#', '=>', a]], [a, b, '#', '=>', a]],
             [['{}', [[':', a, b], [':', '#', '...'], ['...', a]]], [a, b, '#', '...', a]],
@@ -113,6 +113,16 @@ export const proof = {
         const a = an(first)
         assertEq(assertOk(checked(a)), a)
         assertEq(assertError(checked(an(['frame', 0]))), 'invalid frame slot index or scope')
+    },
+    constructorMetadata: () => {
+        // The constructor name survives graph numbering without becoming a
+        // value dependency, including when the operand has the same text.
+        assertStructurallySame(nodesOf(['instanceof', 'Array', 'Array']), [
+            ['instanceof', 'Array', 'Array'],
+        ])
+        assertStructurallySame(nodesOf(['instanceof', empty, 'Array']), [
+            ['[]', []], ['instanceof', ['#', 0], 'Array'],
+        ])
     },
     // `Object.is` is a value wherever one stands — a callee, the root, an
     // argument, an element, a captured slot, a receiver — and one function
@@ -295,8 +305,8 @@ export const proof = {
     },
     // Operators, the comma and the three operations with no operands merge
     // as reads do; an edge from a lazy position is an edge, so a node
-    // reached only through `&&`'s right operand is shared all the same,
-    // and the merged `&&` keeps every edge its occurrences gave `s`.
+    // reached only through a conditional arm is shared all the same,
+    // and the merged `?:` keeps every edge its occurrences gave `s`.
     operators: () => {
         assertEq(nodesOf(['[]', [['args'], ['args']]]).length, 2)
         assertEq(nodesOf(['[]', [['undefined'], ['undefined']]]).length, 2)
@@ -304,9 +314,9 @@ export const proof = {
         assertEq(nodesOf(['[]', [['?:', 1, 2, 3], ['?:', 1, 2, 3]]]).length, 2)
         /** @type {Exp} */
         const s = ['[]', [1]]
-        table(['[]', [['&&', ['args'], s], ['&&', ['args'], s]]], {
+        table(['[]', [['?:', ['args'], s, ['args']], ['?:', ['args'], s, ['args']]]], {
             root: ['#', 3],
-            nodes: [['args'], ['[]', [1]], ['&&', ['#', 0], ['#', 1]], ['[]', [['#', 2], ['#', 2]]]],
+            nodes: [['args'], ['[]', [1]], ['?:', ['#', 0], ['#', 1], ['#', 0]], ['[]', [['#', 2], ['#', 2]]]],
             scope: [-1, -1, -1, -1],
             shared: [0, 1, 2],
         })
