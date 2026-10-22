@@ -46,8 +46,9 @@ and local facts before replacing the helper with an intrinsic operation.
 
 These facts decide the capture policy: a variable assigned anywhere in its
 scope, a `let`'s or a parameter's, is refused to a function held as a value,
-while a function called where it is written keeps reading it — reading, not
-assigning, since its block is inlined with values of its own — and a variable
+while a function called where it is written, by a plain or an optional call,
+keeps reading it — reading, not assigning, since its block is inlined with
+values of its own — and a variable
 assigned nowhere is captured as a `const` is
 ([spec: variables](../../../spec/bindings/variables/README.md)). The fold
 records each reference across a function boundary and decides it when the

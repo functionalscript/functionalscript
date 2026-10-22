@@ -271,13 +271,13 @@ const initialized = (scope, plan) => traced({
 /** @type {() => _Scope} */
 const moduleScope = () => ({
     names: empty, origins: empty, count: 0, parameters: [], rest: null, enclosing: null, outer: null,
-    self: null, selfBinding: null, captures: [], escapes: [], region: false,
+    self: null, selfBinding: null, captures: [], region: false,
     trace: { target: { kind: 'function', index: 0 }, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
 /** A lexical region shares its source function target. @type {(outer: _Scope, names: _Env, enclosing: List<_Env>) => _Scope} */
 const regionScope = (outer, names, enclosing) => ({
-    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, captures: [], escapes: [], region: true,
+    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, captures: [], region: true,
     trace: { target: outer.trace.target, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
@@ -596,7 +596,7 @@ const assigned = (scope, name) => {
  *
  * @type {(found: readonly [_Scope, _Ref, boolean], name: ModuleTokenWithMetadata) => _Scope}
  */
-const referenced = ([scope, ref, crossed], name) => crossed ? { ...scope, captures: [...scope.captures, [ref.id, reassignedCaptured(name)]] } : scope
+const referenced = ([scope, ref, crossed], name) => crossed ? { ...scope, captures: [...scope.captures, { id: ref.id, refusal: reassignedCaptured(name), escaped: false }] } : scope
 
 /** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
 const isCallStep = step => step !== undefined && step[0] !== '|.'
@@ -1444,7 +1444,7 @@ const entered = (stack, scope, node, self) => {
     const target = /** @type {const} */ ({ kind: 'function', index: scope.trace.count + 1 })
     /** @type {_Scope} */
     const inner = {
-        names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, captures: [], escapes: [], region: false,
+        names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, captures: [], region: false,
         origins: self === null || at(self[0])(bound.origins) !== null ? bound.origins : setReplace(self[0])(self[1])(bound.origins),
         trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]), count: bound.initialized.length }, sourceOrigins: bound.sourceOrigins,
     }
@@ -1645,10 +1645,12 @@ const regionBlock = value => {
 
 /**
  * Merge complete source evidence at a lexical boundary. The captures the
- * scope holds of bindings it declares itself are decided: harmless, since
- * the function that made them was called inside the binding's scope. The
- * rest pass to the outer scope, still pending, unless the scope is a
- * function `held` as a value: those a reassignment refuses, {@link resolvedModule}.
+ * scope holds, still pending, of bindings it declares itself are decided:
+ * harmless, since the function that made them was called inside the
+ * binding's scope. The rest pass to the outer scope after the outer's own,
+ * in document order — pending still, unless the scope is a function `held`
+ * as a value, which makes them escaped: those a reassignment refuses,
+ * {@link resolvedModule}.
  *
  * @type {(scope: _Scope, held: boolean) => _Scope}
  */
@@ -1657,19 +1659,31 @@ const restoredScope = (scope, held) => {
     const trace = completedTrace(scope)
     /** @type {BindingEvent} */
     const event = scope.region ? ['region', trace.events] : ['function', trace]
-    const kept = scope.captures.filter(([id]) => !trace.bindings.includes(id))
+    const kept = scope.captures.filter(capture => capture.escaped || !trace.bindings.includes(capture.id))
     return {
         ...traced({ ...outer, trace: scope.region ? { ...outer.trace, bindings: [...outer.trace.bindings, ...trace.bindings] } : outer.trace }, [event]),
         sourceOrigins: [...outer.sourceOrigins, ...scope.sourceOrigins],
-        captures: held ? outer.captures : [...outer.captures, ...kept],
-        escapes: held ? [...outer.escapes, ...scope.escapes, ...kept] : [...outer.escapes, ...scope.escapes],
+        captures: [...outer.captures, ...(held ? kept.map(capture => ({ ...capture, escaped: true })) : kept)],
     }
+}
+
+/**
+ * Whether the node being closed is called where it is written: the frame on
+ * top is a call's, plain or optional, `(f)()` or `(f)?.()`, with no operand
+ * done yet, so the node is its callee.
+ *
+ * @type {(stack: _Stack) => boolean}
+ */
+const isCalledWhereWritten = stack => {
+    if (stack === null) { return false }
+    const { top } = stack
+    return ('call' in top && top.index === 0) || ('chain' in top && top.index === 0 && top.chain[0] === '?.()')
 }
 
 /**
  * Source functions retain their declarations and lexical body; regions create
  * no invocation. A function is held as a value unless it closes as a call's
- * callee, called where it is written.
+ * callee, called where it is written, {@link isCalledWhereWritten}.
  *
  * @type {(stack: _Stack, scope: _Scope, body: SourceBlock) => _State}
  */
@@ -1678,8 +1692,7 @@ const closed = (stack, scope, body) => {
     const value = scope.region ? ['block', body] : ['function', {
         target: scope.trace.target, length: scope.count, parameters: scope.parameters, rest: scope.rest === null ? null : expansion(scope.rest), self: scope.selfBinding, body,
     }]
-    const held = !scope.region && !(stack !== null && 'call' in stack.top && stack.top.index === 0)
-    return [stack, restoredScope(scope, held), ok(value)]
+    return [stack, restoredScope(scope, !scope.region && !isCalledWhereWritten(stack)), ok(value)]
 }
 
 /**
@@ -1784,8 +1797,8 @@ const resolvedModule = (source, scope) => {
     const trace = completedTrace(scope)
     const bindings = analyzeBindings(trace)
     const reassigned = bindings.filter(fact => fact.isMutable).map(fact => fact.id)
-    const escape = scope.escapes.find(([id]) => reassigned.includes(id))
-    if (escape !== undefined) { return error(escape[1]) }
+    const escape = scope.captures.find(capture => capture.escaped && reassigned.includes(capture.id))
+    if (escape !== undefined) { return error(escape.refusal) }
     return ok({ ...source, scope: trace, bindings, origins: scope.sourceOrigins })
 }
 

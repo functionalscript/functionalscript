@@ -330,6 +330,10 @@ export const proof = {
             const [tag7, value7] = parseFromTokens(tokenizeString('export default n => { let r = 0; r = (() => r + 1)(); return r; };'))
             assert(tag7 === 'ok')
             assertEq(stringifyModule(value7), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"+\",0,1]]]]]")
+            // called where it is written by an optional call as well
+            const [tag9, value9] = parseFromTokens(tokenizeString('export default () => { let r = 0; r = (() => r + 1)?.(); return r; };'))
+            assert(tag9 === 'ok')
+            assertEq(stringifyModule(value9), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?.()\",[\"=>\",0,[],[\"+\",0,1]],[]]]]]]")
             // a pattern over a namespace names its static functions, as a
             // `const`'s does
             const [tag8, value8] = parseFromTokens(tokenizeString('export default x => { let { is } = Object; return is(x, x); };'))
@@ -354,6 +358,13 @@ export const proof = {
                 ['export default n => { let r = 0; r = 1; const f = () => r; return f; };', 'reassigned variable captured', 57],
                 ['export default n => { let r = 0; const f = () => { r = 1; return r; }; return f; };', 'reassigned variable captured', 52],
                 ['export default n => { n = 1; return () => n; };', 'reassigned variable captured', 43],
+                // a function a chain holds, an optional access on it, is held
+                // as a value; only an optional call calls it where written
+                ['export default () => { let r = 0; const f = (() => r)?.x; r = 1; return f; };', 'reassigned variable captured', 52],
+                // the first offending reference in document order, whether a
+                // held function's own or a function held inside it makes it
+                ['export default () => { let x = 0; let y = 0; const f = () => { const a = x; const g = () => y; return a; }; x = 1; y = 1; return f; };', 'reassigned variable captured', 74],
+                ['export default () => { let r = 0; const f = () => { const g = () => r; return g; }; r = 1; return f; };', 'reassigned variable captured', 69],
                 // a function called where it is written reads a variable, and
                 // assigns none: its block is inlined with values of its own,
                 // which the scope around it never sees, where JavaScript's
@@ -430,6 +441,7 @@ export const proof = {
             for (const source of [
                 'export default n => { let r = 0; while (r < n) { r = (() => r + 1)(); } return r; };',
                 'export default n => { let r = 0; while ((() => r < n)()) { r = r + 1; } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => r + 1)?.(); } return r; };',
                 'export default n => { let r = 0; while (r < n) { r = ((x) => r + x)(1); } return r; };',
                 'export default n => { let r = 0; while (r < n) { r = (() => (() => r + 1)())(); } return r; };',
                 // a loop in such a function may read the outer variable, in

@@ -58,11 +58,10 @@ export type _Scope = {
     readonly outer: _Scope | null
     readonly self: string | null
     readonly selfBinding: BindingId | null
-    /** Each reference from a nested function to a binding outside it, with the refusal a write to the binding earns it, while every function between the two is called where it is written. */
-    readonly captures: readonly (readonly [id: BindingId, refusal: ParseError])[]
-    /** The captures a function held as a value closed over: refused once the binding is known to be reassigned. */
-    readonly escapes: readonly (readonly [id: BindingId, refusal: ParseError])[]
+    /** Each reference from a nested function to a binding outside it, in document order, with the refusal a write to the binding earns it once `escaped`: once a function between the two closed held as a value, rather than called where it is written. */
+    readonly captures: readonly _Capture[]
 }
+export type _Capture = { readonly id: BindingId; readonly refusal: ParseError; readonly escaped: boolean }
 export type _Counted<T> = { readonly index: number; readonly done: List<T> }
 export type _ContainerFrame = _Counted<ValueItem | ValueMember> & { readonly container: Container; readonly key: readonly [SourceValue] | null }
 export type _CallFrame = _Counted<ValueItem> & { readonly call: readonly ['()', Node, readonly SyntaxItem[]] }
