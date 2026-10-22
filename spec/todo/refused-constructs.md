@@ -105,7 +105,7 @@ describes:
 | `name.unbound` | `zzz`, `Math`, `JSON`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic (page: [A Global Is Refused](../bindings/globals/README.md)) |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | open ([forward references](./3140-forward-references.md) resolves only the object grouping and keeps refusing a later `const`) |
 | `name.body-forward-reference` | `() => { const y = x; const x = 2; return y; }` with an outer `x` | planned ([body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)) |
-| `name.reserved-export` | `export const then = 1` | design ([exporting a value](../modules/exports/README.md)) |
+| `name.reserved-export` | `export const then = 1` | design ([exporting a value](../modules/exports/README.md); page: [Exporting `then` Is Refused](../modules/exports/then/README.md)) |
 
 ### Statements
 
@@ -118,17 +118,17 @@ describes:
 | `st.do-while` | `do { } while (c)` | open |
 | `st.break-continue` | `break`, `continue` | planned ([let](./3220-let.md) and [switch](./3230-switch.md), "Later") |
 | `st.switch` | a case without braces, a case block that does not terminate (in `return`, `throw`, or a switch with a `default`), `break` in a case, a label stacked with the `default`, a switch with no case or of a `default` alone, a switch at module level or in a loop's block | planned ([switch](./3230-switch.md), "Later": follow-ups, each additive on the one form [switch](../control-flow/switch/README.md) has) |
-| `st.switch-default` | a `default` that is not last | design ([switch](../control-flow/switch/README.md): last is the one spelling, the position saying nothing once every branch terminates) |
+| `st.switch-default` | a `default` that is not last | design ([switch](../control-flow/switch/README.md): last is the one spelling, the position saying nothing once every branch terminates; page: [A `default` Before a `case` Is Refused](../control-flow/switch/default-position/README.md)) |
 | `st.try` | `try`, `catch`, `finally` | open |
 | `st.debugger` | `debugger` | open |
 | `st.label` | `x: while (c) { }` | open |
 | `st.var` | `var a = 1` | design ([constants](../bindings/constants/README.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable; page: [`var` Is Refused](../bindings/var/README.md)) |
-| `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md)) |
-| `st.expression` | an expression statement that is no call statement, no assignment to a loop's variable in its block and no directive (`st.directive`): one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with `(`, `[` or a backtick, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements/README.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it) |
+| `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md); page: [An Empty Statement Is Refused](../modules/empty-statements/README.md)) |
+| `st.expression` | an expression statement that is no call statement, no assignment to a loop's variable in its block and no directive (`st.directive`): one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with `(`, `[` or a backtick, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements/README.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it; page: [An Expression Statement That Is No Call Is Refused](../functions/call-statements/expression-statements/README.md)) |
 | `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](../functions/call-statements/README.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
 | `st.literal-call` | a call statement opening with a literal, `"a".trim();`, `1 .toFixed(2);` | open ([call statements](../functions/call-statements/README.md) begin with a name; a literal continues no statement before it, so no hazard refuses it, and no record admits it) |
-| `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch/README.md)) — `{}` | design ([functions](../functions/README.md)) |
-| `st.unreachable` | a statement after `return`, `throw`, or a switch with a `default` | design ([functions](../functions/README.md)) |
+| `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch/README.md)) — `{}` | design ([functions](../functions/README.md); page: [A Body That Does Not Terminate Is Refused](../functions/body-end/README.md)) |
+| `st.unreachable` | a statement after `return`, `throw`, or a switch with a `default` | design ([functions](../functions/README.md); page: [A Statement After `return` Is Refused](../functions/unreachable/README.md)) |
 
 ### Declarations and members
 
@@ -144,19 +144,19 @@ describes:
 | `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) |
 | `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | planned ([default parameters](./3125-default-parameters.md)) |
 | `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) |
-| `decl.parameter-limit` | 17 fixed parameters | design ([functions](../functions/README.md)) |
+| `decl.parameter-limit` | 17 fixed parameters | design ([functions](../functions/README.md); page: [More Than 16 Fixed Parameters Are Refused](../functions/parameters/limit/README.md)) |
 
 ### Module structure
 
 | ID | Construct | Why |
 |---|---|---|
-| `mod.no-export` | an empty module, `const a = 1;` alone | design ([module structure](../modules/README.md)) |
-| `mod.empty-pattern-export` | `export const {} = {};` | design ([module structure](../modules/README.md): at least one export, and a pattern exports each name it binds) |
-| `mod.export-after-default` | `export default 1; export const a = 2;` | design ([module structure](../modules/README.md)) |
+| `mod.no-export` | an empty module, `const a = 1;` alone | design ([module structure](../modules/README.md); page: [A Module With No Export Is Refused](../modules/no-export/README.md)) |
+| `mod.empty-pattern-export` | `export const {} = {};` | design ([module structure](../modules/README.md): at least one export, and a pattern exports each name it binds; page: [An Export That Binds Nothing Is Refused](../modules/empty-pattern-export/README.md)) |
+| `mod.export-after-default` | `export default 1; export const a = 2;` | design ([module structure](../modules/README.md); page: [An Export After `export default` Is Refused](../modules/export-after-default/README.md)) |
 | `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../modules/README.md)) |
 | `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../modules/README.md)) |
 | `mod.export-list` | `const a = 1; export { a };` | open (investigated in [export lists](./export-lists.md)) |
-| `mod.export-let` | `export let a = 1;` | design (`let` only opens a loop, [let](./3220-let.md)) |
+| `mod.export-let` | `export let a = 1;` | design (`let` only opens a loop, [let](./3220-let.md); page: [`export let` Is Refused](../modules/export-let/README.md)) |
 | `mod.reexport` | `export { a } from "m"`, `export * from "m"` | open (whether it belongs is a question in [export lists](./export-lists.md)) |
 | `mod.side-effect-import` | `import "./d";` | open ([named imports](../named-imports.md) leaves it unsupported; no record plans it) |
 | `mod.string-import-name` | `import { "x" as y } from "./d";` | open ([named imports](../named-imports.md) leaves it unsupported; no record plans it) |
