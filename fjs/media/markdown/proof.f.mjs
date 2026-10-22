@@ -402,6 +402,11 @@ export const proof = {
             headingInAnItem: () => assertEq(refusal('- # a\n'), 'line 1: a heading inside a list item'),
             nestedList: () => assertEq(refusal('- a\n  * b\n'), 'line 2: a list marked other than with `- `'),
             itemIndentedCode: () => assertEq(refusal('-     a\n')?.startsWith('line 1:'), true),
+            // An empty marker is refused before the code under it is read.
+            codeAfterEmptyMarker: () => assertEq(refusal('- \n      code'), 'line 1: a list item whose text does not follow its marker'),
+            codeAfterLaterEmptyMarker: () => assertEq(refusal('- ok\n- \n       code'), 'line 2: a list item whose text does not follow its marker'),
+            textAfterEmptyMarker: () => assertEq(refusal('- \n  text'), 'line 1: a list item whose text does not follow its marker'),
+            indentedParagraphContinuation: () => assertStructurallySame(blocks('- text\n      continued'), [['list', false, [[['paragraph', [['text', 'text continued']]]]]]]),
             itemSpans: () => assertEq(refusal('- a\n- _b_\n'), 'line 2: an underscore that GitHub may read as emphasis at 0'),
             paragraphSpans: () => assertEq(refusal('a\n_b_\n')?.startsWith('line 1: an underscore'), true),
             indentedCode: () => assertEq(refusal('    a\n'), 'line 1: an indented code block'),
