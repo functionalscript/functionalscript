@@ -605,6 +605,20 @@ export const mapStep = (e, f) => resultMapStep(e, mapOk(f))
 export const resultMapStep = (e, f) => resultStep(e, r => pure(f(r)))
 
 /**
+ * Runs `e` and answers its whole {@link Result} as the success value, so the
+ * chain goes on either way and the caller decides later: the both-branches
+ * form of {@link resultStep}, as a value. It never fails, since a failure of
+ * `e` is part of what it answers.
+ *
+ * Write `attemptStep(e)`, never `resultStep(e, r => pureOk(r))` or
+ * `resultMapStep(e, ok)`: those are this, and a reader has to check each for
+ * a difference that is not there.
+ *
+ * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => Effect<O, Result<T, E>, never>}
+ */
+export const attemptStep = e => resultMapStep(e, ok)
+
+/**
  * Runs `e`, then the cleanup `f` makes of whatever `e` answered, and answers
  * what `e` answered: `f`'s own answer, a failure included, is dropped.
  *
