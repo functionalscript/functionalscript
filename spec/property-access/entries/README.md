@@ -40,7 +40,7 @@ default, as `a[k] ?? d` is, the default taken for an entry holding
 `hasEntry(a, b) ? entry(a, b) : d` reads twice and keeps it; and
 `keys.filter(k => hasEntry(a, k))` is the keys present, in key order.
 Presence has no other spelling: `in` is refused
-([`in`](../../operators/in.md)), and `Object.hasOwn` and
+([`in`](../../operators/in/README.md)), and `Object.hasOwn` and
 `a.hasOwnProperty(b)` are not in the language, each asking a different
 question — a non-enumerable own property, or the prototype chain.
 

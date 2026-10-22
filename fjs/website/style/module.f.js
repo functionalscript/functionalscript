@@ -121,6 +121,11 @@ export const verdictMarker = 'data-verdict'
  */
 export const listingMarker = 'data-listing'
 
+/** The attribute of the banner a refused construct's spec page opens its
+ * demo with: the compiler refuses the sample, by design.
+ */
+export const refusedMarker = 'data-refused'
+
 /** The attribute shared by the PoW verdict row and its layout rules.
  * @type {string}
  */
@@ -863,6 +868,12 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 /* A listing too long to read whole, a WASM module's WAT: a box of its own
    height that scrolls, its lines kept unbroken so the indentation reads. */
 [${listingMarker}] { max-height: 24rem; overflow: auto; overflow-wrap: normal; white-space: pre }
+[${listingMarker}] > pre { white-space: pre }
+/* A refused construct's banner: the page's verdict, read before anything
+   else on it, so it is larger than a result and edged in the failure colour. */
+[${refusedMarker}] { background: var(--fail-bg); border: 2px solid var(--fail); border-left-width: 8px; border-radius: 6px; color: var(--fail); margin-block: 1rem; padding: .75rem 1rem }
+[${refusedMarker}] > strong { display: block; font-size: 1.5rem }
+[${refusedMarker}] > p { color: var(--text); margin: .5rem 0 0 }
 [${verdictMarker}="ok"] { color: var(--pass) }
 [${verdictMarker}="error"] { color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows
