@@ -94,7 +94,8 @@ export const openRows = text => {
     for (const block of blocks[1]) {
         if (block[0] !== 'table') { continue }
         for (const [id, construct, why] of block[3]) {
-            if (id === undefined || construct === undefined || why === undefined) { continue }
+            // a table of fewer than three columns is no register's
+            if (why === undefined) { continue }
             if (!isOpen(words(why))) { continue }
             rows = [...rows, { id: words(id), construct, related: related(why) }]
         }
@@ -106,10 +107,9 @@ export const openRows = text => {
  * What `fjs compile` answers for a row's sample, the file named after the
  * row: refused, with the line it prints; accepted; or no sample to ask.
  *
- * @type {(id: string) => readonly ['refused', string] | readonly ['accepted'] | readonly ['missing']}
+ * @type {(id: string, sample: string | undefined) => readonly ['refused', string] | readonly ['accepted'] | readonly ['missing']}
  */
-export const verdict = id => {
-    const sample = samples[id]
+export const verdict = (id, sample) => {
     if (sample === undefined) { return ['missing'] }
     const r = compileAs(`${id}.mjs`)(sample)
     return r[0] === 'ok' ? ['accepted'] : ['refused', reportText(sample)(r[1])]
@@ -129,9 +129,9 @@ const cellNodes = cell => {
     return r[0] === 'ok' ? r[1] : [words(cell)]
 }
 
-/** @type {(id: string) => readonly Node[]} */
-const verdictNodes = id => {
-    const v = verdict(id)
+/** @type {(id: string, sample: string | undefined) => readonly Node[]} */
+const verdictNodes = (id, sample) => {
+    const v = verdict(id, sample)
     return v[0] === 'refused' ? [['div', { [codeMarker]: '', [resultMarker]: 'error' }, ['pre', v[1]]]]
         : v[0] === 'accepted' ? [['p', { [resultMarker]: 'ok' }, 'Accepted now: the row is out of date.']]
         : [['p', {}, 'No sample yet.']]
@@ -147,9 +147,9 @@ const cellLine = (label, cell) => cell.length === 0 ? [] : [
  * row, since the sample and the compiler's line are code that a narrow
  * column would wrap.
  *
- * @type {(row: OpenRow) => Element}
+ * @type {(samples: StringMap<string>) => (row: OpenRow) => Element}
  */
-const rowView = ({ id, construct, related: rel }) => {
+const rowView = samples => ({ id, construct, related: rel }) => {
     const sample = samples[id]
     return ['section', { id, [registerRowMarker]: '' },
         ['h3', {}, ['code', id]],
@@ -157,14 +157,14 @@ const rowView = ({ id, construct, related: rel }) => {
         ...cellLine('Related', rel),
         ...(sample === undefined ? [] : [
             caption(`${id}.mjs:`),
-            /** @type {Node} */ (['div', { [codeMarker]: '' }, ['pre', sample]])]),
-        ...(sample === undefined ? [] : [caption('What fjs compile prints:')]),
-        ...verdictNodes(id)]
+            /** @type {Node} */ (['div', { [codeMarker]: '' }, ['pre', sample]]),
+            caption('What fjs compile prints:')]),
+        ...verdictNodes(id, sample)]
 }
 
-/** @type {(rows: readonly OpenRow[]) => string} */
-const summary = rows => {
-    const verdicts = rows.map(({ id }) => verdict(id)[0])
+/** @type {(samples: StringMap<string>) => (rows: readonly OpenRow[]) => string} */
+const summary = samples => rows => {
+    const verdicts = rows.map(({ id }) => verdict(id, samples[id])[0])
     /** @type {(kind: string) => number} */
     const count = kind => verdicts.filter(v => v === kind).length
     return `${rows.length} open rows: ${count('refused')} refused today, ${count('accepted')} accepted, ${count('missing')} without a sample.`
@@ -174,13 +174,13 @@ const summary = rows => {
  * The samples named for no open row: a row decided, or renamed, while its
  * sample stayed here.
  *
- * @type {(rows: readonly OpenRow[]) => readonly string[]}
+ * @type {(samples: StringMap<string>) => (rows: readonly OpenRow[]) => readonly string[]}
  */
-export const strays = rows => Object.keys(samples).filter(id => !rows.some(row => row.id === id))
+export const strays = samples => rows => Object.keys(samples).filter(id => !rows.some(row => row.id === id))
 
-/** @type {(rows: readonly OpenRow[]) => readonly Node[]} */
-const strayView = rows => {
-    const ids = strays(rows)
+/** @type {(samples: StringMap<string>) => (rows: readonly OpenRow[]) => readonly Node[]} */
+const strayView = samples => rows => {
+    const ids = strays(samples)(rows)
     return ids.length === 0 ? [] : [
         ['p', { [resultMarker]: 'error' }, `Samples for rows that are no longer open: ${ids.join(', ')}.`]]
 }
@@ -192,19 +192,19 @@ const banner = [
         ['p', {}, 'Each construct below is valid JavaScript that fjs compile refuses today, while no record says whether it stays out of FunctionalScript or comes in.']],
 ]
 
-/** @type {(text: string) => readonly Node[]} */
-const registerView = text => {
+/** @type {(samples: StringMap<string>) => (text: string) => readonly Node[]} */
+const registerView = samples => text => {
     const rows = openRows(text)
     if (rows[0] === 'error') { return [['p', { [resultMarker]: 'error' }, rows[1]]] }
     return [
-        ['p', {}, summary(rows[1])],
-        ...strayView(rows[1]),
-        ...rows[1].map(rowView),
+        ['p', {}, summary(samples)(rows[1])],
+        ...strayView(samples)(rows[1]),
+        ...rows[1].map(rowView(samples)),
     ]
 }
 
-/** @type {(state: State) => Element} */
-export const view = ({ register }) => ['div', {}, ...banner, ...loadedView(register, registerView)]
+/** @type {(samples: StringMap<string>) => (state: State) => Element} */
+export const view = samples => ({ register }) => ['div', {}, ...banner, ...loadedView(register, registerView(samples))]
 
 /**
  * Fetches the register on `start`; a register that does not arrive is the
@@ -216,5 +216,13 @@ export const update = state => event => event.kind === 'start'
     ? mapStep(fetchFile(parent(registerPath), basename(registerPath)), register => ({ register }))
     : pureOk(state)
 
+/**
+ * The page over `samples`, one module by open row ID: the page's own are
+ * [`samples.f.mjs`](./samples.f.mjs), and a proof writes others.
+ *
+ * @type {(samples: StringMap<string>) => Demo<State, DemoEvent, FetchText>}
+ */
+export const undecidedDemo = samples => ({ init, update, view: view(samples) })
+
 /** @type {Demo<State, DemoEvent, FetchText>} */
-export const demo = { init, update, view }
+export const demo = undecidedDemo(samples)
