@@ -235,6 +235,7 @@ export const proof = {
         noAutolinkInALabel: () => assertEq(proseSpans(false)('<https://e.x>')[0], 'error'),
         snakeCase: () => assertEq(proseRefusal('a_b and 9_x_é'), null),
         oneTilde: () => assertEq(proseRefusal('about ~100'), null),
+        colons: () => assertEq(proseRefusal('label: and :: and :two words:'), null),
         ampersand: () => assertEq(proseRefusal('a & b, a&; and &x y;'), null),
         ampersandAlone: () => assertEq(proseRefusal('a & b'), null),
         lessThan: () => assertEq(proseRefusal('a < b, a <1 and <'), null),
@@ -242,6 +243,12 @@ export const proof = {
             underscore: () => assertEq(proseRefusal('_a_'), 'an underscore that GitHub may read as emphasis at 0'),
             trailingUnderscore: () => assertEq(proseRefusal('a_'), 'an underscore that GitHub may read as emphasis at 1'),
             tildes: () => assertEq(proseRefusal('~~a~~'), 'a tilde pair, which GitHub reads as strikethrough, at 0'),
+            shortcode: () => assertEq(proseRefusal(':shipit:'), 'an emoji shortcode candidate at 0'),
+            shortcodeAliases: () => {
+                for (const name of ['+1', '-1', 'non-potable_water', '100']) {
+                    assertEq(proseRefusal(`:${name}:`), 'an emoji shortcode candidate at 0')
+                }
+            },
             entity: () => assertEq(proseRefusal('&amp;'), 'an entity, which GitHub reads as the character it names, at 0'),
             numericEntity: () => assertEq(proseRefusal('&#38;')?.startsWith('an entity'), true),
             bareUrl: () => assertEq(proseRefusal('see https://e.x'), 'a bare URL, which GitHub reads as a link, at 4'),
@@ -266,6 +273,9 @@ export const proof = {
                 spans(`[${tick}a${tick}](u)`), [['link', [['code', 'a']], 'u']]),
             emptyLabel: () => assertEq(tryParseEntry('[](u)')[1], 'a link with an empty label'),
             codeIsNotProse: () => assertStructurallySame(spans(`${tick}_a_${tick}`), [['code', '_a_']]),
+            shortcodeInCode: () => assertEq(tryParseEntry(`${tick}:shipit:${tick}`)[0], 'ok'),
+            shortcodeInLabel: () => assertEq(tryParseEntry('[:shipit:](u)')[0], 'error'),
+            shortcodeInEmphasis: () => assertEq(tryParseEntry('*:shipit:*')[0], 'error'),
             spacedCode: () => assertEq(tryParseEntry(`${tick}a${tick} ${tick}b${tick}`)[0], 'ok'),
             adjacentCodeInALabel: () => assertEq(tryParseEntry(`[${tick}a${tick}${tick}b${tick}](u)`)[1], 'two code spans side by side, which GitHub reads as one'),
         },
@@ -340,6 +350,12 @@ export const proof = {
             tabDashInItem: () => assertEq(refusal('- item\n  -\tnested'), 'line 2: a tab-delimited list item inside a list item'),
             fenceInfo: () => assertEq(refusal('```js x\n```\n'), 'line 1: a code fence whose info string is not one word'),
             fenceInfoEscape: () => assertEq(refusal('```foo\\+bar\n```'), 'line 1: a code fence whose info string contains a backslash escape'),
+            fenceInfoEntity: () => {
+                for (const entity of ['&amp;', '&#38;', '&#x26;']) {
+                    assertEq(refusal('```foo' + entity + 'bar\n```'), 'line 1: an entity in a code fence info string')
+                }
+            },
+            fenceInfoAmpersand: () => assertStructurallySame(blocks('```a&b\n```'), [['code', 'a&b', '']]),
             // GitHub trims a tab around the info string as it does a space.
             fenceInfoTab: () => assertEq(refusal('```\tjs\n```\n'), 'line 1: a code fence whose info string is not one word'),
             fenceBacktick: () => assertEq(refusal('```a`\n```\n')?.startsWith('line 1: a code fence'), true),
@@ -381,6 +397,9 @@ export const proof = {
             plusWord: () => assertEq(refusal('+a\n'), null),
             numbered: () => assertEq(refusal('1. a\n'), 'line 1: a numbered list'),
             numberedParen: () => assertEq(refusal('12)\n'), 'line 1: a numbered list'),
+            numberedTab: () => assertEq(refusal('1.\titem'), 'line 1: a numbered list'),
+            numberedParenTab: () => assertEq(refusal('12)\titem'), 'line 1: a numbered list'),
+            numberedTabAfterParagraph: () => assertEq(refusal('text\n1.\titem'), 'line 2: a numbered list'),
             numberIsProse: () => assertEq(refusal('1.5 is a number\n\n2024 a\n\n12\n'), null),
             thematicBreak: () => assertEq(refusal('***\n'), 'line 1: a thematic break or a heading underline'),
             setextUnderline: () => assertEq(refusal('a\n===\n'), 'line 2: a thematic break or a heading underline'),

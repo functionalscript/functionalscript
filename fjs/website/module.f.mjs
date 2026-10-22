@@ -838,7 +838,7 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
     const dirs = tree
         .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
         .map(toDir(issues)(crateDirs(tree)(crates))(proofs)(demos))
-    const pages = [...dirs.map(dir => dir.path), changelogDir]
+    const pages = [...dirs.map(dir => dir.path), changelogDir, prsDir, cliDir, ...(crates.length === 0 ? [] : [cargoDocDir])]
         .reduce(/** @type {(set: StringSet, path: string) => StringSet} */((set, path) => addPath(path)(set)), noPaths)
     /** @type {(path: string) => boolean} */
     const isPage = path => contains(path)(pages)

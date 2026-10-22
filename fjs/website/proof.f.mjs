@@ -718,6 +718,16 @@ export const proof = {
             const c = pageAt(root, ['c'])
             assert(c.includes('is not rendered here: a link that leaves the repository: ../../x.'), c)
         },
+        readmeGeneratedRoutes: () => {
+            const { root } = generate({
+                'README.md': file('[CLI](/cli/) and [PRs](/prs/) and [Rust](/cargo.doc/)'),
+                target: { doc: { nanvm_lib: { 'index.html': file('crate') } } },
+            }, { WORKERS_CI_COMMIT_SHA: '0123456789abcdef0123456789abcdef01234567' })
+            const page = pageAt(root, [])
+            for (const route of ['cli', 'prs', 'cargo.doc']) {
+                assert(page.includes(`href="/${route}/index.html"`), page)
+            }
+        },
         /**
          * **An issue whose header cannot be read stops the build**, naming
          * the file, rather than being listed with a guess.

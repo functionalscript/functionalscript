@@ -45,6 +45,7 @@ the README renderer needed are now read as GitHub reads them or refused
 | `\\*a\\*` elsewhere than a link | the literal `*a*` | refused since a backslash is |
 | a backtick run inside a span | one span holding it | two spans |
 | `&amp;` | an entity | refused |
+| `:shipit:`, `:+1:` | emoji (GitHub's extension) | shortcode candidates refused, including unknown names; support needs GitHub's catalogue |
 | `<br>`, `Array<T>` outside code | raw HTML | refused |
 | `<https://…>` | an autolink | read as the link it is |
 | a bare `https://…` or `www.…` | a link (GitHub's extension) | refused |
