@@ -24,6 +24,7 @@ import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
 import { editOf } from './demo/mirror/module.f.mjs'
+import { dragAxisAttributes, dragValue } from './demo/module.f.mjs'
 
 /**
  * What a demo may ask this page for.
@@ -600,15 +601,16 @@ export const startDemo = async root => {
             location.x = pointer.clientX
             location.y = pointer.clientY
             const x = location.matrixTransform(matrix.inverse()).x
-            const min = Number(svg.getAttribute('data-demo-x-min'))
-            const max = Number(svg.getAttribute('data-demo-x-max'))
-            const left = Number(svg.getAttribute('data-demo-x-left'))
-            const right = Number(svg.getAttribute('data-demo-x-right'))
-            // The slider's minimum can be inside the graph's left boundary.
+            /** @type {(key: keyof typeof dragAxisAttributes) => number} */
+            const read = key => Number(svg.getAttribute(dragAxisAttributes[key]))
             const range = byName(root, name)
-            if (range === null || right <= left) { return }
-            const value = Math.min(Number(range.max), Math.max(Number(range.min), min + (x - left) / (right - left) * (max - min)))
-            step({ kind: 'input', name, value: value.toFixed(3) })
+            if (range === null) { return }
+            const value = dragValue(
+                { min: read('min'), max: read('max'), left: read('left'), right: read('right') },
+                { min: Number(range.min), max: Number(range.max) },
+                x)
+            if (value === null) { return }
+            step({ kind: 'input', name, value })
         })
         const endDrag = () => { drag = null }
         root.addEventListener('pointerup', endDrag)

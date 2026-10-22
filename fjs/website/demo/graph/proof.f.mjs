@@ -65,6 +65,16 @@ export const proof = {
                 { from: 0, to: 2, label: '2', kind: undefined },
             ])
         },
+        // A shape's groups are its node's; a shape without them leaves the
+        // node without the field, as it was.
+        groups: () => {
+            /** @type {(v: unknown) => Shape<unknown>} */
+            const grouped = v => v instanceof Array
+                ? { kind: 'array', label: '[ ]', children: v.map((item, i) => [`${i}`, item]), groups: [['g', v.length]] }
+                : { inline: `${v}` }
+            assertStructurallySame(graphOf(grouped)([1, 2]).nodes, [{ id: 0, kind: 'array', label: '[ ]', groups: [['g', 2]], rank: 0 }])
+            assertStructurallySame(graphOf(arrayShape)([1]).nodes, [{ id: 0, kind: 'array', label: '[ ]', rank: 0 }])
+        },
         // A root with no port to sit in is a node of the inline's own kind,
         inlineRootWithKind: () => assertStructurallySame(graphOf(arrayShape)('terminal'), {
             nodes: [{ id: 0, kind: 'terminal', label: 'terminal', rank: 0 }],
@@ -330,6 +340,27 @@ export const proof = {
             assert(html.includes('<rect x="100" y="10" width="50" height="20" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="100" y="44" width="50" height="26" rx="4" data-graph-node=""'), html)
             assertEq(routes(html)[0], 'M60,30 L100,20')
+        },
+        // A node with groups draws a cell per group in its label column,
+        // each beside its own rows and as wide as the widest group's
+        // label, `bb`'s 26px, and its text centred on them. The node's own
+        // label is not drawn, nor does it widen the node: three rows of a
+        // 24px key and a 24px value beside the 26px column.
+        groups: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'a whole', rank: 0, groups: [['a', 2], ['bb', 1]] }],
+                edges: [
+                    { from: 0, to: { inline: '1' }, label: 'k' },
+                    { from: 0, to: { inline: '2' }, label: 'k' },
+                    { from: 0, to: { inline: '3' }, label: 'k' },
+                ],
+            }))
+            assert(html.includes('<rect x="10" y="10" width="74" height="60" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="10" y="10" width="26" height="40" data-graph-group="">'), html)
+            assert(html.includes('<rect x="10" y="50" width="26" height="20" data-graph-group="">'), html)
+            assert(html.includes('<text x="23" y="30" text-anchor="middle" data-graph-label="">a<'), html)
+            assert(html.includes('<text x="23" y="60" text-anchor="middle" data-graph-label="">bb<'), html)
+            assert(!html.includes('>a whole<'), html)
         },
         // A value whose key is empty fills its row: no key cell, no key
         // text, and the value centred across the whole 50px node. A keyed
@@ -883,6 +914,17 @@ export const proof = {
                     { from: 0, to: { inline: '2' }, label: 'c' },
                     { from: 0, to: 1, label: '', corner: 'middle' },
                 ],
+            }),
+            // A node's groups must take its rows: one left over would have
+            // no cell beside it,
+            rowWithoutAGroup: () => graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0, groups: [['a', 1]] }],
+                edges: [{ from: 0, to: { inline: '1' }, label: 'k' }, { from: 0, to: { inline: '2' }, label: 'k' }],
+            }),
+            // and a group with no row would be a cell with no height.
+            groupWithoutARow: () => graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0, groups: [['a', 0], ['b', 1]] }],
+                edges: [{ from: 0, to: { inline: '1' }, label: 'k' }],
             }),
             // And two entries into one node would be drawn as one.
             twoEntriesIntoOneNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 0 }, { to: 0, kind: 'old' }] }),
