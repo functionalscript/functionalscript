@@ -12,7 +12,7 @@
 
 import { iterable } from '../../../../types/list/module.f.mjs'
 import { maxLength } from '../../../../types/function/length/module.f.mjs'
-import { invocationAliases } from '../module.f.mjs'
+import { invocationAliases, readsEntryParameters } from '../module.f.mjs'
 
 /** @type {(value: Value, binding: BindingId) => boolean} */
 const names = (value, binding) => value instanceof Array && value[0] === 'ref' && value[1] === binding
@@ -34,7 +34,8 @@ export const invocationRootOf = fn => {
     if (loop.parameters.length !== fn.parameters.length || loop.initial.length !== fn.parameters.length
         || loop.results.length !== 1 || !names(exit[2], loop.results[0])) { return null }
     const aliases = invocationAliases(fn, body.statements.slice(0, -1))
-    return aliases !== null && loop.initial.every((value, position) => aliases[position].some(binding => names(value, binding))) ? loop : null
+    return aliases !== null && loop.initial.every((value, position) => aliases[position].some(binding => names(value, binding)))
+        && !readsEntryParameters(loop, aliases) ? loop : null
 }
 
 /**

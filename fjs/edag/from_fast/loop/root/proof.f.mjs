@@ -9,6 +9,7 @@ import { memo } from '../../../memo/module.f.mjs'
 import { toData } from '../../../value/to_unknown/module.f.mjs'
 import { toFast } from '../../../to_fast/module.f.mjs'
 import { fromFast } from '../../module.f.mjs'
+import { rootLoopOf } from '../module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './module.f.mjs'
 
 /** @type {(index: number) => BindingId} */
@@ -30,6 +31,23 @@ const fixedRoot = length => {
     const states = Array.from({ length }, () => id(0))
     const loop = { ...loopOf(body(['break', loopTarget, [0]])), parameters: states, initial: parameters.map(ref) }
     return { ...root(loop), parameters }
+}
+const again = id(7)
+/** @type {readonly Statement[]} */
+const entryAliases = [['define', alias, ref(a), 'lazy'], ['define', again, ref(alias), 'required']]
+/** @type {(value: Value, prefix?: readonly Statement[]) => FastFunction} */
+const retainedEntryRoot = (value, prefix = []) => {
+    const loop = loopOf(body(['continue', loopTarget, [ref(x), ref(y)]], [
+        ['if', [], ['<', ref(x), 2], body(['continue', loopTarget, [['+', ref(x), 1], ref(y)]]), body(['break', loopTarget, [value]])],
+    ]))
+    return { ...root(loop), body: body(['return', target, ref(output)], [...prefix, ['loop', loop]]) }
+}
+/** @type {(value: Value) => Value} */
+const capturedValue = value => {
+    const captured = id(0)
+    const nested = /** @type {const} */ ({ kind: 'function', index: 0 })
+    return ['function', { target: nested, parameters: [], rest: null, self: null,
+        captures: [{ binding: captured, value }], body: body(['return', nested, ref(captured)]) }]
 }
 /** @type {(fn: FastFunction) => Exp} */
 const graph = fn => fromFast(body(['yield', [['function', fn]]]))
@@ -171,6 +189,52 @@ export const proof = {
         assertEq(invocationRootOf(noArguments), zero)
         assertStructurallySame(assertOk(evaluate(noArguments, [])), [[11], [11]])
     },
+    retainedEntryParameters: () => {
+        for (const [value, prefix] of /** @type {readonly (readonly [Value, readonly Statement[]])[]} */ ([[ref(a), []], [ref(again), entryAliases]])) {
+            for (const use of /** @type {readonly Value[]} */ ([value, ['block', body(['yield', [value]])], ['if', ref(x), body(['yield', [value]]), body(['yield', [0]])], ['()', capturedValue(value), []]])) {
+                assertEq(invocationRootOf(retainedEntryRoot(use, prefix)), null)
+            }
+        }
+        const local = id(0)
+        const withLocal = retainedEntryRoot(ref(local))
+        const loop = /** @type {Extract<Statement, readonly ['loop', ...unknown[]]>} */ (withLocal.body.statements[0])[1]
+        assertEq(invocationRootOf({ ...withLocal, body: body(['return', target, ref(output)], [['loop', { ...loop, body: { ...loop.body, statements: [['define', local, ref(a), 'lazy'], ...loop.body.statements] } }]]) }), null)
+        const single = { ...loopOf(body(['break', loopTarget, [ref(a)]])), parameters: [x], initial: [ref(a)] }
+        const singleFn = { ...root(single), parameters: [a] }
+        assertEq(rootLoopOf(singleFn), null)
+        assertEq(invocationRootOf(singleFn), null)
+    },
+    scalarRetainedEntryFallback: () => {
+        for (const [value, prefix] of /** @type {readonly (readonly [Value, readonly Statement[]])[]} */ ([[ref(a), []], [ref(again), entryAliases]])) {
+            const loop = { ...loopOf(body(['continue', loopTarget, [ref(x)]], [
+                ['if', [], ['<', ref(x), 5], body(['continue', loopTarget, [['+', ['+', ref(x), value], 1]]]), body(['break', loopTarget, [ref(x)]])],
+            ])), parameters: [x], initial: [ref(a)] }
+            const fn = { ...root(loop), parameters: [a], body: body(['return', target, ref(output)], [...prefix, ['loop', loop]]) }
+            assertEq(rootLoopOf(fn), null)
+            assertEq(invocationRootOf(fn), null)
+            assertEq(assertOk(evaluate(fn, [1])), 5)
+            const condition = { ...loop, body: body(['continue', loopTarget, [ref(x)]], [
+                ['if', [], ['if', ['<', ref(x), 3], body(['yield', [['===', value, 0]]]), body(['yield', [false]])], body(['continue', loopTarget, [['+', ref(x), 1]]]), body(['break', loopTarget, [ref(x)]])],
+            ]) }
+            const guarded = { ...fn, body: body(['return', target, ref(output)], [...prefix, ['loop', condition]]) }
+            assertEq(rootLoopOf(guarded), null)
+            assertEq(invocationRootOf(guarded), null)
+            assertEq(assertOk(evaluate(guarded, [0])), 3)
+        }
+    },
+    nestedIterationBindings: () => {
+        const local = id(0), parameter = id(0), ownLocal = id(0)
+        const nested = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const own = /** @type {Value} */ (['function', { target: nested, parameters: [parameter], rest: null, self: null, captures: [],
+            body: body(['return', nested, ref(ownLocal)], [['define', ownLocal, ref(parameter), 'required']]) }])
+        const loop = loopOf(body(['continue', loopTarget, [ref(x), ref(y)]], [
+            ['define', local, ref(x), 'required'],
+            ['if', [], ['<', ref(x), 2], body(['continue', loopTarget, [['+', ref(x), 1], capturedValue(ref(x))]]),
+                body(['break', loopTarget, [['array', [ref(local), ['()', ref(y), []], ['()', own, [9]]]]]])],
+        ]))
+        assertEq(invocationRootOf(root(loop)), loop)
+        assertStructurallySame(assertOk(evaluate(root(loop), [0, null])), [2, 1, 9])
+    },
     partialAbruptRegions: () => {
         const value = id(30)
         const partial = body(['yield', [3]], [['if', [], ref(y), body(['return', target, 7]), body(['yield', []])]])
@@ -212,6 +276,16 @@ export const proof = {
         assertStructurallySame(conditional, ['arg', 0])
     },
     throw: {
+        retainedEntryParameter: () => { graph(retainedEntryRoot(ref(a))) },
+        retainedEntryAlias: () => { graph(retainedEntryRoot(ref(again), entryAliases)) },
+        retainedEntryRegion: () => { graph(retainedEntryRoot(['block', body(['yield', [ref(a)]])])) },
+        retainedEntryCapture: () => { graph(retainedEntryRoot(['()', capturedValue(ref(again)), []], entryAliases)) },
+        retainedEntrySingleInput: () => {
+            const loop = { ...loopOf(body(['break', loopTarget, [ref(a)]])), parameters: [x], initial: [ref(a)] }
+            const fn = { ...root(loop), parameters: [a] }
+            graph(fn)
+        },
+
         fixedArityLimit: () => { graph(fixedRoot(17)) },
         loopBodyYieldZero: () => { const loop = { ...loopOf(body(['yield', []])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
         loopBodyYieldOne: () => { const loop = { ...loopOf(body(['yield', [3]])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },

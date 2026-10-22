@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { invocationAliases, rootLoopOf, scalarHelper } from './module.f.mjs'
+import { invocationAliases, readsEntryParameters, rootLoopOf, scalarHelper } from './module.f.mjs'
 
 const parameter = { index: 0 }
 const state = { index: 1 }
@@ -40,6 +40,12 @@ export const proof = {
             ['define', { index: 6 }, ['ref', other], 'lazy'],
         ]), [[parameter], [state, alias]])
         assertStructurallySame(invocationAliases({ ...value, parameters: [] }, []), [])
+    },
+    entryParameters: () => {
+        assertEq(readsEntryParameters(loop, [[parameter, alias]]), false)
+        const retained = { ...loop, body: { statements: [], exit: /** @type {Block['exit']} */ (['break', loopTarget, [['ref', parameter]]]) } }
+        assertEq(readsEntryParameters(retained, [[parameter, alias]]), true)
+        assertEq(rootLoopOf(root(retained)), null)
     },
     helper: () => {
         const captured = { ...loop, body: { ...loop.body, statements: /** @type {Block['statements']} */ ([['define', alias, ['array', [['ref', other], ['ref', other]]], 'required']]) } }

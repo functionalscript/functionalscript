@@ -45,6 +45,11 @@ entry arguments. Computations, allocations and unestablished lazy values
 remain outside the root prefix. Binding and
 target object identities determine correspondence; presentation indices do not.
 The existing scalar reconstruction takes priority and retains its exact shape.
+The body reads invocation inputs through loop iteration bindings. A free read of
+an original function parameter or its transitive prefix alias prevents reuse:
+self calls would otherwise replace that retained entry value. Both scalar and
+general root matching use the same scoped dependency check. Existing scalar
+helpers preserve supported retained values through captures; other forms refuse.
 
 Within a matched general root, an owning `continue` constructs a direct self
 call with all next values evaluated in the current invocation. An owning

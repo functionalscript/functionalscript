@@ -8,6 +8,15 @@ entry values, and a
 direct return of the loop result to its owning function. One-time computation,
 changed input order and following result processing do not qualify.
 
+The body must read invocation inputs through the loop's iteration bindings.
+Original function parameters and their transitive prefix aliases retain entry
+values in normalized FAST, so a free body reference to one of them prevents
+root reuse. The same check protects the established scalar path. Existing
+scalar helper construction can capture the original value where supported;
+other retained-entry forms are refused until general helper construction exists.
+Capture/self aliases remain stable, and ordinary nested functions expose only
+their capture values to this check. No cross-iteration stability analysis runs.
+
 `directInvocationRoot` resolves the matched loop's statement transfers before
 ordinary graph construction. Own continues become direct calls of the same
 function; breaks and owner returns become its direct public result. Other
