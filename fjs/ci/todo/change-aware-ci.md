@@ -144,6 +144,6 @@ What puts a path in an area is what a check *reads*, not the file's extension:
 - [six-ci-jobs](./six-ci-jobs.md) — folds the toolchain jobs into one serial
   job, whose length this brings back down; this works with today's layout too.
 - [097-smart-ca-ci](./097-smart-ca-ci.md) — remembers successful build contracts
-  and file inputs in a Git branch, with finer build blocks added later.
+  and selected Git input trees in a cache branch, with finer blocks added later.
 - [096-ci-caching](./096-ci-caching.md) — caching makes the checks that do run
   cheaper; this runs fewer of them.
