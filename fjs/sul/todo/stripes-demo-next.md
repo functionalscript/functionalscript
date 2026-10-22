@@ -1,7 +1,7 @@
 ## Stripes demo: the next steps
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
