@@ -19,6 +19,7 @@ import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.mjs'
 import { freeLoopBindings } from './control/module.f.mjs'
 import { rootLoopOf, scalarHelper } from './loop/module.f.mjs'
+import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 
 /** @type {<T>(value: T) => Task<T>} */
@@ -246,29 +247,33 @@ const lowerValues = (input, context) => {
 }
 
 /** @type {(fn: FastFunction, context: Context) => Task<Lowered>} */
-const functionValue = (fn, context) => call(() => bind(lowerValues(fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
-    const candidates = captures.map(capture => capture.exp).filter(exp => exp instanceof Array)
-    const slots = candidates.filter((node, i) => candidates.findIndex(other => sameCapture(other, node)) === i)
-    const reads = slots.map((_, i) => /** @type {Exp} */ (['frame', i]))
-    /** @type {Environment} */
-    const inner = [
-        ...fn.parameters.map((id, i) => /** @type {const} */ ([id, ['arg', i]])),
-        ...(fn.rest === null ? [] : [/** @type {const} */ ([fn.rest, ['rest']])]),
-        ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, ['self']])]),
-        ...fn.captures.map((capture, i) => /** @type {const} */ ([capture.binding,
-            captures[i].exp instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (captures[i].exp)))] : captures[i].exp,
-        ])),
-    ]
-    const local = { ...context, scope: scopeOf(inner), transfer: /** @type {ExitOwner} */ ({ kind: 'default' }) }
-    const root = rootLoopOf(fn)
-    return bind(root === null ? blockTask(fn.body, local) : scalarRoot(fn, root, local), body =>
-        done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: floated(captures) }))
-}))
+const functionValue = (source, context) => call(() => {
+    const scalar = rootLoopOf(source)
+    const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(source)
+    const fn = matched === null ? source : directInvocationRoot(source, matched)
+    return bind(lowerValues(fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
+        const candidates = captures.map(capture => capture.exp).filter(exp => exp instanceof Array)
+        const slots = candidates.filter((node, i) => candidates.findIndex(other => sameCapture(other, node)) === i)
+        const reads = slots.map((_, i) => /** @type {Exp} */ (['frame', i]))
+        /** @type {Environment} */
+        const inner = [
+            ...fn.parameters.map((id, i) => /** @type {const} */ ([id, ['arg', i]])),
+            ...(fn.rest === null ? [] : [/** @type {const} */ ([fn.rest, ['rest']])]),
+            ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, ['self']])]),
+            ...fn.captures.map((capture, i) => /** @type {const} */ ([capture.binding,
+                captures[i].exp instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (captures[i].exp)))] : captures[i].exp,
+            ])),
+        ]
+        const local = { ...context, summaries: matched === null ? context.summaries : new Map([...context.summaries, ...summaries(['block', fn.body], context.summaries)]), scope: scopeOf(inner), transfer: /** @type {ExitOwner} */ ({ kind: 'default' }) }
+        const root = rootLoopOf(fn)
+        return bind(root === null ? blockTask(fn.body, local) : scalarRoot(fn, root, local), body =>
+            done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: floated(captures) }))
+    })
+})
 
 /** The canonical scalar invocation loop reuses its owning function. @type {(fn: FastFunction, loop: Loop, context: Context) => Task<Lowered>} */
 const scalarRoot = (fn, loop, context) => call(() => {
-    const parts = scalarLoopOf(loop)
-    if (parts === null) { throw 'general structured loop construction is not connected yet' }
+    const parts = assertNotNullish(scalarLoopOf(loop))
     /** @type {(index: number, scope: Scope) => Task<Lowered>} */
     const aliases = (index, scope) => call(() => {
         if (index < fn.body.statements.length - 1) {

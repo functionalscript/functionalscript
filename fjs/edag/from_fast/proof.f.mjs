@@ -292,6 +292,12 @@ export const proof = {
         const nested = { ...loop, body: { ...loop.body, statements: /** @type {readonly Statement[]} */ ([['if', [], statement[2], nestedStep, statement[4]]]) } }
         assertEq(evaluate(fromFast(afterLoop(nested, ref(loop.results[0])))), 3)
     },
+    directRootResult: () => {
+        const parameter = id(0)
+        const loop = counting(ref(parameter))
+        const fn = /** @type {FastFunction} */ ({ target, parameters: [parameter], rest: null, self: null, captures: [], body: { statements: [['loop', { ...loop, body: { statements: [], exit: ['break', loop.target, [ref(loop.parameters[0])]] } }]], exit: ['return', target, ref(loop.results[0])] } })
+        assertStructurallySame(fromFast(result(['function', fn])), ['=>', 1, [], ['arg', 0]])
+    },
     canonicalRootLoops: () => {
         const parameter = id(20)
         const alias = id(21)
@@ -328,12 +334,6 @@ export const proof = {
         },
         statementReturn: () => { fromFast(result(1, [['if', [], true, { statements: [], exit: ['return', target, 1] }, result(2)]])) },
         loop: () => { fromFast(result(1, [['loop', { target: { kind: 'loop', index: 0 }, parameters: [], initial: [], results: [], body: result(1) }]])) },
-        rootLoopShape: () => {
-            const parameter = id(0)
-            const loop = counting(ref(parameter))
-            const fn = /** @type {FastFunction} */ ({ target, parameters: [parameter], rest: null, self: null, captures: [], body: { statements: [['loop', { ...loop, body: { statements: [], exit: ['break', loop.target, [ref(loop.parameters[0])]] } }]], exit: ['return', target, ref(loop.results[0])] } })
-            fromFast(result(['function', fn]))
-        },
         lazyLoopCapture: () => {
             const limit = id(0)
             const alias = id(1)

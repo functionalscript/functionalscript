@@ -37,6 +37,18 @@ export const invocationAliases = (fn, before) => {
 }
 
 /**
+ * Reusing the function rebinds its parameters on each continue. Body reads of
+ * entry parameters or their prefix aliases could then lose the original value.
+ * Iteration parameters are bound by the free-reference owner; captures and self
+ * do not belong to these parameter lineages and remain stable across calls.
+ * @type {(loop: Loop, aliases: readonly (readonly BindingId[])[]) => boolean}
+ */
+export const readsEntryParameters = (loop, aliases) => {
+    const entries = new Set(aliases.flat())
+    return freeLoopBindings(loop).some(binding => entries.has(binding))
+}
+
+/**
  * The root scalar loop where its entry aliases the current invocation and its
  * result is returned directly, or `null` where reconstruction would change
  * the function boundary. Before the loop, aliases of invocation inputs, captures
@@ -54,7 +66,7 @@ export const rootLoopOf = fn => {
     const loop = last[1]
     if (loop.parameters.length !== 1 || loop.results.length !== 1 || !names(exit[2], loop.results[0])) { return null }
     const aliases = invocationAliases(fn, body.statements.slice(0, -1))
-    return aliases !== null && aliases[0].some(binding => names(loop.initial[0], binding)) ? loop : null
+    return aliases !== null && aliases[0].some(binding => names(loop.initial[0], binding)) && !readsEntryParameters(loop, aliases) ? loop : null
 }
 
 /**

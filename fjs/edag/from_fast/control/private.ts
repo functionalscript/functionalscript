@@ -9,3 +9,5 @@ export type Context = {
 export type Task =
     | (Context & { readonly kind: 'value'; readonly value: Value })
     | (Context & { readonly kind: 'block'; readonly block: Block })
+
+export type Link<T> = { readonly first: T; readonly tail: Link<T> | null }
