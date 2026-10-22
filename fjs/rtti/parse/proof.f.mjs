@@ -136,7 +136,7 @@ export const proof = {
                 assertStructurallySame(unwrap(r), [42, 'hello'])
             },
             // A tuple is CLOSED: a longer array is not one of its values —
-            // see "Structs and tuples are closed" in ../README.md. Under
+            // see ../guide/schemas/closed-containers/README.md. Under
             // `open` it is accepted, and the extras are absent from what
             // `parse` builds.
             extraItemsRejected: () => {

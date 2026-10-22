@@ -17,9 +17,10 @@ import {
 /**
  * Every tuple here is closed — the members it declares and nothing else, which
  * is what a bare `Tuple` says ("Structs and tuples are closed" in
- * `../rtti/README.md`). That is load-bearing rather than incidental: the
- * chain grammar below claims each JS chain has exactly one spelling, and an
- * `open` tuple would let any node carry a trailing element nothing reads,
+ * `../rtti/guide/schemas/closed-containers/README.md`). That is load-bearing
+ * rather than incidental: the chain grammar below claims each JS chain has
+ * exactly one spelling, and an `open` tuple would let any node carry a
+ * trailing element nothing reads,
  * splitting one function into unboundedly many graphs. So do **not** wrap any
  * of these in `open`. No operand of any node is optional either. A chain that
  * ends says so by **arity**: the step or node is simply the shorter tuple,

@@ -39,7 +39,8 @@
  * A `Struct` or a `Tuple` on its own is **closed** — it admits the members it
  * declares and no others. `rest(c, r)` states the set every undeclared member
  * belongs to, and `open(c)` is `rest(c, unknown)`: any undeclared member at
- * all. See "Structs and tuples are closed" in `./README.md`.
+ * all. See "Structs and tuples are closed" in
+ * `./guide/schemas/closed-containers/README.md`.
  *
  * ## Converting to TypeScript types
  *
