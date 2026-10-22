@@ -5,64 +5,7 @@
  * @module
  */
 
-import type { ConstructorId, Exp, Items, Properties } from '../../edag/types.ts'
-import type { AstConst, BinaryTag, UnaryTag } from '../ast/types.ts'
-
-/** The nodes a reference can name: one per import, one per entry lowered so far, the arguments of the function being lowered, and a read of each slot of its frame. */
-export type _Nodes = {
-    readonly parameters: readonly Exp[]
-    readonly consts: readonly Exp[]
-    readonly args: Exp
-    readonly frame: readonly Exp[]
-}
-
-/**
- * `lower`'s own explicit stack, in place of the recursion a chain of
- * operator/prefix/conditional/throw nodes would
- * otherwise call it through: a node still to lower, a unary operator or a
- * `throw` whose one operand is already on top of `_LowerResults` and needs
- * its tag applied, an `instanceof` whose one operand is and needs its
- * constructor name, a binary operator whose two operands
- * are — right on top, left under it — or the
- * conditional whose three are, the else arm on top and the condition
- * lowest.
- */
-export type _LowerWork =
-    | { readonly kind: 'expand', readonly ast: AstConst, readonly rest: _LowerWork }
-    | { readonly kind: 'unary', readonly tag: UnaryTag | 'throw', readonly rest: _LowerWork }
-    | { readonly kind: 'instanceof', readonly name: ConstructorId, readonly rest: _LowerWork }
-    | { readonly kind: 'binary', readonly tag: BinaryTag, readonly rest: _LowerWork }
-    | { readonly kind: 'ternary', readonly rest: _LowerWork }
-    | null
-
-/** The values `_LowerWork`'s combine steps read and replace, most recently lowered on top. */
-export type _LowerResults = { readonly top: _Lowered, readonly rest: _LowerResults } | null
-
-/**
- * A lowered value and what it floats: the roots an inlined body anchors —
- * its `const`s the value does not reach — carried up through eager
- * positions to the nearest block root, a scope's root or a lazy operand,
- * where the comma establishes them before the value.
- */
-export type _Lowered = _LoweredOver<Exp>
-
-/** An item lowered: a value's {@link _Lowered}, or a spread item's over its operand's. */
-export type _LoweredItem = _LoweredOver<Items>
-
-/** An entry lowered: a member's property over its value's, or a spread's. */
-export type _LoweredEntry = _LoweredOver<Properties>
-
-/** A lowered `E`, and what it floats. */
-export type _LoweredOver<E> = {
-    readonly exp: E
-    readonly anchors: readonly Exp[]
-}
-
-/** The entries of a body lowered so far: each entry's node, and beside each what lowering it floated. */
-export type _Entries = {
-    readonly nodes: readonly Exp[]
-    readonly floated: readonly (readonly Exp[])[]
-}
+import type { Exp } from '../../edag/types.ts'
 
 /**
  * A module's full result and its export bindings. Select once so repeated

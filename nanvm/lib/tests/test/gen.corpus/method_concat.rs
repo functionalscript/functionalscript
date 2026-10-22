@@ -2,35 +2,20 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("noArgument", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || Ok(Array::default().to_any())), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
-    check::<A>("array", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || {
-        let c0: Any<A> = [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any();
-        Ok([c0].to_array().to_any())
-    }), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any());
-    check::<A>("value", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
-    check::<A>("several", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || {
-        let c0: Any<A> = [f64_any(0x4008000000000000)].to_array().to_any();
-        Ok([f64_any(0x4000000000000000), c0, Array::default().to_any(), f64_any(0x4010000000000000)].to_array().to_any())
-    }), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000), f64_any(0x4010000000000000)].to_array().to_any());
-    check::<A>("oneLevel", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || {
-        let c0: Any<A> = [f64_any(0x4000000000000000)].to_array().to_any();
-        let c1: Any<A> = [c0].to_array().to_any();
-        Ok([c1].to_array().to_any())
-    }), [f64_any(0x3ff0000000000000), [f64_any(0x4000000000000000)].to_array().to_any()].to_array().to_any());
-    check::<A>("object", Any::dot(Array::default().to_any(), string_any("concat")).end_call(&rt, || {
-        let c0: Any<A> = [(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any();
-        Ok([c0].to_array().to_any())
-    }), [[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any());
-    check::<A>("nullish", Any::dot(Array::default().to_any(), string_any("concat")).end_call(&rt, || Ok([Nullish::Null.to_any(), Nullish::Undefined.to_any()].to_array().to_any())), [Nullish::Null.to_any(), Nullish::Undefined.to_any()].to_array().to_any());
-    check::<A>("string", Any::dot(Array::default().to_any(), string_any("concat")).end_call(&rt, || Ok([string_any("ab")].to_array().to_any())), [string_any("ab")].to_array().to_any());
-    check::<A>("empty", Any::dot(Array::default().to_any(), string_any("concat")).end_call(&rt, || Ok(Array::default().to_any())), Array::default().to_any());
-    check::<A>("stringValues", Any::dot(string_any("a"), string_any("concat")).end_call(&rt, || {
-        let c0: Any<A> = [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any();
-        Ok([f64_any(0x3ff0000000000000), Nullish::Null.to_any(), c0, Nullish::Undefined.to_any()].to_array().to_any())
-    }), string_any("a1null2,3undefined"));
-    check::<A>("stringNoArgument", Any::dot(string_any("a"), string_any("concat")).end_call(&rt, || Ok(Array::default().to_any())), string_any("a"));
-    check::<A>("stringObject", Any::dot(string_any(""), string_any("concat")).end_call(&rt, || Ok([Object::default().to_any()].to_array().to_any())), string_any("[object Object]"));
-    check::<A>("stringBigint", Any::dot(string_any("a"), string_any("concat")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())), string_any("a1"));
+    check::<A>("noArgument", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || Ok(Array::default().to_any())) }), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
+    check::<A>("array", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || Ok([[f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any()].to_array().to_any())) }), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any());
+    check::<A>("value", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
+    check::<A>("several", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || Ok([f64_any(0x4000000000000000), [f64_any(0x4008000000000000)].to_array().to_any(), Array::default().to_any(), f64_any(0x4010000000000000)].to_array().to_any())) }), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000), f64_any(0x4010000000000000)].to_array().to_any());
+    check::<A>("oneLevel", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("concat")).end_call(&rt, || Ok([[[f64_any(0x4000000000000000)].to_array().to_any()].to_array().to_any()].to_array().to_any())) }), [f64_any(0x3ff0000000000000), [f64_any(0x4000000000000000)].to_array().to_any()].to_array().to_any());
+    check::<A>("object", scope(|| { Any::dot(Array::default().to_any(), string_any("concat")).end_call(&rt, || Ok([[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any())) }), [[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any());
+    check::<A>("nullish", scope(|| { Any::dot(Array::default().to_any(), string_any("concat")).end_call(&rt, || Ok([Nullish::Null.to_any(), Nullish::Undefined.to_any()].to_array().to_any())) }), [Nullish::Null.to_any(), Nullish::Undefined.to_any()].to_array().to_any());
+    check::<A>("string", scope(|| { Any::dot(Array::default().to_any(), string_any("concat")).end_call(&rt, || Ok([string_any("ab")].to_array().to_any())) }), [string_any("ab")].to_array().to_any());
+    check::<A>("empty", scope(|| { Any::dot(Array::default().to_any(), string_any("concat")).end_call(&rt, || Ok(Array::default().to_any())) }), Array::default().to_any());
+    check::<A>("stringValues", scope(|| { Any::dot(string_any("a"), string_any("concat")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), Nullish::Null.to_any(), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), Nullish::Undefined.to_any()].to_array().to_any())) }), string_any("a1null2,3undefined"));
+    check::<A>("stringNoArgument", scope(|| { Any::dot(string_any("a"), string_any("concat")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("a"));
+    check::<A>("stringObject", scope(|| { Any::dot(string_any(""), string_any("concat")).end_call(&rt, || Ok([Object::default().to_any()].to_array().to_any())) }), string_any("[object Object]"));
+    check::<A>("stringBigint", scope(|| { Any::dot(string_any("a"), string_any("concat")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())) }), string_any("a1"));
 }

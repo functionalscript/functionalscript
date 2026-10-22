@@ -1,45 +1,46 @@
-## Eager and lazy operand classifiers disagree
+## Reconcile core operand classification
 
 **Priority:** P3
-**Status:** open
+**Status:** open — optional core traversal research; output ownership migrated
 
-### Problem
+### Current ownership
 
-Which operands a node establishes unconditionally, and which only when it
-decides to, is a property of the EDAG. It is written by each consumer, over
-that consumer's own representation:
+Common [`to_fast`](../to_fast/README.md) now chooses graph bindings, eager and
+lazy regions, and shared-value ownership for source JavaScript, runtime values,
+function text and Rust. Common [preparation](../../js/ast/prepare/README.md)
+chooses physical memo storage and loop state. Target serializers consume
+prepared instructions and make no independent graph placement decision.
 
-- [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs)
-  keeps private `operands`, `lazyOperands`, `allOperands`,
-  `eagerOperands`, `eagerFrom`, `reachableThrough`, `reachableFrom`,
-  `placesWithin`, `placesAnywhere` and `sharedWithin` — all over
-  [`analysis`](../analysis/module.f.mjs)'s `Node`, the representation that
-  module owns, beside the `operandsOf`, `stepOperands` and `itemOperand` it
-  already imports from there. `sharedWithin` restates the analysis's own
-  `shared` rule over a subgraph.
-- [`edag/sharing`](../sharing/module.f.mjs) keeps `eagerOperandsOf`,
-  `chainLazy` and a `stepOperands` of its own, over the linked `Exp`, and
-  [`edag/rust`](../rust/module.f.mjs), which imports them, keeps
-  `lazyOperandsOf`.
-- [`fjs/compiler/ast`](../../compiler/ast/module.f.mjs) keeps `chainEager`,
-  `chainOperands` and its own `stepOperands`, over the AST.
+The former classifiers in `compiler/ast`, the direct FunctionalScript writer,
+and the direct Rust writer have been retired. Their disagreement is no longer
+a reason to export a second placement API. Remaining core representations still
+have different uses:
 
-The evaluation order is already established by
-[`edag/operations`](../operations/module.f.mjs)'s `operation`: its
-`property` helper reads the property, then demands the call's arguments
-inside `then`, which propagates a failed read without demanding them.
-For a `.` node whose continuation is a plain call step, `|()`, the receiver
-and key are eager; the call's arguments are lazy because the access may
-throw with them untouched. A successful read still demands the arguments
-before checking whether its value is callable.
+- [`analysis`](../analysis/module.f.mjs) supplies operands of analyzed `Node`s.
+- [`sharing`](../sharing/module.f.mjs) queries linked `Exp` objects by identity.
+- [`operations`](../operations/module.f.mjs) implements reference evaluation and
+  its operational operand-demand order.
+- [`to_fast`](../to_fast/module.f.mjs) classifies operands for common placement,
+  stopping at established bindings and respecting successful lazy paths.
+- [`js/ast`](../../js/ast/module.f.mjs) maps normalized value operands and chain
+  metadata without choosing evaluation regions.
 
-`edag/rust`'s `chainLazy` / `eagerOperandsOf` and `compiler/ast`'s
-`chainOperands` / `chainEager` follow that order. The serializer is the
-divergent copy: its `operands` lists the plain call's arguments as eager
-and its `lazyOperands` reserves the lazy region for `|?.()` alone. Since
-`eagerFrom` controls which scope owns a `const`, this can establish an
-argument before the access that should precede it. For example, a shared
-constructor under one argument makes that difference observable:
+Whether a smaller shared core helper would simplify these consumers remains
+worth investigating. The shared output migration is complete independently of
+that optional consolidation.
+
+### Reference demand order and output failure reordering
+
+The reference evaluator reads a plain method's property before demanding its
+`|()` arguments. Its `property` helper uses the existing failure channel: a
+failed read demands no arguments, while a successful read demands them before
+checking whether the result is callable. Operational demand-trace proofs may
+pin that interpreter behavior.
+
+That order does not require an output serializer to preserve the first failing
+operation. Under [failure is one outcome](../../../spec/principles/README.md#failure-is-one-outcome),
+throw payloads, first failure, evaluation counts and work before failure are
+not language observations. For example:
 
 ```js
 const x = ['[]', [['throw', 'argument']]]
@@ -47,70 +48,43 @@ const argument = ['[]', [x, x]]
 const root = ['.', null, 'f', ['|()', [argument]]]
 ```
 
-The null receiver must fail at the property read with `argument` untouched;
-hoisting `x` before the access throws `'argument'` instead. This is a
-serializer ordering defect, not an unresolved language decision. It is the
-drift [DESIGN.md §4](../../../doc/DESIGN.md#4-reuse-dry-and-separation-of-concerns)
-describes: a rule with several owners has no owner.
+The reference evaluator fails at the null receiver; output that establishes the
+argument first can fail there instead. Both executions fail. The former version
+of this note called that difference a serializer semantic defect; that claim
+was incorrect. It requires no source-order barrier or writer-specific lazy
+region.
 
-The Rust printer meets the other side of the same split. A node that two
-plain call steps' arguments share, and nothing else reaches eagerly, has no
-block for the printer to bind it in:
+Successful paths remain binding. A skipped optional-chain argument that would
+fail must stay skipped. A demanded shared constructor must retain its identity,
+and successful receiver-sensitive method calls must retain their receiver.
+A placement that introduces a failure on a formerly successful path, or deletes
+a required failure to invent success, is a defect. Those are the contracts for
+shared conversion and preparation to prove.
 
-```js
-const o = { f: x => [x] }
-export default a => { const t = a.k.m; return [o.f(t), o.f(t)] }
-```
+The former direct Rust printer also refused some values shared only between
+method arguments because its private placement had no suitable region. That
+writer and refusal path have been retired. Common FAST now supplies the region
+and memo decision to the [prepared Rust serializer](../../rust/serializer/README.md).
+No target-specific classifier should be restored to reproduce the old refusal.
 
-`fjs compile` to `.rs` fails with ``no Rust for a shared node reached only
-through lazy operands; a `let` binding would establish what the program
-may not``, at `2ca692ba` as at `9142e83e`. The `.js`, `.f.js` and
-`.edag.data.js` outputs compile it. Whatever the owner of the rule decides
-for the arguments decides this program's Rust too.
+### Optional investigation
 
-### Proposal
-
-`analysis` owns the classification over `Node`: it exports eager and lazy
-operand lists, a parameterized reach (through every operand, or through
-eager ones only), and `places` over a chosen root, so that the serializer's
-private walks become imports. Its JSDoc records the established
-read-before-arguments rule and cites `operations`; the AST and `Exp` copies
-cite the same rule. Moving the serializer onto it corrects its eager
-treatment of `.` / `|()` arguments. Serializer output may change wherever
-needed to preserve that evaluation order and keep argument-only bindings
-inside the argument that establishes them. Preserve sharing when the
-argument is demanded, as well as skipping it when the read fails.
-[identity-shared-walks](./identity-shared-walks.md) decides whether the
-`Exp` walk can share more than the rule.
-
-### Tasks
-
-- [ ] Record the read-before-arguments rule in `analysis`'s JSDoc and
-      reference it from the AST and `Exp` classifiers.
-- [ ] Export the classification and reaches from `analysis`; move the
-      serializer's private walks onto them, correcting its `.` / `|()`
-      classification and any resulting output expectations.
-- [ ] Prove that a plain access's receiver and key remain eager while its
-      plain call arguments are lazy; cover guarded calls and continuation
-      operands too, against `compiler/ast` and `edag/rust`'s classifiers.
-- [ ] Extend `operations`'s operand-demand proof for a null receiver with
-      a throwing `|()` argument: only receiver and key are demanded.
-      Also prove that a successful read of a non-callable value demands
-      that argument and propagates its failure before the call fails.
-- [ ] Prove the Rust printer's answer for the method-call program above,
-      written or refused for the reason the rule gives.
-- [ ] Add a serializer regression for the shared throwing constructor
-      above, checking emitted text and evaluation after parsing it: the
-      access fails before the argument runs. Add a successful-access case
-      with a nonthrowing shared constructor to prove it is still one value
-      when demanded, and retain receiver-sensitive method-call behavior.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%; regenerate and diff the
-      compiled corpus, explaining output changes that correct evaluation
-      order.
+- [x] Retire independent source/Rust writer placement and use common FAST.
+- [ ] Compare the remaining raw `Exp`, analyzed `Node` and normalized FAST
+      operand helpers. Share a traversal only if it reduces their code and
+      keeps representation metadata, scope boundaries and binding stops clear.
+- [ ] If a shared helper is useful, record the reference evaluator's demand
+      order separately from the output placement freedom above. Preserve
+      optional-chain success, demanded allocation identity and required work;
+      do not add first-failure barriers.
+- [ ] Prove unchanged successful behavior, reference-demand traces where they
+      are the subject of the helper, and the existing indistinguishable-failure
+      contract. Run the affected checks and regenerate only affected outputs.
+      Otherwise record why separate helpers are simpler and retire this note.
 
 ### Related
 
-- [identity-shared-walks](./identity-shared-walks.md) — traversal sharing
-  between `analysis` and `edag/rust`; this issue is the rule the traversals
-  apply, not the traversal.
-- [analysis](./analysis.md) — the sharing contract `sharedWithin` restates.
+- [identity-shared-walks](./identity-shared-walks.md) — optional raw graph walk
+  consolidation, distinct from common output placement.
+- [step-traversal-owner](./step-traversal-owner.md) — chain metadata folds/maps.
+- [analysis](./analysis.md) — graph sharing and identity contracts.

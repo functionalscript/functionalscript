@@ -20,13 +20,13 @@ of 900 passes. `reach` runs first and gets through 1000, but a chain of 10000
 overflows it too.
 
 `followMap`'s fixpoint had the same hazard, one frame per round, and now runs
-through `../data`'s loop-based `_fixpoint`. That removed a recursion, not this
+through `fjs/types/function`'s loop-based `fixpoint`. That removed a recursion, not this
 limit: on a chain, `firstOf` overflows first.
 
 ### Proposal
 
-Each walk becomes a loop over an explicit worklist, as `_fixpoint` in
-[`../../data/module.f.mjs`](../../data/module.f.mjs) is: `reach` is a plain
+Each walk becomes a loop over an explicit worklist, as `fixpoint` in
+[`fjs/types/function`](../../../types/function/module.f.js) is: `reach` is a plain
 graph search; `firstOf` also has to detect left recursion, so its worklist
 carries the rules still being computed, which is what `current` holds today.
 

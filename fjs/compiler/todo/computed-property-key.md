@@ -23,7 +23,7 @@ The refusal is at `a`: the grammar's `member` rule in
 form as `[`, a `string` token, `]`, so `{ ["x"]: 5 }` is accepted as a
 third spelling of the constant key `"x"` and nothing else fits between the
 brackets. The spec records the gap
-([property keys](../../../spec/values/objects.md#property-keys) and the roadmap's
+([property keys](../../../spec/values/objects/README.md#property-keys) and the roadmap's
 "computed property key from an expression" in
 [`spec/todo`](../../../spec/todo/README.md)), but no `todo/` tracks the
 work.
@@ -41,7 +41,7 @@ What the key becomes is already decided below the compiler. EDAG's
 `Property` takes any expression as its key
 ([`edag`](../../edag/types.ts)); the interpreter converts the value with
 `ToString`, as the `entry` helper converts the key it reads
-([reading an entry at run time](../../../spec/property-access/entries.md)),
+([reading an entry at run time](../../../spec/property-access/entries/README.md)),
 and `nanvm-lib`'s `computed_item`
 ([`vm/unstable`](../../../nanvm/lib/src/vm/unstable/mod.rs)) does the same
 through `Any::to_string`. That is JavaScript's `ToPropertyKey` on every
@@ -133,7 +133,7 @@ key folds to the constant spelling.
 
 ### Related
 
-- [spec: property keys](../../../spec/values/objects.md#property-keys) — states the
+- [spec: property keys](../../../spec/values/objects/README.md#property-keys) — states the
   restriction this issue lifts.
 - [spec roadmap](../../../spec/todo/README.md) — "computed property key
   from an expression" and "property key as number".

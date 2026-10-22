@@ -1,7 +1,8 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** open — coordination epic; implementation has not started
+**Status:** wip — A-D and fixed-input invocation-root reconstruction implemented
+above #3127; general helper construction and tail-call work remain in E/F
 
 ### Goal
 
@@ -17,7 +18,7 @@ through AST -> FAST -> EDAG and EDAG -> FAST -> target before adding the new
 features. Do not implement short-circuit normalization, general rebinding or
 broader loop recognition in the old fold/writers and later port them to FAST.
 
-The current language remains the [restricted loop form](../../spec/control-flow/loops.md)
+The current language remains the [restricted loop form](../../spec/control-flow/loops/README.md)
 until the corresponding source milestone is complete.
 
 ### Owners
@@ -31,7 +32,7 @@ has one detailed owner; implementations and other TODOs link there.
 | Mutable bindings and source loop admission/normalization | [Let proposal: later work](../../spec/todo/3220-let.md#later) |
 | Explicit FAST loops to recursive EDAG; state/completion encoding and root-loop reuse | [FAST loop construction](../edag/todo/fast-loop-construction.md) |
 | Existing output migration and broader tail-call analysis | [Tail-call loops](../edag/todo/tail-call-loop.md) |
-| Logical operators to conditionals and EDAG schema migration | [Short-circuit conditionals](../edag/todo/short-circuit-conditionals.md) |
+| Logical operators to conditionals and EDAG schema migration | [Short-circuit conditionals](../edag/README.md#source-logical-operators) |
 
 Source name/declaration checks preserve legality before declaration kinds are
 discarded. Pattern expansion precedes shared local/parameter write analysis;
@@ -79,23 +80,25 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
 
 ### Tasks
 
-- [ ] **A — FAST first.** Implement the architecture owner's small common model
+- [x] **A — FAST first.** Implement the architecture owner's small common model
       and stage APIs. Resolve representation questions there before consumers
       depend on them; include uniform local/parameter binding analysis, branch
       results, loop signatures and shared lazy evaluation, not just renamed
       AST types.
-- [ ] **B — Existing input.** Move source checks and lowering to their final
+- [x] **B — Existing input.** Move source checks and lowering to their final
       owners. Preserve scopes, diagnostics, captures, arity, required evaluations
       and established single-variable loop cases. Implement scalar root-loop
       reconstruction needed by C now; resolve any graph-normalization contract
       explicitly in A/B rather than introducing a temporary output exception.
-- [ ] **C — Existing output.** Move graph placement and current tail-loop
+- [x] **C — Existing output.** Move graph placement and current tail-loop
       decisions to `to_fast`; establish common emission preparation and migrate
       every required consumer before starting D.
-- [ ] **D — Smaller EDAG.** Complete the short-circuit owner's source lowering,
+- [x] **D — Smaller EDAG.** Complete the short-circuit owner's source lowering,
       schema/identity decision and producer/consumer migration.
 - [ ] **E — General graph construction.** Complete the loop-construction owner
       using explicit FAST inputs/results; no source-mutability analysis here.
+      Fixed-input invocation roots are implemented; general helpers, operand
+      completions and shared memo transport remain open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.
@@ -135,7 +138,9 @@ records the request for simplicity, separate responsibilities and FAST-first
 implementation. This ordering supersedes the earlier allowance to implement
 new features in the current frontend or writers and move them afterward.
 
-This PR records a plan, not compiler behavior. The language proposal owns
+The originating PR records the plan. The stacked implementation branches cover
+the shared foundation, conditional schema and fixed-input root increment
+without enabling the later source extensions. The language proposal owns
 formal approval under
 [DESIGN.md section 12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions);
 the original single-variable approval does not authorize the broader source

@@ -25,7 +25,7 @@ lowering belongs to
 
 **P1 source/writer reconciliation:** the direct descriptor-value source plan
 is superseded by `entry`, the language's helper
-([spec: entry](../spec/property-access/entries.md)), and the
+([spec: entry](../spec/property-access/entries/README.md)), and the
 EDAG's `['entry']` node it lowers to, the helper as a value: the helper is
 the one source spelling of the node, and a key computed at run time is read
 by calling it. The affected sections below follow that decision;
@@ -75,9 +75,9 @@ guards, A4) are merged into the graph by the **`","` operation**:
   ```
 
   Of these, `f`, `g` and `k` compile, to that one shape: the comma is in the
-  language in parentheses ([comma](../spec/operators/comma.md)), and `f`'s
+  language in parentheses ([comma](../spec/operators/comma/README.md)), and `f`'s
   call statement is the unread `const` of `g`
-  ([call statements](../spec/functions/call-statements.md)). `h`'s bare
+  ([call statements](../spec/functions/call-statements/README.md)). `h`'s bare
   comma after `return` stays refused
   ([refused constructs](../spec/todo/refused-constructs.md)), and so does the
   `return` pattern above, whose parenthesized spelling,
@@ -93,7 +93,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
   free-variable machinery needed,
   `["?:", cond, ["undefined"], ["throw", …]]` ([Operations](#operations),
   subject 10).
-  The [comma operator](../spec/operators/comma.md) is in the language
+  The [comma operator](../spec/operators/comma/README.md) is in the language
   for exactly this reason: it was rejected as "useful only when we want
   to mutate", and the assert pattern is the counter-example — in a pure
   language the only side effect a discarded operand can have is
@@ -105,7 +105,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
   node. The compiler now emits comma nodes for anchored computations,
   without changing the body's shape, and an authored comma, written in
   parentheses, lowers to those same anchors
-  ([comma](../spec/operators/comma.md)).
+  ([comma](../spec/operators/comma/README.md)).
 
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
@@ -278,7 +278,7 @@ anchors, fixed/rest functions, captures and `self`. The
 [Amnesia proofs](../fjs/edag/amnesia/proof.f.mjs) cover these paths. The current
 [node inventory](../fjs/edag/README.md#nodes) is the schema reference; source
 limits still apply, including no unary `+`; an authored comma is admitted in
-parentheses ([comma](../spec/operators/comma.md)).
+parentheses ([comma](../spec/operators/comma/README.md)).
 
 |Form|JS|Rollout history|Notes|
 |----|--|-----|-----|
@@ -295,10 +295,10 @@ parentheses ([comma](../spec/operators/comma.md)).
 |`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|implemented optional call|
 |`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the implemented step a method call's `.` node carries, introduced in Stage 2|
 |`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|implemented steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
-|`["entry"]`|the `entry` helper|entry rollout|implemented helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/property-access/entries.md))|
+|`["entry"]`|the `entry` helper|entry rollout|implemented helper as a value, a function of two parameters called as any function is, `["()", ["entry"], [a, b]]`; the helper is its one source spelling ([spec: entry](../spec/property-access/entries/README.md))|
 |`["Number", node]`|`Number(x)`|later|implemented numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|implemented string coercion|
-|`[",", nodes]`|`(a, b)`|later|implemented sequence node (subject 8); `nodes` is one array operand, taking the last value or `undefined` when empty; the partial source writer refuses fewer than two operands; emitted for anchors, inlined blocks and an authored comma's discarded operands, which a comma written in parentheses anchors there ([comma](../spec/operators/comma.md))|
+|`[",", nodes]`|`(a, b)`|later|implemented sequence node (subject 8); `nodes` is one array operand, taking the last value or `undefined` when empty; the partial source writer refuses fewer than two operands; emitted for anchors, inlined blocks and an authored comma's discarded operands, which a comma written in parentheses anchors there ([comma](../spec/operators/comma/README.md))|
 |`["=>", length, slots, body]`|`(…) => …`|2|implemented function and captures; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]`; the initial Stage 2 used a placeholder before captures landed ([functions](../spec/functions/README.md))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. The original
@@ -365,7 +365,7 @@ operands and nothing else — and unary `+` is.
 `Object.getOwnPropertyDescriptor(object, key)?.value` to an internal
 `["own", object, key]` node is gone with the node. It would have exposed
 non-enumerable properties as well as data entries, and it had no source
-spelling. What landed is [`entry`](../spec/property-access/entries.md):
+spelling. What landed is [`entry`](../spec/property-access/entries/README.md):
 the complete parsed enumerable-entry helper is recognized and lowered to
 `['entry']`, the helper as a value, and read through ordinary calls, whose
 receiver/key conversion and function observations the spec states; the
@@ -995,7 +995,7 @@ spelling `{ ["__proto__"]: … }`, the only object-literal form that
 reproduces that value. The identifier and string spellings assign a prototype
 instead and lose the property. This is the rule the DJS parser and serializer
 already follow —
-[spec: the `__proto__` key](../spec/values/objects.md#the-__proto__-key).
+[spec: the `__proto__` key](../spec/values/objects/README.md#the-__proto__-key).
 
 #### 5. Validation
 
@@ -1054,7 +1054,7 @@ To validate:
 - object-constructor key `"__proto__"`: **not** a validation error — it
   denotes an ordinary own property (subject 4) — but it constrains
   printing, since `{ "__proto__": v }` as JS assigns a prototype instead
-  ([spec: the `__proto__` key](../spec/values/objects.md#the-__proto__-key),
+  ([spec: the `__proto__` key](../spec/values/objects/README.md#the-__proto__-key),
   subject 12);
 - **acyclicity**: immutable FJS/DJS container construction and const-before-use
   guarantee this; the FJS entry needs no cycle check. A separately requested
@@ -1085,7 +1085,7 @@ Every admitted constant-key read is `.`. A method call is a property step
 owning a call continuation, not a detached `()` over a completed read.
 Backends may specialize these operations or share lookup helpers where their
 semantics agree. Such reuse changes neither the source operation nor its
-EDAG representation. [`entry`](../spec/property-access/entries.md)
+EDAG representation. [`entry`](../spec/property-access/entries/README.md)
 is the runtime helper, not a static-name fallback.
 
 An earlier draft added: "consequence — the EDAG interpreter carries the
@@ -1137,7 +1137,7 @@ a backend lookup routine does not make the operations interchangeable.
 |---|---|---|
 |`[".", o, p]`|permitted constant-key or numeric read|includes non-enumerable `length`; not an entry filter|
 |`[".", o, p, ["\|()", args]]`|the same access with a receiver-preserving call|subject to the call admission, `fjs/js/prototype`'s `prohibitedCalls`: a built-in member function the read refuses may be called|
-|`['entry']`, used through ordinary `()`|enumerable-entry helper function|only the complete helper, per [entry](../spec/property-access/entries.md)|
+|`['entry']`, used through ordinary `()`|enumerable-entry helper function|only the complete helper, per [entry](../spec/property-access/entries/README.md)|
 
 Every permitted static name stays on the `.` path, whether or not a built-in
 table lists it. A backend can specialize a known read without changing the
@@ -1404,7 +1404,7 @@ and `["frame", i]` in a function, the import `["args"]` in a module (subject 2).
 Nothing references a name the function did not compute itself:
 
 - a module-level `const` or `import` the body uses
-  ([const](../spec/bindings/constants.md),
+  ([const](../spec/bindings/constants/README.md),
   [default-import](../spec/modules/imports.md));
 - a captured const — the implemented frame
   [function-frame](../spec/design/3111-function-frame.md) designs;
@@ -1554,7 +1554,7 @@ environment, the following constraints apply within its supported domain:
   unsupported graph. Rendering JavaScript beyond FJS does not admit that syntax
   in FJS or permit `eval` inside it.
 - **No alternate API.** The direct descriptor-value spelling remains
-  retired. [`entry`](../spec/property-access/entries.md) prints
+  retired. [`entry`](../spec/property-access/entries/README.md) prints
   the complete helper and ordinary calls of it. Its exact spelling follows
   the adopted function-text exception and current renderer, not a
   requirement to recover authored text. A printed helper's intrinsic `Object`
@@ -1594,7 +1594,7 @@ environment, the following constraints apply within its supported domain:
   discussion applies; it does not require `String(f)` to materialize frames.
 - **Data keys keep their meaning.** In an object literal, an own `__proto__`
   data key needs the computed spelling `{ ["__proto__"]: value }`, not a
-  prototype-setting property definition ([spec](../spec/values/objects.md#the-__proto__-key)).
+  prototype-setting property definition ([spec](../spec/values/objects/README.md#the-__proto__-key)).
 
 A callable round trip must reconstruct the promised behavior under its declared
 profile, including captured sharing and `self` where supported. Structural FJS

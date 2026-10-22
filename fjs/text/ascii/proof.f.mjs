@@ -1,16 +1,19 @@
 import {
-    charIs, digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, isDigit, isDigits,
+    charIs, codePoints, decimalValue, digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, isDigit, isDigits,
     isLatinLetter, lowerHexDigitValue, one, range,
 } from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.js'
 
-/** The code points of a string. @type {(s: string) => readonly number[]} */
-const codePoints = s => [...s].map(one)
-
 const values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
 export const proof = {
+    codePoints: () => {
+        assertEq(stringifySorted(codePoints('')), '[]')
+        assertEq(stringifySorted(codePoints('0a')), '[48,97]')
+        // one per character, so an astral character is one code point
+        assertEq(stringifySorted(codePoints('1\u{1f600}')), '[49,128512]')
+    },
     range: () => {
         const r = stringifySorted(range("A"))
         assertEq(r, '[65,65]')
@@ -174,6 +177,11 @@ export const proof = {
             assertEq(digitsValue(10n)([48.5]), null)
             assertEq(digitsValue(10n)([NaN]), null)
         },
+    },
+    decimalValue: () => {
+        assertEq(decimalValue(codePoints('042')), 42n)
+        assertEq(decimalValue(codePoints('a')), null)
+        assertEq(decimalValue([]), null)
     },
     hexDigitsValue: {
         digits: () => {

@@ -67,7 +67,7 @@ export const runtime = { static: id => entry(statics, id), dot }
   `entry` is the language's own-property read, the value or `undefined`,
   and `hasEntry` the presence beside it
   ([`../../types/object/entry`](../../types/object/entry/module.f.js),
-  [why two helpers](../../../spec/property-access/entries.md#why-two-helpers)), so an own property
+  [why two helpers](../../../spec/property-access/entries/README.md#why-two-helpers)), so an own property
   wins whatever it holds, as it does in JavaScript —
   `{ toString: f }` calls `f`, `{ x: undefined }.x()` throws, `[1][0]()`
   throws for the element — and a receiver that owns nothing enumerable
@@ -123,7 +123,7 @@ export const runtime = { static: id => entry(statics, id), dot }
   body lands.
 - `dot` is written in FunctionalScript, as the proposal shows, over the
   pair `hasEntry` and `entry`, the presence and the value
-  ([why two helpers](../../../spec/property-access/entries.md#why-two-helpers)).
+  ([why two helpers](../../../spec/property-access/entries/README.md#why-two-helpers)).
   Every executor asks it first and its natives after, NaNVM through the
   runtime value every compiled module takes as its parameter
   ([`../runtime/README.md`](../runtime/README.md), "How NaNVM finds it"),

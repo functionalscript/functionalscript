@@ -3,7 +3,8 @@
  * @import { TreeEntry } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { decode, encode } from '../../basen/base16/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -25,11 +26,11 @@ const read = payload => {
 const text = e => [
     codePointListToString(e.mode),
     codePointListToString(e.name),
-    toArray(u8ListMsb(e.oid)).map(b => b.toString(16).padStart(2, '0')).join(''),
+    encode(toArray(u8ListMsb(e.oid))),
 ]
 
 /** An id from its hex spelling. @type {(hex: string) => Oid} */
-const oid = hex => u8ListToVecMsb(Array.from({ length: hex.length / 2 }, (_, i) => parseInt(hex.slice(2 * i, 2 * i + 2), 16)))
+const oid = hex => u8ListToVecMsb(assertNotNullish(decode(hex)))
 
 /** @type {(mode: string, name: string, id: string) => TreeEntry} */
 const entry = (mode, name, id) => ({ mode: latin1(mode), name: latin1(name), oid: oid(id) })

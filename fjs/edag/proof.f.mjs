@@ -108,7 +108,6 @@ const op2Ids = /** @type {const} */ ([
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
-    '&&', '||', '??',
 ])
 
 /** Same purpose as `op0Ids`, for `op12` — each id legal at both arities. */
@@ -738,6 +737,13 @@ export const proof = {
             assertEq(entry(entry, 'name'), undefined)
             assertEq(entry({ length: 3 }, 'length'), 3)
         },
+    },
+    formerLogicalTags: () => {
+        for (const tag of ['&&', '||', '??']) {
+            assertNoMatch(vOp2Id(tag))
+            assertNoMatch(v([tag, 1, 2]))
+            assertNoMatch(v(['[]', [[tag, 1, 2]]]))
+        }
     },
     op2: {
         ok: () => {

@@ -22,7 +22,7 @@ followed by `(7)` on the next line is the call `f(7)`, and `[1]` followed by
 `[0]` is an index — a `;` is inserted only where the parser cannot continue
 the statement, never at a newline as such — except at the two boundaries of
 this language where JavaScript forbids one, before `=>` and after `return`
-or `throw` ([line terminators](../lexical/whitespace.md)).
+or `throw` ([line terminators](../lexical/whitespace/README.md)).
 
 [DataJS](../datajs/README.md) *requires* the `;` after every statement, and
 every DataJS document must be a valid FunctionalScript module —
@@ -71,7 +71,7 @@ export default [base, extra];      // optional, at most one, last
 These are the module-level statement forms. A statement begins with `import`,
 `const`, `export`, or `throw`, or with the name of a call statement, which
 stands wherever a `const` does
-([call statements](../functions/call-statements.md)); more forms land as the
+([call statements](../functions/call-statements/README.md)); more forms land as the
 language grows ([`spec/todo/`](../todo/README.md)).
 
 JavaScript accepts `throw` at the top level of a module, and
@@ -92,7 +92,7 @@ and the value outputs, which evaluate, refuse it as they refuse that module
 A module is one function, and the compiler reads it that way. Its imports are
 its parameters, in source order; its constants are the constants of its body;
 and what it returns is the object of its exports
-([exporting a value](exports.md)), `export default` being that
+([exporting a value](exports/README.md)), `export default` being that
 object's `default` member — or, where the module ends in `throw`, it
 returns nothing and fails, as a function whose body ends in `throw` does. So a module's imports and constants are one scope,
 as a function's parameters and body constants are: one namespace, each name
@@ -111,7 +111,7 @@ identity are one application, shared, as
 
 ## Pages
 
-- [Exporting a Value](./exports.md)
+- [Exporting a Value](./exports/README.md)
 - [Importing Other Modules](./imports.md)
 
 ## Examples

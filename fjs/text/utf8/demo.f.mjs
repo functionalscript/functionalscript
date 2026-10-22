@@ -34,10 +34,14 @@ import { fromCodePointList } from './module.f.mjs'
 import { stringToCodePointList } from '../utf16/module.f.mjs'
 import { errorMask, isValidCodePoint, unicodeNotation } from '../code_point/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import { textDemo, caption } from '../../website/demo/module.f.mjs'
 
+/** A byte's two hex digits. */
+const byteHex = encodeScalar(2)
+
 /** @type {(bytes: readonly number[]) => string} */
-const hex = bytes => bytes.map(b => b.toString(16).padStart(2, '0')).join(' ')
+const hex = bytes => bytes.map(byteHex).join(' ')
 
 /**
  * One code point's line: the code point, then its UTF-8 bytes in hex.

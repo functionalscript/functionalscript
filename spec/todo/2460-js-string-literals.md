@@ -2,7 +2,7 @@
 
 **Priority:** P5
 **Status:** open — single quotes are in the language
-([strings](../values/strings.md)); the other spellings are deferred
+([strings](../values/strings/README.md)); the other spellings are deferred
 
 A JSON string literal is double-quoted, with the JSON escapes (`\"` `\\` `\/`
 `\b` `\f` `\n` `\r` `\t` `\uXXXX`) and no literal control characters
@@ -34,7 +34,7 @@ deferred.
 as [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
 requires, and [#2251](https://github.com/functionalscript/functionalscript/pull/2251)
 implemented it. The accepted language, the refusal of `"\'"` and the reason
-for it are the specification's [strings](../values/strings.md) section;
+for it are the specification's [strings](../values/strings/README.md) section;
 decoding `\'` above the shared escape table is `fjs/js/string_escape`'s
 module documentation. The grammar landed before the lexing issue's widening,
 so it recognises exactly what the language accepts, and the token's `quote`
@@ -63,7 +63,7 @@ literal TAB → `\t`, `\v` → `\u000b`, `\x41` → `A`.
 
 **Note**: template literals are not part of this feature — they involve
 expression interpolation, not just lexical syntax. Untagged templates are
-implemented separately ([template literals](../values/template-literals.md));
+implemented separately ([template literals](../values/template-literals/README.md));
 that specification owns the template deferral of extra escapes, raw controls
 and line continuations. Any future widening of the common escape set must be
 coordinated across quoted strings and templates.

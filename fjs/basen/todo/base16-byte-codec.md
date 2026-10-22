@@ -57,8 +57,11 @@ the codec covers it as `encodeScalar(width)(value)`: lowercase, padded to
 `width` and never cut to it. `hexLiteral` in
 [`fjs/media/rust`](../../media/rust/module.f.mjs), `byteLiteral` in
 `fjs/nanvm/expected`, `unicodeEscape` in `fjs/js/string_escape`,
-`pathByte` in `fjs/text/percent` (in capitals, over it), and the `vdf`,
-`sign`, `hash` and `secp` demos are on it.
+`pathByte` in `fjs/text/percent` (in capitals, over it), the `vdf`,
+`sign`, `hash` and `secp` demos, and `fjs/text/utf8`'s demo, one byte at
+a time, are on it. So are the fixtures of the `git/tree`, `git/walk`,
+`git/commit`, `git/packstore`, `crypto/pow` and `media/datajs/parser`
+proofs.
 `fjs/types/uint8array`'s `hexOfByte` stays with the rest of that module,
 for the reason above.
 
