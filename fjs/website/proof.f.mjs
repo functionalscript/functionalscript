@@ -702,6 +702,33 @@ export const proof = {
             assert(!page.includes('README.md</a>'), page)
         },
         /**
+         * **A directory's `README.md` is the top of its page**, its links
+         * moved to the site; one the reader refuses stays a link, with why.
+         */
+        readmeIsRendered: () => {
+            const { root } = generate({
+                a: { 'README.md': file('# A\n\nSee [b](../b/README.md#x) and [c](c.md).\n') },
+                b: { 'README.md': file('| t |\n') },
+                c: { 'README.md': file('[up](../../x)\n') },
+            })
+            const a = pageAt(root, ['a'])
+            assert(a.includes('<article data-readme=""><h2 id="a">A</h2><p>See <a href="/b/index.html#x">b</a> and <a href="/a/c.md">c</a>.</p></article>'), a)
+            const b = pageAt(root, ['b'])
+            assert(b.includes('<a href="/b/README.md">README.md</a> is not rendered here: line 1: a table.'), b)
+            const c = pageAt(root, ['c'])
+            assert(c.includes('is not rendered here: a link that leaves the repository: ../../x.'), c)
+        },
+        readmeGeneratedRoutes: () => {
+            const { root } = generate({
+                'README.md': file('[CLI](/cli/) and [PRs](/prs/) and [Rust](/cargo.doc/)'),
+                target: { doc: { nanvm_lib: { 'index.html': file('crate') } } },
+            }, { WORKERS_CI_COMMIT_SHA: '0123456789abcdef0123456789abcdef01234567' })
+            const page = pageAt(root, [])
+            for (const route of ['cli', 'prs', 'cargo.doc']) {
+                assert(page.includes(`href="/${route}/index.html"`), page)
+            }
+        },
+        /**
          * **An issue whose header cannot be read stops the build**, naming
          * the file, rather than being listed with a guess.
          */

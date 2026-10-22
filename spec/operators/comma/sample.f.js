@@ -1,6 +1,6 @@
 /**
  * The comma operator's assertion form, the example of
- * [`spec/operators/comma.md`](../../../../spec/operators/comma.md): `a[0] + 2`
+ * [`README.md`](./README.md): `a[0] + 2`
  * where `a[0] >= 0` holds, and the assertion's failure where it does not.
  *
  * @module

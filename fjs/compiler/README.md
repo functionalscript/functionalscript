@@ -230,7 +230,7 @@ or reached only conditionally. `from_fast` keeps their graph roots through a
 comma. The comma operator's final operand supplies its value, with required
 work from discarded operands retained in its original region; a discarded
 reference, literal or function value adds no required computation
-([spec: comma](../../spec/operators/comma.md)).
+([spec: comma](../../spec/operators/comma/README.md)).
 A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
 — and was once the language's only operator. It is no part of the literal
 after it, so `-1` is the negation of `1` in the parser's tree, and the

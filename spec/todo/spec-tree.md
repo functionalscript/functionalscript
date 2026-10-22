@@ -36,6 +36,15 @@ with string literals, a failing initializer with evaluation. The register of
 refused constructs ([refused-constructs](./refused-constructs.md)) stays the
 cross-cutting index and links the pages.
 
+**A page with a demo is a directory.** A page is a file of its area's
+directory until it shows its example running; then it becomes a directory of
+its own, `<area>/<page>/README.md`, beside the `demo.f.mjs` the site draws on
+that directory's page and the sample the demo runs.
+[Comma](../operators/comma/README.md) is the first: its demo shows the
+example's EDAG, Rust and WebAssembly and calls it both ways. The site renders
+the README above the demo once it can render one
+([render-readme](../../fjs/website/todo/render-readme.md)).
+
 **A feature the compiler lacks has a page too**, marked *planned*, with its
 `todo/` and the example that will show it. The tree is then the roadmap as
 well: the gaps are visible as empty pages.

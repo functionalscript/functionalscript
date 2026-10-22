@@ -144,7 +144,7 @@ becomes a parameter, rejecting `(a + b) => 1` while preserving `(a + b)`.
 After the comma the items are read the same way, `parenItems`, a cover of
 the parameters and of the comma operator's operands, which agree up to the
 `)`: `(a, b) => 1` is a function and `(a, b)` a comma
-([spec: comma](../../../spec/operators/comma.md)). The fold refuses an item
+([spec: comma](../../../spec/operators/comma/README.md)). The fold refuses an item
 that is no binding target where `=>` follows, and a default, a rest or a
 trailing comma where it does not, at the `=`, the `...` or the `)`. A
 group no function may open, under a prefix or as an operator's operand,

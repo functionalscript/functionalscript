@@ -342,7 +342,7 @@ export const proof = {
     // refusal is pinned as an accepted form is, with the message and the
     // column it is reported at, so that admitting one by accident, or moving
     // its error, fails a proof.
-    // The comma operator, in parentheses (`spec/operators/comma.md`): every
+    // The comma operator, in parentheses (`spec/operators/comma/README.md`): every
     // operand kept, in order, as written — which ones the graph anchors is
     // the lowering's to say. A list in parentheses is a comma where no `=>`
     // follows its `)` and a function's parameters where one does.

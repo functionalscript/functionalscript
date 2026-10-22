@@ -64,7 +64,7 @@ export const _reference = word => {
     if (word[0] === '#') {
         const digits = word.slice(1)
         return digits.length !== 0 && [...digits].every(isDigit)
-            ? ['link', word, `${repository}/pull/${digits}`]
+            ? ['link', [['text', word]], `${repository}/pull/${digits}`]
             : null
     }
     // **A run of hex is a SHA only if it is neither a number nor a word.**
@@ -77,7 +77,7 @@ export const _reference = word => {
     const chars = [...word]
     return word.length >= shaMin && chars.every(isHex)
         && chars.some(isDigit) && chars.some(c => !isDigit(c))
-        ? ['link', word, `${repository}/commit/${word}`]
+        ? ['link', [['text', word]], `${repository}/commit/${word}`]
         : null
 }
 
@@ -211,7 +211,7 @@ export const spanNode = span => {
     if (kind === 'code') { return ['code', span[1]] }
     if (kind === 'strong') { return ['strong', span[1]] }
     if (kind === 'em') { return ['em', span[1]] }
-    if (kind === 'link') { return ['a', { href: span[2] }, span[1]] }
+    if (kind === 'link') { return ['a', { href: span[2] }, ...span[1].map(spanNode)] }
     return span[1]
 }
 

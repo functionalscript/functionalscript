@@ -69,6 +69,7 @@ const withSubprocess = (started, ended) => {
  */
 const root = {
     'spec': {
+        'operators': { 'comma': { 'sample.f.js': [utf8('export default () => 4;')] } },
         'datajs': {
             'vectors': Object.fromEntries(corpusModules(corpus).map(([name, imported]) =>
                 [name, { 'data.f.js': [utf8(unwrap(tryStringify(/** @type {Unknown} */ (imported))))] }])),
@@ -81,7 +82,6 @@ const root = {
             'hello': { 'sample.f.js': [utf8('export default () => 1;')] },
             'sort': { 'sample.f.js': [utf8('export default () => 2;')] },
             'collatz': { 'sample.f.js': [utf8('export default () => 3;')] },
-            'comma': { 'sample.f.js': [utf8('export default () => 4;')] },
         } },
     },
 }

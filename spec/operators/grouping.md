@@ -11,7 +11,7 @@ A value may be written in parentheses, and it denotes that value: `(x)` is
 change to which values a module shares — exactly as in JavaScript. A group
 is a value like any other and takes a property access or a call after its
 `)`, and it holds one value or the operands of a comma, `(a, b)`, which is
-an operator of its own ([comma](comma.md)) and the one that detaches a
+an operator of its own ([comma](comma/README.md)) and the one that detaches a
 receiver.
 
 Once admitted, parentheses leave no node behind, except for the boundary an

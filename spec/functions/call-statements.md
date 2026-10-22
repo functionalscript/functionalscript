@@ -33,7 +33,7 @@ is a name no statement can read: the two are one AST, and the call is
 anchored as an unread `const` is, at the root of its block
 ([the anchoring rule](../operators/README.md)). In the EDAG that is the `,`
 node, the graph the comma operator makes of a discarded operand
-([comma](../operators/comma.md)), so `f(x); return y;` and
+([comma](../operators/comma/README.md)), so `f(x); return y;` and
 `return (f(x), y);` are one graph. A guard's block and a case's block are
 block roots of their own, so `if (c) { assert(a); return 1; }` establishes
 `assert(a)` only where `c` is truthy, as JavaScript does
