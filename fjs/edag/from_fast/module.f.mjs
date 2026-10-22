@@ -16,7 +16,7 @@
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { iterable, toArray } from '../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
-import { scalarLoopOf } from '../../js/ast/loop/module.f.mjs'
+import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { freeLoopBindings } from './control/module.f.mjs'
 import { rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'

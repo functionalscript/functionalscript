@@ -144,6 +144,82 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured on `1ce90e7`, the head of `main` after
+[#3150](https://github.com/functionalscript/functionalscript/pull/3150). A
+leaf is as defined in the `5dcd94b` audit below, and the leaves were
+rediscovered as the `0c9ddf8` table below says: every authored non-proof
+module loaded through Node with a resolve hook recording each runtime
+import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 7 | `compiler/ast` and `js/ast/loop`, each accepted as written |
+| 2 | 5 | None: every remaining leaf is refused as written |
+
+There are seven leaves where the `7cee7a5` table below left five, because
+two are new.
+[#3143](https://github.com/functionalscript/functionalscript/pull/3143)
+normalized structured source through FAST: `compiler/ast` lost its runtime
+imports of `types/list` and `edag` and keeps only the operator tables and
+their predicates, and `js/ast/loop`, new in the same pull request,
+recognizes a scalar loop over FAST values. Neither imports an `.f.mjs` at
+run time, and the compiler accepts both whole, so each is converted with
+only its extension and its references changed: `compiler/ast`'s importers,
+`compiler/parser` and `compiler/parser/grammar` with its `types.ts` and
+`demo.f.mjs`, its own `types.ts`, the links from four `todo/` files and its proof;
+`js/ast/loop`'s importers, `edag/from_fast` and `js/ast/prepare`, and its
+proof. Both proofs stay `proof.f.mjs`.
+
+The renames expose no leaf: every importer of either imports other
+`.f.mjs` modules too. The second pass checks the five leaves left, against
+the same compiler, and converts none.
+
+The authored `.f.js` population under `fjs/` grows from 49 to 51, and
+`npm start compile` checks 132. It is 49, not the 48 the `7cee7a5` text
+counted, because
+[#3145](https://github.com/functionalscript/functionalscript/pull/3145)
+added `edag/testlib` and `js/ast/sugar/logical` as `.f.js` and
+[#3138](https://github.com/functionalscript/functionalscript/pull/3138)
+deleted the `sample` of `nanvm/demos/comma`, its demo folded into the
+specification's page. The compile check's count is 130 before the renames,
+not the 65 of `7cee7a5`, because the specification's refused-construct
+pages since
+[#3155](https://github.com/functionalscript/functionalscript/pull/3155)
+hold 64 more `.f.js` samples, 81 under `spec/` in all.
+
+The five rows are the `7cee7a5` table's, measured again, unchanged.
+Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `types/stack_walk/module.f.mjs` | 43:9 | `let [acc, step] = …` in `walkFold`, a pattern where a loop's `let` takes a name | Read, not measured: a second `let`, `stack`; the tuple assignments `[acc, step] = …`; an `if … else if … else` whose branches `return` inside `while (true)`; the assignment to `stack`, not the loop's variable; and no `return` after `while (true)` |
+| `types/function/compare/module.f.mjs` | 65:9 | `if (e < b) { return b }`, a `return` guard inside the loop in `bsearch` | In `bsearch`, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['types/stack_walk', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `7cee7a5` (historical)
+
 Measured on `7cee7a5`, the head of
 [#3114](https://github.com/functionalscript/functionalscript/pull/3114),
 which renamed the NaNVM demo samples, with `git/config` renamed. A leaf is

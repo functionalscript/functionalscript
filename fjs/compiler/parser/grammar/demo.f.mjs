@@ -40,7 +40,7 @@ import {
     parenGroup, parenGroupOperand, parenthesized, primitive, statement, afterCase, caseTail, template, terminator, unary, unaryOperand,
     value, values,
 } from './module.f.mjs'
-import { eagerLayers } from '../../ast/module.f.mjs'
+import { eagerLayers } from '../../ast/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { tokens } from '../../../ebnf/railroad/module.f.mjs'
 import { grammarDemo } from '../../../website/demo/railroad/module.f.mjs'

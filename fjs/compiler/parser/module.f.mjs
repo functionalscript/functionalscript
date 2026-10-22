@@ -29,7 +29,7 @@ import { maxLength } from '../../types/function/length/module.f.mjs'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
-import { isBinary, isUnary } from '../ast/module.f.mjs'
+import { isBinary, isUnary } from '../ast/module.f.js'
 import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
 
 // -- resolving the names ------------------------------------------------------

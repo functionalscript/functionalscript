@@ -83,7 +83,7 @@ reaches it far more easily to write than the pre-existing ones
 (nested containers, access chains) were.
 
 Two narrower versions of the same shape were already fixed for
-**operator chains** in `fjs/compiler/ast/module.f.mjs` (`refsOf`'s
+**operator chains** in `fjs/compiler/ast/module.f.js` (`refsOf`'s
 operator/negation/bitwise-not walk) and `fjs/compiler/edag/module.f.mjs`
 (`lower`'s own), each with an explicit heap-allocated stack in place of
 recursion, matching how `evaluate` in `fjs/compiler/parser/module.f.mjs`
@@ -187,7 +187,7 @@ discovered one `RangeError` at a time.
 
 - [`./analysis.md`](./analysis.md) — the analysis this walk implements;
   this issue is about its recursion depth, not its design.
-- [`../../compiler/ast/module.f.mjs`](../../compiler/ast/module.f.mjs) — `refsOf`'s
+- [`../../compiler/ast/module.f.js`](../../compiler/ast/module.f.js) — `refsOf`'s
   own explicit-stack fix, the narrower precedent.
 - [`../../compiler/edag/module.f.mjs`](../../compiler/edag/module.f.mjs) — `lower`'s,
   the other one.
