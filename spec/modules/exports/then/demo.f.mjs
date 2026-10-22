@@ -19,11 +19,11 @@ import { refusedDemo } from '../../../../fjs/compiler/refused_demo/module.f.mjs'
  * @type {Suggestion}
  */
 export const suggestion = {
-    message: "`then` is reserved as an export: JavaScript treats a module that exports it as a promise",
+    message: "`then` is reserved as an export: JavaScript treats a module that exports a function `then` as a promise",
     width: 4,
-    label: "`await import()` of this module reads `then` here",
+    label: "`await import()` of this module calls this and answers `1`, not the module",
     help: "export the value under another name:",
-    fix: "export const next = 1;",
+    fix: "export const next = resolve => resolve(1);",
     note: "refused by design, see spec/modules/exports/then/README.md",
 }
 

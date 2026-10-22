@@ -2,10 +2,10 @@
 
 **Status:** refused by design
 
-**`export const then` is not FunctionalScript.** `export const then = 1;` is valid JavaScript, and
+**`export const then` is not FunctionalScript.** `export const then = …;` is valid JavaScript, and
 `fjs compile` refuses it by design: the demo below shows what it prints.
 
-JavaScript treats any object with a `then` member as a promise, a module namespace included: `await import("./m.mjs")` of a module that exports `then` calls it, or hangs on a value that is not a function. So `then` is reserved as an export name, whatever its value, and nowhere else: a local `const`, a parameter or an import may be called `then` ([exporting a value](../README.md)).
+JavaScript treats any object whose `then` member is a function as a promise, a module namespace included: `await import("./m.mjs")` of a module that exports a function `then` calls it, and answers what it passes on rather than the module. A `then` that is no function is ignored, so whether importing a module answers the module would depend on the type of one export. FunctionalScript reserves `then` as an export name, whatever its value, and nowhere else: a local `const`, a parameter or an import may be called `then` ([exporting a value](../README.md)).
 
 The row `name.reserved-export` of [refused constructs](../../../todo/refused-constructs.md)
 registers the refusal, and [exporting a value](../README.md) gives its reason.
@@ -13,25 +13,28 @@ registers the refusal, and [exporting a value](../README.md) gives its reason.
 ## Examples
 
 ```js
-export const then = 1;
+/** @type {(resolve: (value: number) => void) => void} */
+export const then = resolve => resolve(1);
 export default 0;
 ```
 
 The demo on this page compiles [`sample.mjs`](./sample.mjs), the module
 above, with this build's `fjs compile`, and shows the line it prints and the
 token it refuses. Below that it shows what JavaScript answers for the same
-module: `0`.
+module: `0`, its default export as a static import reads it. The same
+module loaded with `await import()` answers `1`, what `then` passed on.
 
 ## What to Write Instead
 
 Export the value under another name, as [`alternative.f.js`](./alternative.f.js) does:
 
 ```js
-export const next = 1;
+/** @type {(resolve: (value: number) => void) => void} */
+export const next = resolve => resolve(1);
 export default 0;
 ```
 
-It answers `0`.
+It answers `0`. `await import()` of this module answers the module.
 
 ## A Better Message
 

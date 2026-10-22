@@ -5,7 +5,7 @@ import alternative from './alternative.f.js'
 import { demo, suggestion } from './demo.f.mjs'
 
 /** The text of `sample.mjs`. */
-const sample = "export const then = 1;\nexport default 0;\n"
+const sample = "/** @type {(resolve: (value: number) => void) => void} */\nexport const then = resolve => resolve(1);\nexport default 0;\n"
 
 export const proof = {
     // What JavaScript answers, which the refusal keeps FunctionalScript from contradicting.
@@ -14,7 +14,7 @@ export const proof = {
     refused: () => {
         const r = report(sample)
         assert(r[0] === 'error', 'name.reserved-export is accepted')
-        assertEq(r[1][1], "sample.mjs:1:14 - error: reserved export name then")
+        assertEq(r[1][1], "sample.mjs:2:14 - error: reserved export name then")
     },
     alternative: () => assertEq(String(alternative), "0"),
     // The proposed message is at the refused token, and its fix is the alternative's line.
