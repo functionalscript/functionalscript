@@ -1,14 +1,15 @@
+/**
+ * @import { Assert } from '../../../../asserts/types.ts'
+ * @import { Equal } from '../../../../types/ts/types.ts'
+ * @import { Ts } from '../../../ts/types.ts'
+ */
+
 import { assertEq } from '../../../../asserts/module.f.js'
 import { printer } from '../../../ts/module.f.mjs'
 import { array, number, option, or, record, string } from '../../../module.f.mjs'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.mjs'
 import { demo } from './demo.f.mjs'
-
-/**
- * @import { Assert } from '../../../../asserts/types.ts'
- * @import { Ts } from '../../../ts/types.ts'
- */
 
 const verdicts = verdictsOf(lessons)
 
@@ -25,7 +26,7 @@ export const proof = {
     printer: {
         page: () => {
             /** @typedef {{ readonly a?: number } & { readonly b: number | undefined }} _Page */
-            /** @typedef {Assert<[Ts<typeof s>] extends [_Page] ? [_Page] extends [Ts<typeof s>] ? true : false : false>} _PageType */
+            /** @typedef {Assert<Equal<Ts<typeof s>, _Page>>} _PageType */
             assertEq(printer()(s), '{readonly"a"?:number,readonly"b":undefined|number}')
         },
         mutable: () => assertEq(printer(true)(array(number)), '(number)[]'),
