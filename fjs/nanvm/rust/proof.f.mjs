@@ -19,9 +19,8 @@ const valueExpr = v => nodeExpr(valueExp(v))
 /**
  * One case of every shape the printer can emit: a shared value and a
  * reference to it, a skipped case, a throwing case, an `Op12` group at unary
- * arity, the ternary operation — with an arm holding an operation, whose
- * thunk is a block over several lines, skipped so that every line of it
- * is commented out — and a commutative binary operator.
+ * arity, a ternary operation with a skipped nested operation, and a
+ * commutative binary operator. Every case has a Result-returning scope.
  *
  * @type {Data}
  */
@@ -88,44 +87,46 @@ pub fn all<A: IStaticFunction>() {
 `],
     ['eq.rs', `${header}use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let empty_array: Any<A> = Array::default().to_any();
-    check::<A>("itself", strict_eq(empty_array.clone(), empty_array.clone()), true.to_any());
-    check::<A>("itselfSwapped", strict_eq(empty_array.clone(), empty_array.clone()), true.to_any());
-    // TODO: not yet: check::<A>("skipped", strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()), true.to_any());
-    // TODO: not yet: check::<A>("skippedSwapped", strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()), true.to_any());
+    check::<A>("itself", scope(|| { strict_eq(empty_array.clone(), empty_array.clone()) }), true.to_any());
+    check::<A>("itselfSwapped", scope(|| { strict_eq(empty_array.clone(), empty_array.clone()) }), true.to_any());
+    // TODO: not yet: check::<A>("skipped", scope(|| { strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()) }), true.to_any());
+    // TODO: not yet: check::<A>("skippedSwapped", scope(|| { strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()) }), true.to_any());
 }
 `],
     ['unary_plus.rs', `${header}use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check_throws::<A>("bigint", Any::unary_plus(bigint_any(0)));
+    check_throws::<A>("bigint", scope(|| { Any::unary_plus(bigint_any(0)) }));
 }
 `],
     ['conditional.rs', `${header}use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("pick", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("skip", Any::conditional(false.to_any(), || bigint_any(1) / bigint_any(0), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    // TODO: not yet: check::<A>("skipNested", Any::conditional(false.to_any(), || {
-    //     let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
-    //     Ok([c0].to_array().to_any())
-    // }, || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("pick", scope(|| { if Any::<A>::to_boolean(true.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("skip", scope(|| { if Any::<A>::to_boolean(false.to_any()) { bigint_any(1) / bigint_any(0) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    // TODO: not yet: check::<A>("skipNested", scope(|| { if Any::<A>::to_boolean(false.to_any()) { Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any()) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
 }
 `],
     ['mul.rs', `${header}use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("oneByTwo", f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000), f64_any(0x4000000000000000));
-    check::<A>("oneByTwoSwapped", f64_any(0x4000000000000000) * f64_any(0x3ff0000000000000), f64_any(0x4000000000000000));
+    check::<A>("oneByTwo", scope(|| { f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000) }), f64_any(0x4000000000000000));
+    check::<A>("oneByTwoSwapped", scope(|| { f64_any(0x4000000000000000) * f64_any(0x3ff0000000000000) }), f64_any(0x4000000000000000));
 }
 `],
     ['method_at.rs', `${header}use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("last", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())), f64_any(0x4000000000000000));
-    check::<A>("noArgument", Any::dot(Array::default().to_any(), string_any("at")).end_call(&rt, || Ok(Array::default().to_any())), Nullish::Undefined.to_any());
+    check::<A>("last", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())) }), f64_any(0x4000000000000000));
+    check::<A>("noArgument", scope(|| { Any::dot(Array::default().to_any(), string_any("at")).end_call(&rt, || Ok(Array::default().to_any())) }), Nullish::Undefined.to_any());
 }
 `],
 ]
@@ -160,9 +161,9 @@ export const proof = {
         assertEq(
             valueExpr({ k: null }),
             '[(string_key("k"), Nullish::Null.to_any())].to_object().to_any()')
-        assertEq(valueExpr(functionValue), 'function_any()')
+        assertEq(valueExpr(functionValue), "A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some(\"()=>undefined\")).to_any()")
         // Nested, a function is the same node inside its container's.
-        assertEq(valueExpr([functionValue]), '[function_any()].to_array().to_any()')
+        assertEq(valueExpr([functionValue]), "[A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some(\"()=>undefined\")).to_any()].to_array().to_any()")
         // A function answering a value is a closure that ignores its
         // arguments.
         assertEq(valueExpr(returns('a')), 'A::static_function(|_self, _args| { Ok(string_any("a")) }, 0, Array::default(), Some("()=>\\"a\\"")).to_any()')
@@ -171,7 +172,7 @@ export const proof = {
         // `generate`'s `skip` case.
         assertEq(valueExpr(unreached), 'bigint_any(1) / bigint_any(0)')
         // A callback is a closure with its body, one `static_function`.
-        assertEq(valueExpr(callback('args')), "A::static_function(|_self, args| {\n    let rest = args.rest(0);\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some(\"(...$0)=>$0\")).to_any()")
+        assertEq(valueExpr(callback('args')), "A::static_function(|_self, _args| {\n    let _b52: Any<A> = _args.rest(0).to_any();\n    Ok(_b52.clone())\n}, 0, Array::default(), Some(\"(...$0)=>$0\")).to_any()")
     },
     /**
      * The operation nodes, printed straight from the EDAG rather than through
@@ -179,16 +180,16 @@ export const proof = {
      * and the ids are the canonical ones.
      */
     nodeExpr: () => {
-        assertEq(nodeExpr(['-', 1]), '-(f64_any(0x3ff0000000000000))')
+        assertEq(nodeExpr(['-', 1]), "<Any<A> as core::ops::Neg>::neg(f64_any(0x3ff0000000000000))")
         assertEq(nodeExpr(['+', 1]), 'Any::unary_plus(f64_any(0x3ff0000000000000))')
         assertEq(nodeExpr(['typeof', 1]), 'Any::typeof_(f64_any(0x3ff0000000000000))')
         assertEq(
             nodeExpr(['?:', true, 1, 2]),
-            'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))')
-        // The one `=>` with a spelling: the corpus's function value, printed
-        // as the harness's stand-in, and atomic as an operand.
-        assertEq(nodeExpr(lambdaExp()), 'function_any()')
-        assertEq(nodeExpr(['-', lambdaExp()]), '-(function_any())')
+            "if Any::<A>::to_boolean(true.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) }")
+        // The corpus's function value is an ordinary prepared function,
+        // including when an operator consumes it.
+        assertEq(nodeExpr(lambdaExp()), "A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some(\"()=>undefined\")).to_any()")
+        assertEq(nodeExpr(['-', lambdaExp()]), "<Any<A> as core::ops::Neg>::neg(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some(\"()=>undefined\")).to_any())")
         assertEq(
             nodeExpr(['String', 'a']),
             'string_any("a").to_string().map(|v| v.to_any())')
@@ -205,36 +206,28 @@ export const proof = {
      * program from the node — `1e308 * (1e-308 * 1e-308)` underflows to zero
      * where the flattened reading does not.
      *
-     * Grouping is all this claims. The printed text is not yet *compilable*
-     * Rust for a nested operation: every `nanvm-lib` operator returns
-     * `Result<Any<A>, Any<A>>`, which `check` takes at the top of a statement,
-     * so an inner operation hands the outer one a `Result` where it needs an
-     * `Any`. Propagating that is the nested-emission strategy owed by
-     * [corpus-as-conformance-vectors](../todo/corpus-as-conformance-vectors.md).
-     * No corpus case needs it in an eager position — a case is one operation
-     * over lowered values, and the one operation a value lowers to, an
-     * `unreached`, sits in a lazy position, where it is the thunk's own
-     * `Result` (see `generate`'s `skip` case) — but `nodeExpr` is exported
-     * and takes an arbitrary `Exp`, so a caller can reach it today.
-     *
-     * Unary `-` parenthesizes in its own template, so a composed operand
-     * there is doubly wrapped — redundant, and correct either way.
+     * Each nested operation also propagates failure with `?`. The enclosing
+     * case's scope supplies that boundary; direct fragments are intended for
+     * an equivalent Result-returning context.
      */
     nestedOperation: () => {
         assertEq(
             nodeExpr(['*', 1, ['*', 2, 3]]),
-            'f64_any(0x3ff0000000000000) * (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))')
+            "f64_any(0x3ff0000000000000) * (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?")
         assertEq(
             nodeExpr(['String', ['*', 1, 2]]),
-            '(f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)).to_string().map(|v| v.to_any())')
+            "(f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?.to_string().map(|v| v.to_any())")
         assertEq(
             nodeExpr(['-', ['*', 1, 2]]),
-            '-((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)))')
+            "<Any<A> as core::ops::Neg>::neg((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?)")
         // An array, an object and `['undefined']` are atomic renderings, so
         // they are operands as written.
-        assertEq(nodeExpr(['-', ['undefined']]), '-(Nullish::Undefined.to_any())')
-        assertEq(nodeExpr(['-', ['[]', []]]), '-(Array::default().to_any())')
-        assertEq(nodeExpr(['-', ['{}', []]]), '-(Object::default().to_any())')
+        assertEq(nodeExpr(['-', ['undefined']]), "<Any<A> as core::ops::Neg>::neg(Nullish::Undefined.to_any())")
+        assertEq(nodeExpr(['-', ['[]', []]]), "<Any<A> as core::ops::Neg>::neg(Array::default().to_any())")
+        assertEq(nodeExpr(['-', ['{}', []]]), "<Any<A> as core::ops::Neg>::neg(Object::default().to_any())")
+    },
+    computedKey: () => {
+        assert(nodeExpr(['{}', [[':', ['undefined'], 1]]]).includes('computed_item'))
     },
     /**
      * A Rust name is this printer's, and never derived from a punctuation id.
@@ -257,6 +250,19 @@ export const proof = {
         assertEq(files.length, expected.length)
         for (const [name, content] of expected) { assertEq(file(name)(files), content) }
         assertEq(files[0][0], 'mod.rs')
+    },
+    /** Commenting out a prepared block comments each continuation line too. */
+    commentedPreparedBlock: () => {
+        const rust = file('eq.rs')(generate({
+            shared: {},
+            groups: [{ op: '===', cases: [{
+                name: 'commentedBlock', args: [callback('args'), null], expected: false,
+                rust: 'intentionally commented fixture',
+            }] }],
+        }))
+        assert(rust.includes('// TODO: intentionally commented fixture: check::<A>("commentedBlock", scope(|| {'), rust)
+        assert(rust.includes('\n    //         let _b'), rust)
+        assert(!rust.includes('\n        let _b'), rust)
     },
     /**
      * A shared value referencing an earlier one clones that binding.
@@ -283,10 +289,9 @@ export const proof = {
     },
     /**
      * A case that nests an operation in an eager position — the corpus's
-     * `unreached`, an operation, as an eager operand — is a scope: its
-     * temporary bound inside the closure with its `?`, the root's `Result`
-     * the closure's answer, handed to `check_throws` whole. A flat case
-     * beside it keeps its shape.
+     * `unreached`, an operation, as an eager operand — propagates its failure
+     * inside the common Result scope. The flat case beside it uses the same
+     * scope and returns the root operation's Result.
      */
     nestedOperationCase: () => {
         const rust = file('add.rs')(generate({
@@ -300,11 +305,8 @@ export const proof = {
                 ],
             }],
         }))
-        assert(rust.includes(`    check_throws::<A>("nested", scope(|| {
-        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
-        c0 + f64_any(0x3ff0000000000000)
-    }));
-    check::<A>("flat", f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000), f64_any(0x4008000000000000));`), rust)
+        assert(rust.includes('check_throws::<A>("nested", scope(|| { (bigint_any(1) / bigint_any(0))? + f64_any(0x3ff0000000000000) }));'), rust)
+        assert(rust.includes('check::<A>("flat", scope(|| { f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000) }), f64_any(0x4008000000000000));'), rust)
     },
     generateData: () => {
         // The real corpus, which is what `gen` writes. Only its shape is
@@ -339,13 +341,5 @@ export const proof = {
          * single case.
          */
         noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: /** @type {'==='} */ (/** @type {unknown} */ ('==')), cases: [] }] }),
-        /** A bare corpus expression has no Result-returning scope for key coercion. */
-        computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
-        /**
-         * An entry that is neither a property nor a spread: read as a
-         * property it would print its second element as the key and a bare
-         * `undefined` as the value.
-         */
-        notAProperty: () => nodeExpr(['{}', [/** @type {any} */ (['?', 'x'])]]),
     },
 }

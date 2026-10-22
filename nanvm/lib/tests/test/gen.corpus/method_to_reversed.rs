@@ -2,10 +2,11 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("reversed", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("toReversed")).end_call(&rt, || Ok(Array::default().to_any())), [f64_any(0x4008000000000000), f64_any(0x4000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any());
-    check::<A>("empty", Any::dot(Array::default().to_any(), string_any("toReversed")).end_call(&rt, || Ok(Array::default().to_any())), Array::default().to_any());
-    check::<A>("argumentIgnored", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toReversed")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())), [f64_any(0x4000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any());
-    check::<A>("nested", Any::dot([[f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toReversed")).end_call(&rt, || Ok(Array::default().to_any())), [f64_any(0x4000000000000000), [f64_any(0x3ff0000000000000)].to_array().to_any()].to_array().to_any());
+    check::<A>("reversed", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("toReversed")).end_call(&rt, || Ok(Array::default().to_any())) }), [f64_any(0x4008000000000000), f64_any(0x4000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any());
+    check::<A>("empty", scope(|| { Any::dot(Array::default().to_any(), string_any("toReversed")).end_call(&rt, || Ok(Array::default().to_any())) }), Array::default().to_any());
+    check::<A>("argumentIgnored", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toReversed")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), [f64_any(0x4000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any());
+    check::<A>("nested", scope(|| { Any::dot([[f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toReversed")).end_call(&rt, || Ok(Array::default().to_any())) }), [f64_any(0x4000000000000000), [f64_any(0x3ff0000000000000)].to_array().to_any()].to_array().to_any());
 }

@@ -2,25 +2,26 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("falseOrTrue", Any::logical_or(false.to_any(), || Ok(true.to_any())), true.to_any());
-    check::<A>("trueOrFalse", Any::logical_or(true.to_any(), || Ok(false.to_any())), true.to_any());
-    check::<A>("falseOrFalse", Any::logical_or(false.to_any(), || Ok(false.to_any())), false.to_any());
-    check::<A>("nullOrOne", Any::logical_or(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("undefinedOrOne", Any::logical_or(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("zeroOrOne", Any::logical_or(f64_any(0x0000000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("nanOrOne", Any::logical_or(f64_any(0x7ff8000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("oneOrZero", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(f64_any(0x0000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("oneOrTwo", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("emptyStringOrOne", Any::logical_or(string_any(""), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("nonEmptyStringOrOne", Any::logical_or(string_any("a"), || Ok(f64_any(0x3ff0000000000000))), string_any("a"));
-    check::<A>("bigZeroOrOne", Any::logical_or(bigint_any(0), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("bigOneOrTwo", Any::logical_or(bigint_any(1), || Ok(f64_any(0x4000000000000000))), bigint_any(1));
-    check::<A>("oneOrEmptyArray", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(Array::default().to_any())), f64_any(0x3ff0000000000000));
-    check::<A>("oneOrEmptyObject", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(Object::default().to_any())), f64_any(0x3ff0000000000000));
-    check::<A>("oneOrFunction", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(function_any())), f64_any(0x3ff0000000000000));
-    check::<A>("trueOrUnreached", Any::logical_or(true.to_any(), || bigint_any(1) / bigint_any(0)), true.to_any());
-    check::<A>("oneOrUnreached", Any::logical_or(f64_any(0x3ff0000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x3ff0000000000000));
-    check::<A>("nonEmptyStringOrUnreached", Any::logical_or(string_any("a"), || bigint_any(1) / bigint_any(0)), string_any("a"));
-    check::<A>("bigOneOrUnreached", Any::logical_or(bigint_any(1), || bigint_any(1) / bigint_any(0)), bigint_any(1));
+    check::<A>("falseOrTrue", scope(|| { Any::logical_or(false.to_any(), || Ok(true.to_any())) }), true.to_any());
+    check::<A>("trueOrFalse", scope(|| { Any::logical_or(true.to_any(), || Ok(false.to_any())) }), true.to_any());
+    check::<A>("falseOrFalse", scope(|| { Any::logical_or(false.to_any(), || Ok(false.to_any())) }), false.to_any());
+    check::<A>("nullOrOne", scope(|| { Any::logical_or(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("undefinedOrOne", scope(|| { Any::logical_or(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("zeroOrOne", scope(|| { Any::logical_or(f64_any(0x0000000000000000), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("nanOrOne", scope(|| { Any::logical_or(f64_any(0x7ff8000000000000), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("oneOrZero", scope(|| { Any::logical_or(f64_any(0x3ff0000000000000), || Ok(f64_any(0x0000000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("oneOrTwo", scope(|| { Any::logical_or(f64_any(0x3ff0000000000000), || Ok(f64_any(0x4000000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("emptyStringOrOne", scope(|| { Any::logical_or(string_any(""), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("nonEmptyStringOrOne", scope(|| { Any::logical_or(string_any("a"), || Ok(f64_any(0x3ff0000000000000))) }), string_any("a"));
+    check::<A>("bigZeroOrOne", scope(|| { Any::logical_or(bigint_any(0), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("bigOneOrTwo", scope(|| { Any::logical_or(bigint_any(1), || Ok(f64_any(0x4000000000000000))) }), bigint_any(1));
+    check::<A>("oneOrEmptyArray", scope(|| { Any::logical_or(f64_any(0x3ff0000000000000), || Ok(Array::default().to_any())) }), f64_any(0x3ff0000000000000));
+    check::<A>("oneOrEmptyObject", scope(|| { Any::logical_or(f64_any(0x3ff0000000000000), || Ok(Object::default().to_any())) }), f64_any(0x3ff0000000000000));
+    check::<A>("oneOrFunction", scope(|| { Any::logical_or(f64_any(0x3ff0000000000000), || Ok(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any())) }), f64_any(0x3ff0000000000000));
+    check::<A>("trueOrUnreached", scope(|| { Any::logical_or(true.to_any(), || bigint_any(1) / bigint_any(0)) }), true.to_any());
+    check::<A>("oneOrUnreached", scope(|| { Any::logical_or(f64_any(0x3ff0000000000000), || bigint_any(1) / bigint_any(0)) }), f64_any(0x3ff0000000000000));
+    check::<A>("nonEmptyStringOrUnreached", scope(|| { Any::logical_or(string_any("a"), || bigint_any(1) / bigint_any(0)) }), string_any("a"));
+    check::<A>("bigOneOrUnreached", scope(|| { Any::logical_or(bigint_any(1), || bigint_any(1) / bigint_any(0)) }), bigint_any(1));
 }

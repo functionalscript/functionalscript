@@ -10,7 +10,7 @@
  */
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
-import { compile, outputText, noRuntime, runtimeSource } from './module.f.mjs'
+import { compile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
 import { resolve, unresolved } from './edag/module.f.mjs'
@@ -304,6 +304,12 @@ const roundTripCorpus = [
 ]
 
 export const proof = {
+    stringifyTree: () => {
+        // The proof dump retains undefined leaves and own members while
+        // sorting object keys independently of their insertion order.
+        assertEq(_stringifyTree(undefined), 'undefined')
+        assertEq(_stringifyTree({ z: undefined, a: [undefined] }), '{"a":[undefined],"z":undefined}')
+    },
     // A data output interprets the module under the package's runtime: a
     // module calling `startsWith` at initialization writes its value. The
     // runtime is loaded then and only then — a code output of the same
@@ -690,7 +696,7 @@ export const proof = {
             assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return 1; };'), 'const $0=[1];export default ()=>1;')
             assertEq(fjsRoundTrip('const c = null.x; export default (...a) => (() => { const x = c; return 1; })();'), 'const $0=null.x;export default ()=>1;')
             assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return [x, c]; };'), 'const $0=[1];export default ()=>[$0,$0];')
-            assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'const $0=(...$1)=>$1[0]?(()=>{const $2=[1];return [$2,$2];})():4;export const f=$0;export default 1;')
+            assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'export const f=(...$0)=>$0[0]?(()=>{const $1=[1];return [$1,$1];})():4;export default 1;')
         },
         // A node the graph shares is one `const`, whatever its kind, and a
         // node it does not is written where it stands: one node read twice
@@ -716,11 +722,11 @@ export const proof = {
             assertEq(fjsRoundTrip('const f = (n) => { const g = f; return () => [f, g]; }; export default f;'), 'const $0=($1)=>()=>[$0,$0];export default $0;')
             assertEq(compileSource('const f = (a) => { const b = a; return () => [a, b]; }; export default [String(f), String(f(1))];')('output.json'), '["($0)=>()=>[$0,$0]","()=>[$0,$0]"]')
             // a loop's block whose `const`s read the captures in another
-            // order than the source named them opens by naming them in its
-            // order, which reads back as the same frame
+            // order than the source named them uses the scalar helper's
+            // ordered capture aliases, which read back as the same frame
             assertEq(
                 fjsRoundTrip('export default (b, f) => { let w = 0; while (w < 3) { const u0 = f(b); const u1 = b + u0; const u2 = f?.(u1); w = w + 1; } return 0; };'),
-                'export default ($0,$1)=>{let $2=0;while($2<3){const $3=$1;const $4=$0;const $5=$4+$3($4);const $6=$3?.($5);$2=$2+1;}return 0;};')
+                'export default ($0,$1)=>{const $2=($3)=>{const $4=$1;const $5=$0;let $6=$3;while((()=>{const $7=$6;return $7<3;})()){const $8=$6;const $9=$5+$4($5);const $10=$4?.($9);const $11=$8+1;$6=$11;}return $6;};const $12=$2(0);return 0;};')
             // an anchor on a node the scope reaches anyway, a `const` read
             // only through a call inlined beside it, is that node's `const`,
             // in a body and in a module: the text is what the graph says, and
@@ -755,7 +761,7 @@ export const proof = {
             assertEq(fjsRoundTrip('export default typeof (1 + 2) === typeof typeof [];'), 'export default typeof (1+2)===typeof typeof [];')
             assertEq(fjsRoundTrip('export default Number(" 4 ") + Number(1n) * -Number([7]);'), 'export default Number(" 4 ")+Number(1n)*-Number([7]);')
             assertEq(compileSource('export default Number("0x10");')('output.json'), '16')
-            assert(compileSource('export default Number("0x10");')('output.rs').includes('(Any::number(string_any("0x10")))?;\n'))
+            assert(compileSource('export default Number("0x10");')('output.rs').includes('(Any::number(string_any("0x10")))?'))
             assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
             assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
             assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -(()=>1);')
@@ -946,8 +952,8 @@ export const proof = {
             assertEq(moduleRefused('const n = null; export default (n?.b).c;'), 'input.f.js - error: module initialization failed')
             assertEq(compileSource('const n = null; export default n?.b.c;')('output.edag.data.js'), 'export default ["{}",[[":","default",["?.",null,"b",["|.","c"]]]]];')
             assertEq(compileSource('const f = (...x) => x; export default f?.(1).length;')('output.edag.data.js'), 'export default ["{}",[[":","default",["?.()",["=>",0,[],["rest"]],[1],["|.","length"]]]]];')
-            assertEq(fjsRoundTrip(`${o}export default [a?.b.c, (a?.b).c, a?.b?.c, a?.b.d(1).length, (a?.b.d)(1), a?.b?.d?.(1), a.b?.d(1), (a.b?.d(1))(2), n?.(1)?.(2), (n?.(1))(2)];`), 'const $0={"b":{"c":1,"d":(...$1)=>$1}};export default [$0?.b.c,($0?.b).c,$0?.b?.c,$0?.b.d(1).length,($0?.b.d)(1),$0?.b?.d?.(1),$0.b?.d(1),($0.b?.d(1))(2),null?.(1)?.(2),(null?.(1))(2)];')
-            assertEq(fjsRoundTrip('export default (...x) => [x?.[0], x?.["a b"], x[0]?.y, 1?.x];'), 'export default (...$0)=>{const $1=1;return [$0?.[0],$0?.["a b"],$0[0]?.y,$1?.x];};')
+            assertEq(fjsRoundTrip(`${o}export default [a?.b.c, (a?.b).c, a?.b?.c, a?.b.d(1).length, (a?.b.d)(1), a?.b?.d?.(1), a.b?.d(1), (a.b?.d(1))(2), n?.(1)?.(2), (n?.(1))(2)];`), 'const $0={"b":{"c":1,"d":(...$1)=>$1}};const $2=$0.b?.d(1);const $3=null?.(1);const $4=null?.(1);export default [$0?.b.c,($0?.b).c,$0?.b?.c,$0?.b.d(1).length,($0?.b.d)(1),$0?.b?.d?.(1),$0.b?.d(1),$2(2),$3?.(2),$4(2)];')
+            assertEq(fjsRoundTrip('export default (...x) => [x?.[0], x?.["a b"], x[0]?.y, 1?.x];'), 'export default (...$0)=>[$0?.[0],$0?.["a b"],$0[0]?.y,(1)?.x];')
             // a key is judged as an access's: refused at the key, through a step too
             assertEq(moduleRefused('export default [1, 2]?.at;'), 'input.f.js:1:24 - error: prohibited property name')
             assertEq(moduleRefused('export default [1, 2]?.push(0);'), 'input.f.js:1:24 - error: prohibited member function')
@@ -977,10 +983,9 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any();
-    let c1: Any<A> = Any::dot(c0, string_any("b")).end()?;
-    Ok([(string_key("default"), c1)].to_object().to_any())
+    Ok([(string_key("default"), (Any::dot([(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("b")).end())?)].to_object().to_any())
 }
 `)
         },
@@ -995,10 +1000,9 @@ use nanvm_lib::vm::unstable::{f64_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c1: Any<A> = Any::dot(c0, f64_any(0x0000000000000000)).end()?;
-    Ok([(string_key("default"), c1)].to_object().to_any())
+    Ok([(string_key("default"), (Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000)).end())?)].to_object().to_any())
 }
 `)
         },
@@ -1022,7 +1026,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // data outputs evaluate the module and report the throw as theirs.
         nullishBase: () => {
             assert(compileSource('const a = null; export default a.x;')('output.rs')
-                .includes('Any::dot(Nullish::Null.to_any(), string_any("x")).end()?'))
+                .includes('(Any::dot(Nullish::Null.to_any(), string_any("x")).end())?'))
         },
         // A bigint outside `i64` is written as its sign and `u64` words,
         // which a literal's own text cannot be.
@@ -1030,19 +1034,15 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assert(compileSource('export default 9223372036854775808n;')('output.rs')
                 .includes('bigint_any_words(false, &[0x8000000000000000])'))
         },
-        // Every eager operator prints as a temporary, its `let` followed
-        // by `?`: `pub fn module` answers the `Result` a throw lands in, so
-        // the temporary is an `Any<A>`, referenced by name in the export
-        // object. A negated *literal* never reaches the printer as a node —
-        // the lowering folds it into the number — and prints as it always
-        // did.
+        // Single-use operators stay inline, with `?` propagating each failure
+        // through the module's Result. Common placement gives shared values
+        // their own binding. Negated literals remain folded number leaves.
         operators: () => {
             /** The lines of the module's body. @type {(source: string) => readonly string[]} */
             const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
             /** @type {(source: string, value: string) => void} */
             const expect = (source, value) => assertStructurallySame(body(source), [
-                `    let c0: Any<A> = ${value};`,
-                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+                `    Ok([(string_key("default"), ${value})].to_object().to_any())`,
             ])
             const one = 'f64_any(0x3ff0000000000000)'
             const two = 'f64_any(0x4000000000000000)'
@@ -1065,19 +1065,14 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             expect('export default 1 >> 2;', `(${one} >> ${two})?`)
             expect('export default 1 >>> 2;', `(Any::unsigned_right_shift(${one}, ${two}))?`)
             expect('export default ~1;', `(Any::bitwise_not(${one}))?`)
-            expect('export default -"a";', '(-(string_any("a")))?')
-            // an operand with operands of its own is a temporary before the
-            // operation, referenced by name: a literal array, an inner
-            // operation
+            expect('export default -"a";', '(<Any<A> as core::ops::Neg>::neg(string_any("a")))?')
+            // Nested single-use operands stay inline too; inner failures
+            // still propagate before their enclosing operation finishes.
             assertStructurallySame(body('export default -[1];'), [
-                `    let c0: Any<A> = [${one}].to_array().to_any();`,
-                '    let c1: Any<A> = (-(c0))?;',
-                '    Ok([(string_key("default"), c1)].to_object().to_any())',
+                `    Ok([(string_key("default"), (<Any<A> as core::ops::Neg>::neg([${one}].to_array().to_any()))?)].to_object().to_any())`,
             ])
             assertStructurallySame(body('export default 1 + 2 * 1;'), [
-                `    let c0: Any<A> = (${two} * ${one})?;`,
-                `    let c1: Any<A> = (${one} + c0)?;`,
-                '    Ok([(string_key("default"), c1)].to_object().to_any())',
+                `    Ok([(string_key("default"), (${one} + (${two} * ${one})?)?)].to_object().to_any())`,
             ])
             // `===` and `!==` import their helpers, as every literal does its own
             assertEq(
@@ -1088,68 +1083,52 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'export default [-1, -1n, - -1, -Infinity, -0];',
                 '[f64_any(0xbff0000000000000), bigint_any(-1), f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000), f64_any(0x8000000000000000)].to_array().to_any()')
         },
-        // A lazy operator's conditionally established operand prints as
-        // the thunk `nanvm-lib` takes — `|| Ok(…)` around a value, an
-        // operation's own line bound to a closure — so the `1n / 0n` a
-        // `&&` never reaches, or the arm a `?:` does not select, is never
-        // run: `nanvm/harness/fixtures/lazy.mjs` runs each against the VM.
+        // Logical operators keep conditionally reached operands in the
+        // runtime API's thunks; a conditional uses selected Rust branches.
+        // The lazy corpus runs each skipped/reached failure against the VM.
         lazyOperators: () => {
             /** The lines of the module's body. @type {(source: string) => readonly string[]} */
             const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
             const one = 'f64_any(0x3ff0000000000000)'
             const two = 'f64_any(0x4000000000000000)'
             assertStructurallySame(body('export default 1 && 2;'), [
-                `    let c0: Any<A> = (Any::logical_and(${one}, || Ok(${two})))?;`,
-                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+                `    Ok([(string_key("default"), (Any::logical_and(${one}, || Ok(${two})))?)].to_object().to_any())`,
             ])
             assertStructurallySame(body('export default false || 1n / 0n;'), [
-                '    let c0 = || bigint_any(1) / bigint_any(0);',
-                '    let c1: Any<A> = (Any::logical_or(false.to_any(), c0))?;',
-                '    Ok([(string_key("default"), c1)].to_object().to_any())',
+                '    Ok([(string_key("default"), (Any::logical_or(false.to_any(), || bigint_any(1) / bigint_any(0)))?)].to_object().to_any())',
             ])
             assertStructurallySame(body('export default null ?? 1;'), [
-                `    let c0: Any<A> = (Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(${one})))?;`,
-                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+                `    Ok([(string_key("default"), (Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(${one})))?)].to_object().to_any())`,
             ])
             assertStructurallySame(body('export default true ? 1 : 2;'), [
-                `    let c0: Any<A> = (Any::conditional(true.to_any(), || Ok(${one}), || Ok(${two})))?;`,
-                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+                `    Ok([(string_key("default"), if Any::<A>::to_boolean(true.to_any()) { ${one} } else { ${two} })].to_object().to_any())`,
             ])
             // a `const` reached only lazily is anchored — a `let` before
             // the root, as JavaScript establishes a `const` at its
             // declaration — and each thunk clones it
             assertStructurallySame(body('const c = [1]; export default [false && c, true && c];'), [
-                `    let c0: Any<A> = [${one}].to_array().to_any();`,
-                '    let c1: Any<A> = (Any::logical_and(false.to_any(), || Ok(c0.clone())))?;',
-                '    let c2: Any<A> = (Any::logical_and(true.to_any(), || Ok(c0.clone())))?;',
-                '    let c3: Any<A> = [c1, c2].to_array().to_any();',
-                '    Ok([(string_key("default"), c3)].to_object().to_any())',
+                `    let _b0: Any<A> = [${one}].to_array().to_any();`,
+                '    Ok([(string_key("default"), [(Any::logical_and(false.to_any(), || Ok(_b0.clone())))?, (Any::logical_and(true.to_any(), || Ok(_b0.clone())))?].to_array().to_any())].to_object().to_any())',
             ])
             // a function's arguments reached only lazily are no `const`
             // to anchor and need none: the parameter is bound already, so
-            // the body binds it once and each thunk clones it
+            // the body binds it once and each selected arm clones it
             assertStructurallySame(body('export default (...a) => true ? a : a;'), [
-                '    let c0: Any<A> = A::static_function(|_self, args| {',
-                '        let rest = args.rest(0);',
-                '        let c0 = || Ok(rest.clone().to_any());',
-                '        Any::conditional(true.to_any(), c0, c0)',
-                '    }, 0, Array::default(), Some("(...$0)=>true?$0:$0")).to_any();',
-                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+                '    Ok([(string_key("default"), A::static_function(|_self, _args| {',
+                '        let _b92: Any<A> = _args.rest(0).to_any();',
+                '        if Any::<A>::to_boolean(true.to_any()) { Ok(_b92.clone()) } else { Ok(_b92.clone()) }',
+                '    }, 0, Array::default(), Some("(...$0)=>true?$0:$0")).to_any())].to_object().to_any())',
             ])
             assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
-                '    let c0: Any<A> = A::static_function(|_self, args| {',
-                '        let rest = args.rest(0);',
-                '        let c0: Any<A> = rest.clone().to_any();',
-                '        let c1 = || Ok([c0.clone()].to_array().to_any());',
-                '        let c2 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
-                '        Any::conditional(true.to_any(), c1, c2)',
-                '    }, 0, Array::default(), Some("(...$0)=>true?[$0]:[$0,$0]")).to_any();',
-                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+                '    Ok([(string_key("default"), A::static_function(|_self, _args| {',
+                '        let _b174: Any<A> = _args.rest(0).to_any();',
+                '        if Any::<A>::to_boolean(true.to_any()) { Ok([_b174.clone()].to_array().to_any()) } else { Ok([_b174.clone(), _b174.clone()].to_array().to_any()) }',
+                '    }, 0, Array::default(), Some("(...$0)=>true?[$0]:[$0,$0]")).to_any())].to_object().to_any())',
             ])
         },
         // A shared operation is established once, in its `let`, with the
-        // same `?`; each reference clones the value it produced, where a
-        // value referenced once — the array — is moved.
+        // same `?`; each reference clones the value it produced, while a
+        // value referenced once — the array — stays inline.
         // A `const` inside an arm — a call inlined by the lowering — is a
         // shared node the arm alone reaches, bound in the arm's own block
         // and so established exactly when the arm is taken. Through the
@@ -1158,26 +1137,24 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // corpus.
         inlinedCall: () => {
             assert(compileSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
-                '        let c1 = || {',
-                '            let c2: Any<A> = Any::call(A::frame(self_)[0].clone(), Array::default().to_any())?;',
-                '            Ok([c2.clone(), c2.clone()].to_array().to_any())',
-                '        };',
-                '        Any::conditional(c0, c1, || Ok(f64_any(0x4010000000000000)))',
+                '        if Any::<A>::to_boolean((Any::dot(_b362.clone(), f64_any(0x0000000000000000)).end())?) {',
+                '            let _b5: Any<A> = (Any::call(A::frame(_self)[0].clone(), Array::default().to_any()))?;',
+                '            Ok([_b5.clone(), _b5.clone()].to_array().to_any())',
+                '        } else { Ok(f64_any(0x4010000000000000)) }',
             ].join('\n')))
             // and one at an eager position, its anchor floated to the
             // scope's root, prints as an anchored `const` does
             assert(compileSource('export default [(() => { const x = null.x; return 1; })()];')('output.rs').includes([
-                '    let _: Any<A> = Any::dot(Nullish::Null.to_any(), string_any("x")).end()?;',
-                '    let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                '    let _b148: Any<A> = (Any::dot(Nullish::Null.to_any(), string_any("x")).end())?;',
+                '    Ok([(string_key("default"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any())',
             ].join('\n')))
         },
         sharedOperation: () => {
             assertStructurallySame(
                 compileSource('const a = 1 + 2; export default [a, a];')('output.rs').split('\n').filter(line => line.startsWith('    ')),
                 [
-                    '    let c0: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
-                    '    let c1: Any<A> = [c0.clone(), c0.clone()].to_array().to_any();',
-                    '    Ok([(string_key("default"), c1)].to_object().to_any())',
+                    '    let _b0: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
+                    '    Ok([(string_key("default"), [_b0.clone(), _b0.clone()].to_array().to_any())].to_object().to_any())',
                 ])
         },
     },

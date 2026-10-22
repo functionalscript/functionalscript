@@ -5,24 +5,13 @@ use nanvm_lib::vm::unstable::{f64_any, string_key};
 use nanvm_lib::vm::{Any, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [f64_any(0x4008000000000000)].to_array().to_any();
-    let c1: Any<A> = [(string_key("unused"), f64_any(0x4022000000000000))].to_object().to_any();
-    let c2: Any<A> = A::static_function(|self_, args| {
-        let c0: Any<A> = (A::frame(self_)[0].clone() + args.argument(0))?;
-        Ok([c0, A::frame(self_)[1].clone(), A::frame(self_)[2].clone()].to_array().to_any())
-    }, 1, [f64_any(0x4000000000000000), c0.clone(), c0.clone(), c1.clone()].to_array(), Some("($4)=>[$0+$4,$1,$2]")).to_any();
-    let c3: Any<A> = A::static_function(|self_, args| {
-        let c0: Any<A> = (A::frame(self_)[0].clone() + args.argument(0))?;
-        Ok([c0, A::frame(self_)[1].clone(), A::frame(self_)[2].clone()].to_array().to_any())
-    }, 1, [f64_any(0x4000000000000000), c0.clone(), c0.clone(), c1.clone()].to_array(), Some("($4)=>[$0+$4,$1,$2]")).to_any();
-    let c4: Any<A> = A::static_function(|self_, args| {
-        let c0: Any<A> = [args.argument(0)].to_array().to_any();
-        Ok(A::static_function(|self_, args| {
-            let c0 = || Ok([A::frame(self_)[0].clone(), A::frame(self_)[1].clone(), A::frame(self_)[1].clone()].to_array().to_any());
-            let c1 = || Err(A::frame(self_)[1].clone());
-            Any::conditional(args.argument(0), c0, c1)
-        }, 1, [A::frame(self_)[0].clone(), c0].to_array(), Some("($2)=>$2?[$0,$1,$1]:(()=>{throw $1;})()")).to_any())
-    }, 1, [c0.clone()].to_array(), Some("($1)=>{const $2=[$1];return ($3)=>$3?[$0,$2,$2]:(()=>{throw $2;})();}")).to_any();
-    Ok([(string_key("shared"), c0.clone()), (string_key("alias"), c0.clone()), (string_key("call"), c2.clone()), (string_key("again"), c2.clone()), (string_key("other"), c3), (string_key("make"), c4)].to_object().to_any())
+    let _b0: Any<A> = [f64_any(0x4008000000000000)].to_array().to_any();
+    let _b1: Any<A> = [(string_key("unused"), f64_any(0x4022000000000000))].to_object().to_any();
+    let _b8: Any<A> = A::static_function(|_self, _args| { Ok([(A::frame(_self)[0].clone() + _args.argument(0))?, A::frame(_self)[1].clone(), A::frame(_self)[2].clone()].to_array().to_any()) }, 1, [f64_any(0x4000000000000000), _b0.clone(), _b0.clone(), _b1.clone()].to_array(), Some("($4)=>[$0+$4,$1,$2]")).to_any();
+    Ok([(string_key("shared"), _b0.clone()), (string_key("alias"), _b0.clone()), (string_key("call"), _b8.clone()), (string_key("again"), _b8.clone()), (string_key("other"), A::static_function(|_self, _args| { Ok([(A::frame(_self)[0].clone() + _args.argument(0))?, A::frame(_self)[1].clone(), A::frame(_self)[2].clone()].to_array().to_any()) }, 1, [f64_any(0x4000000000000000), _b0.clone(), _b0.clone(), _b1.clone()].to_array(), Some("($4)=>[$0+$4,$1,$2]")).to_any()), (string_key("make"), A::static_function(|_self, _args| {
+        let _b18: Any<A> = [_args.argument(0)].to_array().to_any();
+        Ok(A::static_function(|_self, _args| { if Any::<A>::to_boolean(_args.argument(0)) { Ok([A::frame(_self)[0].clone(), A::frame(_self)[1].clone(), A::frame(_self)[1].clone()].to_array().to_any()) } else { Err(A::frame(_self)[1].clone()) } }, 1, [A::frame(_self)[0].clone(), _b18.clone()].to_array(), Some("($2)=>$2?[$0,$1,$1]:(()=>{throw $1;})()")).to_any())
+    }, 1, [_b0.clone()].to_array(), Some("($1)=>{const $2=[$1];return ($3)=>$3?[$0,$2,$2]:(()=>{throw $2;})();}")).to_any())].to_object().to_any())
 }

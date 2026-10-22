@@ -2,21 +2,22 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("nullCoalesceOne", Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("undefinedCoalesceOne", Any::nullish_coalescing(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("zeroCoalesceOne", Any::nullish_coalescing(f64_any(0x0000000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x0000000000000000));
-    check::<A>("falseCoalesceOne", Any::nullish_coalescing(false.to_any(), || Ok(f64_any(0x3ff0000000000000))), false.to_any());
-    check::<A>("nanCoalesceOne", Any::nullish_coalescing(f64_any(0x7ff8000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x7ff8000000000000));
-    check::<A>("emptyStringCoalesceOne", Any::nullish_coalescing(string_any(""), || Ok(f64_any(0x3ff0000000000000))), string_any(""));
-    check::<A>("bigZeroCoalesceOne", Any::nullish_coalescing(bigint_any(0), || Ok(f64_any(0x3ff0000000000000))), bigint_any(0));
-    check::<A>("oneCoalesceTwo", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("oneCoalesceNull", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(Nullish::Null.to_any())), f64_any(0x3ff0000000000000));
-    check::<A>("oneCoalesceEmptyArray", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(Array::default().to_any())), f64_any(0x3ff0000000000000));
-    check::<A>("oneCoalesceEmptyObject", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(Object::default().to_any())), f64_any(0x3ff0000000000000));
-    check::<A>("oneCoalesceFunction", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(function_any())), f64_any(0x3ff0000000000000));
-    check::<A>("oneCoalesceUnreached", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x3ff0000000000000));
-    check::<A>("zeroCoalesceUnreached", Any::nullish_coalescing(f64_any(0x0000000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x0000000000000000));
-    check::<A>("falseCoalesceUnreached", Any::nullish_coalescing(false.to_any(), || bigint_any(1) / bigint_any(0)), false.to_any());
-    check::<A>("emptyStringCoalesceUnreached", Any::nullish_coalescing(string_any(""), || bigint_any(1) / bigint_any(0)), string_any(""));
+    check::<A>("nullCoalesceOne", scope(|| { Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("undefinedCoalesceOne", scope(|| { Any::nullish_coalescing(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("zeroCoalesceOne", scope(|| { Any::nullish_coalescing(f64_any(0x0000000000000000), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x0000000000000000));
+    check::<A>("falseCoalesceOne", scope(|| { Any::nullish_coalescing(false.to_any(), || Ok(f64_any(0x3ff0000000000000))) }), false.to_any());
+    check::<A>("nanCoalesceOne", scope(|| { Any::nullish_coalescing(f64_any(0x7ff8000000000000), || Ok(f64_any(0x3ff0000000000000))) }), f64_any(0x7ff8000000000000));
+    check::<A>("emptyStringCoalesceOne", scope(|| { Any::nullish_coalescing(string_any(""), || Ok(f64_any(0x3ff0000000000000))) }), string_any(""));
+    check::<A>("bigZeroCoalesceOne", scope(|| { Any::nullish_coalescing(bigint_any(0), || Ok(f64_any(0x3ff0000000000000))) }), bigint_any(0));
+    check::<A>("oneCoalesceTwo", scope(|| { Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(f64_any(0x4000000000000000))) }), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceNull", scope(|| { Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(Nullish::Null.to_any())) }), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceEmptyArray", scope(|| { Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(Array::default().to_any())) }), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceEmptyObject", scope(|| { Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(Object::default().to_any())) }), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceFunction", scope(|| { Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any())) }), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceUnreached", scope(|| { Any::nullish_coalescing(f64_any(0x3ff0000000000000), || bigint_any(1) / bigint_any(0)) }), f64_any(0x3ff0000000000000));
+    check::<A>("zeroCoalesceUnreached", scope(|| { Any::nullish_coalescing(f64_any(0x0000000000000000), || bigint_any(1) / bigint_any(0)) }), f64_any(0x0000000000000000));
+    check::<A>("falseCoalesceUnreached", scope(|| { Any::nullish_coalescing(false.to_any(), || bigint_any(1) / bigint_any(0)) }), false.to_any());
+    check::<A>("emptyStringCoalesceUnreached", scope(|| { Any::nullish_coalescing(string_any(""), || bigint_any(1) / bigint_any(0)) }), string_any(""));
 }

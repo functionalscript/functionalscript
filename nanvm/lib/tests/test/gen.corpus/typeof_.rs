@@ -2,20 +2,21 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("undefined", Any::typeof_(Nullish::Undefined.to_any()), string_any("undefined"));
-    check::<A>("null", Any::typeof_(Nullish::Null.to_any()), string_any("object"));
-    check::<A>("booleanTrue", Any::typeof_(true.to_any()), string_any("boolean"));
-    check::<A>("booleanFalse", Any::typeof_(false.to_any()), string_any("boolean"));
-    check::<A>("number", Any::typeof_(f64_any(0x4002666666666666)), string_any("number"));
-    check::<A>("numberNan", Any::typeof_(f64_any(0x7ff8000000000000)), string_any("number"));
-    check::<A>("string", Any::typeof_(string_any("a")), string_any("string"));
-    check::<A>("stringEmpty", Any::typeof_(string_any("")), string_any("string"));
-    check::<A>("bigint", Any::typeof_(bigint_any(5)), string_any("bigint"));
-    check::<A>("bigintZero", Any::typeof_(bigint_any(0)), string_any("bigint"));
-    check::<A>("emptyArray", Any::typeof_(Array::default().to_any()), string_any("object"));
-    check::<A>("array", Any::typeof_([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any()), string_any("object"));
-    check::<A>("emptyObject", Any::typeof_(Object::default().to_any()), string_any("object"));
-    check::<A>("object", Any::typeof_([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()), string_any("object"));
-    check::<A>("function", Any::typeof_(function_any()), string_any("function"));
+    check::<A>("undefined", scope(|| { Any::typeof_(Nullish::Undefined.to_any()) }), string_any("undefined"));
+    check::<A>("null", scope(|| { Any::typeof_(Nullish::Null.to_any()) }), string_any("object"));
+    check::<A>("booleanTrue", scope(|| { Any::typeof_(true.to_any()) }), string_any("boolean"));
+    check::<A>("booleanFalse", scope(|| { Any::typeof_(false.to_any()) }), string_any("boolean"));
+    check::<A>("number", scope(|| { Any::typeof_(f64_any(0x4002666666666666)) }), string_any("number"));
+    check::<A>("numberNan", scope(|| { Any::typeof_(f64_any(0x7ff8000000000000)) }), string_any("number"));
+    check::<A>("string", scope(|| { Any::typeof_(string_any("a")) }), string_any("string"));
+    check::<A>("stringEmpty", scope(|| { Any::typeof_(string_any("")) }), string_any("string"));
+    check::<A>("bigint", scope(|| { Any::typeof_(bigint_any(5)) }), string_any("bigint"));
+    check::<A>("bigintZero", scope(|| { Any::typeof_(bigint_any(0)) }), string_any("bigint"));
+    check::<A>("emptyArray", scope(|| { Any::typeof_(Array::default().to_any()) }), string_any("object"));
+    check::<A>("array", scope(|| { Any::typeof_([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any()) }), string_any("object"));
+    check::<A>("emptyObject", scope(|| { Any::typeof_(Object::default().to_any()) }), string_any("object"));
+    check::<A>("object", scope(|| { Any::typeof_([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()) }), string_any("object"));
+    check::<A>("function", scope(|| { Any::typeof_(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any()) }), string_any("function"));
 }

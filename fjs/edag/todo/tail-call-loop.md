@@ -1,14 +1,14 @@
 ## Write a tail self-call as a loop
 
 **Priority:** P2
-**Status:** wip — the recognizer, the function text, the Rust output and
-the source spelling with its grammar are implemented, the grammar's
-proposal approved; common FAST migration remains
+**Status:** wip — baseline input/output and tail-loop emission use shared FAST;
+general tail-call analysis remains in F
 
-The implemented writer behavior below records the current contracts. The
-[FAST migration](#fast-migration) supersedes its writer ownership, including
-permission for writer-specific recursion decisions; it does not change the
-current implementation in this documentation-only proposal.
+The implemented writer behavior below records the historical baseline. The
+[FAST migration](#fast-migration) is complete: common conversion and preparation
+now own those decisions for every target. The shared pass contracts are
+[`edag/to_fast`](../to_fast/README.md) and
+[`js/ast/prepare`](../../js/ast/prepare/README.md).
 
 The [general loops and tail calls epic](../../todo/general-loops-and-tail-calls.md)
 requires FAST and migration of existing consumers before broader behavior.
@@ -294,12 +294,12 @@ Broader milestone F work follows under [general tail calls](#general-tail-calls)
       a rest-reading function left as recursion, with the grammar
       ([spec: loops](../../../spec/control-flow/loops.md)), its proposal
       approved, proven by the round trip.
-- [ ] Move the implemented loop decisions and eligible call elimination to
+- [x] Move the implemented loop decisions and eligible call elimination to
       common EDAG-to-FAST conversion, with the capture and region rules above.
       Migrate consumers incrementally once the shared path preserves their
       contracts; retire each replaced graph-aware path with its consumer and
       update JSDoc/specification ownership. The completed migration has one policy.
-- [ ] Carry over the million-round, source-round-trip, closure-capture,
+- [x] Carry over the million-round, source-round-trip, closure-capture,
       shared-condition, lazy-failure, rest-read and root-assert cases. Verify
       the common FAST decision across JS and Rust, function text's invocation
       lifetimes, and the existing stack-safe cases before removing old paths.

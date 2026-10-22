@@ -4,7 +4,7 @@ import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { Unknown as JsonUnknown } from '../../media/json/types.ts'
-import type { AstModule } from '../ast/types.ts'
+import type { ResolvedModule } from '../parser/types.ts'
 
 /** The host supplies stable identity and a path for loading and diagnostics. */
 export type _Source = {
@@ -32,5 +32,5 @@ export type _Load<T, S, E> = {
     /** What importing `name` binds, the whole module where `name` is `null`, or `undefined` where the module has no such export. */
     readonly select: (module: T, name: string | null) => S | undefined
     /** A parsed module completed over its imports' bindings, in import order. */
-    readonly module: (source: _Source, imports: readonly S[], module: AstModule) => Result<T, E>
+    readonly module: (source: _Source, imports: readonly S[], module: ResolvedModule) => Result<T, E>
 }
