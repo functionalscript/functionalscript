@@ -11,4 +11,4 @@
 import entry from './sample.f.js'
 import { functionDemo } from '../../../fjs/nanvm/demos/function-page/module.f.mjs'
 
-export const demo = functionDemo({ name: 'comma', directory: 'spec/operators/comma', entry, inputs: [1, -1] })
+export const demo = functionDemo({ place: { name: 'comma', directory: 'spec/operators/comma' }, entry, inputs: [1, -1] })

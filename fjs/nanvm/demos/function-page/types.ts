@@ -13,7 +13,8 @@ import type { Place, State as PageState } from '../page/types.ts'
  * program: where it is, as a WASM demo sample is; the function, as the
  * JavaScript run calls it; and the numbers Run calls it with, in order.
  */
-export type FunctionSample = Place & {
+export type FunctionSample = {
+    readonly place: Place
     readonly entry: (input: number) => unknown
     readonly inputs: readonly number[]
 }
