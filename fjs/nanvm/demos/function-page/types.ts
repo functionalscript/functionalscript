@@ -5,24 +5,23 @@
  * @module
  */
 
+import type { Node } from '../../../media/html/types.ts'
 import type { Result } from '../../../types/result/types.ts'
-import type { Place, State as PageState } from '../page/types.ts'
+import type { FunctionPlace, Outcome, State as PageState } from '../page/types.ts'
+
+export type { Outcome }
 
 /**
  * A sample whose default export is a function of a number, rather than a
- * program: where it is, as a WASM demo sample is; the function, as the
- * JavaScript run calls it; and the numbers Run calls it with, in order.
+ * program: where it is, with the calls Run makes, as the samples list
+ * states them; and the function, as the JavaScript run calls it.
  */
 export type FunctionSample = {
-    readonly place: Place
+    readonly place: FunctionPlace
     readonly entry: (input: number) => unknown
-    readonly inputs: readonly number[]
 }
 
-/** What one call did: answered a value, or threw one, each as `String` spells it. */
-export type Outcome = readonly['returned', string] | readonly['threw', string]
-
-/** One call: what it did, and how long it took, in milliseconds. */
+/** One call: what it did, and how long one call took, in microseconds. */
 export type Call = {
     readonly outcome: Outcome
     readonly time: number
@@ -35,7 +34,11 @@ export type Calls = {
     readonly wasm: Result<Call, string>
 }
 
-/** The files a WASM demo page loads, and the calls of the last press of Run. */
+/**
+ * The files a WASM demo page loads, the source's graph drawn once it has
+ * arrived, and the calls of the last press of Run.
+ */
 export type State = Omit<PageState, 'runs'> & {
+    readonly edag: readonly Node[]
     readonly calls: readonly Calls[] | null
 }

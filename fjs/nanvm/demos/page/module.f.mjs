@@ -247,7 +247,6 @@ const runsDetail = ({ js, wasm }) => [
         ? [
             ...outputView(js[1].output),
             stat('Running time', milliseconds(js[1].time)),
-            stat('Memory', 'Not available'),
         ]
         : [refusal(js[1])]),
     ['h3', {}, 'WebAssembly'],
@@ -255,7 +254,7 @@ const runsDetail = ({ js, wasm }) => [
         ? [
             ...outputView(wasm[1].run.output),
             stat('Running time', milliseconds(wasm[1].run.time)),
-            stat('Linear memory after the run', `${wasm[1].memory} bytes`),
+            stat('Linear memory of the module so far', `${wasm[1].memory} bytes`),
         ]
         : [refusal(wasm[1])]),
 ]
@@ -267,10 +266,32 @@ const runsView = runs => [
     stat('WebAssembly running time, as a multiple of the JavaScript one', ratio(runs)),
 ]
 
-/** @type {(state: State) => readonly Node[]} */
-const startupView = ({ wasm }) => wasm[0] === 'ok'
+/**
+ * How long the module took to arrive and start, once it has.
+ *
+ * @type {(state: Pick<State, 'wasm'>) => readonly Node[]}
+ */
+export const startupView = ({ wasm }) => wasm[0] === 'ok'
     ? [stat('WebAssembly startup (fetch, compile and instantiate)', milliseconds(wasm[1].startup))]
     : []
+
+/**
+ * The files every WASM demo page shows, and its Run button: the source, with
+ * what `afterSource` draws below it once it has arrived; the Rust; and the
+ * disassembly. The program page and the function page differ in what they
+ * draw after these, not in these.
+ *
+ * @type {(state: Pick<State, 'source' | 'rust' | 'wat'>, afterSource: (text: string) => readonly Node[]) => readonly Node[]}
+ */
+export const filesView = (state, afterSource) => [
+    caption('FunctionalScript source:'),
+    ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text)), ...afterSource(text)]),
+    caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
+    ...loadedView(state.rust, text => [codeBlock(text, 'Copy the Rust')]),
+    caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
+    ...loadedView(state.wat, text => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', text]]]),
+    ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
+]
 
 /** @type {(name: string) => (state: State) => Element} */
 export const view = name => state => ['div', {},
@@ -278,13 +299,7 @@ export const view = name => state => ['div', {},
         'The same FunctionalScript program, run two ways: as the JavaScript it already is, ',
         'and compiled by ', ['code', 'fjs compile'], ' to Rust on the NaNVM runtime, then to WebAssembly. ',
         'Run calls each in turn and shows what it wrote to standard output and how long the call took.'],
-    caption('FunctionalScript source:'),
-    ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text))]),
-    caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
-    ...loadedView(state.rust, text => [codeBlock(text, 'Copy the Rust')]),
-    caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
-    ...loadedView(state.wat, text => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', text]]]),
-    ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
+    ...filesView(state, () => []),
     ...startupView(state),
     ...(state.runs === null ? [] : runsView(state.runs)),
 ]

@@ -181,8 +181,9 @@ export const proof = {
         const shown = text(view('hi')(both))
         assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('Running time: 1.0 ms'))
-        assert(shown.includes('Linear memory after the run: 65536 bytes'))
-        assert(shown.includes('Memory: Not available'))
+        assert(shown.includes('Linear memory of the module so far: 65536 bytes'))
+        // No figure the page cannot measure.
+        assert(!shown.includes('Not available</p>') && !shown.includes('Memory: '))
         assert(shown.includes('WebAssembly running time, as a multiple of the JavaScript one: 1.0×'))
         assert(shown.includes('pub fn module() {}'))
         const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0 }), wasm: ok({ run: { output: error('the sample threw'), time: 0 }, memory: 0 }) } }))

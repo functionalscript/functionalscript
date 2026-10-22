@@ -266,3 +266,265 @@ pub extern "C" fn values() -> i32 {
 pub extern "C" fn whitespace() -> i32 {
     crate::export(whitespace::module::<nanvm_lib::naive::Naive>)
 }
+
+/// The calls each function sample lists, each answered as JavaScript answers it.
+#[cfg(test)]
+mod tests {
+    use nanvm_lib::naive::Naive;
+
+    #[test]
+    fn arrays() {
+        let entry = crate::load(super::arrays::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("[3,[\"hello\",1,[true,null],2],true]"));
+        crate::assert_call(&entry, 2.0, Ok("[3,[\"hello\",2,[true,null],3],true]"));
+    }
+
+    #[test]
+    fn bigints() {
+        let entry = crate::load(super::bigints::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[0n,\"bigint\"]"));
+        crate::assert_call(&entry, 1.0, Ok("[68n,\"bigint\"]"));
+        crate::assert_call(&entry, 2.0, Ok("[-68n,\"bigint\"]"));
+    }
+
+    #[test]
+    fn call_statements() {
+        let entry = crate::load(super::call_statements::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 2.0, Ok("3"));
+        crate::assert_call(&entry, 5.0, Err("\"out of range\""));
+    }
+
+    #[test]
+    fn calls() {
+        let entry = crate::load(super::calls::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("[11,[3,1,4,5]]"));
+        crate::assert_call(&entry, 3.0, Ok("[13,[3,3,4,5]]"));
+    }
+
+    #[test]
+    fn captures() {
+        let entry = crate::load(super::captures::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("7"));
+        crate::assert_call(&entry, 10.0, Ok("16"));
+    }
+
+    #[test]
+    fn comma() {
+        let entry = crate::load(super::comma::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("3"));
+        crate::assert_call(&entry, -1.0, Err("\"negative\""));
+    }
+
+    #[test]
+    fn comments() {
+        let entry = crate::load(super::comments::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("2"));
+        crate::assert_call(&entry, -42.5, Ok("-85"));
+    }
+
+    #[test]
+    fn constants() {
+        let entry = crate::load(super::constants::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[true,8080,\"localhost\"]"));
+        crate::assert_call(&entry, 1.0, Ok("[true,8081,\"localhost\"]"));
+    }
+
+    #[test]
+    fn destructuring() {
+        let entry = crate::load(super::destructuring::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("[1,2,[3,4]]"));
+        crate::assert_call(&entry, 5.0, Ok("[5,10,[3,4]]"));
+    }
+
+    #[test]
+    fn entries() {
+        let entry = crate::load(super::entries::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("\"newline\""));
+        crate::assert_call(&entry, 1.0, Ok("undefined"));
+    }
+
+    #[test]
+    fn exports() {
+        let entry = crate::load(super::exports::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("5"));
+        crate::assert_call(&entry, 2.0, Ok("10"));
+    }
+
+    #[test]
+    fn function_outputs() {
+        let entry = crate::load(super::function_outputs::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[2,1]"));
+        crate::assert_call(&entry, 2.0, Ok("[2,3]"));
+    }
+
+    #[test]
+    fn functions() {
+        let entry = crate::load(super::functions::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("[1,10]"));
+        crate::assert_call(&entry, 2.0, Ok("[1,20]"));
+    }
+
+    #[test]
+    fn grouping() {
+        let entry = crate::load(super::grouping::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("[9,7,2]"));
+        crate::assert_call(&entry, 2.0, Ok("[12,8,2]"));
+    }
+
+    #[test]
+    fn guards() {
+        let entry = crate::load(super::guards::module::<Naive>).unwrap();
+        crate::assert_call(&entry, -5.0, Ok("\"negative\""));
+        crate::assert_call(&entry, 0.0, Ok("\"zero\""));
+        crate::assert_call(&entry, 7.0, Ok("\"positive\""));
+    }
+
+    #[test]
+    fn identifiers() {
+        let entry = crate::load(super::identifiers::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("[2,2,3,4]"));
+        crate::assert_call(&entry, 2.0, Ok("[3,2,3,4]"));
+    }
+
+    #[test]
+    fn instanceof() {
+        let entry = crate::load(super::instanceof::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("true"));
+        crate::assert_call(&entry, 1.0, Ok("false"));
+    }
+
+    #[test]
+    fn loops() {
+        let entry = crate::load(super::loops::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 5.0, Ok("8"));
+        crate::assert_call(&entry, 100.0, Ok("128"));
+    }
+
+    #[test]
+    fn member_functions() {
+        let entry = crate::load(super::member_functions::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("\"10-20-30-40\""));
+        crate::assert_call(&entry, 2.0, Ok("\"30-40\""));
+    }
+
+    #[test]
+    fn names_and_identity() {
+        let entry = crate::load(super::names_and_identity::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[true,false,true]"));
+        crate::assert_call(&entry, 1.0, Ok("[true,false,false]"));
+    }
+
+    #[test]
+    fn number_conversion() {
+        let entry = crate::load(super::number_conversion::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 7.0, Ok("[7,16,1,7]"));
+        crate::assert_call(&entry, 0.5, Ok("[0.5,16,1,0.5]"));
+    }
+
+    #[test]
+    fn numbers() {
+        let entry = crate::load(super::numbers::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("0"));
+        crate::assert_call(&entry, 1.0, Ok("-85"));
+        crate::assert_call(&entry, 2.0, Ok("600"));
+        crate::assert_call(&entry, 3.0, Ok("2e-7"));
+    }
+
+    #[test]
+    fn objects() {
+        let entry = crate::load(super::objects::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("4"));
+        crate::assert_call(&entry, 2.0, Ok("5"));
+    }
+
+    #[test]
+    fn operators() {
+        let entry = crate::load(super::operators::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("[7,0,2,-2,false,\"number\",\"small\"]"));
+        crate::assert_call(&entry, 2.0, Ok("[8,1,4,-3,false,\"number\",\"big\"]"));
+    }
+
+    #[test]
+    fn optional_chaining() {
+        let entry = crate::load(super::optional_chaining::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[1,[2],[3]]"));
+        crate::assert_call(&entry, 1.0, Ok("[undefined,undefined,undefined]"));
+    }
+
+    #[test]
+    fn parameters() {
+        let entry = crate::load(super::parameters::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("[[1,10,0],[1,2,2]]"));
+        crate::assert_call(&entry, 4.0, Ok("[[4,10,0],[4,8,2]]"));
+    }
+
+    #[test]
+    fn property_access() {
+        let entry = crate::load(super::property_access::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[80,2]"));
+        crate::assert_call(&entry, 1.0, Ok("[443,2]"));
+    }
+
+    #[test]
+    fn static_functions() {
+        let entry = crate::load(super::static_functions::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("[false,true,false,[[\"0\",2],[\"b\",0]]]"));
+        crate::assert_call(
+            &entry,
+            1.5,
+            Ok("[false,false,true,[[\"0\",2],[\"b\",1.5]]]"),
+        );
+    }
+
+    #[test]
+    fn string_conversion() {
+        let entry = crate::load(super::string_conversion::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 42.0, Ok("[\"42\",\"42\",\"1,2\",\"true\"]"));
+        crate::assert_call(&entry, -0.5, Ok("[\"-0.5\",\"42\",\"1,2\",\"false\"]"));
+    }
+
+    #[test]
+    fn string_escapes() {
+        let entry = crate::load(super::string_escapes::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("8"));
+        crate::assert_call(&entry, 1.0, Ok("4"));
+        crate::assert_call(&entry, 2.0, Ok("1"));
+    }
+
+    #[test]
+    fn strings() {
+        let entry = crate::load(super::strings::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("6"));
+        crate::assert_call(&entry, 1.0, Ok("3"));
+    }
+
+    #[test]
+    fn switch_statement() {
+        let entry = crate::load(super::switch_statement::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("\"container\""));
+        crate::assert_call(&entry, 1.0, Ok("\"container\""));
+        crate::assert_call(&entry, 2.0, Ok("\"text\""));
+        crate::assert_call(&entry, 3.0, Err("[\"unknown\",3]"));
+    }
+
+    #[test]
+    fn template_literals() {
+        let entry = crate::load(super::template_literals::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("\"Hello, 1 world!\""));
+        crate::assert_call(&entry, 2.0, Ok("\"Hello, 2 worlds!\""));
+    }
+
+    #[test]
+    fn values() {
+        let entry = crate::load(super::values::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("[1,\"s\",true,null,[1],-1,\"bigint\"]"));
+        crate::assert_call(&entry, 2.0, Ok("[2,\"s\",true,null,[2],-2,\"bigint\"]"));
+    }
+
+    #[test]
+    fn whitespace() {
+        let entry = crate::load(super::whitespace::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 1.0, Ok("2"));
+        crate::assert_call(&entry, 2.0, Ok("3"));
+    }
+}
