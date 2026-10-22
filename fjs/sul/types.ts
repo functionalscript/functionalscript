@@ -16,9 +16,18 @@ export type EncodeState<S> = readonly [
     readonly HashState[]
 ]
 
+/**
+ * A streaming encoder. A bit's **height** is how many levels close a word on
+ * it, counting up from L1: 0 for none, 2 for L1 and L2, 5 for L1 to H2.
+ */
 export type Encode<S> = {
     readonly push: (bit: bigint, state: EncodeState<S>) => EncodeState<S>
+    /** Pads the bits with a `1`, then `0`s, until the root, and returns it. */
     readonly end: (state: EncodeState<S>) => Id
+    /** `push`, also giving the bit's height. */
+    readonly pushWithHeight: (bit: bigint, state: EncodeState<S>) => readonly [height: number, state: EncodeState<S>]
+    /** `end`, also giving the height of each padding bit it adds. */
+    readonly endWithHeights: (state: EncodeState<S>) => readonly [heights: readonly number[], root: Id]
 }
 
 /**

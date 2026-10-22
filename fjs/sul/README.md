@@ -38,8 +38,12 @@ const root: Id = enc.end(state)      // flush and return the root Id
 |-----------------------------|--------------------------------------------------------------------|
 | `encode(add)`               | Creates an encoder for a given storage backend                     |
 | `emptyEncodeState(storage)` | Initial state wrapping a storage value                             |
-| `Encode<S>`                 | Encoder with `push` and `end` methods                              |
+| `Encode<S>`                 | Encoder with `push` and `end` methods, and `pushWithHeight` and `endWithHeights`, which also give each bit's height |
 | `EncodeState<S>`            | Opaque streaming state (three literal levels + dynamic hash stack) |
+
+A bit's **height** is how many levels close a word on it, counting up from L1: 0 for none, 2 for L1 and L2, 5 for L1
+to H2. `pushWithHeight` returns it with the next state, and `endWithHeights` returns it for each padding bit with the
+root; they are `push` and `end` otherwise. The demo draws its stripes from these heights.
 
 The `Add<S>` callback is invoked once per `compress(left, right)` merge. `isSymbol` is `true` for the terminal merge
 that produces a hash-level output symbol and `false` for Patricia trie internal merges.

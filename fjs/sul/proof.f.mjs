@@ -2,11 +2,11 @@
  * @import { Id } from './id/types.ts'
  * @import { Add } from './level/hash/types.ts'
  * @import { DemoEvent } from '../website/demo/types.ts'
- * @import { _DemoState } from './types.ts'
+ * @import { _DemoState, EncodeState } from './types.ts'
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.js'
-import { compress } from './id/module.f.mjs'
+import { compress, level3Id } from './id/module.f.mjs'
 import { encode, emptyEncodeState } from './module.f.mjs'
 import { demo, maxBits, stripes, units } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
@@ -27,6 +27,30 @@ const run = bits => {
 
 /** @type {(bits: readonly bigint[]) => Id} */
 const id = bits => run(bits)[0]
+
+/** @type {(text: string) => readonly bigint[]} */
+const bitsOf = text => [...text].flatMap(c => [...c.charCodeAt(0).toString(2).padStart(8, '0')].map(b => BigInt(b)))
+
+const heightEncoder = encode(() => null)
+
+/**
+ * `text`'s bits pushed with `pushWithHeight`, then ended with
+ * `endWithHeights`: each input bit's height, each padding bit's, the root,
+ * and what `end` answers for the same state.
+ *
+ * @type {(text: string) => readonly [readonly number[], readonly number[], Id, Id]}
+ */
+const heightsOf = text => {
+    const { pushWithHeight, endWithHeights, end } = heightEncoder
+    /** @type {readonly [readonly number[], EncodeState<null>]} */
+    const start = [[], emptyEncodeState(null)]
+    const [heights, state] = bitsOf(text).reduce(([hs, s], bit) => {
+        const [h, next] = pushWithHeight(bit, s)
+        return /** @type {const} */ ([[...hs, h], next])
+    }, start)
+    const [padding, root] = endWithHeights(state)
+    return [heights, padding, root, end(state)]
+}
 
 /** @type {(n: number) => readonly bigint[]} */
 const zeros = n => new Array(n).fill(0n)
@@ -65,6 +89,33 @@ export const proof = {
         const [, log] = run(zeros(16))
         assert(log.some(([, , , isSymbol]) => isSymbol))
         assert(log.every(([l, r, m, isSymbol]) => !isSymbol || m === compress(l, r)))
+    },
+
+    /**
+     * **Each bit's height is how many levels close a word on it.** `Hi` is
+     * `01 00 100 00 11 01 00 1·1` in L1, its L2 words end on its 7th and
+     * 11th bits, and the padding's one bit closes L1, L2 and L3 at once —
+     * whose symbol opens H1 and is the root.
+     */
+    heights: {
+        hi: () => {
+            const [heights, padding, root, end] = heightsOf('Hi')
+            assertEq(JSON.stringify(heights), JSON.stringify([0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 2, 0, 1, 0, 1, 0]))
+            assertEq(JSON.stringify(padding), JSON.stringify([3]))
+            assertEq(root, end)
+            assertEq(root, level3Id(0x4e94n))
+        },
+        // `Hello` reaches the hash levels: counting the bits whose height is at
+        // least k counts level k's words, L1 to H2, and the last padding bit
+        // closes all five, whose H2 symbol is the root.
+        hello: () => {
+            const [heights, padding, root, end] = heightsOf('Hello')
+            const all = [...heights, ...padding]
+            assertEq(padding.length, 57)
+            assertEq(padding.at(-1), 5)
+            assertEq([1, 2, 3, 4, 5, 6].map(k => all.filter(h => h >= k).length).join(), '45,21,9,4,1,0')
+            assertEq(root, end)
+        },
     },
 
     /**
