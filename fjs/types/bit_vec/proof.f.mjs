@@ -7,7 +7,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListToVecChunksMsb, u8ListMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListToVecChunksMsb, u8ArrayMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */
@@ -470,9 +470,9 @@ export const proof = {
         const v = u8ListToVecMsb(bytes)
         assertEq(v, u8ListToVec(msb)(bytes))
         assertEq(v, vec(24n)(0x12_3456n))
-        assertStructurallySame(toArray(u8ListMsb(v)), bytes)
+        assertStructurallySame(u8ArrayMsb(v), bytes)
         // not an inverse off whole bytes: the partial byte is zero-padded
-        const ragged = toArray(u8ListMsb(vec(9n)(0x83n)))
+        const ragged = u8ArrayMsb(vec(9n)(0x83n))
         assertStructurallySame(ragged, [0x41, 0x80])
         assertEq(u8ListToVecMsb(ragged), vec(16n)(0x4180n))
     },

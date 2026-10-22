@@ -21,6 +21,7 @@ import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
 import { nonEmpty, empty } from '../effects/list/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
+import { assertIoMessage } from '../effects/testlib.f.js'
 
 const testDir = './test-cas-cli'
 
@@ -102,29 +103,20 @@ export const _driveCas = extra => overrides => {
 
 const drive = _driveCas({})
 
-// Create a 128 KiB big file content (at the max Vec size limit)
-// This tests the boundary where files are at the chunk size limit
-/**
- * Asserts that a channel error is a host failure carrying `message`.
- * @type {(e: unknown, message: string) => void}
- */
-const assertIoMessage = (e, message) => {
-    assert(e instanceof Array && e[0] === 'ioError', ['expected an ioError', e])
-    assertEq(e[1].message, message)
-}
-
 /**
  * The error a `drive`d effect answered with. The tuple shape is the driver's
  * declared result type now, so only the tag is checked — and it is still
  * checked, because these proofs exist to establish that a write fails closed.
  *
- * @type {(result: Result<unknown, unknown>) => unknown}
+ * @type {<E>(result: Result<unknown, E>) => E}
  */
 const errorMessage = result => {
     assert(result[0] === 'error', ['expected an error result', result])
     return result[1]
 }
 
+// Create a 128 KiB big file content (at the max Vec size limit)
+// This tests the boundary where files are at the chunk size limit
 /** @type {() => Vec} */
 const createBigFileContent = () => {
     const byteCount = 128n * 1_024n // 128 KiB

@@ -233,7 +233,7 @@ const readIndices = value => {
  * struct kind states by walking own keys.
  *
  * An index at or above `length` is not answered here. See "Beyond `length`" in
- * `../README.md`.
+ * `../guide/schemas/closed-containers/README.md`.
  *
  * Passing {@link noDeclared} asks for every member, which is what the uniform
  * `array`/`record` readers want — so they share this walk rather than reaching

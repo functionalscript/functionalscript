@@ -4,8 +4,8 @@ Names for values: shared constants and destructuring patterns.
 
 ## Pages
 
-- [Shared Values, Constants](./constants.md)
-- [Destructuring](./destructuring.md)
+- [Shared Values, Constants](./constants/README.md)
+- [Destructuring](./destructuring/README.md)
 
 ## Reference
 

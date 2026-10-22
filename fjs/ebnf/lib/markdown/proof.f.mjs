@@ -97,8 +97,11 @@ export const proof = {
          * `todo/commonmark-constructs.md`.
          */
         linkInsideStrong: () => refuses(`**see [details](u)**`),
-        codeInsideStrong: () => refuses(`**a ${tick}b${tick} c**`),
-        codeInsideEm: () => refuses(`*${tick}b${tick}*`),
+        // Code is the one span emphasis holds, as a label holds it: a README
+        // sets a name in bold as `` **`Object` is reserved** ``.
+        codeInsideStrong: () => accepts(`**a ${tick}b${tick} c**`),
+        codeInsideEm: () => accepts(`*${tick}b${tick}*`),
+        emphasisInsideStrong: () => refuses(`**a *b* c**`),
         // A bracket that opens nothing is refused too. The rule is about
         // the symbol, not about whether it went on to form a span.
         loneBracketInsideStrong: () => refuses(`**a [ b**`),
@@ -106,28 +109,36 @@ export const proof = {
          * **A longer delimiter is refused rather than misread.** CommonMark
          * opens a code span with a run of backticks and closes it with a run
          * of the same length, which a writer needs when the code itself holds
-         * one. Read one at a time, `` `` ``x`` `` `` is an empty span, an `x`,
-         * and another empty span — accepted, and a different document from the
-         * one GitHub builds. Refusing an empty span is what stops that.
+         * one. Two backticks are read as that delimiter, a body that holds
+         * single backticks and closes at the first pair; three are refused,
+         * as an empty single span would otherwise read them as a different
+         * document from the one GitHub builds.
          */
-        longerCodeDelimiter: () => refuses(`${tick}${tick}x${tick}${tick}`),
+        doubleCodeDelimiter: () => accepts(`${tick}${tick} f${tick}x${tick} ${tick}${tick}`),
+        doubleCodeOpeningWithATick: () => refuses(`${tick}${tick}${tick}x${tick}${tick}${tick}`),
+        doubleCodeUnclosed: () => refuses(`${tick}${tick}x${tick}`),
         emptyCode: () => refuses(`${tick}${tick}`),
         // A link label is where nesting shows, and a target is where it
         // bites: stopping at the first `)` gives the wrong address, with
         // nothing on the page to say so.
         formattingInALinkLabel: () => refuses(`[**details**](u)`),
-        codeInALinkLabel: () => refuses(`[${tick}code${tick}](u)`),
+        // A label holds a code span, as a README names a file by one.
+        codeInALinkLabel: () => accepts(`[${tick}module.f.js${tick}](./module.f.js)`),
+        codeAndTextInALinkLabel: () => accepts(`[the ${tick}a${tick} and ${tick}b${tick} files](u)`),
+        // Matched here, refused after: the alternation cannot say "at least one".
+        emptyLabel: () => accepts(`[](u)`),
         parenthesisInATarget: () => refuses(`[x](a(b)c)`),
         // What a released entry actually carries still reads.
         anOrdinaryLink: () => accepts(`[#1421](https://example.com/pull/1421)`),
         /**
          * **A space beside an asterisk is not emphasis.** CommonMark reads
-         * `a * b * c` as the three words and two asterisks they are, and a
-         * body admitting the spaces would make an `em` span out of prose —
-         * formatting invented rather than read.
+         * `a * b * c` as the three words and two asterisks they are. The
+         * grammar matches the padded body, since a body holding code cannot
+         * say "no space before the closing asterisk" with one symbol of
+         * lookahead, and `fjs/media/markdown` refuses it after.
          */
-        spaceFlankedAsterisks: () => refuses(`a * b * c`),
-        paddedEm: () => refuses(`* a *`),
+        spaceFlankedAsterisks: () => accepts(`a * b * c`),
+        paddedEm: () => accepts(`* a *`),
         // A code span loses one leading and trailing space to CommonMark,
         // so keeping them answers with different content.
         paddedCode: () => refuses(`${tick} code ${tick}`),

@@ -14,7 +14,7 @@ const c = ['[]', []]
 export const proof = {
     /** The lazy operations, the binary three and the conditional, and the three chain tags. */
     tags: () => {
-        assertStructurallySame(lazy, ['&&', '||', '??', '?:'])
+        assertStructurallySame(lazy, ['?:'])
         assertEq(['.', '?.', '?.()'].every(isChain), true)
         assertEq(isChain('()'), false)
     },
@@ -49,7 +49,7 @@ export const proof = {
     },
     /** The positions a node establishes unconditionally. */
     eagerOperandsOf: () => {
-        assertStructurallySame(eagerOperandsOf(['&&', c, 1]), [c])
+        assertStructurallySame(eagerOperandsOf(['?:', c, 1, 0]), [c])
         assertStructurallySame(eagerOperandsOf(['?:', c, 1, 2]), [c])
         assertStructurallySame(eagerOperandsOf(['.', c, 'a', ['|()', [1]]]), [c, 'a'])
         assertStructurallySame(eagerOperandsOf(['?.', c, 'a']), [c])

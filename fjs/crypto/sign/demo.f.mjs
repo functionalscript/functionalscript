@@ -36,7 +36,7 @@ import {
     signTrustPathMarker,
     signVerifierMarker,
 } from '../../website/style/module.f.js'
-import { hexDigitsValue } from '../../text/ascii/module.f.js'
+import { codePoints, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
@@ -77,7 +77,7 @@ const hashOf = algorithmOf(sha2Algorithms)
  */
 export const parseHexField = (name, digits) => text => {
     if (text.length > digits) { return error(`Enter ${name} as at most ${digits} hexadecimal digits.`) }
-    const n = hexDigitsValue([...text].map(c => c.charCodeAt(0)))
+    const n = hexDigitsValue(codePoints(text))
     return n === null ? error(`Enter ${name} as hexadecimal digits.`) : ok(n)
 }
 

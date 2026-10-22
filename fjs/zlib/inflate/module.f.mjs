@@ -26,7 +26,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { bytesIn, isWholeBytes, length, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { bytesIn, isWholeBytes, length, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { reverse, toArray } from '../../types/list/module.f.mjs'
 import { appendBytes as adler, init as adlerInit } from '../adler32/module.f.mjs'
 import { more, read } from '../bits/module.f.mjs'
@@ -251,7 +251,7 @@ export const append = v => state => {
         return { state: { ...state, after: state.after + Number(bytesIn(length(v))) }, output: [] }
     }
     /** @type {State} */
-    let current = { ...state, input: [...state.input, ...toArray(u8ListMsb(v))] }
+    let current = { ...state, input: [...state.input, ...u8ArrayMsb(v)] }
     // the chunks made, newest first: a list is how an accumulator that does not
     // copy what it has is built without mutating it
     /** @type {List<Vec>} */

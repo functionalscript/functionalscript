@@ -5,11 +5,12 @@
  * [mvp-roadmap](../../../nanvm/lib/todo/mvp-roadmap.md),
  * [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md).
  *
- * The node printer, its temporaries and the lines of a scope are not this
- * module's own: they live in
- * [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared with
- * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs), which prints the
- * operator conformance corpus the same way. What is specific to this module:
+ * [`fjs/edag/rust`](../../edag/rust/module.f.mjs) admits the graph, then
+ * the shared EDAG-to-FAST conversion and preparation passes establish its
+ * bindings and regions. [`fjs/rust/serializer`](../../rust/serializer/module.f.mjs)
+ * spells that prepared program, through the same pipeline used by
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) for the operator corpus.
+ * What is specific to this module:
  * laying a module's scope out as the body of the
  * `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>` a
  * harness can call with the runtime value it built once
@@ -53,10 +54,8 @@ import { fromTagged, tagged, untagged, withNames } from '../../text/marked/modul
 const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
 
 /**
- * The module's scope, one line per temporary and its `Ok(…)`, indented into
- * the module's function, with the names it spells —
- * `fjs/edag/rust`'s {@link scope}, which also prints every function's body
- * the module holds, each a scope of its own inside its closure — or the
+ * The prepared module scope, indented into the module's function, with the
+ * names it spells, or the
  * refusal. Validate bindings against their owning functions before printing:
  * a fixed read cannot reach past its owner's length, and a closure's frame
  * belongs to the enclosing scope. The fragment printer cannot perform that
@@ -104,6 +103,9 @@ export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Sco
     return {
         lines: [
             '#[rustfmt::skip]',
+            // Preparation preserves the condition even when both results agree.
+            // Folding those arms here would introduce a target-specific pass.
+            '#[allow(clippy::if_same_then_else)]',
             `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} ${name}<A: ${bound}>(${parameter}) -> Result<Any<A>, Any<A>> {`,
             ...lines,
             '}',
@@ -125,8 +127,8 @@ export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Sco
  * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs)'s output gets once, on
  * its `mod` declaration, which a compiled module has no hand-written
  * owner to carry: the layout is
- * the printer's own — one temporary per line, a closure's body a block
- * under its `let` — and not rustfmt's, which breaks a closure argument
+ * the serializer's own — prepared declarations and expression regions,
+ * including each closure's body — and not rustfmt's, which breaks a closure argument
  * and a method chain its own way, and a line still grows with the items
  * of one literal. A layout-preserving printer would have to reproduce
  * rustfmt's own wrapping, which is what the skip avoids paying for.

@@ -4,21 +4,7 @@ use nanvm_lib::vm::unstable::{bigint_any, f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0 = || Ok([f64_any(0x4000000000000000)].to_array().to_any());
-    let c1: Any<A> = Any::dot(f64_any(0x40934a456d5cfaad), string_any("toFixed")).end_call(&runtime, c0)?;
-    let c2: Any<A> = Any::dot(f64_any(0x40934a456d5cfaad), string_any("toFixed")).end_call(&runtime, || Ok(Array::default().to_any()))?;
-    let c3 = || Ok([f64_any(0x4018000000000000)].to_array().to_any());
-    let c4: Any<A> = Any::dot(f64_any(0x40934a456d5cfaad), string_any("toPrecision")).end_call(&runtime, c3)?;
-    let c5 = || Ok([f64_any(0x4008000000000000)].to_array().to_any());
-    let c6: Any<A> = Any::dot(f64_any(0x40934a456d5cfaad), string_any("toExponential")).end_call(&runtime, c5)?;
-    let c7: Any<A> = Any::dot(f64_any(0x40934a456d5cfaad), string_any("toExponential")).end_call(&runtime, || Ok(Array::default().to_any()))?;
-    let c8 = || Ok([f64_any(0x4030000000000000)].to_array().to_any());
-    let c9: Any<A> = Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(&runtime, c8)?;
-    let c10 = || Ok([f64_any(0x4000000000000000)].to_array().to_any());
-    let c11: Any<A> = Any::dot(f64_any(0xc06fe00000000000), string_any("toString")).end_call(&runtime, c10)?;
-    let c12 = || Ok([f64_any(0x4000000000000000)].to_array().to_any());
-    let c13: Any<A> = Any::dot(bigint_any(5), string_any("toString")).end_call(&runtime, c12)?;
-    let c14: Any<A> = [c1, c2, c4, c6, c7, c9, c11, c13].to_array().to_any();
-    Ok([(string_key("default"), c14)].to_object().to_any())
+    Ok([(string_key("default"), [(Any::dot(f64_any(0x40934a456d5cfaad), string_any("toFixed")).end_call(&runtime, || Ok([f64_any(0x4000000000000000)].to_array().to_any())))?, (Any::dot(f64_any(0x40934a456d5cfaad), string_any("toFixed")).end_call(&runtime, || Ok(Array::default().to_any())))?, (Any::dot(f64_any(0x40934a456d5cfaad), string_any("toPrecision")).end_call(&runtime, || Ok([f64_any(0x4018000000000000)].to_array().to_any())))?, (Any::dot(f64_any(0x40934a456d5cfaad), string_any("toExponential")).end_call(&runtime, || Ok([f64_any(0x4008000000000000)].to_array().to_any())))?, (Any::dot(f64_any(0x40934a456d5cfaad), string_any("toExponential")).end_call(&runtime, || Ok(Array::default().to_any())))?, (Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(&runtime, || Ok([f64_any(0x4030000000000000)].to_array().to_any())))?, (Any::dot(f64_any(0xc06fe00000000000), string_any("toString")).end_call(&runtime, || Ok([f64_any(0x4000000000000000)].to_array().to_any())))?, (Any::dot(bigint_any(5), string_any("toString")).end_call(&runtime, || Ok([f64_any(0x4000000000000000)].to_array().to_any())))?].to_array().to_any())].to_object().to_any())
 }

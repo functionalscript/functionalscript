@@ -278,7 +278,7 @@ the example, the third, which gets its own `todo/` when its turn comes.
   to Rust; the runtime is part of that closure.
 - [`nanvm/lib/todo/callable-function-objects.md`](../../../nanvm/lib/todo/callable-function-objects.md)
   — the `static function` tag a VM binding static functions needs.
-- [spec: built-in member functions](../../../spec/built-ins/member-functions.md)
+- [spec: built-in member functions](../../../spec/built-ins/member-functions/README.md)
   — the admitted set and the native-execution limits this design narrows.
 - [#2864](https://github.com/functionalscript/functionalscript/pull/2864)
   — the measurement.

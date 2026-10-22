@@ -121,6 +121,21 @@ export const verdictMarker = 'data-verdict'
  */
 export const listingMarker = 'data-listing'
 
+/** The attribute of the banner a refused construct's spec page opens its
+ * demo with: the compiler refuses the sample, by design.
+ */
+export const refusedMarker = 'data-refused'
+
+/** The attribute of the banner the undecided constructs' page opens its
+ * demo with: the compiler refuses each, and no decision says it should.
+ */
+export const undecidedMarker = 'data-undecided'
+
+/** The attribute of a register row's card, one construct with its sample
+ * and what the compiler prints for it.
+ */
+export const registerRowMarker = 'data-register-row'
+
 /** The attribute shared by the PoW verdict row and its layout rules.
  * @type {string}
  */
@@ -768,6 +783,34 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-sul-px="a"] { background: var(--value) }
 [data-sul-px="b"] { background: var(--syntax-name) }
 [data-sul-pad] [data-sul-px] { opacity: .35 }
+/* A rendered README reads as GitHub renders it: prose in the platform's sans
+   face at GitHub's measure and leading, its title and sections ruled, inline
+   code and code fences shaded, and code itself in the site's monospace face.
+   This is the one place the site's single face gives way — a spec page is
+   prose to be read, and the rest of the page stays set in monospace
+   (render-readme's "prose face"). */
+[data-readme] { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; margin-block: 1.5rem; max-width: 60rem; overflow-wrap: break-word }
+[data-readme] > :first-child { margin-top: 0 }
+[data-readme] :is(h2, h3, h4, h5, h6) { font-weight: 600; line-height: 1.25; margin: 1.5em 0 1rem }
+[data-readme] h2 { border-bottom: 1px solid var(--border); font-size: 2em; padding-bottom: .3em }
+[data-readme] h3 { border-bottom: 1px solid var(--border); font-size: 1.5em; padding-bottom: .3em }
+[data-readme] h4 { font-size: 1.25em }
+[data-readme] h5 { font-size: 1em }
+[data-readme] h6 { color: var(--muted); font-size: .875em }
+[data-readme] :is(p, ul, pre, table) { margin: 0 0 1rem }
+[data-readme] ul { padding-left: 2em }
+[data-readme] li + li { margin-top: .25em }
+[data-readme] li > :is(p, pre) { margin-top: 1rem }
+[data-readme] li > ul { margin: .25em 0 0 }
+[data-readme] table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; width: max-content }
+[data-readme] :is(th, td) { border: 1px solid var(--border); padding: 6px 13px }
+[data-readme] th { font-weight: 600 }
+[data-readme] tbody tr:nth-child(2n) { background: color-mix(in srgb, var(--border) 25%, var(--bg)) }
+[data-readme] a, [data-readme] a:visited { color: var(--value); text-decoration: none }
+[data-readme] a:hover { text-decoration: underline }
+[data-readme] code { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border-radius: 6px; font: 85% ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: .2em .4em; white-space: break-spaces }
+[data-readme] pre { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-radius: 6px; line-height: 1.45; overflow: auto; padding: 1rem; white-space: pre }
+[data-readme] pre > code { background: transparent; font-size: 85%; padding: 0; white-space: pre }
 /* A code block — a demo's source, such as the rtti demo's schema — is a
    shaded, bordered box, so code reads apart from the prose around it. A
    reader's answer in the rtti demo is the same box, tinted green for a
@@ -835,6 +878,20 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 /* A listing too long to read whole, a WASM module's WAT: a box of its own
    height that scrolls, its lines kept unbroken so the indentation reads. */
 [${listingMarker}] { max-height: 24rem; overflow: auto; overflow-wrap: normal; white-space: pre }
+[${listingMarker}] > pre { white-space: pre }
+/* A refused construct's banner: the page's verdict, read before anything
+   else on it, so it is larger than a result and edged in the failure colour. */
+[${refusedMarker}] { background: var(--fail-bg); border: 2px solid var(--fail); border-left-width: 8px; border-radius: 6px; color: var(--fail); margin-block: 1rem; padding: .75rem 1rem }
+[${refusedMarker}] > strong { display: block; font-size: 1.5rem }
+[${refusedMarker}] > p { color: var(--text); margin: .5rem 0 0 }
+/* An undecided construct's banner: the same weight as a refusal's, in the
+   neutral value colour, since nothing is decided to have failed. */
+[${undecidedMarker}] { background: var(--value-bg); border: 2px solid var(--value); border-left-width: 8px; border-radius: 6px; color: var(--value); margin-block: 1rem; padding: .75rem 1rem }
+[${undecidedMarker}] > strong { display: block; font-size: 1.5rem }
+[${undecidedMarker}] > p { color: var(--text); margin: .5rem 0 0 }
+[${registerRowMarker}] { border: 1px solid var(--border); border-radius: 6px; margin-block: 1rem; padding: .5rem 1rem }
+[${registerRowMarker}] > h3 { margin: .25rem 0 .5rem }
+[${registerRowMarker}] > div > p { display: inline; margin: 0 }
 [${verdictMarker}="ok"] { color: var(--pass) }
 [${verdictMarker}="error"] { color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows

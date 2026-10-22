@@ -4,8 +4,8 @@ The pure library functions a module may call: member functions of arrays, string
 
 ## Pages
 
-- [Built-in Member Functions](./member-functions.md)
-- [Built-in Static Functions](./static-functions.md)
+- [Built-in Member Functions](./member-functions/README.md)
+- [Built-in Static Functions](./static-functions/README.md)
 
 ## Reference
 

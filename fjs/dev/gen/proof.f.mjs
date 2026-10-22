@@ -21,7 +21,7 @@ import { main as ci } from '../../ci/self/module.f.mjs'
 import { main as rustTests } from '../../nanvm/update/module.f.mjs'
 import { corpus, main as matrix, modules as corpusModules } from '../../media/datajs/vectors/matrix/module.f.mjs'
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.mjs'
-import { main as demos } from '../../nanvm/demos/module.f.mjs'
+import { main as demos, samples } from '../../nanvm/demos/module.f.mjs'
 import { main as cloudflare } from '../../website/cloudflare/module.f.mjs'
 import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
@@ -59,6 +59,25 @@ const withSubprocess = (started, ended) => {
 }
 
 /**
+ * A stand-in `sample.f.js` for every spec page's demo sample, nested by its
+ * directory under `spec/`, so the samples generator finds each one it lists.
+ *
+ * @type {Dir}
+ */
+const specSamples = samples
+    .filter(({ directory }) => directory.startsWith('spec/'))
+    .reduce((/** @type {Dir} */ tree, { directory }) => {
+        /** @type {(dir: Dir, path: readonly string[]) => Dir} */
+        const put = (dir, [head, ...rest]) => ({
+            ...dir,
+            [head]: rest.length === 0
+                ? { .../** @type {Dir} */ (dir[head] ?? {}), 'sample.f.js': [utf8('export default () => 4;')] }
+                : put(/** @type {Dir} */ (dir[head] ?? {}), rest),
+        })
+        return put(tree, directory.split('/').slice(1))
+    }, {})
+
+/**
  * The corpus sources as the matrix generator reads them, written as its own
  * writer spells them, so that generator succeeds in memory — the matrix proof
  * does the same — an empty fixture directory for the harness generator, and
@@ -69,6 +88,7 @@ const withSubprocess = (started, ended) => {
  */
 const root = {
     'spec': {
+        ...specSamples,
         'datajs': {
             'vectors': Object.fromEntries(corpusModules(corpus).map(([name, imported]) =>
                 [name, { 'data.f.js': [utf8(unwrap(tryStringify(/** @type {Unknown} */ (imported))))] }])),
@@ -81,7 +101,6 @@ const root = {
             'hello': { 'sample.f.js': [utf8('export default () => 1;')] },
             'sort': { 'sample.f.js': [utf8('export default () => 2;')] },
             'collatz': { 'sample.f.js': [utf8('export default () => 3;')] },
-            'comma': { 'sample.f.js': [utf8('export default () => 4;')] },
         } },
     },
 }

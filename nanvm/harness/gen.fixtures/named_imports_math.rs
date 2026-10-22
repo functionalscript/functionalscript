@@ -4,13 +4,10 @@ use nanvm_lib::vm::unstable::{f64_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = rest.clone().to_any();
-        let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
-        c1 + c2
-    }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any();
-    Ok([(string_key("absent"), Nullish::Undefined.to_any()), (string_key("add"), c0)].to_object().to_any())
+    Ok([(string_key("absent"), Nullish::Undefined.to_any()), (string_key("add"), A::static_function(|_self, _args| {
+        let _b218: Any<A> = _args.rest(0).to_any();
+        (Any::dot(_b218.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b218.clone(), f64_any(0x3ff0000000000000)).end())?
+    }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any())].to_object().to_any())
 }

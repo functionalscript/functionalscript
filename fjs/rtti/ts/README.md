@@ -11,13 +11,13 @@ TypeScript imposes a hard recursion depth on conditional-type evaluation.
 which recurses into `T`. For acyclic schemas this terminates. Two cases make it
 overflow:
 
-1. **`Ts<any>` distribution.** When an internal generic widens to `any` (common
-   at module boundaries and in visitor dispatch), TypeScript distributes the
-   conditional over every branch simultaneously, exhausting the limit immediately.
+- **`Ts<any>` distribution.** When an internal generic widens to `any` (common
+  at module boundaries and in visitor dispatch), TypeScript distributes the
+  conditional over every branch simultaneously, exhausting the limit immediately.
 
-2. **`Ts<Type>` dispatch.** Calling `validate(r)` or `parse(t)` with `r`/`t`
-   typed as `Type` forces TypeScript to evaluate `Ts<Type>`, which distributes
-   across all branches and triggers TS2589 the same way.
+- **`Ts<Type>` dispatch.** Calling `validate(r)` or `parse(t)` with `r`/`t`
+  typed as `Type` forces TypeScript to evaluate `Ts<Type>`, which distributes
+  across all branches and triggers TS2589 the same way.
 
 Both cases produce `error TS2589: Type instantiation is excessively deep and
 possibly infinite`.

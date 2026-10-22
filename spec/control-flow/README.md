@@ -4,9 +4,9 @@ The statements of a function body: terminating `if` guards, `return`, `throw`, t
 
 ## Pages
 
-- [Bodies and Guards](./guards.md)
-- [Loops](./loops.md)
-- [Switch](./switch.md)
+- [Bodies and Guards](./guards/README.md)
+- [Loops](./loops/README.md)
+- [Switch](./switch/README.md)
 
 ## Reference
 

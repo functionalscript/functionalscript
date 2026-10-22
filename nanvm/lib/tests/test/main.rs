@@ -5,7 +5,7 @@
 //! (see `nanvm/lib/tests/README.md`). What stays hand-written is everything
 //! that has nothing to compare against in a JS engine: conversions out of
 //! `Any`, `Debug` formatting, bigint limb arithmetic, and the
-//! reference-identity guarantee `&&`/`||`/`??`/`?:` make — the shared corpus
+//! reference-identity guarantee of conditional selection — the shared corpus
 //! can prove *which* operand a case selects but not that the selected
 //! array/object/function comes back as the very same object, since it lowers
 //! every operand to a node of its own and compares by value, not identity.
@@ -279,7 +279,7 @@ fn bigint_negative_zero<A: IVm>() {
     assert_eq!(mn0, n0);
 }
 
-/// `&&`/`||`/`??`/`?:` select an operand rather than deriving a new value —
+/// Source `&&`/`||`/`??` and `?:` select an operand rather than deriving a new value —
 /// see the module doc comment for why the shared corpus cannot pin this.
 /// `Array`/`Object`/`Function` equality is `ptr_eq` (their `partial_eq.rs`),
 /// so comparing the result against the very `Any` handed in — not a fresh,
@@ -295,29 +295,49 @@ fn reference_identity_selection<A: IStaticFunction>() {
     // the discarded left or the selected right — never returned via the
     // "falsy self" branch, which no reference type can take.
     assert_eq!(
-        Any::logical_and(true.to_any(), || Ok(array.clone())).unwrap(),
+        Any::conditional(true.to_any(), || Ok(array.clone()), || Ok(false.to_any())).unwrap(),
         array
     );
 
     // `||`: always-truthy on the left selects itself; on the right it is
     // selected whenever the left is falsy.
     assert_eq!(
-        Any::logical_or(object.clone(), || Ok(Number::from(0.0).to_any())).unwrap(),
+        Any::conditional(
+            object.clone(),
+            || Ok(object.clone()),
+            || Ok(Number::from(0.0).to_any())
+        )
+        .unwrap(),
         object
     );
     assert_eq!(
-        Any::logical_or(false.to_any(), || Ok(function.clone())).unwrap(),
+        Any::conditional(
+            false.to_any(),
+            || Ok(false.to_any()),
+            || Ok(function.clone())
+        )
+        .unwrap(),
         function
     );
 
     // `??`: never-nullish on the left selects itself; on the right it is
     // selected whenever the left is nullish.
     assert_eq!(
-        Any::nullish_coalescing(array.clone(), || Ok(Number::from(0.0).to_any())).unwrap(),
+        Any::conditional(
+            array.clone().is_nullish().to_any(),
+            || Ok(Number::from(0.0).to_any()),
+            || Ok(array.clone())
+        )
+        .unwrap(),
         array
     );
     assert_eq!(
-        Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(object.clone())).unwrap(),
+        Any::conditional(
+            Nullish::Null.to_any::<A>().is_nullish().to_any(),
+            || Ok(object.clone()),
+            || Ok(Nullish::Null.to_any())
+        )
+        .unwrap(),
         object
     );
 
@@ -336,16 +356,22 @@ fn reference_identity_selection<A: IStaticFunction>() {
 /// `Err`, which `unwrap` would panic on, and the value that comes back is
 /// the left operand or the selected arm. The corpus proves the same through
 /// its `unreached` operand (`fjs/nanvm/module.f.mjs`); this is the
-/// hand-written statement of the contract the four signatures carry.
+/// hand-written statement of the canonical conditional API's selection contract.
 fn unselected_operand_not_established<A: IVm>() {
     let boom = || -> Result<Any<A>, Any<A>> { Err("not established".into()) };
     assert_eq!(
-        Any::logical_and(false.to_any(), boom).unwrap(),
+        Any::conditional(false.to_any(), boom, || Ok(false.to_any())).unwrap(),
         false.to_any()
     );
-    assert_eq!(Any::logical_or(true.to_any(), boom).unwrap(), true.to_any());
     assert_eq!(
-        Any::nullish_coalescing(false.to_any(), boom).unwrap(),
+        Any::conditional(true.to_any(), || Ok(true.to_any()), boom).unwrap(),
+        true.to_any()
+    );
+    assert_eq!(
+        Any::conditional(false.to_any::<A>().is_nullish().to_any(), boom, || Ok(
+            false.to_any()
+        ))
+        .unwrap(),
         false.to_any()
     );
     assert_eq!(
@@ -358,7 +384,7 @@ fn unselected_operand_not_established<A: IVm>() {
     );
     // And the selected one is: its throw is the operation's.
     assert_eq!(
-        Any::logical_and(true.to_any(), boom),
+        Any::conditional(true.to_any(), boom, || Ok(false.to_any())),
         Err("not established".into())
     );
 }

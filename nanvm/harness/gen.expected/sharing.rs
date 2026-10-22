@@ -4,10 +4,10 @@ use nanvm_lib::vm::unstable::{f64_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any();
-    let c1: Any<A> = [c0.clone(), c0.clone()].to_array().to_any();
-    Ok([(string_key("default"), c1)].to_object().to_any())
+    let _b0: Any<A> = [(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any();
+    Ok([(string_key("default"), [_b0.clone(), _b0.clone()].to_array().to_any())].to_object().to_any())
 }
 
 #[rustfmt::skip]

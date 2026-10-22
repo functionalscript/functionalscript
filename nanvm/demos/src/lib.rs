@@ -135,30 +135,6 @@ pub extern "C" fn output_byte(index: u32) -> u32 {
     OUTPUT.with(|output| output.borrow()[index as usize].into())
 }
 
-/// Loads the "hello, world" sample.
-#[unsafe(no_mangle)]
-pub extern "C" fn hello() -> i32 {
-    export(samples::hello::module::<Naive>)
-}
-
-/// Loads the sorting sample.
-#[unsafe(no_mangle)]
-pub extern "C" fn sort() -> i32 {
-    export(samples::sort::module::<Naive>)
-}
-
-/// Loads the Collatz sample.
-#[unsafe(no_mangle)]
-pub extern "C" fn collatz() -> i32 {
-    export(samples::collatz::module::<Naive>)
-}
-
-/// Loads the comma operator's sample, a function of one number.
-#[unsafe(no_mangle)]
-pub extern "C" fn comma() -> i32 {
-    export(samples::comma::module::<Naive>)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,11 +180,11 @@ mod tests {
     #[test]
     fn the_exports_load_run_and_keep_the_output() {
         assert_eq!(run_sample(), -1);
-        assert_eq!(hello(), 0);
+        assert_eq!(samples::hello(), 0);
         assert_eq!(run_sample(), 13);
         assert_eq!(output_byte(0), u32::from(b'h'));
         assert_eq!(output_byte(12), u32::from(b'\n'));
-        assert_eq!(comma(), 0);
+        assert_eq!(samples::comma(), 0);
         assert_eq!(call_sample(1.0), 1);
         assert_eq!(output_byte(0), u32::from(b'3'));
         assert_eq!(call_sample(-1.0), -1 - 8);
