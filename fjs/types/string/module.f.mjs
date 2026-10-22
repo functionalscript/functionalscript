@@ -6,13 +6,14 @@
  * @example
  *
  * ```js
- * import { join, concat, repeat, cmp } from './module.f.mjs'
+ * import { join, concat, repeat, cmp, occurrences } from './module.f.mjs'
  *
  * const words = ['hello', 'world']
  * join(' ')(words) // 'hello world'
  * concat(words) // 'helloworld'
  * repeat('abc')(3) // 'abcabcabc'
  * cmp('apple')('banana') // -1
+ * occurrences('a')('banana') // 3
  * ```
  *
  * @import { List } from '../list/types.ts'
@@ -60,3 +61,12 @@ export const cmp = uCmp
 /** @type {(p: number) => (v: string) => readonly[string, string]} */
 export const splitAt = p => v =>
     [v.substring(0, p), v.substring(p)]
+
+/**
+ * How many times `needle` occurs in `text`, without overlap and from the
+ * left, as `split` cuts it: `occurrences('aa')('aaa')` is `1`. `needle` is
+ * not empty: an empty one would count the gaps between code units.
+ *
+ * @type {(needle: string) => (text: string) => number}
+ */
+export const occurrences = needle => text => text.split(needle).length - 1

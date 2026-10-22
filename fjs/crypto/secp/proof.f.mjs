@@ -7,6 +7,7 @@ import { demo, transition } from './demo.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { prime_field } from '../../types/prime_field/module.f.mjs'
 import { curve, secp256k1, secp192r1, secp256r1, eq, isPublicKey, secp384r1, secp521r1 } from './module.f.mjs'
+import { occurrences } from '../../types/string/module.f.mjs'
 
 /** @type {(param: Curve) => () => void} */
 const poker = param => () => {
@@ -100,13 +101,13 @@ export const proof = {
         const resultView = JSON.stringify(demo.view(adding))
         assert(resultView.includes('point:13,12'))
         assert(resultView.includes('Select P ='))
-        assertEq(resultView.split('data-secp-modular-line').length - 1, 24)
+        assertEq(occurrences('data-secp-modular-line')(resultView), 24)
         assert(resultView.includes('secp-finite-clip'))
         assert(resultView.includes('orange segments'))
         assert(resultView.includes('data-secp-finite-negation'))
         assert(resultView.includes('S is the third curve intersection'))
         const doublingView = JSON.stringify(demo.view({ ...adding, operation: '2P', p: '4,16' }))
-        assertEq(doublingView.split('data-secp-modular-line').length - 1, 29)
+        assertEq(occurrences('data-secp-modular-line')(doublingView), 29)
         assert(doublingView.includes('broken where it wraps'))
         assert(resultView.includes('x₃ = ('))
         assert(JSON.stringify(demo.view({ ...initial, view: 'Finite Field View', operation: '−P' })).includes('data-secp-finite-negation'))

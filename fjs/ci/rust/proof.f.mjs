@@ -19,6 +19,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { devNixJob } from '../dev/module.f.mjs'
 import { flakeText, nixVersionStep } from '../nix/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.mjs'
 import {
     i686System,
     i686Target,
@@ -36,9 +37,6 @@ const devFlake = flakeText(devNixJob)
 /** @type {(needle: string) => void} */
 const assertFlakeContains = needle =>
     assert(devFlake.includes(needle), `the shell's flake is missing: ${needle}`)
-
-/** @type {(text: string, needle: string) => number} */
-const occurrences = (text, needle) => text.split(needle).length - 1
 
 export const proof = {
     // What 32-bit Linux needs, asserted through the text the generator
@@ -63,7 +61,7 @@ export const proof = {
         target: () => {
             assertFlakeContains(
                 `${wasmTargets.map(t => `"${t}"`).join(' ')} "i686-unknown-linux-gnu" ]`)
-            assertEq(occurrences(devFlake, '"i686-unknown-linux-gnu"'), 1)
+            assertEq(occurrences('"i686-unknown-linux-gnu"')(devFlake), 1)
         },
         // The linker, which is the whole reason this is a per-system
         // declaration. The hook has to name it: `mkShell` brings its own `cc`
@@ -81,7 +79,7 @@ export const proof = {
         profileLinker: () => {
             assertFlakeContains('name = "fjs-i686-cc";')
             assertFlakeContains('exec ${pkgs.pkgsi686Linux.stdenv.cc}/bin/cc "$@"')
-            assertEq(occurrences(devFlake, 'name = "fjs-i686-cc";'), 1)
+            assertEq(occurrences('name = "fjs-i686-cc";')(devFlake), 1)
         },
         // The system, and that it is the only one. `pkgsi686Linux` throws
         // wherever the host is not x86 Linux, so the same hook in a second
@@ -94,7 +92,7 @@ export const proof = {
                 devNixJob.systems.includes(i686System),
                 'the shell has no Intel Linux to add it to')
             // The shell hook and the profile command both retain the linker.
-            assertEq(occurrences(devFlake, 'pkgsi686Linux'), 2)
+            assertEq(occurrences('pkgsi686Linux')(devFlake), 2)
             // Nothing in `packages`: a 32-bit `cc` on `PATH` would shadow the
             // host one the untargeted commands need. The linker reaches the
             // closure by being interpolated into the hook.

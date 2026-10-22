@@ -9,7 +9,7 @@ import { sloth, p } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
-import { concat as stringConcat } from '../../types/string/module.f.mjs'
+import { concat as stringConcat, occurrences } from '../../types/string/module.f.mjs'
 import { element, htmlToString } from '../../media/html/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -268,7 +268,7 @@ export const proof = {
             assertEq(click(long, 'verify').verdict, null)
             const combined = next(long, { kind: 'input', name: 'steps', value: '-' })
             const html = htmlToString(demo.view(combined))
-            assertEq(html.split('Refused:').length - 1, 2)
+            assertEq(occurrences('Refused:')(html), 2)
             assert(html.includes(stringConcat(element(refusal('Enter a non-negative decimal number of steps.')))), html)
             assert(html.includes('name="evaluate"'), html)
             assert(html.includes('name="verify"'), html)
