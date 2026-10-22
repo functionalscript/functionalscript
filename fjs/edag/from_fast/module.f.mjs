@@ -9,7 +9,7 @@
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
- * @import { Context, ExitOwner, Link, Node, Scope, Summaries, Summary, Task, Visit } from './private.ts'
+ * @import { Binding, Context, ExitOwner, Link, Node, Scope, Summaries, Summary, Task, Visit } from './private.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
@@ -20,6 +20,7 @@ import { scalarLoopOf } from '../../js/ast/loop/module.f.mjs'
 import { freeLoopBindings } from './control/module.f.mjs'
 import { rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
+import { step } from '../../common/monoid/module.f.mjs'
 
 /** @type {<T>(value: T) => Task<T>} */
 const done = value => ({ kind: 'done', value })
@@ -68,28 +69,40 @@ export const anchored = ({ exp, anchors }) => anchors.length === 0 ? exp : [',',
 /** @type {(values: readonly Lowered[]) => readonly Exp[]} */
 const floated = values => values.flatMap(value => value.anchors)
 
-/** @type {(scope: Scope, binding: BindingId) => Exp} */
-const lookup = (scope, binding) => {
-    while (scope !== null) {
-        const found = scope.first.find(([id]) => id === binding)
-        if (found !== undefined) { return found[1] }
-        scope = scope.tail
+/** @type {(scope: Scope, binding: BindingId) => Binding | undefined} */
+const bindingOf = (scope, binding) => {
+    let index = scope.index
+    while (index !== null) {
+        const found = index.value.get(binding)
+        if (found !== undefined) { return found }
+        index = index.rest
     }
-    throw 'unbound FAST value'
+    return undefined
 }
+
+/** @type {(earlier: ReadonlyMap<BindingId, Binding>) => (later: ReadonlyMap<BindingId, Binding>) => ReadonlyMap<BindingId, Binding>} */
+const mergeIndex = earlier => later => new Map([...earlier, ...later])
+
+/** Immutable map runs avoid whole-scope copies; lookup examines logarithmically many runs. @type {(run: ReadonlyMap<BindingId, Binding>) => (index: Scope['index']) => Scope['index']} */
+const appendIndex = step(mergeIndex)
+
+/** @type {Scope} */
+const emptyScope = { index: null, entries: null }
+
+/** A new chunk overrides older chunks; its first duplicate remains its value. @type {(environment: Environment, parent?: Scope) => Scope} */
+const scopeOf = (environment, parent = emptyScope) => ({
+    index: appendIndex(new Map(environment.toReversed().map(entry => /** @type {const} */ ([entry[0], entry]))))(parent.index),
+    entries: { head: parent.entries, tail: environment },
+})
+
+/** @type {(scope: Scope, binding: BindingId) => Exp} */
+const lookup = (scope, binding) => assertNotNullish(bindingOf(scope, binding), 'unbound FAST value')[1]
 
 /** @type {(scope: Scope) => Environment} */
-const environmentOf = scope => toArray(scope).toReversed().flatMap(chunk => chunk)
+const environmentOf = scope => toArray(scope.entries)
 
 /** @type {(scope: Scope, binding: BindingId) => boolean} */
-const lazyBinding = (scope, binding) => {
-    while (scope !== null) {
-        const found = scope.first.find(([id]) => id === binding)
-        if (found !== undefined) { return found[2] === 'lazy' }
-        scope = scope.tail
-    }
-    return false
-}
+const lazyBinding = (scope, binding) => bindingOf(scope, binding)?.[2] === 'lazy'
 
 /** @type {(m: ExpOp, n: ExpOp) => boolean} */
 const sameCapture = (m, n) => m === n || (['arg', 'rest', 'frame', 'self'].includes(m[0]) && m.length === n.length && m.every((x, i) => x === n[i]))
@@ -251,7 +264,7 @@ const functionValue = (source, context) => call(() => {
                 captures[i].exp instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (captures[i].exp)))] : captures[i].exp,
             ])),
         ]
-        const local = { ...context, summaries: matched === null ? context.summaries : new Map([...context.summaries, ...summaries(['block', fn.body], context.summaries)]), scope: { first: inner, tail: null }, transfer: /** @type {ExitOwner} */ ({ kind: 'default' }) }
+        const local = { ...context, summaries: matched === null ? context.summaries : new Map([...context.summaries, ...summaries(['block', fn.body], context.summaries)]), scope: scopeOf(inner), transfer: /** @type {ExitOwner} */ ({ kind: 'default' }) }
         const root = rootLoopOf(fn)
         return bind(root === null ? blockTask(fn.body, local) : scalarRoot(fn, root, local), body =>
             done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: floated(captures) }))
@@ -265,10 +278,10 @@ const scalarRoot = (fn, loop, context) => call(() => {
     const aliases = (index, scope) => call(() => {
         if (index < fn.body.statements.length - 1) {
             const alias = /** @type {Definition} */ (fn.body.statements[index])
-            return bind(valueTask(alias[2], { ...context, scope }), value => aliases(index + 1, { first: [[alias[1], value.exp]], tail: scope }))
+            return bind(valueTask(alias[2], { ...context, scope }), value => aliases(index + 1, scopeOf([[alias[1], value.exp]], scope)))
         }
         return bind(valueTask(loop.initial[0], { ...context, scope }), parameter => {
-            const inner = { ...context, scope: { first: /** @type {Environment} */ ([[loop.parameters[0], parameter.exp]]), tail: scope } }
+            const inner = { ...context, scope: scopeOf([[loop.parameters[0], parameter.exp]], scope) }
             const self = fn.self === null ? /** @type {Exp} */ (['self']) : lookup(context.scope, fn.self)
             return bind(valueTask(parts.condition, inner), condition =>
                 bind(blockTask(parts.step, { ...inner, transfer: { kind: 'scalar', self } }), step =>
@@ -373,19 +386,19 @@ const blockTask = (block, context) => call(() => {
                 const initializer = statement[2]
                 const deferred = statement[3] === 'lazy' && initializer !== null && typeof initializer === 'object'
                     && (initializer[0] !== 'ref' || lazyBinding(scope, initializer[1]))
-                const next = { first: /** @type {Environment} */ ([deferred ? [statement[1], anchored(value), 'lazy'] : [statement[1], statement[3] === 'lazy' ? anchored(value) : value.exp]]), tail: scope }
+                const next = scopeOf([deferred ? [statement[1], anchored(value), 'lazy'] : [statement[1], statement[3] === 'lazy' ? anchored(value) : value.exp]], scope)
                 const added = statement[3] === 'required' ? [...value.anchors, ...(required.includes(statement[1]) ? [value.exp] : [])] : []
                 return each(index + 1, next, { head: anchors, tail: added })
             })
         }
         if (statement[0] === 'loop') {
             return bind(scalarLoop(statement[1], current), value => each(index + 1,
-                { first: [[statement[1].results[0], value.exp]], tail: scope },
+                scopeOf([[statement[1].results[0], value.exp]], scope),
                 { head: anchors, tail: [...value.anchors, ...(!reached.includes(statement[1].results[0]) ? [value.exp] : [])] }))
         }
         const task = statement[0] === 'block' ? regionTask(statement[2], current)
             : conditional(statement[2], statement[3], statement[4], current)
-        return bind(task, value => each(index + 1, { first: resultBindings(statement[1], value.exp), tail: scope },
+        return bind(task, value => each(index + 1, scopeOf(resultBindings(statement[1], value.exp), scope),
             { head: anchors, tail: [...value.anchors, value.exp] }))
     })
     return each(0, context.scope, null)
@@ -393,7 +406,7 @@ const blockTask = (block, context) => call(() => {
 
 /** @type {(node: Node, environment: Environment, transfer?: Transfer) => Context} */
 const contextFor = (node, environment, transfer) => ({
-    scope: { first: environment, tail: null },
+    scope: scopeOf(environment),
     transfer: transfer === undefined ? { kind: 'default' } : { kind: 'custom', transfer },
     summaries: summaries(node),
 })

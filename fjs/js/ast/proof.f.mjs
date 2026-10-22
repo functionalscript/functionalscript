@@ -1,16 +1,35 @@
 /**
  * Resolved write/capture facts and operand mappings preserve identity and metadata.
  *
- * @import { BindingScope, Operator, Step, Value } from './types.ts'
+ * @import { BindingScope, Entry, Operator, Step, Value } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { analyzeBindings, mapOperator, operatorOperands } from './module.f.mjs'
 
 export const proof = {
     bindings: {
         empty: () => {
             assertStructurallySame(analyzeBindings({ target: { kind: 'function', index: 0 }, bindings: [], events: [] }), [])
+            assertStructurallySame(analyzeBindings({ target: { kind: 'function', index: 0 }, bindings: [], events: [['read', { index: 0 }]] }), [])
+        },
+        wideCaptures: () => {
+            const ids = Array.from({ length: 20_000 }, (_, index) => ({ index }))
+            const outer = /** @type {const} */ ({ kind: 'function', index: 0 })
+            const first = /** @type {const} */ ({ kind: 'function', index: 1 })
+            const second = /** @type {const} */ ({ kind: 'function', index: 1 })
+            const facts = analyzeBindings({ target: outer, bindings: ids, events: [
+                ['function', { target: first, bindings: [], events: ids.flatMap(id => /** @type {const} */ ([['read', id], ['read', id]])) }],
+                ['function', { target: second, bindings: [], events: ids.map(id => ['write', id]) }],
+            ] })
+            assertEq(facts.length, ids.length)
+            for (const [index, fact] of facts.entries()) {
+                assertEq(fact.id, ids[index])
+                assertEq(fact.isMutable, true)
+                assertEq(fact.capturedBy.length, 2)
+                assertEq(fact.capturedBy[0], first)
+                assertEq(fact.capturedBy[1], second)
+            }
         },
         /** Locals, parameters and expanded patterns share exactly one write rule. */
         wholeScope: () => {
@@ -114,5 +133,22 @@ export const proof = {
         /** @type {Operator<number>} */
         const helper = ['Object.is']
         assertEq(mapOperator(value => value + 10)(helper), helper)
+    },
+    wideObject: () => {
+        const width = 20_000
+        const shared = { index: 0 }
+        /** @type {readonly Entry<typeof shared>[]} */
+        const entries = Array.from({ length: width }, (_, index) => index % 2 === 0 ? [':', shared, shared] : ['...', shared])
+        const mapped = mapOperator((value, index) => /** @type {const} */ ([value, index]))(['object', entries])
+        assert(mapped[0] === 'object')
+        assertEq(mapped[1].length, width)
+        for (const [index, entry] of mapped[1].entries()) { assertEq(entry[0], index % 2 === 0 ? ':' : '...') }
+        const operands = operatorOperands(mapped)
+        assertEq(operands.length, width * 3 / 2)
+        for (const [index, operand] of operands.entries()) {
+            assertEq(operand[0], shared)
+            assertEq(operand[1], index)
+        }
+        assertStructurallySame(mapOperator(value => value)(['object', []]), ['object', []])
     },
 }

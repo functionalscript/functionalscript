@@ -2,7 +2,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { BindingId, BindingScope, FunctionTarget, Item, Entry, Key, Step, _Access, _Call, _Conditional, _Unary, _InstanceOf, _Comma, _Array, _Object } from '../../js/ast/types.ts'
+import type { BindingEvent, BindingId, FunctionTarget, Item, Entry, Key, Step, _Access, _Call, _Conditional, _Unary, _InstanceOf, _Comma, _Array, _Object } from '../../js/ast/types.ts'
 import type { SourceValue, SourceParameter, SourceStatement, SourceBlock, SourceCase, _SourceBinary } from '../../js/ast/sugar/source.ts'
 import type { PatternPlan } from '../../js/ast/sugar/pattern/types.ts'
 import type { StaticId, IntrinsicId } from '../../edag/types.ts'
@@ -36,10 +36,19 @@ export type _Ref = { readonly id: BindingId; readonly kind: 'own' | 'capture' | 
 export type _Env = OrderedMap<_Ref>
 export type _Plan = PatternPlan
 
+/** Open source events append without copying; closing materializes their array. */
+export type _Trace = {
+    readonly target: FunctionTarget
+    readonly bindings: readonly BindingId[]
+    readonly events: List<BindingEvent>
+    /** Top-level event count keeps source target indices deterministic. */
+    readonly count: number
+}
+
 export type _Scope = {
     readonly names: _Env
     readonly origins: OrderedMap<BindingId>
-    readonly trace: BindingScope
+    readonly trace: _Trace
     readonly sourceOrigins: readonly BindingOrigin[]
     readonly region: boolean
     readonly count: number
