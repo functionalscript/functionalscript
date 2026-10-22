@@ -38,6 +38,9 @@ export const proof = {
         // sentence it was written as rather than as its layout.
         joinsWrapped: () => assertStructurallySame(unwrap(entryTexts('- a\n  b\n  c\n')), ['a b c']),
         preservesContinuationContent: () => assertStructurallySame(unwrap(entryTexts(`- ${tick}foo \n   bar${tick}\n`)), [`${tick}foo   bar${tick}`]),
+        paddedMarkerContinuation: () => assertStructurallySame(unwrap(entryTexts(`-   ${tick}foo\n    bar${tick}\n`)), [`${tick}foo bar${tick}`]),
+        eachItemsIndent: () => assertStructurallySame(unwrap(entryTexts(`-    a\n     b\n- c\n  d\n`)), ['a b', 'c d']),
+        emptyMarkerIndent: () => assertStructurallySame(unwrap(entryTexts('-     \n  a\n')), [' a']),
         // The trailing newline every released file ends with closes nothing.
         trailingBlank: () => assertStructurallySame(unwrap(entryTexts('- a\n\n')), ['a']),
         // A line of nothing but the indent carries no words, so it continues
@@ -351,6 +354,7 @@ export const proof = {
             [['paragraph', [['code', 'foo   bar']]]]),
         multilineListCodeSpaces: () => assertStructurallySame(blocks(`- ${tick}foo \n   bar${tick}`),
             [['list', false, [[['paragraph', [['code', 'foo   bar']]]]]]]),
+        paddedListCode: () => assertEq(refusal(`-   ${tick}foo\n    bar${tick}`), 'line 1: a list item whose text does not follow its marker'),
         // A heading, a fence or a list item ends a paragraph without a blank line.
         paragraphEnds: () => assertStructurallySame(blocks('a\n# h\nb\n```\nc\n```\nd\n- e\n'),
             [['paragraph', [['text', 'a']]], ['heading', 1, [['text', 'h']]], ['paragraph', [['text', 'b']]],
