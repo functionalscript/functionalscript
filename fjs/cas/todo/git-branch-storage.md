@@ -119,17 +119,24 @@ rename detection disabled for the CAS map.
 
 ### Tasks
 
-- [ ] Define the backend configuration and publication API around
-      `Cas<O>`, including explicit branch snapshots, repository/remote/ref
-      selection, and creation of a missing branch.
+- [x] Define the backend configuration and the snapshot: `Branch` selects
+      the repository, remote and branch, `snapshotRef` is where the
+      published snapshot is read, and `snapshot` is it as a `CasReader`, the
+      read half of `Cas<O>` — [`fjs/cas/git`](../git/module.f.mjs).
+- [ ] Define the publication API around `Cas<O>`: the proposal a writer
+      adds to, its publication, and creation of a missing branch.
 - [x] Provide content-key computation without storage or publication,
       sharing CAS's configured hash implementation. Prove agreement with
       the key returned by `write` for the same bytes — `contentKey` in
       [`fjs/cas`](../module.f.mjs).
-- [ ] Implement branch storage and byte-preserving CAS reads, writes, and
-      listing, reusing the existing encoding, paths, and Git primitives.
-      Prove that the source checkout's HEAD, working tree, and index stay
-      unchanged.
+- [x] Implement byte-preserving CAS reads and listing of a snapshot,
+      reusing the existing encoding, paths, and Git primitives — `casAt` in
+      [`fjs/cas/git`](../git/module.f.mjs), over the object store's reader,
+      the walk and the ref store, in SHA-1 and SHA-256 repositories.
+- [ ] Implement branch storage: byte-preserving CAS writes into the
+      repository's own objects and a proposal ref, reusing the same
+      primitives. Prove that the source checkout's HEAD, working tree, and
+      index stay unchanged.
 - [ ] Implement commit/push publication and cleanup. Cover incomplete
       writes, identical concurrent additions, concurrent initialization,
       normal-push retries, and the three-way deletion cases above. Include
