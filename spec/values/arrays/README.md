@@ -67,6 +67,13 @@ the expression graph (EDAG), the Rust and the WebAssembly that Rust builds
 to. Its Run button calls the default export with `1` and `2`, as JavaScript
 and as WebAssembly, and shows what each call returned or threw.
 
+```js
+export default (...a) => {
+    const x = ["hello", a[0], [true, null]];
+    return [x.length, [...x, a[0] + 1], x[2][0]];
+};
+```
+
 ## Reference
 
 - ECMA-262: [Array initializer](https://tc39.es/ecma262/#sec-array-initializer)

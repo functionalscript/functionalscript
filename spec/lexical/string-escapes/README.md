@@ -42,6 +42,10 @@ Rust builds to. Its Run button calls the default export with `0`, `1` and
 `2`, as JavaScript and as WebAssembly, and shows what each call returned or
 threw.
 
+```js
+export default (...a) => ["tab\there", 'it\'s', "\u0041"][Number(a[0])].length;
+```
+
 ## Reference
 
 - ECMA-262: [String literals](https://tc39.es/ecma262/#sec-literals-string-literals)

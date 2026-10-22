@@ -87,6 +87,10 @@ WebAssembly that Rust builds to. Its Run button calls the default export
 with `7` and `0.5`, as JavaScript and as WebAssembly, and shows what each
 call returned or threw.
 
+```js
+export default (...a) => [Number(String(a[0])), Number("0x10"), Number(1n), Number("") + a[0]];
+```
+
 ## Reference
 
 - ECMA-262: [ToNumber](https://tc39.es/ecma262/#sec-tonumber), [Number()](https://tc39.es/ecma262/#sec-number-constructor-number-value)

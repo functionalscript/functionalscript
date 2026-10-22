@@ -103,6 +103,11 @@ expression graph (EDAG), the Rust and the WebAssembly that Rust builds to.
 Its Run button calls the default export with `0` and `1`, as JavaScript and
 as WebAssembly, and shows what each call returned or threw.
 
+```js
+const cfg = { ports: [80, 443] };
+export default (...a) => [cfg.ports[Number(a[0])], cfg["ports"].length];
+```
+
 ## Reference
 
 - ECMA-262: [Property accessors](https://tc39.es/ecma262/#sec-property-accessors)

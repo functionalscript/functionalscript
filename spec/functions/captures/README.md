@@ -56,6 +56,12 @@ Rust builds to. Its Run button calls the default export with `1` and `10`,
 as JavaScript and as WebAssembly, and shows what each call returned or
 threw.
 
+```js
+const scale = 3;
+const adder = (...x) => (...y) => x[0] + y[0] * scale;
+export default (...a) => adder(a[0])(2);
+```
+
 ## Reference
 
 - ECMA-262: [Function objects](https://tc39.es/ecma262/#sec-function-objects)

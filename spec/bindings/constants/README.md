@@ -118,6 +118,13 @@ of it: the expression graph (EDAG), the Rust and the WebAssembly that Rust
 builds to. Its Run button calls the default export with `0` and `1`, as
 JavaScript and as WebAssembly, and shows what each call returned or threw.
 
+```js
+const port = 8080;
+const server = { "port": port, "host": "localhost" };
+const config = { "dev": server, "prod": server };
+export default (...a) => [config.dev === config.prod, config.prod.port + a[0], config.dev.host];
+```
+
 ## Reference
 
 - ECMA-262: [Let and const declarations](https://tc39.es/ecma262/#sec-let-and-const-declarations)

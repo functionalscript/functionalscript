@@ -100,6 +100,12 @@ the WebAssembly that Rust builds to. Its Run button calls the default export
 with `0` and `1.5`, as JavaScript and as WebAssembly, and shows what each
 call returned or threw.
 
+```js
+const { is } = Object;
+const { isInteger } = Number;
+export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0]), Object.entries({ b: a[0], "0": 2 })];
+```
+
 ## Reference
 
 - ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)

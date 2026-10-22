@@ -53,6 +53,10 @@ WebAssembly that Rust builds to. Its Run button calls the default export
 with `1` and `2`, as JavaScript and as WebAssembly, and shows what each call
 returned or threw.
 
+```js
+export default (...args) => [args.length, args[0] * 10];
+```
+
 ## Reference
 
 - ECMA-262: [Function definitions](https://tc39.es/ecma262/#sec-function-definitions), [Arrow function definitions](https://tc39.es/ecma262/#sec-arrow-function-definitions)

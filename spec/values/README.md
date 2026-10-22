@@ -60,6 +60,10 @@ the WebAssembly that Rust builds to. Its Run button calls the default export
 with `1` and `2`, as JavaScript and as WebAssembly, and shows what each call
 returned or threw.
 
+```js
+export default (...a) => [a[0], "s", true, null, [a[0]], -a[0], typeof 1n];
+```
+
 ## Reference
 
 - ECMA-262: [ECMAScript language types](https://tc39.es/ecma262/#sec-ecmascript-language-types)

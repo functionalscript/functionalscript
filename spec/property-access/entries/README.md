@@ -125,6 +125,15 @@ the expression graph (EDAG), the Rust and the WebAssembly that Rust builds
 to. Its Run button calls the default export with `0` and `1`, as JavaScript
 and as WebAssembly, and shows what each call returned or threw.
 
+```js
+const entry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable ? x.value : undefined;
+};
+const escapes = { n: "newline", t: "tab" };
+export default (...c) => entry(escapes, ["n", "x"][Number(c[0])]);
+```
+
 ## Reference
 
 - ECMA-262: [Object.getOwnPropertyDescriptor](https://tc39.es/ecma262/#sec-object.getownpropertydescriptor)

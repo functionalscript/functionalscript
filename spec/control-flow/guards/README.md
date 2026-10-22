@@ -199,6 +199,15 @@ expression graph (EDAG), the Rust and the WebAssembly that Rust builds to.
 Its Run button calls the default export with `-5`, `0` and `7`, as
 JavaScript and as WebAssembly, and shows what each call returned or threw.
 
+```js
+export default (...a) => {
+    const n = a[0];
+    if (n < 0) { return "negative"; }
+    if (n > 0) { return "positive"; }
+    return "zero";
+};
+```
+
 ## Reference
 
 - ECMA-262: [The if statement](https://tc39.es/ecma262/#sec-if-statement), [The return statement](https://tc39.es/ecma262/#sec-return-statement), [The throw statement](https://tc39.es/ecma262/#sec-throw-statement)

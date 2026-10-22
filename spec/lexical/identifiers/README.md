@@ -30,6 +30,13 @@ WebAssembly that Rust builds to. Its Run button calls the default export
 with `1` and `2`, as JavaScript and as WebAssembly, and shows what each
 call returned or threw.
 
+```js
+const _x = 1;
+const $0 = 2;
+const a_$1 = { if: 3, default: 4 };
+export default (...a) => [_x + a[0], $0, a_$1.if, a_$1.default];
+```
+
 ## Reference
 
 - ECMA-262: [Names and keywords](https://tc39.es/ecma262/#sec-names-and-keywords)

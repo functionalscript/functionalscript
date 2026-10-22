@@ -38,6 +38,12 @@ WebAssembly that Rust builds to. Its Run button calls the default export
 with `0` and `1`, as JavaScript and as WebAssembly, and shows what each call
 returned or threw.
 
+```js
+const hello = () => 0;
+const o = { make: () => 0 };
+export default (...a) => [hello === hello, hello === o.make, [hello, o.make][Number(a[0])] === hello];
+```
+
 ## Reference
 
 - ECMA-262: [Function objects](https://tc39.es/ecma262/#sec-function-objects)

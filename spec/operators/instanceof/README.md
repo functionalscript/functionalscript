@@ -48,6 +48,10 @@ a number — with every output `fjs compile` makes of it: the expression graph
 calls the default export with `0` and `1`, as JavaScript and as WebAssembly,
 and shows what each call returned or threw.
 
+```js
+export default (...a) => [[a[0]], a[0]][Number(a[0])] instanceof Array;
+```
+
 ## Reference
 
 - ECMA-262: [InstanceofOperator](https://tc39.es/ecma262/#sec-instanceofoperator)
