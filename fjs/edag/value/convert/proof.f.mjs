@@ -6,6 +6,7 @@
  * @import { Invoke } from '../call/types.ts'
  */
 
+import { conditional } from '../../testlib.f.js'
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { toPrimitive, toString, toNumber } from './module.f.mjs'
@@ -69,7 +70,7 @@ export const proof = {
         assertEq(Number.isNaN(assertOk(toNumber(optional, skipped))), true)
         const shared = /** @type {const} */ (['[]', []])
         /** @type {ValueFunction} */
-        const lazy = ['=>', 0, [], ['[]', [['&&', true, shared], ['||', false, shared]]]]
+        const lazy = ['=>', 0, [], ['[]', [conditional("&&", true, shared), conditional("||", false, shared)]]]
         assertEq(assertOk(toString(lazy, skipped)), assertOk(tryFunctionText(lazy)))
     },
 }

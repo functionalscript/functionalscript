@@ -66,9 +66,9 @@
  * the zero-operand operator `['undefined']`. This demo draws the two alike,
  * because a reader sees the same value either way.
  *
- * **An operand a node may never evaluate draws dashed.** `&&`, `||` and `??`
- * establish their right operand only where the left has not already
- * decided the answer, `?:` establishes exactly one arm, and `=>` builds a
+ * **An operand a node may never evaluate draws dashed.** Source logical
+ * operators become conditional regions: `?:` establishes exactly one arm,
+ * reusing the established left value where it decides the result. `=>` builds a
  * closure without running its body, so those edges are marked and the
  * shared module draws them broken. The mark is on the
  * **edge** and not on the node it reaches, because laziness is positional:
@@ -89,7 +89,7 @@
  * @import { _Chain, _Child } from './private.ts'
  */
 
-import { intrinsicIds, lazyOp2Id, staticIds } from '../../edag/module.f.mjs'
+import { intrinsicIds, staticIds } from '../../edag/module.f.mjs'
 import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
@@ -111,23 +111,9 @@ const op2 = new Set([
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
-    '&&', '||', '??',
 ])
 const op12 = new Set(['+', '-'])
 
-/**
- * The `op2` tags whose **right** operand is lazy, taken from `fjs/edag` rather
- * than repeated here: the executor and this drawing have to agree about
- * which operand may go unevaluated, and a second list is the one that
- * drifts.
- *
- * Why the mark then belongs on the **edge** and not on the node it reaches:
- * `fjs/edag`'s doc again — "all this laziness is positional, not nodal — the
- * same node referenced from an eager position elsewhere is still evaluated
- * there". A node is drawn once however many references reach it, and one of
- * them being conditional says nothing about the others.
- */
-const lazyRight = /** @type {ReadonlySet<string>} */ (new Set(lazyOp2Id))
 
 /**
  * A key as a chain's label spells it: a name, a numbered index, or nothing
@@ -353,9 +339,7 @@ export const _shapeOf = e => {
             kind: 'op', label: tag,
             children: [
                 ['left', /** @type {Exp} */ (exp[1])],
-                lazyRight.has(tag)
-                    ? ['right', /** @type {Exp} */ (exp[2]), 'lazy']
-                    : ['right', /** @type {Exp} */ (exp[2])],
+                ['right', /** @type {Exp} */ (exp[2])],
             ],
         }
     }
@@ -431,9 +415,9 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  * - **Primitives** puts every kind inline in the port that uses it. The
  *   hexadecimal number and bigint draw as the values they spell, `255` and
  *   `16n`: the graph keeps the value, not the spelling.
- * - **Laziness: `&&` `||` `??`** breaks each one's right edge, and
- *   **Laziness: `?:`** both arms and not the condition — with a function's
- *   body in each, every lazy position the compiler has.
+ * - **Laziness: `&&` `||` `??`** draws the conditional regions each source
+ *   operation becomes. **Laziness: `?:`** marks both arms and keeps the
+ *   condition eager; a function's body is a lazy edge of its own.
  * - **Closure** is a function that captures its enclosing parameter and a
  *   module `const`, each read inside the body through a frame slot.
  * - **Methods and properties** draws a method call as one node, `.at()`,
@@ -460,7 +444,7 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  *   the graph is the one `n < 0 ? -1 : n > 0 ? 1 : 0` draws.
  * - **Switch** is a body that is one `switch` over three cases: a `?:`
  *   node per case, its condition the `===` of the discriminant — one node,
- *   read by every test — and a label, two labels under `||`, the next
+ *   read by every test — and a label, two labels joined by a conditional, the next
  *   case its alternate and the `default` block the last, a `throw` node,
  *   so the drawing has no `switch` in it either — the statement is sugar
  *   over the same conditional a chain of guards is.

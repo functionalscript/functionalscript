@@ -120,14 +120,7 @@ export const op1Rust = {
  * spell. The comparisons follow the same precedent for a different reason:
  * every operator here returns `Result<Any<A>, Any<A>>`, which a
  * `PartialOrd`-derived `<`/`<=`/`>`/`>=` on `Any<A>` would not give back.
- * `&&`/`||`/`??` follow it for a third reason: Rust's own `&&`/`||` take
- * `bool` operands, and `?` is Rust's own try-operator, unrelated to JS `??`
- * — so all three are `Any` methods, named for what they do rather than
- * reusing punctuation Rust already owns. Their right operand arrives here
- * already a thunk, `|| …`, since the three are {@link lazy}: the
- * `nanvm-lib` method takes it as an `impl FnOnce() -> Result<Any<A>,
- * Any<A>>` and establishes it only when the left decides nothing. `>>>`
- * follows it for a fourth reason: Rust has no unsigned-right-shift operator
+ * `>>>` follows it for another reason: Rust has no unsigned-right-shift operator
  * at all (only `>>`, which is arithmetic on a signed type), so it is
  * `Any::unsigned_right_shift`.
  *
@@ -153,9 +146,6 @@ export const op2Rust = {
     '<=': (a, b) => `Any::le(${a}, ${b})`,
     '>': (a, b) => `Any::gt(${a}, ${b})`,
     '>=': (a, b) => `Any::ge(${a}, ${b})`,
-    '&&': (a, b) => `Any::logical_and(${a}, ${b})`,
-    '||': (a, b) => `Any::logical_or(${a}, ${b})`,
-    '??': (a, b) => `Any::nullish_coalescing(${a}, ${b})`,
     // `==` on `Any` *is* JavaScript's `===`, but it yields a `bool` and so
     // pins neither operand's `A`; `nanvm_lib::vm::unstable`'s `strict_eq`
     // and `strict_ne` lift the answer into the `Result` every other
@@ -165,11 +155,10 @@ export const op2Rust = {
 }
 
 /**
- * The same, for the one ternary operation (`?:`) — another method, for the
- * same reason as `&&`/`||`/`??`: Rust's own `if`/`else` takes a `bool`
+ * The same, for the one ternary operation (`?:`). Rust's own `if`/`else` takes a `bool`
  * condition, not an `Any<A>` one, so there is no infix spelling to reuse.
- * Both arms arrive as thunks, `?:` being {@link lazy}: `Any::conditional`
- * establishes the one its condition selects.
+ * Both arms arrive as Result-returning callables; `Any::conditional`
+ * establishes the selected one.
  *
  * @type {{ readonly [k in (Operator<Value>[0] | 'throw')]?: (a: string, b: string, c: string) => string | Printed<string> }}
  */
@@ -519,7 +508,7 @@ const operation = (s, n, result) => {
                 : map2((/** @type {readonly string[]} */ before, /** @type {string} */ last) => `{ ${before.map(text => `${text}; `).join('')}${last} }`)(all(values.slice(0, -1).map(v => expression(s, v, false))), expression(s, values[values.length - 1], result))
         }
         default: {
-            const lazy = tag === '&&' || tag === '||' || tag === '??' || tag === '?:'
+            const lazy = tag === '?:'
             const infix = n.length === 3 && ['+', '-', '*', '/', '%', '&', '|', '^', '<<', '>>'].includes(tag)
             const eager = (/** @type {Value} */ v) => infix || tag === 'String' ? grouped(s, v) : expression(s, v, false)
             const rest = (/** @type {Value} */ v) => lazy ? thunk(s, v) : eager(v)
@@ -640,7 +629,6 @@ const operationTasks = (context, n, result) => {
         case '?.()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), false, false)] }
         case 'instanceof': { return [valueTask(context, n[1])] }
         case ',': { return n[1].map((v, i) => valueTask(context, v, i === n[1].length - 1 && result)) }
-        case '&&': case '||': case '??': { return [valueTask(context, n[1]), ...thunkTasks(context, n[2])] }
         case '?:': { return [valueTask(context, n[1]), ...thunkTasks(context, n[2]), ...thunkTasks(context, n[3])] }
         default: { return n.length === 2 ? [valueTask(context, n[1])] : [valueTask(context, n[1]), valueTask(context, n[2])] }
     }

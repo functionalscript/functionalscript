@@ -3,11 +3,18 @@
  * Result tuples, including failures and represented value identities.
  *
  * @import { EdagValue } from '../types.ts'
+ * @import { Exp } from '../../types.ts'
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
-import { throwValue, and, or, coalesce, conditional, sequence } from './module.f.mjs'
+import { throwValue, conditional, sequence } from './module.f.mjs'
+import { conditional as sourceConditional } from '../../testlib.f.js'
+import { analysis } from '../../analysis/module.f.mjs'
+import { memo } from '../../memo/module.f.mjs'
+
+/** Canonical graph fixtures, with source logical lowering kept outside this module. @type {(graph: Exp) => ReturnType<ReturnType<typeof memo>>} */
+const evaluated = graph => memo(assertOk(analysis(graph)))({ args: [] })
 
 /** A thunk that must never be demanded. @type {() => never} */
 const skipped = () => { assert(false, 'an unselected operand was evaluated') }
@@ -68,7 +75,7 @@ export const proof = {
         composition: () => {
             const selected = ok(object)
             assertEq(sequence([
-                () => and(ok(false), () => sequence([skipped])),
+                () => conditional(ok(false), () => sequence([skipped]), () => ok(false)),
                 () => conditional(ok(true),
                     () => sequence([() => ok(data), () => selected]),
                     () => sequence([skipped])),
@@ -84,30 +91,28 @@ export const proof = {
     shortCircuit: () => {
         for (const value of falsy) {
             const result = ok(value)
-            assertEq(and(result, skipped), result)
+            assertEq(conditional(result, skipped, () => result), result)
         }
         for (const value of truthy) {
             const result = ok(value)
-            assertEq(or(result, skipped), result)
+            assertEq(conditional(result, () => result, skipped), result)
         }
     },
-    logicalSelection: () => {
+    conditionalSelection: () => {
         const selected = ok(func)
         for (const value of truthy) {
-            assertEq(and(ok(value), () => selected), selected)
+            assertEq(conditional(ok(value), () => selected, skipped), selected)
         }
         for (const value of falsy) {
-            assertEq(or(ok(value), () => selected), selected)
+            assertEq(conditional(ok(value), skipped, () => selected), selected)
         }
     },
     nullishSelection: () => {
-        const selected = ok(object)
-        assertEq(coalesce(ok(null), () => selected), selected)
-        assertEq(coalesce(ok(['undefined']), () => selected), selected)
+        assertStructurallySame(assertOk(evaluated(sourceConditional('??', null, object))), object)
+        assertStructurallySame(assertOk(evaluated(sourceConditional('??', ['undefined'], object))), object)
         // Falsy values other than null and undefined are retained.
         for (const value of [false, 0, -0, NaN, '', 0n, ...truthy]) {
-            const result = ok(value)
-            assertEq(coalesce(result, skipped), result)
+            assertStructurallySame(assertOk(evaluated(sourceConditional('??', value, ['throw', 'unselected']))), value)
         }
     },
     branches: () => {
@@ -125,22 +130,22 @@ export const proof = {
         for (const value of values) {
             for (const selected of [ok(value), error(value)]) {
                 const right = () => selected
-                assertEq(and(ok(true), right), selected)
-                assertEq(or(ok(false), right), selected)
-                assertEq(coalesce(ok(null), right), selected)
-                assertEq(coalesce(ok(['undefined']), right), selected)
                 assertEq(conditional(ok(true), right, skipped), selected)
                 assertEq(conditional(ok(false), skipped, right), selected)
+            }
+            for (const [tag, left] of /** @type {const} */ ([['&&', true], ['||', false], ['??', null], ['??', ['undefined']]])) {
+                assertStructurallySame(assertOk(evaluated(sourceConditional(tag, left, value))), value)
+                assertStructurallySame(assertError(evaluated(sourceConditional(tag, left, ['throw', value]))), value)
             }
         }
     },
     firstFailure: () => {
         for (const value of values) {
             const failure = error(value)
-            assertEq(and(failure, skipped), failure)
-            assertEq(or(failure, skipped), failure)
-            assertEq(coalesce(failure, skipped), failure)
             assertEq(conditional(failure, skipped, skipped), failure)
+            for (const tag of /** @type {const} */ (['&&', '||', '??'])) {
+                assertStructurallySame(assertError(evaluated(sourceConditional(tag, ['throw', value], ['throw', 'unselected']))), value)
+            }
         }
     },
     throwValue: () => {
@@ -152,18 +157,21 @@ export const proof = {
     },
     composition: () => {
         const selected = ok(object)
-        const success = and(
-            or(ok(false), () => ok(true)),
+        const success = conditional(
+            conditional(ok(false), skipped, () => ok(true)),
             () => conditional(ok('value'), () => selected, skipped),
+            skipped,
         )
         assertEq(success, selected)
         assertEq(assertOk(success), object)
         const failure = throwValue(ok(func))
         assertEq(conditional(
-            or(coalesce(ok(['undefined']), () => failure), skipped),
+            conditional(ok(false), skipped, () => failure),
             skipped,
             skipped,
         ), failure)
         assertEq(assertError(failure), func)
+        const graph = sourceConditional('||', sourceConditional('??', ['undefined'], ['throw', func]), ['throw', 'unselected'])
+        assertStructurallySame(assertError(evaluated(graph)), func)
     },
 }

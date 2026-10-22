@@ -8,7 +8,7 @@
 
 import type { BindingId, Block } from '../types.ts'
 
-export type { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceImport, SourceLoop, SourceModule, SourceParameter, SourceStatement, SourceValue } from './source.ts'
+export type { ExpansionPlan, LogicalTag, SourceBlock, SourceExit, SourceFunction, SourceImport, SourceLoop, SourceModule, SourceOperator, SourceParameter, SourceStatement, SourceValue } from './source.ts'
 
 /** Bindings supplied by the module boundary, followed by its computation. */
 export type Module = {

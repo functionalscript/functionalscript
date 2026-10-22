@@ -7,13 +7,14 @@
  *
  * @import { BindingEvent, BindingId, BindingScope, Block, Function as FastFunction, Operator, Statement, Value } from '../types.ts'
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
- * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceValue } from './source.ts'
+ * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceOperator, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
  * @import { Context, Environment, Established, Normalized, NormalizedStatement, ReferenceTask, RegionExit, Results, Work } from './private.ts'
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
+import { logicalValue } from './logical/module.f.js'
 
 /** Indices are diagnostic; each allocation establishes a distinct identity. @type {(index: number) => BindingId} */
 const binding = index => ({ index })
@@ -248,8 +249,13 @@ const normalizedValue = (environment, context) => root => {
         if (work.kind === 'expand') {
             const found = leaf(environment, context, work.value)
             if (found !== null) { results = { value: found.value, rest: results }; work = work.rest; continue }
-            const source = /** @type {Operator<SourceValue>} */ (work.value)
-            const operator = source[0] === ',' ? /** @type {Operator<SourceValue>} */ ([',', commaValues(source[1])]) : source
+            const source = /** @type {SourceOperator<SourceValue>} */ (work.value)
+            if (source[0] === '&&' || source[0] === '||' || source[0] === '??') {
+                const operands = [source[1], source[2]]
+                work = operands.reduceRight((rest, value) => ({ kind: 'expand', value, rest }), /** @type {Work} */ ({ kind: 'logical', tag: source[0], operands, rest: work.rest }))
+                continue
+            }
+            const operator = source[0] === ',' ? /** @type {Operator<SourceValue>} */ ([',', commaValues(source[1])]) : /** @type {Operator<SourceValue>} */ (source)
             const operands = operatorOperands(operator)
             work = operands.reduceRight((rest, value) => ({ kind: 'expand', value, rest }), /** @type {Work} */ ({ kind: 'operator', value: operator, operands, rest: work.rest }))
             continue
@@ -262,7 +268,7 @@ const normalizedValue = (environment, context) => root => {
             values = [result.value, ...values]
             remaining = result.rest
         }
-        results = { value: mapOperator((_, index) => values[index])(work.value), rest: remaining }
+        results = { value: work.kind === 'logical' ? logicalValue(work.tag, values[0], values[1]) : mapOperator((_, index) => values[index])(work.value), rest: remaining }
         work = work.rest
     }
     return assertNotNullish(results, 'missing normalized value').value
@@ -281,7 +287,7 @@ const normalizedExit = (exit, environment, context) => {
     for (const arm of exit[2].toReversed()) {
         const tests = arm.labels.map(label => /** @type {Value} */ (['===', reference(discriminant), value(label)]))
         const first = assertNotNullish(tests[0], 'switch case without a label')
-        const condition = tests.slice(1).reduce((left, right) => /** @type {Value} */ (['||', left, right]), first)
+        const condition = tests.slice(1).reduce((left, right) => logicalValue('||', left, right), first)
         tail = { statements: [], exit: ['yield', [['if', condition, normalizedBlock(arm.body, environment, context).block, tail]]] }
     }
     return { statements: [['define', discriminant, value(exit[1]), 'required'], ...tail.statements], exit: tail.exit }

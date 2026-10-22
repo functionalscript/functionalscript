@@ -737,37 +737,14 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
 // Binary Operations
 
 /**
- * The `op2` tags whose **right operand is lazy**: established only where
- * the left has not already decided the answer.
- *
- * **Named once, because two readers have to agree.** The operations table
- * implements exactly these three with `o2lazy`
- * ([`./operations/module.f.mjs`](./operations/module.f.mjs)) — the rest with
- * `o2`, which forces the thunk — and anything that *draws* or *compiles* a
- * graph has to know the same three. A second list somewhere else would be
- * a second implementation, and the one that drifts is the one nobody runs.
- * `lazyVocabulary` in [`./memo/proof.f.mjs`](./memo/proof.f.mjs) holds
- * this list to the table's behaviour rather than to its text. It walks the
- * list, so it catches a tag wrongly added and not one wrongly removed; a
- * removed tag fails the `op2`, Rust printer and demo proofs instead.
- */
-export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
-
-/**
- * The JS comparison, arithmetic, bitwise, and logical operators they
- * name — with `&&`/`||`/`??` short-circuiting exactly as in JS: their
- * right operand is conditional, never established eagerly. All this
- * laziness is positional, not nodal — the same node referenced from an
- * eager position elsewhere is still evaluated there. `+` and `-` are not
- * here: each is also a unary operator, so both are `op12` below.
- * `Object.is` is no operator: it is a static function, {@link staticIds},
- * whose body the runtime spells with these operators.
+ * Eager comparison, arithmetic and bitwise operators. Source logical operators
+ * are normalized to conditionals before graph construction. `+` and `-` also
+ * have unary arities and belong to op12; static functions remain values.
  */
 export const op2Id = or(
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
-    '&', '|', '^', '<<', '>>', '>>>',
-    ...lazyOp2Id
+    '&', '|', '^', '<<', '>>', '>>>'
 )
 
 export const op2 = /** @type {const} */ ([op2Id, exp, exp])
@@ -810,7 +787,7 @@ export const op12 = or(
 /**
  * `?:` is the conditional: `['?:', c, t, e]` establishes `c`, then exactly
  * one of `t` and `e` — the one `ToBoolean(c)` selects — and is that arm's
- * value. The laziness is positional, as `&&`/`||`/`??`'s is: the unselected
+ * value. Laziness is positional: the unselected
  * arm is not established *here*, and the same node reached from an eager
  * position elsewhere still is. It is subject 3 of
  * `../../todo/edag-stage1-discussion.md`, "Lazy operators and the branch

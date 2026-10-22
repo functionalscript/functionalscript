@@ -16,6 +16,9 @@ const id = index => ({ index })
 /** @type {(value: Value) => Block} */
 const yielding = value => ({ statements: [], exit: ['yield', [value]] })
 
+/** Prepared choice fixtures; source logical lowering is tested in sugar. @type {(condition: Value, then: Value, otherwise: Value) => Value} */
+const choice = (condition, then, otherwise) => ['if', condition, yielding(then), yielding(otherwise)]
+
 /** @type {(value: Value) => string} */
 const expression = value => stringify(yielding(value), 'expression')
 
@@ -46,6 +49,9 @@ export const proof = {
         assertEq(expression(required), `(()=>{${Array.from({ length: count }, (_, index) => `const $${index}=${count - index - 1};`).join('')}return 1;})()`)
     },
     operatorGrouping: () => {
+        const andValue = choice(true, 1, true)
+        const orValue = choice(false, false, 1)
+        const nullishValue = choice(choice(['===', undefined, null], true, ['===', undefined, undefined]), 2, undefined)
         /** @type {readonly Value[]} */
         const values = [
             undefined, null, true, false, NaN, Infinity, -0, 4n, 'literal',
@@ -67,12 +73,12 @@ export const proof = {
             ['Number', '2'], ['String', 2], ['typeof', 2], ['~', 1], ['!', 1], ['-', 1], ['-', 3, 1],
             ['+', 1, ['*', 2, 3]], ['+', 1, ['+', 2, 3]], ['+', 1, ['+', 2]],
             ['**', ['**', 2, 3], 4], ['**', 2, ['**', 3, 2]],
-            ['||', false, 2], ['??', undefined, 2], ['&&', true, 2],
+            choice(false, false, 2), nullishValue, choice(true, 2, true),
             ['|', 1, 2], ['^', 1, 2], ['&', 1, 2], ['===', 1, 2], ['!==', 1, 2],
             ['<', 1, 2], ['<=', 1, 2], ['>', 1, 2], ['>=', 1, 2], ['instanceof', ['array', []], 'Array'],
             ['<<', 1, 2], ['>>', 8, 2], ['>>>', -1, 2], ['*', 2, 3], ['/', 4, 2], ['%', 5, 2],
-            ['??', ['&&', true, 1], 2], ['&&', true, ['??', undefined, 2]],
-            ['??', ['||', false, 1], ['&&', true, 2]],
+            choice(choice(['===', andValue, null], true, ['===', andValue, undefined]), 2, andValue), choice(true, nullishValue, true),
+            choice(choice(['===', orValue, null], true, ['===', orValue, undefined]), choice(true, 2, true), orValue),
             ['block', yielding(['+', 1, 2])],
             ['if', ['?:', false, 0, true], yielding(1), yielding(2)],
         ]
@@ -83,7 +89,7 @@ export const proof = {
         }
         assertEq(expression(['+', 1, ['*', 2, 3]]), '1+2*3')
         assertEq(expression(['+', 1, ['+', 2, 3]]), '1+(2+3)')
-        assertEq(expression(['??', ['&&', true, 1], 2]), '(true&&1)??2')
+        assertEq(expression(choice(choice(['===', andValue, null], true, ['===', andValue, undefined]), 2, andValue)), '((true?1:true)===null?true:(true?1:true)===undefined)?2:true?1:true')
         assertEq(expression(['.', ['object', [[':', 'a-b', 2]]], 'a-b']), '{"a-b":2}["a-b"]')
         assertEq(expression(['()', -1, []]), '(-1)()')
         assertEq(expression(['?.()', -1n, []]), '(-1n)?.()')

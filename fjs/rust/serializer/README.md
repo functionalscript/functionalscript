@@ -48,3 +48,8 @@ and [corpus generator](../../nanvm/rust/module.f.mjs). Their precise
 `clippy::if_same_then_else` allowance preserves condition evaluation when
 source arms happen to agree. Item formatting attributes also belong there;
 the serializer performs no branch simplification or temporary placement.
+
+Source `&&`, `||` and `??` reach this stage as conditional regions. The native
+`Any::logical_and`, `Any::logical_or` and `Any::nullish_coalescing` backend
+helpers were removed with their graph tags; canonical conditional selection
+and the independent native JavaScript corpus cases retain their semantics.

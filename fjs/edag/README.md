@@ -54,8 +54,8 @@ and `typeof`; its `binary` table supplies `===` and `!==`. Both tables
 accept evaluated values and return `Result` successes. Callers own operand
 evaluation and failure propagation.
 
-[`value/control`](value/control/module.f.mjs) adds Result-based `throw`, `&&`,
-`||`, `??` and `?:`, taking an evaluated first operand and deferring the rest
+[`value/control`](value/control/module.f.mjs) adds Result-based `throw` and
+`?:`, taking an evaluated first operand and deferring conditional arms
 with thunks. Its `sequence` helper runs deferred operands in order and returns
 the first failure or last success unchanged; an empty sequence yields tagged
 undefined. Earlier values may be discarded, but their failures still stop the
@@ -328,7 +328,7 @@ vocabularies.
 | `['\|()', items[], k?]`, `['\|.', index, k?]`, `['\|?.()', items[], k?]`, `['\|!()', items[]]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` `throw` — `throw` establishes its operand and fails with it as the thrown value, so it is the one node that never has a value |
-| `[id, exp, exp]` | binary operation, `id` one of `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+| `[id, exp, exp]` | binary operation, `id` one of `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
 | `['instanceof', exp, constructor]` | instance check, `x instanceof Array`: `true` of an array, `false` of every other value, never throws; `constructor` is a *name* from a closed list — `'Array'` alone today, not an operand — since no global is a value here. A reader walking operands generically needs an arm for it, or walks the name as a string literal |
@@ -681,6 +681,49 @@ not an `exp`: the `a.b` inside `['.', a, 'b', ['|?.()', c]]` cannot be
 shared, substituted, or hashed. That is the price of expressing control flow
 that no value can carry, and it is confined to exactly the positions that
 need it.
+
+## Source logical operators
+
+Source `&&`, `||` and `??` are lowered once by
+[`js/ast/sugar/logical`](../js/ast/sugar/logical/module.f.js) to conditional
+FAST. Establish the left operand in an immutable binding `t` in its original
+execution region, or reuse its existing reference:
+
+| Source | Core value |
+| --- | --- |
+| `a && b` | `t ? b : t` |
+| `a \|\| b` | `t ? t : b` |
+| `a ?? b` | `(t === null ? true : t === undefined) ? b : t` |
+
+Every use of `t` denotes the same established value; calls, allocations and
+functions retain their identity. Only the selected right operand executes.
+The `undefined` is the primitive value even when source code shadows its name.
+Source precedence and unparenthesized mixing restrictions remain unchanged.
+Normalized FAST and canonical EDAG contain no logical tags, so evaluators,
+placement and renderers use the common conditional mechanism.
+
+Canonical EDAG rejects the former logical tags, including in separately
+supplied graphs. Repository producers use the conditional schema. This changes
+graph structure, content hashes and affected function text; it does not map an
+old CAS hash to a replacement graph. Existing blobs retain their original bytes.
+Graph documents have no legacy import adapter. The declared round-trip domain
+for unaffected graphs is unchanged, and supported conditional conversions
+stabilize without accumulating bindings or wrappers.
+
+The migration deliberately adds nodes for nullish selection. Representative
+two-parameter functions, measured before and after the schema change, have:
+
+| Source body | Unique graph nodes, before → after | Source output bytes, before → after |
+| --- | --- | --- |
+| `a && b` | 4 → 4 | 31 → 33 |
+| `a \|\| b` | 4 → 4 | 31 → 33 |
+| `a ?? b` | 4 → 8 | 31 → 62 |
+| `f() ?? g()` | 6 → 10 | 35 → 88 |
+
+Counts include the function node and invocation-binding reads. Output counts
+include `export default` and the trailing semicolon. The final example binds
+`f()` once and reuses that value in both nullish tests and the selected result.
+No new optimizer is required by this lowering.
 
 ## Caveats
 

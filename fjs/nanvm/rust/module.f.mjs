@@ -98,7 +98,8 @@ export const directory = 'nanvm/lib/tests/test/gen.corpus'
  * `groupKey`: the operation tag, or for an `Op12` group the tag and its
  * arity, since `-` at one operand and at two are two functions.
  *
- * Written out rather than derived: a canonical id may be punctuation, and the
+ * Written out rather than derived: canonical ids and source logical labels
+ * may be punctuation, and the
  * generated function names are this printer's concern and stay stable when an
  * id is respelled — `neg` and `unary_plus` were named for the ids `neg` and
  * `unaryPlus` and kept their names when those became `-` and `+`.

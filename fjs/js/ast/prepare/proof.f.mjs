@@ -214,13 +214,13 @@ export const proof = {
         const block = output.statements[2]
         assert(block[0] === 'block')
         assertStructurallySame(block[1].exit, ['return', target, 8])
-        for (const tag of /** @type {const} */ (['&&', '||', '??'])) {
-            const lazy = prepare(yielding([tag, 0, abrupt]))
-            assertStructurallySame(lazy.statements.map(statement => statement[0]), ['define', 'slot', 'if'])
-            const branch = lazy.statements[2]
+        for (const then of [true, false]) {
+            const lazy = prepare(yielding(['if', true, yielding(then ? abrupt : 0), yielding(then ? 0 : abrupt)]))
+            assertStructurallySame(lazy.statements.map(statement => statement[0]), ['slot', 'if'])
+            const branch = lazy.statements[1]
             assert(branch[0] === 'if')
-            const selected = tag === '||' ? branch[3] : branch[2]
-            assertStructurallySame(selected.statements.map(statement => statement[0]), ['slot', 'block', 'write'])
+            const selected = then ? branch[2] : branch[3]
+            assertStructurallySame(selected.statements.map(statement => statement[0]), ['slot', 'block', 'define', 'write'])
         }
         const conditional = prepare(yielding(['if', true, { statements: [], exit: ['return', target, 3] }, yielding(4)]))
         assertStructurallySame(conditional.statements.map(statement => statement[0]), ['slot', 'if'])
@@ -275,7 +275,9 @@ export const proof = {
     retainedChains: () => {
         /** @type {readonly NormalValue[]} */
         const values = [
-            ['&&', true, 1], ['||', false, 2], ['??', undefined, 3],
+            ['if', true, yielding(1), yielding(0)],
+            ['if', false, yielding(0), yielding(2)],
+            ['if', ['if', ['===', undefined, null], yielding(true), yielding(['===', undefined, undefined])], yielding(3), yielding(undefined)],
             ['?.', null, 'x'], ['?.()', undefined, [1]],
             ['.', ['object', []], 'x'], ['.', ['object', []], 'x', ['|()', []]],
         ]

@@ -110,7 +110,7 @@ const graphReason = (a, module) => {
             pending = [...children, ...rest]
             continue
         }
-        const lazy = node[0] === '&&' || node[0] === '||' || node[0] === '??' || node[0] === '?:'
+        const lazy = node[0] === '?:'
         pending = [...operandsOf(node).map((value, index) => ({ value, region: lazy && index !== 0, module: current.module && !(lazy && index !== 0) })), ...rest]
     }
     return null

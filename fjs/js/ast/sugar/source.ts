@@ -8,12 +8,17 @@
 
 import type { Primitive } from '../../../media/datajs/types.ts'
 import type { StaticId } from '../../../edag/types.ts'
-import type { AstImport } from '../../../compiler/ast/types.ts'
+import type { AstImport, BinaryTag } from '../../../compiler/ast/types.ts'
 import type {
-    BindingId, FunctionTarget, LoopTarget,
-    _Unary, _Binary, _InstanceOf, _Array, _Object, _Access, _ContinuedAccess,
+    BindingId, FunctionTarget, LoopTarget, Operator,
+    _Unary, _InstanceOf, _Array, _Object, _Access, _ContinuedAccess,
     _GuardedCall, _ContinuedGuardedCall, _Call, _Conditional, _Comma, _Leaf,
 } from '../types.ts'
+
+export type LogicalTag = Extract<BinaryTag, '&&' | '||' | '??'>
+/** Source syntax retains its full binary vocabulary until sugar expansion. */
+export interface _SourceBinary<V> extends Readonly<[BinaryTag, V, V]> {}
+export type SourceOperator<V> = Operator<V> | _SourceBinary<V>
 
 /** Checked pattern reads retain their source identities until expansion. */
 export type ExpansionPlan = {
@@ -46,7 +51,7 @@ export type SourceFunction = {
 export type SourceValue =
     | Primitive
     | readonly ['ref', BindingId]
-    | _Unary<SourceValue> | _Binary<SourceValue> | _InstanceOf<SourceValue>
+    | _Unary<SourceValue> | _SourceBinary<SourceValue> | _InstanceOf<SourceValue>
     | _Array<SourceValue> | _Object<SourceValue> | _Access<SourceValue> | _ContinuedAccess<SourceValue>
     | _GuardedCall<SourceValue> | _ContinuedGuardedCall<SourceValue> | _Call<SourceValue>
     | _Conditional<SourceValue> | _Comma<SourceValue> | _Leaf

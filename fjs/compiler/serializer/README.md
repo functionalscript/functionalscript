@@ -7,6 +7,13 @@ prepared serializer. The public source wrappers retain their existing result,
 chunk and marked-text APIs. They run source-spelling admission once after common
 placement; runtime value output accepts its wider evaluated-value domain.
 
+Source logical operators are normalized to single-evaluation conditionals by
+AST-to-FAST sugar. Normalized/prepared FAST and canonical EDAG contain no
+`&&`, `||` or `??` operation. Checked graph inputs reject those former tags;
+the serializers spell the conditional form and provide no legacy graph adapter.
+This intentionally changes graph structure, hashes and function text while
+preserving source semantics and stable canonical round trips.
+
 The common stages own evaluation regions, established captures, shared identity,
 lazy memo storage and loop reconstruction. These wrappers select an output form;
 they contain no target-specific graph placement algorithm. See
