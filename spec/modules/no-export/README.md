@@ -21,6 +21,11 @@ above, with this build's `fjs compile`, and shows the line it prints and the
 token it refuses. Below that it shows what JavaScript answers for the same
 module: `undefined`.
 
+The unused `a` binding in `sample.mjs` is intentional. A code-quality check
+correctly reports it as unused: the example must have no exports. Exporting
+`a` would remove the refusal, and deleting the binding would leave an empty
+module instead of the nonempty module this example demonstrates.
+
 ## What to Write Instead
 
 Export what the module computes, as [`alternative.f.js`](./alternative.f.js) does:

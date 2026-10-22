@@ -26,6 +26,10 @@ above, with this build's `fjs compile`, and shows the line it prints and the
 token it refuses. Below that it shows what JavaScript answers for the same
 module: `1`.
 
+The unreachable `const a = 2;` in `sample.mjs` is intentional. A code-quality
+check correctly reports it as unreachable; removing it would remove the
+construct this negative example must show the compiler refusing.
+
 ## What to Write Instead
 
 Remove what follows the `return`, as [`alternative.f.js`](./alternative.f.js) does:

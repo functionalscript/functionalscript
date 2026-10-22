@@ -26,6 +26,10 @@ above, with this build's `fjs compile`, and shows the line it prints and the
 token it refuses. Below that it shows what JavaScript answers for the same
 module: `1`.
 
+The discarded `o.x;` expression in `sample.mjs` is intentional. A code-quality
+check correctly reports that it has no effect; removing it would remove the
+construct this negative example must show the compiler refusing.
+
 ## What to Write Instead
 
 Remove the statement, or bind the value with `const` and use it, as [`alternative.f.js`](./alternative.f.js) does:
