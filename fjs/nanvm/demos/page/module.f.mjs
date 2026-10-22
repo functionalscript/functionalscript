@@ -21,8 +21,9 @@
  * its output for the page to read back.
  *
  * **The JavaScript heap is shown only where the browser reports it**, which
- * Chromium alone does, as the heap in use just before and just after the run.
- * Elsewhere the line is left out rather than said to be not available.
+ * Chromium alone does, as its change across the run, with the readings just
+ * before and just after. Elsewhere the line is left out, as the page shows no
+ * figure it cannot measure.
  *
  * @module
  *
@@ -258,13 +259,22 @@ export const ratio = ({ js, wasm }) => js[0] === 'ok' && wasm[0] === 'ok'
     : 'Not available'
 
 /**
- * The JavaScript heap around the run, where the browser reports it.
+ * How the heap changed across the run, signed, and the two readings.
+ *
+ * @type {(heap: JsHeap) => string}
+ */
+export const heapChange = ({ before, after }) =>
+    `${after < before ? '-' : '+'}${Math.abs(after - before)} bytes, ${before} → ${after}`
+
+/**
+ * The change in the JavaScript heap across the run, where the browser reports
+ * it. The heap is the whole page's, so the label says so.
  *
  * @type {(heap: JsHeap | null) => readonly Node[]}
  */
 const heapView = heap => heap === null
     ? []
-    : [stat('JavaScript heap in use, before and after the run (Chromium)', `${heap.before} → ${heap.after} bytes`)]
+    : [stat('Change in the whole page’s JavaScript heap across the run (Chromium)', heapChange(heap))]
 
 /** @type {(runs: Runs) => readonly Node[]} */
 const runsDetail = ({ js, wasm }) => [

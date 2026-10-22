@@ -18,7 +18,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, init, jsOutput, load, milliseconds, ratio, runBoth, runJs, runWasm, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
+import { buildDirectory, decode, heapChange, init, jsOutput, load, milliseconds, ratio, runBoth, runJs, runWasm, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
 
 /** @type {(text: string) => Sample['program']} */
 const writes = text => () => ({
@@ -59,15 +59,13 @@ const throws = {}
 /** A thunk's answer as `sandbox` reports it. @type {(value: unknown) => Result<unknown, unknown>} */
 const thrown = value => value === throws ? error('boom') : ok(value)
 
-/** Every operation the page performs. @typedef {FetchText | Instantiate | Sandbox | JsHeapSize} PageOp */
-
 /**
  * The page's operations. A path in `files` is a text, `wasm` is the module,
  * and anything else is not found. `sandbox` is `null` for a page that does not
  * implement it, and `thrown` for a thunk that throws. `heap` is what the heap
  * reads, every time: `null` for a browser that does not report it.
  *
- * @type {(files: StringMap<string>, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown', heap?: number | null | 'notImplemented') => MemOperationMap<PageOp, null>}
+ * @type {(files: StringMap<string>, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown', heap?: number | null | 'notImplemented') => MemOperationMap<FetchText | Instantiate | Sandbox | JsHeapSize, null>}
  */
 const page = (files, wasm, sandbox = 'ok', heap = 1024) => ({
     fetchText: path => s => {
@@ -82,7 +80,7 @@ const page = (files, wasm, sandbox = 'ok', heap = 1024) => ({
     jsHeapSize: () => s => [s, heap === 'notImplemented' ? error(notImplemented('jsHeapSize')) : ok(heap)],
 })
 
-/** @type {<T>(map: MemOperationMap<PageOp, null>) => (effect: Effect<PageOp, T, never>) => T} */
+/** @type {<T>(map: MemOperationMap<FetchText | Instantiate | Sandbox | JsHeapSize, null>) => (effect: Effect<FetchText | Instantiate | Sandbox | JsHeapSize, T, never>) => T} */
 const perform = map => effect => {
     const [, result] = run(map)(null)(effect)
     assert(result[0] === 'ok')
@@ -194,11 +192,12 @@ export const proof = {
         assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('Running time: 1.0 ms'))
         assert(shown.includes('Linear memory after the run: 65536 bytes'))
-        assert(shown.includes('JavaScript heap in use, before and after the run (Chromium): 1024 → 1024 bytes'))
+        assert(shown.includes('Change in the whole page’s JavaScript heap across the run (Chromium): +0 bytes, 1024 → 1024'))
         // No heap line where the browser does not report it.
         const noHeap = text(view('hi')(perform(page({}, null, 'ok', null))(runBoth(hi)(ready))))
         assert(!noHeap.includes('JavaScript heap'))
         assert(!noHeap.includes('Not available'))
+        assertEq(heapChange({ before: 1024, after: 512 }), '-512 bytes, 1024 → 512')
         assert(shown.includes('WebAssembly running time, as a multiple of the JavaScript one: 1.0×'))
         assert(shown.includes('pub fn module() {}'))
         const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0, heap: null }), wasm: ok({ run: { output: error('the sample threw'), time: 0 }, memory: 0 }) } }))
