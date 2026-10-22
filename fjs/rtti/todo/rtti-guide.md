@@ -5,10 +5,10 @@
 
 ### Problem
 
-[The RTTI README](../README.md) explains everything in one page organized by
-module, and the [demo](../demo.f.mjs) teaches its seven lessons from one
-drop-down that no section of the README links to. A reader asking "how do I
-make a key optional" has to know it lives in a table row, a lesson and a
+[The RTTI README](../README.md) explained everything in one page organized
+by module, and the [demo](../demo.f.mjs) taught its lessons from one
+drop-down that no section of the README linked to. A reader asking "how do I
+make a key optional" had to know it lives in a table row, a lesson and a
 readers table. The language specification had the same shape and was split
 into a tree of small pages, each with its own demo
 ([spec tree](../../../spec/todo/spec-tree.md)).
