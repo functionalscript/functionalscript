@@ -27,4 +27,11 @@ export const proof = {
         const [tag] = await browserOperationMap.instantiate('data:application/wasm;base64,AAAA')
         assertEq(tag, 'error')
     },
+    // A number where the host has `performance.memory`, as Chromium does, and
+    // `null` where it has not.
+    jsHeapSize: async () => {
+        const result = await browserOperationMap.jsHeapSize()
+        assert(result[0] === 'ok')
+        assert(result[1] === null || result[1] > 0)
+    },
 }
