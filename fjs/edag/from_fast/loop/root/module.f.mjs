@@ -152,6 +152,7 @@ const blockTask = (block, owner, normal) => {
 /**
  * Resolve a matched root to the ordinary function constructor's own value body.
  * A synthesized self binding is lexical only; existing self/captures are kept.
+ * A reached normal yield violates the normalized loop-body transfer contract.
  * @type {(fn: FastFunction, loop: Loop) => FastFunction}
  */
 export const directInvocationRoot = (fn, loop) => {
@@ -162,6 +163,6 @@ export const directInvocationRoot = (fn, loop) => {
         const alias = /** @type {Extract<Statement, readonly ['define', ...unknown[]]>} */ (statement)
         return /** @type {Statement} */ (['define', alias[1], alias[2], 'lazy'])
     })
-    const body = run(before([...prefix, ...aliases], blockTask(loop.body, owner, values => returned(values, owner))))
+    const body = run(before([...prefix, ...aliases], blockTask(loop.body, owner, () => { throw 'a normalized loop body requires an explicit transfer' })))
     return { ...fn, self, body }
 }
