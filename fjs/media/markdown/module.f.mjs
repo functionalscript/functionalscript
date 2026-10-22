@@ -597,11 +597,12 @@ export const tryParseBlocks = text => {
                 if (!item.startsWith('- ') && !item.startsWith('  ')) {
                     return error(`line ${end + 1}: a line that GitHub reads as part of the list item above it`)
                 }
-                const content = item.trim().slice(item.startsWith('- ') ? 2 : 0).trim()
+                const body = item.startsWith('- ') ? item.slice(2) : item
+                const content = body.trim()
                 // Keep the original indentation: after an empty marker, two
                 // spaces belong to the item and four more open a code block.
                 const foreign = item.endsWith('  ') ? 'a hard line break'
-                    : item.slice(0, item.length - item.trimStart().length).includes('\t') ? 'a tab in an indent'
+                    : body.slice(0, body.length - body.trimStart().length).includes('\t') ? 'a tab in an indent'
                     : !itemHasText && item.startsWith('      ') ? 'an indented code block'
                     : headingLevel(content) !== 0 ? 'a heading' : foreignBlock(content)
                 if (foreign !== null) {
