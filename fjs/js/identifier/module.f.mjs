@@ -18,7 +18,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 const codePoints = s => toArray(stringToCodePointList(s))
 
 /** What may open an identifier: a Latin letter, `_` or `$`. @type {(codePoint: number) => boolean} */
-const isIdentifierStart = codePoint =>
+export const isIdentifierStart = codePoint =>
     isLatinLetter(codePoint) || codePoint === lowLine || codePoint === dollarSign
 
 /**
