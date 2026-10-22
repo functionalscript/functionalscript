@@ -32,7 +32,7 @@ import { catch_, import_ } from '../../effects/common/module.f.mjs'
 import {
     addResult, collectTests, defaultTest, formatDuration, runEntries, text, zeroState, zeroTotals,
 } from '../module.f.mjs'
-import { do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
+import { attemptStep, do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { error } from '../../types/result/module.f.js'
 
 /** The page's leaf-landed operation; see `_BrowserReport`.
@@ -266,9 +266,9 @@ const loadOne = source => state => {
     // its own bookkeeping.
     if (state.stopped !== null) { return pureOk(state) }
     return step(
-        resultStep(import_(source), loaded => pureOk(loaded)),
+        attemptStep(import_(source)),
         loaded => mapStep(
-            resultStep(report(/** @type {const} */ (['loading', source])), told => pureOk(told)),
+            attemptStep(report(/** @type {const} */ (['loading', source]))),
             told => {
                 if (told[0] === 'error') {
                     return { ...state, stopped: channelFailure([runnerSource, told[1]]) }

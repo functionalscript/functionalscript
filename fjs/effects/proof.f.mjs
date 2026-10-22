@@ -5,7 +5,7 @@
  */
 
 import {
-    catchStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
+    attemptStep, catchStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
     match, orElse, partialMatch, pure, pureError, pureOk, refuse, resultMapStep, resultStep,
     runPure, step, toIoError, unwrapStep, commandsOf,
 } from './module.f.mjs'
@@ -657,6 +657,23 @@ export const proof = {
         },
         overFailedDo: () => {
             assertEq(assertOk(run(resultMapStep(div(1, 0), r => ok(r[0])))), 'error')
+        },
+    },
+    // The whole `Result` arrives as the value, and the effect itself never
+    // fails: the chain goes on either way.
+    attemptStep: {
+        ok: () => {
+            const [tag, value] = assertOk(pureResult(attemptStep(pureOk(3))))
+            assertEq(tag, 'ok')
+            assertEq(value, 3)
+        },
+        error: () => {
+            const [tag, value] = assertOk(pureResult(attemptStep(pureError('boom'))))
+            assertEq(tag, 'error')
+            assertEq(value, 'boom')
+        },
+        overFailedDo: () => {
+            assertEq(assertOk(run(attemptStep(div(1, 0))))[0], 'error')
         },
     },    finallyStep: {
         // The cleanup runs after `e`, is handed what `e` answered, and `e`'s
