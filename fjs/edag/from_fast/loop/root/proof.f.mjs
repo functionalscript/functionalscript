@@ -102,8 +102,6 @@ export const proof = {
         assertStructurallySame(assertOk(evaluate({ ...root(single), parameters: [a] }, [4])), [4])
         const repeat = { ...zero, body: body(['continue', loopTarget, []]) }
         assertStructurallySame(graph({ ...root(repeat), parameters: [] }), ['=>', 0, [], ['()', ['self'], []]])
-        const normal = { ...zero, body: body(['yield', [3]]) }
-        assertEq(assertOk(evaluate({ ...root(normal), parameters: [] }, [])), 3)
     },
     aliasFrameAndWideInvocation: () => {
         const capture = id(40)
@@ -205,6 +203,8 @@ export const proof = {
         assertStructurallySame(conditional, ['arg', 0])
     },
     throw: {
+        loopBodyYieldZero: () => { const loop = { ...loopOf(body(['yield', []])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
+        loopBodyYieldOne: () => { const loop = { ...loopOf(body(['yield', [3]])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
         nestedLoop: () => { const inner = loopOf(body(['break', loopTarget, [0]])); directInvocationRoot(root(inner), { ...inner, body: body(['break', loopTarget, [0]], [['loop', inner]]) }) },
         resultArity: () => { const loop = loopOf(body(['break', loopTarget, []])); directInvocationRoot(root(loop), loop) },
         transitionArity: () => { const loop = loopOf(body(['continue', loopTarget, [0]])); directInvocationRoot(root(loop), loop) },

@@ -142,6 +142,36 @@ keeping the established scalar shape first. Its contract lives in
 general helpers, nested transfers, operand control and rest transitions remain
 open below.
 
+The current fixed-input root constructor shares the suffix of wholly normal
+result regions. A region with nonlocal exits can still reconstruct the suffix
+independently for more than one normal exit. For example, both arms below can
+return or yield, so repeating this statement grows the following suffix
+exponentially:
+
+```text
+if (condition) {
+    if (stopA) { return F(a) }
+    yield ()
+} else {
+    if (stopB) { return F(b) }
+    yield ()
+}
+followingStatements
+```
+
+A bounded reproduction grew the normalized function from 4,949 bytes for four
+such statements to 79,349 for eight and 1,269,749 for twelve. This performance
+case remains open: implement a shared normal/control join in the graph owner,
+preserving the existing partially abrupt result-region behavior. Reusing a
+task or AST object alone still reconstructs the suffix in each branch. A
+continuation function would add an invocation and can create recursive call
+cycles; wrapping returned self calls in eager completion payloads would remove
+their direct tail position. Keep terminal public results and self calls direct.
+
+Normalized loop bodies already have explicit transfers and no implicit
+fallthrough. A reached loop-body `yield` violates that precondition and is
+refused, rather than being interpreted as a return or a new iteration.
+
 Implement the scalar form needed by common existing output during B, before
 output migration C. E extends it to general invocation/result signatures.
 The FAST contract in A names the exact-graph domain. If canonical root reuse
