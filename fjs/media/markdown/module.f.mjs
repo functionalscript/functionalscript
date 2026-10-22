@@ -456,6 +456,16 @@ const headingLevel = line => {
 /** Whether a line opens a fenced code block. @type {(line: string) => boolean} */
 const isFence = line => line.startsWith('```')
 
+/** A closing fence permits up to three leading spaces and trailing whitespace. @type {(line: string) => boolean} */
+const isClosingFence = line => {
+    let indent = 0
+    while (line[indent] === ' ') { indent++ }
+    let end = line.length
+    while (line[end - 1] === ' ' || line[end - 1] === '\t') { end-- }
+    const fence = line.slice(indent, end)
+    return indent <= 3 && fence.length >= 3 && [...fence].every(c => c === '`')
+}
+
 /**
  * What GitHub reads a line as when it starts a block this reader has no
  * room for, or `null` for a line it reads as these do.
@@ -488,6 +498,7 @@ const foreignBlock = line => {
     if (trimmed.startsWith('```')) { return 'an indented code fence' }
     if (headingLevel(trimmed) !== 0) { return 'an indented heading' }
     if (trimmed.startsWith('- ')) { return 'an indented list item' }
+    if (trimmed.startsWith('-\t')) { return 'a tab-delimited list item' }
     // A marker that ends its line opens an empty item.
     if ((trimmed[0] === '*' || trimmed[0] === '+') && (trimmed.length === 1 || trimmed[1] === ' ' || trimmed[1] === '\t')) {
         return 'a list marked other than with `- `'
@@ -547,9 +558,9 @@ export const tryParseBlocks = text => {
         if (isFence(line)) {
             const info = line.slice(3)
             if (info.includes('`') || info.includes(' ') || info.includes('\t')) { return refuse('a code fence whose info string is not one word') }
-            const close = lines.indexOf('```', i + 1)
+            const close = lines.findIndex((candidate, index) => index > i && isClosingFence(candidate))
             if (close === -1) { return refuse('a code fence that is never closed') }
-            out = [...out, ['code', info, lines.slice(i + 1, close).join('\n')]]
+            out = [...out, ['code', info, close === i + 1 ? '' : lines.slice(i + 1, close).join('\n') + '\n']]
             i = close + 1
             continue
         }

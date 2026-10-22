@@ -316,8 +316,14 @@ export const proof = {
         // A heading, a fence or a list item ends a paragraph without a blank line.
         paragraphEnds: () => assertStructurallySame(blocks('a\n# h\nb\n```\nc\n```\nd\n- e\n'),
             [['paragraph', [['text', 'a']]], ['heading', 1, [['text', 'h']]], ['paragraph', [['text', 'b']]],
-                ['code', '', 'c'], ['paragraph', [['text', 'd']]], ['list', [[['text', 'e']]]]]),
-        fence: () => assertStructurallySame(blocks('```js\nconst a = 1\n\nb\n```\n'), [['code', 'js', 'const a = 1\n\nb']]),
+                ['code', '', 'c\n'], ['paragraph', [['text', 'd']]], ['list', [[['text', 'e']]]]]),
+        fence: () => assertStructurallySame(blocks('```js\nconst a = 1\n\nb\n```\n'), [['code', 'js', 'const a = 1\n\nb\n']]),
+        emptyFence: () => assertStructurallySame(blocks('```\n```'), [['code', '', '']]),
+        blankFence: () => assertStructurallySame(blocks('```\n\n```'), [['code', '', '\n']]),
+        indentedFenceClose: () => assertStructurallySame(blocks('```\na\n   ```\nprose\n```\nb\n```'),
+            [['code', '', 'a\n'], ['paragraph', [['text', 'prose']]], ['code', '', 'b\n']]),
+        longerFenceClose: () => assertStructurallySame(blocks('```\na\n ````` \t'), [['code', '', 'a\n']]),
+        fenceContent: () => assertStructurallySame(blocks('```\n    ```\n``\n```x\n```\u00a0\n```'), [['code', '', '    ```\n``\n```x\n```\u00a0\n']]),
         list: () => assertStructurallySame(blocks('- a\n  b\n- *c*\n\nd\n'),
             [['list', [[['text', 'a b']], [['em', 'c']]]], ['paragraph', [['text', 'd']]]]),
         wrappedItemRefusal: () => assertEq(refusal('# Heading\n\n- ok\n  continued\n- _bad_'), 'line 5: an underscore that GitHub may read as emphasis at 0'),
@@ -327,6 +333,9 @@ export const proof = {
         notAHeading: () => assertStructurallySame(blocks('#a\n\n####### b\n'),
             [['paragraph', [['text', '#a']]], ['paragraph', [['text', '####### b']]]]),
         refuses: {
+            tabDash: () => assertEq(refusal('-\titem'), 'line 1: a tab-delimited list item'),
+            tabDashAfterParagraph: () => assertEq(refusal('text\n-\titem'), 'line 2: a tab-delimited list item'),
+            tabDashInItem: () => assertEq(refusal('- item\n  -\tnested'), 'line 2: a tab-delimited list item inside a list item'),
             fenceInfo: () => assertEq(refusal('```js x\n```\n'), 'line 1: a code fence whose info string is not one word'),
             // GitHub trims a tab around the info string as it does a space.
             fenceInfoTab: () => assertEq(refusal('```\tjs\n```\n'), 'line 1: a code fence whose info string is not one word'),
