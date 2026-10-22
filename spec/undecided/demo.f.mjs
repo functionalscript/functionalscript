@@ -31,11 +31,8 @@
 import { mapStep, pureOk } from '../../fjs/effects/module.f.mjs'
 import { tryParseBlocks } from '../../fjs/media/markdown/module.f.mjs'
 import { basename, parent } from '../../fjs/path/module.f.mjs'
-import { error, ok, unwrap } from '../../fjs/types/result/module.f.js'
-import { fetchFile, outputName, reportText } from '../../fjs/compiler/refused_demo/module.f.mjs'
-import { _outputMarked, noRuntime } from '../../fjs/compiler/module.f.mjs'
-import { virtualAt } from '../../fjs/effects/node/virtual/module.f.mjs'
-import { utf8 } from '../../fjs/text/module.f.mjs'
+import { error, ok } from '../../fjs/types/result/module.f.js'
+import { compileAs, fetchFile, reportText } from '../../fjs/compiler/refused_demo/module.f.mjs'
 import { loadedView } from '../../fjs/nanvm/demos/page/module.f.mjs'
 import { caption } from '../../fjs/website/demo/module.f.mjs'
 import { isTodoDir } from '../../fjs/website/module.f.mjs'
@@ -110,24 +107,13 @@ export const openRows = text => {
 }
 
 /**
- * The module a sample that imports one imports, `./a.f.js`: a default and a
- * named `x`, so that an import sample is refused for its syntax and never
- * for a file that is not there, and a row the compiler comes to accept
- * shows as accepted.
- */
-export const dependency = 'export const x = 1;\nexport default 1;\n'
-
-/** The name of {@link dependency}, beside the sample. */
-export const dependencyName = 'a.f.js'
-
-/**
- * What `fjs compile <name> output.js` answers for `text` as the file
- * `name`, with {@link dependency} beside it.
+ * What `fjs compile` answers for a sample as the file `name`, with the
+ * module an import sample imports beside it, as on a refused construct's
+ * page.
  *
  * @type {(name: string) => (text: string) => Result<Marked, OutputRefusal>}
  */
-const compileSample = name => text => unwrap(virtualAt({ [name]: [utf8(text)], [dependencyName]: [utf8(dependency)] })(
-    _outputMarked(noRuntime)(name, outputName))[1])
+const compileSample = compileAs
 
 /**
  * What `fjs compile` answers for a row's sample, the file named after the

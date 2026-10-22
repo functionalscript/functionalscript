@@ -19,13 +19,14 @@ import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { rustPath, samplePath, wasmPath, watPath } from '../page/module.f.mjs'
-import { agreement, callJs, functionDemo, init, load, notLoaded, outcomeText, runCalls, update, view, wasmCaller, wasmOutcome } from './module.f.mjs'
+import { agreement, callJs, edagView, functionDemo, init, load, microseconds, notLoaded, outcomeText, repeat, repetitions, runCalls, update, view, wasmCaller, wasmOutcome } from './module.f.mjs'
+import { spell } from '../spell/module.f.mjs'
 
 /** What a thunk answers to stand for a throw, which a proof cannot write. */
 const throws = 'negative'
 
 /** A sample that answers `input + 2`, and throws for a negative one. @type {FunctionSample} */
-const plus2 = { place: { name: 'plus2', directory: 'spec/plus2' }, entry: input => input < 0 ? throws : input + 2, inputs: [1, -1] }
+const plus2 = { place: { name: 'plus2', directory: 'spec/plus2', calls: [[1, ['returned', '3']], [-1, ['threw', '"negative"']]] }, entry: input => input < 0 ? throws : input + 2 }
 
 /** `text` as the bytes `output_byte` reads. @type {(text: string) => readonly number[]} */
 const bytes = text => Array.from(text, c => c.charCodeAt(0))
@@ -63,7 +64,7 @@ const page = (files, wasm, sandbox = 'ok') => ({
         if (sandbox === 'notImplemented') { return [s, error(notImplemented('sandbox'))] }
         if (sandbox === 'thrown') { return [s, ok({ result: error('boom'), duration: 1 })] }
         const value = f()
-        return [s, /** @type {any} */ (ok({ result: value === throws ? error(throws) : ok(value), duration: 1 }))]
+        return [s, /** @type {any} */ (ok({ result: value === throws || value === spell(throws) ? error(throws) : ok(value), duration: 1 }))]
     },
 })
 
@@ -84,8 +85,13 @@ const ready = perform(page(files, instance()))(load(plus2.place))
 /** @type {(e: Element) => string} */
 const text = e => JSON.stringify(e)
 
-/** @type {(outcome: Call['outcome']) => Result<Call, string>} */
-const made = outcome => ok({ outcome, time: 1 })
+/**
+ * A call the mock made: a run that returned made {@link repetitions} calls
+ * in its time of 1 ms, and one that threw made one.
+ *
+ * @type {(outcome: Call['outcome']) => Result<Call, string>}
+ */
+const made = outcome => ok({ outcome, time: outcome[0] === 'threw' ? 1000 : 1000 / repetitions })
 
 export const proof = {
     load: () => {
@@ -94,13 +100,15 @@ export const proof = {
         assertStructurallySame(ready.wat, ok('(module)'))
         assertEq(ready.wasm[0], 'ok')
         assertEq(ready.calls, null)
+        // The graph is drawn once, as the source arrives.
+        assertEq(JSON.stringify(ready.edag), JSON.stringify(edagView(source)))
         const missing = perform(page({}, null))(load(plus2.place))
         assertStructurallySame(missing.wasm, error(`/${wasmPath}: HTTP 404`))
     },
     callJs: () => {
         assertStructurallySame(perform(page({}, null))(callJs(plus2.entry)(1)), made(['returned', '3']))
         // A throw is an answer, with what was thrown.
-        assertStructurallySame(perform(page({}, null))(callJs(plus2.entry)(-1)), made(['threw', 'negative']))
+        assertStructurallySame(perform(page({}, null))(callJs(plus2.entry)(-1)), made(['threw', '"negative"']))
         assertStructurallySame(perform(page({}, null, 'notImplemented'))(callJs(plus2.entry)(1)), error('operation not implemented: sandbox'))
     },
     wasmOutcome: () => {
@@ -137,13 +145,19 @@ export const proof = {
         assertEq(called.calls.map(/** @type {(c: Calls) => number} */ (c => c.input)).join(','), '1,-1')
         assertStructurallySame(called.calls[0].js, made(['returned', '3']))
         assertStructurallySame(called.calls[0].wasm, made(['returned', '3']))
-        assertStructurallySame(called.calls[1].js, made(['threw', 'negative']))
+        assertStructurallySame(called.calls[1].js, made(['threw', '"negative"']))
         // With no module, the JavaScript calls still happen.
         const loading = perform(page({}, null))(runCalls(plus2)(init))
         assertStructurallySame(loading.calls?.[0].js, made(['returned', '3']))
         assertStructurallySame(loading.calls?.[0].wasm, error('the module has not loaded yet'))
         const failed = perform(page({}, null))(runCalls(plus2)({ ...init, wasm: error('gone') }))
         assertStructurallySame(failed.calls?.[1].wasm, error('gone'))
+    },
+    repeat: () => {
+        assertEq(repeat(3, () => 1), 1)
+        // Stops at the first answer `stop` holds for.
+        assertEq(repeat(3, () => -1, n => n < 0), -1)
+        assertEq(microseconds(1.234), '1.23 µs')
     },
     outcomeText: () => {
         assertEq(outcomeText(['returned', '3']), 'Returned 3')
@@ -162,6 +176,8 @@ export const proof = {
         const first = text(view([1, -1])(init))
         assert(first.includes('Loading…'))
         assert(first.includes('with 1, then -1'))
+        // The verdict first, as on a refused or undecided page.
+        assert(first.includes('In FunctionalScript'))
         assert(!first.includes('startup'))
         // Loaded: the graph, drawn and as text, and the Rust and the WAT.
         const shown = text(view([1, -1])(perform(page({}, null))(runCalls(plus2)(ready))))
@@ -172,11 +188,12 @@ export const proof = {
         assert(shown.includes('(module)'))
         assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('default(-1)'))
-        assert(shown.includes('Threw negative'))
-        assert(shown.includes('Running time: 1.0 ms'))
+        // What JavaScript threw, spelled: a string, quoted.
+        assert(shown.includes(JSON.stringify('Threw "negative"').slice(1, -1)))
+        assert(shown.includes(`Time per call: ${microseconds(1000 / repetitions)}`))
         assert(shown.includes('The same answer both ways: Yes'))
         // A source that does not parse is the parser's refusal, twice.
-        const broken = text(view([1])({ ...init, source: ok('export default (') }))
+        const broken = text(view([1])({ ...init, source: ok('export default ('), edag: edagView('export default (') }))
         assert(broken.includes('Refused'))
         // Calls that could not happen.
         const refused = text(view([1])({ ...init, calls: [{ input: 1, js: error('no js'), wasm: error('no wasm') }] }))

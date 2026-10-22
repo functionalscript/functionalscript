@@ -46,6 +46,13 @@ the expression graph (EDAG), the Rust and the WebAssembly that Rust builds
 to. Its Run button calls the default export with `1` and `2`, as JavaScript
 and as WebAssembly, and shows what each call returned or threw.
 
+```js
+export default (...a) =>
+	a[0]
+    +
+	1;
+```
+
 ## Reference
 
 - ECMA-262: [White space](https://tc39.es/ecma262/#sec-white-space), [Line terminators](https://tc39.es/ecma262/#sec-line-terminators)

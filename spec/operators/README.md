@@ -176,11 +176,28 @@ and `7` as JSON.
 - [Grouping](./grouping/README.md)
 - [Comma](./comma/README.md)
 - [`instanceof`](./instanceof/README.md)
+
+Refused by design, each page showing what `fjs compile` prints and what to write instead:
+
 - [`in` Is Refused](./in/README.md)
+- [`instanceof` Other Than `Array` Is Refused](./instanceof/other-classes/README.md)
+- [`==` Is Refused](./loose-equality/README.md)
+- [`this` Is Refused](./this/README.md)
 
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.
+
+The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
+example as a function of one number — the arithmetic, bitwise, logical,
+`typeof` and conditional operators — with every output `fjs compile` makes
+of it: the expression graph (EDAG), the Rust and the WebAssembly that Rust
+builds to. Its Run button calls the default export with `1` and `2`, as
+JavaScript and as WebAssembly, and shows what each call returned or threw.
+
+```js
+export default (...a) => [a[0] + 2 * 3, 7 % a[0], 2 ** a[0], ~a[0], !a[0], typeof a[0], a[0] > 1 ? "big" : "small"];
+```
 
 ## Reference
 

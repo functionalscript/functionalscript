@@ -97,6 +97,15 @@ WebAssembly that Rust builds to. Its Run button calls the default export
 with `2` and `5`, as JavaScript and as WebAssembly, and shows what each call
 returned or threw.
 
+```js
+const assert = (...a) => a[0] ? undefined : (() => { throw a[1]; })();
+const at = (a, i) => {
+    assert(i < a.length, "out of range");
+    return a.at(i);
+};
+export default (...a) => at([1, 2, 3], a[0]);
+```
+
 ## Reference
 
 - ECMA-262: [Expression statement](https://tc39.es/ecma262/#sec-expression-statement)

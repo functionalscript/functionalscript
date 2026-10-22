@@ -131,6 +131,11 @@ export const refusedMarker = 'data-refused'
  */
 export const undecidedMarker = 'data-undecided'
 
+/** The attribute of the banner an admitted feature's spec page opens its
+ * demo with: the compiler accepts the example, and runs it both ways.
+ */
+export const admittedMarker = 'data-admitted'
+
 /** The attribute of a register row's card, one construct with its sample
  * and what the compiler prints for it.
  */
@@ -891,6 +896,12 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [${undecidedMarker}] { background: var(--value-bg); border: 2px solid var(--value); border-left-width: 8px; border-radius: 6px; color: var(--value); margin-block: 1rem; padding: .75rem 1rem }
 [${undecidedMarker}] > strong { display: block; font-size: 1.5rem }
 [${undecidedMarker}] > p { color: var(--text); margin: .5rem 0 0 }
+/* An admitted feature's banner: the verdict a refused or undecided page
+   opens with, here the compiler's acceptance, in the passing colour and a
+   lighter weight, since it is the page's expected state. */
+[${admittedMarker}] { background: var(--pass-bg); border: 1px solid var(--pass); border-left-width: 8px; border-radius: 6px; color: var(--pass); margin-block: 1rem; padding: .5rem 1rem }
+[${admittedMarker}] > strong { display: block; font-size: 1.15rem }
+[${admittedMarker}] > p { color: var(--text); margin: .25rem 0 0 }
 [${registerRowMarker}] { border: 1px solid var(--border); border-radius: 6px; margin-block: 1rem; padding: .5rem 1rem }
 [${registerRowMarker}] > h3 { margin: .25rem 0 .5rem }
 [${registerRowMarker}] > div > p { display: inline; margin: 0 }

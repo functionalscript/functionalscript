@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = 'false'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "export default [] instanceof Map;\n"
+
 export const demo = refusedDemo({ directory: 'spec/operators/instanceof/other-classes', answer, alternative, suggestion })

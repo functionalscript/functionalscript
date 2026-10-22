@@ -82,6 +82,8 @@ export const proof = {
                 ['list', false, [[['paragraph', [['text', 'i']]], ['list', true, [[['paragraph', [['text', 'k']]]]]]], [['paragraph', [['text', 'j']]]]]],
                 ['table', [null, 'center'], [[['text', 'h']], []], [[[['code', 'c']], [['text', 'd']]]]],
                 ['table', ['left'], [[['text', 'h']]], []],
+                ['olist', 1, false, [[['paragraph', [['text', 'm']]]]]],
+                ['olist', 3, true, [[['paragraph', [['text', 'n']]]]]],
             ]
             assertStructurallySame(readmeNodes(href)(blocks), ok([
                 ['h2', { id: 't' }, 'T'],
@@ -92,6 +94,8 @@ export const proof = {
                 ['ul', ['li', 'i', ['ul', ['li', ['p', 'k']]]], ['li', 'j']],
                 ['table', ['thead', ['tr', ['th', 'h'], ['th', { align: 'center' }]]], ['tbody', ['tr', ['td', ['code', 'c']], ['td', { align: 'center' }, 'd']]]],
                 ['table', ['thead', ['tr', ['th', { align: 'left' }, 'h']]]],
+                ['ol', ['li', 'm']],
+                ['ol', { start: '3' }, ['li', ['p', 'n']]],
             ]))
         },
         // A link it cannot place refuses the README, wherever it stands.

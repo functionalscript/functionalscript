@@ -155,8 +155,8 @@ describes:
 | `mod.no-export` | an empty module, `const a = 1;` alone | design ([module structure](../modules/README.md); page: [A Module With No Export Is Refused](../modules/no-export/README.md)) |
 | `mod.empty-pattern-export` | `export const {} = {};` | design ([module structure](../modules/README.md): at least one export, and a pattern exports each name it binds; page: [An Export That Binds Nothing Is Refused](../modules/empty-pattern-export/README.md)) |
 | `mod.export-after-default` | `export default 1; export const a = 2;` | design ([module structure](../modules/README.md); page: [An Export After `export default` Is Refused](../modules/export-after-default/README.md)) |
-| `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../modules/README.md)) |
-| `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../modules/README.md)) |
+| `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../modules/README.md); page: [An Import After an Export Is Refused](../modules/import-after-export/README.md)) |
+| `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../modules/README.md); page: [A `throw` Beside an Export Is Refused](../modules/throw-position/README.md)) |
 | `mod.export-list` | `const a = 1; export { a };` | open (investigated in [export lists](./export-lists.md)) |
 | `mod.export-let` | `export let a = 1;` | design (`let` only opens a loop, [let](./3220-let.md); page: [`export let` Is Refused](../modules/export-let/README.md)) |
 | `mod.reexport` | `export { a } from "m"`, `export * from "m"` | open (whether it belongs is a question in [export lists](./export-lists.md)) |

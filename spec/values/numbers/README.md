@@ -148,6 +148,10 @@ the expression graph (EDAG), the Rust and the WebAssembly that Rust builds
 to. Its Run button calls the default export with `0`, `1`, `2` and `3`, as
 JavaScript and as WebAssembly, and shows what each call returned or threw.
 
+```js
+export default (...a) => [0, -42.5, 3e2, 1E-7][Number(a[0])] * 2;
+```
+
 ## Reference
 
 - ECMA-262: [Numeric literals](https://tc39.es/ecma262/#sec-literals-numeric-literals), [The Number type](https://tc39.es/ecma262/#sec-ecmascript-language-types-number-type)

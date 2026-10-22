@@ -220,6 +220,13 @@ of it: the expression graph (EDAG), the Rust and the WebAssembly that Rust
 builds to. Its Run button calls the default export with `1` and `2`, as
 JavaScript and as WebAssembly, and shows what each call returned or threw.
 
+```js
+export default (...a) => {
+    const o = { a: "hello", "b": a[0], ["c"]: [1, 2] };
+    return Object.entries(o).length + o.b;
+};
+```
+
 ## Reference
 
 - ECMA-262: [Object initializer](https://tc39.es/ecma262/#sec-object-initializer)

@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = '17'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "/** @type {(...p: number[]) => number} */\nconst f = (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q) => q;\nexport default f(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17);\n"
+
 export const demo = refusedDemo({ directory: 'spec/functions/parameters/limit', answer, alternative, suggestion })

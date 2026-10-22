@@ -20,6 +20,20 @@ export type Place = {
     readonly directory: string
 }
 
+/** What one call did: answered a value, or threw one, each as `spell` writes it. */
+export type Outcome = readonly['returned', string] | readonly['threw', string]
+
+/** One call a function sample's page makes: the input, and what JavaScript answers. */
+export type ListedCall = readonly [number, Outcome]
+
+/**
+ * A function sample's place, with the calls its page's Run button makes, in
+ * order ([`../samples/module.f.mjs`](../samples/module.f.mjs)).
+ */
+export type FunctionPlace = Place & {
+    readonly calls: readonly ListedCall[]
+}
+
 /** A sample: where it is, and the program itself, as the JavaScript run performs it. */
 export type Sample = {
     readonly place: Place
@@ -52,7 +66,11 @@ export type JsRun = Run & {
     readonly heap: JsHeap | null
 }
 
-/** The WASM run, and the module's linear memory size after it, in bytes. */
+/**
+ * The WASM run, and the module's linear memory size after it, in bytes:
+ * the size so far, since linear memory never shrinks, and every sample the
+ * page has loaded shares it.
+ */
 export type WasmRun = {
     readonly run: Run
     readonly memory: number

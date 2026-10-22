@@ -51,6 +51,8 @@
  * @import { Build, Dir, PageDemo, Proof } from './page/types.ts'
  * @import { Element } from '../media/html/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
+ * @import { FetchText, Instantiate } from '../effects/browser/types.ts'
+ * @import { MemOperationMap } from '../effects/mock/types.ts'
  * @import { Funding } from './funding/types.ts'
  */
 
@@ -65,6 +67,7 @@ import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { catch_, import_, log } from '../effects/common/module.f.mjs'
+import { run as runInMemory } from '../effects/mock/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse, tryParseBlocks } from '../media/markdown/module.f.mjs'
 import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/module.f.mjs'
@@ -474,19 +477,81 @@ const resolveDemos = demos => {
 }
 
 /**
- * A demo module's first view, `view(init)`, as a thunk for `catch_`: a module
- * that exports no `demo`, or a `view` that throws, is a throw here.
- *
- * @type {(module: Module) => () => unknown}
+ * How many times the build performs a demo's `start` at most: each time
+ * with the files the times before asked for. A page's start fetches what it
+ * shows, and a fetch that waits on an earlier one's answer asks one round
+ * later.
  */
-const firstView = module => () => {
-    const demo = /** @type {Demo<unknown, DemoEvent>} */ (module.demo)
-    return demo.view(demo.init)
+export const startRounds = 3
+
+/**
+ * A demo's state after its `start`, performed in memory with `files`, the
+ * site's files read so far by root-relative path, as a thunk for `catch_`:
+ * the paths it asked for that `files` does not hold, and the state, or why
+ * there is none. A WebAssembly module is not instantiated, the page does
+ * that; any other operation, which a start may perform only in the browser,
+ * is a throw here, as is a module that exports no `demo`.
+ *
+ * @type {(module: Module, files: OrderedMap<IoResult<string>>) => () => readonly [readonly string[], Result<unknown, string>]}
+ */
+const startedWith = (module, files) => () => {
+    const demo = /** @type {Demo<unknown, DemoEvent, FetchText | Instantiate>} */ (module.demo)
+    // A demo with no `update` answers nothing, and starts as it is.
+    if (typeof demo.update !== 'function') { return [[], ok(demo.init)] }
+    /** @type {MemOperationMap<FetchText | Instantiate, readonly string[]>} */
+    const map = {
+        fetchText: path => asked => {
+            const file = at(path)(files)
+            return file === null ? [[...asked, path], error(ioError({ message: `${path}: not read yet` }))] : [asked, file]
+        },
+        instantiate: () => asked => [asked, error(ioError({ message: 'the module is instantiated in the browser' }))],
+    }
+    const [asked, state] = runInMemory(map)([])(demo.update(demo.init)({ kind: 'start' }))
+    return [asked, state[0] === 'error' ? error(String(state[1])) : state]
 }
 
 /**
- * A demo with the first view the build rendered for it — `view(init)`, which
- * the page shows until the runtime has loaded the demo and takes it over.
+ * A demo's state after its `start`, which the build renders: a reader with
+ * JavaScript sees it once the page has loaded what it shows. The build
+ * performs the start ({@link startedWith}), reading each file it asks for
+ * from the checkout, which is the site; so a page that fetches its source,
+ * its Rust and its disassembly, or compiles a sample, carries them in its
+ * markup, for a reader without JavaScript and a search engine as for the
+ * runtime that takes the section over. Or why there is none: a start that
+ * asks for anything but files, fails, or throws.
+ *
+ * @type {(module: Module) => Effect<Catch | ReadFile, Result<unknown, string>, IoChannel>}
+ */
+const startedState = module => {
+    /** @type {(files: OrderedMap<IoResult<string>>, rounds: number) => Effect<Catch | ReadFile, Result<unknown, string>, IoChannel>} */
+    const round = (files, rounds) => step(catch_(startedWith(module, files)), started => {
+        if (started[0] === 'error') { return pureOk(error(String(started[1]))) }
+        const [asked, state] = /** @type {readonly [readonly string[], Result<unknown, string>]} */ (started[1])
+        if (asked.length === 0 || rounds <= 1) { return pureOk(state) }
+        const read = foldStep(pureOk(asked), files, path => known => resultStep(readUtf8File(path.slice(1)),
+            file => pureOk(setReplace(path)(/** @type {IoResult<string>} */ (file))(known))))
+        return step(read, known => round(known, rounds - 1))
+    })
+    return round(emptyMap, startRounds)
+}
+
+/**
+ * A demo module's view of `started`, its state after `start`, or of its
+ * `init` where there is none, as a thunk for `catch_`: a module that exports
+ * no `demo`, or a `view` that throws, is a throw here.
+ *
+ * @type {(module: Module, started: Result<unknown, string>) => () => unknown}
+ */
+const firstView = (module, started) => () => {
+    const demo = /** @type {Demo<unknown, DemoEvent>} */ (module.demo)
+    return demo.view(started[0] === 'ok' ? started[1] : demo.init)
+}
+
+/**
+ * A demo with the first view the build rendered for it — the view of its
+ * state after `start` ({@link startedState}), or `view(init)` where that
+ * cannot be had — which the page shows until the runtime has loaded the
+ * demo and takes it over.
  *
  * **The demo is imported, not read.** Rendering it means running it, and
  * `import` is the operation that loads a module's exports; the page's own
@@ -499,7 +564,7 @@ const firstView = module => () => {
  * rendered: the runtime fills it, or shows why it cannot. The build does not
  * stop for one demo, and the reason is not lost.
  *
- * @type {(path: string) => Effect<Import | Catch | Write, PageDemo, IoChannel>}
+ * @type {(path: string) => Effect<Import | Catch | ReadFile | Write, PageDemo, IoChannel>}
  */
 const prerender = path => {
     /** @type {(reason: string) => Effect<Write, PageDemo, IoChannel>} */
@@ -511,14 +576,14 @@ const prerender = path => {
     /** @type {Effect<Import, Result<Module, string>, IoChannel>} */
     const loaded = resultStep(import_(path.slice(1)), imported =>
         pureOk(imported[0] === 'error' ? error(errorMessage(imported[1])) : imported))
-    /** @type {Effect<Import | Catch, Result<Element, string>, IoChannel>} */
+    /** @type {Effect<Import | Catch | ReadFile, Result<Element, string>, IoChannel>} */
     const viewed = step(loaded, imported => imported[0] === 'error'
         ? pureOk(imported)
-        : mapStep(catch_(firstView(imported[1])), thrown => thrown[0] === 'error'
+        : step(startedState(imported[1]), started => mapStep(catch_(firstView(imported[1], started)), thrown => thrown[0] === 'error'
             ? error(String(thrown[1]))
             // `catch_` is generic, and the generic is lost on the way through
             // `do_`, so what `view` answers comes back as `unknown`.
-            : ok(/** @type {Element} */ (thrown[1]))))
+            : ok(/** @type {Element} */ (thrown[1])))))
     return step(viewed, view => {
         if (view[0] === 'error') { return skip(view[1]) }
         // The runtime's builders refuse what a page would read otherwise, or
@@ -531,7 +596,7 @@ const prerender = path => {
 /**
  * Every demo, with its first view: {@link prerender}, one directory at a time.
  *
- * @type {(paths: _DemoPaths) => Effect<Import | Catch | Write, _Demos, IoChannel>}
+ * @type {(paths: _DemoPaths) => Effect<Import | Catch | ReadFile | Write, _Demos, IoChannel>}
  */
 const prerenderDemos = paths => foldStep(
     pureOk(entries(paths)),

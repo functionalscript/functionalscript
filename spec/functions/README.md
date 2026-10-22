@@ -41,6 +41,13 @@ refused.
 - [Call Statements](./call-statements/README.md)
 - [Function Outputs](./function-outputs/README.md)
 
+Refused by design, each page showing what `fjs compile` prints and what to write instead:
+
+- [A Body That Does Not Terminate Is Refused](./body-end/README.md)
+- [An Expression Statement That Is No Call Is Refused](./call-statements/expression-statements/README.md)
+- [More Than 16 Fixed Parameters Are Refused](./parameters/limit/README.md)
+- [A Statement After `return` Is Refused](./unreachable/README.md)
+
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.
@@ -52,6 +59,10 @@ compile` makes of it: the expression graph (EDAG), the Rust and the
 WebAssembly that Rust builds to. Its Run button calls the default export
 with `1` and `2`, as JavaScript and as WebAssembly, and shows what each call
 returned or threw.
+
+```js
+export default (...args) => [args.length, args[0] * 10];
+```
 
 ## Reference
 

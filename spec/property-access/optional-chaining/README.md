@@ -64,6 +64,14 @@ expression graph (EDAG), the Rust and the WebAssembly that Rust builds to.
 Its Run button calls the default export with `0` and `1`, as JavaScript and
 as WebAssembly, and shows what each call returned or threw.
 
+```js
+const o = { a: { b: 1 }, f: (...x) => x };
+export default (...a) => {
+    const v = [o, null][Number(a[0])];
+    return [v?.a.b, v?.f(2), v?.f?.(3)];
+};
+```
+
 ## Reference
 
 - ECMA-262: [Optional chains](https://tc39.es/ecma262/#sec-optional-chains)

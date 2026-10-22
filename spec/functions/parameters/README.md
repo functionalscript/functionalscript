@@ -66,6 +66,11 @@ graph (EDAG), the Rust and the WebAssembly that Rust builds to. Its Run
 button calls the default export with `1` and `4`, as JavaScript and as
 WebAssembly, and shows what each call returned or threw.
 
+```js
+const f = (x, y = 10, ...rest) => [x, y, rest.length];
+export default (...a) => [f(a[0]), f(a[0], a[0] * 2, 7, 8)];
+```
+
 ## Reference
 
 - ECMA-262: [Parameter lists](https://tc39.es/ecma262/#sec-parameter-lists)

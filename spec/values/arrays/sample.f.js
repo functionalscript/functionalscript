@@ -10,5 +10,5 @@
 export default (...a) => {
     /** @type {readonly [string, number, readonly [boolean, null]]} */
     const x = ["hello", a[0], [true, null]];
-    return [x.length, [...x, a[0] + 1].length, x[2][0]];
+    return [x.length, [...x, a[0] + 1], x[2][0]];
 };

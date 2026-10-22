@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = "'"
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "export default \"\\'\";\n"
+
 export const demo = refusedDemo({ directory: 'spec/values/strings/apostrophe-escape', answer, alternative, suggestion })

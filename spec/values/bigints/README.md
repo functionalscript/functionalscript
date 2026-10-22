@@ -45,6 +45,10 @@ expression graph (EDAG), the Rust and the WebAssembly that Rust builds to.
 Its Run button calls the default export with `0`, `1` and `2`, as JavaScript
 and as WebAssembly, and shows what each call returned or threw.
 
+```js
+export default (...a) => [[0n, 34n, -34n][Number(a[0])] * 2n, typeof 34n];
+```
+
 ## Reference
 
 - ECMA-262: [The BigInt type](https://tc39.es/ecma262/#sec-ecmascript-language-types-bigint-type)

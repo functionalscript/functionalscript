@@ -71,6 +71,10 @@ the expression graph (EDAG), the Rust and the WebAssembly that Rust builds
 to. Its Run button calls the default export with `0` and `2`, as JavaScript
 and as WebAssembly, and shows what each call returned or threw.
 
+```js
+export default (...a) => [1, 2, 3, 4].filter(x => x > a[0]).map(x => x * 10).join("-");
+```
+
 ## Reference
 
 - ECMA-262: [Array objects](https://tc39.es/ecma262/#sec-array-objects), [String objects](https://tc39.es/ecma262/#sec-string-objects), [Number objects](https://tc39.es/ecma262/#sec-number-objects)

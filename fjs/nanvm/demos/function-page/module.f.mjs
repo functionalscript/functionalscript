@@ -26,6 +26,19 @@
  * what the page shows. So a call that throws is shown with what it threw,
  * and only a call that could not be made at all is a refusal.
  *
+ * **Answers are spelled, not `String`ed**, by
+ * [`spell`](../spell/module.f.mjs) here and by its Rust twin in
+ * `nanvm-demos`, so the comparison tells `null` from `undefined` and keeps
+ * an array's nesting. The calls are the samples list's
+ * ([`../samples/module.f.mjs`](../samples/module.f.mjs)), where the answers
+ * JavaScript gives are stated and tested on both sides.
+ *
+ * **A call is timed {@link repetitions} times over.** One call of a spec
+ * example takes microseconds, below what a browser's clock tells apart, so
+ * each side makes the call that many times in one timed run and the page
+ * shows the time per call. A call that throws is made once: it throws the
+ * same way every time, and its time is that of the one call.
+ *
  * @module
  *
  * @import { Sandbox, SandboxResult } from '../../../effects/common/types.ts'
@@ -44,21 +57,60 @@ import { error, ok } from '../../../types/result/module.f.js'
 import { compiled } from '../../../compiler/demo.f.mjs'
 import { graphOfText } from '../../../compiler/edag/demo.f.mjs'
 import { caption, refusal } from '../../../website/demo/module.f.mjs'
-import { codeBlock } from '../../../website/demo/code/module.f.js'
 import { graphSvg } from '../../../website/demo/graph/module.f.mjs'
-import { codeOutput, highlight } from '../../../website/demo/highlight/module.f.mjs'
-import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
-import { decode, load as loadFiles, loadedView, milliseconds, stat } from '../page/module.f.mjs'
+import { codeOutput } from '../../../website/demo/highlight/module.f.mjs'
+import { admittedMarker, codeMarker } from '../../../website/style/module.f.js'
+import { decode, filesView, load as loadFiles, startupView, stat } from '../page/module.f.mjs'
+import { spell } from '../spell/module.f.mjs'
 
 /** @type {State} */
-export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], calls: null }
+export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], edag: [], calls: null }
+
+/** How many times a timed run makes its call. */
+export const repetitions = 1000
 
 /**
- * Fetches the files a WASM demo page shows, as {@link loadFiles} does.
+ * `f()` made `n` times, at least once, answering the last; or stopping at
+ * the first answer `stop` holds for.
+ *
+ * @type {<T>(n: number, f: () => T, stop?: (t: T) => boolean) => T}
+ */
+export const repeat = (n, f, stop = () => false) => {
+    const t = f()
+    return n <= 1 || stop(t) ? t : repeat(n - 1, f, stop)
+}
+
+/**
+ * A time per call, in microseconds, as the page shows it.
+ *
+ * @type {(us: number) => string}
+ */
+export const microseconds = us => `${us.toFixed(2)} µs`
+
+/**
+ * The expression graph of the source, drawn and as `fjs compile` writes it:
+ * computed once, when the source arrives, and kept in the state, since a
+ * render on each press of Run would compile the source again.
+ *
+ * @type {(text: string) => readonly Node[]}
+ */
+export const edagView = text => {
+    const graph = graphOfText(text)
+    return [
+        caption('Expression graph (EDAG) that fjs compile lowers it to:'),
+        graph[0] === 'ok' ? graphSvg(graph[1]) : refusal(graph[1]),
+        ...codeOutput('The same graph, as fjs compile writes it to a .edag.data.js file:', 'Copy the EDAG')(compiled(text)('output.edag.data.js')),
+    ]
+}
+
+/**
+ * Fetches the files a WASM demo page shows, as {@link loadFiles} does, and
+ * draws the source's graph.
  *
  * @type {(place: Place) => Effect<FetchText | Instantiate, State, never>}
  */
-export const load = place => mapStep(loadFiles(place), ({ source, rust, wat, wasm }) => ({ source, rust, wat, wasm, calls: null }))
+export const load = place => mapStep(loadFiles(place), ({ source, rust, wat, wasm }) =>
+    ({ source, rust, wat, wasm, edag: source[0] === 'ok' ? edagView(source[1]) : [], calls: null }))
 
 /**
  * What `call_sample` answers for a call when no sample is loaded:
@@ -68,24 +120,27 @@ export const notLoaded = -0x8000_0000
 
 /**
  * A call's answer from `sandbox`: what it returned, or threw, with how long
- * it took; or why there is none, an operation this page could not perform.
+ * one call took, in microseconds; or why there is none, an operation this
+ * page could not perform. A run that returned made {@link repetitions}
+ * calls, and one that threw made one.
  *
  * @type {<T>(r: Result<SandboxResult<T>, IoChannel>, outcome: (value: T) => Result<Outcome, string>) => Result<Call, string>}
  */
 const timedCall = (r, outcome) => {
     if (r[0] === 'error') { return error(errorMessage(r[1])) }
     const { result, duration } = r[1]
-    const o = result[0] === 'ok' ? outcome(result[1]) : ok(/** @type {Outcome} */ (['threw', String(result[1])]))
-    return o[0] === 'error' ? o : ok({ outcome: o[1], time: duration })
+    const o = result[0] === 'ok' ? outcome(result[1]) : ok(/** @type {Outcome} */ (['threw', spell(result[1])]))
+    return o[0] === 'error' ? o : ok({ outcome: o[1], time: duration * 1000 / (o[1][0] === 'threw' ? 1 : repetitions) })
 }
 
 /**
- * Calls the JavaScript function with `input`, in a `sandbox`, and spells its
- * answer with `String` inside it, as `call_sample` does inside its call.
+ * Calls the JavaScript function with `input`, {@link repetitions} times in
+ * one `sandbox`, and spells each answer inside it, as `call_sample` does
+ * inside its call.
  *
  * @type {(entry: FunctionSample['entry']) => (input: number) => Effect<Sandbox, Result<Call, string>, never>}
  */
-export const callJs = entry => input => resultStep(sandbox(() => String(entry(input))), r => pureOk(timedCall(
+export const callJs = entry => input => resultStep(sandbox(() => repeat(repetitions, () => spell(entry(input)))), r => pureOk(timedCall(
     /** @type {Result<SandboxResult<string>, IoChannel>} */ (r),
     value => ok(['returned', value]))))
 
@@ -106,7 +161,8 @@ export const wasmOutcome = outputByte => status => {
 /**
  * Loads the sample with its export, untimed, as the JavaScript function was
  * imported before it is called; and answers the call of the sample loaded,
- * timing `call_sample` alone. Or why it cannot be called: an export missing,
+ * timing `call_sample` alone, made {@link repetitions} times or until it
+ * reports a throw. Or why it cannot be called: an export missing,
  * or a sample that threw while loading.
  *
  * @type {(name: string) => (instance: WasmInstance) => Effect<Sandbox, Result<(input: number) => Effect<Sandbox, Result<Call, string>, never>, string>, never>}
@@ -120,7 +176,7 @@ export const wasmCaller = name => ({ exports }) => {
     }
     const outcome = wasmOutcome(/** @type {(i: number) => number} */ (outputByte))
     /** @type {(input: number) => Effect<Sandbox, Result<Call, string>, never>} */
-    const call = input => resultStep(sandbox(() => /** @type {(input: number) => number} */ (callSample)(input)), r =>
+    const call = input => resultStep(sandbox(() => repeat(repetitions, () => /** @type {(input: number) => number} */ (callSample)(input), status => status < 0)), r =>
         pureOk(timedCall(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r), outcome)))
     return resultStep(sandbox(() => /** @type {() => number} */ (loadSample)()), r => {
         const loaded = /** @type {Result<SandboxResult<number>, IoChannel>} */ (r)
@@ -146,13 +202,13 @@ const each = (inputs, f) => inputs.length === 0
  *
  * @type {(sample: FunctionSample) => (state: State) => Effect<Sandbox, State, never>}
  */
-export const runCalls = ({ place, entry, inputs }) => state => {
+export const runCalls = ({ place, entry }) => state => {
     const { wasm } = state
     const caller = wasm[0] === 'ok'
         ? wasmCaller(place.name)(wasm[1])
         : pureOk(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1]))
     return step(caller, c => mapStep(
-        each(inputs, input => step(callJs(entry)(input), js => mapStep(
+        each(place.calls.map(([input]) => input), input => step(callJs(entry)(input), js => mapStep(
             c[0] === 'ok' ? c[1](input) : pureOk(c),
             /** @type {(wasm: Result<Call, string>) => Calls} */ (w => ({ input, js, wasm: w }))))),
         calls => ({ ...state, calls })))
@@ -164,7 +220,7 @@ export const outcomeText = ([kind, text]) => `${kind === 'returned' ? 'Returned'
 /** @type {(call: Call) => readonly Node[]} */
 const madeView = ({ outcome, time }) => [
     ['div', { [codeMarker]: '' }, ['pre', outcomeText(outcome)]],
-    stat('Running time', milliseconds(time)),
+    stat('Time per call', microseconds(time)),
 ]
 
 /** @type {(title: string, call: Result<Call, string>) => readonly Node[]} */
@@ -191,36 +247,29 @@ const callsView = calls => [
     stat('The same answer both ways', agreement(calls)),
 ]
 
-/** @type {(text: string) => readonly Node[]} */
-const edagView = text => {
-    const graph = graphOfText(text)
-    return [
-        caption('Expression graph (EDAG) that fjs compile lowers it to:'),
-        graph[0] === 'ok' ? graphSvg(graph[1]) : refusal(graph[1]),
-        ...codeOutput('The same graph, as fjs compile writes it to a .edag.data.js file:', 'Copy the EDAG')(compiled(text)('output.edag.data.js')),
-    ]
-}
 
-/** @type {(state: State) => readonly Node[]} */
-const startupView = ({ wasm }) => wasm[0] === 'ok'
-    ? [stat('WebAssembly startup (fetch, compile and instantiate)', milliseconds(wasm[1].startup))]
-    : []
+/**
+ * The verdict a spec page opens with, as a refused construct's page opens
+ * with its refusal: this one is in the language, and runs both ways.
+ *
+ * @type {readonly Node[]}
+ */
+const admittedBanner = [
+    ['div', { [admittedMarker]: '' },
+        ['strong', {}, 'In FunctionalScript'],
+        ['p', {}, 'fjs compile accepts this module, and it runs as JavaScript and as WebAssembly alike.']],
+]
 
 /** @type {(inputs: readonly number[]) => (state: State) => Element} */
 export const view = inputs => state => ['div', {},
+    ...admittedBanner,
     ['p', {},
         'A FunctionalScript module and what fjs compile makes of it: the expression graph it lowers to, ',
         'the Rust it compiles to on the NaNVM runtime, and the WebAssembly that Rust builds to. ',
         `Run calls its default export with ${inputs.join(', then ')}, `,
         'first as the JavaScript it already is and then as WebAssembly, ',
-        'and shows what each call returned or threw and how long it took.'],
-    caption('FunctionalScript source:'),
-    ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text)), ...edagView(text)]),
-    caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
-    ...loadedView(state.rust, text => [codeBlock(text, 'Copy the Rust')]),
-    caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
-    ...loadedView(state.wat, text => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', text]]]),
-    ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
+        `and shows what each call returned or threw and how long one call takes, timed over ${repetitions} calls.`],
+    ...filesView(state, () => state.edag),
     ...startupView(state),
     ...(state.calls === null ? [] : state.calls.flatMap(callsView)),
 ]
@@ -232,4 +281,4 @@ export const update = sample => state => event =>
     : pureOk(state)
 
 /** @type {(sample: FunctionSample) => Demo<State, DemoEvent, FetchText | Instantiate | Sandbox>} */
-export const functionDemo = sample => ({ init, update: update(sample), view: view(sample.inputs) })
+export const functionDemo = sample => ({ init, update: update(sample), view: view(sample.place.calls.map(([input]) => input)) })

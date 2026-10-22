@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = 's1'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "/** @type {(x: number) => string} */\nconst String = x => \"s\" + x;\nexport default String(1);\n"
+
 export const demo = refusedDemo({ directory: 'spec/bindings/intrinsic-names', answer, alternative, suggestion })

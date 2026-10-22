@@ -55,6 +55,12 @@ of it: the expression graph (EDAG), the Rust and the WebAssembly that Rust
 builds to. Its Run button calls the default export with `1` and `-42.5`, as
 JavaScript and as WebAssembly, and shows what each call returned or threw.
 
+```js
+// a line comment runs to the end of the line
+
+export default (...a) => /* a block comment */ a[0] * 2;
+```
+
 ## Reference
 
 - ECMA-262: [Comments](https://tc39.es/ecma262/#sec-comments)

@@ -8,5 +8,6 @@
 
 import entry from './sample.f.js'
 import { functionDemo } from '../../../fjs/nanvm/demos/function-page/module.f.mjs'
+import { functionPlaceAt } from '../../../fjs/nanvm/demos/samples/module.f.mjs'
 
-export const demo = functionDemo({ place: { name: 'identifiers', directory: 'spec/lexical/identifiers' }, entry: /** @type {(input: number) => unknown} */ (entry), inputs: [1, 2] })
+export const demo = functionDemo({ place: functionPlaceAt('spec/lexical/identifiers'), entry })

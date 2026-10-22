@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = 'y'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "/** @type {(a: readonly string[], i: number) => string | undefined} */\nconst at = (a, i) => a[i];\nexport default at([\"x\", \"y\"], 1);\n"
+
 export const demo = refusedDemo({ directory: 'spec/property-access/runtime-keys', answer, alternative, suggestion })

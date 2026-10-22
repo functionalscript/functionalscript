@@ -1,10 +1,7 @@
 import { assert, assertEq } from '../../../fjs/asserts/module.f.js'
 import { report, suggestedText } from '../../../fjs/compiler/refused_demo/module.f.mjs'
 import alternative from './alternative.f.js'
-import { demo, suggestion } from './demo.f.mjs'
-
-/** The text of `sample.mjs`. */
-const sample = "/** @type {(a: readonly string[], i: number) => string | undefined} */\nconst at = (a, i) => a[i];\nexport default at([\"x\", \"y\"], 1);\n"
+import { demo, sample, suggestion } from './demo.f.mjs'
 
 export const proof = {
     // `acc.runtime-key` (spec/todo/refused-constructs.md): the message and the position.

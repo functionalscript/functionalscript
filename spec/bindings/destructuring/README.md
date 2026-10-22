@@ -134,6 +134,14 @@ WebAssembly that Rust builds to. Its Run button calls the default export
 with `1` and `5`, as JavaScript and as WebAssembly, and shows what each call
 returned or threw.
 
+```js
+const f = ([first, { second }], ...r) => [first, second, r];
+export default (...a) => {
+    const { x, y: [z] } = { x: a[0], y: [a[0] * 2] };
+    return f([x, { second: z }], 3, 4);
+};
+```
+
 ## Reference
 
 - ECMA-262: [Destructuring binding patterns](https://tc39.es/ecma262/#sec-destructuring-binding-patterns)

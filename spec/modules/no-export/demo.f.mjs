@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = 'undefined'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "const a = 1;\n"
+
 export const demo = refusedDemo({ directory: 'spec/modules/no-export', answer, alternative, suggestion })

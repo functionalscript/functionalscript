@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = 'true'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "export default Object?.is(1, 1);\n"
+
 export const demo = refusedDemo({ directory: 'spec/built-ins/static-functions/guarded', answer, alternative, suggestion })

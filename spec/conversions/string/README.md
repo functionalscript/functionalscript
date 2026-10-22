@@ -61,6 +61,10 @@ expression graph (EDAG), the Rust and the WebAssembly that Rust builds to.
 Its Run button calls the default export with `42` and `-0.5`, as JavaScript
 and as WebAssembly, and shows what each call returned or threw.
 
+```js
+export default (...a) => [String(a[0]), String(42n), String([1, 2]), String(a[0] > 0)];
+```
+
 ## Reference
 
 - ECMA-262: [ToString](https://tc39.es/ecma262/#sec-tostring), [String()](https://tc39.es/ecma262/#sec-string-constructor-string-value)

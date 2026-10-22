@@ -92,6 +92,12 @@ function's `length` is a number — throws the `TypeError` JavaScript throws.
 - [Optional Chaining](./optional-chaining/README.md)
 - [Reading an Entry at Run Time](./entries/README.md)
 
+Refused by design, each page showing what `fjs compile` prints and what to write instead:
+
+- [A Prototype's Method Is Refused](./prototype-calls/README.md)
+- [A Prototype's Name Is Refused](./prototype-names/README.md)
+- [A Key Computed at Run Time Is Refused](./runtime-keys/README.md)
+
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.
@@ -102,6 +108,11 @@ index, and a string key — with every output `fjs compile` makes of it: the
 expression graph (EDAG), the Rust and the WebAssembly that Rust builds to.
 Its Run button calls the default export with `0` and `1`, as JavaScript and
 as WebAssembly, and shows what each call returned or threw.
+
+```js
+const cfg = { ports: [80, 443] };
+export default (...a) => [cfg.ports[Number(a[0])], cfg["ports"].length];
+```
 
 ## Reference
 

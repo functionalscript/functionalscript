@@ -177,7 +177,8 @@ const labelNode = label => label[0] === 'code' ? ['code', label[1]] : label[1]
  * breadcrumb, and its sections are `h2`, so the README's title is an `h2`
  * beside them and its sections `h3`; an `h6` stays an `h6`.
  *
- * **A list item is its blocks**, and in a tight list a paragraph is its bare
+ * **A list item is its blocks**, in a `ul`, or an `ol` for a numbered
+ * list, and in a tight list a paragraph is its bare
  * text, as GitHub writes it: `<li>text</li>` where a loose list has
  * `<li><p>text</p></li>`. A table column's alignment is its cells' `align`.
  *
@@ -239,15 +240,19 @@ export const readmeNodes = href => blocks => {
                 out = [...out, ['pre', code]]
                 continue
             }
-            if (b[0] === 'list') {
+            if (b[0] === 'list' || b[0] === 'olist') {
+                const [loose, list] = b[0] === 'list' ? [b[1], b[2]] : [b[2], b[3]]
                 /** @type {readonly Element[]} */
                 let items = []
-                for (const item of b[2]) {
-                    const n = blockNodes(!b[1])(item)
+                for (const item of list) {
+                    const n = blockNodes(!loose)(item)
                     if (n[0] === 'error') { return n }
                     items = [...items, ['li', ...n[1]]]
                 }
-                out = [...out, ['ul', ...items]]
+                // An ordered list starts at its first item's number, which
+                // `ol` takes as `start` where it is not the 1 it defaults to.
+                out = [...out, b[0] === 'list' ? ['ul', ...items]
+                    : b[1] === 1 ? ['ol', ...items] : ['ol', { start: String(b[1]) }, ...items]]
                 continue
             }
             if (b[0] === 'table') {

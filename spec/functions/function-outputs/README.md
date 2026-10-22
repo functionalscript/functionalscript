@@ -20,6 +20,11 @@ expression graph (EDAG), the Rust and the WebAssembly that Rust builds to.
 Its Run button calls the default export with `0` and `2`, as JavaScript and
 as WebAssembly, and shows what each call returned or threw.
 
+```js
+const f = (a, b) => a + b;
+export default (...a) => [f.length, f(a[0], 1)];
+```
+
 ## Reference
 
 - ECMA-262: [Function objects](https://tc39.es/ecma262/#sec-function-objects)

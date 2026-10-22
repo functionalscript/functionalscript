@@ -22,6 +22,10 @@ quotes — with every output `fjs compile` makes of it: the expression graph
 calls the default export with `0` and `1`, as JavaScript and as WebAssembly,
 and shows what each call returned or threw.
 
+```js
+export default (...a) => ["hello!", 'hi!'][Number(a[0])].length;
+```
+
 ## Reference
 
 - ECMA-262: [String literals](https://tc39.es/ecma262/#sec-literals-string-literals), [The String type](https://tc39.es/ecma262/#sec-ecmascript-language-types-string-type)

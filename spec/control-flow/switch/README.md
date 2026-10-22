@@ -139,6 +139,17 @@ builds to. Its Run button calls the default export with `0`, `1`, `2` and
 `3`, as JavaScript and as WebAssembly, and shows what each call returned or
 threw.
 
+```js
+const kinds = ["array", "object", "string"];
+export default (...a) => {
+    switch (kinds[Number(a[0])]) {
+        case "array": case "object": { return "container"; }
+        case "string": { return "text"; }
+        default: { throw ["unknown", a[0]]; }
+    }
+};
+```
+
 ## Reference
 
 - ECMA-262: [The switch statement](https://tc39.es/ecma262/#sec-switch-statement)

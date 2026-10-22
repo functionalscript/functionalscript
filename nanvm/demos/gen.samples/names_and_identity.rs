@@ -5,11 +5,11 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
 #[allow(clippy::if_same_then_else)]
-pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let _b0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x0000000000000000)) }, 0, [runtime.clone()].to_array(), Some("()=>0")).to_any();
-    let _b2: Any<A> = [(string_key("make"), A::static_function(|_self, _args| { Ok(f64_any(0x0000000000000000)) }, 0, [runtime.clone()].to_array(), Some("()=>0")).to_any())].to_object().to_any();
+pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+    let _b0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x0000000000000000)) }, 0, Array::default(), Some("()=>0")).to_any();
+    let _b2: Any<A> = [(string_key("make"), A::static_function(|_self, _args| { Ok(f64_any(0x0000000000000000)) }, 0, Array::default(), Some("()=>0")).to_any())].to_object().to_any();
     Ok([(string_key("default"), A::static_function(|_self, _args| {
-        let _b768: Any<A> = _args.rest(0).to_any();
-        Ok([(strict_eq(A::frame(_self)[0].clone(), A::frame(_self)[0].clone()))?, (strict_eq(A::frame(_self)[0].clone(), (Any::dot(A::frame(_self)[1].clone(), string_any("make")).end())?))?, (Any::dot([A::frame(_self)[0].clone(), (Any::dot(A::frame(_self)[1].clone(), string_any("make")).end())?].to_array().to_any(), (Any::number((Any::dot(_b768.clone(), f64_any(0x0000000000000000)).end())?))?).end_call(&A::frame(_self)[2], || Ok(Array::default().to_any())))?].to_array().to_any())
-    }, 0, [_b0.clone(), _b2.clone(), runtime.clone()].to_array(), Some("(...$2)=>[$0===$0,$0===$1.make,[$0,$1.make][Number($2[0])]()]")).to_any())].to_object().to_any())
+        let _b834: Any<A> = _args.rest(0).to_any();
+        Ok([(strict_eq(A::frame(_self)[0].clone(), A::frame(_self)[0].clone()))?, (strict_eq(A::frame(_self)[0].clone(), (Any::dot(A::frame(_self)[1].clone(), string_any("make")).end())?))?, (strict_eq((Any::dot([A::frame(_self)[0].clone(), (Any::dot(A::frame(_self)[1].clone(), string_any("make")).end())?].to_array().to_any(), (Any::number((Any::dot(_b834.clone(), f64_any(0x0000000000000000)).end())?))?).end())?, A::frame(_self)[0].clone()))?].to_array().to_any())
+    }, 0, [_b0.clone(), _b2.clone()].to_array(), Some("(...$2)=>[$0===$0,$0===$1.make,[$0,$1.make][Number($2[0])]===$0]")).to_any())].to_object().to_any())
 }

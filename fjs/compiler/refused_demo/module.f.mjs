@@ -71,12 +71,25 @@ export const outputName = 'output.js'
 export const init = { source: ['loading'], alternative: ['loading'] }
 
 /**
+ * The module a sample that imports one imports, `./a.f.js`: a default and a
+ * named `x`, so that an import is refused for its syntax and never for a
+ * file that is not there, and an alternative that imports compiles. A page
+ * whose sample imports keeps the same text as its own `a.f.js`, which the
+ * host import of the sample reads, and its host proof holds the two equal.
+ */
+export const dependency = 'export const x = 1;\nexport default 1;\n'
+
+/** The name of {@link dependency}, beside the sample. */
+export const dependencyName = 'a.f.js'
+
+/**
  * What `fjs compile <name> output.js` answers for `text` as the file
- * `name`: the module it writes, or why it writes none.
+ * `name`, with {@link dependency} beside it: the module it writes, or why it
+ * writes none.
  *
  * @type {(name: string) => (text: string) => Result<Marked, OutputRefusal>}
  */
-export const compileAs = name => text => unwrap(virtualAt({ [name]: [utf8(text)] })(
+export const compileAs = name => text => unwrap(virtualAt({ [name]: [utf8(text)], [dependencyName]: [utf8(dependency)] })(
     _outputMarked(noRuntime)(name, outputName))[1])
 
 /** {@link compileAs} the sample. */

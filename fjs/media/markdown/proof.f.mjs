@@ -3,7 +3,7 @@ import { runPure } from '../../effects/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.mjs'
-import { entryTexts, proseSpans, tryParse, tryParseBlocks, tryParseEntry } from './module.f.mjs'
+import { bareUrl, entryTexts, proseSpans, tryParse, tryParseBlocks, tryParseEntry } from './module.f.mjs'
 
 const tick = '`'
 
@@ -255,6 +255,15 @@ export const proof = {
             [['link', [['text', 'http://e.x']], 'http://e.x']]),
         // A link inside a link is a reading neither side has.
         noAutolinkInALabel: () => assertEq(proseSpans(false)('<https://e.x>')[0], 'error'),
+        // A bare URL is GitHub's extended autolink, less the punctuation after it.
+        bareUrl: () => assertStructurallySame(unwrap(proseSpans(true)('see https://e.x/a_(b)_c?d=1.')),
+            [['text', 'see '], ['link', [['text', 'https://e.x/a_(b)_c?d=1']], 'https://e.x/a_(b)_c?d=1'], ['text', '.']]),
+        bareUrlInParens: () => assertStructurallySame(unwrap(proseSpans(true)('(http://e.x)')),
+            [['text', '('], ['link', [['text', 'http://e.x']], 'http://e.x'], ['text', ')']]),
+        bareUrlHost: () => assertEq(bareUrl('https://a_b.c-d.e/f g'), 'https://a_b.c-d.e/f'),
+        // A bare URL that opens the prose has no text before it.
+        bareUrlFirst: () => assertStructurallySame(unwrap(proseSpans(true)('https://e.x b')),
+            [['link', [['text', 'https://e.x']], 'https://e.x'], ['text', ' b']]),
         snakeCase: () => assertEq(proseRefusal('a_b and 9_x_é'), null),
         oneTilde: () => assertEq(proseRefusal('about ~100'), null),
         colons: () => assertEq(proseRefusal('label: and :: and :two words:'), null),
@@ -273,9 +282,12 @@ export const proof = {
             },
             entity: () => assertEq(proseRefusal('&amp;'), 'an entity, which GitHub reads as the character it names, at 0'),
             numericEntity: () => assertEq(proseRefusal('&#38;')?.startsWith('an entity'), true),
-            bareUrl: () => assertEq(proseRefusal('see https://e.x'), 'a bare URL, which GitHub reads as a link, at 4'),
-            bareHttp: () => assertEq(proseRefusal('http://e.x')?.startsWith('a bare URL'), true),
+            // `www.` has no scheme to link with, and a URL after a letter is not GitHub's link.
             bareWww: () => assertEq(proseRefusal('www.e.x')?.startsWith('a bare URL'), true),
+            bareAfterLetter: () => assertEq(proseRefusal('xhttps://e.x'), 'a bare URL, which GitHub reads as a link, at 1'),
+            bareNoDot: () => assertEq(proseRefusal('see https://localhost/a'), 'a bare URL, which GitHub reads as a link, at 4'),
+            bareEntityEnd: () => assertEq(proseRefusal('https://e.x/a&amp;')?.startsWith('a bare URL'), true),
+            bareInLabel: () => assertEq(proseSpans(false)('https://e.x')[0], 'error'),
             html: () => assertEq(proseRefusal('a <b>'), 'raw HTML at 2'),
             closingTag: () => assertEq(proseRefusal('</b>'), 'raw HTML at 0'),
             // A target with a space is no autolink, and GitHub reads the tag.
@@ -348,6 +360,17 @@ export const proof = {
     tryParseBlocks: {
         heading: () => assertStructurallySame(blocks('# A\n\n### *b*\n'),
             [['heading', 1, [['text', 'A']]], ['heading', 3, [['em', [['text', 'b']]]]]]),
+        // A numbered list starts at its first number; its items are a list's.
+        olist: () => assertStructurallySame(blocks('3. a\n4. b\n   - c\n'),
+            [['olist', 3, false, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]], ['list', false, [[['paragraph', [['text', 'c']]]]]]]]]]),
+        olistParen: () => assertStructurallySame(blocks('1) a\n\n1) b\n'),
+            [['olist', 1, true, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]]]]]]),
+        // Another delimiter ends the list, as GitHub starts another.
+        olistDelimiters: () => assertStructurallySame(blocks('1. a\n\n1) b\n'),
+            [['olist', 1, false, [[['paragraph', [['text', 'a']]]]]], ['olist', 1, false, [[['paragraph', [['text', 'b']]]]]]]),
+        // An escaped pipe is a cell's `|`, in a code span too.
+        tableEscapedPipe: () => assertStructurallySame(blocks('|a|\n|-|\n|b\\|c `\\|\\|`|\n'),
+            [['table', [null], [[['text', 'a']]], [[[['text', 'b|c '], ['code', '||']]]]]]),
         paragraph: () => assertStructurallySame(blocks('a\n  b\r\nc\n\nd\n'),
             [['paragraph', [['text', 'a   b c']]], ['paragraph', [['text', 'd']]]]),
         multilineCodeSpaces: () => assertStructurallySame(blocks(`${tick}foo \n bar${tick}`),
@@ -421,7 +444,7 @@ export const proof = {
             headingSpans: () => assertEq(refusal('\n# _a_\n')?.startsWith('line 2: an underscore'), true),
             tableRowWithoutAPipe: () => assertEq(refusal('|a|\n|-|\nb\n'), 'line 3: a table row that does not open with a pipe'),
             tableRowCells: () => assertEq(refusal('|a|\n|-|\n|b|c|\n'), 'line 3: a table row whose cells do not match its header'),
-            tableEscapedPipe: () => assertEq(refusal('|a|\n|-|\n|b\\|c|\n'), 'line 3: an escaped pipe in a table'),
+            tableEscapedBackslash: () => assertEq(refusal('|a|\n|-|\n|b\\\\|c|\n'), 'line 3: a backslash before an escaped pipe in a table'),
             tableSpans: () => assertEq(refusal('|a|\n|-|\n|_b_|\n')?.startsWith('line 3: an underscore'), true),
             tableHeaderCells: () => assertEq(refusal('|a|b|\n|-|\n'), 'line 1: a table'),
             tableDelimiter: () => assertEq(refusal('|a|\n|:|\n'), 'line 1: a table'),
@@ -462,8 +485,10 @@ export const proof = {
             plusAlone: () => assertEq(refusal('+\n'), 'line 1: a list marked other than with `- `'),
             plusTab: () => assertEq(refusal('+\ta\n'), 'line 1: a list marked other than with `- `'),
             plusWord: () => assertEq(refusal('+a\n'), null),
-            numbered: () => assertEq(refusal('1. a\n'), 'line 1: a numbered list'),
+            // A numbered item continuing a paragraph, which GitHub reads only from 1.
+            numbered: () => assertEq(refusal('a\n2. b\n'), 'line 2: a numbered list'),
             numberedParen: () => assertEq(refusal('12)\n'), 'line 1: a numbered list'),
+            numberedIndent: () => assertEq(refusal('1. a\nb\n'), 'line 2: a line that GitHub reads as part of the list item above it'),
             numberedTab: () => assertEq(refusal('1.\titem'), 'line 1: a numbered list'),
             numberedParenTab: () => assertEq(refusal('12)\titem'), 'line 1: a numbered list'),
             numberedTabAfterParagraph: () => assertEq(refusal('text\n1.\titem'), 'line 2: a numbered list'),

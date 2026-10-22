@@ -9,7 +9,7 @@
 use nanvm_effects_node::{Native, run};
 use nanvm_lib::{
     naive::Naive,
-    vm::{Any, Array, Function, Object, ToAny, ToArray, unstable::string_any},
+    vm::{Any, Array, Function, Nullish, Object, ToAny, ToArray, Unpacked, unstable::string_any},
 };
 use std::cell::RefCell;
 
@@ -44,16 +44,48 @@ pub fn perform(entry: &Function<Naive>) -> Result<Vec<u8>, Any<Naive>> {
 }
 
 /// Calls a sample's entry with one number, as a page calls a function
-/// sample: the text of what it answered, or of what it threw, each as
-/// JavaScript's `String` spells it.
+/// sample: what it answered, or what it threw, each as [`spell`] writes it.
 pub fn call(
     entry: &Function<Naive>,
     input: f64,
 ) -> Result<std::string::String, std::string::String> {
     entry
         .call([input.to_any()].to_array())
-        .map(text)
-        .map_err(text)
+        .map(spell)
+        .map_err(spell)
+}
+
+/// A value as the page spells it, as `fjs/nanvm/demos/spell` does for the
+/// JavaScript call: a string quoted as JSON quotes it, a `bigint` with its
+/// `n`, an array and an object with their nesting and no spaces, a function
+/// as `(function)`, and anything else as `String(value)` spells it.
+pub fn spell(value: Any<Naive>) -> std::string::String {
+    match Unpacked::from(value.clone()) {
+        Unpacked::Array(items) => {
+            let items: Vec<_> = items.into_iter().map(spell).collect();
+            format!("[{}]", items.join(","))
+        }
+        Unpacked::Object(object) => {
+            let entries: Vec<_> = object
+                .own_entries()
+                .into_iter()
+                .map(|(key, item)| format!("{}:{}", quote(key.to_any()), spell(item)))
+                .collect();
+            format!("{{{}}}", entries.join(","))
+        }
+        Unpacked::String(_) => quote(value),
+        Unpacked::BigInt(_) => format!("{}n", text(value)),
+        Unpacked::Function(_) => "(function)".into(),
+        Unpacked::Nullish(Nullish::Undefined) => "undefined".into(),
+        _ => text(value),
+    }
+}
+
+/// A string value as JSON quotes it.
+fn quote(string: Any<Naive>) -> std::string::String {
+    string
+        .to_json()
+        .unwrap_or_else(|error| format!("(not a string: {error})"))
 }
 
 /// A value as `String(value)` spells it, or the text of what that threw.
@@ -62,6 +94,15 @@ fn text(value: Any<Naive>) -> std::string::String {
         Ok(string) => string.into(),
         Err(thrown) => format!("String() threw on it: {}", text(thrown)),
     }
+}
+
+/// Holds a function sample's call to the answer its page lists: returned,
+/// or thrown, as the samples list says JavaScript does. The generated tests
+/// in `gen.samples/mod.rs` make one call of it per listed call.
+#[cfg(test)]
+pub(crate) fn assert_call(entry: &Function<Naive>, input: f64, expected: Result<&str, &str>) {
+    let expected = expected.map(Into::into).map_err(Into::into);
+    assert_eq!(call(entry, input), expected, "called with {input}");
 }
 
 /// What a program wrote, if it ended `['ok', value]`. One that ended
@@ -147,7 +188,10 @@ mod tests {
         );
     }
 
+    // Seconds in a debug build, multiplied by every emulated CI target;
+    // every `cargo test --release` run, on each of those targets, runs it.
     #[test]
+    #[cfg_attr(debug_assertions, ignore = "slow unoptimized; runs under --release")]
     fn sort_reports_what_it_sorted() {
         assert_eq!(
             perform(&load(samples::sort::module::<Naive>).unwrap()).unwrap(),
@@ -155,7 +199,10 @@ mod tests {
         );
     }
 
+    // Seconds in a debug build, multiplied by every emulated CI target;
+    // every `cargo test --release` run, on each of those targets, runs it.
     #[test]
+    #[cfg_attr(debug_assertions, ignore = "slow unoptimized; runs under --release")]
     fn collatz_reports_the_longest_chain() {
         assert_eq!(
             perform(&load(samples::collatz::module::<Naive>).unwrap()).unwrap(),
@@ -167,7 +214,7 @@ mod tests {
     fn comma_answers_or_fails_its_assertion() {
         let entry = load(samples::comma::module::<Naive>).unwrap();
         assert_eq!(call(&entry, 1.0), Ok("3".into()));
-        assert_eq!(call(&entry, -1.0), Err("negative".into()));
+        assert_eq!(call(&entry, -1.0), Err("\"negative\"".into()));
     }
 
     #[test]
@@ -187,7 +234,7 @@ mod tests {
         assert_eq!(samples::comma(), 0);
         assert_eq!(call_sample(1.0), 1);
         assert_eq!(output_byte(0), u32::from(b'3'));
-        assert_eq!(call_sample(-1.0), -1 - 8);
-        assert_eq!(output_byte(0), u32::from(b'n'));
+        assert_eq!(call_sample(-1.0), -1 - 10);
+        assert_eq!(output_byte(1), u32::from(b'n'));
     }
 }
