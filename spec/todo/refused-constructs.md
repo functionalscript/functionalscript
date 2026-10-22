@@ -67,9 +67,9 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `op.loose-equality` | `a == b`, `a != b` | design ([operators](../operators/README.md)) |
+| `op.loose-equality` | `a == b`, `a != b` | design ([operators](../operators/README.md); page: [`==` Is Refused](../operators/loose-equality/README.md)) |
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md); page: [`in` Is Refused](../operators/in/README.md)) |
-| `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof/README.md)) |
+| `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof/README.md); page: [`instanceof` Other Than `Array` Is Refused](../operators/instanceof/other-classes/README.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma/README.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
 | `op.assignment` | `a = 1` outside a loop's block | planned ([let](./3220-let.md), "Later": a `let` outside a loop is a rebinding) |
 | `op.compound-assignment` | `a += 1`, `a **= 2`, `a &&= 2` | planned ([assignments](./3430-assignments.md)) |
@@ -77,11 +77,11 @@ describes:
 | `op.delete` | `delete a.b` | open |
 | `op.void` | `void 0` | open |
 | `op.new` | `new Map()` | planned ([mutability](../design/mutability.md), [object identity](../design/object-identity.md)) |
-| `op.this` | `this` | design ([design principles](../design/design-principles.md)) |
+| `op.this` | `this` | design ([design principles](../design/design-principles.md); page: [`this` Is Refused](../operators/this/README.md)) |
 | `op.arguments` | `arguments` | open |
-| `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time) |
-| `op.conversion-call-shape` | `Number(1, 2)`, `Number(...a)`, `String(1, 2)`, `String(...[])` | design ([operators and functions](../principles/README.md#operators-and-functions): a conversion is an operator, with a fixed set of operands) |
-| `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | design ([operators and functions](../principles/README.md#operators-and-functions): an operator is no value, so it has no nullishness to guard) |
+| `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time; page: [`eval` Is Refused](../built-ins/eval/README.md)) |
+| `op.conversion-call-shape` | `Number(1, 2)`, `Number(...a)`, `String(1, 2)`, `String(...[])` | design ([operators and functions](../principles/README.md#operators-and-functions): a conversion is an operator, with a fixed set of operands; page: [A Conversion With Other Than One Operand Is Refused](../conversions/operands/README.md)) |
+| `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | design ([operators and functions](../principles/README.md#operators-and-functions): an operator is no value, so it has no nullishness to guard; page: [A Guarded Conversion Is Refused](../conversions/guarded/README.md)) |
 | `op.unary-plus` | `+1`, `+a` | open ([operators](../operators/README.md) leaves unary `+` out of the language; no record plans it) |
 | `op.import-call` | `import("m")` | open |
 | `op.import-meta` | `import.meta` | open |
@@ -92,17 +92,17 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `acc.runtime-key` | `a[i]` | design ([property accessor](./2330-property-accessor.md)) |
-| `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) |
+| `acc.runtime-key` | `a[i]` | design ([property accessor](./2330-property-accessor.md); page: [A Key Computed at Run Time Is Refused](../property-access/runtime-keys/README.md)) |
+| `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md); page: [A Prototype's Name Is Refused](../property-access/prototype-names/README.md)) |
 | `acc.mutating-call` | `a.push(0)` | planned ([mutability](../design/mutability.md), "Local mutability") |
-| `acc.prototype-call` | `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) |
-| `acc.guarded-namespace` | `Object?.is`, `Number?.["isInteger"]` | design ([built-in static functions](../built-ins/static-functions/README.md): a namespace is no value, so it has no nullishness to guard) |
-| `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects/README.md#the-__proto__-key)) |
+| `acc.prototype-call` | `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md); page: [A Prototype's Method Is Refused](../property-access/prototype-calls/README.md)) |
+| `acc.guarded-namespace` | `Object?.is`, `Number?.["isInteger"]` | design ([built-in static functions](../built-ins/static-functions/README.md): a namespace is no value, so it has no nullishness to guard; page: [A Guarded Namespace Is Refused](../built-ins/static-functions/guarded/README.md)) |
+| `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects/README.md#the-__proto__-key); page: [A `__proto__:` Key Is Refused](../values/objects/proto-key/README.md)) |
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) |
-| `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) |
-| `name.intrinsic` | `const String = 1`, `export default String`, `export default Object` | design ([built-ins](./2360-built-in.md); [global names](./2365-global-names.md) reserves `Array`, `Number`, `Object` and `String` with no standalone value) |
-| `name.unbound` | `zzz`, `Math`, `JSON`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic |
+| `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md); page: [Binding a Literal Word Is Refused](../bindings/literal-words/README.md)) |
+| `name.intrinsic` | `const String = 1`, `export default String`, `export default Object` | design ([built-ins](./2360-built-in.md); [global names](./2365-global-names.md) reserves `Array`, `Number`, `Object` and `String` with no standalone value; page: [Binding a Built-in's Name Is Refused](../bindings/intrinsic-names/README.md)) |
+| `name.unbound` | `zzz`, `Math`, `JSON`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic (page: [A Global Is Refused](../bindings/globals/README.md)) |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | open ([forward references](./3140-forward-references.md) resolves only the object grouping and keeps refusing a later `const`) |
 | `name.body-forward-reference` | `() => { const y = x; const x = 2; return y; }` with an outer `x` | planned ([body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)) |
 | `name.reserved-export` | `export const then = 1` | design ([exporting a value](../modules/exports/README.md)) |
@@ -122,7 +122,7 @@ describes:
 | `st.try` | `try`, `catch`, `finally` | open |
 | `st.debugger` | `debugger` | open |
 | `st.label` | `x: while (c) { }` | open |
-| `st.var` | `var a = 1` | design ([constants](../bindings/constants/README.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) |
+| `st.var` | `var a = 1` | design ([constants](../bindings/constants/README.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable; page: [`var` Is Refused](../bindings/var/README.md)) |
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md)) |
 | `st.expression` | an expression statement that is no call statement, no assignment to a loop's variable in its block and no directive (`st.directive`): one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with `(`, `[` or a backtick, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements/README.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it) |
 | `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](../functions/call-statements/README.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
@@ -171,8 +171,8 @@ describes:
 | `lit.octal` | `0o7` | open ([numbers](../values/numbers/README.md) leaves it out; the [roadmap](./README.md) records no use case yet) |
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) |
 | `lit.trailing-dot` | `5.` | open |
-| `lit.array-hole` | `[,]`, `[1,,2]` | design ([arrays](../values/arrays/README.md): an array has no holes; the same comma in a pattern is an elision, [destructuring](../bindings/destructuring/README.md)) |
-| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings/README.md): a double-quoted string stays a JSON string) |
+| `lit.array-hole` | `[,]`, `[1,,2]` | design ([arrays](../values/arrays/README.md): an array has no holes; the same comma in a pattern is an elision, [destructuring](../bindings/destructuring/README.md); page: [An Array Hole Is Refused](../values/arrays/holes/README.md)) |
+| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings/README.md): a double-quoted string stays a JSON string; page: [`\'` in a Double-Quoted String Is Refused](../values/strings/apostrophe-escape/README.md)) |
 | `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | open ([string literals](./2460-js-string-literals.md) defers them until a measured need appears) |
 | `lit.string-continuation` | a `\` before a line terminator in a string | open ([string literals](./2460-js-string-literals.md) defers it until a measured need appears) |
 | `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../values/template-literals/README.md) calls them deferred; no roadmap item admits them) |
