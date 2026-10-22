@@ -607,7 +607,9 @@ svg text { font: inherit }
    end of its row — so a label always sits in the box it names rather than
    over a line. A port is a thinner, unfilled cell inside the node's own
    border, clipped to its rounded corners, with the border drawn once more
-   over the cells so it stays one weight all round. A primitive — a
+   over the cells so it stays one weight all round. A node whose rows fall
+   into parts — a chain's links — draws its label column as a cell per
+   part, outlined as a port is. A primitive — a
    number, null, undefined — is no node of its own: its value draws in a
    cell right of its key, and no line leaves for it. A value is tinted and
    a key is grey, so the two differ by more than their order in the row.
@@ -634,7 +636,7 @@ svg text { font: inherit }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
-[data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
+[data-graph-port], [data-graph-group] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
 /* The versions demos draw a node's kind as its fill, so a value filling a
    row of one is left unfilled, or the tint would hide it. */
