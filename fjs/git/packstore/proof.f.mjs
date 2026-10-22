@@ -24,6 +24,7 @@ import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
 import { maxDeltaBytes } from '../pack/module.f.mjs'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'
 import { max } from '../../types/number/max/module.f.js'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
 /** How many bytes of a file one chunk of a `readWhole` carries at most. */
 const chunkBytes = Number(maxLengthBytes)
@@ -907,7 +908,7 @@ export const proof = {
         // first entry running to the pack's checksum
         const many = idxOf(Array.from(
             { length: 5_000 },
-            (_, k) => [`${k.toString(16).padStart(8, '0')}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
+            (_, k) => [`${encodeScalar(8)(k)}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
         assert(many.length > Number(maxLengthBytes))
         // the host hands it back in two, which is what a join has to survive
         assertEq(chunked(many).length, 2)
