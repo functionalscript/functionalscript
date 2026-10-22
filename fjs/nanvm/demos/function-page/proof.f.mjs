@@ -18,6 +18,7 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
+import { codePoints } from '../../../text/ascii/module.f.js'
 import { rustPath, samplePath, wasmPath, watPath } from '../page/module.f.mjs'
 import { agreement, callJs, functionDemo, init, load, notLoaded, outcomeText, runCalls, update, view, wasmCaller, wasmOutcome } from './module.f.mjs'
 
@@ -26,9 +27,6 @@ const throws = 'negative'
 
 /** A sample that answers `input + 2`, and throws for a negative one. @type {FunctionSample} */
 const plus2 = { place: { name: 'plus2', directory: 'spec/plus2' }, entry: input => input < 0 ? throws : input + 2, inputs: [1, -1] }
-
-/** `text` as the bytes `output_byte` reads. @type {(text: string) => readonly number[]} */
-const bytes = text => Array.from(text, c => c.charCodeAt(0))
 
 /**
  * A module whose `plus2` export loads, answering `loads`, and whose every
@@ -42,7 +40,7 @@ const instance = (answer = '3', threw = false, loads = 0) => ({
     exports: {
         plus2: () => loads,
         call_sample: () => threw ? -1 - answer.length : answer.length,
-        output_byte: (/** @type {number} */ i) => bytes(answer)[i],
+        output_byte: (/** @type {number} */ i) => codePoints(answer)[i],
     },
     startup: 2,
 })
@@ -104,7 +102,7 @@ export const proof = {
         assertStructurallySame(perform(page({}, null, 'notImplemented'))(callJs(plus2.entry)(1)), error('operation not implemented: sandbox'))
     },
     wasmOutcome: () => {
-        const read = wasmOutcome(i => bytes('negative')[i])
+        const read = wasmOutcome(i => codePoints('negative')[i])
         assertStructurallySame(read(8), ok(['returned', 'negative']))
         assertStructurallySame(read(-1 - 8), ok(['threw', 'negative']))
         assertStructurallySame(read(0), ok(['returned', '']))
