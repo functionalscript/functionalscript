@@ -34,18 +34,24 @@ than argued from the spec:
 ### What is accepted and still read differently
 
 **This is the half the title used to claim did not exist.** Each of these
-parses without complaint and produces a document GitHub does not:
+parsed without complaint and produced a document GitHub does not; the rows
+the README renderer needed are now read as GitHub reads them or refused
+(`proseSpans` and `tryParseBlocks` in
+[`media/markdown`](../../../../media/markdown/module.f.mjs)):
 
 | written | GitHub reads | this subset |
 | --- | --- | --- |
-| `_a_`, `__a__` | emphasis, strong | plain text |
+| `_a_`, `__a__` | emphasis, strong | refused; only `snake_case`, a letter or digit each side, is text |
 | `\\*a\\*` elsewhere than a link | the literal `*a*` | refused since a backslash is |
 | a backtick run inside a span | one span holding it | two spans |
-| `&amp;` | an entity | plain text |
-| `<br>`, `Array<T>` outside code | raw HTML | plain text |
-| `<https://…>` | an autolink | plain text |
-| a line ending in two spaces or a backslash | a hard line break | joined with a space |
-| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose |
+| `&amp;` | an entity | refused |
+| `:shipit:`, `:+1:` | emoji (GitHub's extension) | shortcode candidates refused, including unknown names; support needs GitHub's catalogue |
+| `<br>`, `Array<T>` outside code | raw HTML | refused |
+| `<https://…>` | an autolink | read as the link it is |
+| a bare `https://…` or `www.…` | a link (GitHub's extension) | refused |
+| `~~a~~` | strikethrough (GitHub's extension) | refused; one `~` is text |
+| a line ending in two spaces or a backslash | a hard line break | joined with a space; two spaces refused in a README |
+| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose in a release file; refused in a README |
 | `  1. x`, `  # h` on a continuation | the same | prose |
 
 The last two rows are the sharpest: an indented `- child` **is** refused, as a

@@ -31,7 +31,7 @@
  * @import { List } from '../../../types/list/types.ts'
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { Demo, DemoEvent } from '../../../website/demo/types.ts'
- * @import { Loaded, Run, Runs, Sample, State, WasmRun } from './types.ts'
+ * @import { Loaded, Place, Run, Runs, Sample, State, WasmRun } from './types.ts'
  */
 
 import { sandbox } from '../../../effects/common/module.f.mjs'
@@ -46,8 +46,8 @@ import { codeBlock } from '../../../website/demo/code/module.f.js'
 import { highlight } from '../../../website/demo/highlight/module.f.mjs'
 import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 
-/** A sample's source, repository-relative. @type {(name: string) => string} */
-export const samplePath = name => `fjs/nanvm/demos/${name}/sample.f.js`
+/** A sample's source, repository-relative, from its directory. @type {(directory: string) => string} */
+export const samplePath = directory => `${directory}/sample.f.js`
 
 /** Where the compiled samples go, a `gen.` name `gen:clean` empties. */
 export const rustDirectory = 'nanvm/demos/gen.samples'
@@ -82,10 +82,10 @@ const loaded = r => r[0] === 'ok' ? r : error(errorMessage(r[1]))
  * Fetches the source, the Rust, the disassembly and the module, each in
  * turn; a file that does not arrive is the reason it is not shown.
  *
- * @type {(name: string) => Effect<FetchText | Instantiate, State, never>}
+ * @type {(place: Place) => Effect<FetchText | Instantiate, State, never>}
  */
-export const load = name => {
-    const source = resultStep(fetchText(`/${samplePath(name)}`), r => pureOk(/** @type {State} */ ({ ...init, source: loaded(r) })))
+export const load = ({ name, directory }) => {
+    const source = resultStep(fetchText(`/${samplePath(directory)}`), r => pureOk(/** @type {State} */ ({ ...init, source: loaded(r) })))
     const rust = step(source, state => resultStep(fetchText(`/${rustPath(name)}`), r => pureOk({ ...state, rust: loaded(r) })))
     const wat = step(rust, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loaded(r) })))
     return step(wat, state => resultStep(instantiate(`/${wasmPath}`), r => pureOk({ ...state, wasm: loaded(r) })))
@@ -191,11 +191,11 @@ export const runWasm = name => ({ exports }) => {
  *
  * @type {(sample: Sample) => (state: State) => Effect<Sandbox, State, never>}
  */
-export const runBoth = ({ name, program }) => state => {
+export const runBoth = ({ place, program }) => state => {
     const { wasm } = state
     const js = history(runJs(program))
     const both = historyStep(js, () => wasm[0] === 'ok'
-        ? runWasm(name)(wasm[1])
+        ? runWasm(place.name)(wasm[1])
         : pureOk(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1])))
     return step(both, ([wasmRun, jsRun]) => pureOk(/** @type {State} */ ({ ...state, runs: { js: jsRun, wasm: wasmRun } })))
 }
@@ -291,9 +291,9 @@ export const view = name => state => ['div', {},
 
 /** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox, State, never>} */
 export const update = sample => state => event =>
-    event.kind === 'start' ? load(sample.name)
+    event.kind === 'start' ? load(sample.place)
     : event.kind === 'click' && event.name === 'run' ? runBoth(sample)(state)
     : pureOk(state)
 
 /** @type {(sample: Sample) => Demo<State, DemoEvent, FetchText | Instantiate | Sandbox>} */
-export const wasmDemo = sample => ({ init, update: update(sample), view: view(sample.name) })
+export const wasmDemo = sample => ({ init, update: update(sample), view: view(sample.place.name) })

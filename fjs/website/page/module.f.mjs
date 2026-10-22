@@ -693,6 +693,7 @@ export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryL
     breadcrumb(dir.path)(basename(dir.path)),
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
+    ...dir.readme,
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
     ...testSection(dir)([]),
 )))

@@ -6,7 +6,7 @@
 [the LLM working session](https://claude.ai/code/session_01Hqrk4Np3kC1KXH2GHwRbwC)
 before it began, and approved the design in
 [#3075](https://github.com/functionalscript/functionalscript/pull/3075#issuecomment-6292543966),
-as [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo) requires.
+as [DESIGN.md §12](../../../doc/DESIGN.md#new-language-features-start-with-a-todo) requires.
 
 ```js
 const assert = (...a) => a[0] ? undefined : (() => { throw a[1]; })();
@@ -28,7 +28,7 @@ every other comma: an argument list, an array's items and an object's
 entries are lists, `f(a, b)` calling with two arguments and `[a, b]` holding
 two items, as in JavaScript. A group, `(a, b)`, may stand wherever a value
 may, and takes steps and operators as a group does
-([grouping](grouping.md)): `(a, b).x` reads `x` of `b`, and `1 + (a, 2)` is
+([grouping](../grouping.md)): `(a, b).x` reads `x` of `b`, and `1 + (a, 2)` is
 `3`. Inside the parentheses the operands are values, so a comma never holds
 what only a parameter list may: `(a, b = 1)`, `(a, ...b)` and `(a, b,)` are
 refused at the `=`, the `...` and the `)`. The comma JavaScript reads with no
@@ -36,26 +36,26 @@ parentheses of its own — `return a, b` and `throw a, b` in a block, the
 condition of `if (a, b)`, `while` and `switch`, a substitution `${a, b}` and
 a computed key `x[a, b]` — is refused at the comma, and the parentheses are
 the spelling there too, `if ((a, b))`
-([refused constructs](../todo/refused-constructs.md)).
+([refused constructs](../../todo/refused-constructs.md)).
 
 A list in parentheses followed by `=>` is a function's parameters, as in
 JavaScript, so `(a, b) => a + b` is the function and `(a, b)` the comma; the
 two agree up to the `)`, and what follows it decides. Each parameter is then
-a binding target ([parameters](../functions/parameters.md)), and
+a binding target ([parameters](../../functions/parameters.md)), and
 `(a, b + 1) => 1` is refused at the `b`.
 
 The comma is the one operator that detaches a receiver. `(o.m)(a)` is the
-method call `o.m(a)` is ([grouping](grouping.md)), where `(0, o.m)(a)`
+method call `o.m(a)` is ([grouping](../grouping.md)), where `(0, o.m)(a)`
 reads `o.m` and calls the function it holds as a plain one — JavaScript's
 detached call, which a function of this language, using no `this`, answers
 as it answers the method call. The read is a read: `(0, a.at)(0)` reads a
 built-in prototype's member, and is refused at the key as `a.at` alone is
-([property access](../property-access/README.md)), where JavaScript would
+([property access](../../property-access/README.md)), where JavaScript would
 throw.
 
 Every operand is an eager position, as a container's item is: a `const`
 reached through any of them counts as reached for what a module or a body
-anchors (the [anchoring rule](README.md)). The comma makes no EDAG node where it
+anchors (the [anchoring rule](../README.md)). The comma makes no EDAG node where it
 stands. Its value is its last operand's node, and each discarded operand
 that is code is anchored by the comma at the nearest block root — the
 module's, a function body's, or the lazy operand it stands in, so
@@ -69,8 +69,8 @@ drops the function as `(a.x, () => 1, 2)` does. So
 `['.', A, 'length']` with no comma, `b` being `a`'s node, where
 `const a = []; const b = a.x; export default (b, a.length);` keeps
 `[',', [['.', A, 'x'], ['.', A, 'length']]]`, `b` being a node of its own
-that the result does not reach ([`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs)).
-The [failure contract](../principles/README.md#failure-is-one-outcome)
+that the result does not reach ([`fjs/compiler/edag`](../../../fjs/compiler/edag/module.f.mjs)).
+The [failure contract](../../principles/README.md#failure-is-one-outcome)
 governs execution: each operand's success is established before the result
 is revealed, in no promised order beyond that.
 
@@ -83,13 +83,13 @@ Read back, that text is the graph it was written from.
 
 ## Examples
 
-The compiler demo offers the programs `comma` in [`module.f.js`](./module.f.js), each with its real output.
+The compiler demo offers the programs `comma` in [`module.f.js`](../module.f.js), each with its real output.
 
-The [comma demo page](../../fjs/nanvm/demos/comma/) runs the assertion form above
-with every output `fjs compile` makes of it: the expression graph (EDAG), the
-Rust and the WebAssembly that Rust builds to. Its Run button calls the default
-export with `1` and with `-1`, as JavaScript and as WebAssembly, and shows what
-each call returned or threw.
+The demo on this page runs the assertion form above with every output `fjs
+compile` makes of it: the expression graph (EDAG), the Rust and the
+WebAssembly that Rust builds to. Its Run button calls the default export with
+`1` and with `-1`, as JavaScript and as WebAssembly, and shows what each call
+returned or threw.
 
 ## Reference
 

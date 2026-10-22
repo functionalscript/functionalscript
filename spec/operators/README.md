@@ -13,7 +13,7 @@ first the language had — and, above them, the lazy operators
 (`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
 logical not and the type tag, the prefixes neither stage had — and
 `instanceof Array`, the one instance check ([below](instanceof.md)) — and
-the comma operator, written in parentheses ([below](comma.md)).
+the comma operator, written in parentheses ([below](comma/README.md)).
 `==`/`!=` stay refused, since neither language reads them the same way
 twice, and so does `in` ([below](in.md)). Unary `+` is not in the language:
 the conversion to a number is `Number(x)`
@@ -110,7 +110,7 @@ is deleted that a later operand is guaranteed to evaluate through eager edges
 alone — a container's item, an access's base, a call's callee and its
 arguments, a prefix's operand, both operands of an eager binary operator and
 the left one of a lazy one, a conditional's condition, and a comma's operand
-([comma](comma.md)) — and never through a lazy one: the right operand of
+([comma](comma/README.md)) — and never through a lazy one: the right operand of
 `&&`, `||` or `??`, or a conditional's arm. `const c = null.x; export default
 1 + c;` deletes `c`, the `+` evaluating it, where `1 && c` keeps it. A
 function body is not lazy for this purpose, since constructing the function
@@ -165,7 +165,7 @@ operator, and an operator's text under an access, stand in a group,
 `-(()=>1)` and `(1+2).x`; a value shared under one lazy operand
 alone is written in a block of the operand's own ([functions](../functions/README.md));
 and a comma's discarded operand is the `const` of the block it is anchored
-in ([comma](comma.md)).
+in ([comma](comma/README.md)).
 Read back, that text is the graph it was written from. Graph output retains
 the operation, while value output retains its result: `export default 1 + 2 * 3;`
 is `export default 1+2*3;` as FunctionalScript, `export default 7;` as DataJS
@@ -174,7 +174,7 @@ and `7` as JSON.
 ## Pages
 
 - [Grouping](./grouping.md)
-- [Comma](./comma.md)
+- [Comma](./comma/README.md)
 - [`instanceof`](./instanceof.md)
 - [`in` Is Refused](./in.md)
 

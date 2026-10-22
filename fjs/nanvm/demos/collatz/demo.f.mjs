@@ -15,4 +15,4 @@ import { wasmDemo } from '../page/module.f.mjs'
  * compile `fjs/types/bit_vec` yet; this is where it is read as the `Vec`
  * the `write` command carries.
  */
-export const demo = wasmDemo({ name: 'collatz', program: /** @type {Sample['program']} */ (/** @type {unknown} */ (program)) })
+export const demo = wasmDemo({ place: { name: 'collatz', directory: 'fjs/nanvm/demos/collatz' }, program: /** @type {Sample['program']} */ (/** @type {unknown} */ (program)) })

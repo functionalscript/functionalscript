@@ -29,7 +29,7 @@ const writes = text => () => ({
 
 /** A sample writing `hi` to standard output and `no` to standard error. @type {Sample} */
 const hi = {
-    name: 'hi',
+    place: { name: 'hi', directory: 'fjs/nanvm/demos/hi' },
     program: () => ({
         command: 'write',
         payload: ['stderr', utf8('no')],
@@ -88,14 +88,14 @@ const perform = map => effect => {
 const files = { '/fjs/nanvm/demos/hi/sample.f.js': 'export default 1', [`/${rustPath('hi')}`]: 'pub fn module() {}', [`/${watPath('hi')}`]: '(module)' }
 
 /** Every loaded state. @type {State} */
-const ready = perform(page(files, instance([0x68, 0x69])))(load('hi'))
+const ready = perform(page(files, instance([0x68, 0x69])))(load(hi.place))
 
 /** @type {(e: Element) => string} */
 const text = e => JSON.stringify(e)
 
 export const proof = {
     paths: () => {
-        assertEq(samplePath('hello'), 'fjs/nanvm/demos/hello/sample.f.js')
+        assertEq(samplePath('spec/operators/comma'), 'spec/operators/comma/sample.f.js')
         assertEq(rustPath('hello'), 'nanvm/demos/gen.samples/hello.rs')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
         assertEq(watPath('hello'), `${buildDirectory}/hello.wat`)
@@ -107,7 +107,7 @@ export const proof = {
         assertEq(ready.wasm[0], 'ok')
         assertEq(ready.runs, null)
         // A file that does not arrive is the reason it is not shown.
-        const missing = perform(page({}, null))(load('hi'))
+        const missing = perform(page({}, null))(load(hi.place))
         assertStructurallySame(missing.source, error(`/fjs/nanvm/demos/hi/sample.f.js: HTTP 404`))
         assertStructurallySame(missing.wasm, error(`/${wasmPath}: HTTP 404`))
     },
