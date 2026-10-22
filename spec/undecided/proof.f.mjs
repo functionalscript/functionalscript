@@ -143,6 +143,8 @@ export const proof = {
     verdict: () => {
         assertEq(verdict('x', undefined)[0], 'missing')
         assertEq(verdict('x', 'export default 1;\n')[0], 'accepted')
+        // an import is resolved: the dependency beside the sample is there
+        assertEq(verdict('x', 'import a, { x } from "./a.f.js";\nexport default [a, x];\n')[0], 'accepted')
     },
     strays: () => {
         const rows = openRows(register)
