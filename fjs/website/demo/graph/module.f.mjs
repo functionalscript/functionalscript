@@ -104,14 +104,14 @@ const { is } = Object
  */
 const draw = (walk, value, s) => {
     const id = walk.next
-    const [kind, label, children] = 'inline' in s
-        ? [s.kind ?? 'leaf', s.inline, []]
-        : [s.kind, s.label, s.children]
+    const [kind, label, children, groups] = 'inline' in s
+        ? [s.kind ?? 'leaf', s.inline, [], undefined]
+        : [s.kind, s.label, s.children, s.groups]
     return {
         id,
         walk: {
             refs: [...walk.refs, [value, id]],
-            nodes: [...walk.nodes, { id, kind, label }],
+            nodes: [...walk.nodes, { id, kind, label, ...(groups === undefined ? {} : { groups }) }],
             edges: walk.edges,
             next: id + 1,
         },
@@ -356,15 +356,19 @@ const placeOf = p => p.key === undefined
  * beside them. A node with neither keeps its label, or it would have no
  * size.
  *
+ * **A node with groups draws a cell per group in its label column**, as
+ * wide as the widest group's label, in place of the node's own label: see
+ * {@link Node}. A grouped node's rows are always drawn.
+ *
  * **An edge into a node arrives at the middle of its left side**, which is
  * the middle of its label: between a two-key node's keys, not at the first
  * one.
  *
- * @type {(label: string) => (out: readonly _Out[]) => _Size}
+ * @type {(node: Node) => (out: readonly _Out[]) => _Size}
  */
-const portsOf = label => all => {
+const portsOf = ({ label, groups }) => all => {
     const out = all.filter(({ edge }) => edge.corner === undefined)
-    const blank = out.every(({ edge }) => inlineOf(edge) === null && edge.label === '')
+    const blank = groups === undefined && out.every(({ edge }) => inlineOf(edge) === null && edge.label === '')
     /** @type {(o: _Out) => string | null} */
     const refOf = ({ edge, target }) => blank || inlineOf(edge) !== null || target === '' ? null
         : edge.label === '' || out.some(o => inlineOf(o.edge) !== null) ? target
@@ -379,8 +383,10 @@ const portsOf = label => all => {
     const rows = max(
         maxOf(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
         maxOf(out.flatMap(o => valueOf(o) === null ? [cellWidthOf(o.edge.label)] : [])))
-    const title = blank ? widthOf(label) : label === '' ? 0 : cellWidthOf(label)
-    const width = blank ? title : max(widthOf(label), title + rows)
+    const title = blank ? widthOf(label)
+        : groups !== undefined ? maxOf(groups.map(([group]) => cellWidthOf(group)))
+        : label === '' ? 0 : cellWidthOf(label)
+    const width = blank ? title : max(groups === undefined ? widthOf(label) : 0, title + rows)
     const height = out.length === 0 ? labelHeight : out.length * portHeight
     /** @type {Record<Corner, number>} */
     const exitAt = { top: 0, middle: height / 2, bottom: height }
@@ -538,7 +544,7 @@ const layout = left => nodes => edges => {
     const spans = edges.map(({ from, to }) =>
         ({ from: rankOf(from), to: typeof to === 'number' ? rankOf(to) : rankOf(from), key: from + 0.5 }))
     const maxRank = nodes.reduce((m, n) => max(m, n.rank), 0)
-    const sizes = new Map(nodes.map(n => [n.id, portsOf(n.label)(outgoingOf(n.id))]))
+    const sizes = new Map(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
     /** @type {readonly (readonly _Slot[])[]} */
     const columns = Array.from({ length: maxRank + 1 }, (_, rank) => [
@@ -665,6 +671,10 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  * the two — a child of a tree is a corner and a row is a value — so the
  * graph is refused rather than given room for both.
  *
+ * **A node's groups must take its rows**, every one of them and at least
+ * one each: a row left over would have no cell beside it, and a group with
+ * no row would be a cell with no height.
+ *
  * @type {(g: Graph) => _Placed}
  */
 const placedOf = ({ nodes, edges, entries = [] }) => {
@@ -683,6 +693,10 @@ const placedOf = ({ nodes, edges, entries = [] }) => {
     const fromCorners = new Set(edges.flatMap(({ from, corner }) => corner === undefined ? [] : [from]))
     const mixed = edges.findIndex(({ from, to, corner }) => corner === undefined && typeof to === 'number' && fromCorners.has(from))
     if (mixed !== -1) { throw `graph: edge ${mixed} leaves a row of node ${edges[mixed].from}, whose other arrows leave from its corners` }
+    const misgrouped = nodes.find(({ id, groups }) => groups !== undefined && (
+        groups.some(([, rows]) => rows < 1)
+        || groups.reduce((n, [, rows]) => n + rows, 0) !== edges.filter(e => e.from === id && e.corner === undefined).length))
+    if (misgrouped !== undefined) { throw `graph: node ${misgrouped.id}'s groups do not take its rows, at least one each` }
     return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
 }
 
@@ -719,6 +733,17 @@ const radius = /** @type {const} */ (4)
  * @type {(p: _Positioned) => string}
  */
 const clipIdOf = p => `graph-clip-${p.x}-${p.y}-${p.width}-${p.height}`
+
+/**
+ * The cells of a node's label column: one per group, each beside its own
+ * rows, `y` measured from the node's top edge — or none, for a node
+ * without groups, whose label is the one column.
+ *
+ * @type {(p: _Positioned) => readonly { readonly label: string, readonly y: number, readonly height: number }[]}
+ */
+const groupCellsOf = ({ groups = [] }) => toArray(stateScan(
+    /** @type {StateScan<readonly [string, number], number, { readonly label: string, readonly y: number, readonly height: number }>} */
+    (([label, rows], row) => [{ label, y: row * portHeight, height: rows * portHeight }, row + rows]))(0)(groups))
 
 /**
  * A graph, drawn: a node per {@link Ranked}, an edge per {@link Edge},
@@ -830,6 +855,10 @@ export const graphSvg = g => {
             'data-graph-node': '', 'data-graph-kind': p.kind,
         }]),
         ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(at)})` },
+            ...groupCellsOf(p).map(cell => /** @type {Element} */ (['rect', {
+                x: String(p.x), y: String(p.y + cell.y), width: String(p.title), height: String(cell.height),
+                'data-graph-group': '',
+            }])),
             ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x + p.title), y: String(p.y + port.y),
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
@@ -869,10 +898,15 @@ export const graphSvg = g => {
     const labelEls = drawn.map(at => {
         const { local: p, group } = placeOf(at)
         return /** @type {Element} */ (['g', { ...inKindOf(p), ...group('text') },
-        ...(p.label === '' ? [] : [/** @type {Element} */ (['text', {
-            x: String(p.x + p.title / 2), y: String(p.y + p.height / 2),
-            'text-anchor': 'middle', 'data-graph-label': '',
-        }, p.label])]),
+        ...(p.groups !== undefined
+            ? groupCellsOf(p).map(cell => /** @type {Element} */ (['text', {
+                x: String(p.x + p.title / 2), y: String(p.y + cell.y + cell.height / 2),
+                'text-anchor': 'middle', 'data-graph-label': '',
+            }, cell.label]))
+            : p.label === '' ? [] : [/** @type {Element} */ (['text', {
+                x: String(p.x + p.title / 2), y: String(p.y + p.height / 2),
+                'text-anchor': 'middle', 'data-graph-label': '',
+            }, p.label])]),
         ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.title + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',
