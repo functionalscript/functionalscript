@@ -126,8 +126,10 @@ rename detection disabled for the CAS map.
 - [x] Define the proposal a writer adds to: `proposal` is a branch as a
       whole `Cas<O>`, its ref `proposalRef`, its commits by an `Author`
       the caller names — [`fjs/cas/git`](../git/module.f.mjs).
-- [ ] Define the publication API: publishing the proposal to the remote
-      branch, and creation of a missing branch.
+- [x] Define the publication API: `publish` carries the proposal to the
+      remote branch through a `Remote` — fetch, push and the merge base —
+      and creates a missing branch; `gitRemote` is the remote over the
+      `git` command line — [`fjs/cas/git`](../git/module.f.mjs).
 - [x] Provide content-key computation without storage or publication,
       sharing CAS's configured hash implementation. Prove agreement with
       the key returned by `write` for the same bytes — `contentKey` in
@@ -144,11 +146,13 @@ rename detection disabled for the CAS map.
       source checkout's HEAD, working tree, and index stay unchanged. Two
       limits are filed beside the module: a payload held in memory while
       its object is written, and two local writers of one repository.
-- [ ] Implement commit/push publication and cleanup. Cover incomplete
+- [x] Implement commit/push publication and cleanup. Covered: incomplete
       writes, identical concurrent additions, concurrent initialization,
-      normal-push retries, and the three-way deletion cases above. Include
-      similar objects at different hash paths so rename inference cannot
-      relocate them.
+      normal-push retries, and the three-way deletion cases above — the
+      reconciliation is native and by exact path, so no rename inference
+      exists to relocate similar objects. `remove` and `clear` are the
+      deletion commits; `publish` the push, the retry and the merge —
+      [`fjs/cas/git`](../git/module.f.mjs).
 - [ ] Add CLI access to the same backend and document branch selection,
       reads, writes, listing, publication, and cleanup. Prove CLI and API
       behavior agree without a second implementation of the protocol.

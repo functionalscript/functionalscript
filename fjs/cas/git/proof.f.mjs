@@ -8,21 +8,24 @@
  * @import { TreeEntry } from '../../git/tree/types.ts'
  * @import { ObjectType, Oid, OidBytes } from '../../git/types.ts'
  * @import { Read } from '../../git/walk/types.ts'
- * @import { Cas } from '../types.ts'
- * @import { Author, Branch, CasReader, ProposalOperation, SnapshotOperation } from './types.ts'
+ * @import { MemOperationMap } from '../../effects/mock/types.ts'
+ * @import { Exec, ExecResult, IoResult, NodeOp } from '../../effects/node/types.ts'
+ * @import { Author, Branch, CasReader, Proposal, ProposalOperation, Remote, SnapshotOperation } from './types.ts'
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
-import { ioError, pureError, pureOk, runPure } from '../../effects/module.f.mjs'
+import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, runPure, step, walkStep } from '../../effects/module.f.mjs'
 import { empty, nonEmpty } from '../../effects/list/module.f.mjs'
-import { isNotFound } from '../../effects/node/module.f.mjs'
-import { virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { partialRun } from '../../effects/mock/module.f.mjs'
+import { isNotFound, nodeCommands } from '../../effects/node/module.f.mjs'
+import { virtual, virtualAt, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'
 import { author as authorOf, parents, tryRead as readCommit } from '../../git/commit/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { hexText, of } from '../../git/oid/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
+import { tryDelete, tryWrite } from '../../git/refstore/write/module.f.mjs'
 import { objectPath, objectsDir, readIn, tryRead as readObject } from '../../git/store/module.f.mjs'
 import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.mjs'
 import { write as writeTree } from '../../git/tree/module.f.mjs'
@@ -32,7 +35,10 @@ import { error, ok } from '../../types/result/module.f.js'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { collectRead, toPath } from '../module.f.mjs'
 import { _driveCas } from '../proof.f.mjs'
-import { casAt, casEntryCode, proposal, proposalRef, repositoryFormatCode, snapshot, snapshotHeadCode, snapshotRef, writeObject } from './module.f.mjs'
+import {
+    casAt, casEntryCode, gitOutputCode, gitRemote, maxAttempts, proposal, proposalRef, publish, publishAttemptsCode,
+    repositoryFormatCode, shellArgumentCode, snapshot, snapshotHeadCode, snapshotRef, writeObject,
+} from './module.f.mjs'
 
 /** The repository every case reads, and the branch the snapshot is of. */
 const dir = /** @type {const} */ ('repo')
@@ -259,17 +265,23 @@ const payload = chunks => chunks.reduceRight(
     (tail, chunk) => nonEmpty(u8ListToVecMsb(chunk), tail),
     /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty()))
 
-/** Opens the proposal of `branch` over `root`: the filesystem it left and the store. @type {(root: Dir) => readonly [State, Cas<ProposalOperation>]} */
+/** Opens the proposal of `branch` over `root`: the filesystem it left and the store. @type {(root: Dir) => readonly [State, Proposal<ProposalOperation>]} */
 const proposed = root => {
     const [state, r] = virtualAt(root)(proposal(sha256, branch, author))
     return [state, assertOk(r)]
 }
 
-/** Writes `chunks` through `cas` over `state`: the filesystem after and the key. @type {(state: State, cas: Cas<ProposalOperation>, chunks: readonly (readonly number[])[]) => readonly [State, Result<Vec, IoChannel>]} */
+/** Writes `chunks` through `cas` over `state`: the filesystem after and the key. @type {(state: State, cas: Proposal<ProposalOperation>, chunks: readonly (readonly number[])[]) => readonly [State, Result<Vec, IoChannel>]} */
 const wrote = (state, cas, chunks) => virtual(state)(cas.write(payload(chunks)))
 
+/** The two directories of the fixture repository, as the ref store takes them. */
+const dirs = { gitdir: dir, common: dir }
+
+/** The id a ref holds over `state`, or `null`. @type {(state: State, name: string) => Oid | null} */
+const refAt = (state, name) => assertOk(virtual(state)(tryResolve(dirs, 20)(latin1(name)))[1])
+
 /** The id the proposal ref holds over `state`, or `null`. @type {(state: State) => Oid | null} */
-const proposalHead = state => assertOk(virtual(state)(tryResolve({ gitdir: dir, common: dir }, 20)(proposalName))[1])
+const proposalHead = state => refAt(state, proposalRef(branch))
 
 /** The commit an id names over `state`, read. @type {(state: State, id: Oid) => { readonly parents: readonly Oid[], readonly author: string }} */
 const commitAt = (state, id) => {
@@ -308,6 +320,188 @@ const assertUntouched = (before, after) => {
     assert(od !== undefined && typeof od === 'object' && !(od instanceof Array))
     assert(Object.keys(od).every(n => !n.startsWith('tmp_obj_')), Object.keys(od))
 }
+
+// ## Publishing
+//
+// A remote over the virtual filesystem, so the publication loop runs with no
+// network and no `git`: the remote branch is a ref of the same repository,
+// `refs/fake/origin/build-cache`, whose objects are therefore already local;
+// `fetch` copies it to the snapshot ref and notes what was fetched; `push`
+// is refused exactly where the remote moved since the last fetch, which is
+// what a non-fast-forward is; and a `pending` ref, where a case sets one, is
+// what the remote moves to during the first push — the race a real remote
+// can run and a proof has to stage.
+
+const remoteRef = 'refs/fake/origin/build-cache'
+
+const fetchedRef = 'refs/fake/origin/fetched'
+
+const pendingRef = 'refs/fake/origin/pending'
+
+const resolveRef = tryResolve(dirs, 20)
+
+const writeRef = tryWrite(dirs, 20)
+
+const deleteRef = tryDelete(dirs, 20)
+
+/** Moves `name` to `id`, or removes it where `id` is `null`. @type {(name: string) => (id: Oid | null) => import('../../effects/types.ts').Effect<NodeOp, unknown, IoChannel>} */
+const setRef = name => id => id === null ? deleteRef(latin1(name)) : writeRef(latin1(name))(id)
+
+/**
+ * The ancestors of a commit, itself included, as the hex of each: a walk over
+ * the parents, which for the short histories here is what a merge base is
+ * found in.
+ *
+ * @type {(id: Oid) => import('../../effects/types.ts').Effect<NodeOp, ReadonlySet<string>, IoChannel>}
+ */
+const ancestors = id => walkStep(pureOk([id]), /** @type {ReadonlySet<string>} */ (new Set()), c => seen => {
+    if (seen.has(hexText(c))) { return pureOk(/** @type {const} */ ([seen, []])) }
+    return mapStep(readObject(dir, 20)(c), o => {
+        const commit = assertNotNullish(readCommit(assertNotNullish(o).payload))
+        return /** @type {const} */ ([new Set([...seen, hexText(c)]), parents(commit)])
+    })
+})
+
+/**
+ * The merge base of two commits of the fixture repository: the first
+ * ancestor of `a`, breadth first, that is an ancestor of `b` — exact for the
+ * linear and two-sided histories the cases build.
+ *
+ * @type {(a: Oid, b: Oid) => import('../../effects/types.ts').Effect<NodeOp, Oid | null, IoChannel>}
+ */
+const mergeBaseOf = (a, b) => step(ancestors(b), theirs => {
+    const found = walkStep(pureOk([a]), /** @type {{ readonly seen: ReadonlySet<string>, readonly base: Oid | null }} */ ({ seen: new Set(), base: null }), c => s => {
+        if (s.base !== null || s.seen.has(hexText(c))) { return pureOk(/** @type {const} */ ([s, []])) }
+        if (theirs.has(hexText(c))) { return pureOk(/** @type {const} */ ([{ ...s, base: c }, []])) }
+        return mapStep(readObject(dir, 20)(c), o => {
+            const commit = assertNotNullish(readCommit(assertNotNullish(o).payload))
+            return /** @type {const} */ ([{ ...s, seen: new Set([...s.seen, hexText(c)]) }, parents(commit)])
+        })
+    })
+    return mapStep(found, s => s.base)
+})
+
+/** @type {Remote<NodeOp>} */
+const fakeRemote = {
+    fetch: () => {
+        const r = history(resolveRef(latin1(remoteRef)))
+        const noted = historyStep(r, id => setRef(snapshotRef(branch))(id))
+        const marked = historyStep(noted, (_, id) => setRef(fetchedRef)(id))
+        return mapStep(marked, ([, , id]) => id)
+    },
+    push: commit => {
+        const r = history(resolveRef(latin1(remoteRef)))
+        const f = historyStep(r, () => resolveRef(latin1(fetchedRef)))
+        const p = historyStep(f, () => resolveRef(latin1(pendingRef)))
+        return step(p, ([pending, fetched, at]) => {
+            if (pending !== null) {
+                // The race: the remote moves to what was pending, and this push
+                // meets a branch that is no longer where it was fetched.
+                return mapStep(step(setRef(remoteRef)(pending), () => setRef(pendingRef)(null)), () => false)
+            }
+            if (at !== fetched) { return pureOk(false) }
+            return mapStep(setRef(remoteRef)(commit), () => true)
+        })
+    },
+    mergeBase: mergeBaseOf,
+}
+
+/** A remote that refuses every push, moving each time, so a publication runs out of attempts. @type {Remote<NodeOp>} */
+const unyielding = {
+    ...fakeRemote,
+    push: () => pureOk(false),
+}
+
+/** Publishes `branch` through `remote` over `state`. @type {(state: State, remote?: Remote<NodeOp>) => readonly [State, Result<Oid | null, IoChannel>]} */
+const publishedBy = (state, remote = fakeRemote) => virtual(state)(publish(remote, branch, author))
+
+/**
+ * Another writer of the same remote branch, in the same repository: its
+ * snapshot ref is set to `from`, so its proposal descends from that commit,
+ * and its proposal is what a case moves the fake remote to.
+ *
+ * @type {(state: State, from: Oid | null, act: (cas: Proposal<ProposalOperation>) => import('../../effects/types.ts').Effect<ProposalOperation, unknown, IoChannel>) => readonly [State, Oid]}
+ */
+const other = (state, from, act) => {
+    /** @type {Branch} */
+    const theirs = { dir, remote: 'other', branch: 'build-cache' }
+    const [s1, r1] = virtual(state)(from === null ? pureOk(undefined) : writeRef(latin1(snapshotRef(theirs)))(from))
+    assertOk(r1)
+    const [s2, r2] = virtual(s1)(step(proposal(sha256, theirs, { name: 'Other', email: 'other@example.com' }), act))
+    assertOk(r2)
+    return [s2, assertNotNullish(refAt(s2, proposalRef(theirs)))]
+}
+
+/** The keys of the published snapshot over `state`, spelled. @type {(state: State) => readonly string[]} */
+const publishedKeys = state => spelled(assertOk(virtual(state)(step(snapshot(branch), s => s.list()))[1]))
+
+/** Sets the fake remote's branch to `id` over `state`. @type {(state: State, id: Oid) => State} */
+const remoteAt = (state, id) => {
+    const [s, r] = virtual(state)(setRef(remoteRef)(id))
+    assertOk(r)
+    return s
+}
+
+/** The ordinary repository with its published commit also at the fake remote. @type {() => readonly [State, Oid]} */
+const published = () => {
+    const root = ordinary(20, initConfig)
+    const [state] = virtualAt(root)(pureOk(undefined))
+    const a = assertNotNullish(refAt(state, snapshotRef(branch)))
+    return [remoteAt(state, a), a]
+}
+
+/** A proposal over `state` with `gamma` and `delta` written. @type {(state: State) => State} */
+const withTwo = state => {
+    const [s0, cas] = proposed(state.root)
+    const [s1, w1] = wrote(s0, cas, [gamma])
+    assertOk(w1)
+    const [s2, w2] = wrote(s1, cas, [latin1('delta\n')])
+    assertOk(w2)
+    return s2
+}
+
+const deltaKey = keyOf(latin1('delta\n'))
+
+const epsilonKey = keyOf(latin1('epsilon\n'))
+
+// ## The `git` remote
+//
+// `exec` answered by a script keyed on the command `git` would be run
+// with, over the virtual filesystem for the refs: what each command prints,
+// or the failure Node's `exec` reports for a non-zero exit — `Command
+// failed: <command>\n<stderr>`.
+
+/** The commands {@link gitRemote} runs for the fixture branch, as it spells them. */
+const git = {
+    lsRemote: 'git --git-dir="repo" ls-remote "origin" "refs/heads/build-cache"',
+    fetch: 'git --git-dir="repo" fetch "origin" "+refs/heads/build-cache:refs/remotes/origin/build-cache"',
+    push: /** @type {(hex: string) => string} */ (hex => `git --git-dir="repo" push "origin" ${hex}:refs/heads/build-cache`),
+    mergeBase: /** @type {(a: string, b: string) => string} */ ((a, b) => `git --git-dir="repo" merge-base ${a} ${b}`),
+}
+
+/** What `exec` answers for a command that printed `stdout` and exited 0. @type {(stdout: string) => IoResult<ExecResult>} */
+const printed = stdout => ok({ stdout, stderr: '' })
+
+/** What `exec` answers for a command that exited non-zero having said `stderr`. @type {(command: string, stderr: string) => IoResult<ExecResult>} */
+const failed = (command, stderr) => error(ioError({ message: `Command failed: ${command}\n${stderr}` }))
+
+/**
+ * Runs an effect over the virtual filesystem with `exec` answering from
+ * `script`, a command the script does not know being the failure it is on
+ * a host with no `git`.
+ *
+ * @type {(root: Dir, script: ReadonlyMap<string, IoResult<ExecResult>>) => <T>(e: import('../../effects/types.ts').Effect<NodeOp, T, IoChannel>) => readonly [State, Result<T, IoChannel>]}
+ */
+const scripted = (root, script) => {
+    /** @type {MemOperationMap<Exec, State>} */
+    const execMap = {
+        exec: command => state => [state, script.get(command) ?? error(ioError({ code: 'ENOENT', message: `unknown command ${command}` }))],
+    }
+    const run = partialRun(nodeCommands)({ ...virtualOperationMap, ...execMap })
+    return e => run({ ...virtualAt(root)(pureOk(undefined))[0] })(e)
+}
+
+const remote = gitRemote(branch)
 
 /**
  * The ordinary repository behaves as a store: both contents read back byte
@@ -704,5 +898,366 @@ export const proof = {
         })(writeObject(dir, 20)('blob', alpha))
         assertEq(assertError(r), boom)
         assertStructurallySame(log.slice(log.indexOf('rename')), ['rename', 'rm'])
+    },
+    // ## Taking content out
+    //
+    // `remove` takes one key out as one deletion commit and answers whether
+    // there was one to take; a key that is not there, including one whose
+    // path runs into a file, is `false` and no commit. `clear` takes the
+    // whole `.cas` out and leaves the rest of the tree — the `README` beside
+    // it — as it was; cleared twice, the second finds nothing.
+    proposalRemoves: () => {
+        const [s0, cas] = proposed(ordinary(20, initConfig))
+        const [s1, r1] = virtual(s0)(cas.remove(alphaKey))
+        assertEq(assertOk(r1), true)
+        assertStructurallySame(spelled(assertOk(virtual(s1)(cas.list())[1])), spelled([betaKey]))
+        assert(isNotFound(assertError(virtual(s1)(collectRead(cas.read(alphaKey)))[1])))
+        const [s2, r2] = virtual(s1)(cas.remove(alphaKey))
+        assertEq(assertOk(r2), false)
+        assertStructurallySame(s2.root, s1.root)
+        const first = assertNotNullish(proposalHead(s1))
+        const [s3, r3] = virtual(s2)(cas.clear())
+        assertEq(assertOk(r3), true)
+        assertStructurallySame(assertOk(virtual(s3)(cas.list())[1]), [])
+        assertStructurallySame(commitAt(s3, assertNotNullish(proposalHead(s3))).parents.map(hexText), [hexText(first)])
+        const [s4, r4] = virtual(s3)(cas.clear())
+        assertEq(assertOk(r4), false)
+        assertStructurallySame(s4.root, s3.root)
+        // The published snapshot has seen none of it.
+        assertStructurallySame(spelled(assertOk(listed(s4.root))), spelled([alphaKey, betaKey]))
+    },
+    // Nothing to take out of a branch with no snapshot and no proposal, and
+    // nothing where the key's path runs into a file.
+    proposalRemovesNothing: () => {
+        const [s0, cas] = proposed(repository(initConfig, null, []))
+        assertEq(assertOk(virtual(s0)(cas.remove(alphaKey))[1]), false)
+        assertEq(assertOk(virtual(s0)(cas.clear())[1]), false)
+        const [, ab, cd] = pathOf(alphaKey)
+        const file = sha1.treeOf([entry('100644', ab, sha1.idOf('blob', alpha))])
+        const [s1, cas1] = proposed(over([entry('40000', '.cas', file.id)], [file.object, sha1.object('blob', alpha)]))
+        assertEq(assertOk(virtual(s1)(cas1.remove(alphaKey))[1]), false)
+        // The key's directories are there and hold another file: nothing to
+        // take out, and nothing written.
+        const leaf = sha1.treeOf([entry('100644', 'other.txt', sha1.idOf('blob', alpha))])
+        const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
+        const top = sha1.treeOf([entry('40000', ab, mid.id)])
+        const [s2, cas2] = proposed(over([entry('40000', '.cas', top.id)], [leaf.object, mid.object, top.object, sha1.object('blob', alpha)]))
+        const [s3, r] = virtual(s2)(cas2.remove(alphaKey))
+        assertEq(assertOk(r), false)
+        assertStructurallySame(s3.root, s2.root)
+    },
+    // The key's first directory holds another directory beside the key's
+    // (a stray `zz/other.txt`, which is no key): the key's own directory
+    // goes, and the one above it is rebuilt around what is left rather than
+    // taken out.
+    proposalRemovesBesideAnother: () => {
+        const [, ab, cd, rest] = pathOf(alphaKey)
+        const alphaId = sha1.idOf('blob', alpha)
+        const leaf = sha1.treeOf([entry('100644', rest, alphaId)])
+        const otherLeaf = sha1.treeOf([entry('100644', 'other.txt', alphaId)])
+        const shared = sha1.treeOf([entry('40000', cd, leaf.id), entry('40000', 'zz', otherLeaf.id)].toSorted((a, b) => nameOf(a.name) < nameOf(b.name) ? -1 : 1))
+        const root = sha1.treeOf([entry('40000', ab, shared.id)])
+        const [s0, cas] = proposed(over([entry('40000', '.cas', root.id)], [leaf.object, otherLeaf.object, shared.object, root.object, sha1.object('blob', alpha)]))
+        assertStructurallySame(spelled(assertOk(virtual(s0)(cas.list())[1])), spelled([alphaKey]))
+        const [s1, r] = virtual(s0)(cas.remove(alphaKey))
+        assertEq(assertOk(r), true)
+        assertStructurallySame(assertOk(virtual(s1)(cas.list())[1]), [])
+        assert(isNotFound(assertError(virtual(s1)(collectRead(cas.read(alphaKey)))[1])))
+    },
+    // A repository whose root is `.cas` alone, cleared: the root is left with
+    // nothing, which is the empty tree, written and committed.
+    proposalClearsToEmpty: () => {
+        const [s0, cas] = proposed(repository(initConfig, null, []))
+        const [s1, w] = wrote(s0, cas, [gamma])
+        assertOk(w)
+        const [s2, r] = virtual(s1)(cas.clear())
+        assertEq(assertOk(r), true)
+        assertStructurallySame(assertOk(virtual(s2)(cas.list())[1]), [])
+        const head = assertNotNullish(proposalHead(s2))
+        const o = assertNotNullish(assertOk(virtual(s2)(readObject(dir, 20)(head))[1]))
+        const tree = assertNotNullish(readCommit(o.payload)).headers[0][1]
+        assertEq(nameOf(tree), hexText(sha1.idOf('tree', [])))
+    },
+    // ## Publication
+    //
+    // The ordinary case: the proposal descends from the published snapshot,
+    // so it is pushed as it is, and afterwards the remote, the snapshot ref
+    // and `snapshot` all say so, and the proposal ref is gone.
+    publishFastForward: () => {
+        const [s0, a] = published()
+        const s1 = withTwo(s0)
+        const p = assertNotNullish(proposalHead(s1))
+        const [s2, r] = publishedBy(s1)
+        const pushed = assertNotNullish(assertOk(r))
+        assertEq(pushed, p)
+        assertEq(refAt(s2, remoteRef), p)
+        assertEq(refAt(s2, snapshotRef(branch)), p)
+        assertEq(proposalHead(s2), null)
+        assertStructurallySame(publishedKeys(s2), spelled([alphaKey, betaKey, gammaKey, deltaKey]))
+        // The two writes, chained, on the published commit: no merge was made.
+        const [first] = commitAt(s2, p).parents
+        assertStructurallySame(commitAt(s2, assertNotNullish(first)).parents.map(hexText), [hexText(a)])
+    },
+    // Nothing to publish: no proposal answers the snapshot, which is the
+    // remote's; and no remote branch with no proposal answers `null`.
+    publishNothing: () => {
+        const [s0, a] = published()
+        const [s1, r] = publishedBy(s0)
+        assertEq(assertOk(r), a)
+        assertEq(refAt(s1, remoteRef), a)
+        const [s2, r2] = publishedBy(virtualAt(repository(initConfig, null, []))(pureOk(undefined))[0])
+        assertEq(assertOk(r2), null)
+        assertEq(refAt(s2, snapshotRef(branch)), null)
+    },
+    // A proposal that is the snapshot already — the ref points where the
+    // remote is — is dropped and nothing is pushed.
+    publishAlreadyPublished: () => {
+        const [s0, a] = published()
+        const [s1, w] = virtual(s0)(writeRef(latin1(proposalRef(branch)))(a))
+        assertOk(w)
+        const [s2, r] = publishedBy(s1)
+        assertEq(assertOk(r), a)
+        assertEq(proposalHead(s2), null)
+    },
+    // The remote has no branch yet: the proposal, a root commit, creates it.
+    publishCreatesBranch: () => {
+        const [s0, cas] = proposed(repository(initConfig, null, []))
+        const [s1, w] = wrote(s0, cas, [gamma])
+        assertOk(w)
+        const p = assertNotNullish(proposalHead(s1))
+        const [s2, r] = publishedBy(s1)
+        assertEq(assertOk(r), p)
+        assertEq(refAt(s2, remoteRef), p)
+        assertStructurallySame(publishedKeys(s2), spelled([gammaKey]))
+    },
+    // The todo's table. Base `A` holds `A0, A1` (alpha, beta); the proposal
+    // `B` adds `B0, B1` (gamma, delta); the remote has moved to `C`, which
+    // deleted `A0` and added `C0` (epsilon). The result is `A1, B0, B1, C0`:
+    // one merge commit with `C` and `B` as parents, and `A0` not restored.
+    publishReconciles: () => {
+        const [s0, a] = published()
+        const s1 = withTwo(s0)
+        const p = assertNotNullish(proposalHead(s1))
+        const [s2, c] = other(s1, a, cas => step(cas.remove(alphaKey), () => cas.write(payload([latin1('epsilon\n')]))))
+        const [s3, r] = publishedBy(remoteAt(s2, c))
+        const m = assertNotNullish(assertOk(r))
+        assertStructurallySame(commitAt(s3, m).parents.map(hexText), [hexText(c), hexText(p)])
+        assertStructurallySame(publishedKeys(s3), spelled([betaKey, gammaKey, deltaKey, epsilonKey]))
+        assertEq(refAt(s3, remoteRef), m)
+        assertEq(proposalHead(s3), null)
+    },
+    // The same, with the remote moving between the fetch and the push: the
+    // first push is refused, the second attempt fetches `C`, reconciles and
+    // lands. The proposal's ancestry is kept — the merge commit's second
+    // parent is the proposal — and the result is the table's.
+    publishRetries: () => {
+        const [s0, a] = published()
+        const s1 = withTwo(s0)
+        const p = assertNotNullish(proposalHead(s1))
+        const [s2, c] = other(s1, a, cas => step(cas.remove(alphaKey), () => cas.write(payload([latin1('epsilon\n')]))))
+        const [s3, w] = virtual(s2)(setRef(pendingRef)(c))
+        assertOk(w)
+        const [s4, r] = publishedBy(s3)
+        const m = assertNotNullish(assertOk(r))
+        assertStructurallySame(commitAt(s4, m).parents.map(hexText), [hexText(c), hexText(p)])
+        assertStructurallySame(publishedKeys(s4), spelled([betaKey, gammaKey, deltaKey, epsilonKey]))
+        assertEq(refAt(s4, pendingRef), null)
+        assertEq(proposalHead(s4), null)
+    },
+    // Both added the same content: one stored object, and nothing left to
+    // push once the remote's copy is fetched — the proposal is dropped and
+    // the snapshot is the remote's commit.
+    publishIdenticalAdditions: () => {
+        const [s0, a] = published()
+        const [s1, cas] = proposed(s0.root)
+        const [s2, w] = wrote(s1, cas, [gamma])
+        assertOk(w)
+        const [s3, c] = other(s2, a, cas => cas.write(payload([gamma])))
+        const [s4, r] = publishedBy(remoteAt(s3, c))
+        assertEq(assertOk(r), c)
+        assertEq(refAt(s4, remoteRef), c)
+        assertEq(proposalHead(s4), null)
+        assertStructurallySame(publishedKeys(s4), spelled([alphaKey, betaKey, gammaKey]))
+    },
+    // The remote added and then deleted what the proposal adds: its net
+    // change to that path is empty, and the addition lands. And the
+    // proposal deleted what the remote deleted too: nothing to take out
+    // there, and the deletion stands.
+    publishNetChanges: () => {
+        const [s0, a] = published()
+        const [s1, cas] = proposed(s0.root)
+        const [s2, w] = wrote(s1, cas, [gamma])
+        assertOk(w)
+        const [s3, rm] = virtual(s2)(cas.remove(alphaKey))
+        assertEq(assertOk(rm), true)
+        const [s4, c] = other(s3, a, o => {
+            const added = history(o.write(payload([gamma])))
+            const removed = historyStep(added, () => o.remove(gammaKey))
+            return historyStep(removed, () => o.remove(alphaKey))
+        })
+        const [s5, r] = publishedBy(remoteAt(s4, c))
+        const m = assertNotNullish(assertOk(r))
+        assert(m !== c)
+        assertStructurallySame(publishedKeys(s5), spelled([betaKey, gammaKey]))
+    },
+    // An old commit the remote's cleanup already descends from, as the
+    // proposal: merging it restores nothing, since nothing changed between
+    // the base and the proposal. Nothing is pushed.
+    publishOldCommitRestoresNothing: () => {
+        const [s0, a] = published()
+        const [s1, c] = other(s0, a, cas => cas.remove(alphaKey))
+        const [s2, w] = virtual(remoteAt(s1, c))(writeRef(latin1(proposalRef(branch)))(a))
+        assertOk(w)
+        const [s3, r] = publishedBy(s2)
+        assertEq(assertOk(r), c)
+        assertStructurallySame(publishedKeys(s3), spelled([betaKey]))
+        assertEq(proposalHead(s3), null)
+    },
+    // Two roots: the remote branch is created by another writer while this
+    // one's root is being pushed. They share no ancestor and reconcile over
+    // the empty map — both additions, one merge commit with both roots as
+    // parents.
+    publishConcurrentRoots: () => {
+        const [s0, cas] = proposed(repository(initConfig, null, []))
+        const [s1, w] = wrote(s0, cas, [gamma])
+        assertOk(w)
+        const p = assertNotNullish(proposalHead(s1))
+        const [s2, rootC] = other(s1, null, o => o.write(payload([latin1('epsilon\n')])))
+        const [s3, pend] = virtual(s2)(setRef(pendingRef)(rootC))
+        assertOk(pend)
+        const [s4, r] = publishedBy(s3)
+        const m = assertNotNullish(assertOk(r))
+        assertStructurallySame(commitAt(s4, m).parents.map(hexText), [hexText(rootC), hexText(p)])
+        assertStructurallySame(publishedKeys(s4), spelled([gammaKey, epsilonKey]))
+    },
+    // A proposal that clears a branch whose root is `.cas` alone, against a
+    // remote that moved without changing the map: every entry taken out of
+    // the remote's tree leaves the empty tree, which is published.
+    publishClearsToEmpty: () => {
+        const [s0, cas] = proposed(repository(initConfig, null, []))
+        const [s1, w] = wrote(s0, cas, [alpha])
+        assertOk(w)
+        const [s2, r1] = publishedBy(s1)
+        const a = assertNotNullish(assertOk(r1))
+        const [s3, cl] = virtual(s2)(cas.clear())
+        assertEq(assertOk(cl), true)
+        const [s4, c] = other(s3, a, o => step(o.write(payload([gamma])), () => o.remove(gammaKey)))
+        const [s5, r2] = publishedBy(remoteAt(s4, c))
+        const m = assertNotNullish(assertOk(r2))
+        assert(m !== c)
+        assertStructurallySame(publishedKeys(s5), [])
+    },
+    // The same key over two blobs in the proposal and in the base: a
+    // collision or a corrupt store, refused rather than reconciled.
+    publishCollision: () => {
+        const [s0, a] = published()
+        const collided = casEntry(alphaKey, '100644', sha1.idOf('blob', beta))
+        const t = sha1.treeOf(collided.root)
+        const c1 = sha1.commit(t.id)
+        const [s1, w] = virtual(s0)(writeRef(latin1(proposalRef(branch)))(sha1.idOf('commit', latin1([`tree ${hexText(t.id)}`, `parent ${hexText(a)}`, 'author A <a@b> 1 +0000', 'committer A <a@b> 1 +0000', '', 'm', ''].join('\n')))))
+        assertOk(w)
+        const payloadP = latin1([`tree ${hexText(t.id)}`, `parent ${hexText(a)}`, 'author A <a@b> 1 +0000', 'committer A <a@b> 1 +0000', '', 'm', ''].join('\n'))
+        const files = [...collided.objects, t.object, sha1.object('commit', payloadP), sha1.object('commit', c1)]
+        const root = files.reduce((d, [path, content]) => setIn(d, path.split('/'), content), s1.root)
+        const [s2, c] = other({ ...s1, root }, a, o => o.write(payload([latin1('epsilon\n')])))
+        const [, r] = publishedBy(remoteAt(s2, c))
+        assertEq(codeOf(r), casEntryCode)
+    },
+    // A remote that refuses every push: after `maxAttempts` the publication
+    // is refused, and the proposal ref holds what the last attempt would have
+    // pushed, so the next publication starts there.
+    publishGivesUp: () => {
+        const [s0] = published()
+        const s1 = withTwo(s0)
+        const p = assertNotNullish(proposalHead(s1))
+        const [s2, r] = publishedBy(s1, unyielding)
+        assertEq(codeOf(r), publishAttemptsCode)
+        assertEq(proposalHead(s2), p)
+        assert(maxAttempts > 1)
+    },
+    // A branch whose name is no ref name is refused before anything is
+    // opened.
+    publishBadBranchName: () => {
+        const o = runPure(publish(fakeRemote, { dir, remote: 'origin', branch: 'a..b' }, author))
+        assert(o.length === 1, o)
+        assertEq(codeOf(o[0]), snapshotHeadCode)
+    },
+    // ## The `git` remote
+    //
+    // `fetch`: the branch is there, so `ls-remote` prints it and `fetch`
+    // updates the snapshot ref — here written by the script's fixture, as
+    // `git` would write it — and the commit is read off that ref. The
+    // branch is not there: `ls-remote` prints nothing, the stale snapshot ref
+    // is deleted, and the answer is `null`.
+    gitRemoteFetches: () => {
+        const root = ordinary(20, initConfig)
+        const [s0] = virtualAt(root)(pureOk(undefined))
+        const a = assertNotNullish(refAt(s0, snapshotRef(branch)))
+        const present = new Map([[git.lsRemote, printed(`${hexText(a)}\trefs/heads/build-cache\n`)], [git.fetch, printed('')]])
+        const [, r] = scripted(root, present)(remote.fetch())
+        assertEq(assertOk(r), a)
+        const absent = new Map([[git.lsRemote, printed('')]])
+        const [s1, r1] = scripted(root, absent)(remote.fetch())
+        assertEq(assertOk(r1), null)
+        assertEq(refAt(s1, snapshotRef(branch)), null)
+        // A `fetch` that fails is the error it is.
+        const broken = new Map([[git.lsRemote, printed(`${hexText(a)}\trefs/heads/build-cache\n`)], [git.fetch, failed(git.fetch, 'fatal: unable to access')]])
+        const e = assertError(scripted(root, broken)(remote.fetch())[1])
+        assert(e[0] === 'ioError' && e[1].message.includes('unable to access'), e)
+    },
+    // `push`: landed is `true`; a `[rejected]` non-fast-forward is `false`;
+    // any other failure, and a host with no `exec` at all, is the error it is.
+    gitRemotePushes: () => {
+        const root = ordinary(20, initConfig)
+        const [s0] = virtualAt(root)(pureOk(undefined))
+        const a = assertNotNullish(refAt(s0, snapshotRef(branch)))
+        const cmd = git.push(hexText(a))
+        assertEq(assertOk(scripted(root, new Map([[cmd, printed('')]]))(remote.push(a))[1]), true)
+        const rejected = `To ../remote.git\n ! [rejected]        ${hexText(a)} -> build-cache (non-fast-forward)\nerror: failed to push some refs to '../remote.git'\n`
+        assertEq(assertOk(scripted(root, new Map([[cmd, failed(cmd, rejected)]]))(remote.push(a))[1]), false)
+        const fetchFirst = ` ! [rejected]        ${hexText(a)} -> build-cache (fetch first)\n`
+        assertEq(assertOk(scripted(root, new Map([[cmd, failed(cmd, fetchFirst)]]))(remote.push(a))[1]), false)
+        const hook = ` ! [remote rejected] ${hexText(a)} -> build-cache (pre-receive hook declined)\n`
+        assertEq(codeOf(scripted(root, new Map([[cmd, failed(cmd, hook)]]))(remote.push(a))[1]), undefined)
+        const e = assertError(virtualAt(root)(remote.push(a))[1])
+        assertEq(e[0], 'notImplemented')
+        // A host that cannot run the command at all — no `git` on it — reports
+        // no `Command failed`, and that is the error it is.
+        assertEq(codeOf(scripted(root, new Map())(remote.push(a))[1]), 'ENOENT')
+    },
+    // `mergeBase`: the id printed; exit 1 having said nothing is no base;
+    // a `fatal` is the error it is; and output that is no id is refused.
+    gitRemoteMergeBase: () => {
+        const root = ordinary(20, initConfig)
+        const [s0] = virtualAt(root)(pureOk(undefined))
+        const a = assertNotNullish(refAt(s0, snapshotRef(branch)))
+        const b = sha1.idOf('blob', beta)
+        const cmd = git.mergeBase(hexText(a), hexText(b))
+        assertEq(assertOk(scripted(root, new Map([[cmd, printed(`${hexText(b)}\n`)]]))(remote.mergeBase(a, b))[1]), b)
+        assertEq(assertOk(scripted(root, new Map([[cmd, printed(hexText(b))]]))(remote.mergeBase(a, b))[1]), b)
+        assertEq(assertOk(scripted(root, new Map([[cmd, failed(cmd, '')]]))(remote.mergeBase(a, b))[1]), null)
+        const e = assertError(scripted(root, new Map([[cmd, failed(cmd, 'fatal: Not a valid object name\n')]]))(remote.mergeBase(a, b))[1])
+        assert(e[0] === 'ioError' && e[1].message.includes('fatal'), e)
+        assertEq(codeOf(scripted(root, new Map([[cmd, printed('nonsense\n')]]))(remote.mergeBase(a, b))[1]), gitOutputCode)
+    },
+    // An argument no quoting makes safe for both shells: every operation
+    // refuses before any command runs. A Windows path with its backslashes
+    // quotes as it is.
+    gitRemoteQuotes: () => {
+        for (const bad of ['a"b', 'a$b', 'a%b', 'a!b', 'a`b', 'a\nb', 'a\\\\b', 'a\\']) {
+            const r = gitRemote({ dir, remote: bad, branch: 'build-cache' })
+            const o = runPure(r.mergeBase(alphaKey, alphaKey))
+            assert(o.length === 1, bad)
+            assertEq(codeOf(o[0]), shellArgumentCode, bad)
+            const f = runPure(r.fetch())
+            assert(f.length === 1, bad)
+            assertEq(codeOf(f[0]), shellArgumentCode, bad)
+            const p = runPure(r.push(alphaKey))
+            assert(p.length === 1, bad)
+            assertEq(codeOf(p[0]), shellArgumentCode, bad)
+        }
+        const windows = gitRemote({ dir: 'C:\\Users\\Jo Doe\\repo\\.git', remote: 'origin', branch: 'build-cache' })
+        const o = runPure(windows.mergeBase(alphaKey, alphaKey))
+        assertEq(o.length, 0, 'expected a command to run')
     },
 }
