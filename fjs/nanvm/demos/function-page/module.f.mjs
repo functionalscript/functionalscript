@@ -146,10 +146,10 @@ const each = (inputs, f) => inputs.length === 0
  *
  * @type {(sample: FunctionSample) => (state: State) => Effect<Sandbox, State, never>}
  */
-export const runCalls = ({ name, entry, inputs }) => state => {
+export const runCalls = ({ place, entry, inputs }) => state => {
     const { wasm } = state
     const caller = wasm[0] === 'ok'
-        ? wasmCaller(name)(wasm[1])
+        ? wasmCaller(place.name)(wasm[1])
         : pureOk(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1]))
     return step(caller, c => mapStep(
         each(inputs, input => step(callJs(entry)(input), js => mapStep(
@@ -227,7 +227,7 @@ export const view = inputs => state => ['div', {},
 
 /** @type {(sample: FunctionSample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox, State, never>} */
 export const update = sample => state => event =>
-    event.kind === 'start' ? load(sample)
+    event.kind === 'start' ? load(sample.place)
     : event.kind === 'click' && event.name === 'run' ? runCalls(sample)(state)
     : pureOk(state)
 

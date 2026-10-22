@@ -191,11 +191,11 @@ export const runWasm = name => ({ exports }) => {
  *
  * @type {(sample: Sample) => (state: State) => Effect<Sandbox, State, never>}
  */
-export const runBoth = ({ name, program }) => state => {
+export const runBoth = ({ place, program }) => state => {
     const { wasm } = state
     const js = history(runJs(program))
     const both = historyStep(js, () => wasm[0] === 'ok'
-        ? runWasm(name)(wasm[1])
+        ? runWasm(place.name)(wasm[1])
         : pureOk(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1])))
     return step(both, ([wasmRun, jsRun]) => pureOk(/** @type {State} */ ({ ...state, runs: { js: jsRun, wasm: wasmRun } })))
 }
@@ -291,9 +291,9 @@ export const view = name => state => ['div', {},
 
 /** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox, State, never>} */
 export const update = sample => state => event =>
-    event.kind === 'start' ? load(sample)
+    event.kind === 'start' ? load(sample.place)
     : event.kind === 'click' && event.name === 'run' ? runBoth(sample)(state)
     : pureOk(state)
 
 /** @type {(sample: Sample) => Demo<State, DemoEvent, FetchText | Instantiate | Sandbox>} */
-export const wasmDemo = sample => ({ init, update: update(sample), view: view(sample.name) })
+export const wasmDemo = sample => ({ init, update: update(sample), view: view(sample.place.name) })

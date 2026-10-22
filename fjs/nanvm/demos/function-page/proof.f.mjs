@@ -25,7 +25,7 @@ import { agreement, callJs, functionDemo, init, load, notLoaded, outcomeText, ru
 const throws = 'negative'
 
 /** A sample that answers `input + 2`, and throws for a negative one. @type {FunctionSample} */
-const plus2 = { name: 'plus2', directory: 'spec/plus2', entry: input => input < 0 ? throws : input + 2, inputs: [1, -1] }
+const plus2 = { place: { name: 'plus2', directory: 'spec/plus2' }, entry: input => input < 0 ? throws : input + 2, inputs: [1, -1] }
 
 /** `text` as the bytes `output_byte` reads. @type {(text: string) => readonly number[]} */
 const bytes = text => Array.from(text, c => c.charCodeAt(0))
@@ -76,10 +76,10 @@ const perform = map => effect => {
 
 const source = 'export default (...a) => (a[0], a[0] + 2);'
 
-const files = { [`/${samplePath(plus2.directory)}`]: source, [`/${rustPath('plus2')}`]: 'pub fn module() {}', [`/${watPath('plus2')}`]: '(module)' }
+const files = { [`/${samplePath(plus2.place.directory)}`]: source, [`/${rustPath('plus2')}`]: 'pub fn module() {}', [`/${watPath('plus2')}`]: '(module)' }
 
 /** Every loaded state. @type {State} */
-const ready = perform(page(files, instance()))(load(plus2))
+const ready = perform(page(files, instance()))(load(plus2.place))
 
 /** @type {(e: Element) => string} */
 const text = e => JSON.stringify(e)
@@ -94,7 +94,7 @@ export const proof = {
         assertStructurallySame(ready.wat, ok('(module)'))
         assertEq(ready.wasm[0], 'ok')
         assertEq(ready.calls, null)
-        const missing = perform(page({}, null))(load(plus2))
+        const missing = perform(page({}, null))(load(plus2.place))
         assertStructurallySame(missing.wasm, error(`/${wasmPath}: HTTP 404`))
     },
     callJs: () => {

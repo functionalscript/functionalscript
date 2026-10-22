@@ -335,7 +335,9 @@ export const proof = {
         heading: () => assertStructurallySame(blocks('# A\n\n### *b*\n'),
             [['heading', 1, [['text', 'A']]], ['heading', 3, [['em', [['text', 'b']]]]]]),
         paragraph: () => assertStructurallySame(blocks('a\n  b\r\nc\n\nd\n'),
-            [['paragraph', [['text', 'a b c']]], ['paragraph', [['text', 'd']]]]),
+            [['paragraph', [['text', 'a   b c']]], ['paragraph', [['text', 'd']]]]),
+        multilineCodeSpaces: () => assertStructurallySame(blocks(`${tick}foo \n bar${tick}`),
+            [['paragraph', [['code', 'foo   bar']]]]),
         // A heading, a fence or a list item ends a paragraph without a blank line.
         paragraphEnds: () => assertStructurallySame(blocks('a\n# h\nb\n```\nc\n```\nd\n- e\n'),
             [['paragraph', [['text', 'a']]], ['heading', 1, [['text', 'h']]], ['paragraph', [['text', 'b']]],
@@ -384,6 +386,7 @@ export const proof = {
             tabDashAfterParagraph: () => assertEq(refusal('text\n-\titem'), 'line 2: a tab-delimited list item'),
             tabDashInItem: () => assertEq(refusal('- item\n  -\tnested'), 'line 2: a tab-delimited list item'),
             fenceInfo: () => assertEq(refusal('```js x\n```\n'), 'line 1: a code fence whose info string is not one word'),
+            fenceInfoEscape: () => assertEq(refusal('```foo\\+bar\n```'), 'line 1: a code fence whose info string contains a backslash escape'),
             // GitHub trims a tab around the info string as it does a space.
             fenceInfoTab: () => assertEq(refusal('```\tjs\n```\n'), 'line 1: a code fence whose info string is not one word'),
             fenceBacktick: () => assertEq(refusal('```a`\n```\n')?.startsWith('line 1: a code fence'), true),
@@ -415,7 +418,7 @@ export const proof = {
             codeAfterEmptyMarker: () => assertEq(refusal('- \n      code'), 'line 1: a list item whose text does not follow its marker'),
             codeAfterLaterEmptyMarker: () => assertEq(refusal('- ok\n- \n       code'), 'line 2: a list item whose text does not follow its marker'),
             textAfterEmptyMarker: () => assertEq(refusal('- \n  text'), 'line 1: a list item whose text does not follow its marker'),
-            indentedParagraphContinuation: () => assertStructurallySame(blocks('- text\n      continued'), [['list', false, [[['paragraph', [['text', 'text continued']]]]]]]),
+            indentedParagraphContinuation: () => assertStructurallySame(blocks('- text\n      continued'), [['list', false, [[['paragraph', [['text', 'text     continued']]]]]]]),
             itemSpans: () => assertEq(refusal('- a\n- _b_\n'), 'line 2: an underscore that GitHub may read as emphasis at 0'),
             paragraphSpans: () => assertEq(refusal('a\n_b_\n')?.startsWith('line 1: an underscore'), true),
             indentedCode: () => assertEq(refusal('    a\n'), 'line 1: an indented code block'),

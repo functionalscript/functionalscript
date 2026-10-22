@@ -9,4 +9,4 @@
 import entry from './sample.f.js'
 import { functionDemo } from '../../../fjs/nanvm/demos/function-page/module.f.mjs'
 
-export const demo = functionDemo({ name: 'function_outputs', directory: 'spec/functions/function-outputs', entry: /** @type {(input: number) => unknown} */ (entry), inputs: [0, 2] })
+export const demo = functionDemo({ place: { name: 'function_outputs', directory: 'spec/functions/function-outputs' }, entry: /** @type {(input: number) => unknown} */ (entry), inputs: [0, 2] })

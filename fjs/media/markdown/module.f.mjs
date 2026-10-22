@@ -632,6 +632,7 @@ const readBlocks = (base, inItem) => lines => {
         if (isFence(line)) {
             const info = line.slice(3)
             if (info.includes('`') || info.includes(' ') || info.includes('\t')) { return refuseAt(i, 'a code fence whose info string is not one word') }
+            if (info.includes('\\')) { return refuseAt(i, 'a code fence whose info string contains a backslash escape') }
             const close = lines.findIndex((candidate, index) => index > i && isClosingFence(candidate))
             if (close === -1) { return refuseAt(i, 'a code fence that is never closed') }
             out = [...out, [['code', info, close === i + 1 ? '' : lines.slice(i + 1, close).join('\n') + '\n'], i, close]]
@@ -741,7 +742,9 @@ const readBlocks = (base, inItem) => lines => {
             if (continued !== null) { return refuseAt(end, continued) }
             end++
         }
-        const spans = inlineAt(at, lines.slice(i, end).map(l => l.trim()).join(' '))
+        // A line ending becomes one space even inside code; surrounding
+        // spaces are content there, so trimming each line would change it.
+        const spans = inlineAt(at, lines.slice(i, end).join(' '))
         if (spans[0] === 'error') { return spans }
         out = [...out, [['paragraph', spans[1]], i, end - 1]]
         i = end

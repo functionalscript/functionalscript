@@ -21,7 +21,8 @@ export type Place = {
 }
 
 /** A sample: where it is, and the program itself, as the JavaScript run performs it. */
-export type Sample = Place & {
+export type Sample = {
+    readonly place: Place
     readonly program: () => Effect<Write, unknown, unknown>
 }
 
