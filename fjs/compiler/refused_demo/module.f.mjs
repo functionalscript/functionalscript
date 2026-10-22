@@ -193,7 +193,7 @@ export const view = ({ answer, alternative, suggestion }) => ({ source, alternat
  *
  * @type {(directory: string, name: string) => Effect<FetchText, Result<string, string>, never>}
  */
-const fetchFile = (directory, name) => resultStep(fetchText(`/${directory}/${name}`),
+export const fetchFile = (directory, name) => resultStep(fetchText(`/${directory}/${name}`),
     r => pureOk(r[0] === 'ok' ? r : error(errorMessage(r[1]))))
 
 /**

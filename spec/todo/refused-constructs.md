@@ -37,6 +37,8 @@ that the example is refused for the row's reason and not as an unbound name.
 - **open**: no record or roadmap entry proposes admitting it, and none states
   that it stays out. The whitelist alone refuses it, and a decision on whether
   it is permanent is owed. A related record, where there is one, is named.
+  The [undecided constructs](../undecided/README.md) page lists these rows,
+  with what the compiler prints for each.
 
 **What the register leaves to the proofs.** What the compiler reports for a
 construct, and whether a proof pins it, change with the compiler, and a column

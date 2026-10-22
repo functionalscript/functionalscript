@@ -5,7 +5,7 @@
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { main } from './module.f.mjs'
+import { isTodoDir, main } from './module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
@@ -105,6 +105,12 @@ const pageAt = (root, path) => textOf(
     `the page for ${path.join('/')}`)
 
 export const proof = {
+    isTodoDir: () => {
+        assert(isTodoDir('spec/todo'))
+        assert(isTodoDir('spec/todo/blocked'))
+        assert(!isTodoDir('spec'))
+        assert(!isTodoDir('spec/todo-list'))
+    },
     cli: {
         page: () => {
             const { root } = generate({})

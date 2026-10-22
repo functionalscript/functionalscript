@@ -126,6 +126,16 @@ export const listingMarker = 'data-listing'
  */
 export const refusedMarker = 'data-refused'
 
+/** The attribute of the banner the undecided constructs' page opens its
+ * demo with: the compiler refuses each, and no decision says it should.
+ */
+export const undecidedMarker = 'data-undecided'
+
+/** The attribute of a register row's card, one construct with its sample
+ * and what the compiler prints for it.
+ */
+export const registerRowMarker = 'data-register-row'
+
 /** The attribute shared by the PoW verdict row and its layout rules.
  * @type {string}
  */
@@ -874,6 +884,14 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [${refusedMarker}] { background: var(--fail-bg); border: 2px solid var(--fail); border-left-width: 8px; border-radius: 6px; color: var(--fail); margin-block: 1rem; padding: .75rem 1rem }
 [${refusedMarker}] > strong { display: block; font-size: 1.5rem }
 [${refusedMarker}] > p { color: var(--text); margin: .5rem 0 0 }
+/* An undecided construct's banner: the same weight as a refusal's, in the
+   neutral value colour, since nothing is decided to have failed. */
+[${undecidedMarker}] { background: var(--value-bg); border: 2px solid var(--value); border-left-width: 8px; border-radius: 6px; color: var(--value); margin-block: 1rem; padding: .75rem 1rem }
+[${undecidedMarker}] > strong { display: block; font-size: 1.5rem }
+[${undecidedMarker}] > p { color: var(--text); margin: .5rem 0 0 }
+[${registerRowMarker}] { border: 1px solid var(--border); border-radius: 6px; margin-block: 1rem; padding: .5rem 1rem }
+[${registerRowMarker}] > h3 { margin: .25rem 0 .5rem }
+[${registerRowMarker}] > div > p { display: inline; margin: 0 }
 [${verdictMarker}="ok"] { color: var(--pass) }
 [${verdictMarker}="error"] { color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows
