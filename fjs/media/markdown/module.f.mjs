@@ -112,7 +112,7 @@ const entryOf = node => {
  * The entries of a release file, as text, with each entry's wrapped lines
  * joined by one space.
  *
- * A `- ` opens an entry, two spaces continue the one before it, and a line
+ * A `- ` opens an entry; its padding sets the continuation indent. A line
  * with nothing on it closes nothing — the trailing newline every released
  * file ends with is the only such line in the tree.
  *
@@ -138,6 +138,7 @@ export const entryTexts = text => {
     /** @type {readonly string[]} */
     let out = []
     let blankAt = -1
+    let contentIndent = 2
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
         const refuse = /** @type {(why: string) => Result<readonly string[], string>} */(
@@ -168,12 +169,14 @@ export const entryTexts = text => {
             if (content.startsWith('    ') && content.trim() !== '') {
                 return refuse('an indented code block opening an entry')
             }
+            contentIndent = content.trim() === '' ? 2 : 2 + content.length - content.trimStart().length
             out = [...out, content.trimStart()]
         }
         else if (line.startsWith('  ') && out.length !== 0) {
-            // Only the list's two-column indent is layout. Further spaces
-            // can be content of a code span opened on the preceding line.
-            const content = line.slice(2)
+            // The marker's padding sets this item's layout width. Remove
+            // only that width; further spaces may belong to a code span.
+            const leading = line.length - line.trimStart().length
+            const content = line.slice(Math.min(contentIndent, leading))
             const marker = content.trimStart()
             // An indented marker opens a nested list, which CommonMark
             // reads as a list inside the item and `Entry` cannot hold.
