@@ -14,8 +14,13 @@
 
 import { freeLoopBindings } from '../control/module.f.mjs'
 
-/** @type {(value: Value, binding: BindingId) => boolean} */
-const names = (value, binding) => value instanceof Array && value[0] === 'ref' && value[1] === binding
+/**
+ * Whether a value is a read of `binding` itself: a `ref` to it, and not a
+ * value computed from it.
+ *
+ * @type {(value: Value, binding: BindingId) => boolean}
+ */
+export const namesBinding = (value, binding) => value instanceof Array && value[0] === 'ref' && value[1] === binding
 
 /**
  * Prefix reads may alias established captures or self without becoming current
@@ -64,9 +69,9 @@ export const rootLoopOf = fn => {
     const last = body.statements.at(-1)
     if (last === undefined || last[0] !== 'loop') { return null }
     const loop = last[1]
-    if (loop.parameters.length !== 1 || loop.results.length !== 1 || !names(exit[2], loop.results[0])) { return null }
+    if (loop.parameters.length !== 1 || loop.results.length !== 1 || !namesBinding(exit[2], loop.results[0])) { return null }
     const aliases = invocationAliases(fn, body.statements.slice(0, -1))
-    return aliases !== null && aliases[0].some(binding => names(loop.initial[0], binding)) && !readsEntryParameters(loop, aliases) ? loop : null
+    return aliases !== null && aliases[0].some(binding => namesBinding(loop.initial[0], binding)) && !readsEntryParameters(loop, aliases) ? loop : null
 }
 
 /**

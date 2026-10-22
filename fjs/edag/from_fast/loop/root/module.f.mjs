@@ -6,16 +6,13 @@
  * Nonroot helpers and nonlocal value operands have separate construction owners.
  *
  * @module
- * @import { BindingId, Block, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { Block, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { Frame, Link, Normal, Owner, Task, TerminalBlock, Visit } from './private.ts'
  */
 
 import { concat, iterable, toArray } from '../../../../types/list/module.f.mjs'
 import { maxLength } from '../../../../types/function/length/module.f.mjs'
-import { invocationAliases, readsEntryParameters } from '../module.f.mjs'
-
-/** @type {(value: Value, binding: BindingId) => boolean} */
-const names = (value, binding) => value instanceof Array && value[0] === 'ref' && value[1] === binding
+import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
 
 /**
  * A fixed invocation layout with its whole public result returned directly.
@@ -32,9 +29,9 @@ export const invocationRootOf = fn => {
     if (last === undefined || last[0] !== 'loop') { return null }
     const loop = last[1]
     if (loop.parameters.length !== fn.parameters.length || loop.initial.length !== fn.parameters.length
-        || loop.results.length !== 1 || !names(exit[2], loop.results[0])) { return null }
+        || loop.results.length !== 1 || !namesBinding(exit[2], loop.results[0])) { return null }
     const aliases = invocationAliases(fn, body.statements.slice(0, -1))
-    return aliases !== null && loop.initial.every((value, position) => aliases[position].some(binding => names(value, binding)))
+    return aliases !== null && loop.initial.every((value, position) => aliases[position].some(binding => namesBinding(value, binding)))
         && !readsEntryParameters(loop, aliases) ? loop : null
 }
 
