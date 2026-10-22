@@ -1,5 +1,6 @@
 /**
  * @import { Dir, State } from '../../effects/node/virtual/types.ts'
+ * @import { EffectList } from '../../effects/list/types.ts'
  * @import { IoChannel } from '../../effects/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -7,25 +8,31 @@
  * @import { TreeEntry } from '../../git/tree/types.ts'
  * @import { ObjectType, Oid, OidBytes } from '../../git/types.ts'
  * @import { Read } from '../../git/walk/types.ts'
- * @import { Branch, CasReader, SnapshotOperation } from './types.ts'
+ * @import { Cas } from '../types.ts'
+ * @import { Author, Branch, CasReader, ProposalOperation, SnapshotOperation } from './types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
-import { pureOk, runPure } from '../../effects/module.f.mjs'
+import { ioError, pureError, pureOk, runPure } from '../../effects/module.f.mjs'
+import { empty, nonEmpty } from '../../effects/list/module.f.mjs'
 import { isNotFound } from '../../effects/node/module.f.mjs'
 import { virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { author as authorOf, parents, tryRead as readCommit } from '../../git/commit/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { hexText, of } from '../../git/oid/module.f.mjs'
-import { objectPath } from '../../git/store/module.f.mjs'
+import { tryResolve } from '../../git/refstore/module.f.mjs'
+import { objectPath, tryRead as readObject } from '../../git/store/module.f.mjs'
 import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.mjs'
 import { write as writeTree } from '../../git/tree/module.f.mjs'
 import { length, maxLength, msb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { collectRead, toPath } from '../module.f.mjs'
-import { casAt, casEntryCode, repositoryFormatCode, snapshot, snapshotHeadCode, snapshotRef } from './module.f.mjs'
+import { _driveCas } from '../proof.f.mjs'
+import { casAt, casEntryCode, proposal, proposalRef, repositoryFormatCode, snapshot, snapshotHeadCode, snapshotRef, writeObject } from './module.f.mjs'
 
 /** The repository every case reads, and the branch the snapshot is of. */
 const dir = /** @type {const} */ ('repo')
@@ -218,6 +225,87 @@ const codeOf = r => {
 const assertReads = (root, key, bytes) => {
     const v = assertOk(readAll(root, key))
     assertEq(msb.cmp(v)(u8ListToVecMsb(bytes)), 0, ['read back other bytes', vecToCBase32(key)])
+}
+
+// ## Writing
+//
+// What the write side's fixtures add: a checkout beside the repository — a
+// `HEAD`, an index and a worktree file — which a write must leave as it found
+// them, and the author every proposal commit is by.
+
+/** @type {Author} */
+const author = { name: 'Cas Writer', email: 'cas@example.com' }
+
+/** The proposal ref as a path, and as the name the ref store reads. */
+const proposalPath = `${dir}/refs/cas/origin/build-cache`
+
+const proposalName = latin1(proposalRef(branch))
+
+/** A repository with a checkout beside it: `HEAD` on `master`, an index, and a worktree file. @type {(root: Dir) => Dir} */
+const checkedOut = root => ({
+    ...root,
+    [dir]: { ...root[dir], HEAD: text('ref: refs/heads/master\n'), index: [u8ListToVecMsb([0x44, 0x49, 0x52, 0x43])] },
+    src: { 'README.md': text('# source\n') },
+})
+
+/** Content none of the fixtures hold, in one chunk and in two. */
+const gamma = latin1('gamma\n')
+
+const gammaKey = keyOf(gamma)
+
+/** @type {(chunks: readonly (readonly number[])[]) => EffectList<never, Vec, IoChannel>} */
+const payload = chunks => chunks.reduceRight(
+    (tail, chunk) => nonEmpty(u8ListToVecMsb(chunk), tail),
+    /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty()))
+
+/** Opens the proposal of `branch` over `root`: the filesystem it left and the store. @type {(root: Dir) => readonly [State, Cas<ProposalOperation>]} */
+const proposed = root => {
+    const [state, r] = virtualAt(root)(proposal(sha256, branch, author))
+    return [state, assertOk(r)]
+}
+
+/** Writes `chunks` through `cas` over `state`: the filesystem after and the key. @type {(state: State, cas: Cas<ProposalOperation>, chunks: readonly (readonly number[])[]) => readonly [State, Result<Vec, IoChannel>]} */
+const wrote = (state, cas, chunks) => virtual(state)(cas.write(payload(chunks)))
+
+/** The id the proposal ref holds over `state`, or `null`. @type {(state: State) => Oid | null} */
+const proposalHead = state => assertOk(virtual(state)(tryResolve({ gitdir: dir, common: dir }, 20)(proposalName))[1])
+
+/** The commit an id names over `state`, read. @type {(state: State, id: Oid) => { readonly parents: readonly Oid[], readonly author: string }} */
+const commitAt = (state, id) => {
+    const o = assertNotNullish(assertOk(virtual(state)(readObject(dir, 20)(id))[1]))
+    assertEq(o.type, 'commit')
+    const c = assertNotNullish(readCommit(o.payload))
+    const who = authorOf(c)
+    return { parents: parents(c), author: `${nameOf(who.name)} <${nameOf(who.email)}> ${who.time} ${who.tz}` }
+}
+
+/** Bytes as the text they spell, for an ident's fields. @type {(bytes: readonly number[] | import('../../git/types.ts').Bytes) => string} */
+const nameOf = bytes => String.fromCharCode(...toArray(bytes))
+
+/**
+ * Everything of `root` a write may not touch, structurally the same in
+ * `after`: the checkout's `HEAD`, index and worktree, the repository's
+ * `config` and every ref but the proposal's. Only `objects/` and
+ * `refs/cas/` may differ, and no temporary object file is left behind.
+ *
+ * @type {(before: Dir, after: Dir) => void}
+ */
+const assertUntouched = (before, after) => {
+    const strip = (/** @type {Dir} */ d) => {
+        const repo = d[dir]
+        assert(repo !== undefined && typeof repo === 'object' && !(repo instanceof Array))
+        const { objects, refs, ...rest } = repo
+        // A repository with no ref at all has no `refs/` yet; a write makes it.
+        const held = refs !== undefined && typeof refs === 'object' && !(refs instanceof Array) ? refs : {}
+        const { cas, ...otherRefs } = held
+        return { ...d, [dir]: { ...rest, refs: otherRefs } }
+    }
+    assertStructurallySame(strip(after), strip(before))
+    const objects = assertNotNullish(after[dir])
+    assert(typeof objects === 'object' && !(objects instanceof Array))
+    const od = objects.objects
+    assert(od !== undefined && typeof od === 'object' && !(od instanceof Array))
+    assert(Object.keys(od).every(n => !n.startsWith('tmp_obj_')), Object.keys(od))
 }
 
 /**
@@ -444,5 +532,129 @@ export const proof = {
         const o3 = runPure(c2.tail)
         assert(o3.length === 1, o3)
         assertEq(assertOk(o3[0]), undefined)
+    },
+    // ## The proposal
+    //
+    // A write into the ordinary repository: the key is the content's hash as
+    // `fileCas` would key it, the proposal reads it back — in two chunks, so
+    // the gathering is proved to keep every chunk — and lists it beside the
+    // published keys, the published snapshot does not see it, the commit is a
+    // child of the published commit by the author given, and nothing of the
+    // checkout, the `config` or any other ref has changed.
+    proposalWrites: () => {
+        const before = checkedOut(ordinary(20, initConfig))
+        const [s0, cas] = proposed(before)
+        const [s1, w] = wrote(s0, cas, [gamma.slice(0, 3), gamma.slice(3)])
+        const key = assertOk(w)
+        assertEq(msb.cmp(key)(gammaKey), 0, 'the key is not the content hash')
+        const back = assertOk(virtual(s1)(collectRead(cas.read(key)))[1])
+        assertEq(msb.cmp(back)(u8ListToVecMsb(gamma)), 0, 'read back other bytes')
+        assertStructurallySame(spelled(assertOk(virtual(s1)(cas.list())[1])), spelled([alphaKey, betaKey, gammaKey]))
+        assertStructurallySame(spelled(assertOk(listed(s1.root))), spelled([alphaKey, betaKey]))
+        const head = assertNotNullish(proposalHead(s1))
+        const published = assertNotNullish(assertOk(virtual(s1)(tryResolve({ gitdir: dir, common: dir }, 20)(latin1(snapshotRef(branch))))[1]))
+        const c = commitAt(s1, head)
+        assertStructurallySame(c.parents.map(hexText), [hexText(published)])
+        assertEq(c.author, 'Cas Writer <cas@example.com> 0 +0000')
+        assertUntouched(before, s1.root)
+        assert(proposalPath.split('/').reduce((/** @type {unknown} */ d, n) => d !== undefined && typeof d === 'object' ? /** @type {Dir} */ (d)[n] : undefined, s1.root) !== undefined, 'no proposal ref')
+    },
+    // The same content twice is one object and one commit: the second write
+    // answers the key and moves nothing, since the tree already holds the
+    // blob under that key. A third, different write chains on the first.
+    proposalWritesOnce: () => {
+        const [s0, cas] = proposed(ordinary(20, initConfig))
+        const [s1, w1] = wrote(s0, cas, [gamma])
+        const [s2, w2] = wrote(s1, cas, [gamma])
+        assertEq(msb.cmp(assertOk(w1))(assertOk(w2)), 0)
+        assertStructurallySame(s2.root, s1.root, 'the second write changed the repository')
+        const delta = latin1('delta\n')
+        const [s3] = wrote(s2, cas, [delta])
+        const first = assertNotNullish(proposalHead(s1))
+        const third = assertNotNullish(proposalHead(s3))
+        assertStructurallySame(commitAt(s3, third).parents.map(hexText), [hexText(first)])
+        assertStructurallySame(spelled(assertOk(virtual(s3)(cas.list())[1])), spelled([alphaKey, betaKey, gammaKey, keyOf(delta)]))
+    },
+    // A repository with no snapshot at all: the first write is a root commit
+    // over a tree of nothing but `.cas`, the proposal reads it back, and the
+    // published snapshot is still empty — a proposal is not a publication.
+    proposalFromNothing: () => {
+        const before = checkedOut(repository(initConfig, null, []))
+        const [s0, cas] = proposed(before)
+        assertStructurallySame(assertOk(virtual(s0)(cas.list())[1]), [])
+        const [s1, w] = wrote(s0, cas, [gamma])
+        const key = assertOk(w)
+        assertStructurallySame(spelled(assertOk(virtual(s1)(cas.list())[1])), spelled([key]))
+        assertEq(msb.cmp(assertOk(virtual(s1)(collectRead(cas.read(key)))[1]))(u8ListToVecMsb(gamma)), 0)
+        assertStructurallySame(commitAt(s1, assertNotNullish(proposalHead(s1))).parents, [])
+        assertStructurallySame(assertOk(listed(s1.root)), [])
+        assertUntouched(before, s1.root)
+    },
+    // The same through a SHA-256 repository: the ids, trees and loose files
+    // follow the width `config` names.
+    proposalSha256: () => {
+        const [s0, cas] = proposed(ordinary(32, initSha256Config))
+        const [s1, w] = wrote(s0, cas, [gamma])
+        const key = assertOk(w)
+        assertEq(msb.cmp(assertOk(virtual(s1)(collectRead(cas.read(key)))[1]))(u8ListToVecMsb(gamma)), 0)
+        assertStructurallySame(spelled(assertOk(virtual(s1)(cas.list())[1])), spelled([alphaKey, betaKey, gammaKey]))
+    },
+    // A payload that fails writes nothing: no object, no ref, the repository
+    // as it was.
+    proposalStreamFailure: () => {
+        const before = ordinary(20, initConfig)
+        const [s0, cas] = proposed(before)
+        /** @type {EffectList<never, Vec, IoChannel>} */
+        const failing = nonEmpty(u8ListToVecMsb(gamma), pureError(ioError({ message: 'boom' })))
+        const [s1, w] = virtual(s0)(cas.write(failing))
+        const e = assertError(w)
+        assert(e[0] === 'ioError' && e[1].message === 'boom', e)
+        assertStructurallySame(s1.root, before)
+    },
+    // The tree already holds the key's path over another blob — a collision,
+    // or a corrupt store — or holds a file where the key's path needs a
+    // subtree. Neither is a write to make, and neither changes the repository.
+    proposalRefuses: () => {
+        const other = sha1.idOf('blob', alpha)
+        const collided = casEntry(gammaKey, '100644', other)
+        const before = over(collided.root, [...collided.objects, sha1.object('blob', alpha)])
+        const [s0, cas] = proposed(before)
+        const [s1, w] = wrote(s0, cas, [gamma])
+        assertEq(codeOf(w), casEntryCode)
+        // The blob was written before the tree refused it, and nothing else was.
+        const { objects, ...rest } = assertNotNullish(/** @type {Dir} */ (s1.root[dir]))
+        const { objects: objectsBefore, ...restBefore } = assertNotNullish(/** @type {Dir} */ (before[dir]))
+        assertStructurallySame(rest, restBefore)
+        const [, ab] = pathOf(gammaKey)
+        const file = sha1.treeOf([entry('100644', ab, other)])
+        const [s2, cas2] = proposed(over([entry('40000', '.cas', file.id)], [file.object, sha1.object('blob', alpha)]))
+        assertEq(codeOf(wrote(s2, cas2, [gamma])[1]), casEntryCode)
+    },
+    // A proposal over a repository whose ref names no commit is refused when
+    // it is read, as a snapshot is; and a branch whose name is no ref name
+    // before anything is opened.
+    proposalBadHead: () => {
+        const [s0, cas] = proposed(repository(initConfig, sha1.idOf('blob', alpha), [sha1.object('blob', alpha)]))
+        assertEq(codeOf(virtual(s0)(cas.list())[1]), snapshotHeadCode)
+        const o = runPure(proposal(sha256, { dir, remote: 'origin', branch: 'a..b' }, author))
+        assert(o.length === 1, o)
+        assertEq(codeOf(o[0]), snapshotHeadCode)
+    },
+    // ## Writing an object
+    //
+    // The loose file is renamed into place once whole, and a rename that
+    // fails takes the temporary file with it: driven with the virtual
+    // filesystem's commands answered by hand, since no filesystem fails a
+    // rename on request. The `stat` says the object is not there yet, the
+    // `rename` fails, and the log shows the `rm` that followed it.
+    writeObjectRenameFails: () => {
+        const drive = _driveCas({ writeExclusive: ok(undefined) })
+        const boom = ioError({ message: 'boom' })
+        const [r, log] = drive({
+            stat: [error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))],
+            rename: [error(boom)],
+        })(writeObject(dir, 20)('blob', alpha))
+        assertEq(assertError(r), boom)
+        assertStructurallySame(log.slice(log.indexOf('rename')), ['rename', 'rm'])
     },
 }

@@ -123,8 +123,11 @@ rename detection disabled for the CAS map.
       the repository, remote and branch, `snapshotRef` is where the
       published snapshot is read, and `snapshot` is it as a `CasReader`, the
       read half of `Cas<O>` — [`fjs/cas/git`](../git/module.f.mjs).
-- [ ] Define the publication API around `Cas<O>`: the proposal a writer
-      adds to, its publication, and creation of a missing branch.
+- [x] Define the proposal a writer adds to: `proposal` is a branch as a
+      whole `Cas<O>`, its ref `proposalRef`, its commits by an `Author`
+      the caller names — [`fjs/cas/git`](../git/module.f.mjs).
+- [ ] Define the publication API: publishing the proposal to the remote
+      branch, and creation of a missing branch.
 - [x] Provide content-key computation without storage or publication,
       sharing CAS's configured hash implementation. Prove agreement with
       the key returned by `write` for the same bytes — `contentKey` in
@@ -133,10 +136,14 @@ rename detection disabled for the CAS map.
       reusing the existing encoding, paths, and Git primitives — `casAt` in
       [`fjs/cas/git`](../git/module.f.mjs), over the object store's reader,
       the walk and the ref store, in SHA-1 and SHA-256 repositories.
-- [ ] Implement branch storage: byte-preserving CAS writes into the
+- [x] Implement branch storage: byte-preserving CAS writes into the
       repository's own objects and a proposal ref, reusing the same
-      primitives. Prove that the source checkout's HEAD, working tree, and
-      index stay unchanged.
+      primitives — `writeObject` and `proposal`'s `write` in
+      [`fjs/cas/git`](../git/module.f.mjs), the loose file through
+      [`fjs/zlib/stored`](../../zlib/stored/module.f.mjs). Proved that the
+      source checkout's HEAD, working tree, and index stay unchanged. Two
+      limits are filed beside the module: a payload held in memory while
+      its object is written, and two local writers of one repository.
 - [ ] Implement commit/push publication and cleanup. Cover incomplete
       writes, identical concurrent additions, concurrent initialization,
       normal-push retries, and the three-way deletion cases above. Include

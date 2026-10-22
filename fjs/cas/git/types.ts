@@ -6,7 +6,7 @@
  */
 
 import type { Operation } from '../../effects/types.ts'
-import type { ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+import type { Mkdir, Now, RandomInt, ReadBytes, ReadFile, ReadWhole, Readdir, Rename, Rm, Stat, WriteExclusive } from '../../effects/node/types.ts'
 import type { Cas } from '../types.ts'
 
 /**
@@ -36,8 +36,28 @@ export type Branch = {
 export type CasReader<O extends Operation> = Pick<Cas<O>, 'read' | 'list'>
 
 /**
+ * Who a proposal's commits are by: the `author` and `committer` of each, as
+ * text. Configuration rather than the repository's `config` or the `GIT_*`
+ * environment, so that what a commit says is what the caller said
+ * ([DESIGN.md §7](../../../doc/DESIGN.md#7-cli-parameters-over-environment-variables));
+ * the time is the `now` effect's and the zone is `+0000`.
+ */
+export type Author = {
+    readonly name: string
+    readonly email: string
+}
+
+/**
  * The effects reading a snapshot performs: the repository's `config` and
  * refs through `ReadFile`, `ReadWhole`, `Readdir` and `Stat`, and its
  * objects — loose files and packs — through those and `ReadBytes`.
  */
 export type SnapshotOperation = ReadFile | ReadWhole | ReadBytes | Readdir | Stat
+
+/**
+ * The effects a proposal performs: a snapshot's reads, and for a write the
+ * loose object files (`Mkdir`, `WriteExclusive`, `Rename`, `Rm`, their
+ * temporary names from `RandomInt`), the commit's time (`Now`) and the
+ * proposal ref through the ref store's writer.
+ */
+export type ProposalOperation = SnapshotOperation | Mkdir | WriteExclusive | Rename | Rm | RandomInt | Now
