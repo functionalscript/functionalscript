@@ -8,6 +8,17 @@ not inspect EDAG reachability, choose value owners or reconstruct recursion.
 `fromAnalysis` accepts a trusted table, including explicit fragment bindings;
 `toFast` is the checked graph boundary.
 
+Graph conversion assumes the canonical `Exp` shapes. `checked` admits invocation
+bindings and scopes; it does not replace the EDAG shape schema. In particular,
+a plain `.` continuation starts with a terminal `|()` or an optional `|?.()`.
+An ordinary path such as `base.x.y(args)` uses nested `.` nodes, so its final
+call's arguments are eager operands. A `|.` continuation is legal only inside
+an optional region, for example `base?.x.y(args)` or `base.x?.().y(args)`; its
+later keys and calls remain inside that region. See the
+[chain grammar](../README.md#which-step-is-legal-where). Extending the traversal
+to accept `|.` directly after a plain `.` would admit a second graph spelling
+which the canonical schema and source parser exclude.
+
 Required definitions remain in the execution region that establishes them.
 Captures establish their values before closure construction, including unused
 nonprimitive captures. Shared allocations and calls reached only through lazy

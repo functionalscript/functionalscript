@@ -1034,6 +1034,20 @@ export const proof = {
         refuses(f(['?.', a, 'b', ['|.', 'push', ['|()', []]]]), 'a prohibited member function')
         refuses(f(['?.()', a, [1], ['|.', 'at']]), 'a prohibited property name')
     },
+    continuedArguments: () => {
+        const array = /** @type {const} */ (['[]', []])
+        const pair = /** @type {const} */ (['[]', [array, array]])
+        // An ordinary property path nests Dot nodes. A property continuation
+        // belongs to an optional region, whose later call owns this argument.
+        writes(['=>', 1, [], ['.', ['.', ['arg', 0], 'x'], 'y', ['|()', [pair]]]],
+            'export default ($0)=>{const $1=[];return $0.x.y([$1,$1]);};')
+        writes(['=>', 1, [], ['?.', ['arg', 0], 'x', ['|.', 'y', ['|()', [pair]]]]],
+            'export default ($0)=>$0?.x.y((()=>{const $1=[];return [$1,$1];})());')
+        writes(['=>', 1, [], ['.', ['arg', 0], 'x', ['|?.()', [], ['|.', 'y', ['|()', [pair]]]]]],
+            'export default ($0)=>$0.x?.().y((()=>{const $1=[];return [$1,$1];})());')
+        writes(['=>', 1, [], ['?.', ['arg', 0], 'x', ['|.', ['Number', 0], ['|?.()', [pair]]]]],
+            'export default ($0)=>$0?.x[Number(0)]?.((()=>{const $1=[];return [$1,$1];})());')
+    },
     refuses: () => {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too: the
