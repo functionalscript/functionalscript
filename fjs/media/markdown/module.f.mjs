@@ -601,6 +601,7 @@ export const tryParseBlocks = text => {
                 // Keep the original indentation: after an empty marker, two
                 // spaces belong to the item and four more open a code block.
                 const foreign = item.endsWith('  ') ? 'a hard line break'
+                    : item.slice(0, item.length - item.trimStart().length).includes('\t') ? 'a tab in an indent'
                     : !itemHasText && item.startsWith('      ') ? 'an indented code block'
                     : headingLevel(content) !== 0 ? 'a heading' : foreignBlock(content)
                 if (foreign !== null) {

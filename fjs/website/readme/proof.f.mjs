@@ -56,6 +56,7 @@ export const proof = {
         // A Han ideograph past the first plane stays, as GitHub keeps it.
         supplementaryHan: () => assertEq(slug([['text', '𠀀 x']]), '𠀀-x'),
         kanaPunctuation: () => assertEq(slug([['text', 'ア・イ゛゠ー']]), 'アイー'),
+        latin1Letters: () => assertEq(slug([['text', 'µ ª º']]), 'µ-ª-º'),
         // Past the emoji blocks, nothing is known to be dropped.
         legacySymbol: () => assertEq(slug([['text', 'a\u{1fb00}']]), 'a'),
         digits: () => assertEq(slug([['strong', '10-2']]), '10-2'),
@@ -68,6 +69,8 @@ export const proof = {
         anchors([['heading', 1, [['text', 'A']]], ['heading', 1, [['text', 'A-1']]], ['heading', 1, [['text', 'A']]]]),
         ['a', 'a-1', 'a-2']),
     readmeNodes: {
+        latin1Heading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'µ ª º']]]]),
+            ok([['h2', { id: 'µ-ª-º' }, 'µ ª º']])),
         all: () => {
             /** @type {Blocks} */
             const blocks = [
