@@ -3,7 +3,8 @@
 See [run-time type information](https://en.wikipedia.org/wiki/Run-time_type_information) on Wikipedia.
 
 A type-safe schema system for describing TypeScript types at runtime and validating unknown values against them.
-The [guide](./guide/README.md) explains it one concept per page.
+The [guide](./guide/README.md) explains it one concept per page, starting
+with [the schemas](./guide/schemas/README.md).
 
 ## Why
 
@@ -24,6 +25,7 @@ declaration:
 ```js
 import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
 import { parse } from 'functionalscript/fjs/rtti/parse/module.f.mjs'
+import { validate } from 'functionalscript/fjs/rtti/validate/module.f.mjs'
 
 const person = { name: string, age: number, tags: or(option, array(string)) }
 // Ts<typeof person> is
@@ -70,6 +72,10 @@ intermediate form, is declared as a schema:
 - **Files the tooling reads** — generated CI workflows
   ([`ci/common`](../ci/common/module.f.mjs)) and the site's funding manifest
   ([`website/funding`](../website/funding/module.f.mjs)).
+- **Responses the website reads from GitHub** — the sign-in exchange
+  ([`website/github`](../website/github/module.f.mjs)) and the open pull
+  requests with their checks ([`website/prs`](../website/prs/module.f.mjs)),
+  declared `open` because GitHub adds fields.
 
 ## Where it is going
 
@@ -118,22 +124,9 @@ siblings there are single data structures and type-level helpers.
 - `data/module.f.mjs` — the serializable data form: `toData(schema)` converts a
   thunk-form schema into a function-free, canonical representation with `cmp`,
   `equal`, `subset`, and a data-driven `validate` (see `data/README.md`)
-- `demo.f.mjs` — the module page's demo: pick an example, see its schema
-  drawn as a graph, with the TypeScript type and the JSON Schema derived from
-  it and its canonical form; compare it with any other schema in the demo
-  through `equal` and `subset`; type a value as a DataJS document (so
-  `undefined` and bigints can be written), and see what `parse` and
-  `validate` make of it, with the member a refusal points at marked in the
-  value. The examples come in two groups. Nine lessons come from the
-  [guide's](./guide/README.md) pages, each written to show one rule: five
-  show one schema and four are pairs whose difference is the lesson; a pair shows both schemas, and the reader picks one while the
-  value stays put. Fourteen more are schemas the project itself uses —
-  JSON-RPC and MCP messages, MCP tool arguments, the `vnd.fjs.*` media
-  formats, JSON and JSON Schema, CI workflows, edag's unary operators and
-  evaluated values, the effect runner's directory entries and the site's
-  funding channels — imported from the modules that declare them, each shown
-  as the import a user of the `functionalscript` package writes, with the
-  module path linked to the module's page
+- `demo.f.mjs` — the module page's demo: every guide page's lessons, then
+  schemas the project itself uses, imported from the modules that declare
+  them (its module comment describes each part)
 - `schema-demo/module.f.mjs` — the demo as a factory, `schemaDemo`, over the
   examples it offers: the module page's demo and every guide page's demo are
   this one function of their lessons
@@ -148,8 +141,14 @@ what a success carries:
 | --- | --- | --- |
 | result on success | a freshly constructed value | the value it was given |
 | undeclared member (where admitted) | accepted, absent from the result | accepted, still there |
-| absent optional member | present as `undefined` | still absent |
+| absent optional member | still absent | still absent |
 | `Object.is(result, input)` | false for containers | true |
+
+```js
+const alice = { name: 'Alice', age: 30, admin: true }
+parse(open(person))(alice)     // ['ok', { name: 'Alice', age: 30 }]
+validate(open(person))(alice)  // ['ok', alice] — the same object, `admin` included
+```
 
 `parse` is the reader for a value coming *in* — from JSON, from a protocol
 frame — where a value built to the schema is what the caller wants next, and
@@ -208,50 +207,3 @@ rather than a reconstruction. A caller holding genuinely untrusted JavaScript
 should convert it to DataJS first — or parse from text, where
 [`../media/json/todo/rtti-parse.md`](../media/json/todo/rtti-parse.md) reads
 against a schema in one pass with no intermediate value at all.
-
-## Schema types
-
-The schema vocabulary is explained one concept per page in
-[the guide's schemas area](./guide/schemas/README.md):
-[constants](./guide/schemas/constants/README.md),
-[primitives](./guide/schemas/primitives/README.md),
-[structs and tuples are closed](./guide/schemas/closed-containers/README.md),
-[open containers](./guide/schemas/open-containers/README.md),
-[absence](./guide/schemas/option/README.md),
-[unions](./guide/schemas/unions/README.md),
-[arrays and records](./guide/schemas/arrays-and-records/README.md) and
-[recursion](./guide/schemas/recursion/README.md).
-
-## Example
-
-```ts
-import { array, open, record, string, number } from './module.f.mjs'
-import { parse } from './parse/module.f.mjs'
-import { validate } from './validate/module.f.mjs'
-import type { Ts } from './ts/types.ts'
-
-const person = { name: string, age: number }
-type Person = Ts<typeof person>
-// { readonly name: string, readonly age: number }
-
-const p = parse(person)
-p({ name: 'Alice', age: 30 })  // ['ok', { name: 'Alice', age: 30 }]
-p({ name: 'Alice' })           // ['error', { path: ['age'], message: 'unexpected value' }]
-
-// Closed: the extra key is a member the schema does not name.
-p({ name: 'Alice', age: 30, admin: true })  // ['error', …]
-
-// `open` admits it, and `parse` still builds only what the schema declares.
-parse(open(person))({ name: 'Alice', age: 30, admin: true })
-// ['ok', { name: 'Alice', age: 30 }]
-
-// `validate` accepts the same values and hands back what it was given.
-const v = validate(open(person))
-const alice = { name: 'Alice', age: 30, admin: true }
-v(alice)      // ['ok', alice] — the same object, `admin` included
-v({ name: 'Alice' })  // ['error', { path: ['age'], message: 'unexpected value' }]
-
-// Recursive schema
-const listOfStrings = array(string)
-parse(listOfStrings)(['a', 'b', 'c'])  // ['ok', ['a', 'b', 'c']]
-```

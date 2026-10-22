@@ -69,7 +69,7 @@ const type1 =
 export const array = type1('array')
 
 /**
- * Constructs a schema that validates `{ readonly[K in string]: Ts<T> }`.
+ * Constructs a schema that validates `{ readonly[K in string]?: Ts<T> }`.
  * @type {_MakeType1<'record'>}
  */
 export const record = type1('record')

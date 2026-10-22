@@ -32,7 +32,8 @@ states for object keys, as the `absentBit` of a member's unit bitset.
 
 The data form says the same thing in its own vocabulary — a bare container's
 `rest` is `never` on both kinds — so `validate(toData(s))` accepts exactly what
-`parse(s)` and `validate(s)` do. `fjs/rtti/validate/proof.f.mjs` runs one acceptance
+`parse(s)` and `validate(s)` do.
+[`validate/proof.f.mjs`](../../../validate/proof.f.mjs) runs one acceptance
 table through all three readers.
 
 **A schema that admits more says so** — see
@@ -53,42 +54,21 @@ positions as it is long and a hole is a position whose schema is `undefined`:
 
 Reading index `0` of `new Array(1)` yields `undefined`, and `undefined` is a
 `Const` schema in its own right, so this is what follows from `Tuple` being
-`readonly Type[]`. `Object.entries` — which skips holes — was the schema-form
-readers' entry list until it disagreed with the data form's `for…of` on exactly
-these rows; `tupleSchemaEntries` in `fjs/rtti/common/module.f.mjs` is now the one place
-that says how a tuple schema is read, and `structSchemaEntries` is its struct
-counterpart. The alternative reading would make `new Array(1)` and `[]` the
+`readonly Type[]`. The other reading would make `new Array(1)` and `[]` the
 same schema while `[undefined]` stayed different from both.
 
-The same rule settles a tuple schema's **non-index** enumerable own properties,
-which are no positions either. `Object.assign([number], { foo: string })`
-declares one position and nothing named `foo`: a tuple is read by index, so the
-entry reading declared `foo` and then matched it against `value[NaN]` — the
-property literally named `NaN`, which no ordinary value carries. The data form
-ignored it all along; now so do the schema-form readers. (On the *value* side
-such a key is an undeclared member like any other, so a bare schema rejects it.)
-
-"By length" is how every schema anyone can write is read; the mechanism is the
-iterator, the same one `containerUnion` walks, so the two agree by construction
-rather than by two rules that happen to coincide. That matters only for a schema
-carrying an overridden `Symbol.iterator` — which FunctionalScript cannot build,
-having neither symbols nor mutation — where reading indices here would put the
-schema-form readers back at odds with the data form.
-
-Nothing about a dense schema changes: on an array with neither holes nor extra
-own properties the two entry lists are identical.
+A tuple schema's **non-index** properties are no positions either:
+`Object.assign([number], { foo: string })` declares one position and nothing
+named `foo`. On the *value* side such a key is an undeclared member like any
+other, so a bare schema rejects it. How the readers walk a tuple schema is in
+[`common`'s README](../../../common/README.md#reading-a-tuple-schema).
 
 ## `Ts<>` renders the closed form exactly
 
-The exact-length tuple `TupleTs` (`fjs/rtti/ts/types.ts`) renders **is** the closed set,
-so the rendering and the schema denote the same values and `validate`'s success
-cast is sound. That was not true while a bare tuple was open, and it is the
-defect this default removes: `validate([42])([42, 'extra'])` used to hand back a
-two-element array whose static type said `.length` was `1`.
-
-An earlier length check, added in #1622 and reverted, was right about the
-behaviour and wrong about the reason — it read `Ts<T>` as the value model rather
-than the other way round. What has changed since is the model.
+The exact-length tuple `TupleTs` ([`ts/types.ts`](../../../ts/types.ts))
+renders **is** the closed set, so the rendering and the schema denote the same
+values and `validate`'s success cast is sound: `validate([42])` never hands
+back an array whose static type says `.length` is `1` while it holds two.
 
 `Struct` is the kind TypeScript cannot render exactly: an object type is
 structurally open, so `StructTs` renders a closed struct as an
@@ -97,24 +77,24 @@ type (the cast stays sound), and the rendered type additionally admits values
 the schema rejects. A static type cannot certify acceptance; that direction is
 the harmless one.
 
-`fjs/rtti/parse/proof.f.mjs` and `fjs/rtti/validate/proof.f.mjs` pin closedness on both kinds.
+[`parse/proof.f.mjs`](../../../parse/proof.f.mjs) and
+[`validate/proof.f.mjs`](../../../validate/proof.f.mjs) pin closedness on both
+kinds.
 
-## Beyond `length`
+## Inherited members
 
-A tuple's members are the indices below `length`, including ones the
-**prototype** supplies rather than the value's own entries — `undeclaredMembers`
-in `fjs/rtti/common/module.f.mjs` walks the range and holds each readable index to the
-schema, which is what keeps `rest([42], string)` from accepting an array whose
-index 1 inherits a number.
-
-An index **at or above** `length` is not answered, on any reader, and no walk
-bounded by the value reaches it: with `Array.prototype[10] = 99`,
-`validate([42])([42])` is `ok` and `v[10]` reads `99`. Neither obvious remedy
-settles it — a prototype-identity check closes only the per-value half, and
-"check the intrinsic" is a realm-wide property that can change between the check
-and the read — so this is a stated caveat rather than a rule, and it applies to
-`array`, `record` and every container schema alike. It is really a question
-about what the FunctionalScript subset assumes of its host.
+The undeclared members a reader looks for are a value's **own** keys, and for
+an array its own indices below `length`. A member only a prototype supplies,
+or an index at or above `length`, is not one of them, so a closed schema does
+not reject it and a `rest` does not check it. A DataJS value inherits only
+what `Object.prototype` and `Array.prototype` supply, so for the values the
+readers are written for the two readings agree
+([what the readers assume of a
+value](../../../README.md#what-the-readers-assume-of-a-value)); a foreign
+value is converted to DataJS at the host boundary before it reaches a reader.
+The one place an inherited member shows is a *declared* name such as
+`toString`, whose presence is asked through the prototype
+([`inherited-declared-member`](../../../todo/inherited-declared-member.md)).
 
 ## Examples
 

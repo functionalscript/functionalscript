@@ -197,9 +197,9 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
 - [`fjs/rtti/parse`](../../../rtti/parse/module.f.mjs) — existing strict
   runtime-value parser whose structural behavior should be reused where possible,
   not changed to add JSON-specific coercion.
-- [`fjs/rtti/README.md`](../../../rtti/README.md) — the schema-form
-  `validate` has been deleted, which makes this parser the answer for callers
-  reading JSON text against a schema rather than a convenience. Structs and
+- [`fjs/rtti/README.md`](../../../rtti/README.md) — `parse` and `validate`
+  both read a value that is already materialized, so this parser stays the
+  answer for callers reading JSON text against a schema in one pass. Structs and
   tuples are **closed** there, so the "drop extra struct fields/tuple elements
   where the current parser does" behavior this task inherits is what `open(c)`
   now buys rather than what a bare schema gives: a bare one *errors* on an

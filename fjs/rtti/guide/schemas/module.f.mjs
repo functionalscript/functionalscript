@@ -18,7 +18,7 @@ import { lessons as openContainers } from './open-containers/sample.f.mjs'
 import { lessons as unions } from './unions/sample.f.mjs'
 import { lessons as arraysAndRecords } from './arrays-and-records/sample.f.mjs'
 import { recursion, sharedParts } from './recursion/sample.f.mjs'
-import { lessons as constants } from './constants/sample.f.mjs'
+import { signedZero, taggedUnion } from './constants/sample.f.mjs'
 import { lessons as primitives } from './primitives/sample.f.mjs'
 
 /** @type {readonly DemoExample[]} */
@@ -27,9 +27,10 @@ export const lessons = [
     ...option,
     ...openContainers,
     ...unions,
+    signedZero,
     sharedParts,
     ...arraysAndRecords,
     recursion,
-    ...constants,
+    taggedUnion,
     ...primitives,
 ]

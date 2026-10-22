@@ -31,11 +31,14 @@ Inside a recursive definition a constant is written as a thunk,
 
 ## Examples
 
-The demo on this page runs the *Tagged union* lesson:
+The demo on this page runs two lessons. *Zero and minus zero* is a pair: the
+value `-0` is refused by the schema `0` and accepted by the schema `-0`; type
+`export default 0;` to see the answers swap. *Tagged union* is
 `or({ kind: 'circle', r: number }, { kind: 'square', side: number })` against
-`{"kind":"circle","r":1}`. Change the kind to `"triangle"`, or give the
-circle a `side`, to see both readers refuse it. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
-[module page's demo](../../../README.md) lists it among all the others.
+`{"kind":"circle","r":1}`; change the kind to `"triangle"`, or give the
+circle a `side`, to see both readers refuse it. The lessons are defined in
+[`sample.f.mjs`](./sample.f.mjs), and the
+[module page's demo](../../../README.md) lists them among all the others.
 
 ## Reference
 
