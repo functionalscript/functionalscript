@@ -164,6 +164,10 @@ export const proof = {
         // a link the page cannot resolve leaves the cell's words
         assert(text.includes('<strong>Related: </strong>out</div>'), text)
         assert(text.includes('<a href="/spec/todo/3380-promise.md">promise</a>'), text)
+        const readmes = shown(loaded(register.replace('open (related: [promise](./3380-promise.md))', 'open ([register](./README.md), [nested](./blocked/README.md), [spec](../README.md))')))
+        assert(readmes.includes('<a href="/spec/todo/README.md">register</a>'), readmes)
+        assert(readmes.includes('<a href="/spec/todo/blocked/README.md">nested</a>'), readmes)
+        assert(readmes.includes('<a href="/spec/index.html">spec</a>'), readmes)
         assert(!text.includes('id="op.in"'), text)
         assert(shown(loaded('1. a\n')).includes('is not read here'))
         assert(!htmlToString(undecidedDemo({}).view(loaded(register))).includes('no longer open'))

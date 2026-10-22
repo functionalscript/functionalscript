@@ -38,6 +38,7 @@ import { virtualAt } from '../../fjs/effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../fjs/text/module.f.mjs'
 import { loadedView } from '../../fjs/nanvm/demos/page/module.f.mjs'
 import { caption } from '../../fjs/website/demo/module.f.mjs'
+import { isTodoDir } from '../../fjs/website/module.f.mjs'
 import { readmeNodes, resolveHref } from '../../fjs/website/readme/module.f.mjs'
 import { codeMarker, registerRowMarker, resultMarker, undecidedMarker } from '../../fjs/website/style/module.f.js'
 import { samples } from './samples.f.mjs'
@@ -142,11 +143,12 @@ export const verdict = (id, sample) => {
 
 /**
  * Where a link in a register cell goes: as the register's README page would
- * send it, a directory to its page and a file to the file.
+ * send it, a directory to its page and a file to the file. TODO directories
+ * have no generated page, so their README links keep pointing to the file.
  *
  * @type {(href: string) => Result<string, string>}
  */
-const cellHref = resolveHref(null)(path => !basename(path).includes('.'))(parent(registerPath))
+const cellHref = resolveHref(null)(path => !isTodoDir(path) && !basename(path).includes('.'))(parent(registerPath))
 
 /** A register cell, as its README would render it, or its words where it cannot. @type {(cell: Entry) => readonly Node[]} */
 const cellNodes = cell => {

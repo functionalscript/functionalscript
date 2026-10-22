@@ -556,7 +556,7 @@ const prerenderDemos = paths => foldStep(
  *
  * @type {(path: string) => boolean}
  */
-const isTodoDir = path => path.split('/').includes('todo')
+export const isTodoDir = path => path.split('/').includes('todo')
 
 /**
  * Whether a demo lives at `path` or anywhere under it — what marks a
