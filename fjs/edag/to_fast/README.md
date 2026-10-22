@@ -27,6 +27,12 @@ definition invocation-local memo storage, demanded on its first executed read.
 A failed initializer does not mark its storage complete. A loop recreates its
 iteration-local definitions and capture snapshots each iteration.
 
+An enclosing binding already owns its established callee or capture value.
+Nested regions read that binding instead of declaring the same nominal identity
+again. Explicit comma demands retain their evaluation through a fresh discarded
+binder where needed. This keeps generated declarations valid and preserves the
+captured allocation's identity.
+
 A value shared across otherwise separate lazy regions may instead be repeated
 when every operation reachable from it is `mergeable` and none is a comma.
 This transitive check stops at values already established eagerly or by an

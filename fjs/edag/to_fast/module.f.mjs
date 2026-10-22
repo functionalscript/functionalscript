@@ -219,7 +219,8 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             const callee = node[1]
             return callee instanceof Array && !isRead(a.nodes[callee[1]]) ? [callee[1]] : []
         })
-        const required = [...new Set([...shared.filter(i => eager.includes(i)), ...captured, ...recursive, ...called])]
+        // A callee or capture can already be established in an enclosing scope.
+        const required = [...new Set([...shared.filter(i => eager.includes(i)), ...captured, ...recursive, ...called])].filter(i => !bound.includes(i))
         const lazy = shared.filter(i => promoted.includes(i) && !required.includes(i))
         const owned = [...required, ...lazy].toSorted((x, y) => x - y)
         const available = [...bound, ...owned]

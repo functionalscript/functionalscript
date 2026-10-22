@@ -1034,6 +1034,20 @@ export const proof = {
         refuses(f(['?.', a, 'b', ['|.', 'push', ['|()', []]]]), 'a prohibited member function')
         refuses(f(['?.()', a, [1], ['|.', 'at']]), 'a prohibited property name')
     },
+    enclosingLazyBindings: () => {
+        for (const condition of [false, true]) {
+            const sources = [
+                `const f=()=>1;export default [${condition}&&f(),f];`,
+                `const a=[];const f=()=>a;export default [${condition}&&f(),a,f];`,
+            ]
+            for (const source of sources) {
+                const graph = _defaultExport(unresolved(assertOk(parse(path)(source))).edag)
+                // Reparse even the untaken arm: a duplicate local declaration
+                // must not shadow the outer callee or its captured allocation.
+                reads(graph)
+            }
+        }
+    },
     continuedArguments: () => {
         const array = /** @type {const} */ (['[]', []])
         const pair = /** @type {const} */ (['[]', [array, array]])
