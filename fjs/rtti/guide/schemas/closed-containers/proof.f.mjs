@@ -21,16 +21,10 @@ export const proof = {
             assertStructurallySame(assertOk(parse([number, or(option, string)])([42])), [42])
         },
         requiredPosition: () => assert(!admits([42], [])),
-        // A hole past the prefix is checked by length.
-        holePastPrefix: () => assert(!admits([42], [42, ,])),
     },
-    // The table under "A hole is a declared position".
-    holes: {
-        hole: () => assert(admits(new Array(1), [undefined])),
-        holeTooLong: () => assert(!admits(new Array(1), [1, 2, 3])),
-        leadingHole: () => assert(admits([, number], [undefined, 5])),
-        leadingHoleHeld: () => assert(!admits([, number], [9, 5])),
-    },
+    // The sparse arrays the page talks about (a hole past the prefix, the
+    // table under "A hole is a declared position") are host-made, so they are
+    // pinned in `../../../validate/proof.f.mjs`'s agreement table, not here.
     // The demo opens on the page's first lesson and draws it.
     demo: drawsFirst(lessons, demo),
 }
