@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = '1'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "// @ts-expect-error: TypeScript refuses the second operand too\nexport default Number(\"1\", 2);\n"
+
 export const demo = refusedDemo({ directory: 'spec/conversions/operands', answer, alternative, suggestion })

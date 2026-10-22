@@ -1,17 +1,14 @@
 /**
- * Host proof of the page's JavaScript answer. `sample.mjs` is no
- * FunctionalScript, so no FunctionalScript module imports it; this host proof
- * does, and holds the answer [`demo.f.mjs`](./demo.f.mjs) states to the
- * sample's default export.
+ * Host proof of the page's files ([`hostProof`](../../../fjs/compiler/refused_demo/host.mjs)):
+ * `sample.mjs` is no FunctionalScript, so no FunctionalScript module imports
+ * it; this host proof does. Bun gives a module's `this` an object, where
+ * the standard gives `undefined` (README.md).
  *
  * @module
  */
 
-import { assert } from '../../../fjs/asserts/module.f.js'
+import { hostProof } from '../../../fjs/compiler/refused_demo/host.mjs'
 import sample from './sample.mjs'
-import { answer } from './demo.f.mjs'
+import * as page from './demo.f.mjs'
 
-export const proof = {
-    // Bun gives a module's `this` an object, where the standard gives `undefined` (README.md).
-    answer: () => assert(String(sample) === answer || String(sample) === 'object', String(sample)),
-}
+export const proof = hostProof(import.meta.url, sample, page, ['object'])

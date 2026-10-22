@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = 'one'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "/** @type {(n: number) => string} */\nconst name = n => {\n    switch (n) {\n        default: { return \"many\"; }\n        case 1: { return \"one\"; }\n    }\n};\nexport default name(1);\n"
+
 export const demo = refusedDemo({ directory: 'spec/control-flow/switch/default-position', answer, alternative, suggestion })

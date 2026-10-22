@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = '3'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "export default [1, , 2].length;\n"
+
 export const demo = refusedDemo({ directory: 'spec/values/arrays/holes', answer, alternative, suggestion })

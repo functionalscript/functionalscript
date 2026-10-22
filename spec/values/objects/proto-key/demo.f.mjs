@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = 'true'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "export default { __proto__: [] } instanceof Array;\n"
+
 export const demo = refusedDemo({ directory: 'spec/values/objects/proto-key', answer, alternative, suggestion })

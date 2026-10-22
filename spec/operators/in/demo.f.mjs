@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = 'true'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = 'export default "toString" in {};\n'
+
 export const demo = refusedDemo({ directory: 'spec/operators/in', answer, alternative, suggestion })

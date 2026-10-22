@@ -1,10 +1,7 @@
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { report, suggestedText } from '../../../../fjs/compiler/refused_demo/module.f.mjs'
 import alternative from './alternative.f.js'
-import { demo, suggestion } from './demo.f.mjs'
-
-/** The text of `sample.mjs`. */
-const sample = "/** @type {(n: number) => string} */\nconst name = n => {\n    switch (n) {\n        default: { return \"many\"; }\n        case 1: { return \"one\"; }\n    }\n};\nexport default name(1);\n"
+import { demo, sample, suggestion } from './demo.f.mjs'
 
 export const proof = {
     // `st.switch-default` (spec/todo/refused-constructs.md): the message and the position.

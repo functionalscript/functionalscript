@@ -1,10 +1,7 @@
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.js'
 import { report, suggestedText } from '../../../../fjs/compiler/refused_demo/module.f.mjs'
 import alternative from './alternative.f.js'
-import { demo, suggestion } from './demo.f.mjs'
-
-/** The text of `sample.mjs`. */
-const sample = "export default [] instanceof Map;\n"
+import { demo, sample, suggestion } from './demo.f.mjs'
 
 export const proof = {
     // `op.instanceof` (spec/todo/refused-constructs.md): the message and the position.

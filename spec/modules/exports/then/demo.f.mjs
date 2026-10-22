@@ -33,4 +33,10 @@ export const suggestion = {
  */
 export const answer = '0'
 
+/**
+ * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
+ * for. The host proof, `proof.mjs`, holds it to the file.
+ */
+export const sample = "/** @type {(resolve: (value: number) => void) => void} */\nexport const then = resolve => resolve(1);\nexport default 0;\n"
+
 export const demo = refusedDemo({ directory: 'spec/modules/exports/then', answer, alternative, suggestion })
