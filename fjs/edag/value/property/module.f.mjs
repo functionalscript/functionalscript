@@ -28,7 +28,7 @@ import { arrayIndex } from '../../../js/array_index/module.f.js'
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
 import { intrinsicLength, isIntrinsic, isStatic, noStatic } from '../../module.f.mjs'
-import { isFunction } from '../semantics/module.f.mjs'
+import { isFunction, tagUndefined } from '../semantics/module.f.mjs'
 import { call } from '../call/module.f.mjs'
 
 /**
@@ -48,7 +48,7 @@ const elementOf = (values, key) => {
 /** The element `key` names, or tagged undefined. @type {(values: Values | string, key: string) => ValueResult} */
 const element = (values, key) => {
     const found = elementOf(values, key)
-    return ok(found === undefined ? ['undefined'] : found)
+    return ok(tagUndefined(found))
 }
 
 /** An element, or the `length` an array and a string own beside their elements. @type {(values: Values | string, key: string) => ValueResult} */
@@ -163,7 +163,7 @@ const entryOf = (receiver, key) => {
 export const entry = (receiver, key) => {
     if (receiver === null || (isArray(receiver) && receiver[0] === 'undefined')) { return error(['undefined']) }
     const found = entryOf(receiver, key)
-    return ok(found === undefined ? ['undefined'] : found)
+    return ok(tagUndefined(found))
 }
 
 /**

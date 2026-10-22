@@ -45,8 +45,7 @@ import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { isBareDrive, isDriveRoot, under } from '../../path/module.f.mjs'
 import { isWellFormed } from '../../text/utf16/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
-import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { cString } from '../bytes/module.f.js'
 
 /** What a `.git` file says before the directory it names. */
@@ -91,7 +90,7 @@ const here = /** @type {const} */ ('.')
  * @type {(v: Vec) => { readonly raw: number, readonly size: number, readonly text: Nullable<string> }}
  */
 const read = v => {
-    const bs = toArray(u8ListMsb(v))
+    const bs = u8ArrayMsb(v)
     const end = bs.slice(0, bs.findLastIndex(b => b !== 0x0A && b !== 0x0D) + 1)
     return {
         raw: bs.length,

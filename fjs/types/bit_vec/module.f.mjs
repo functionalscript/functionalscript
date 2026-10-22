@@ -31,7 +31,7 @@
 
 import { bitLength, divUp, mask, maxLength, roundUp8, xor } from '../bigint/module.f.mjs'
 import { compose, flip, identity } from '../function/module.f.js'
-import { map, next } from '../list/module.f.mjs'
+import { map, next, toArray } from '../list/module.f.mjs'
 import { isByte } from '../number/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
 import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
@@ -689,6 +689,14 @@ export const u8List = bo =>
  * @type {(v: Vec) => Thunk<number>}
  */
 export const u8ListMsb = u8List(msb)
+
+/**
+ * {@link u8ListMsb}'s bytes as an array, for a caller that holds them all
+ * at once: a header to cut, a fixture to compare, a block to fold.
+ *
+ * @type {(v: Vec) => readonly number[]}
+ */
+export const u8ArrayMsb = v => toArray(u8ListMsb(v))
 
 /**
  * `v` cut for padding to a multiple of `block` bits with a terminator — a `1`

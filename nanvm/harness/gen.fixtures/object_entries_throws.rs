@@ -4,10 +4,8 @@ use nanvm_lib::vm::unstable::{spread_entries, spread_object, static_read, string
 use nanvm_lib::vm::{Any, IVm, Nullish, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = spread_object([spread_entries(Nullish::Null.to_any())]);
-    let c1: Any<A> = static_read(&runtime, "Object.entries")?;
-    let c2: Any<A> = Any::call(c1, [Nullish::Null.to_any()].to_array().to_any())?;
-    let c3: Any<A> = [c0, c2].to_array().to_any();
-    Ok([(string_key("default"), c3)].to_object().to_any())
+    let _b1: Any<A> = (static_read(&runtime, "Object.entries"))?;
+    Ok([(string_key("default"), [spread_object([spread_entries(Nullish::Null.to_any())]), (Any::call(_b1.clone(), [Nullish::Null.to_any()].to_array().to_any()))?].to_array().to_any())].to_object().to_any())
 }

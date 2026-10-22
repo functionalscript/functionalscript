@@ -239,9 +239,9 @@ export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
  *
  * **The exact length is the model, not an approximation of it.** A bare tuple
  * schema is *closed* — the positions it declares and no others (see "Structs
- * and tuples are closed" in `../README.md`) — which is what a TypeScript tuple
- * already means, so this rendering and the schema denote the same set and
- * `validate`'s success cast is sound. A schema admitting more says so, and
+ * and tuples are closed" in `../guide/schemas/closed-containers/README.md`) —
+ * which is what a TypeScript tuple already means, so this rendering and the
+ * schema denote the same set and `validate`'s success cast is sound. A schema admitting more says so, and
  * {@link RestTs} renders the tail it says it with.
  */
 type MappedTs<T extends Tuple> = Extract<{ readonly[K in keyof T]: Ts<T[K]> }, readonly unknown[]>

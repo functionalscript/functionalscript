@@ -6,9 +6,9 @@ An expression is a data expression, a property access, a function, a call, an
 operator ([operators](../operators/README.md)) — a prefix `-` (negation), `~` (bitwise
 not), `!` (logical not) or `typeof`, a binary operator, `instanceof Array`
 or the conditional `?:` — the conversions `Number(exp)`
-([number conversion](../conversions/number.md)) and `String(exp)`
-([string conversion](../conversions/string.md)), or any of those in parentheses
-([grouping](../operators/grouping.md)).
+([number conversion](../conversions/number/README.md)) and `String(exp)`
+([string conversion](../conversions/string/README.md)), or any of those in parentheses
+([grouping](../operators/grouping/README.md)).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -26,7 +26,7 @@ or the conditional `?:` — the conversions `Number(exp)`
 
 A reference is a name in scope — an `import`, a module or body `const`, or a
 function parameter — and denotes the value that name holds
-([shared values](../bindings/constants.md), [functions](../functions/README.md)). It is
+([shared values](../bindings/constants/README.md), [functions](../functions/README.md)). It is
 not a kind of value of its own: what a reference denotes is one of the types
 above, and what makes it worth writing is that two references can denote the
 *same* value.
@@ -41,16 +41,24 @@ reference reaches it, as `JSON.stringify` writes it ([output](../command-line/ou
 
 ## Pages
 
-- [Numbers](./numbers.md)
-- [Bigints](./bigints.md)
-- [Strings](./strings.md)
-- [Template Literals](./template-literals.md)
-- [Arrays](./arrays.md)
-- [Objects](./objects.md)
+- [Numbers](./numbers/README.md)
+- [Bigints](./bigints/README.md)
+- [Strings](./strings/README.md)
+- [Template Literals](./template-literals/README.md)
+- [Arrays](./arrays/README.md)
+- [Objects](./objects/README.md)
 
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.
+
+The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
+example as a function of one number — one of each kind of value: a number, a
+string, a boolean, `null`, an array, and `typeof` a `bigint` — with every
+output `fjs compile` makes of it: the expression graph (EDAG), the Rust and
+the WebAssembly that Rust builds to. Its Run button calls the default export
+with `1` and `2`, as JavaScript and as WebAssembly, and shows what each call
+returned or threw.
 
 ## Reference
 

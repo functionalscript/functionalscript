@@ -771,8 +771,24 @@ mod tests {
         assert!(o().to_boolean());
         assert_eq!(!o(), Ok(false.to_any()));
         assert_eq!(o().typeof_(), Ok(s("object")));
-        assert_eq!(o().logical_and(|| Ok(1.0.to_any())), Ok(1.0.to_any()));
-        assert!(o().logical_or(|| Ok(1.0.to_any())).is_ok());
+        let and_condition = o();
+        assert_eq!(
+            Any::conditional(
+                and_condition.clone(),
+                || Ok(1.0.to_any()),
+                || Ok(and_condition)
+            ),
+            Ok(1.0.to_any())
+        );
+        let or_condition = o();
+        assert!(
+            Any::conditional(
+                or_condition.clone(),
+                || Ok(or_condition),
+                || Ok(1.0.to_any())
+            )
+            .is_ok()
+        );
         // an absent entry reads as `undefined`
         assert_eq!(o().entry(s("a")), Ok(Any::undefined()));
         // `===` compares by identity.

@@ -22,7 +22,7 @@
  * @module
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
- * @import { Element } from '../html/types.ts'
+ * @import { Element, Node } from '../html/types.ts'
  * @import { Entry, Inline } from './types.ts'
  */
 
@@ -37,10 +37,13 @@ import { tryParse } from './module.f.mjs'
 const spanView = span => {
     const kind = span[0]
     if (kind === 'code') { return ['li', ['code', kind], ' ', ['code', span[1]]] }
-    if (kind === 'strong') { return ['li', ['code', kind], ' ', ['strong', span[1]]] }
-    if (kind === 'em') { return ['li', ['code', kind], ' ', ['em', span[1]]] }
+    /** @type {readonly Node[]} */
+    const label = kind === 'text' ? []
+        : span[1].map(l => l[0] === 'code' ? /** @type {Node} */(['code', l[1]]) : l[1])
+    if (kind === 'strong') { return ['li', ['code', kind], ' ', ['strong', ...label]] }
+    if (kind === 'em') { return ['li', ['code', kind], ' ', ['em', ...label]] }
     if (kind === 'link') {
-        return ['li', ['code', kind], ' ', ['a', { href: span[2] }, span[1]], ' → ', ['code', span[2]]]
+        return ['li', ['code', kind], ' ', ['a', { href: span[2] }, ...label], ' → ', ['code', span[2]]]
     }
     return ['li', ['code', kind], ' ', span[1]]
 }

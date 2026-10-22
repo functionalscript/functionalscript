@@ -55,6 +55,7 @@
  */
 
 import { utf8 } from '../text/module.f.mjs'
+import { codePoints } from '../text/ascii/module.f.js'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
@@ -65,11 +66,12 @@ import { contains, empty as noPaths, set as addPath, values as paths } from '../
 import { toArray } from '../types/list/module.f.mjs'
 import { catch_, import_, log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
-import { tryParse } from '../media/markdown/module.f.mjs'
+import { tryParse, tryParseBlocks } from '../media/markdown/module.f.mjs'
+import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/module.f.mjs'
 import { pageRefusal } from '../media/html/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
-import { changelogDir, cliDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, cliDir, demoSection, directoryLayout, fileHref, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
@@ -101,6 +103,7 @@ import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir
  */
 const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(dir)(testsMain(
     ['h1', 'FunctionalScript'],
+    ...dir.readme,
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
     ...testSection(dir)([
         ['p',
@@ -554,7 +557,7 @@ const prerenderDemos = paths => foldStep(
  *
  * @type {(path: string) => boolean}
  */
-const isTodoDir = path => path.split('/').includes('todo')
+export const isTodoDir = path => path.split('/').includes('todo')
 
 /**
  * Whether a demo lives at `path` or anywhere under it — what marks a
@@ -632,6 +635,7 @@ const toDir = issues => crates => proofs => demos => walked => {
         todo: issues.flatMap(({ path, header }) =>
             path.startsWith(todo) ? [{ name: path.slice(todo.length), ...header }] : []),
         proofs: subtree(walked.path)(proofs),
+        readme: [],
         demo: at(walked.path)(demos),
         api: crates.includes(walked.path) ? crateHref(crateOf(walked.path)) : null,
         apiIndex: dirs.some(name => crates.includes(pathConcat(walked.path)(name))) ? cargoDocHref : null,
@@ -803,6 +807,26 @@ const writeCargoDocIndex = build => crates => {
 }
 
 /**
+ * A directory's `README.md` as the top of its page, or nothing where it has
+ * none ([`./readme`](./readme/module.f.mjs)).
+ *
+ * **A README the reader refuses is a note on its page, not a failed build.**
+ * A release file's author can rewrite an entry the reader refuses; a README
+ * is written for GitHub first, and its directory's page is still worth
+ * having without it.
+ *
+ * @type {(commit: string | null) => (isPage: (path: string) => boolean) => (dir: Dir) => Effect<ReadFile, readonly Element[], IoChannel>}
+ */
+const readReadme = commit => isPage => dir => {
+    if (!dir.files.includes(readmeName)) { return pureOk([]) }
+    return step(readUtf8File(pathConcat(dir.path)(readmeName)), text => {
+        const blocks = tryParseBlocks(text)
+        return pureOk(readmeSection(fileHref(commit)(dir.path)(readmeName))(
+            blocks[0] === 'error' ? blocks : readmeNodes(resolveHref(commit)(isPage)(dir.path))(blocks[1])))
+    })
+}
+
+/**
  * One `index.html` per directory, so the tree is walkable from the root.
  *
  * The root's page is the site's own — it carries the heading and the test
@@ -815,10 +839,16 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
     const dirs = tree
         .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
         .map(toDir(issues)(crateDirs(tree)(crates))(proofs)(demos))
+    const pages = [...dirs.map(dir => dir.path), changelogDir, prsDir, cliDir, ...(crates.length === 0 ? [] : [cargoDocDir])]
+        .reduce(/** @type {(set: StringSet, path: string) => StringSet} */((set, path) => addPath(path)(set)), noPaths)
+    /** @type {(path: string) => boolean} */
+    const isPage = path => contains(path)(pages)
     return step(
-        forEachStep(pureOk(dirs), dir => writeUtf8File(
-            pagePath(dir.path),
-            dir.path === '.' ? rootPage(build)(dir) : page(build)(dir))),
+        forEachStep(pureOk(dirs), dir => step(
+            readReadme(build.commit)(isPage)(dir),
+            readme => writeUtf8File(
+                pagePath(dir.path),
+                dir.path === '.' ? rootPage(build)({ ...dir, readme }) : page(build)({ ...dir, readme })))),
         () => log(`directory pages: ${dirs.length}, issues: ${issues.length}`))
 })
 
@@ -841,12 +871,12 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
 const commitOf = env => {
     const value = env.WORKERS_CI_COMMIT_SHA
     if (value === undefined) { return null }
-    const units = value.split('').map(c => c.charCodeAt(0))
+    const points = codePoints(value)
     // `tryFromHex` reads bytes and throws on anything wider; an environment
-    // variable can hold any text, so a wider unit is refused before it gets
-    // there.
-    if (units.some(u => u > 0x7f)) { return null }
-    const id = tryFromHexOf(20)(units)
+    // variable can hold any text, so a wider code point is refused before it
+    // gets there.
+    if (points.some(c => c > 0x7f)) { return null }
+    const id = tryFromHexOf(20)(points)
     return id === null ? null : hexText(id)
 }
 

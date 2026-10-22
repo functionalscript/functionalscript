@@ -26,6 +26,14 @@ const at = s => i => {
 /** Returns the code point value of the first character in a string. @type {(s: string) => number} */
 export const one = s => at(s)(0)
 
+/**
+ * The code points of a string, one per character: the run the digit
+ * readers below take, so that no caller spells the conversion itself.
+ *
+ * @type {(s: string) => readonly number[]}
+ */
+export const codePoints = s => [...s].map(one)
+
 /** Returns an inclusive code point range from the first two characters in a string. @type {(s: string) => Range} */
 export const range = s => {
     const f = at(s)
@@ -385,6 +393,14 @@ export const digitsValue = radix => {
         ? digits.reduce((n, d) => n * radix + bigint(d - digit0), 0n)
         : null
 }
+
+/**
+ * The number a run of decimal digits spells: {@link digitsValue} for radix
+ * 10, the one every decimal reader asks for.
+ *
+ * @type {(digits: readonly number[]) => Nullable<bigint>}
+ */
+export const decimalValue = digitsValue(10n)
 
 /**
  * The number a run of hexadecimal digits spells, `0-9`, `a-f` and `A-F`

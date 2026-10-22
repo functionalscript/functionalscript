@@ -9,7 +9,8 @@
  * @import { Out } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
+import { decode } from '../../../basen/base16/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
@@ -32,13 +33,13 @@ const refused = (text, message) => assertStructurallySame(tryParse(text), ['erro
 
 /**
  * A byte document, written the way the corpus writes one: lowercase hex
- * pairs separated by single spaces, so a case reads as the bytes it is. The
- * empty string is no pairs rather than one empty pair, which is how a case
- * spells the empty input.
+ * pairs separated by single spaces, so a case reads as the bytes it is. Each
+ * pair is read by `fjs/basen/base16`; the empty string splits into one empty
+ * pair, which is no bytes, so it spells the empty input.
  *
  * @type {(hex: string) => readonly number[]}
  */
-const bytesOf = hex => hex === '' ? [] : hex.split(' ').map(pair => parseInt(pair, 16))
+const bytesOf = hex => hex.split(' ').flatMap(pair => assertNotNullish(decode(pair)))
 
 /** The value bytes spell, where they spell one. @type {(hex: string) => Unknown} */
 const parsedBytes = hex => unwrap(tryParseBytes(bytesOf(hex)))

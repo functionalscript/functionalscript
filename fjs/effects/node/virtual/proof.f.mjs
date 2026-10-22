@@ -10,13 +10,13 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assertIoMessage } from '../../testlib.f.js'
 import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.mjs'
 import { empty as endOfBody, nonEmpty } from '../../list/module.f.mjs'
 import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.js'
-import { byteLength, repeat, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { byteLength, repeat, u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual, virtualAt } from './module.f.mjs'
@@ -188,15 +188,6 @@ const pulled = one => one[0] === 'error'
 const assertIoCode = (e, code) => {
     assert(e[0] === 'ioError', e)
     assertEq(e[1].code, code)
-}
-
-/**
- * Asserts that a channel error is a host failure carrying `message`.
- * @type {(e: IoChannel, message: string) => void}
- */
-const assertIoMessage = (e, message) => {
-    assert(e[0] === 'ioError', e)
-    assertEq(e[1].message, message)
 }
 
 /** @type {(name: string) => (parent: string | null) => import('../types.ts').IoResult<import('../types.ts').FileModule>} */
@@ -1790,8 +1781,8 @@ export const proof = {
             // By length and then by the first byte that differs: a body of
             // three hundred chunks printed whole names nothing a reader can act
             // on, where an index names where the order went wrong.
-            const got = r.body.flatMap(v => toArray(u8ListMsb(v)))
-            const sent = chunks.flatMap(v => toArray(u8ListMsb(v)))
+            const got = r.body.flatMap(v => u8ArrayMsb(v))
+            const sent = chunks.flatMap(v => u8ArrayMsb(v))
             assertEq(got.length, sent.length)
             assertEq(got.findIndex((b, i) => b !== sent[i]), -1)
             // Drained: nothing left to hand out, and the cursor is at the end.

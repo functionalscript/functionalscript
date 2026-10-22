@@ -8,7 +8,7 @@
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { byteLength, empty, isVec, maxLengthBytes, u8ArrayMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8 } from "../../text/module.f.mjs"
 import { utf8ToString } from "../../text/utf8/module.f.mjs"
 import { match } from "../module.f.mjs"
@@ -18,6 +18,7 @@ import { create as memCreate, read as memRead, write as memWrite } from "../memo
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual, virtualAt } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assertIoMessage } from '../testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { toArray } from '../../types/list/module.f.mjs'
 import { min } from '../../types/number/min/module.f.js'
@@ -34,17 +35,6 @@ const readHelloMap = {
 }
 
 const readHello = match(readHelloMap)
-
-/**
- * Asserts that a channel error is a host failure carrying `message`. Every
- * runner reports through the same normalized {@link IoError}, so a proof
- * against the virtual filesystem names the message rather than the shape.
- * @type {(e: IoChannel, message: string) => void}
- */
-const assertIoMessage = (e, message) => {
-    assert(e[0] === 'ioError', e)
-    assertEq(e[1].message, message)
-}
 
 /** `n` zero bytes as a `Vec`.
  * @type {(n: number) => Vec} */
@@ -797,7 +787,7 @@ export const proof = {
                 assert(t === 'ok', result)
                 assertStructurallySame(
                     toArray(/** @type {List<number>} */ (result)),
-                    chunks.flatMap(v => toArray(u8ListMsb(v))))
+                    chunks.flatMap(v => u8ArrayMsb(v)))
             }
         },
         // A whole file is not bounded by a `Vec`, which is the reason the

@@ -2,63 +2,52 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("truthy", Any::dot([f64_any(0x0000000000000000), f64_any(0x3ff0000000000000), string_any(""), string_any("a"), Nullish::Null.to_any(), f64_any(0x4000000000000000)].to_array().to_any(), string_any("filter")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
-        Ok([c0].to_array().to_any())
+    check::<A>("truthy", scope(|| {
+        Any::dot([f64_any(0x0000000000000000), f64_any(0x3ff0000000000000), string_any(""), string_any("a"), Nullish::Null.to_any(), f64_any(0x4000000000000000)].to_array().to_any(), string_any("filter")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b132: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any()))
     }), [f64_any(0x3ff0000000000000), string_any("a"), f64_any(0x4000000000000000)].to_array().to_any());
-    check::<A>("none", Any::dot([f64_any(0x0000000000000000), string_any("")].to_array().to_any(), string_any("filter")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
-        Ok([c0].to_array().to_any())
+    check::<A>("none", scope(|| {
+        Any::dot([f64_any(0x0000000000000000), string_any("")].to_array().to_any(), string_any("filter")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b132: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any()))
     }), Array::default().to_any());
-    check::<A>("empty", Any::dot(Array::default().to_any(), string_any("filter")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
-        Ok([c0].to_array().to_any())
+    check::<A>("empty", scope(|| {
+        Any::dot(Array::default().to_any(), string_any("filter")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b132: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any()))
     }), Array::default().to_any());
-    check::<A>("elementsNotAnswers", Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any(), [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any()].to_array().to_any(), string_any("filter")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
-        Ok([c0].to_array().to_any())
+    check::<A>("elementsNotAnswers", scope(|| {
+        Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any(), [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any()].to_array().to_any(), string_any("filter")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b264: Any<A> = _args.rest(0).to_any();
+            Any::dot((Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }), [[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any());
-    check_throws::<A>("throw", Any::dot([Object::default().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("filter")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
-        Ok([c0].to_array().to_any())
+    check_throws::<A>("throw", scope(|| {
+        Any::dot([Object::default().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("filter")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b218: Any<A> = _args.rest(0).to_any();
+            Any::dot((Any::dot(_b218.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }));
-    check_throws::<A>("filterNotAFunction", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("filter")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
-    check_throws::<A>("filterEmptyNotAFunction", Any::dot(Array::default().to_any(), string_any("filter")).end_call(&rt, || Ok([Nullish::Null.to_any()].to_array().to_any())));
-    check_throws::<A>("filterNoCallback", Any::dot(Array::default().to_any(), string_any("filter")).end_call(&rt, || Ok(Array::default().to_any())));
-    check::<A>("filterThisArg", Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), string_any("filter")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
-        let c1: Any<A> = [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any();
-        Ok([c0, c1].to_array().to_any())
+    check_throws::<A>("filterNotAFunction", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("filter")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }));
+    check_throws::<A>("filterEmptyNotAFunction", scope(|| { Any::dot(Array::default().to_any(), string_any("filter")).end_call(&rt, || Ok([Nullish::Null.to_any()].to_array().to_any())) }));
+    check_throws::<A>("filterNoCallback", scope(|| { Any::dot(Array::default().to_any(), string_any("filter")).end_call(&rt, || Ok(Array::default().to_any())) }));
+    check::<A>("filterThisArg", scope(|| {
+        Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), string_any("filter")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b224: Any<A> = _args.rest(0).to_any();
+            Any::dot((Any::dot(_b224.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any(), [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any()].to_array().to_any()))
     }), [[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any());
-    check_throws::<A>("filterObject", Any::dot(Object::default().to_any(), string_any("filter")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
-        Ok([c0].to_array().to_any())
+    check_throws::<A>("filterObject", scope(|| {
+        Any::dot(Object::default().to_any(), string_any("filter")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b174: Any<A> = _args.rest(0).to_any();
+            Any::dot((Any::dot(_b174.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }));
 }

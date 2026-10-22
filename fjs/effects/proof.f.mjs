@@ -12,6 +12,7 @@ import {
 import { run as mockRun } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.js'
+import { assertIoMessage } from './testlib.f.js'
 
 /**
  * Asserts that `e` reaches `expected` without performing a command.
@@ -171,18 +172,6 @@ const checked = v => {
  * @type {(e: unknown) => string}
  */
 const show = e => `${e}`
-
-/**
- * Asserts that a channel error is a host failure carrying `message`. Every
- * runner reports through the same normalized `IoError`, so a proof names the
- * message rather than the shape.
- *
- * @type {(e: IoChannel, message: string) => void}
- */
-const assertIoMessage = (e, message) => {
-    assert(e[0] === 'ioError', e)
-    assertEq(e[1].message, message)
-}
 
 export const proof = {
     // The one boundary where a runner's `catch` becomes effect data: whatever

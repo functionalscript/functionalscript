@@ -160,7 +160,7 @@ written and whether the import carries `with { type: "json" }` — see
 resolver/loader to validate under the host contract, even on cache hits. Its order
 defines the import parameter positions in `edag`. `edag` is the parameterized computation for the module,
 with the complete module export object as its root/result
-([named and default exports](../../../spec/modules/exports.md)).
+([named and default exports](../../../spec/modules/exports/README.md)).
 
 `Unresolved` is a compiler/loading structure only. It is **not part of EDAG**, and
 import specifiers and resolved loading locations must not be embedded into EDAG
@@ -660,7 +660,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       access is no way around either rule: `(a.b)(c)` keeps the receiver and is
       that same method call, while the detached `(0, a.b)(c)` is the comma
       operator's, the plain call over the access
-      ([comma](../../../spec/operators/comma.md)).
+      ([comma](../../../spec/operators/comma/README.md)).
 - [x] Add proofs for non-capturing nested functions and ordinary/method calls in the
       supported Stage 2 subset, including accepted static/numeric method-call
       properties and rejection of prohibited/runtime-computed string properties. Done:

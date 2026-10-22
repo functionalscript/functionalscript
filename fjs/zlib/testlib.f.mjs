@@ -11,14 +11,12 @@
  * their first, which is the highest.
  *
  * @module
- *
- * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
 import { assert } from '../asserts/module.f.js'
 import { decode } from '../basen/base16/module.f.mjs'
-import { u8ListMsb, u8ListToVecMsb, vec } from '../types/bit_vec/module.f.mjs'
-import { fold, toArray } from '../types/list/module.f.mjs'
+import { u8ListToVecMsb, vec, u8ArrayMsb } from '../types/bit_vec/module.f.mjs'
+import { fold } from '../types/list/module.f.mjs'
 import { append as adlerAppend, init as adlerInit } from './adler32/module.f.mjs'
 
 /** The words a text is made of. */
@@ -57,13 +55,6 @@ export const noise = n => {
 }
 
 /**
- * The bytes a `Vec` holds.
- *
- * @type {(v: Vec) => readonly number[]}
- */
-export const bytesOf = v => toArray(u8ListMsb(v))
-
-/**
  * The bytes a string of hex digits spells, read by `basen/base16`'s
  * `decode`. A fixture that is not hex — an odd count, a stray character —
  * fails the proof that holds it rather than reading as other bytes.
@@ -81,7 +72,7 @@ export const hex = text => {
  *
  * @type {(data: readonly number[]) => readonly number[]}
  */
-export const closing = data => bytesOf(vec(32n)(BigInt(fold(adlerAppend)(adlerInit)(
+export const closing = data => u8ArrayMsb(vec(32n)(BigInt(fold(adlerAppend)(adlerInit)(
     // a `Vec` holds 128 KiB, and the bytes may be more
     Array.from({ length: Math.ceil(data.length / 0xffff) }, (_, i) => u8ListToVecMsb(data.slice(i * 0xffff, (i + 1) * 0xffff)))))))
 
