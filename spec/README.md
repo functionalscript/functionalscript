@@ -88,7 +88,7 @@ output; the others say under *Examples* that theirs are still to come
 
 | Area | Supported today |
 | --- | --- |
-| Modules | Default, named and combined imports; JSON import attributes; local and exported `const`; named and default exports; terminal `throw` |
+| Modules | Default, named and combined imports; JSON import attributes; local and exported `const`, local `let` and assignments; named and default exports; terminal `throw` |
 | Literals | JSON values, `undefined`, `NaN`, infinities and arbitrary-width bigints; decimal, hexadecimal and binary integers; numeric separators; single- and double-quoted strings; untagged template literals |
 | Containers | Dense arrays, object literals, shorthand members, constant and computed keys, trailing commas, array/call spread and object spread |
 | Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |

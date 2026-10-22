@@ -486,16 +486,14 @@ export type Statement = () => readonly ['const', {
     readonly name: BodyNameStatement
 }]
 
-/** A module's call statement: a name, the rest of the value it begins, and {@link End}. */
-export type NameStatement = readonly [typeof assignable, ArrowOrRest, End]
-
 /** A body's statement that begins with a name: the name, then `=` and the assigned value or the rest of the value the name begins, and {@link End}. */
 export type BodyNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [number, Value] }, End]
 
-/** A module's statement before its exports: a `const`, or a call statement. */
+/** A module's statement before its exports: a `const`, a `let`, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {
     readonly const: ConstStatement
-    readonly name: NameStatement
+    readonly let: LetStatement
+    readonly name: BodyNameStatement
 }
 
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
@@ -527,8 +525,15 @@ export type BindingTarget = {
 /** A `const` statement: `const`, what it binds, `=`, the value, and {@link End}. */
 export type ConstStatement = readonly [number, BindingTarget, number, Value, End]
 
-/** A `let` statement: `let`, what it binds, `=`, the value, and {@link End} — the {@link ConstStatement} under the other keyword. */
-export type LetStatement = readonly [number, BindingTarget, number, Value, End]
+/** What a `let` binds: a name with an optional `=` and value, or an array or an object pattern, each with `=` and its value. */
+export type LetTarget = {
+    readonly name: readonly [typeof identifierName, Option<readonly [number, Value]>]
+    readonly array: readonly [ArrayLiteral, number, Value]
+    readonly object: readonly [Container<Entry>, number, Value]
+}
+
+/** A `let` statement: `let`, what it binds and its value, {@link LetTarget}, and {@link End} — the {@link ConstStatement} under the other keyword. */
+export type LetStatement = readonly [number, LetTarget, End]
 
 /**
  * The statement a block ends with: `return` or `throw`, its value, and

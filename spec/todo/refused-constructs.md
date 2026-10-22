@@ -157,7 +157,6 @@ describes:
 | `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../modules/README.md); page: [An Import After an Export Is Refused](../modules/import-after-export/README.md)) |
 | `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../modules/README.md); page: [A `throw` Beside an Export Is Refused](../modules/throw-position/README.md)) |
 | `mod.export-list` | `const a = 1; export { a };` | open (investigated in [export lists](./export-lists.md)) |
-| `mod.let` | `let a = 1;` at module level | planned ([let](./3220-let.md), "General bindings": a module's variables) |
 | `mod.export-let` | `export let a = 1;` | design (an export is a `const`, [variables](../bindings/variables/README.md) being a body's; page: [`export let` Is Refused](../modules/export-let/README.md)) |
 | `mod.reexport` | `export { a } from "m"`, `export * from "m"` | open (whether it belongs is a question in [export lists](./export-lists.md)) |
 | `mod.side-effect-import` | `import "./d";` | open ([named imports](../named-imports.md) leaves it unsupported; no record plans it) |

@@ -15,12 +15,14 @@ export default (...a) => {
 ```
 
 A `let` declares a **variable**: a name an assignment, `x = value;`, may
-rebind. Otherwise it is a `const` under the other keyword — a statement of a
-function body, standing where a `const` stands, in a guard's or a case's
-block and in a loop's block, that binds a name or a pattern
+rebind. Otherwise it is a `const` under the other keyword — a statement
+standing where a `const` stands, in a module, a function body, a guard's or
+a case's block and a loop's block, that binds a name or a pattern
 ([destructuring](../destructuring/README.md)) to the value of its
 initializer, evaluated as its own statement whether or not anything reads
-it ([constants](../constants/README.md)). The name is a name of the body as
+it ([constants](../constants/README.md)). A name may go without one,
+`let x;`: the variable is `undefined` until assigned, as in JavaScript; a
+pattern takes its initializer, as JavaScript's does. The name is a name of the body as
 a `const`'s is: it takes the words a `const` takes, bound twice is
 `duplicate id`, read in its own initializer or before its declaration
 `const not found`, and from outside a nested function it is a capture. A
@@ -69,10 +71,13 @@ parameter is a variable too, fixed or rest.
   itself, `let f = n => n ? f(n - 1) : 0;`, as a `const`'s does, the name
   a capture the rule refuses the moment the variable is assigned anywhere.
 - **The scope is the block.** `let` is not hoisted and has no `var`:
-  `var` is refused ([`var`](../var/README.md)). A `let` with no
-  initializer, `let x;`, and a `let` at module level are not admitted yet
-  ([let](../../todo/3220-let.md), "General bindings"), and a loop steps
-  one variable ([loops](../../control-flow/loops/README.md)).
+  `var` is refused ([`var`](../var/README.md)). A module's `let` is a
+  variable of the module, which is a function
+  ([module structure](../../modules/README.md)), under every rule above;
+  an export is a `const`, so `export let` is refused
+  ([`export let`](../../modules/export-let/README.md)). A loop steps one
+  variable, and none stands at module level yet
+  ([loops](../../control-flow/loops/README.md)).
 
 ## Examples
 

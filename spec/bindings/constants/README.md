@@ -60,8 +60,8 @@ written.
   keep what such a `const` computes, and the value outputs, which write only
   the value, still evaluate it and refuse the module when it fails
   ([output](../../command-line/output.md)).
-- Every ordinary or exported `const` comes after every `import` and before
-  `export default`, when present
+- Every ordinary or exported `const`, and every `let`, comes after every
+  `import` and before `export default`, when present
   ([module structure](../../modules/README.md)).
 - `let` declares a variable, a name an assignment may rebind
   ([variables](../variables/README.md)); `var` is not part of the language

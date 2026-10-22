@@ -36,8 +36,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopStatement, Member, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, NameStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopStatement, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -50,7 +50,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     afterCase, binaryOpTag, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopStatement, member, moduleStatement, nameStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopStatement, member, moduleStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -1261,11 +1261,14 @@ const toStatement = ([kind, branch]) => {
 const discarded = (name, rest, end) =>
     ({ start: name, semicolon: ended(end), target: ['discard', name], value: continued({ fixed: [named(name)], rest: null }, ['ref', name], false, rest) })
 
-/** A call statement, {@link discarded}, as the record a `const` has. @type {(node: Children<NameStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
-const toNameStatement = ([name, rest, end]) => symbol({ id: 'const', statement: discarded(tokenAt(unmapped(name)[1]), rest, end) })
-
-/** A module's statement before its exports, a `const` or a call statement, as the record a `const` has. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
-const toModuleStatement = ([, branch]) => symbol({ id: 'const', statement: constAt(branch) })
+/** A module's statement before its exports, tagged: a `const` or a `let`, the record a `const` has, unexported; or what begins with a name, {@link toBodyNameStatement}, a call statement the record of a `const` that binds nothing. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toModuleStatement = ([kind, branch]) => {
+    if (kind === 'name') {
+        const named = namedAt(branch)
+        return symbol({ id: 'moduleStatement', statement: named[0] === 'assign' ? named : ['const', { declaration: named[1], exported: false }] })
+    }
+    return symbol({ id: 'moduleStatement', statement: [kind, { declaration: constAt(branch), exported: false }] })
+}
 
 /**
  * A body's statement that begins with a name, tagged: the assignment,
@@ -1459,8 +1462,34 @@ const targetOf = ([tag, branch]) => {
 const toConst = ([first, target, , v, end]) =>
     symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(v) } })
 
-/** @type {(node: _Leaf) => ModuleConst} */
-const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
+/** @type {(node: _Leaf) => ModuleStatementRecord} */
+const moduleStatementAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'moduleStatement')
+    return out.statement
+}
+
+/**
+ * A `let` from `let letTarget end`: the record a `const` has, under the
+ * other keyword — a name alone binding `undefined`, as JavaScript's `let x;`
+ * does, the literal the value would spell; it begins at the `let`.
+ *
+ * @type {(node: Children<LetStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toLet = ([first, letTarget, end]) => {
+    const [tag, branch] = unmapped(letTarget)
+    const start = tokenAt(first)
+    if (tag === 'name') {
+        const [name, initializer] = unmapped(branch)
+        const init = unmapped(initializer)
+        /** @type {Node} */
+        const value = init.length === 0 ? ['primitive', undefined] : nodeAt(unmapped(init[0])[1])
+        return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: ['name', tokenAt(unmapped(name)[1])], value } })
+    }
+    const [literal, , v] = unmapped(branch)
+    const [open, list] = unmapped(literal)
+    return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: containerTarget(tag, tokenAt(open), list), value: nodeAt(v) } })
+}
 
 /**
  * What a module ends with: the `throw` that stands in place of its exports,
@@ -1474,37 +1503,37 @@ const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
  */
 const toLast = ([kind, branch]) => {
     if (kind === 'throw') {
-        return symbol({ id: 'last', consts: null, default: null, thrown: valueStatementOf(unmapped(branch)) })
+        return symbol({ id: 'last', statements: null, default: null, thrown: valueStatementOf(unmapped(branch)) })
     }
     const [first, choice] = unmapped(branch)
     const start = tokenAt(first)
     const [which, exported] = unmapped(choice)
     if (which === 'default') {
         const [, v, end] = unmapped(exported)
-        return symbol({ id: 'last', consts: null, default: { start, semicolon: ended(end), first: firstAt(v), value: nodeAt(v) }, thrown: null })
+        return symbol({ id: 'last', statements: null, default: { start, semicolon: ended(end), first: firstAt(v), value: nodeAt(v) }, thrown: null })
     }
-    const [declaration, consts, tail] = unmapped(exported)
+    const [declaration, statements, tail] = unmapped(exported)
     const next = unmapped(tail)
     const rest = next.length === 0 ? null : lastAt(next[0])
     return symbol({
         id: 'last',
-        consts: concat([
-            { declaration: { ...constAt(declaration), start }, exported: true },
-            ...unmapped(consts).map(ordinaryConst),
-        ])(rest === null ? null : rest.consts),
+        statements: concat([
+            /** @type {ModuleStatementRecord} */ (['const', { declaration: { ...constAt(declaration), start }, exported: true }]),
+            ...unmapped(statements).map(moduleStatementAt),
+        ])(rest === null ? null : rest.statements),
         default: rest === null ? null : rest.default,
         thrown: rest === null ? null : rest.thrown,
     })
 }
 
 /** @type {(node: Children<typeof module, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
-const toModule = ([imports, consts, last]) => {
+const toModule = ([imports, statements, last]) => {
     const result = lastAt(last)
     return symbol({
         id: 'module',
         module: {
             imports: unmapped(imports).map(importAt),
-            consts: [...unmapped(consts).map(ordinaryConst), ...toArray(result.consts)],
+            statements: [...unmapped(statements).map(moduleStatementAt), ...toArray(result.statements)],
             exported: result.default,
             thrown: result.thrown,
         },
@@ -1641,9 +1670,7 @@ export const mappings = [
     map(importBindings, toImportBindings),
     map(importStatement, toImport),
     map(constStatement, toConst),
-    // a `let` is the record a `const` is, under the other keyword
-    map(letStatement, toConst),
-    map(nameStatement, toNameStatement),
+    map(letStatement, toLet),
     map(bodyNameStatement, toBodyNameStatement),
     map(moduleStatement, toModuleStatement),
     map(statement, toStatement),

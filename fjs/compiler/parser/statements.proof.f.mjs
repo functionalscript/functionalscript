@@ -96,7 +96,7 @@ export const proof = {
         expectRefused('const x = 1; export default (...a) => { x; return a; };', 'unexpected token', 41)
         expectRefused('const x = 1; export default (...a) => { let r = 0; while (r) { x.y; r = 1; } return r; };', 'unexpected token', 64)
         expectRefused('const x = 1; Number?.(x); export default 1;', 'reserved word', 14)
-        expectRefused('const x = 1; x = 2; export default 1;', 'unexpected token', 16)
+        expectRefused('const x = 1; x = 2; export default 1;', 'assignment to const', 14)
         expectRefused('const x = (...a) => 1; x(1) x(2); export default 1;', 'unexpected token', 29)
         // a statement opening with `(`, `[` or a backtick is not read, since
         // each would continue the statement before it — a backtick as the
@@ -251,11 +251,12 @@ export const proof = {
     ],
     invalidModule:[
         () => {
-            // `module` is not one of the statement keywords
+            // `module` is not one of the statement keywords: a name, which
+            // begins an assignment, after which the module owes an export
             const tokenList = tokenizeString('module=null')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assertEq(obj[1].message, 'unexpected token', obj)
+            assertEq(obj[1].message, 'unexpected end', obj)
         },
         () => {
             // a reference the module never declared, in a value position
