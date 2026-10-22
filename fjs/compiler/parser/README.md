@@ -28,6 +28,9 @@ scalar loops and terminal branches for the common sugar pass. `scope` records in
 execution regions and ordinary source function boundaries. `bindings` is the
 result of one shared `analyzeBindings` pass after that complete scope exists;
 `origins` retains each binding's name, declaration kind and source position.
+Open scopes append their trace events with immutable lists, so another read
+does not copy all preceding reads. Closing a function or region materializes
+its public event array once; a separate count preserves source target indices.
 
 Each declaration gets its own identity even when its initializer aliases an
 existing value. A snapshot of a loop variable is therefore a different source

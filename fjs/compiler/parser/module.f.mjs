@@ -8,7 +8,7 @@
  *
  * @module
  * @import { Result } from '../../types/result/types.ts'
- * @import { BindingEvent, BindingId } from '../../js/ast/types.ts'
+ * @import { BindingEvent, BindingId, BindingScope } from '../../js/ast/types.ts'
  * @import { ExpansionPlan, SourceValue, SourceFunction, SourceParameter, SourceStatement, SourceBlock, SourceImport, SourceModule } from '../../js/ast/sugar/source.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
@@ -228,7 +228,10 @@ const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
 const sourceBinding = index => ({ index })
 
 /** @type {(scope: _Scope, events: readonly BindingEvent[]) => _Scope} */
-const traced = (scope, events) => ({ ...scope, trace: { ...scope.trace, events: [...scope.trace.events, ...events] } })
+const traced = (scope, events) => ({ ...scope, trace: { ...scope.trace, events: concat(scope.trace.events)(events), count: scope.trace.count + events.length } })
+
+/** Materialize ordered evidence once at a source function or region boundary. @type {(scope: _Scope) => BindingScope} */
+const completedTrace = scope => ({ target: scope.trace.target, bindings: scope.trace.bindings, events: toArray(scope.trace.events) })
 
 /** @type {(plan: _Plan, kind: 'const' | 'parameter') => readonly BindingOrigin[]} */
 const planOrigins = (plan, kind) => {
@@ -258,13 +261,13 @@ const initialized = (scope, plan) => traced({
 const moduleScope = () => ({
     names: empty, origins: empty, count: 0, parameters: [], rest: null, enclosing: null, outer: null,
     self: null, selfBinding: null, loop: null, loopReads: [], region: false,
-    trace: { target: { kind: 'function', index: 0 }, bindings: [], events: [] }, sourceOrigins: [],
+    trace: { target: { kind: 'function', index: 0 }, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
 /** A lexical region shares its source function target. @type {(outer: _Scope, names: _Env, enclosing: List<_Env>, loop: string | null) => _Scope} */
 const regionScope = (outer, names, enclosing, loop) => ({
     names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, loop, loopReads: [], region: true,
-    trace: { target: outer.trace.target, bindings: [], events: [] }, sourceOrigins: [],
+    trace: { target: outer.trace.target, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
 /** @type {(scope: _Scope, word: string) => BindingId} */
@@ -1385,7 +1388,7 @@ const templateScope = (scope, node) => {
     } else {
         events = [...events, ...templateReads(node[2], origins)]
     }
-    return traced({ ...scope, sourceOrigins: [...scope.sourceOrigins, ...sourceOrigins] }, [['function', { target: { kind: 'function', index: scope.trace.events.length + 1 }, bindings, events }]])
+    return traced({ ...scope, sourceOrigins: [...scope.sourceOrigins, ...sourceOrigins] }, [['function', { target: { kind: 'function', index: scope.trace.count + 1 }, bindings, events }]])
 }
 
 /**
@@ -1405,12 +1408,12 @@ const entered = (stack, scope, node, self) => {
     const [tag, bound] = functionScope(node[1])
     if (tag === 'error') { return [stack, scope, error(bound)] }
     const { names, count, parameters, rest, late } = bound
-    const target = /** @type {const} */ ({ kind: 'function', index: scope.trace.events.length + 1 })
+    const target = /** @type {const} */ ({ kind: 'function', index: scope.trace.count + 1 })
     /** @type {_Scope} */
     const inner = {
         names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, loop: null, loopReads: [], region: false,
         origins: self === null || at(self[0])(bound.origins) !== null ? bound.origins : setReplace(self[0])(self[1])(bound.origins),
-        trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]) }, sourceOrigins: bound.sourceOrigins,
+        trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]), count: bound.initialized.length }, sourceOrigins: bound.sourceOrigins,
     }
     return lateRound(stack, inner, { late, index: 0, body: node[2] })
 }
@@ -1490,7 +1493,7 @@ const returned = (stack, scope, frame, value) => {
         const restored = restoredScope(scope)
         const passed = scope.loopReads.filter(([word]) => word !== restored.loop && !readsOf(restored.loopReads, word))
         const outer = { ...restored, loopReads: [...restored.loopReads, ...passed] }
-        const loop = { target: /** @type {const} */ ({ kind: 'loop', index: outer.trace.events.length }), variable: frame.binding, condition: frame.condition[0], body }
+        const loop = { target: /** @type {const} */ ({ kind: 'loop', index: outer.trace.count }), variable: frame.binding, condition: frame.condition[0], body }
         return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 2, done: concat(frame.body.done)([['while', loop]]) })
     }
     if ('block' in frame) {
@@ -1640,11 +1643,11 @@ const regionBlock = value => {
 /** Merge complete source evidence at a lexical boundary. @type {(scope: _Scope) => _Scope} */
 const restoredScope = scope => {
     const outer = assertNotNullish(scope.outer, 'a source region without its enclosing scope')
+    const trace = completedTrace(scope)
+    /** @type {BindingEvent} */
+    const event = scope.region ? ['region', trace.events] : ['function', trace]
     return {
-        ...outer,
-        trace: scope.region
-            ? { ...outer.trace, bindings: [...outer.trace.bindings, ...scope.trace.bindings], events: [...outer.trace.events, /** @type {BindingEvent} */ (['region', scope.trace.events])] }
-            : { ...outer.trace, events: [...outer.trace.events, /** @type {BindingEvent} */ (['function', scope.trace])] },
+        ...traced({ ...outer, trace: scope.region ? { ...outer.trace, bindings: [...outer.trace.bindings, ...trace.bindings] } : outer.trace }, [event]),
         sourceOrigins: [...outer.sourceOrigins, ...scope.sourceOrigins],
     }
 }
@@ -1760,7 +1763,10 @@ const extended = env => (word, ref) => setReplace(word)(ref)(env)
 const exportMember = ([name, value]) => [':', name, value]
 
 /** Run shared analysis only after the complete resolved source scope exists. @type {(source: SourceModule, scope: _Scope) => ResolvedModule} */
-const resolvedModule = (source, scope) => ({ ...source, scope: scope.trace, bindings: analyzeBindings(scope.trace), origins: scope.sourceOrigins })
+const resolvedModule = (source, scope) => {
+    const trace = completedTrace(scope)
+    return { ...source, scope: trace, bindings: analyzeBindings(trace), origins: scope.sourceOrigins }
+}
 
 /**
  * Resolve imports and declarations in order, preserving one initialization
