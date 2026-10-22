@@ -50,7 +50,10 @@ export const proof = {
         }
     },
     tag: () => {
-        assertStructurallySame(tagUndefined(undefined), ['undefined'])
+        // a statically `undefined` argument still types as an EdagValue
+        /** @type {EdagValue} */
+        const tagged = tagUndefined(undefined)
+        assertStructurallySame(tagged, ['undefined'])
         assertEq(tagUndefined(null), null)
         assertEq(tagUndefined(0), 0)
         for (const [value] of classifications) {

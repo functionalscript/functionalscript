@@ -26,7 +26,7 @@ export const untagUndefined = value => isArray(value) && value[0] === 'undefined
  * Tags a slot JavaScript reads as `undefined` — a missing argument, element
  * or property — as EDAG's undefined: the inverse of {@link untagUndefined}.
  *
- * @type {<T>(value: T | undefined) => T | readonly ['undefined']}
+ * @type {<T>(value: T) => (T & ({} | null)) | readonly ['undefined']}
  */
 export const tagUndefined = value => value === undefined ? ['undefined'] : value
 
