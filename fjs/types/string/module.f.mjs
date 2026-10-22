@@ -26,6 +26,7 @@ import { compose } from '../function/module.f.js'
 import { cmp as uCmp } from '../function/compare/module.f.mjs'
 import { addition as additionOp, join as joinOp } from '../function/operator/module.f.js'
 import { fold } from '../../common/monoid/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 
 /** @type {Reduce<string>} */
 const _stringAddition = additionOp
@@ -64,9 +65,12 @@ export const splitAt = p => v =>
 
 /**
  * How many times `needle` occurs in `text`, without overlap and from the
- * left, as `split` cuts it: `occurrences('aa')('aaa')` is `1`. `needle` is
- * not empty: an empty one would count the gaps between code units.
+ * left, as `split` cuts it: `occurrences('aa')('aaa')` is `1`. An empty
+ * `needle` is refused: `split` would count the gaps between code units.
  *
  * @type {(needle: string) => (text: string) => number}
  */
-export const occurrences = needle => text => text.split(needle).length - 1
+export const occurrences = needle => {
+    assert(needle !== '', 'occurrences: the needle is empty')
+    return text => text.split(needle).length - 1
+}

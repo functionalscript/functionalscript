@@ -39,13 +39,16 @@ export const proof = {
             assert(s == 'x.x.x.x.x', s)
         }
     },
-    occurrences: () => {
-        assertEq(occurrences('a')('banana'), 3)
-        assertEq(occurrences('an')('banana'), 2)
-        assertEq(occurrences('x')('banana'), 0)
-        assertEq(occurrences('a')(''), 0)
-        // without overlap, from the left
-        assertEq(occurrences('aa')('aaa'), 1)
+    occurrences: {
+        counts: () => {
+            assertEq(occurrences('a')('banana'), 3)
+            assertEq(occurrences('an')('banana'), 2)
+            assertEq(occurrences('x')('banana'), 0)
+            assertEq(occurrences('a')(''), 0)
+            // without overlap, from the left
+            assertEq(occurrences('aa')('aaa'), 1)
+        },
+        emptyNeedle: { throw: () => occurrences('') },
     },
     repeat: () => {
         const s = repeat('x')(5)
