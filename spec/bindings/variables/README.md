@@ -65,7 +65,9 @@ parameter is a variable too, fixed or rest.
   the capture would hold, as a `const` does. A variable
   never assigned is captured as a `const` is: a `let` nothing assigns and
   a parameter nothing assigns are a `const` by another spelling, and the
-  rule is one for both.
+  rule is one for both — a function that is a variable's whole value names
+  itself, `let f = n => n ? f(n - 1) : 0;`, as a `const`'s does, the name
+  a capture the rule refuses the moment the variable is assigned anywhere.
 - **The scope is the block.** `let` is not hoisted and has no `var`:
   `var` is refused ([`var`](../var/README.md)). A `let` with no
   initializer, `let x;`, and a `let` at module level are not admitted yet

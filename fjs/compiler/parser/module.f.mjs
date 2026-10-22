@@ -15,7 +15,7 @@
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -271,13 +271,13 @@ const initialized = (scope, plan) => traced({
 /** @type {() => _Scope} */
 const moduleScope = () => ({
     names: empty, origins: empty, count: 0, parameters: [], rest: null, enclosing: null, outer: null,
-    self: null, selfBinding: null, captures: [], region: false,
+    self: null, selfBinding: null, selfVariable: false, captures: [], region: false,
     trace: { target: { kind: 'function', index: 0 }, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
 /** A lexical region shares its source function target. @type {(outer: _Scope, names: _Env, enclosing: List<_Env>) => _Scope} */
 const regionScope = (outer, names, enclosing) => ({
-    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, captures: [], region: true,
+    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, selfVariable: false, captures: [], region: true,
     trace: { target: outer.trace.target, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
@@ -572,8 +572,8 @@ const landed = (round, stack, scope, frame, kind, value) => {
  * entered: the word, then the binding it names — a name nothing binds is
  * `const not found` — which is refused unless a variable's, a `let`'s or a
  * parameter's, and refused from a nested function, held or called where it
- * is written, {@link reassignedCaptured}; and the write to it, traced in
- * the scope.
+ * is written, {@link reassignedCaptured}. The write itself is traced once
+ * the value has been read, {@link written}, the order the statement runs in.
  *
  * @type {(scope: _Scope, name: ModuleTokenWithMetadata) => Result<readonly [_Scope, BindingId], ParseError>}
  */
@@ -582,11 +582,25 @@ const assigned = (scope, name) => {
     if (tag === 'error') { return error(word) }
     const found = resolve(scope, word)
     if (found === null) { return error(constNotFound(name)) }
-    const [inner, ref, crossed] = found
+    const [inner, ref, crossed] = selfReference(found)
     if (!ref.assignable) { return error(constAssignment(name)) }
     if (crossed) { return error(reassignedCaptured(name)) }
-    return ok([traced(inner, [['write', ref.id]]), ref.id])
+    return ok([inner, ref.id])
 }
+
+/** The scope after an assignment's value has been read: the write to its target, {@link assigned}. @type {(scope: _Scope, frame: _Declaring) => _Scope} */
+const written = (scope, frame) => traced(scope, [['write', assertNotNullish(frame.assigned, 'an assignment with no target')]])
+
+/**
+ * A resolved reference, a function's reference to itself counted as crossing
+ * the boundary where the function is a variable's, a `let`'s: JavaScript's
+ * closure reads the variable, and the function's `self` the function, so the
+ * two agree only while the variable is never reassigned — the capture rule's
+ * own condition, which recording the reference as a capture lets it keep.
+ *
+ * @type {(found: readonly [_Scope, _Ref, boolean]) => readonly [_Scope, _Ref, boolean]}
+ */
+const selfReference = ([scope, ref, crossed]) => [scope, ref, crossed || (ref.kind === 'self' && ref.assignable)]
 
 /**
  * The scope a resolved reference leaves: with the reference noted as a
@@ -926,7 +940,7 @@ const commaRound = (stack, scope, frame) => {
 
 /** A function's declaration is its self only where no parameter/local shadows it. @type {(scope: _Scope, word: string) => _Ref | null} */
 const bound = (scope, word) => at(word)(scope.names) ?? (scope.self === word
-    ? { id: assertNotNullish(scope.selfBinding), kind: 'self', assignable: false } : null)
+    ? { id: assertNotNullish(scope.selfBinding), kind: 'self', assignable: scope.selfVariable } : null)
 
 /**
  * Resolve an original declaration identity and remember each intervening read
@@ -1050,23 +1064,22 @@ const bodyRound = (stack, scope, frame) => {
     const namespace = namespaceOf(target, value)
     const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
     if (tag === 'error') { return [stack, scope, error(plan)] }
-    // a `let`'s function is entered under no name: its own name is a
-    // variable, which a closure may not read
-    const step = kind === 'const' ? constValue(target, value, namespace, plan) : namespace !== null ? ok(undefined) : /** @type {const} */ (['enter', value])
-    return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), step]
+    return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
 }
 
 /**
- * What a body's `const` resolves before its names land: its value — a
- * function that is the whole value of a `const` of one name entered under
- * that name, its `self`, since a pattern names no function — or, for a
- * pattern over a reserved namespace, nothing: the checked plan names its
- * static members directly, so sugar receives an unused `undefined` input.
+ * What a declaration resolves before its names land: its value — a function
+ * that is the whole value of a `const` or a `let` of one name entered under
+ * that name, its `self`, since a pattern names no function; a `let`'s name
+ * being a variable, the function's reference to itself is a capture,
+ * {@link selfReference} — or, for a pattern over a reserved namespace,
+ * nothing: the checked plan names its static members directly, so sugar
+ * receives an unused `undefined` input.
  *
- * @type {(target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null, plan: _Plan) => _State[2]}
+ * @type {(kind: _DeclarationKind, target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null, plan: _Plan) => _State[2]}
  */
-const constValue = (target, value, namespace, plan) => namespace !== null ? ok(undefined)
-    : target[0] === 'name' ? ['define', value, [nameOf(target[1]), plan.ids[0]]] : ['enter', value]
+const declaredValue = (kind, target, value, namespace, plan) => namespace !== null ? ok(undefined)
+    : target[0] === 'name' ? ['define', value, [nameOf(target[1]), plan.ids[0], isVariable(kind)]] : ['enter', value]
 
 /**
  * Enters a node: a primitive is its value, a reference what `scope`
@@ -1094,7 +1107,7 @@ const enter = (stack, scope, node) => {
             if (tag === 'error') { return [stack, scope, error(word)] }
             const found = resolve(scope, word)
             if (found === null) { return [stack, scope, error(constNotFound(node[1]))] }
-            return [stack, traced(referenced(found, node[1]), [['read', found[1].id]]), ok(['ref', found[1].id])]
+            return [stack, traced(referenced(selfReference(found), node[1]), [['read', found[1].id]]), ok(['ref', found[1].id])]
         }
         case '.': {
             const member = staticOf(node)
@@ -1429,7 +1442,7 @@ const templateScope = (scope, node) => {
  * intrinsic. A named whole initializer retains the original declaration as
  * its self binding, unless a parameter or local shadows it.
  *
- * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: readonly [string, BindingId] | null) => _State}
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: _Self | null) => _State}
  */
 const entered = (stack, scope, node, self) => {
     // the helpers first, whole: a function that is one has no body to
@@ -1444,7 +1457,7 @@ const entered = (stack, scope, node, self) => {
     const target = /** @type {const} */ ({ kind: 'function', index: scope.trace.count + 1 })
     /** @type {_Scope} */
     const inner = {
-        names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, captures: [], region: false,
+        names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, selfVariable: self?.[2] ?? false, captures: [], region: false,
         origins: self === null || at(self[0])(bound.origins) !== null ? bound.origins : setReplace(self[0])(self[1])(bound.origins),
         trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]), count: bound.initialized.length }, sourceOrigins: bound.sourceOrigins,
     }
@@ -1528,13 +1541,13 @@ const returned = (stack, scope, frame, value) => {
     }
     if ('block' in frame) {
         const [kind] = frame.block[frame.index]
-        if (kind === 'assign') { return loopRound(stack, scope, advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
+        if (kind === 'assign') { return loopRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
         return landed(loopRound, stack, scope, frame, kind, value)
     }
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const' || kind === 'let') { return landed(bodyRound, stack, scope, frame, kind, value) }
-        if (kind === 'assign') { return bodyRound(stack, scope, advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
+        if (kind === 'assign') { return bodyRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
         if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], 0, null) }
         if (kind === 'switch') {
             return switchRound(stack, scope, { switch: statement, body: frame, discriminant: value, index: 0, label: 0, labels: [], arms: null })
@@ -1633,8 +1646,7 @@ const loopRound = (stack, scope, frame) => {
     const namespace = namespaceOf(target, value)
     const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
     if (tag === 'error') { return [stack, scope, error(plan)] }
-    const step = kind === 'const' ? constValue(target, value, namespace, plan) : namespace !== null ? ok(undefined) : /** @type {const} */ (['enter', value])
-    return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), step]
+    return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
 }
 
 /** A resolved region payload, used only while closing terminal source branches. @type {(value: SourceValue) => SourceBlock} */
@@ -1706,11 +1718,12 @@ const closed = (stack, scope, body) => {
  * names, so that a value nested as deep as the input allows costs no call
  * stack.
  *
- * `self` is the word a `const` binds the value to, or `null` for a value
- * that is no `const`'s: a function that is the whole value is entered with
- * the word bound to itself, {@link entered}, as a body `const`'s is.
+ * `self` is the word a `const` or a `let` binds the value to, with whether
+ * it is a variable's, or `null` for a value that is no declaration's: a
+ * function that is the whole value is entered with the word bound to itself,
+ * {@link entered}, as a body's is.
  *
- * @type {(initial: _Scope, self: readonly [string, BindingId] | null) => (root: Node) => Result<_Evaluated, ParseError>}
+ * @type {(initial: _Scope, self: _Self | null) => (root: Node) => Result<_Evaluated, ParseError>}
  */
 const evaluate = (initial, self) => root => {
     /** @type {_State} */
@@ -1863,7 +1876,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         // and a pattern over the `Object` namespace enters nothing,
         // {@link constValue}
         scope = declared(scope, plan, 'const')
-        const [resolved, evaluated] = namespace !== null ? ok({ value: undefined, scope }) : evaluate(scope, target[0] === 'name' ? [nameOf(target[1]), plan.ids[0]] : null)(node)
+        const [resolved, evaluated] = namespace !== null ? ok({ value: undefined, scope }) : evaluate(scope, target[0] === 'name' ? [nameOf(target[1]), plan.ids[0], false] : null)(node)
         if (resolved === 'error') { return error(evaluated) }
         scope = boundPlan(evaluated.scope, plan, false)
         if (named) { exports = [...exports, ...plan.names.map(([token, i]) => /** @type {const} */ ([nameOf(token), ['ref', plan.ids[i]]]))] }

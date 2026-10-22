@@ -58,6 +58,8 @@ export type _Scope = {
     readonly outer: _Scope | null
     readonly self: string | null
     readonly selfBinding: BindingId | null
+    /** Whether the function's own name is a variable's, a `let`'s: a reference to it is then a capture, refused once the variable is reassigned. */
+    readonly selfVariable: boolean
     /** Each reference from a nested function to a binding outside it, in document order, with the refusal a write to the binding earns it once `escaped`: once a function between the two closed held as a value, rather than called where it is written. */
     readonly captures: readonly _Capture[]
 }
@@ -100,6 +102,8 @@ export type _ConditionalFrame = _Counted<SourceValue> & { readonly conditional: 
 export type _CommaFrame = _Counted<SourceValue> & { readonly comma: readonly Node[] }
 export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _IndexFrame | _ChainFrame | _UnaryFrame | _InstanceOfFrame | _BinaryLeftFrame | _BinaryRightFrame | _ConditionalFrame | _CommaFrame | _FunctionFrame | _LateFrame | _BodyFrame | _GuardFrame | _SwitchFrame | _LoopFrame | _LoopBodyFrame
 export type _Stack = { readonly top: _Frame; readonly rest: _Stack } | null
-export type _Step = readonly ['enter', Node] | readonly ['define', Node, readonly [string, BindingId]] | Result<SourceValue, ParseError>
+/** A named declaration's value entered under its name: the word, its binding, and whether the declaration is a variable's. */
+export type _Self = readonly [string, BindingId, boolean]
+export type _Step = readonly ['enter', Node] | readonly ['define', Node, _Self] | Result<SourceValue, ParseError>
 export type _State = readonly [stack: _Stack, scope: _Scope, step: _Step]
 export type _Evaluated = { readonly value: SourceValue; readonly scope: _Scope }

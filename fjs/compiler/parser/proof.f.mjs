@@ -325,6 +325,10 @@ export const proof = {
             const [tag6, value6] = parseFromTokens(tokenizeString('export default n => { let r = 0; const f = () => r; return f; };'))
             assert(tag6 === 'ok')
             assertEq(stringifyModule(value6), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"=>\",0,[],0]]]]]")
+            // and a function that is a variable's whole value names itself,
+            // as a `const`'s does, while the variable is never reassigned
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('export default () => { let f = n => n ? f(n - 1) : 0; return f; };')))), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[[\"-\",[\"arg\",0],1]]],0]]]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('export default () => { let f = () => f; return f; };')))), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",0,[],[\"self\"]]]]]]")
             // a function called where it is written reads a reassigned
             // variable as JavaScript's does, the value of that moment
             const [tag7, value7] = parseFromTokens(tokenizeString('export default n => { let r = 0; r = (() => r + 1)(); return r; };'))
@@ -373,9 +377,12 @@ export const proof = {
                 // a variable is a name of the body as a `const` is
                 ['export default n => { x = 1; return n; };', 'const not found', 23],
                 ['export default n => { let r = r; return r; };', 'const not found', 31],
-                // a `let`'s function is entered under no name: the name is
-                // a variable, which the closure may not read
-                ['export default n => { let f = () => f; return f; };', 'const not found', 37],
+                // a function's reference to the variable it is the value of
+                // is a capture: JavaScript's closure would read the variable
+                // where `self` reads the function, so reassigning the variable
+                // anywhere, inside the function or after it, is refused there
+                ['export default () => { let f = n => f(n - 1); f = 1; return f; };', 'reassigned variable captured', 37],
+                ['export default () => { let f = n => { f = 1; return n; }; return f; };', 'reassigned variable captured', 39],
                 ['export default n => { let n = 0; return n; };', 'duplicate id', 27],
                 ['export default r => () => { let r = r; return r; };', 'capture shadowed', 33],
                 ['export default n => { let if = 0; return n; };', 'reserved word', 27],
@@ -491,6 +498,7 @@ export const proof = {
                 // the variable is a name of the body as a `const` is
                 ['export default n => { let r = 0; while (r < n) { r = 1; } const r = 2; return r; };', 'duplicate id', 65],
                 ['export default n => { let r = 0; while (x) { r = 1; } return r; };', 'const not found', 41],
+                ['export default n => { let r = () => r; while (typeof r === "function") { r = [r]; } return r; };', 'reassigned variable captured', 37],
                 ['export default n => { let r = 0; while (r) { const if = 1; } return r; };', 'reserved word', 52],
                 ['export default n => { let r = 0; while (r) { Array = 1; } return r; };', 'reserved word', 46],
                 // a block `const` of a name its initializer read from
