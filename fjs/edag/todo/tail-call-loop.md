@@ -120,7 +120,7 @@ for the same shapes, which no loop written as `let`/`while` produces:
   recursion in Rust, as in every writer;
 - a read of the rest array: each round of the recursion is a call of one
   argument, so from the second round on the array is empty
-  ([spec: parameters](../../../spec/functions/parameters.md)), and a loop
+  ([spec: parameters](../../../spec/functions/parameters/README.md)), and a loop
   that kept the first call's array would answer differently where that
   array had members;
 - a spread or a second argument as the next value. A next value that
@@ -292,7 +292,7 @@ Broader milestone F work follows under [general tail calls](#general-tail-calls)
       the graph again.
 - [x] `fjs/compiler/serializer`: the `let`/`while` spelling in call context,
       a rest-reading function left as recursion, with the grammar
-      ([spec: loops](../../../spec/control-flow/loops.md)), its proposal
+      ([spec: loops](../../../spec/control-flow/loops/README.md)), its proposal
       approved, proven by the round trip.
 - [x] Move the implemented loop decisions and eligible call elimination to
       common EDAG-to-FAST conversion, with the capture and region rules above.
@@ -348,7 +348,7 @@ Common output preparation must retain a complete invocation:
 - Preserve required evaluation/failures of unused extra arguments; missing
   arguments become `undefined`. Rebuild rest arrays with fresh identity.
 - Run default/destructuring setup each invocation represented by an iteration,
-  preserving the [parameter/arity contract](../../../spec/functions/parameters.md).
+  preserving the [parameter/arity contract](../../../spec/functions/parameters/README.md).
 - Preserve iteration values in captures and recreate local shared objects,
   functions and memo storage at their original lifetimes.
 

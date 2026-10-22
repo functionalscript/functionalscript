@@ -23,7 +23,7 @@ as it does in JavaScript, so `-1 .x` is `-(1 .x)`, `-1n.x` is `-(1n.x)`,
 which is `NaN`, and `const n = 1;` followed by `n.x` is `undefined` in both
 languages.
 
-The key is a constant — an [identifier](../lexical/identifiers.md) after `.`, or a directly
+The key is a constant — an [identifier](../lexical/identifiers/README.md) after `.`, or a directly
 written string or unsigned numeric literal in brackets — and `0` and `"0"` name the same element,
 as in JavaScript. A numeric literal names the string JavaScript's `String`
 gives its number, which is the number's
@@ -36,7 +36,7 @@ unchanged, so `a["01"]` and `a["1.0"]` name no element and are `undefined`,
 as in JavaScript.
 
 A key computed at run time is the conversion,
-`a[Number(i)]` ([number conversion](../conversions/number.md)): the property the
+`a[Number(i)]` ([number conversion](../conversions/number/README.md)): the property the
 number names, its string as JavaScript gives it, so `xs[Number("1")]` and
 `xs[1]` read one element, `"abc"[Number(true)]` is `"b"`, and
 `xs[Number("x")]`, whose key is `"NaN"`, is `undefined`. It reads an own
@@ -47,17 +47,17 @@ both evaluated, as in JavaScript, though not in a promised order: where both
 fail, which fails first is no observation
 ([failure is one outcome](../principles/README.md#failure-is-one-outcome)). `a?.[Number(i)]`
 evaluates the key only where `a` is neither `null` nor `undefined`
-([optional chaining](optional-chaining.md)).
+([optional chaining](optional-chaining/README.md)).
 Anything else in the brackets is a compilation error
 (`computed key is not Number(...)`), at the token it begins with: `a[i]`,
 whose type the compiler does not know — a key of any type is the `entry`
-helper's to read ([reading an entry at run time](entries.md))
+helper's to read ([reading an entry at run time](entries/README.md))
 — and every other expression, `a[-1]` and `a[NaN]` included, whose keys
 are written as strings instead, `a["-1"]` and `a["NaN"]`. A grouped literal
 key, `a[(0)]` or `a[("x")]`, is also refused; a grouped conversion,
 `a[(Number(i))]`, is accepted. Trivia, a line break included, may stand on either side of the
 `.` or the `[` and inside the brackets, as between any two tokens
-([trivia](../lexical/whitespace.md)): `a . b`, `a./* c */b` and `a`
+([trivia](../lexical/whitespace/README.md)): `a . b`, `a./* c */b` and `a`
 with `.b` on the next line are each `a.b`, as JavaScript reads them.
 
 FunctionalScript has no prototype chains, so a name a built-in prototype
@@ -68,7 +68,7 @@ and the rest, listed in [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js)
 would find a function there and this language nothing, and a module must
 mean one thing in both. The rule refuses reading such a name, not owning it:
 an object literal may hold one, `{ toString: 1 }`
-([property keys](../values/objects.md#property-keys)). `length` is the exception, since an
+([property keys](../values/objects/README.md#property-keys)). `length` is the exception, since an
 array, a string and a function own it. The rules are
 [property-accessor](../todo/2330-property-accessor.md)'s.
 
@@ -89,12 +89,19 @@ function's `length` is a number — throws the `TypeError` JavaScript throws.
 
 ## Pages
 
-- [Optional Chaining](./optional-chaining.md)
-- [Reading an Entry at Run Time](./entries.md)
+- [Optional Chaining](./optional-chaining/README.md)
+- [Reading an Entry at Run Time](./entries/README.md)
 
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.
+
+The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
+example as a function of one number — a property read with `.`, a computed
+index, and a string key — with every output `fjs compile` makes of it: the
+expression graph (EDAG), the Rust and the WebAssembly that Rust builds to.
+Its Run button calls the default export with `0` and `1`, as JavaScript and
+as WebAssembly, and shows what each call returned or threw.
 
 ## Reference
 

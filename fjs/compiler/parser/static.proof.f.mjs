@@ -1,7 +1,7 @@
 /**
  * The proof of the parser's reading of the static functions the language
  * admits, `Object.is`, `Object.entries` and the four `Number` predicates
- * ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)):
+ * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)):
  * each a value, the AST's `['Object.is']`, in either key spelling of the
  * unguarded read, and each namespace refused everywhere else, a guard on
  * it included. It reads the

@@ -12,7 +12,7 @@ A function whose body's text begins with `{` is written as a block, because
 export default ()=>{return {"a":1};};
 ```
 
-Grouping has landed ([spec: grouping](../../../../spec/operators/grouping.md)),
+Grouping has landed ([spec: grouping](../../../../spec/operators/grouping/README.md)),
 so the source language has the shorter spelling for the same function, and
 the writer does not use it:
 

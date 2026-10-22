@@ -23,14 +23,14 @@ no later than this file admits any of it, a name at a time
 
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
-([numbers](../values/numbers.md)), `Number` and `String`, as the
+([numbers](../values/numbers/README.md)), `Number` and `String`, as the
 conversions `Number(exp)` and `String(exp)` — `String`'s alone — their
-words reserved ([number conversion](../conversions/number.md),
-[string conversion](../conversions/string.md)), and `Array`, as the
-right operand of [`instanceof`](../operators/instanceof.md), and `Object` and
+words reserved ([number conversion](../conversions/number/README.md),
+[string conversion](../conversions/string/README.md)), and `Array`, as the
+right operand of [`instanceof`](../operators/instanceof/README.md), and `Object` and
 `Number`, as the namespaces of the static functions `Object.is` and the
 four `Number` predicates, each a value
-([built-in static functions](../built-ins/static-functions.md)). Other global uses need
+([built-in static functions](../built-ins/static-functions/README.md)). Other global uses need
 a complete recognized pattern; an unrecognized global is refused as an
 unbound name (`const not found`), so
 `export default isFinite(1);` does not compile yet. An unticked box is a
@@ -62,7 +62,7 @@ name not yet decided, or, where it says so, never admitted.
       value, read in either key spelling of the unguarded access — the
       guarded `Object?.is` is refused since, a namespace being no value to
       guard — and through `const { is } = Object`, its body in the runtime, the word reserved
-      ([built-in static functions](../built-ins/static-functions.md),
+      ([built-in static functions](../built-ins/static-functions/README.md),
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
       its own. `Object.entries` is admitted too, native in every executor
@@ -74,7 +74,7 @@ name not yet decided, or, where it says so, never admitted.
 ##### `Object.entries` proposal and approval
 
 **Problem.** The language enumerates no keys. The
-[`entry` helper](../property-access/entries.md) reads a key a program
+[`entry` helper](../property-access/entries/README.md) reads a key a program
 already holds, never the keys it does not, so a module that walks an
 object — `structurallySame`, `definedEntries`, every `.f.mjs` that writes
 `const { entries } = Object` — cannot be written in the language, and an
@@ -84,7 +84,7 @@ object — `structurallySame`, `definedEntries`, every `.f.mjs` that writes
 `Object.is`: a value in every spelling of the read, `Object.entries`,
 `Object["entries"]` and the guarded forms — which a later decision refuses,
 a namespace being no value to guard
-([built-in static functions](../built-ins/static-functions.md)) — and through
+([built-in static functions](../built-ins/static-functions/README.md)) — and through
 `const { entries } = Object`; the EDAG node `['Object.entries']`; `length`
 `1`; one function however often it is read. Its answer is JavaScript's: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -168,10 +168,10 @@ NaNVM with a closure over `Any::entries` in the runtime value, which the
 #### Number and Math
 
 - [x] `Number` — the call `Number(exp)`, the conversion
-      ([number conversion](../conversions/number.md)), and the four
+      ([number conversion](../conversions/number/README.md)), and the four
       predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
       and `Number.isFinite`, static functions
-      ([built-in static functions](../built-ins/static-functions.md),
+      ([built-in static functions](../built-ins/static-functions/README.md),
       the record below); the namespace's other members, its value
       properties `Number.MAX_SAFE_INTEGER` among them, stay unticked, each
       an admission of its own. A module reading one of the four, through
@@ -195,11 +195,11 @@ module imports a helper in its place
 reads the member cannot be renamed `.f.js` as written.
 
 **Proposal.** Admit the four as static functions, as `Object.is` is
-([built-in static functions](../built-ins/static-functions.md)): each
+([built-in static functions](../built-ins/static-functions/README.md)): each
 a value in every spelling of the read, `Number.isInteger`,
 `Number["isInteger"]` and the guarded forms — which a later decision
 refuses, a namespace being no value to guard
-([built-in static functions](../built-ins/static-functions.md)) — and through
+([built-in static functions](../built-ins/static-functions/README.md)) — and through
 `const { isInteger } = Number`; each the EDAG node of its name,
 `['Number.isInteger']`; each body the existing helper the runtime's `static`
 section imports — `isInteger`, `isSafeInteger`, `isNaN_` and `isFinite_` of
@@ -236,7 +236,7 @@ the move in the same session, after the admission.
 
 - [x] `String` — implemented as `String(exp)`, the string conversion,
       and `String()`, the empty-string literal; the word is reserved
-      ([string conversion](../conversions/string.md)). Namespace
+      ([string conversion](../conversions/string/README.md)). Namespace
       members remain unrecognized; spreads, multiple arguments and guarded
       calls are refused by design, the conversion being an operator
       ([operators and functions](../principles/README.md#operators-and-functions))
@@ -253,7 +253,7 @@ familiar JavaScript spelling for that operation.
 it, as [global-names](./2365-global-names.md) requires. Namespace members and
 other call shapes remain separate admissions; computed property keys retain
 their existing `Number(...)` requirement. The implemented semantics are in
-[String Conversion](../conversions/string.md).
+[String Conversion](../conversions/string/README.md).
 
 **Benefits.** This preserves familiar JavaScript syntax and conversion behavior
 for supported values, makes the existing operation available to source modules,
@@ -352,7 +352,7 @@ their JavaScript meanings; do not redefine them over enumerable properties.
 `obj.hasOwnProperty(...)` is not a replacement source spelling.
 
 Use explicit enumerable-entry patterns instead:
-[`entry`](../property-access/entries.md) reads a data value and `hasEntry`
+[`entry`](../property-access/entries/README.md) reads a data value and `hasEntry`
 beside it answers presence. `Object.getOwnPropertyDescriptor` is permitted only as
 part of a complete approved AST pattern, never as an exposed descriptor API.
 

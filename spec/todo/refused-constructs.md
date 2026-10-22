@@ -59,9 +59,9 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `lex.trivia` | VT, FF, U+FEFF (a leading byte order mark included), NBSP and the other space separators such as U+3000; U+2028 or U+2029 outside a string | open (the [roadmap](./README.md) asks that each be recognized or its refusal justified; [whitespace](../lexical/whitespace.md)) |
+| `lex.trivia` | VT, FF, U+FEFF (a leading byte order mark included), NBSP and the other space separators such as U+3000; U+2028 or U+2029 outside a string | open (the [roadmap](./README.md) asks that each be recognized or its refusal justified; [whitespace](../lexical/whitespace/README.md)) |
 | `lex.hashbang` | `#!` at the start of the file | planned ([hash comments](../../fjs/compiler/todo/083-compiler-hash-comments.md)) |
-| `lex.unicode-name` | `const é = 1`, `{ π: 1 }`, `o.é`, U+200C or U+200D in a name, `const \u0061 = 1` | planned ([roadmap](./README.md), names beyond ASCII; [identifiers](../lexical/identifiers.md)) |
+| `lex.unicode-name` | `const é = 1`, `{ π: 1 }`, `o.é`, U+200C or U+200D in a name, `const \u0061 = 1` | planned ([roadmap](./README.md), names beyond ASCII; [identifiers](../lexical/identifiers/README.md)) |
 
 ### Operators and expressions
 
@@ -69,7 +69,7 @@ describes:
 |---|---|---|
 | `op.loose-equality` | `a == b`, `a != b` | design ([operators](../operators/README.md)) |
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md)) |
-| `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof.md)) |
+| `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof/README.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma/README.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
 | `op.assignment` | `a = 1` outside a loop's block | planned ([let](./3220-let.md), "Later": a `let` outside a loop is a rebinding) |
 | `op.compound-assignment` | `a += 1`, `a **= 2`, `a &&= 2` | planned ([assignments](./3430-assignments.md)) |
@@ -96,8 +96,8 @@ describes:
 | `acc.prototype-name` | `a.toString`, `a["push"]` | design ([property accessor](./2330-property-accessor.md)) |
 | `acc.mutating-call` | `a.push(0)` | planned ([mutability](../design/mutability.md), "Local mutability") |
 | `acc.prototype-call` | `a.hasOwnProperty(k)` | design ([built-ins](./2360-built-in.md)) |
-| `acc.guarded-namespace` | `Object?.is`, `Number?.["isInteger"]` | design ([built-in static functions](../built-ins/static-functions.md): a namespace is no value, so it has no nullishness to guard) |
-| `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects.md#the-__proto__-key)) |
+| `acc.guarded-namespace` | `Object?.is`, `Number?.["isInteger"]` | design ([built-in static functions](../built-ins/static-functions/README.md): a namespace is no value, so it has no nullishness to guard) |
+| `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects/README.md#the-__proto__-key)) |
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
 | `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md)) |
@@ -105,7 +105,7 @@ describes:
 | `name.unbound` | `zzz`, `Math`, `JSON`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | open ([forward references](./3140-forward-references.md) resolves only the object grouping and keeps refusing a later `const`) |
 | `name.body-forward-reference` | `() => { const y = x; const x = 2; return y; }` with an outer `x` | planned ([body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)) |
-| `name.reserved-export` | `export const then = 1` | design ([exporting a value](../modules/exports.md)) |
+| `name.reserved-export` | `export const then = 1` | design ([exporting a value](../modules/exports/README.md)) |
 
 ### Statements
 
@@ -117,17 +117,17 @@ describes:
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
 | `st.do-while` | `do { } while (c)` | open |
 | `st.break-continue` | `break`, `continue` | planned ([let](./3220-let.md) and [switch](./3230-switch.md), "Later") |
-| `st.switch` | a case without braces, a case block that does not terminate (in `return`, `throw`, or a switch with a `default`), `break` in a case, a label stacked with the `default`, a switch with no case or of a `default` alone, a switch at module level or in a loop's block | planned ([switch](./3230-switch.md), "Later": follow-ups, each additive on the one form [switch](../control-flow/switch.md) has) |
-| `st.switch-default` | a `default` that is not last | design ([switch](../control-flow/switch.md): last is the one spelling, the position saying nothing once every branch terminates) |
+| `st.switch` | a case without braces, a case block that does not terminate (in `return`, `throw`, or a switch with a `default`), `break` in a case, a label stacked with the `default`, a switch with no case or of a `default` alone, a switch at module level or in a loop's block | planned ([switch](./3230-switch.md), "Later": follow-ups, each additive on the one form [switch](../control-flow/switch/README.md) has) |
+| `st.switch-default` | a `default` that is not last | design ([switch](../control-flow/switch/README.md): last is the one spelling, the position saying nothing once every branch terminates) |
 | `st.try` | `try`, `catch`, `finally` | open |
 | `st.debugger` | `debugger` | open |
 | `st.label` | `x: while (c) { }` | open |
-| `st.var` | `var a = 1` | design ([constants](../bindings/constants.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) |
+| `st.var` | `var a = 1` | design ([constants](../bindings/constants/README.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable) |
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md)) |
-| `st.expression` | an expression statement that is no call statement, no assignment to a loop's variable in its block and no directive (`st.directive`): one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with `(`, `[` or a backtick, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it) |
-| `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](../functions/call-statements.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
-| `st.literal-call` | a call statement opening with a literal, `"a".trim();`, `1 .toFixed(2);` | open ([call statements](../functions/call-statements.md) begin with a name; a literal continues no statement before it, so no hazard refuses it, and no record admits it) |
-| `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch.md)) — `{}` | design ([functions](../functions/README.md)) |
+| `st.expression` | an expression statement that is no call statement, no assignment to a loop's variable in its block and no directive (`st.directive`): one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with `(`, `[` or a backtick, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements/README.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it) |
+| `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](../functions/call-statements/README.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
+| `st.literal-call` | a call statement opening with a literal, `"a".trim();`, `1 .toFixed(2);` | open ([call statements](../functions/call-statements/README.md) begin with a name; a literal continues no statement before it, so no hazard refuses it, and no record admits it) |
+| `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch/README.md)) — `{}` | design ([functions](../functions/README.md)) |
 | `st.unreachable` | a statement after `return`, `throw`, or a switch with a `default` | design ([functions](../functions/README.md)) |
 
 ### Declarations and members
@@ -168,14 +168,14 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `lit.octal` | `0o7` | open ([numbers](../values/numbers.md) leaves it out; the [roadmap](./README.md) records no use case yet) |
+| `lit.octal` | `0o7` | open ([numbers](../values/numbers/README.md) leaves it out; the [roadmap](./README.md) records no use case yet) |
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) |
 | `lit.trailing-dot` | `5.` | open |
-| `lit.array-hole` | `[,]`, `[1,,2]` | design ([arrays](../values/arrays.md): an array has no holes; the same comma in a pattern is an elision, [destructuring](../bindings/destructuring.md)) |
-| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings.md): a double-quoted string stays a JSON string) |
+| `lit.array-hole` | `[,]`, `[1,,2]` | design ([arrays](../values/arrays/README.md): an array has no holes; the same comma in a pattern is an elision, [destructuring](../bindings/destructuring/README.md)) |
+| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings/README.md): a double-quoted string stays a JSON string) |
 | `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | open ([string literals](./2460-js-string-literals.md) defers them until a measured need appears) |
 | `lit.string-continuation` | a `\` before a line terminator in a string | open ([string literals](./2460-js-string-literals.md) defers it until a measured need appears) |
-| `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../values/template-literals.md) calls them deferred; no roadmap item admits them) |
+| `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../values/template-literals/README.md) calls them deferred; no roadmap item admits them) |
 
 ### Not on this register
 

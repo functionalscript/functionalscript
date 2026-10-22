@@ -28,7 +28,7 @@ every other comma: an argument list, an array's items and an object's
 entries are lists, `f(a, b)` calling with two arguments and `[a, b]` holding
 two items, as in JavaScript. A group, `(a, b)`, may stand wherever a value
 may, and takes steps and operators as a group does
-([grouping](../grouping.md)): `(a, b).x` reads `x` of `b`, and `1 + (a, 2)` is
+([grouping](../grouping/README.md)): `(a, b).x` reads `x` of `b`, and `1 + (a, 2)` is
 `3`. Inside the parentheses the operands are values, so a comma never holds
 what only a parameter list may: `(a, b = 1)`, `(a, ...b)` and `(a, b,)` are
 refused at the `=`, the `...` and the `)`. The comma JavaScript reads with no
@@ -41,11 +41,11 @@ the spelling there too, `if ((a, b))`
 A list in parentheses followed by `=>` is a function's parameters, as in
 JavaScript, so `(a, b) => a + b` is the function and `(a, b)` the comma; the
 two agree up to the `)`, and what follows it decides. Each parameter is then
-a binding target ([parameters](../../functions/parameters.md)), and
+a binding target ([parameters](../../functions/parameters/README.md)), and
 `(a, b + 1) => 1` is refused at the `b`.
 
 The comma is the one operator that detaches a receiver. `(o.m)(a)` is the
-method call `o.m(a)` is ([grouping](../grouping.md)), where `(0, o.m)(a)`
+method call `o.m(a)` is ([grouping](../grouping/README.md)), where `(0, o.m)(a)`
 reads `o.m` and calls the function it holds as a plain one — JavaScript's
 detached call, which a function of this language, using no `this`, answers
 as it answers the method call. The read is a read: `(0, a.at)(0)` reads a

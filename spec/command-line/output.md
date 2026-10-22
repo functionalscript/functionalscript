@@ -62,7 +62,7 @@ An initialization failure is reported against its source module instead.
 Graph outputs preserve the unevaluated program. The FunctionalScript writer
 spells calls and every admitted operator; the EDAG output preserves their
 nodes, folding unary `-` where its operand lowers to a number or a `bigint`
-([numbers](../values/numbers.md)). The Rust output emits the native implementation of
+([numbers](../values/numbers/README.md)). The Rust output emits the native implementation of
 those nodes. All executors evaluate a lazy operand or conditional arm only
 where JavaScript does, so an unreached `1n / 0n` never throws. Source and
 Rust writers can still refuse a graph they cannot reconstruct within their
@@ -108,7 +108,7 @@ module boundary, from which a default import selects the document.
   [normalized form](../datajs/README.md#normalized-form): one line, and an
   object or array referenced more than once hoisted into a `const` named `$0`,
   `$1`, … in post-order, so it stays shared
-  ([shared values](../bindings/constants.md)); a primitive is written inline
+  ([shared values](../bindings/constants/README.md)); a primitive is written inline
   wherever it is read, however often, since sharing one is not observable.
   Every function-free selected value has a DataJS document, shared nodes, `bigint`,
   `undefined`, `NaN` and the infinities included.
@@ -176,7 +176,7 @@ module boundary, from which a default import selects the document.
   is an access: `a.b(c)` and `(a.b)(c)` are both the method call. The front
   end inlines a function written at the call only when the call has no
   arguments, the function has zero fixed parameters, and its body does not
-  read its own rest array ([bodies and guards](../control-flow/guards.md)). The
+  read its own rest array ([bodies and guards](../control-flow/guards/README.md)). The
   writer hoists function callees when retaining a call node, so reading its
   output does not inline that call away.
 - Object properties are emitted in the order the value carries them for the
@@ -189,10 +189,10 @@ module boundary, from which a default import selects the document.
   writes that `[]` in a FunctionalScript document and nowhere else.
 - A `__proto__` key is emitted as `["__proto__"]:` in a DataJS or
   FunctionalScript document and as `"__proto__":` in JSON
-  ([the `__proto__` key](../values/objects.md#the-__proto__-key)).
+  ([the `__proto__` key](../values/objects/README.md#the-__proto__-key)).
 - An access in a FunctionalScript document is written from its constant key
   ([property access](../property-access/README.md)): a string key that is an
-  [identifier](../lexical/identifiers.md), a reserved word included, follows a `.`, and
+  [identifier](../lexical/identifiers/README.md), a reserved word included, follows a `.`, and
   any other string key is a normalized string in brackets — with the object
   named `$0`, `a["if"]` and `a['c']` are `$0.if` and `$0.c`, while
   `a["a-b"]`, `a["é"]` and `a["1"]` stay bracketed. A number key stays a

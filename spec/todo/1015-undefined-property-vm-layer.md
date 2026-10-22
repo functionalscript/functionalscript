@@ -9,7 +9,7 @@ This question arose in [PR #1888](https://github.com/functionalscript/functional
 while designing `hasOwn`: should undefined-valued properties disappear in the
 language surface, during construction, or only during a lookup? The old
 direct `Object.hasOwn` proposal is withdrawn; its replacement is the
-[`entry` helper](../property-access/entries.md) and `hasEntry` beside it.
+[`entry` helper](../property-access/entries/README.md) and `hasEntry` beside it.
 
 A representation choice cannot answer that source pattern differently merely
 because the VM calls a property absent. The [compatibility principles](../principles/README.md)
@@ -29,7 +29,7 @@ Dropping the final pair before applying it would leave `x` equal to `1`.
 That is not compatible with the original property read.
 
 The additional presence constraint uses the `hasEntry` helper as
-[reading an entry](../property-access/entries.md) specifies it:
+[reading an entry](../property-access/entries/README.md) specifies it:
 
 ```js
 const hasEntry = (a, b) => {
@@ -82,7 +82,7 @@ sole authority.
 ### Related
 
 - [Undefined properties](./1010-undefined-property.md) — observation constraints.
-- [Reading an entry](../property-access/entries.md) — the `entry` helper's
+- [Reading an entry](../property-access/entries/README.md) — the `entry` helper's
   option, an API choice, not a representation choice.
 - [Compatibility epic](../../todo/fjs-javascript-compatibility.md).
 - [Blocked research](../../todo/blocked/undefined-removes-property.md) — neither

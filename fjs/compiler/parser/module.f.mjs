@@ -40,7 +40,7 @@ import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/m
  * property, so FunctionalScript rejects them and accepts only the computed
  * spelling `{ ["__proto__"]: v }` and the shorthand `{ __proto__ }`, which
  * denote an ordinary property, as they do in JavaScript.
- * See [spec: the `__proto__` key](../../../spec/values/objects.md#the-__proto__-key).
+ * See [spec: the `__proto__` key](../../../spec/values/objects/README.md#the-__proto__-key).
  */
 const protoKey = '__proto__'
 
@@ -59,7 +59,7 @@ const duplicateId = foldError('duplicate id')
 /**
  * A `let` the statement after it is not a `while`, at the `let`: the two
  * are one loop, and the language has no `let` on its own
- * ([spec: loops](../../../spec/control-flow/loops.md)).
+ * ([spec: loops](../../../spec/control-flow/loops/README.md)).
  */
 const letWithoutWhile = foldError('let without while')
 
@@ -117,9 +117,9 @@ const restTarget = foldError('rest element not supported')
 /**
  * A hole in an array value, `[1, , 2]` or `[,]`, at the comma that makes
  * it: refused by design, an array of the language having none
- * ([spec: arrays](../../../spec/values/arrays.md)). The grammar admits
+ * ([spec: arrays](../../../spec/values/arrays/README.md)). The grammar admits
  * the comma for an array pattern's sake, where it is an elision and skips
- * an element ([spec: destructuring](../../../spec/bindings/destructuring.md)),
+ * an element ([spec: destructuring](../../../spec/bindings/destructuring/README.md)),
  * and the position alone tells the two apart, so the refusal is here.
  */
 const arrayHole = foldError('array hole')
@@ -183,7 +183,7 @@ const conversionArity = name => foldError(`${name} takes one argument`)
  * ([spec: module structure](../../../spec/modules/README.md)) —
  * and the tokens JavaScript forbids a newline before, an `=>` and the
  * value after `return` or `throw`
- * ([spec: line terminators](../../../spec/lexical/whitespace.md)).
+ * ([spec: line terminators](../../../spec/lexical/whitespace/README.md)).
  */
 const unexpectedToken = foldError('unexpected token')
 
@@ -191,7 +191,7 @@ const unexpectedToken = foldError('unexpected token')
  * A module that neither throws nor exports a name, at its last `export`:
  * every exported `const` was a pattern binding no name, `export const {} = o;`,
  * and no `export default` followed. A module that does not throw exports at
- * least one name ([spec: exports](../../../spec/modules/exports.md)),
+ * least one name ([spec: exports](../../../spec/modules/exports/README.md)),
  * which the grammar asked of the `export` keyword while a `const` always
  * bound one.
  */
@@ -511,7 +511,7 @@ const isCall = node => {
  * `const` that binds nothing, `['discard', name]`, its value has to be a
  * call, {@link isCall}, and any other is refused at the name — an
  * operator's result discarded is almost always a mistake, and a conversion
- * is an operator ([spec: call statements](../../../spec/functions/call-statements.md)).
+ * is an operator ([spec: call statements](../../../spec/functions/call-statements/README.md)).
  *
  * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
@@ -1135,7 +1135,7 @@ const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === n
  * The static function the key `named` names in the namespace `global`, as
  * the AST holds it, `['Number.isInteger']`, or `null` where the language
  * admits none: `is` of `Object` and the four predicates of `Number`
- * ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)),
+ * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
  * each a tag of the EDAG's `staticIds`, where a later name is a row of
  * its own decision.
  *
@@ -1285,9 +1285,9 @@ const intrinsicFunction = ([, list, body]) => {
 
 /**
  * The `entry` helper, recognized whole
- * ([spec: entry](../../../spec/property-access/entries.md)), and the
+ * ([spec: entry](../../../spec/property-access/entries/README.md)), and the
  * `hasEntry` helper beside it, the same but for its `return`
- * ([spec: why two helpers](../../../spec/property-access/entries.md#why-two-helpers)):
+ * ([spec: why two helpers](../../../spec/property-access/entries/README.md#why-two-helpers)):
  *
  * ```js
  * (a, b) => {

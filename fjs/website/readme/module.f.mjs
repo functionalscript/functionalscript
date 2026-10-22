@@ -18,7 +18,7 @@
  *
  * @module
  *
- * @import { Block, Blocks, Inline, Label } from '../../media/markdown/types.ts'
+ * @import { Align, Block, Blocks, Inline, Label } from '../../media/markdown/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
@@ -85,7 +85,9 @@ export const resolveHref = commit => isPage => dir => href => {
 }
 
 /** A span's words, as a heading's anchor is made of them. @type {(span: Inline | Label) => string} */
-const words = span => span[0] === 'link' ? span[1].map(words).join('') : span[1]
+const words = span => span[0] === 'link' || span[0] === 'strong' || span[0] === 'em'
+    ? span[1].map(words).join('')
+    : span[1]
 
 /**
  * What GitHub's anchor does with a character outside ASCII: keeps a letter
@@ -165,12 +167,19 @@ export const anchors = blocks => {
     return used
 }
 
+/** A label's span as a node: code, or its text. @type {(label: Label) => Node} */
+const labelNode = label => label[0] === 'code' ? ['code', label[1]] : label[1]
+
 /**
  * A README as the elements of its page, or the first link it cannot place.
  *
  * **A heading is one level below the README's own.** The page's `h1` is its
  * breadcrumb, and its sections are `h2`, so the README's title is an `h2`
  * beside them and its sections `h3`; an `h6` stays an `h6`.
+ *
+ * **A list item is its blocks**, and in a tight list a paragraph is its bare
+ * text, as GitHub writes it: `<li>text</li>` where a loose list has
+ * `<li><p>text</p></li>`. A table column's alignment is its cells' `align`.
  *
  * @type {(href: (href: string) => Result<string, string>) => (blocks: Blocks) => Result<readonly Element[], string>}
  */
@@ -180,19 +189,16 @@ export const readmeNodes = href => blocks => {
         if (c !== undefined) { return error(`a heading character whose anchor GitHub may make otherwise: ${c}`) }
     }
     const ids = anchors(blocks)
-    /** @type {readonly Element[]} */
-    let out = []
-    let heading = 0
-    /** @type {(span: Inline | Label) => Result<Node, string>} */
+    /** @type {(span: Inline) => Result<Node, string>} */
     const node = span => {
         const kind = span[0]
         if (kind === 'code') { return ok(['code', span[1]]) }
-        if (kind === 'strong') { return ok(['strong', span[1]]) }
-        if (kind === 'em') { return ok(['em', span[1]]) }
+        if (kind === 'strong') { return ok(['strong', ...span[1].map(labelNode)]) }
+        if (kind === 'em') { return ok(['em', ...span[1].map(labelNode)]) }
         if (kind === 'link') {
             const target = href(span[2])
             if (target[0] === 'error') { return target }
-            return ok(['a', { href: target[1] }, ...span[1].map(l => /** @type {Node} */(l[0] === 'code' ? ['code', l[1]] : l[1]))])
+            return ok(['a', { href: target[1] }, ...span[1].map(labelNode)])
         }
         return ok(span[1])
     }
@@ -207,36 +213,69 @@ export const readmeNodes = href => blocks => {
         }
         return ok(read)
     }
-    for (const block of blocks) {
-        /** @type {Block} */
-        const b = block
-        if (b[0] === 'code') {
-            /** @type {Element} */
-            const code = b[1] === '' ? ['code', b[2]] : ['code', { class: `language-${b[1]}` }, b[2]]
-            out = [...out, ['pre', code]]
-            continue
+    /** @type {(cell: 'th' | 'td', aligns: readonly Align[]) => (row: readonly (readonly Inline[])[]) => Result<Element, string>} */
+    const row = (cell, aligns) => cellsOf => {
+        /** @type {readonly Element[]} */
+        let read = []
+        for (const [k, spans] of cellsOf.entries()) {
+            const n = nodes(spans)
+            if (n[0] === 'error') { return n }
+            const align = aligns[k]
+            read = [...read, align === null ? [cell, ...n[1]] : [cell, { align }, ...n[1]]]
         }
-        if (b[0] === 'list') {
-            /** @type {readonly Element[]} */
-            let items = []
-            for (const entry of b[1]) {
-                const n = nodes(entry)
-                if (n[0] === 'error') { return n }
-                items = [...items, ['li', ...n[1]]]
-            }
-            out = [...out, ['ul', ...items]]
-            continue
-        }
-        const n = nodes(b[0] === 'heading' ? b[2] : b[1])
-        if (n[0] === 'error') { return n }
-        if (b[0] === 'heading') {
-            out = [...out, [`h${Math.min(b[1] + 1, 6)}`, { id: ids[heading] }, ...n[1]]]
-            heading++
-            continue
-        }
-        out = [...out, ['p', ...n[1]]]
+        return ok(['tr', ...read])
     }
-    return ok(out)
+    /** @type {(tight: boolean) => (blocks: Blocks) => Result<readonly Node[], string>} */
+    const blockNodes = tight => blocks => {
+        /** @type {readonly Node[]} */
+        let out = []
+        let heading = 0
+        for (const block of blocks) {
+            /** @type {Block} */
+            const b = block
+            if (b[0] === 'code') {
+                /** @type {Element} */
+                const code = b[1] === '' ? ['code', b[2]] : ['code', { class: `language-${b[1]}` }, b[2]]
+                out = [...out, ['pre', code]]
+                continue
+            }
+            if (b[0] === 'list') {
+                /** @type {readonly Element[]} */
+                let items = []
+                for (const item of b[2]) {
+                    const n = blockNodes(!b[1])(item)
+                    if (n[0] === 'error') { return n }
+                    items = [...items, ['li', ...n[1]]]
+                }
+                out = [...out, ['ul', ...items]]
+                continue
+            }
+            if (b[0] === 'table') {
+                const head = row('th', b[1])(b[2])
+                if (head[0] === 'error') { return head }
+                /** @type {readonly Element[]} */
+                let body = []
+                for (const cellsOf of b[3]) {
+                    const r = row('td', b[1])(cellsOf)
+                    if (r[0] === 'error') { return r }
+                    body = [...body, r[1]]
+                }
+                out = [...out, ['table', ['thead', head[1]], ...(body.length === 0 ? [] : [/** @type {Element} */(['tbody', ...body])])]]
+                continue
+            }
+            const n = nodes(b[0] === 'heading' ? b[2] : b[1])
+            if (n[0] === 'error') { return n }
+            if (b[0] === 'heading') {
+                out = [...out, [`h${Math.min(b[1] + 1, 6)}`, { id: ids[heading] }, ...n[1]]]
+                heading++
+                continue
+            }
+            out = tight ? [...out, ...n[1]] : [...out, ['p', ...n[1]]]
+        }
+        return ok(out)
+    }
+    // A README's own blocks are never a tight list's, so each is an element.
+    return /** @type {Result<readonly Element[], string>} */(blockNodes(false)(blocks))
 }
 
 /**

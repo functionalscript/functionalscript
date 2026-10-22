@@ -1021,7 +1021,7 @@ export const proof = {
     // EDAG has: an object pattern's property an access of the source, an
     // array pattern a spread of the source and accesses of the array it
     // made, nested patterns reading through — no node of its own, and the
-    // written form is the lowered one (spec/bindings/destructuring.md).
+    // written form is the lowered one (spec/bindings/destructuring/README.md).
     destructuring: {
         lowered: () => {
             /** @type {Exp} */

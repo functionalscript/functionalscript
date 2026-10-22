@@ -223,7 +223,7 @@ a conditional value block. Its selected arm performs that arm's declarations
 and returns its result; a region creates no function or invocation boundary.
 Switch normalization establishes its discriminant once and tests case labels
 against that binding. The final alternate is the default block or the source
-continuation ([spec: switch](../../spec/control-flow/switch.md)).
+continuation ([spec: switch](../../spec/control-flow/switch/README.md)).
 
 Required FAST definitions retain source initializers whose results are unused
 or reached only conditionally. `from_fast` keeps their graph roots through a
@@ -348,7 +348,7 @@ the AST or the graph, and nothing downstream can tell one was written — the
 steps after the `)` read the value inside, which is why `(a.b)(c)` is the node
 `a.b(c)` is, and the sharing a module spells survives the parentheses. A group
 closes an optional-chain region, so `(a?.b).c` and `a?.b.c` are distinct programs
-([optional chaining](../../spec/property-access/optional-chaining.md)). What ordinary
+([optional chaining](../../spec/property-access/optional-chaining/README.md)). What ordinary
 grouping adds is spelling:
 a function returning an object, `(...a) => ({ x: 1 })`, an access or a call
 on a value written in place, `([1]).length`, and the two the prefix cannot
@@ -400,9 +400,9 @@ first/follow check, found three of the eight.
 - [x] identifiers `{a:5}`
 - [x] computed keys `{["a"]:5}`, the only keyed spelling of a `__proto__` key;
   the short form `{ __proto__ }` below is the other
-  ([spec: the `__proto__` key](../../spec/values/objects.md#the-__proto__-key)) —
+  ([spec: the `__proto__` key](../../spec/values/objects/README.md#the-__proto__-key)) —
   and `{[k]:5}`, a key computed from any value
-  ([spec: property keys](../../spec/values/objects.md#property-keys))
+  ([spec: property keys](../../spec/values/objects/README.md#property-keys))
 - [x] big int
 - [x] `export default ...`
 - [x] constants
@@ -454,7 +454,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof's functions end without a `return` and many loop with `for`, neither of which the compiler accepts — its assertion calls are call statements it does ([spec: call statements](../../spec/functions/call-statements.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof's functions end without a `return` and many loop with `for`, neither of which the compiler accepts — its assertion calls are call statements it does ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 

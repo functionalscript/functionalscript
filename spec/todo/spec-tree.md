@@ -40,9 +40,14 @@ cross-cutting index and links the pages.
 directory until it shows its example running; then it becomes a directory of
 its own, `<area>/<page>/README.md`, beside the `demo.f.mjs` the site draws on
 that directory's page and the sample the demo runs.
-[Comma](../operators/comma/README.md) is the first: its demo shows the
-example's EDAG, Rust and WebAssembly and calls it both ways. The site renders
-the README above the demo once it can render one
+[Comma](../operators/comma/README.md) was the first: its demo shows the
+example's EDAG, Rust and WebAssembly and calls it both ways. Every page of a
+feature the language admits now has one, its example rewritten as a function
+of one number so the demo can call it; an area's own README that describes a
+feature (functions, operators, property access, values) carries its demo in
+the area's directory. A refused construct's page has none yet, and neither
+have the import pages, whose example needs a second module. The site renders
+the README above the demo where it can
 ([render-readme](../../fjs/website/todo/render-readme.md)).
 
 **A feature the compiler lacks has a page too**, marked *planned*, with its
@@ -157,7 +162,7 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` Calls; `○` function identity and text
 10. **Control flow**
     - `●` Guards and early `return`; `●` `throw`; `●` the `let`/`while` loop
-    - `●` [call statements](../functions/call-statements.md); `◌` other loops and statements
+    - `●` [call statements](../functions/call-statements/README.md); `◌` other loops and statements
 11. **Built-ins**
     - `●` Member functions (`at`, `toString`, …); `●` static functions
       (`Object.is`, `Number.isInteger`, …); `◌` [global names](./2365-global-names.md)

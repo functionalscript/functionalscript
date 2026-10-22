@@ -373,7 +373,7 @@ tree, [`parser/syntax`](../compiler/parser/syntax/types.ts)'s
 `BindingTarget`, is the last representation that holds a pattern: the fold
 in [`parser`](../compiler/parser/module.f.mjs) writes the reads the pattern
 is sugar for while it resolves names, and `AstModule` has no node for it
-([spec: destructuring](../../spec/bindings/destructuring.md)). The same fold
+([spec: destructuring](../../spec/bindings/destructuring/README.md)). The same fold
 owns every other sugar the language has, the table's rows above, so there is
 no desugaring stage to point a page at: the AST of the vocabulary is that
 syntax tree, and the compiler's `AstModule` is nearer FAST, its names
@@ -387,7 +387,7 @@ reads a word or a line.
 array, `['.', ['rest'], i]`, and the fold lands it as one entry, the
 conditional `r[0] === undefined ? 5 : r[0]` with the read spelled twice,
 which is the form the outputs write
-([spec: parameters](../../spec/functions/parameters.md)). Desugaring writes
+([spec: parameters](../../spec/functions/parameters/README.md)). Desugaring writes
 it as two fresh bindings of the body, the read once, the
 [example below](#examples-the-design-must-explain): the initializer is
 evaluated once, nothing after desugaring knows a default was written, and
@@ -499,7 +499,7 @@ it kept, as the specification requires
 has it. The body reads slot `i` as a late parameter reads `rest[i]`, so
 the function's `length` is `0` and the limit of 16 fixed parameters, a
 rule on the parameters a source function writes, never reaches a module's
-imports ([parameters](../../spec/functions/parameters.md),
+imports ([parameters](../../spec/functions/parameters/README.md),
 [module import bindings](../../spec/todo/3120-parameters.md#module-import-bindings-are-unchanged)).
 Beside the function is what the function cannot say: the specifier and
 the `json` attribute, which decide what is loaded, and the export
@@ -648,7 +648,7 @@ parts do not delay the epic's foundation gate:
 - [Specification tree](../../spec/todo/spec-tree.md) — the page layout the
   layer line joins.
 - [A module is a function](../../spec/modules/README.md#a-module-is-a-function)
-  and [destructuring](../../spec/bindings/destructuring.md) — the two
+  and [destructuring](../../spec/bindings/destructuring/README.md) — the two
   features placed above.
 - [Design principles](../../doc/DESIGN.md) — simplicity, reuse and incremental
   design.

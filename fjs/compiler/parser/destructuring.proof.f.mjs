@@ -26,7 +26,7 @@ export const proof = {
     // writes the reads the pattern is sugar for — a hidden entry per source,
     // the initializer first, and one entry per name, each a `cref` of it —
     // and binds every name as a `const`'s
-    // (spec/bindings/destructuring.md).
+    // (spec/bindings/destructuring/README.md).
     destructuring: {
         module: () => {
             // an object pattern's property is an access of the hidden entry,
@@ -77,7 +77,7 @@ export const proof = {
         // name — under an expression body and a block body alike, whose
         // own entries count from after them; and a pattern counts as one
         // parameter toward the function's `length`
-        // (spec/bindings/destructuring.md).
+        // (spec/bindings/destructuring/README.md).
         parameters: () => {
             expectModule('export default ({ a }) => a;', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\".\",[\"arg\",0],\"a\"]]]]]")
             expectModule('export default ({ a }, [b, c], ...r) => [a, b, c, r];',
@@ -183,7 +183,7 @@ export const proof = {
         // reads nothing, and the element after it reads the next index of
         // the spread — leading, medial, trailing, alone, nested, in a body,
         // and in a parameter, the head of a list and after it
-        // (spec/bindings/destructuring.md).
+        // (spec/bindings/destructuring/README.md).
         elision: () => {
             expectModule('const x = [1, 2]; const [, b] = x; export default b;',
                 "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[[\"...\",[\"[]\",[1,2]]]]],1]]]]")
@@ -211,7 +211,7 @@ export const proof = {
         },
         // A hole in an array value is refused by design, at the comma that
         // makes it: an array of this language has none
-        // (spec/values/arrays.md). A value's earlier failure comes first,
+        // (spec/values/arrays/README.md). A value's earlier failure comes first,
         // errors being first-to-last; and the grammar admits no elision in
         // a call's arguments, as JavaScript admits none, so it stops there.
         holes: () => {

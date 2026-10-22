@@ -17,7 +17,7 @@
  * @import { Selection } from '../../../website/demo/railroad/types.ts'
  */
 
-import { code, emphasis, entry as markdown, link, span, text } from './module.f.mjs'
+import { code, doubleBody, emphasis, entry as markdown, link, span, text } from './module.f.mjs'
 import { codePoints } from '../../railroad/module.f.mjs'
 import { codePointGuide, grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
 
@@ -32,6 +32,7 @@ export const diagrams = [
     ['text', text],
     ['span', span],
     ['code', code],
+    ['doubleBody', doubleBody],
     ['emphasis', emphasis],
     ['link', link],
 ]

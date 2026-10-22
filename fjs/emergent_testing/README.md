@@ -300,7 +300,7 @@ surprising.
 As a consequence, **exporting a function named `then` from a proof module is
 forbidden**: the module namespace object would become a thenable, corrupting
 dynamic `import()` resolution. See
-[spec/modules/exports.md](../../spec/modules/exports.md).
+[spec/modules/exports/README.md](../../spec/modules/exports/README.md).
 
 ## The two runners, and what sharing them cost
 

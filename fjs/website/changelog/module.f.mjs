@@ -209,8 +209,8 @@ export const releases = versions => descending(versions).map((version, i, all) =
 export const spanNode = span => {
     const kind = span[0]
     if (kind === 'code') { return ['code', span[1]] }
-    if (kind === 'strong') { return ['strong', span[1]] }
-    if (kind === 'em') { return ['em', span[1]] }
+    if (kind === 'strong') { return ['strong', ...span[1].map(spanNode)] }
+    if (kind === 'em') { return ['em', ...span[1].map(spanNode)] }
     if (kind === 'link') { return ['a', { href: span[2] }, ...span[1].map(spanNode)] }
     return span[1]
 }

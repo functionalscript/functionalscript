@@ -18,7 +18,7 @@ through AST -> FAST -> EDAG and EDAG -> FAST -> target before adding the new
 features. Do not implement short-circuit normalization, general rebinding or
 broader loop recognition in the old fold/writers and later port them to FAST.
 
-The current language remains the [restricted loop form](../../spec/control-flow/loops.md)
+The current language remains the [restricted loop form](../../spec/control-flow/loops/README.md)
 until the corresponding source milestone is complete.
 
 ### Owners
