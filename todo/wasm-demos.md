@@ -36,8 +36,8 @@ bottom:
      JavaScript run, the change in `performance.memory`'s heap across the
      run, where the browser reports it (Chromium only); that heap is the
      whole page's, so the label says so. For the WASM run, the module's
-     linear memory size. "Not available" where a figure is missing, never a
-     guessed value
+     linear memory size. A figure the browser does not report is left out,
+     never a guessed value
      ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 The audience is newcomers first and talks or pitches second, so the page

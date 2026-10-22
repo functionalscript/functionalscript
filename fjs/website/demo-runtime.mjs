@@ -37,7 +37,7 @@ import { dragAxisAttributes, dragValue } from './demo/module.f.mjs'
  * measure something asks for `sandbox`; nothing in the page knows what it is
  * measuring. `fetchText` and `instantiate` are `effects/browser`'s: a file
  * from the site, and a WebAssembly module from it, which the WASM demo pages
- * load.
+ * load, and `jsHeapSize`, the JavaScript heap where Chromium reports it.
  *
  * **The list is what makes a refusal possible.** `partialMatch` recognises a
  * command against it before answering `notImplemented`, so a vocabulary and a
@@ -53,7 +53,7 @@ import { dragAxisAttributes, dragValue } from './demo/module.f.mjs'
  *
  * @type {CommandSet<Sandbox | Catch | RandomInt | BrowserOp>}
  */
-const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: null, instantiate: null }
+const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: null, instantiate: null, jsHeapSize: null }
 
 /**
  * The commands of {@link commandSet}, in the form a partial runner tests
