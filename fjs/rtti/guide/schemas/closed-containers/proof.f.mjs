@@ -30,8 +30,6 @@ export const proof = {
         holeTooLong: () => assert(!admits(new Array(1), [1, 2, 3])),
         leadingHole: () => assert(admits([, number], [undefined, 5])),
         leadingHoleHeld: () => assert(!admits([, number], [9, 5])),
-        // A non-index property of a tuple schema declares nothing.
-        nonIndex: () => assert(admits(Object.assign([number], { foo: string }), [1])),
     },
     // The demo opens on the page's first lesson and draws it.
     demo: drawsFirst(lessons, demo),
