@@ -1,4 +1,7 @@
-# Unicode heading anchors
+## Unicode heading anchors
+
+**Priority:** P3
+**Status:** open
 
 The anchor classifier does not have GitHub's Unicode category tables. The
 Letterlike Symbols block U+2100–U+214F mixes letters, such as `ℂ` (U+2102),
