@@ -1,3 +1,8 @@
+/**
+ * @import { Type } from '../../../types.ts'
+ * @import { Unknown } from '../../../ts/types.ts'
+ */
+
 import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { parse } from '../../../parse/module.f.mjs'
 import { validate } from '../../../validate/module.f.mjs'
@@ -6,11 +11,6 @@ import { array, number, or, rest, string } from '../../../module.f.mjs'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.mjs'
 import { demo } from './demo.f.mjs'
-
-/**
- * @import { Type } from '../../../types.ts'
- * @import { Unknown } from '../../../ts/types.ts'
- */
 
 const verdicts = verdictsOf(lessons)
 
