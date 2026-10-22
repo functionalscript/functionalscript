@@ -5,8 +5,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { u8ListMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
 import {
     latin1, packDelta, packDeltaBase, packEntryObject, packEntryOfsDelta, packHeader,
@@ -23,9 +22,6 @@ const id = hex => {
     assert(i !== null)
     return i
 }
-
-/** @type {(oid: Oid) => readonly number[]} */
-const idBytes = oid => toArray(u8ListMsb(oid))
 
 /** The commit the delta's base is, as `git verify-pack -v` names it. */
 const baseId = /** @type {const} */ ('bba8d20c99a645a8a98620700c15ff9262574c94')
@@ -159,7 +155,7 @@ export const proof = {
     // bytes are built. The id is the same base the captured delta has.
     entryRefDelta: () => {
         const base = id(baseId)
-        const e = entry([...header(7, 152), ...idBytes(base), 0x78, 0x01])
+        const e = entry([...header(7, 152), ...u8ArrayMsb(base), 0x78, 0x01])
         // The narrowing comes before the pattern and not in it: `baseId` is on
         // the `refDelta` member alone, so destructuring it out of an `Entry` is
         // `TS2339` until the guard has run. `kind` is read once, which is the

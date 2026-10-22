@@ -2,20 +2,20 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("all", Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("X"), string_any("-")].to_array().to_any())), string_any("a-b-"));
-    check::<A>("template", Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("X"), string_any("$&$&")].to_array().to_any())), string_any("aXXbXX"));
-    check::<A>("emptyPattern", Any::dot(string_any("ab"), string_any("replaceAll")).end_call(&rt, || Ok([string_any(""), string_any("-")].to_array().to_any())), string_any("-a-b-"));
-    check::<A>("nonOverlapping", Any::dot(string_any("aaa"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("aa"), string_any("b")].to_array().to_any())), string_any("ba"));
-    check::<A>("none", Any::dot(string_any("ab"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("z"), string_any("-")].to_array().to_any())), string_any("ab"));
-    check::<A>("positions", Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            Ok(rest.clone().to_any())
-        }, 0, Array::default(), Some("(...$0)=>$0")).to_any();
-        Ok([string_any("X"), c0].to_array().to_any())
+    check::<A>("all", scope(|| { Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("X"), string_any("-")].to_array().to_any())) }), string_any("a-b-"));
+    check::<A>("template", scope(|| { Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("X"), string_any("$&$&")].to_array().to_any())) }), string_any("aXXbXX"));
+    check::<A>("emptyPattern", scope(|| { Any::dot(string_any("ab"), string_any("replaceAll")).end_call(&rt, || Ok([string_any(""), string_any("-")].to_array().to_any())) }), string_any("-a-b-"));
+    check::<A>("nonOverlapping", scope(|| { Any::dot(string_any("aaa"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("aa"), string_any("b")].to_array().to_any())) }), string_any("ba"));
+    check::<A>("none", scope(|| { Any::dot(string_any("ab"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("z"), string_any("-")].to_array().to_any())) }), string_any("ab"));
+    check::<A>("positions", scope(|| {
+        Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("X"), A::static_function(|_self, _args| {
+            let _b54: Any<A> = _args.rest(0).to_any();
+            Ok(_b54.clone())
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0")).to_any()].to_array().to_any()))
     }), string_any("aX,1,aXbXbX,3,aXbX"));
-    check::<A>("before", Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("X"), string_any("$`")].to_array().to_any())), string_any("aabaXb"));
-    check::<A>("empty", Any::dot(string_any(""), string_any("replaceAll")).end_call(&rt, || Ok([string_any(""), string_any("-")].to_array().to_any())), string_any("-"));
+    check::<A>("before", scope(|| { Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(&rt, || Ok([string_any("X"), string_any("$`")].to_array().to_any())) }), string_any("aabaXb"));
+    check::<A>("empty", scope(|| { Any::dot(string_any(""), string_any("replaceAll")).end_call(&rt, || Ok([string_any(""), string_any("-")].to_array().to_any())) }), string_any("-"));
 }

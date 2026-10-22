@@ -22,6 +22,14 @@ const isIdentifierStart = codePoint =>
     isLatinLetter(codePoint) || codePoint === lowLine || codePoint === dollarSign
 
 /**
+ * What may continue an identifier: what may open one, or a digit. A scanner
+ * that reads a word a character at a time asks this of each.
+ *
+ * @type {(codePoint: number) => boolean}
+ */
+export const isIdentifierPart = codePoint => isIdentifierStart(codePoint) || isDigit(codePoint)
+
+/**
  * Whether a word is one the tokenizer reads as a single `id` token —
  * `[A-Za-z_$][A-Za-z0-9_$]*`. A keyword is such a word too: whether it may
  * be bound is [`js/keywords`](../keywords/module.f.js)' question.
@@ -32,7 +40,7 @@ export const isIdentifier = s => {
     const word = codePoints(s)
     return word.length !== 0
         && isIdentifierStart(word[0])
-        && word.every(c => isIdentifierStart(c) || isDigit(c))
+        && word.every(isIdentifierPart)
 }
 
 /**

@@ -204,7 +204,7 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
   where the current parser does" behavior this task inherits is what `open(c)`
   now buys rather than what a bare schema gives: a bare one *errors* on an
   undeclared member instead.
-- [Open containers](../../../rtti/README.md#open-containers) — `open(c)`
+- [Open containers](../../../rtti/guide/schemas/open-containers/README.md) — `open(c)`
   and `rest(c, r)`, which have shipped. A stated `rest` holds an undeclared
   member to that rest without carrying it into what `parse` builds, so this
   parser needs that case too — alongside the closed default's rejection.

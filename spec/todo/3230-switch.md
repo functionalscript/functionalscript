@@ -98,7 +98,7 @@ whether or not a label is reached, so that `switch (null.x) { case 1:
 here as in JavaScript — and each block and the statements after the
 `switch` are the body of a parameterless function called where it stands,
 inlined as a guard's arms are
-([bodies and guards](../control-flow/guards.md)). A `default` block is the
+([bodies and guards](../control-flow/guards/README.md)). A `default` block is the
 last alternate in place of `rest`. The `||` over a stacked group evaluates
 the second label only when the first did not match, which is JavaScript's
 order, and the `?:` chain nests as a chain of guards nests, so a
@@ -221,12 +221,12 @@ implementation's pull request:
 - [x] the fold in `fjs/compiler/parser`: the discriminant as an entry of
   the body, each label entered in order, each block an arm as a guard's,
   the chain closed from the last case back
-- [x] `spec/control-flow/switch.md`, a `switch` program in the control-flow
+- [x] `spec/control-flow/switch/README.md`, a `switch` program in the control-flow
   demo module with its real output, and the same graph and hash asserted
   against the hand-written chain of guards
 - [x] the pages and rows that say a block ends in `return` or `throw`
   naming the third terminator, a switch with a `default`:
-  [guards](../control-flow/guards.md), and the `st.guard`, `st.body-end`
+  [guards](../control-flow/guards/README.md), and the `st.guard`, `st.body-end`
   and `st.unreachable` rows of [refused constructs](./refused-constructs.md)
 - [x] the `st.switch` row of [refused constructs](./refused-constructs.md)
   narrowed to every form this record refuses — a case without braces, a
@@ -275,6 +275,6 @@ implementation's pull request:
 - [refused constructs](./refused-constructs.md) — `st.switch`, the row
   this record turns from open to planned, and narrows to its follow-ups
   once the one form lands
-- [bodies and guards](../control-flow/guards.md) — the guard whose block,
+- [bodies and guards](../control-flow/guards/README.md) — the guard whose block,
   arms and scoping rules the case block takes
 - [let](./3220-let.md) — the loop, whose "Later" holds `break`

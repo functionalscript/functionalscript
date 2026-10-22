@@ -17,7 +17,7 @@ Object.getOwnPropertyDescriptor({ x: undefined }, "x")?.enumerable; // true
 Object.getOwnPropertyDescriptor({}, "x")?.enumerable; // undefined
 ```
 
-The [`hasEntry` helper](../property-access/entries.md), `true` against
+The [`hasEntry` helper](../property-access/entries/README.md), `true` against
 `false` where `entry` reads `undefined` alike, exposes that distinction. Prohibiting `Object.hasOwn` or `in` does not remove it, and
 an internal VM definition cannot change the successful answer to the pattern.
 

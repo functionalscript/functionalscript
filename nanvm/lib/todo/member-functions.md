@@ -3,7 +3,7 @@
 **Priority:** P2
 **Status:** done — kept as the record; cited by `nanvm/lib/src/vm/lambda/mod.rs`
 and `method.rs` (the dispatch algorithm), `fjs/nanvm/methods/module.f.mjs`,
-`nanvm/lib/README.md`, `spec/built-ins/member-functions.md`,
+`nanvm/lib/README.md`, `spec/built-ins/member-functions/README.md`,
 `spec/todo/cavm-function-to-string.md`, `spec/design/serialization.md`,
 `spread-operations.md` and `fjs/nanvm/todo/corpus-improvements.md`
 
@@ -98,7 +98,7 @@ function answers it, so `f.toString()`, `String(f)`, `+`, an array joined
 and a string method's argument all reach the one text. A function without
 text — a host or hand-written one — is refused (`error::function_text`), never
 answered with a placeholder. The property key, which no module can compute
-but through the [`entry`](../../../spec/property-access/entries.md) helper,
+but through the [`entry`](../../../spec/property-access/entries/README.md) helper,
 reaches the same text, and the `function-text` fixture proves it. What remains
 is the host evaluator's own rendering, which the corpus's `host` marker skips
 until it has one.

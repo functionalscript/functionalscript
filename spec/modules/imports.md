@@ -35,7 +35,7 @@ scope and language-designer authorization.
 - Namespace imports ([namespace-import](../todo/2220-namespace-import.md)),
   string-literal export names, bare side-effect imports, and re-exports remain
   unsupported.
-- The module specifier is a [string literal](../values/strings.md), resolved using the
+- The module specifier is a [string literal](../values/strings/README.md), resolved using the
   declared host environment's module-resolution rules. Relative specifiers
   resolve against the importing module's identity; bare specifiers follow the
   host's package or import-map rules. Unsupported specifier classes are
@@ -44,7 +44,7 @@ scope and language-designer authorization.
   share its evaluation and exported value. Distinct module identities remain
   distinct even when they load the same file; loading paths are not cache
   keys. A circular dependency is an error.
-- Local bindings are names under the [rule](../bindings/constants.md) a
+- Local bindings are names under the [rule](../bindings/constants/README.md) a
   `const` follows — `import { a as let }` and `import eval from "./e.f.js"`
   are errors, `import from from "./f.f.js"` is not — and cannot duplicate
   another import or module constant, both being names of the one module
@@ -84,7 +84,7 @@ import a from "./a.json" with { type: "json" };
 - The attribute is `with { type: "json" }`, spelled as JavaScript spells it:
   the key `type`, an identifier name, and the string `"json"`, in braces after
   the path. Any other key or value is an error, as it is in JavaScript. The
-  value is a [string](../values/strings.md) like any other, so `type: 'json'` is the same
+  value is a [string](../values/strings/README.md) like any other, so `type: 'json'` is the same
   attribute. JavaScript also accepts the key written as a string,
   `with { "type": "json" }`, a trailing comma after the pair, and `with {}`
   on an import that is not JSON; none of these is recognized yet. `"json"` is

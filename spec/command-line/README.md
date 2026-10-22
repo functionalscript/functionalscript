@@ -79,7 +79,7 @@ across lines. A file holding only `export default @;` is reported at
 malformed number points at the character that spoils it: `08` at its `8`.
 Lines and columns count from 1, and a column counts UTF-16 code units, so a
 tab is one and a character beyond U+FFFF two. A line ends where JavaScript
-ends one: at a newline ([whitespace](../lexical/whitespace.md)), and
+ends one: at a newline ([whitespace](../lexical/whitespace/README.md)), and
 at a U+2028 or U+2029 inside a string. A CRLF ends one line, not two.
 
 The JSON reader tracks no lines. A malformed `.json` document, the input or an

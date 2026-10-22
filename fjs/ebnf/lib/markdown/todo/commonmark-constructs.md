@@ -20,32 +20,40 @@ than argued from the spec:
 | --- | --- | --- |
 | `**see [details](u)**` | bold around a link | refused |
 | `[**details**](u)` | a link whose words are bold | refused |
-| a two-backtick code span | one code span holding `x` | refused |
+| a two-backtick code span | one code span holding `x` | read as that span, one space stripped each side; three backticks refused |
 | a code span padded with spaces | `code` — one stripped each side | refused |
-| `a * b * c` | three words and two asterisks | refused |
+| `a * b * c` | three words and two asterisks | refused, after the grammar matches it |
+| `` **`a` b** `` | bold holding code | read as that |
 | `[x](a(b)c)` | a link to `a(b)c` | refused |
 | `[x](u "t")` | a link to `u`, titled `t` | refused |
 | `[x](<u>)` | a link to `u` | refused |
 | `![alt](u)` | an image | refused |
-| a nested list marker | a list inside the item | refused |
-| a blank line inside an item | two paragraphs | refused |
+| a nested list marker | a list inside the item | read as that in a README; refused in a release file |
+| a blank line inside an item | two paragraphs, a loose list | read as that in a README; refused in a release file |
+| a pipe table | a table (GitHub's extension) | read as that in a README when every row opens with a pipe; refused in a release file |
 | `-     code`, five spaces after the dash | an indented code block in the item | refused |
 
 ### What is accepted and still read differently
 
 **This is the half the title used to claim did not exist.** Each of these
-parses without complaint and produces a document GitHub does not:
+parsed without complaint and produced a document GitHub does not; the rows
+the README renderer needed are now read as GitHub reads them or refused
+(`proseSpans` and `tryParseBlocks` in
+[`media/markdown`](../../../../media/markdown/module.f.mjs)):
 
 | written | GitHub reads | this subset |
 | --- | --- | --- |
-| `_a_`, `__a__` | emphasis, strong | plain text |
+| `_a_`, `__a__` | emphasis, strong | refused; only `snake_case`, a letter or digit each side, is text |
 | `\\*a\\*` elsewhere than a link | the literal `*a*` | refused since a backslash is |
 | a backtick run inside a span | one span holding it | two spans |
-| `&amp;` | an entity | plain text |
-| `<br>`, `Array<T>` outside code | raw HTML | plain text |
-| `<https://…>` | an autolink | plain text |
-| a line ending in two spaces or a backslash | a hard line break | joined with a space |
-| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose |
+| `&amp;` | an entity | refused |
+| `:shipit:`, `:+1:` | emoji (GitHub's extension) | shortcode candidates refused, including unknown names; support needs GitHub's catalogue |
+| `<br>`, `Array<T>` outside code | raw HTML | refused |
+| `<https://…>` | an autolink | read as the link it is |
+| a bare `https://…` or `www.…` | a link (GitHub's extension) | refused |
+| `~~a~~` | strikethrough (GitHub's extension) | refused; one `~` is text |
+| a line ending in two spaces or a backslash | a hard line break | joined with a space; two spaces refused in a README |
+| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose in a release file; refused in a README, but for `- - a`, a nested list there |
 | `  1. x`, `  # h` on a continuation | the same | prose |
 
 The last two rows are the sharpest: an indented `- child` **is** refused, as a

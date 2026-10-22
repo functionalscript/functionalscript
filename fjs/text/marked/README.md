@@ -204,8 +204,12 @@ directory and writing the file. Its first argument is the `RuntimeLoad` a
 data output interprets the module under — `packageRuntime(packageRoot)`,
 or `noRuntime` for a caller whose outputs interpret nothing, as the
 generators pass. It answers the output the output name asks
-for as `Marked`, or a refusal as `[message, diagnostic]`: the producer's raw
-message for a demo pane and the diagnostic `fjs compile` would print.
+for as `Marked`, or a refusal as `[message, diagnostic, source]`: the
+producer's raw message for a demo pane, the diagnostic `fjs compile` would
+print, and the `SourceError` for a refusal of the module, so a demo can mark
+its token in the source text. The `source` field is `null` when the refusal
+has no source error, such as an unsupported output extension. This is the
+compiler's `OutputRefusal` tuple.
 `_compileMarked` selects the diagnostic on refusal. `compileFile` is it followed
 by the directory and write, writing `toText` of the result; so the file is the
 text of the marked output, by construction.

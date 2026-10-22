@@ -1,5 +1,5 @@
 // A loop, `let` and `while` over one variable, compiled to a Rust loop
-// ([spec: loops](../../../spec/control-flow/loops.md)): `count` runs a million
+// ([spec: loops](../../../spec/control-flow/loops/README.md)): `count` runs a million
 // rounds in `tests/while_loop.rs`, which a call per round could not, and the
 // default is the same loop over a few rounds, as the Node host runs it.
 /** @type {(n: number) => number} */

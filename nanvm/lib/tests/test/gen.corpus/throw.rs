@@ -2,12 +2,10 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check_throws::<A>("number", Err(f64_any(0x3ff0000000000000)));
-    check_throws::<A>("string", Err(string_any("a")));
-    check_throws::<A>("null", Err(Nullish::Null.to_any()));
-    check_throws::<A>("unreachedOperand", scope(|| {
-        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
-        Err(c0)
-    }));
+    check_throws::<A>("number", scope(|| { Err(f64_any(0x3ff0000000000000)) }));
+    check_throws::<A>("string", scope(|| { Err(string_any("a")) }));
+    check_throws::<A>("null", scope(|| { Err(Nullish::Null.to_any()) }));
+    check_throws::<A>("unreachedOperand", scope(|| { Err((bigint_any(1) / bigint_any(0))?) }));
 }

@@ -1,7 +1,9 @@
 ## Compiler vocabulary and modularization
 
 **Priority:** P2
-**Status:** open
+**Status:** wip — the shared FAST foundation and existing input/output
+migration are implemented; remaining lexical/specification alignment follows
+with the feature and integration milestones
 
 ### Problem
 
@@ -127,8 +129,8 @@ owners; this proposal does not require a Rust input parser.
   reinterpret destructuring or defaults. Preserve one evaluation of an
   initializer, use fresh bindings, retain relevant source origins, and
   preserve scope, conditional evaluation and observable function arity.
-  The [short-circuit owner](../edag/todo/short-circuit-conditionals.md) specifies
-  conditional lowering and schema migration after the FAST foundation gate.
+  The [short-circuit contract](../edag/README.md#source-logical-operators) records
+  the implemented conditional lowering and canonical schema migration.
 - **Graph construction preserves source sharing.** References to one binding
   refer to one graph node. Distinct equal expressions remain distinct unless
   an explicit, permitted optimization merges them.
@@ -371,7 +373,7 @@ tree, [`parser/syntax`](../compiler/parser/syntax/types.ts)'s
 `BindingTarget`, is the last representation that holds a pattern: the fold
 in [`parser`](../compiler/parser/module.f.mjs) writes the reads the pattern
 is sugar for while it resolves names, and `AstModule` has no node for it
-([spec: destructuring](../../spec/bindings/destructuring.md)). The same fold
+([spec: destructuring](../../spec/bindings/destructuring/README.md)). The same fold
 owns every other sugar the language has, the table's rows above, so there is
 no desugaring stage to point a page at: the AST of the vocabulary is that
 syntax tree, and the compiler's `AstModule` is nearer FAST, its names
@@ -385,7 +387,7 @@ reads a word or a line.
 array, `['.', ['rest'], i]`, and the fold lands it as one entry, the
 conditional `r[0] === undefined ? 5 : r[0]` with the read spelled twice,
 which is the form the outputs write
-([spec: parameters](../../spec/functions/parameters.md)). Desugaring writes
+([spec: parameters](../../spec/functions/parameters/README.md)). Desugaring writes
 it as two fresh bindings of the body, the read once, the
 [example below](#examples-the-design-must-explain): the initializer is
 evaluated once, nothing after desugaring knows a default was written, and
@@ -497,7 +499,7 @@ it kept, as the specification requires
 has it. The body reads slot `i` as a late parameter reads `rest[i]`, so
 the function's `length` is `0` and the limit of 16 fixed parameters, a
 rule on the parameters a source function writes, never reaches a module's
-imports ([parameters](../../spec/functions/parameters.md),
+imports ([parameters](../../spec/functions/parameters/README.md),
 [module import bindings](../../spec/todo/3120-parameters.md#module-import-bindings-are-unchanged)).
 Beside the function is what the function cannot say: the specifier and
 the `json` attribute, which decide what is loaded, and the export
@@ -570,7 +572,7 @@ old fold or a writer for later migration.
 The [let proposal](../../spec/todo/3220-let.md#later),
 [loop construction](../edag/todo/fast-loop-construction.md),
 [tail-call analysis](../edag/todo/tail-call-loop.md#general-tail-calls) and
-[short-circuit removal](../edag/todo/short-circuit-conditionals.md) own those
+[short-circuit removal](../edag/README.md#source-logical-operators) own those
 extensions. This architecture issue owns the shared foundation.
 Unrelated tokenizer moves and general directory reorganization do not block it.
 
@@ -583,30 +585,30 @@ The architecture also adds no source-language feature by itself.
 The A-C labels refer to the epic's ordered foundation milestones. Update
 documentation and run the affected checks with each implementation increment.
 
-- [ ] **A:** Implement the FAST contract with shared types, stage APIs and
+- [x] **A:** Implement the FAST contract with shared types, stage APIs and
       common normalization/preparation facilities, starting with a real existing
       consumer. Include one binding representation and write/capture analysis
       for locals and parameters. Publish its vocabulary, ownership map and
       invariants.
-- [ ] **B:** Separate reusable JS AST parsing/desugaring from FJS admission.
+- [x] **B:** Separate reusable JS AST parsing/desugaring from FJS admission.
       Move existing source input through normalized FAST and `from_fast`,
       preserving resolution, captures, source locations and graph contracts.
       Expand patterns before shared analysis; preserve source legality and
       current admission, leaving the new capture policy to G.
-- [ ] **B:** Preserve references, scopes and required-evaluation anchors in graph
+- [x] **B:** Preserve references, scopes and required-evaluation anchors in graph
       construction. Keep existing loops structured until that boundary; the
       loop-construction owner extends its capability later.
-- [ ] **C:** Extract EDAG-to-FAST placement once, using existing sharing analysis.
+- [x] **C:** Extract EDAG-to-FAST placement once, using existing sharing analysis.
       Move current tail-loop decisions and immediate-call elimination there
       under the [migration contract](../edag/todo/tail-call-loop.md#fast-migration).
-- [ ] **C:** Complete common preparation and migrate source JS, runtime/function
+- [x] **C:** Complete common preparation and migrate source JS, runtime/function
       text and Rust consumers. Reuse token/marked-text and target helpers;
       retire each replaced graph-aware writer path with its consumer.
-- [ ] **C:** Prove existing shared-versus-equal nodes, invocation/capture scopes,
+- [x] **C:** Prove existing shared-versus-equal nodes, invocation/capture scopes,
       eager/lazy evaluation, unused failing initializers, arity, stack safety
       and supported graph round trips. Verify plain output equals demarked output
       and keep affected demos working.
-- [ ] Close the foundation gate before feature owners extend source sugar,
+- [x] Close the foundation gate before feature owners extend source sugar,
       loop semantics or the EDAG operation set.
 
 The remaining architecture alignment accompanies relevant moves; unrelated
@@ -628,12 +630,11 @@ parts do not delay the epic's foundation gate:
 - [EDAG](../edag/README.md) — graph identity, scopes and operations.
 - [Shared identity traversal](../edag/todo/identity-shared-walks.md) — shared
   counting already completed and remaining traversal questions.
-- [Rust binding emission](../edag/rust/todo/let-bindings-owner.md) — compiler
-  and corpus bindings migrate to the common FAST path; supersedes the earlier
-  separate EDAG-aware emission proposal.
+- [Rust serialization](../rust/serializer/README.md) — compiler temporaries and
+  caller-supplied corpus bindings use the common prepared FAST path.
 - [Tail-call loops](../edag/todo/tail-call-loop.md#fast-migration) — existing
   loop emission and its migration from writers into common FAST conversion.
-- [Short-circuit conditionals](../edag/todo/short-circuit-conditionals.md)
+- [Short-circuit conditionals](../edag/README.md#source-logical-operators)
   — later source sugar and canonical EDAG schema change.
 - [FAST loop construction](../edag/todo/fast-loop-construction.md)
   — later explicit-loop helper construction and graph round-trip rules.
@@ -647,7 +648,7 @@ parts do not delay the epic's foundation gate:
 - [Specification tree](../../spec/todo/spec-tree.md) — the page layout the
   layer line joins.
 - [A module is a function](../../spec/modules/README.md#a-module-is-a-function)
-  and [destructuring](../../spec/bindings/destructuring.md) — the two
+  and [destructuring](../../spec/bindings/destructuring/README.md) — the two
   features placed above.
 - [Design principles](../../doc/DESIGN.md) — simplicity, reuse and incremental
   design.
