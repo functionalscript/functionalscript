@@ -31,6 +31,11 @@
  * were to where they are. An edge or entry between keyed nodes is keyed by
  * their keys too, so its route slides with them where the browser animates
  * a path's `d`, and is redrawn at once where it does not.
+ *
+ * **A node with `groups` draws its label column in pieces**, a cell per
+ * {@link Group}, each beside its own rows, in place of `label`: a record
+ * whose rows fall into parts, such as a chain's links, names each part
+ * where it is. `label` is still what a row of another node names it by.
  */
 export type Node = {
     readonly id: number
@@ -38,7 +43,15 @@ export type Node = {
     readonly label: string
     readonly order?: number | undefined
     readonly key?: string | undefined
+    readonly groups?: readonly Group[] | undefined
 }
+
+/**
+ * One cell of a node's label column: its `label`, beside the next `rows`
+ * of the node's rows. A node's groups take its rows in order and must
+ * take every one of them, at least one each.
+ */
+export type Group = readonly [label: string, rows: number]
 
 /** A {@link Node} once `ranked` (`./module.f.mjs`) has placed it. */
 export type Ranked = Node & { readonly rank: number }
@@ -145,14 +158,15 @@ export type Graph = {
  * How `graphOf` (`./module.f.mjs`) reads one value: a node, with the
  * values its edges lead to, or a spelling drawn inline in its parent's port.
  *
- * A node shape's `kind` and `label` become its {@link Node}'s, and each
- * child's label and optional kind become an {@link Edge}'s. The inline
- * shape is an {@link Inline} as it stands.
+ * A node shape's `kind`, `label` and `groups` become its {@link Node}'s,
+ * and each child's label and optional kind become an {@link Edge}'s. The
+ * inline shape is an {@link Inline} as it stands.
  */
 export type Shape<V> =
     | {
         readonly kind: string
         readonly label: string
         readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
+        readonly groups?: readonly Group[] | undefined
     }
     | Inline
