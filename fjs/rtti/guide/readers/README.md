@@ -3,7 +3,9 @@
 **Status:** implemented
 
 A schema is read against a value by one of three readers, which accept
-exactly the same values:
+exactly the same [DataJS](../../../media/datajs/README.md) values (outside
+DataJS the data form is more permissive; see
+[`data-validate-admits-non-djs-values`](../../todo/data-validate-admits-non-djs-values.md)):
 
 | Reader | A success carries |
 | --- | --- |
