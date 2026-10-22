@@ -111,6 +111,34 @@ export const collectRead = stream => {
 }
 
 
+/**
+ * The content key of a payload, computed without storing it: `sha2` folded
+ * over the stream's chunks, which is the fold `write` runs beside its
+ * `writeBytes`, so for the same bytes the key this answers and the key
+ * `write` returns are one key. That is what lets a caller ask a store whether
+ * content is there before, or instead of, adding it — the build cache in
+ * [`fjs/ci/todo/097-smart-ca-ci.md`](../ci/todo/097-smart-ca-ci.md) hashes a
+ * candidate manifest to look it up, and adding it to find out would record a
+ * success that never happened.
+ *
+ * Pure in the payload: a stream of pure cells issues no command at all, and
+ * one that pulls through effects issues only the stream's own. A stream that
+ * fails fails this with its own failure, as `write` fails, and no key is
+ * answered for the bytes that arrived before it.
+ *
+ * @template {Operation} O
+ * @param {Sha2} sha2
+ * @returns {(payload: EffectList<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>}
+ */
+export const contentKey = sha2 => {
+    /** @type {(state: Sha2State) => (s: EffectList<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>} */
+    const loop = state => s =>
+        ioStep(s, node => node === undefined
+            ? pureOk(sha2.end(state))
+            : loop(sha2.append(node.first)(state))(node.tail))
+    return loop(sha2.init)
+}
+
 /** Staging directory under the store root; GC and every uploader share it. */
 const stageRel = '_stage'
 
