@@ -1,6 +1,6 @@
 /**
  * The browser operations' handlers, for a page to spread into its operation
- * map. Impure: they fetch, and read a clock.
+ * map. Impure: they fetch, and read a clock and the heap.
  *
  * @module
  *
@@ -9,6 +9,7 @@
  */
 
 import { io } from './../module.mjs'
+import { ok } from '../../types/result/module.f.js'
 
 /**
  * The response to a fetch of `path`, refused unless the site answered it
@@ -35,4 +36,8 @@ export const browserOperationMap = {
         const after = performance.now()
         return { exports: instance.exports, startup: after - before }
     }),
+    jsHeapSize: async () => {
+        const { memory } = /** @type {{ readonly memory?: { readonly usedJSHeapSize: number } }} */ (performance)
+        return ok(memory === undefined ? null : memory.usedJSHeapSize)
+    },
 }

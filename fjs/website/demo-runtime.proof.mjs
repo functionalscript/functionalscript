@@ -15,6 +15,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startDemo } from './demo-runtime.mjs'
+import { dragAxis } from './demo/module.f.mjs'
 import { toDom } from '../media/html/module.mjs'
 
 /**
@@ -565,7 +566,7 @@ export const demo = {
         field.min = '-1'
         field.max = '3'
         const svg = {
-            getAttribute: (/** @type {string} */ name) => new Map([['data-demo-x-min', '-2'], ['data-demo-x-max', '4'], ['data-demo-x-left', '0'], ['data-demo-x-right', '600']]).get(name),
+            getAttribute: (/** @type {string} */ name) => dragAxis({ min: -2, max: 4, left: 0, right: 600 })[name],
             getScreenCTM: () => ({ inverse: () => ({}) }),
             createSVGPoint: () => ({ x: 0, y: 0, matrixTransform() { return { x: this.x } } }),
         }

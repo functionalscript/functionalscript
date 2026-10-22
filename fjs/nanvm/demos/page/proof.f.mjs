@@ -5,7 +5,7 @@
  *
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { Sandbox } from '../../../effects/common/types.ts'
- * @import { FetchText, Instantiate, WasmInstance } from '../../../effects/browser/types.ts'
+ * @import { FetchText, Instantiate, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
@@ -18,7 +18,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, init, jsOutput, load, milliseconds, ratio, runBoth, runJs, runWasm, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
+import { buildDirectory, decode, heapChange, init, jsOutput, load, milliseconds, ratio, runBoth, runJs, runWasm, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
 
 /** @type {(text: string) => Sample['program']} */
 const writes = text => () => ({
@@ -62,11 +62,12 @@ const thrown = value => value === throws ? error('boom') : ok(value)
 /**
  * The page's operations. A path in `files` is a text, `wasm` is the module,
  * and anything else is not found. `sandbox` is `null` for a page that does not
- * implement it, and `thrown` for a thunk that throws.
+ * implement it, and `thrown` for a thunk that throws. `heap` is what the heap
+ * reads, every time: `null` for a browser that does not report it.
  *
- * @type {(files: StringMap<string>, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown') => MemOperationMap<FetchText | Instantiate | Sandbox, null>}
+ * @type {(files: StringMap<string>, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown', heap?: number | null | 'notImplemented') => MemOperationMap<FetchText | Instantiate | Sandbox | JsHeapSize, null>}
  */
-const page = (files, wasm, sandbox = 'ok') => ({
+const page = (files, wasm, sandbox = 'ok', heap = 1024) => ({
     fetchText: path => s => {
         const text = files[path]
         return [s, text === undefined ? error(ioError({ message: `${path}: HTTP 404` })) : ok(text)]
@@ -76,9 +77,10 @@ const page = (files, wasm, sandbox = 'ok') => ({
         sandbox === 'notImplemented' ? error(notImplemented('sandbox'))
         : sandbox === 'thrown' ? ok({ result: error('boom'), duration: 0 })
         : /** @type {any} */ (ok({ result: thrown(f()), duration: 1 }))],
+    jsHeapSize: () => s => [s, heap === 'notImplemented' ? error(notImplemented('jsHeapSize')) : ok(heap)],
 })
 
-/** @type {<T>(map: MemOperationMap<FetchText | Instantiate | Sandbox, null>) => (effect: Effect<FetchText | Instantiate | Sandbox, T, never>) => T} */
+/** @type {<T>(map: MemOperationMap<FetchText | Instantiate | Sandbox | JsHeapSize, null>) => (effect: Effect<FetchText | Instantiate | Sandbox | JsHeapSize, T, never>) => T} */
 const perform = map => effect => {
     const [, result] = run(map)(null)(effect)
     assert(result[0] === 'ok')
@@ -123,7 +125,15 @@ export const proof = {
     runJs: () => {
         const r = perform(page({}, null))(runJs(hi.program))
         assert(r[0] === 'ok')
-        assertStructurallySame(r[1], { output: ok('hi'), time: 1 })
+        assertStructurallySame(r[1], { output: ok('hi'), time: 1, heap: { before: 1024, after: 1024 } })
+        // A browser without the heap, as every one but Chromium is, and a page
+        // that does not implement reading it.
+        const noHeap = perform(page({}, null, 'ok', null))(runJs(hi.program))
+        assert(noHeap[0] === 'ok')
+        assertEq(noHeap[1].heap, null)
+        const notImplementedHeap = perform(page({}, null, 'ok', 'notImplemented'))(runJs(hi.program))
+        assert(notImplementedHeap[0] === 'ok')
+        assertEq(notImplementedHeap[1].heap, null)
         assertStructurallySame(perform(page({}, null, 'thrown'))(runJs(hi.program)), error('it threw: boom'))
         assertStructurallySame(perform(page({}, null, 'notImplemented'))(runJs(hi.program)), error('operation not implemented: sandbox'))
     },
@@ -159,13 +169,13 @@ export const proof = {
     milliseconds: () => assertEq(milliseconds(1.54), '1.5 ms'),
     ratio: () => {
         /** @type {(js: number, wasm: number) => Runs} */
-        const runs = (js, wasm) => ({ js: ok({ output: ok(''), time: js }), wasm: ok({ run: { output: ok(''), time: wasm }, memory: 0 }) })
+        const runs = (js, wasm) => ({ js: ok({ output: ok(''), time: js, heap: null }), wasm: ok({ run: { output: ok(''), time: wasm }, memory: 0 }) })
         assertEq(ratio(runs(4, 10)), '2.5×')
         // A JavaScript time the clock reads as `0`, and a run that failed.
         assertEq(ratio(runs(0, 10)), 'Not available')
         assertEq(ratio({ ...runs(4, 10), wasm: error('no wasm') }), 'Not available')
         // A run whose output failed: the program failed, or wrote no UTF-8.
-        assertEq(ratio({ ...runs(4, 10), js: ok({ output: error('the program failed: x'), time: 4 }) }), 'Not available')
+        assertEq(ratio({ ...runs(4, 10), js: ok({ output: error('the program failed: x'), time: 4, heap: null }) }), 'Not available')
         assertEq(ratio({ ...runs(4, 10), wasm: ok({ run: { output: error('the sample threw'), time: 10 }, memory: 0 }) }), 'Not available')
         // Outputs that differ.
         assertEq(ratio({ ...runs(4, 10), wasm: ok({ run: { output: ok('other'), time: 10 }, memory: 0 }) }), 'Not available')
@@ -182,11 +192,15 @@ export const proof = {
         assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('Running time: 1.0 ms'))
         assert(shown.includes('Linear memory of the module so far: 65536 bytes'))
-        // No figure the page cannot measure.
-        assert(!shown.includes('Not available</p>') && !shown.includes('Memory: '))
+        assert(shown.includes('Change in the whole page’s JavaScript heap across the run (Chromium): +0 bytes, 1024 → 1024'))
+        // No heap line where the browser does not report it.
+        const noHeap = text(view('hi')(perform(page({}, null, 'ok', null))(runBoth(hi)(ready))))
+        assert(!noHeap.includes('JavaScript heap'))
+        assert(!noHeap.includes('Not available') && !noHeap.includes('Memory: '))
+        assertEq(heapChange({ before: 1024, after: 512 }), '-512 bytes, 1024 → 512')
         assert(shown.includes('WebAssembly running time, as a multiple of the JavaScript one: 1.0×'))
         assert(shown.includes('pub fn module() {}'))
-        const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0 }), wasm: ok({ run: { output: error('the sample threw'), time: 0 }, memory: 0 }) } }))
+        const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0, heap: null }), wasm: ok({ run: { output: error('the sample threw'), time: 0 }, memory: 0 }) } }))
         assert(empty.includes('(empty)'))
         assert(empty.includes('the sample threw'))
         // Runs that could not happen, and files that did not arrive.
