@@ -51,7 +51,7 @@ import { _outputMarked, compileFile } from './module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'
 import { errorMessage, pureOk } from '../effects/module.f.mjs'
-import runtimeEdag from '../js/runtime/gen.edag.data.mjs'
+import runtimeEdag from '../js/runtime/gen.edag.data.js'
 
 /**
  * The runtime a data output interprets the example under: `fjs/js/runtime`'s

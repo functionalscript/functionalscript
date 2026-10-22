@@ -11,11 +11,10 @@
  * Each statement is printed from the EDAG expression the case denotes, the
  * same expression [`../proof.f.mjs`](../proof.f.mjs) evaluates, so the two
  * consumers read one program rather than each reading the case its own way.
- * The node printer and its binding mechanism are not this module's own:
- * they live in [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared
- * with the `.rs` output branch of `fjs compile`
- * (`fjs/compiler/rust/module.f.mjs`), so the operator tables and the mechanism
- * have one copy between the two generators. What stays here is everything
+ * [`fjs/edag/rust`](../../edag/rust/module.f.mjs) admits each graph through
+ * the common FAST conversion and preparation passes, then the prepared Rust
+ * serializer spells it. The `.rs` output branch of `fjs compile` uses this
+ * same pipeline. What stays here is everything
  * test-corpus-specific: naming a group's Rust function, the per-group `let`
  * bindings a case's shared operands need, and the assertion statements
  * themselves.
@@ -59,22 +58,7 @@ import {
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
-import { braced, expExpr as sharedExpExpr, needsRuntime, nestsOperation, statementsOf } from '../../edag/rust/module.f.mjs'
-
-/**
- * The shared printer as a throwing convenience, for this module's own use:
- * every case in the shared operator corpus is already valid, so a refusal
- * here is a bug in the corpus, not an expected outcome to report as a
- * `Result` — the same distinction {@link expExpr}'s own doc comment draws,
- * decided the other way for a different consumer.
- *
- * A case's member calls dispatch through the runtime value `rt`, which a
- * group's `run` binds once where any case reaches it
- * ({@link groupFile}).
- *
- * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
- */
-const expExpr = shared => e => unwrap(sharedExpExpr(shared, runtimeName)(e))
+import { bindingLine, braced, expExpr as sharedExpExpr, needsRuntime, statementsOf } from '../../edag/rust/module.f.mjs'
 
 /** The name a group's `run` binds the runtime value to, {@link groupFile}. */
 const runtimeName = 'rt'
@@ -83,21 +67,14 @@ const runtimeName = 'rt'
 export const nodeExpr = e => unwrap(sharedExpExpr([], runtimeName)(e))
 
 /**
- * A case's result as the `Result` `check` takes: one bare operation over
- * its operands as written — the flat statement every case has been —
- * unless an operation stands in an eager position, which a bare statement
- * has no line to bind on. Then the case is a scope, `scope(|| { … })`: its
- * temporaries bound inside the closure with their `?`, and the root's own
- * `Result` the closure's answer, handed to `check` whole — the shape a
- * thunk's body and a compiled module already have (`fjs/edag/rust`'s
- * `statementsOf`). `scope` is the harness's, a name for the call rather
- * than `(|| …)()`, which clippy calls redundant.
+ * Every case uses the common prepared Result scope. The corpus selects no
+ * graph-specific placement policy: preparation supplies its declarations and
+ * expression regions, and `scope` provides the failure-propagation boundary
+ * whose result `check` consumes.
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
  */
-const caseText = shared => e => nestsOperation(shared)(e)
-    ? `scope(|| ${braced(unwrap(statementsOf(shared, runtimeName)(e)))})`
-    : expExpr(shared)(e)
+const caseText = shared => e => `scope(|| ${braced(unwrap(statementsOf(shared, runtimeName)(e)))})`
 
 /**
  * Where this printer's output goes, relative to the repository root: a
@@ -121,7 +98,8 @@ export const directory = 'nanvm/lib/tests/test/gen.corpus'
  * `groupKey`: the operation tag, or for an `Op12` group the tag and its
  * arity, since `-` at one operand and at two are two functions.
  *
- * Written out rather than derived: a canonical id may be punctuation, and the
+ * Written out rather than derived: canonical ids and source logical labels
+ * may be punctuation, and the
  * generated function names are this printer's concern and stay stable when an
  * id is respelled — `neg` and `unary_plus` were named for the ids `neg` and
  * `unaryPlus` and kept their names when those became `-` and `+`.
@@ -270,15 +248,17 @@ const groupFile = shared => g => {
         ...header,
         'use crate::harness::*;',
         '',
+        // Identical prepared arms still evaluate their condition; preserve that
+        // program rather than adding a corpus-specific simplification pass.
+        '#[allow(clippy::if_same_then_else)]',
         'pub fn run<A: IStaticFunction>() {',
         ...(reaches ? [`${indent}let ${runtimeName}: Any<A> = runtime::<A>().unwrap();`] : []),
         // An initializer is printed against the bindings established before
         // it, so a `ref` to an earlier shared value clones that binding
         // rather than constructing a second object. Printed without them the
         // Rust heap graph would not be the graph the nodes describe.
-        ...used.map(([k, node], i) =>
-            `${indent}let ${snakeCase(k)}: Any<A> = ${
-                expExpr(used.slice(0, i).map(binding))(node)};`),
+        ...used.flatMap(([k, node], i) => unwrap(bindingLine(used.slice(0, i).map(binding), snakeCase(k), runtimeName)(node))
+            .split('\n').map(line => `${indent}${line}`)),
         ...casesOf(g).flatMap(c => orders(g)(c).flatMap(([name, args]) =>
             emit(c.rust)(assertion(c.expected)(name)(
                 caseText(used.map(binding))(caseExp(shared)(g)(args)))))),

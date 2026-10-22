@@ -2,76 +2,58 @@
 
 use crate::harness::*;
 
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("oneLevelOnly", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("flatMap")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            let c2: Any<A> = [c1].to_array().to_any();
-            Ok([c0, c2].to_array().to_any())
-        }, 0, Array::default(), Some("(...$0)=>[$0[0],[$0[0]]]")).to_any();
-        Ok([c0].to_array().to_any())
+    check::<A>("oneLevelOnly", scope(|| {
+        Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("flatMap")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b312: Any<A> = _args.rest(0).to_any();
+            Ok([(Any::dot(_b312.clone(), f64_any(0x0000000000000000)).end())?, [(Any::dot(_b312.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any())
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>[$0[0],[$0[0]]]")).to_any()].to_array().to_any()))
     }), [f64_any(0x3ff0000000000000), [f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x4000000000000000), [f64_any(0x4000000000000000)].to_array().to_any()].to_array().to_any());
-    check::<A>("notArrays", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("flatMap")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            c0 * f64_any(0x4000000000000000)
-        }, 0, Array::default(), Some("(...$0)=>$0[0]*2")).to_any();
-        Ok([c0].to_array().to_any())
+    check::<A>("notArrays", scope(|| {
+        Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("flatMap")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b174: Any<A> = _args.rest(0).to_any();
+            (Any::dot(_b174.clone(), f64_any(0x0000000000000000)).end())? * f64_any(0x4000000000000000)
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]*2")).to_any()].to_array().to_any()))
     }), [f64_any(0x4000000000000000), f64_any(0x4010000000000000)].to_array().to_any());
-    check::<A>("arguments", Any::dot([f64_any(0x4024000000000000)].to_array().to_any(), string_any("flatMap")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            Ok(rest.clone().to_any())
-        }, 0, Array::default(), Some("(...$0)=>$0")).to_any();
-        Ok([c0].to_array().to_any())
+    check::<A>("arguments", scope(|| {
+        Any::dot([f64_any(0x4024000000000000)].to_array().to_any(), string_any("flatMap")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b92: Any<A> = _args.rest(0).to_any();
+            Ok(_b92.clone())
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0")).to_any()].to_array().to_any()))
     }), [f64_any(0x4024000000000000), f64_any(0x0000000000000000), [f64_any(0x4024000000000000)].to_array().to_any()].to_array().to_any());
-    check::<A>("emptyAnswer", Any::dot([Array::default().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any()].to_array().to_any(), string_any("flatMap")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
-        Ok([c0].to_array().to_any())
+    check::<A>("emptyAnswer", scope(|| {
+        Any::dot([Array::default().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any()].to_array().to_any(), string_any("flatMap")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b218: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b218.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any()))
     }), [f64_any(0x3ff0000000000000)].to_array().to_any());
-    check::<A>("empty", Any::dot(Array::default().to_any(), string_any("flatMap")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            let c2: Any<A> = [c1].to_array().to_any();
-            Ok([c0, c2].to_array().to_any())
-        }, 0, Array::default(), Some("(...$0)=>[$0[0],[$0[0]]]")).to_any();
-        Ok([c0].to_array().to_any())
+    check::<A>("empty", scope(|| {
+        Any::dot(Array::default().to_any(), string_any("flatMap")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b312: Any<A> = _args.rest(0).to_any();
+            Ok([(Any::dot(_b312.clone(), f64_any(0x0000000000000000)).end())?, [(Any::dot(_b312.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any())
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>[$0[0],[$0[0]]]")).to_any()].to_array().to_any()))
     }), Array::default().to_any());
-    check_throws::<A>("throw", Any::dot([Object::default().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("flatMap")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
-        Ok([c0].to_array().to_any())
+    check_throws::<A>("throw", scope(|| {
+        Any::dot([Object::default().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("flatMap")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b218: Any<A> = _args.rest(0).to_any();
+            Any::dot((Any::dot(_b218.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }));
-    check_throws::<A>("flatMapNotAFunction", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("flatMap")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
-    check_throws::<A>("flatMapEmptyNotAFunction", Any::dot(Array::default().to_any(), string_any("flatMap")).end_call(&rt, || Ok([Nullish::Null.to_any()].to_array().to_any())));
-    check_throws::<A>("flatMapNoCallback", Any::dot(Array::default().to_any(), string_any("flatMap")).end_call(&rt, || Ok(Array::default().to_any())));
-    check::<A>("flatMapThisArg", Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), string_any("flatMap")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
-        let c1: Any<A> = [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any();
-        Ok([c0, c1].to_array().to_any())
+    check_throws::<A>("flatMapNotAFunction", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("flatMap")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }));
+    check_throws::<A>("flatMapEmptyNotAFunction", scope(|| { Any::dot(Array::default().to_any(), string_any("flatMap")).end_call(&rt, || Ok([Nullish::Null.to_any()].to_array().to_any())) }));
+    check_throws::<A>("flatMapNoCallback", scope(|| { Any::dot(Array::default().to_any(), string_any("flatMap")).end_call(&rt, || Ok(Array::default().to_any())) }));
+    check::<A>("flatMapThisArg", scope(|| {
+        Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), string_any("flatMap")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b224: Any<A> = _args.rest(0).to_any();
+            Any::dot((Any::dot(_b224.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any(), [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any()].to_array().to_any()))
     }), [f64_any(0x3ff0000000000000)].to_array().to_any());
-    check_throws::<A>("flatMapObject", Any::dot(Object::default().to_any(), string_any("flatMap")).end_call(&rt, || {
-        let c0: Any<A> = A::static_function(|_self, args| {
-            let rest = args.rest(0);
-            let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any();
-        Ok([c0].to_array().to_any())
+    check_throws::<A>("flatMapObject", scope(|| {
+        Any::dot(Object::default().to_any(), string_any("flatMap")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+            let _b174: Any<A> = _args.rest(0).to_any();
+            Any::dot((Any::dot(_b174.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }));
 }

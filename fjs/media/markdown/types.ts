@@ -7,10 +7,11 @@
  * types are that subset, fixed against every release file in the tree — 103
  * of them, 789 entries — rather than against Markdown at large.
  *
- * What the corpus does **not** contain, and these types therefore cannot
- * express: headings, code fences, numbered lists, nested lists, block
+ * What the corpus does **not** contain, and {@link Document} therefore
+ * cannot express: headings, code fences, numbered lists, nested lists, block
  * quotes, tables, and interior blank lines. A release file is a flat list of
- * entries and nothing else.
+ * entries and nothing else. A README is more, and {@link Blocks} is the
+ * part of it this reads: headings, paragraphs, code fences and flat lists.
  *
  * @module
  */
@@ -25,18 +26,25 @@
  * parse as garbage; recognise code first and the remainder is balanced in
  * all 789.
  *
- * **`strong` and `em` hold text and nothing else.** Every one of the 336
- * bold spans and 10 emphasised spans in the tree is plain — none nests, none
- * contains code, none contains a link — so neither carries {@link Inline}.
- * A nested shape would be a generality the format has never used, and the
- * parser would owe it a meaning.
+ * **`strong` and `em` hold text and code**, as a link's label does: a
+ * README sets a name in bold as `` **`Object` is a reserved word** ``. Neither
+ * holds a link or another emphasis, so neither carries {@link Inline}: a
+ * nested shape would be a generality no file uses, and the parser would owe
+ * it a meaning.
  */
 export type Inline =
     | readonly ['text', string]
     | readonly ['code', string]
-    | readonly ['strong', string]
-    | readonly ['em', string]
-    | readonly ['link', string, string]
+    | readonly ['strong', readonly Label[]]
+    | readonly ['em', readonly Label[]]
+    | readonly ['link', readonly Label[], string]
+
+/**
+ * One span of a link's label: text, or code. A README names a file as
+ * ``[`module.f.js`](./module.f.js)``, so a label holds a code span; no label
+ * in the tree holds emphasis or another link, and none may.
+ */
+export type Label = readonly ['text', string] | readonly ['code', string]
 
 /**
  * One entry — a Markdown list item — as its spans.
@@ -58,3 +66,37 @@ export type Entry = readonly Inline[]
  * not part of this type — a reader of a `Document` has it already.
  */
 export type Document = readonly Entry[]
+
+/**
+ * A table column's alignment, from its delimiter cell: `:--`, `:-:`, `--:`,
+ * or `null` for a plain `---`.
+ */
+export type Align = 'left' | 'center' | 'right' | null
+
+/**
+ * One block of a README: a heading with its level, a paragraph, a fenced
+ * code block with its info string, a list, or a table — each a block a
+ * README in the tree is written in and GitHub reads as this reads it.
+ *
+ * **A list item holds blocks**, as it does in CommonMark: paragraphs, code
+ * fences and nested lists, written indented by the two columns its `- `
+ * marker takes. A list is `loose` when a blank line separates two of its
+ * items or two blocks of one item, and GitHub then sets each paragraph of
+ * it in a `<p>`; a tight list's paragraphs are its items' bare text.
+ *
+ * **A table is GitHub's**: a header row, a delimiter row giving each
+ * column's alignment, and body rows, every row's cells being inline spans.
+ *
+ * What a README may hold and these cannot express — a numbered list, a
+ * block quote, raw HTML — is refused by the reader rather than written as
+ * something else, so the README stays a link to GitHub.
+ */
+export type Block =
+    | readonly ['heading', number, readonly Inline[]]
+    | readonly ['paragraph', readonly Inline[]]
+    | readonly ['code', string, string]
+    | readonly ['list', boolean, readonly Blocks[]]
+    | readonly ['table', readonly Align[], readonly Entry[], readonly (readonly Entry[])[]]
+
+/** A README as its blocks, in order. */
+export type Blocks = readonly Block[]

@@ -510,7 +510,7 @@ export const proof = {
             ok: () => assertStructurallySame(
                 unwrap(validate([42, 'hello'])([42, 'hello'])), [42, 'hello']),
             // A tuple is CLOSED, so a longer array is not one of its values —
-            // see "Structs and tuples are closed" in ../README.md. Under
+            // see ../guide/schemas/closed-containers/README.md. Under
             // `open` it is, and it comes back as it went in.
             extraItemsRejected: () => {
                 const long = [42, 1, 2, 3]

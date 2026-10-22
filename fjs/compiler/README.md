@@ -1,8 +1,11 @@
 # FunctionalScript Compiler
 
+[Compiler architecture](./architecture.md) defines the representations, pass
+boundaries and shared FAST migration contracts.
+
 The front end: a grammar-based tokenizer over
 [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs), the
-[parser](./parser/README.md), the [AST](./ast/module.f.mjs), and the
+[parser](./parser/README.md), shared [FAST](../js/ast/README.md), and the
 [transpiler](./transpiler/module.f.mjs) behind `fjs compile`. It moved here
 from `fjs/djs` when the parsers and serializers were restructured, and its
 issues followed into [`todo/`](./todo/) when the old serializer was retired
@@ -45,9 +48,9 @@ base fails, reported as JavaScript's throw is. A function with fixed names and o
 `(a, b, c, ...x) => [a, b, c, x]`, is written by the EDAG, FunctionalScript
 and Rust outputs and retained by EDAG interpretation. A selected function
 is refused by data outputs; functions used during initialization can compute data.
-The AST erases names after binding but retains the fixed parameter count.
-The writer preserves that count, even for unused parameters, and adds a fresh
-rest binding when the body reads it. Empty and rest-only functions both have
+Source resolution gives declarations stable identities and retains parameter
+records. FAST normalization preserves the fixed parameter count, even for unused
+parameters, and adds an invocation rest binding when expansion or the body needs it. Empty and rest-only functions both have
 length zero.
 
 The classical grammars this package once
@@ -67,32 +70,29 @@ line option for it. See [`../text/marked/README.md`](../text/marked/README.md).
 
 ## AST
 
-A module parses into [ast/module.f.mjs](./ast/module.f.mjs); the types
-in [ast/types.ts](./ast/types.ts) carry the shape and its invariants.
+The syntax tree in [`parser/syntax`](./parser/syntax/types.ts) retains source
+constructs and token locations. Name resolution and source admission produce
+[`ResolvedModule`](./parser/types.ts): references identify original declarations,
+assignments retain their target identity, and functions and loops remain
+structured. Complete initialization/read/write facts accompany the module;
+ordinary functions establish capture boundaries and lexical regions do not.
 
-Why a flat list of constants with index references, rather than a value tree:
-a module denotes a **graph**, and `import` and `const` are how it names
-the shared parts. Deserializing has to preserve that sharing — two properties
-holding the same reference must yield the same object, not two equal copies —
-so the AST keeps the constants addressable and refers to them by index
-instead of inlining them. That is also what makes serialization a real
-choice: a value referenced more than once is emitted as a `const` and reused.
+[`js/ast/sugar`](../js/ast/sugar/module.f.mjs) owns pattern/default expansion and
+normalization into immutable FAST values. It keeps one required initializer,
+creates fresh versions for assignments, and supplies explicit loop inputs and
+results. A const snapshot retains its own source identity even when its current
+value is another declaration's value. FAST references name binding objects,
+whose numeric indices are presentation metadata; separate equal operations stay
+separate unless they refer to one established binding.
 
-An object is `['object', entries]`, each entry a member, `[':', key, value]`,
-or a spread, `['...', v]` — the member tagged as the EDAG's property is, so
-that a spread can never read as a property named `...` — in the order
-written and a repeated key written twice, rather than a plain object: interpretation builds the
-object JavaScript builds from the same literal — a repeated key at its first
-position with its last value, integer-like keys first — and the EDAG object
-constructor takes the members as written, which only the syntax still has.
-A module body's last entry is its export object: `export default 7;` lowers to
-`['object', [[':', 'default', 7]]]`. An ordinary function body still ends in its
-returned value. Module `aref`s denote selected import bindings; default imports
-bind the dependency's `default` property, including for JSON imports. Named
-imports retain the selected export in `AstImport.name`; aliases resolve to the
-same selected value, and `name: null` anchors an empty import list. A declaration
-with several bindings contributes one record per selection, all resolved through
-the same host module identity.
+Object literals retain their ordered member and spread entries, so repeated
+keys are evaluated before the constructor determines the final properties.
+A module's final value is its complete export object. Import records retain
+specifier, attribute and selected-export information; records selecting the
+same loaded module receive that module's same export object. Empty import lists
+still require module initialization. The graph-construction convenience API
+composes normalization with [`edag/from_fast`](../edag/from_fast/README.md).
+
 `interpret(load)(path)` in [`transpiler`](./transpiler/module.f.mjs) loads
 imports, then evaluates each module's unresolved EDAG with their complete
 represented export objects as arguments. `load` is the runtime the
@@ -218,25 +218,19 @@ slot a read of the parent's frame. The body is any value except an object, since
 value again: any number of statements, `const`s and guards, and then one
 `return` or one `throw`, which lowers to the node `['throw', v]`, an
 operation of one operand that always fails, in place of the value returned.
-A guard, `if (c) { … }`, is sugar the parser unfolds: its block and the
-statements after it are each a parameterless function called where it
-stands, inlined as below, and the guard the `?:` of the two
-([spec: functions](../../spec/functions/README.md)); a switch,
-`switch (d) { case a: { … } … }`, is the chain of such conditionals, each
-case's test the `===` of the discriminant — an entry of the body, one node
-however many labels test it — and a label, a case's labels under `||`, the
-`default` block or the statements after the switch the last alternate
-([spec: switch](../../spec/control-flow/switch.md)). A body
-`const` is an entry of the function's own body, as a module `const` is of the
-module — one node however many references reach it, and what the returned
-value does not reach anchored by the comma rather than dropped, which is the
-one place a comma stands outside a module's root. With no statement the block
-lowers to the value it returns, the two spellings being one function. The
-comma operator, `(a, b)`, adds no node of its own: its value is its last
-operand's node, and each discarded operand that is code is anchored at the
-nearest block root, or the lazy operand it stands in, as an inlined call's
-anchors are, while one that is no code — a reference, a literal, a function —
-is dropped ([spec: comma](../../spec/operators/comma.md)).
+A guard, `if (c) { … }`, retains direct lexical regions until sugar writes
+a conditional value block. Its selected arm performs that arm's declarations
+and returns its result; a region creates no function or invocation boundary.
+Switch normalization establishes its discriminant once and tests case labels
+against that binding. The final alternate is the default block or the source
+continuation ([spec: switch](../../spec/control-flow/switch/README.md)).
+
+Required FAST definitions retain source initializers whose results are unused
+or reached only conditionally. `from_fast` keeps their graph roots through a
+comma. The comma operator's final operand supplies its value, with required
+work from discarded operands retained in its original region; a discarded
+reference, literal or function value adds no required computation
+([spec: comma](../../spec/operators/comma/README.md)).
 A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
 — and was once the language's only operator. It is no part of the literal
 after it, so `-1` is the negation of `1` in the parser's tree, and the
@@ -255,7 +249,7 @@ through one, `-((...a) => 1)`, and the refusal falls on the `...` where
 JavaScript's does rather than on the `(`. The writer spells that group, for
 a negated function and for a negation under an access, `(-[1])[0]`, alike;
 a negated *number* is the number by the time the writer sees it, and a
-number under an access takes a `const`, `const $0=-1;export default $0[0];`.
+number under an access is grouped, `export default (-1)[0];`.
 
 Stage A of [`spec/operators/README.md`](../../spec/operators/README.md)
 gave the language the rest: arithmetic, strict comparison, and bitwise —
@@ -276,18 +270,15 @@ argument. [`rust`](rust/module.f.mjs) already spelled every one of these
 EDAG nodes but `!==`, which this front end had no path to produce before —
 the front end is what was missing, not the code generator.
 
-Stage B added the lazy operators `&& || ??` and the conditional `?:` above
-them, each again the EDAG's own node — `op2`, and `op3` for the
-conditional — whose laziness the EDAG states positionally: the right
-operand, or the unselected arm, is not established there. The grammar
-keeps `??` apart from `&&`/`||` as JavaScript does, by shape, and the one
-piece of the front end laziness reaches is `anchors` in
-[`ast`](ast/module.f.mjs): a `const` the export reaches only through a
-lazy position is anchored, since its own statement runs at load whatever
-the operator later decides, so `const c = null.x; export default [a && c,
-b && c];` throws at load in both languages. The writer spells both stages, with the
-parentheses their precedence and associativity ask for and no more
-([spec: operators](../../spec/operators/README.md)).
+The source operators `&& || ??` and the conditional `?:` preserve their
+conditional evaluation regions through FAST. The grammar keeps `??` apart
+from unparenthesized `&&`/`||` as JavaScript does. Required definition placement
+belongs to [`edag/from_fast`](../edag/from_fast/README.md): an initializer read
+only in a lazy arm still executes when its declaration executes, so
+`const c = null.x; export default [a && c, b && c];` fails during initialization.
+The shared [logical lowering](../edag/README.md#source-logical-operators)
+establishes the left value once and constructs conditionals; canonical EDAG
+rejects the former logical tags. Source operators retain their grammar.
 
 `!` and `typeof` came after both stages, the third and fourth prefixes
 beside `-` and `~`: the grammar gives each `unaryOperand` as the other two
@@ -319,19 +310,20 @@ calls `f(c)`. A call mints identity — two calls are
 two nodes and a `const` naming one is one — which is what a body's `const`
 keeps. One call lowers to no call at all: a parameterless function written
 at the call and called with no arguments, `(() => { const x = f(); return
-[x, x]; })()`, is its body where the call stands, its captures the enclosing
-scope's own nodes and what its value does not reach anchored at the nearest
-block root, a scope's root or a lazy operand — `isInlinedCall` in
-[`ast`](ast/module.f.mjs) names the conditions and the argument, and
-[spec: functions](../../spec/functions/README.md) the rule. The writer
+[x, x]; })()`, becomes a normalized value block in
+[`js/ast/sugar`](../js/ast/sugar/module.f.mjs), with the enclosing binding
+values and required evaluations retained at that point. No invocation boundary
+is added by this block; [spec: functions](../../spec/functions/README.md)
+states the source rule. The writer
 spells the same idiom back where a lazy operand shares a value nothing else
 reaches. [`serializer`](serializer/module.f.mjs) writes both ordinary and method
 calls, including chained calls, spreads and calls shared through a `const`.
-An operator callee is grouped, `(x+1)()`. A function callee takes a binding so
-reading the output does not inline away the original call node. A negative
-callee needs the same care as an access base: `-1()` is `-(1())`, so a negative
-numeric leaf uses a binding, such as `const f=-1;export default f();`, while a
-negation node is grouped, `(-[])()`. The `calls`, `neg` and `operators` groups in the
+Common graph placement establishes computed callees before the call, as in
+`const f=x+1;export default f();`. A function callee takes a binding so reading
+the output does not inline away the original call node. A negative callee
+needs the same care as an access base: `-1()` is `-(1())`, so a negative numeric
+leaf is grouped, `export default (-1)();`, while a computed negation is
+established by a temporary. The `calls`, `neg` and `operators` groups in the
 [serializer proofs](./serializer/proof.f.mjs) pin these spellings and their
 structural round trips. Calls and arithmetic can therefore reach source, EDAG
 and Rust output, and can compute data for JSON/DataJS output.
@@ -342,9 +334,13 @@ layouts and lazy sharing can be refused. Total code-only
 [runtime-value compilation](../edag/values.md#runtime-compilation) have separate
 contracts and may emit JavaScript beyond FJS; they do not make structural
 source serialization total.
-Source rendering still uses the host stack for nested expressions; deep
-`Number`/`String` chains can throw `RangeError` after parsing and lowering
-succeed, as recorded in
+Common graph-to-FAST conversion, preparation and JavaScript syntax rendering
+now use explicit work stacks for expression chains and final result regions.
+Their direct stage proofs cover 20,000-deep inputs, including required
+definitions in final result blocks. This does not make the public raw-graph
+boundary stack-safe: `identityAnalysis` still has recursive walks and can
+overflow before those output stages run. Remaining input and graph-admission
+limits are tracked in
 [deep-nesting-recursion](./todo/deep-nesting-recursion.md#source-conversion-chains).
 
 Outside optional chaining, a group, `(x)`, is the value it holds: no node in
@@ -352,7 +348,7 @@ the AST or the graph, and nothing downstream can tell one was written — the
 steps after the `)` read the value inside, which is why `(a.b)(c)` is the node
 `a.b(c)` is, and the sharing a module spells survives the parentheses. A group
 closes an optional-chain region, so `(a?.b).c` and `a?.b.c` are distinct programs
-([optional chaining](../../spec/property-access/optional-chaining.md)). What ordinary
+([optional chaining](../../spec/property-access/optional-chaining/README.md)). What ordinary
 grouping adds is spelling:
 a function returning an object, `(...a) => ({ x: 1 })`, an access or a call
 on a value written in place, `([1]).length`, and the two the prefix cannot
@@ -360,8 +356,7 @@ say without it — the access on a negation, `(-1).x` against `-1 .x`, and a
 negated function, `-((...a) => 1)`. The writer spells both as that group,
 and every operator under an access or a prefix the same way, `(1+2).x` and
 `-(1+2)`; a number, a bigint or a function an access reads still takes a
-`const`, `basedHoisted`, since `1.x` and `1 .x` are spellings it does not
-keep.
+`const`, since `1.x` and `1 .x` are spellings it does not keep.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here, where a
 value output, which reads the value the constructor built, never sees it.
@@ -405,9 +400,9 @@ first/follow check, found three of the eight.
 - [x] identifiers `{a:5}`
 - [x] computed keys `{["a"]:5}`, the only keyed spelling of a `__proto__` key;
   the short form `{ __proto__ }` below is the other
-  ([spec: the `__proto__` key](../../spec/values/objects.md#the-__proto__-key)) —
+  ([spec: the `__proto__` key](../../spec/values/objects/README.md#the-__proto__-key)) —
   and `{[k]:5}`, a key computed from any value
-  ([spec: property keys](../../spec/values/objects.md#property-keys))
+  ([spec: property keys](../../spec/values/objects/README.md#property-keys))
 - [x] big int
 - [x] `export default ...`
 - [x] constants
@@ -459,7 +454,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof's functions end without a `return` and many loop with `for`, neither of which the compiler accepts — its assertion calls are call statements it does ([spec: call statements](../../spec/functions/call-statements.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof's functions end without a `return` and many loop with `for`, neither of which the compiler accepts — its assertion calls are call statements it does ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 

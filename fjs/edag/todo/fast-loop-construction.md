@@ -1,7 +1,8 @@
 ## Construct EDAG from structured FAST loops
 
 **Priority:** P2
-**Status:** open — baseline scalar construction in B; general construction in E
+**Status:** wip — scalar construction and fixed-input root reconstruction
+are implemented; general helpers and completions remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -65,26 +66,67 @@ constructs a recursive helper whose normal result is the value bound as `r`.
 A second loop consumes the first loop's results at its own entry point.
 No source-level closure is introduced before source capture checks.
 
+### Shared lazy demand state
+
+A free reference is not permission to establish a lazy initializer while
+constructing the helper. For example, a lazy value read only in a skipped
+loop arm remains unevaluated, and one first demanded inside the loop is reused
+by later iterations and following statements in its owning invocation.
+
+Thread an ordered internal memo vector alongside the helper's user state.
+Each cell carries an initialized flag and its established value; the flag
+distinguishes an undemanded initializer from any source payload. A demand
+selects the stored value or evaluates the initializer with the current memo
+state, then supplies the value and updated memo state together. Failed
+initialization uses the existing failure channel and never supplies a ready
+cell. Conditional regions update only the selected arm's state.
+
+Internal continues carry next user state and memo state simultaneously.
+Normal and escaping helper completions carry the updated memo vector back to
+the caller, which retains it for subsequent demands and sequential loops.
+Nested helpers receive the same owning cells and return their updates to
+their caller; no generated helper directly invokes an enclosing helper.
+The declared normalized loop input and result signatures remain unchanged.
+
+Initializer recipes depend on established immutable values or other memo
+cells. Discover those dependencies through their resolved identities without
+performing source write analysis. Capture established prerequisites normally;
+thread undemanded dependencies as cells instead of evaluating them to build
+the frame. A lazy definition introduced inside an iteration starts fresh on
+each new iteration, while an enclosing invocation's cell survives it. Nested
+loops share an outer iteration's cell only for that iteration's lifetime.
+
+The general internal state/result packages include this bookkeeping. The
+existing scalar graph remains unchanged where no such demand state crosses
+the helper boundary. Pin the memo-bearing graph normalization and stable
+cell ordering with its first implementation.
+
 ### Enclosing-function returns
 
 A loop helper with only normal exits returns its results directly. If the
-loop can return from the enclosing source function, use the internal completion
-forms:
+loop can return from the enclosing source function or transfer to a lexically
+enclosing loop, use the internal completion forms:
 
 ```text
 ["normal", resultValues]
 ["return", value]
+["break", targetId, resultValues]
+["continue", targetId, nextValues]
 ```
 
-These forms are private to this conversion. FAST, admission and serializers
-know only their own loop/result/return constructs.
+These forms are private to this conversion. `targetId` is a deterministic
+encoding of the resolved loop identity within the owning function, not a
+printed name or the identity's presentation index. FAST, admission and
+serializers know only their own loop/result/return constructs.
 
 A caller resumes after the loop for normal completion. A source-function
 return propagates through enclosing generated helpers until its owning
-function returns the payload. An ordinary nested source function owns its own
-returns. Source values resembling completion tags remain payloads, not control
-signals. Existing throws/failures propagate through the existing failure
-channel; there is no additional failure tag.
+function returns the payload. A break or continue targeting an enclosing loop
+propagates until that loop's caller processes its own result or transition;
+intermediate helpers do not perform the outer transition. An ordinary nested
+source function owns its own returns. Source values resembling completion
+tags remain payloads, not control signals. Existing throws/failures propagate
+through the existing failure channel; there is no additional failure tag.
 
 An inner helper returns to its caller. It never calls an outer helper to
 continue an outer iteration: that would create a recursive call cycle which
@@ -92,6 +134,43 @@ self-tail-call elimination cannot make stack-safe. The caller processes the
 inner result and performs its own transition.
 
 ### Canonical root loops
+
+The fixed-input increment implements direct reconstruction for zero through
+sixteen fixed parameters, no rest binding and one opaque public result, while
+keeping the established scalar shape first. Its contract lives in
+[`from_fast/loop/root`](../from_fast/loop/root/README.md). This is part of E;
+general helpers, nested transfers, operand control and rest transitions remain
+open below.
+
+The current fixed-input root constructor shares the suffix of wholly normal
+result regions. A region with nonlocal exits can still reconstruct the suffix
+independently for more than one normal exit. For example, both arms below can
+return or yield, so repeating this statement grows the following suffix
+exponentially:
+
+```text
+if (condition) {
+    if (stopA) { return F(a) }
+    yield ()
+} else {
+    if (stopB) { return F(b) }
+    yield ()
+}
+followingStatements
+```
+
+A bounded reproduction grew the normalized function from 4,949 bytes for four
+such statements to 79,349 for eight and 1,269,749 for twelve. This performance
+case remains open: implement a shared normal/control join in the graph owner,
+preserving the existing partially abrupt result-region behavior. Reusing a
+task or AST object alone still reconstructs the suffix in each branch. A
+continuation function would add an invocation and can create recursive call
+cycles; wrapping returned self calls in eager completion payloads would remove
+their direct tail position. Keep terminal public results and self calls direct.
+
+Normalized loop bodies already have explicit transfers and no implicit
+fallthrough. A reached loop-body `yield` violates that precondition and is
+refused, rather than being interpreted as a return or a new iteration.
 
 Implement the scalar form needed by common existing output during B, before
 output migration C. E extends it to general invocation/result signatures.
@@ -123,6 +202,41 @@ and negative graph fixtures rather than introducing a second heuristic.
 its normalized FAST back does not add a wrapper. Physical prepared FAST is
 not the input to `from_fast`.
 
+### Pending member-resolution decision
+
+Lifting argument control must preserve the lookup boundary. In
+`null.f(argument-block-returning-7)`, lookup fails before that successful
+return; calling an already evaluated noncallable value instead reaches the
+arguments before callable validation. A nullish optional receiver skips its
+key and arguments. A plain property read cannot express the optional-call
+guard for native methods: it may yield undefined where a member call exists.
+
+The proposed minimal extension is `['memberPresent', receiver, key]`, returning
+the existing member-call guard's Boolean result or ordinary lookup failure.
+It must reuse the operation kernel's own/native/runtime resolution, including
+key coercion and null-receiver failure. An own null/undefined field is absent;
+an own noncallable nonnull value is present and fails only when invoked after
+its arguments. Native and runtime members use the existing guard, with no
+second method inventory. Normal optional-chain regions decide whether the
+query itself is reached. Bare optional calls need only their callee's nullish
+test. The proposed tag remains absent from the current canonical schema.
+
+This query would precede the existing member call after selected argument
+control. With pure lookup, repeating resolution preserves language outcomes;
+the straightforward query plus ordinary call performs three runtime `dot`
+lookups where the existing optional call performs two. That cost is explicit.
+The alternative is a first-class resolved-member value and invocation form,
+which avoid that repeated lookup but require a larger value/schema/runtime
+contract. The owner decision is pending; neither alternative is provisionally
+admitted. Full E must settle this boundary and common preparation's matching
+receiver/callee handling before its normalized contract is complete.
+
+Expand an earlier array/call spread before a later value operand can return or
+transfer. Snapshotting only the spread operand does not preserve a failing
+expansion before a successful transfer. This boundary belongs to common
+preparation and construction, alongside member resolution; target writers do
+not independently infer it.
+
 ### Identity and evidence
 
 Preserve established exact-graph loop cases outside any normalization explicitly
@@ -133,7 +247,7 @@ domain, accounting for the separate short-circuit schema migration.
 Other supported conversions preserve semantics and explicit sharing under
 their documented normalization. Repeated conversions must stabilize.
 
-- [ ] **B:** Preserve the existing scalar construction and implement scalar
+- [x] **B:** Preserve the existing scalar construction and implement scalar
       root-loop reconstruction required by C. Pin its exact-graph domain and
       any explicit normalization before migrating output.
 - [ ] **E, after D:** Construct general helpers using explicit loop signatures.
@@ -144,6 +258,13 @@ their documented normalization. Repeated conversions must stabilize.
 - [ ] Implement normal results and enclosing-function completion propagation.
       Cover several breaks, nested returns, source nested-function returns,
       completion-shaped user values and failures.
+- [ ] Propagate resolved breaks and continues through inner helpers to their
+      enclosing target without recursive helper cycles. Distinct target
+      identities with the same presentation index remain distinct.
+- [ ] Thread shared lazy demand state through helpers, conditional demands,
+      continues and completions. Cover skipped failures, identity reused across
+      iterations and following code, sequential/nested loops, and fresh
+      iteration-local cells without changing public loop signatures.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
 - [ ] Keep the existing scalar shape; pin deterministic general state/capture

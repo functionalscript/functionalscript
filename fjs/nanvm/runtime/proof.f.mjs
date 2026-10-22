@@ -14,7 +14,7 @@ export const proof = {
     paths: () => {
         assertEq(source, './fjs/js/runtime/module.f.js')
         assertEq(rustPath, 'nanvm/lib/src/vm/gen.runtime.rs')
-        assertEq(edagPath, 'fjs/js/runtime/gen.edag.data.mjs')
+        assertEq(edagPath, 'fjs/js/runtime/gen.edag.data.js')
     },
     // Both compiles, in order: the static runtime, a module holding one
     // body, read back as the item it becomes; the EDAG, read back as the
@@ -26,7 +26,7 @@ export const proof = {
         const [state, result] = virtualAt(withRuntime(text))(generate())
         assertOk(result)
         const [, rust] = virtual(state)(readUtf8File(rustPath))
-        assert(assertOk(rust).includes('(string_key("Object.x"), c1)') && assertOk(rust).includes('Some("function x() { [native code] }")'))
+        assert(assertOk(rust).includes('(string_key("Object.x"), A::static_function(') && assertOk(rust).includes('Some("function x() { [native code] }")'))
         const [, edag] = virtual(state)(readUtf8File(edagPath))
         const data = assertOk(edag)
         assert(data.includes('export default ["{}",[') && data.includes('[":","Object.x",["=>",0,[],1]]') && data.includes('[":","static",["=>",1,'))

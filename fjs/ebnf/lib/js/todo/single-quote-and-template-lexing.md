@@ -21,7 +21,7 @@ between single quotes with `\'` added
 ([2460](../../../../../spec/todo/2460-js-string-literals.md)), and no other
 escape. Template chunks and nesting now read JavaScript escapes while
 retaining the provenance that lets the compiler check its
-[FJS escape subset](../../../../../spec/values/template-literals.md). The
+[FJS escape subset](../../../../../spec/values/template-literals/README.md). The
 remaining quoted-string spellings still stop the grammar and every reader of it:
 
 ```
@@ -52,7 +52,7 @@ reading `export const` out of the stream would see a fraction of a module.
 The remaining quoted-string spellings are covered by
 [2460-js-string-literals](../../../../../spec/todo/2460-js-string-literals.md),
 which has accepted single quotes with JSON's escapes and defers the extra
-escapes. [Untagged template literals](../../../../../spec/values/template-literals.md)
+escapes. [Untagged template literals](../../../../../spec/values/template-literals/README.md)
 are implemented with explicit `String` conversion and binary `+` lowering;
 that specification owns their deferred extra escapes and refusal of tagged
 forms. Any future common escape-set widening must be coordinated with quoted
@@ -197,7 +197,7 @@ and the trailing backtick or `${`; it preserves backslashes and raw CR/CRLF.
 Cooking and line-ending normalization affect only `value`. Thus plain `A` and
 `\x41` both have `value: 'A'`, but their `source` fields are `'A'` and `'\\x41'`.
 The compiler checks `source` against the
-[accepted template spelling subset](../../../../../spec/values/template-literals.md)
+[accepted template spelling subset](../../../../../spec/values/template-literals/README.md)
 before admitting a chunk. The general JS stream keeps recognizing the wider
 JS spelling set without carrying a compiler-specific acceptance flag.
 This field is source provenance, not a tagged template's `raw` array.
@@ -210,7 +210,7 @@ malformed escape — `\xG1`, `\u{}`, `\01`, `\8`, a `\u{...}` above U+10FFFF —
 stops the chunk rule, and the stream reports an `error` token there rather
 than a chunk with an invented `value`. That is a deferral, recorded here. The
 only JavaScript that reads such a chunk is a tagged template, which
-[FunctionalScript refuses](../../../../../spec/values/template-literals.md),
+[FunctionalScript refuses](../../../../../spec/values/template-literals/README.md),
 and no source in this tree uses one, so the tree scan below does not need it. A reader that
 does — a source view over foreign JavaScript, say — widens `value` to
 `string | undefined` after ECMAScript's `TemplateStrings`, keeping `source`.
@@ -231,7 +231,7 @@ is.
 
 This brings the `${}` *delimiters* into the token layer while leaving a
 substitution's contents to ordinary tokens. The compiler admits untagged
-templates with the [specified escape subset](../../../../../spec/values/template-literals.md)
+templates with the [specified escape subset](../../../../../spec/values/template-literals/README.md)
 and refuses tagged forms and chunks whose `source` uses a deferred spelling.
 The shared token reader recognises the wider template escapes without admitting
 them to FunctionalScript.
@@ -423,7 +423,7 @@ the source view rests on.
   issue recognises; whether FunctionalScript *accepts* those spellings is its
   question, answered for single quotes (approved, with JSON's escapes plus the
   literal's own quote) and deferred for the rest.
-- [Template literals](../../../../../spec/values/template-literals.md) — the
+- [Template literals](../../../../../spec/values/template-literals/README.md) — the
   implemented substitution conversion, lowering and escape subset; widening
   lexical recognition does not change those semantics or admit tagged forms.
 - [eslint](../../../../../todo/eslint.md) — names this same gap as its reason

@@ -30,3 +30,11 @@ export type _Checked = {
     readonly checked: number
     readonly refused: number
 }
+
+/**
+ * Why `_outputMarked` wrote no output: the message alone, the line
+ * `fjs compile` prints, and the source error it reports, when the refusal is
+ * of the module rather than of the output — so a page can mark where in the
+ * module's text the refusal is.
+ */
+export type OutputRefusal = readonly [message: string, diagnostic: string, source: SourceError | null]

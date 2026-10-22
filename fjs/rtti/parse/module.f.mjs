@@ -24,7 +24,7 @@
  *
  * A tuple schema declares by length, so a hole in the *schema* is a declared
  * position whose schema is `undefined` — see "A hole is a declared position"
- * in `../README.md`.
+ * in `../guide/schemas/closed-containers/README.md`.
  *
  * The length check is the model rather than an inference from the rendering.
  * #1622 added one by reading `Ts<readonly[42]>`'s exact tuple as the value
