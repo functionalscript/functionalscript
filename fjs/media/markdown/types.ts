@@ -84,19 +84,35 @@ export type Align = 'left' | 'center' | 'right' | null
  * items or two blocks of one item, and GitHub then sets each paragraph of
  * it in a `<p>`; a tight list's paragraphs are its items' bare text.
  *
+ * **A numbered list is an `olist`**, with the number its first item
+ * carries, which GitHub starts the list at; the numbers after it are not
+ * read, as GitHub does not read them. Its items are as a list's.
+ *
  * **A table is GitHub's**: a header row, a delimiter row giving each
  * column's alignment, and body rows, every row's cells being inline spans.
  *
- * What a README may hold and these cannot express — a numbered list, a
- * block quote, raw HTML — is refused by the reader rather than written as
- * something else, so the README stays a link to GitHub.
+ * What a README may hold and these cannot express — a block quote, raw
+ * HTML — is refused by the reader rather than written as something else, so
+ * the README stays a link to GitHub.
  */
 export type Block =
     | readonly ['heading', number, readonly Inline[]]
     | readonly ['paragraph', readonly Inline[]]
     | readonly ['code', string, string]
     | readonly ['list', boolean, readonly Blocks[]]
+    | readonly ['olist', number, boolean, readonly Blocks[]]
     | readonly ['table', readonly Align[], readonly Entry[], readonly (readonly Entry[])[]]
 
 /** A README as its blocks, in order. */
 export type Blocks = readonly Block[]
+
+/**
+ * A list item's marker: its delimiter, `-` or an ordered item's `.` or `)`,
+ * which every item of one list shares; an ordered item's number, `null` for
+ * `-`; and the columns the marker takes with its space.
+ */
+export type ListMarker = {
+    readonly delimiter: '-' | '.' | ')'
+    readonly start: number | null
+    readonly width: number
+}

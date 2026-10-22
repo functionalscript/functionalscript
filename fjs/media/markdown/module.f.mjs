@@ -25,7 +25,7 @@
  * @import { Utf16 } from '../../ebnf/utf16/types.ts'
  * @import { RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Align, Block, Blocks, Document, Entry, Inline, Label } from './types.ts'
+ * @import { Align, Block, Blocks, Document, Entry, Inline, Label, ListMarker } from './types.ts'
  */
 
 import { unmapped } from '../../ebnf/ast/module.f.js'
@@ -298,6 +298,43 @@ const emailAt = (text, i) => {
     return j > i + 1 && text[j] === '.' && isDomainChar(text[j + 1])
 }
 
+/** What GitHub drops from the end of an extended autolink. */
+const urlTrailing = '?!.,:*_~\'"'
+
+/**
+ * The `http://` or `https://` URL `text` opens, as GitHub's extended
+ * autolink reads it: up to the first space or `<`, less the punctuation
+ * GitHub leaves after a link — `?!.,:*_~'"`, and a `)` that closes no `(`
+ * of the URL's own. `null` where GitHub would read it otherwise: a host with
+ * no dot, or a character outside letters, digits, `.`, `-` and `_`, or an
+ * end like an entity, `&name;`.
+ *
+ * @type {(text: string) => string | null}
+ */
+export const bareUrl = text => {
+    let end = 0
+    while (end < text.length && text[end] !== ' ' && text[end] !== '\t' && text[end] !== '<') { end++ }
+    let url = text.slice(0, end)
+    let trimmed = true
+    while (trimmed) {
+        trimmed = false
+        const last = url[url.length - 1]
+        if (last !== undefined && urlTrailing.includes(last)) {
+            url = url.slice(0, -1)
+            trimmed = true
+        } else if (last === ')' && url.split(')').length > url.split('(').length) {
+            url = url.slice(0, -1)
+            trimmed = true
+        }
+    }
+    if (url.endsWith(';')) { return null }
+    const scheme = url.indexOf('://') + 3
+    const hostEnd = [...url.slice(scheme)].findIndex(c => c === '/' || c === '?' || c === '#')
+    const host = url.slice(scheme, hostEnd === -1 ? url.length : scheme + hostEnd)
+    if (!host.includes('.') || [...host].some(c => !(isWordChar(c) || c === '.' || c === '-' || c === '_'))) { return null }
+    return url
+}
+
 /**
  * What GitHub reads in a run of prose that the grammar reads as text, found
  * in one scan after recognition — the place {@link hasImage} asks what a
@@ -314,8 +351,11 @@ const emailAt = (text, i) => {
  * - `&` before a name or a number and a `;` is an entity, read as the
  *   character it names;
  * - `<` before a letter, `/`, `!` or `?` is raw HTML — unless it opens an
- *   `http` autolink, the one form read here, as the link it is;
- * - a bare `http://`, `https://` or `www.` is a link there too.
+ *   `http` autolink, which is read as the link it is;
+ * - a bare `http://` or `https://` URL is a link there too, GitHub's
+ *   extended autolink, and is read as one where it stands after a space,
+ *   a `(` or nothing and its host has a dot ({@link bareUrl}); a bare
+ *   `www.`, and a bare URL anywhere else, is refused.
  *
  * `autolinks` says whether this run may hold an autolink: a link's label is
  * prose too, but a link inside a link is a reading neither side has.
@@ -337,7 +377,16 @@ export const proseSpans = autolinks => text => {
         if (shortcodeAt(text, i)) { return error(`an emoji shortcode candidate at ${i}`) }
         if (autolinks && c === '@' && emailAt(text, i)) { return error(`an email address, which GitHub reads as a link, at ${i}`) }
         if (rest.startsWith('http://') || rest.startsWith('https://') || rest.startsWith('www.')) {
-            if (text[i - 1] !== '<') { return error(`a bare URL, which GitHub reads as a link, at ${i}`) }
+            if (text[i - 1] !== '<') {
+                const before = text[i - 1]
+                const url = autolinks && !rest.startsWith('www.') && (before === undefined || before === ' ' || before === '(') ? bareUrl(rest) : null
+                if (url === null) { return error(`a bare URL, which GitHub reads as a link, at ${i}`) }
+                out = [...out, ...(i === start ? [] : [/** @type {Inline} */(['text', text.slice(start, i)])]),
+                    ['link', [['text', url]], url]]
+                start = i + url.length
+                i = start - 1
+                continue
+            }
         }
         if (c === '<') {
             const close = text.indexOf('>', i)
@@ -592,13 +641,29 @@ const inlineAt = (line, text) => {
  * A table row's cells as their text: the row without the pipes that open
  * and close it, split at every pipe between. A pipe inside a code span
  * splits it too, as it does on GitHub, which is why a cell's text is read
- * only once it is a cell.
+ * only once it is a cell. An escaped pipe, `\|`, splits nothing and is a
+ * `|` of the cell's text, in a code span too, as GitHub reads it.
  *
  * @type {(row: string) => readonly string[]}
  */
 const cells = row => {
     const t = row.trim()
-    return t.slice(1, t.endsWith('|') && t.length > 1 ? -1 : t.length).split('|').map(c => c.trim())
+    const inner = t.slice(1, t.endsWith('|') && !t.endsWith('\\|') && t.length > 1 ? -1 : t.length)
+    /** @type {readonly string[]} */
+    let out = []
+    let cell = ''
+    for (let k = 0; k < inner.length; k++) {
+        if (inner[k] === '\\' && inner[k + 1] === '|') {
+            cell = `${cell}|`
+            k++
+        } else if (inner[k] === '|') {
+            out = [...out, cell.trim()]
+            cell = ''
+        } else {
+            cell = `${cell}${inner[k]}`
+        }
+    }
+    return [...out, cell.trim()]
 }
 
 /**
@@ -627,6 +692,23 @@ const tableAligns = (header, delimiter) => {
     const aligns = cells(delimiter).map(alignOf)
     if (aligns.some(a => a === undefined) || aligns.length !== cells(header).length) { return null }
     return /** @type {readonly Align[]} */(aligns)
+}
+
+/**
+ * The marker a list item opens `line` with: `- `, or a number of one to
+ * nine digits, its `.` or `)` and a space, GitHub's ordered list item. Its
+ * delimiter, which a list's items share; the number, for an ordered item;
+ * and the columns it takes, where the item's other lines are indented.
+ *
+ * @type {(line: string) => ListMarker | null}
+ */
+const listMarker = line => {
+    if (line.startsWith('- ')) { return { delimiter: '-', start: null, width: 2 } }
+    let digits = 0
+    while (digits < 10 && charIs(isDigit)(line[digits] ?? '')) { digits++ }
+    const delimiter = line[digits]
+    if (digits === 0 || digits > 9 || (delimiter !== '.' && delimiter !== ')') || line[digits + 1] !== ' ') { return null }
+    return { delimiter, start: Number(line.slice(0, digits)), width: digits + 2 }
 }
 
 /**
@@ -672,7 +754,13 @@ const readBlocks = (base, inItem) => lines => {
             i++
             continue
         }
-        if (line.startsWith('- ')) {
+        const marker = listMarker(line)
+        if (marker !== null) {
+            /** @type {(l: string) => ListMarker | null} */
+            const sameList = l => {
+                const m = listMarker(l)
+                return m !== null && m.delimiter === marker.delimiter ? m : null
+            }
             /** @type {readonly Blocks[]} */
             let items = []
             let loose = false
@@ -680,7 +768,9 @@ const readBlocks = (base, inItem) => lines => {
             let more = true
             while (more) {
                 const start = j
-                const first = lines[j].slice(2)
+                const width = /** @type {ListMarker} */ (sameList(lines[j])).width
+                const indent = ' '.repeat(width)
+                const first = lines[j].slice(width)
                 // A marker with nothing after it, or with more than one
                 // space, sets the item's text at a column its other lines
                 // would have to match; every item here is written `- text`.
@@ -690,7 +780,7 @@ const readBlocks = (base, inItem) => lines => {
                 /** @type {readonly string[]} */
                 let body = [first]
                 j++
-                while (j < lines.length && !lines[j].startsWith('- ')) {
+                while (j < lines.length && sameList(lines[j]) === null) {
                     const l = lines[j]
                     if (l.slice(0, l.length - l.trimStart().length).includes('\t')) { return refuseAt(j, 'a tab in an indent') }
                     if (l.trim() === '') {
@@ -698,15 +788,15 @@ const readBlocks = (base, inItem) => lines => {
                         // line follows it, and ends the list otherwise.
                         let k = j
                         while (k < lines.length && lines[k].trim() === '') { k++ }
-                        if (k === lines.length || !lines[k].startsWith('  ')) { break }
+                        if (k === lines.length || !lines[k].startsWith(indent)) { break }
                         body = [...body, ...lines.slice(j, k).map(() => '')]
                         j = k
                         continue
                     }
-                    if (!l.startsWith('  ')) {
+                    if (!l.startsWith(indent)) {
                         return refuseAt(j, 'a line that GitHub reads as part of the list item above it')
                     }
-                    body = [...body, l.slice(2)]
+                    body = [...body, l.slice(width)]
                     j++
                 }
                 const read = readBlocks(base + start, true)(body)
@@ -717,12 +807,14 @@ const readBlocks = (base, inItem) => lines => {
                 items = [...items, placed.map(p => p[0])]
                 let k = j
                 while (k < lines.length && lines[k].trim() === '') { k++ }
-                more = k < lines.length && lines[k].startsWith('- ')
+                more = k < lines.length && sameList(lines[k]) !== null
                 // So does one between two items.
                 loose = loose || (more && k !== j)
                 j = more ? k : start + body.length
             }
-            out = [...out, [['list', loose, items], i, j - 1]]
+            /** @type {Block} */
+            const list = marker.start === null ? ['list', loose, items] : ['olist', marker.start, loose, items]
+            out = [...out, [list, i, j - 1]]
             i = j
             continue
         }
@@ -735,9 +827,9 @@ const readBlocks = (base, inItem) => lines => {
             let read = []
             for (const [r, row] of rows.entries()) {
                 if (r === 1) { continue }
-                // An escaped pipe is a cell's content on GitHub, and a
-                // split here.
-                if (row.includes('\\|')) { return refuseAt(i + r, 'an escaped pipe in a table') }
+                // A backslash before an escaped pipe leaves which of the
+                // two the escape is to GitHub's reading of backslashes.
+                if (row.includes('\\\\|')) { return refuseAt(i + r, 'a backslash before an escaped pipe in a table') }
                 if (!row.startsWith('|')) { return refuseAt(i + r, 'a table row that does not open with a pipe') }
                 const texts = cells(row)
                 if (texts.length !== aligns.length) { return refuseAt(i + r, 'a table row whose cells do not match its header') }

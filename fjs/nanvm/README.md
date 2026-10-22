@@ -135,7 +135,7 @@ data is always a *description*, never a value that happens to be a function:
 | `returns(v)` | a function that answers `v` whatever it is given, `(...a) => v`, for a conversion that calls an object's own `toString` or `valueOf`; `returns(unreached)` throws when called |
 | `ref(name)` | one of `data.shared`'s values, so the *same* object reaches every `ref` to that name |
 | `throws` | the case must throw; valid only as `expected` |
-| `unreached` | an operand the operation must not establish, lowered to `1n / 0n`, which throws if it is; for the lazy positions of `&&`/`||`/`??`/`?:` |
+| `unreached` | an operand the operation must not establish, lowered to `1n / 0n`, which throws if it is; for the lazy positions of `&&`/`\|\|`/`??`/`?:` |
 
 `expected` is compared structurally: `Object.is` at every leaf, so `NaN`
 matches `NaN` and `0` does not match `-0`, and arrays and objects by their
