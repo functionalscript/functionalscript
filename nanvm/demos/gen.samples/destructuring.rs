@@ -4,30 +4,16 @@ use nanvm_lib::vm::unstable::{f64_any, spread_array, spread_item, string_any, st
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| {
-        let rest = args.rest(1);
-        let c0: Any<A> = spread_array([spread_item(args.argument(0))])?;
-        let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
-        let c3: Any<A> = Any::dot(c2, string_any("second")).end()?;
-        Ok([c1, c3, rest.clone().to_any()].to_array().to_any())
+    let _b7: Any<A> = A::static_function(|_self, _args| {
+        let _b432: Any<A> = _args.rest(1).to_any();
+        let _b1: Any<A> = (spread_array([spread_item(_args.argument(0))]))?;
+        Ok([(Any::dot(_b1.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b1.clone(), f64_any(0x3ff0000000000000)).end())?, string_any("second")).end())?, _b432.clone()].to_array().to_any())
     }, 1, Array::default(), Some("($0,...$1)=>{const $2=[...$0];return [$2[0],$2[1].second,$1];}")).to_any();
-    let c1: Any<A> = A::static_function(|self_, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = rest.clone().to_any();
-        let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c3: Any<A> = (c2 * f64_any(0x4000000000000000))?;
-        let c4: Any<A> = [c3].to_array().to_any();
-        let c5: Any<A> = [(string_key("x"), c1), (string_key("y"), c4)].to_object().to_any();
-        let c6: Any<A> = Any::dot(c5.clone(), string_any("x")).end()?;
-        let c7: Any<A> = Any::dot(c5.clone(), string_any("y")).end()?;
-        let c8: Any<A> = spread_array([spread_item(c7)])?;
-        let c9: Any<A> = Any::dot(c8, f64_any(0x0000000000000000)).end()?;
-        let c10: Any<A> = [(string_key("second"), c9)].to_object().to_any();
-        let c11: Any<A> = [c6, c10].to_array().to_any();
-        Any::call(A::frame(self_)[0].clone(), [c11, f64_any(0x4008000000000000), f64_any(0x4010000000000000)].to_array().to_any())
-    }, 0, [c0].to_array(), Some("(...$1)=>{const $2={\"x\":$1[0],\"y\":[$1[0]*2]};return $0([$2.x,{\"second\":[...$2.y][0]}],3,4);}")).to_any();
-    Ok([(string_key("default"), c1)].to_object().to_any())
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b1272: Any<A> = _args.rest(0).to_any();
+        let _b14: Any<A> = [(string_key("x"), (Any::dot(_b1272.clone(), f64_any(0x0000000000000000)).end())?), (string_key("y"), [((Any::dot(_b1272.clone(), f64_any(0x0000000000000000)).end())? * f64_any(0x4000000000000000))?].to_array().to_any())].to_object().to_any();
+        Any::call(A::frame(_self)[0].clone(), [[(Any::dot(_b14.clone(), string_any("x")).end())?, [(string_key("second"), (Any::dot((spread_array([spread_item((Any::dot(_b14.clone(), string_any("y")).end())?)]))?, f64_any(0x0000000000000000)).end())?)].to_object().to_any()].to_array().to_any(), f64_any(0x4008000000000000), f64_any(0x4010000000000000)].to_array().to_any())
+    }, 0, [_b7.clone()].to_array(), Some("(...$1)=>{const $2={\"x\":$1[0],\"y\":[$1[0]*2]};return $0([$2.x,{\"second\":[...$2.y][0]}],3,4);}")).to_any())].to_object().to_any())
 }

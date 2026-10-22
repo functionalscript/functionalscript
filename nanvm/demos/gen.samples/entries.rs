@@ -4,16 +4,12 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| Any::entry(args.argument(0), args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
-    let c1: Any<A> = [(string_key("n"), string_any("newline")), (string_key("t"), string_any("tab"))].to_object().to_any();
-    let c2: Any<A> = A::static_function(|self_, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = [string_any("n"), string_any("x")].to_array().to_any();
-        let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = (Any::number(c1))?;
-        let c3: Any<A> = Any::dot(c0, c2).end()?;
-        Any::call(A::frame(self_)[0].clone(), [A::frame(self_)[1].clone(), c3].to_array().to_any())
-    }, 0, [c0, c1].to_array(), Some("(...$2)=>$0($1,[\"n\",\"x\"][Number($2[0])])")).to_any();
-    Ok([(string_key("default"), c2)].to_object().to_any())
+    let _b0: Any<A> = A::static_function(|_self, _args| Any::entry(_args.argument(0), _args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
+    let _b1: Any<A> = [(string_key("n"), string_any("newline")), (string_key("t"), string_any("tab"))].to_object().to_any();
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b468: Any<A> = _args.rest(0).to_any();
+        Any::call(A::frame(_self)[0].clone(), [A::frame(_self)[1].clone(), (Any::dot([string_any("n"), string_any("x")].to_array().to_any(), (Any::number((Any::dot(_b468.clone(), f64_any(0x0000000000000000)).end())?))?).end())?].to_array().to_any())
+    }, 0, [_b0.clone(), _b1.clone()].to_array(), Some("(...$2)=>$0($1,[\"n\",\"x\"][Number($2[0])])")).to_any())].to_object().to_any())
 }

@@ -4,35 +4,8 @@ use nanvm_lib::vm::unstable::{f64_any, strict_eq, strict_ne, string_any, string_
 use nanvm_lib::vm::{Any, Constructor, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;
-    let c1: Any<A> = (c0.clone() + f64_any(0x3ff0000000000000))?;
-    let c2: Any<A> = (c0.clone() - f64_any(0x3ff0000000000000))?;
-    let c3: Any<A> = (c0.clone() * f64_any(0x4000000000000000))?;
-    let c4: Any<A> = (c0.clone() / f64_any(0x4010000000000000))?;
-    let c5: Any<A> = (c0.clone() % f64_any(0x4010000000000000))?;
-    let c6: Any<A> = (Any::pow(c0.clone(), f64_any(0x4000000000000000)))?;
-    let c7: Any<A> = (-(c0.clone()))?;
-    let c8: Any<A> = (Any::bitwise_not(c0.clone()))?;
-    let c9: Any<A> = (!(c0.clone()))?;
-    let c10: Any<A> = (Any::typeof_(c0.clone()))?;
-    let c11: Any<A> = [c0.clone()].to_array().to_any();
-    let c12: Any<A> = (Any::instanceof_(c11, Constructor::Array))?;
-    let c13: Any<A> = (strict_eq(c0.clone(), f64_any(0x4018000000000000)))?;
-    let c14: Any<A> = (strict_ne(c0.clone(), f64_any(0x4018000000000000)))?;
-    let c15: Any<A> = (Any::lt(c0.clone(), f64_any(0x401c000000000000)))?;
-    let c16: Any<A> = (Any::le(c0.clone(), f64_any(0x4018000000000000)))?;
-    let c17: Any<A> = (Any::gt(c0.clone(), f64_any(0x401c000000000000)))?;
-    let c18: Any<A> = (Any::ge(c0.clone(), f64_any(0x4018000000000000)))?;
-    let c19: Any<A> = (c0.clone() & f64_any(0x4008000000000000))?;
-    let c20: Any<A> = (c0.clone() | f64_any(0x3ff0000000000000))?;
-    let c21: Any<A> = (c0.clone() ^ f64_any(0x3ff0000000000000))?;
-    let c22: Any<A> = (c0.clone() << f64_any(0x3ff0000000000000))?;
-    let c23: Any<A> = (c0.clone() >> f64_any(0x3ff0000000000000))?;
-    let c24: Any<A> = (Any::unsigned_right_shift(c0.clone(), f64_any(0x3ff0000000000000)))?;
-    let c25: Any<A> = (string_any("a") + string_any("b"))?;
-    let c26: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;
-    let c27: Any<A> = (f64_any(0x3ff0000000000000) + c26)?;
-    let c28: Any<A> = [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23, c24, c25, c27].to_array().to_any();
-    Ok([(string_key("default"), c28)].to_object().to_any())
+    let _b0: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;
+    Ok([(string_key("default"), [(_b0.clone() + f64_any(0x3ff0000000000000))?, (_b0.clone() - f64_any(0x3ff0000000000000))?, (_b0.clone() * f64_any(0x4000000000000000))?, (_b0.clone() / f64_any(0x4010000000000000))?, (_b0.clone() % f64_any(0x4010000000000000))?, (Any::pow(_b0.clone(), f64_any(0x4000000000000000)))?, (<Any<A> as core::ops::Neg>::neg(_b0.clone()))?, (Any::bitwise_not(_b0.clone()))?, (<Any<A> as core::ops::Not>::not(_b0.clone()))?, (Any::typeof_(_b0.clone()))?, (Any::instanceof_([_b0.clone()].to_array().to_any(), Constructor::Array))?, (strict_eq(_b0.clone(), f64_any(0x4018000000000000)))?, (strict_ne(_b0.clone(), f64_any(0x4018000000000000)))?, (Any::lt(_b0.clone(), f64_any(0x401c000000000000)))?, (Any::le(_b0.clone(), f64_any(0x4018000000000000)))?, (Any::gt(_b0.clone(), f64_any(0x401c000000000000)))?, (Any::ge(_b0.clone(), f64_any(0x4018000000000000)))?, (_b0.clone() & f64_any(0x4008000000000000))?, (_b0.clone() | f64_any(0x3ff0000000000000))?, (_b0.clone() ^ f64_any(0x3ff0000000000000))?, (_b0.clone() << f64_any(0x3ff0000000000000))?, (_b0.clone() >> f64_any(0x3ff0000000000000))?, (Any::unsigned_right_shift(_b0.clone(), f64_any(0x3ff0000000000000)))?, (string_any("a") + string_any("b"))?, (f64_any(0x3ff0000000000000) + (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?)?].to_array().to_any())].to_object().to_any())
 }

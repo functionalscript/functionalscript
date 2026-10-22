@@ -6,21 +6,11 @@ use nanvm_lib::vm::unstable::{
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = rest.clone().to_any();
-        let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = [true.to_any(), Nullish::Null.to_any()].to_array().to_any();
-        let c3: Any<A> = [string_any("hello"), c1, c2].to_array().to_any();
-        let c4: Any<A> = Any::dot(c3.clone(), string_any("length")).end()?;
-        let c5: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c6: Any<A> = (c5 + f64_any(0x3ff0000000000000))?;
-        let c7: Any<A> = spread_array([spread_item(c3.clone()), value_item(c6)])?;
-        let c8: Any<A> = Any::dot(c7, string_any("length")).end()?;
-        let c9: Any<A> = Any::dot(c3.clone(), f64_any(0x4000000000000000)).end()?;
-        let c10: Any<A> = Any::dot(c9, f64_any(0x0000000000000000)).end()?;
-        Ok([c4, c8, c10].to_array().to_any())
-    }, 0, Array::default(), Some("(...$0)=>{const $1=[\"hello\",$0[0],[true,null]];return [$1.length,[...$1,$0[0]+1].length,$1[2][0]];}")).to_any();
-    Ok([(string_key("default"), c0)].to_object().to_any())
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b582: Any<A> = _args.rest(0).to_any();
+        let _b3: Any<A> = [string_any("hello"), (Any::dot(_b582.clone(), f64_any(0x0000000000000000)).end())?, [true.to_any(), Nullish::Null.to_any()].to_array().to_any()].to_array().to_any();
+        Ok([(Any::dot(_b3.clone(), string_any("length")).end())?, (Any::dot((spread_array([spread_item(_b3.clone()), value_item(((Any::dot(_b582.clone(), f64_any(0x0000000000000000)).end())? + f64_any(0x3ff0000000000000))?)]))?, string_any("length")).end())?, (Any::dot((Any::dot(_b3.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?].to_array().to_any())
+    }, 0, Array::default(), Some("(...$0)=>{const $1=[\"hello\",$0[0],[true,null]];return [$1.length,[...$1,$0[0]+1].length,$1[2][0]];}")).to_any())].to_object().to_any())
 }

@@ -4,25 +4,14 @@ use nanvm_lib::vm::unstable::{f64_any, static_read, string_key};
 use nanvm_lib::vm::{Any, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = static_read(&runtime, "Object.is")?;
-    let c1: Any<A> = static_read(&runtime, "Number.isInteger")?;
-    let c2: Any<A> = A::static_function(|self_, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = rest.clone().to_any();
-        let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = Any::call(A::frame(self_)[0].clone(), [c1, f64_any(0x8000000000000000)].to_array().to_any())?;
-        let c3: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c4: Any<A> = Any::call(A::frame(self_)[1].clone(), [c3].to_array().to_any())?;
-        let c5: Any<A> = static_read(&A::frame(self_)[2], "Number.isFinite")?;
-        let c6: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c7: Any<A> = (f64_any(0x3ff0000000000000) / c6)?;
-        let c8: Any<A> = Any::call(c5, [c7].to_array().to_any())?;
-        let c9: Any<A> = static_read(&A::frame(self_)[2], "Object.entries")?;
-        let c10: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c11: Any<A> = [(string_key("b"), c10), (string_key("0"), f64_any(0x4000000000000000))].to_object().to_any();
-        let c12: Any<A> = Any::call(c9, [c11].to_array().to_any())?;
-        Ok([c2, c4, c8, c12].to_array().to_any())
-    }, 0, [c0, c1, runtime.clone()].to_array(), Some("(...$2)=>[$0($2[0],-0),$1($2[0]),Number.isFinite(1/$2[0]),Object.entries({\"b\":$2[0],\"0\":2})]")).to_any();
-    Ok([(string_key("default"), c2)].to_object().to_any())
+    let _b0: Any<A> = (static_read(&runtime, "Object.is"))?;
+    let _b1: Any<A> = (static_read(&runtime, "Number.isInteger"))?;
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b972: Any<A> = _args.rest(0).to_any();
+        let _b9: Any<A> = (static_read(&A::frame(_self)[2], "Number.isFinite"))?;
+        let _b13: Any<A> = (static_read(&A::frame(_self)[2], "Object.entries"))?;
+        Ok([(Any::call(A::frame(_self)[0].clone(), [(Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x8000000000000000)].to_array().to_any()))?, (Any::call(A::frame(_self)[1].clone(), [(Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()))?, (Any::call(_b9.clone(), [(f64_any(0x3ff0000000000000) / (Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?)?].to_array().to_any()))?, (Any::call(_b13.clone(), [[(string_key("b"), (Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?), (string_key("0"), f64_any(0x4000000000000000))].to_object().to_any()].to_array().to_any()))?].to_array().to_any())
+    }, 0, [_b0.clone(), _b1.clone(), runtime.clone()].to_array(), Some("(...$2)=>{const $3=Number.isFinite;const $4=Object.entries;return [$0($2[0],-0),$1($2[0]),$3(1/$2[0]),$4({\"b\":$2[0],\"0\":2})];}")).to_any())].to_object().to_any())
 }

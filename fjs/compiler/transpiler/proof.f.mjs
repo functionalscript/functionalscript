@@ -143,7 +143,7 @@ export const proof = {
             const operations = {
                 ...virtualOperationMap,
                 compileValue: source => state => {
-                    assertEq(source, 'export default()=>{const $0=Object.entries;const $1=Object.is;const $2=Number.isNaN;const $3=[$0,$1,$2];const $4={["default"]:$3};return $4;};')
+                    assertEq(source, 'export default()=>{return {"default":[Object.entries,Object.is,Number.isNaN]};};')
                     return [state, ok(loaded)]
                 },
             }

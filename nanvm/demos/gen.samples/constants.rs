@@ -4,22 +4,12 @@ use nanvm_lib::vm::unstable::{f64_any, strict_eq, string_any, string_key};
 use nanvm_lib::vm::{Any, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [(string_key("port"), f64_any(0x40bf900000000000)), (string_key("host"), string_any("localhost"))].to_object().to_any();
-    let c1: Any<A> = [(string_key("dev"), c0.clone()), (string_key("prod"), c0.clone())].to_object().to_any();
-    let c2: Any<A> = A::static_function(|self_, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = A::frame(self_)[0].clone();
-        let c1: Any<A> = Any::dot(c0.clone(), string_any("dev")).end()?;
-        let c2: Any<A> = Any::dot(c0.clone(), string_any("prod")).end()?;
-        let c3: Any<A> = (strict_eq(c1, c2))?;
-        let c4: Any<A> = Any::dot(c0.clone(), string_any("prod")).end()?;
-        let c5: Any<A> = Any::dot(c4, string_any("port")).end()?;
-        let c6: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        let c7: Any<A> = (c5 + c6)?;
-        let c8: Any<A> = Any::dot(c0.clone(), string_any("dev")).end()?;
-        let c9: Any<A> = Any::dot(c8, string_any("host")).end()?;
-        Ok([c3, c7, c9].to_array().to_any())
-    }, 0, [c1].to_array(), Some("(...$1)=>[$0.dev===$0.prod,$0.prod.port+$1[0],$0.dev.host]")).to_any();
-    Ok([(string_key("default"), c2)].to_object().to_any())
+    let _b0: Any<A> = [(string_key("port"), f64_any(0x40bf900000000000)), (string_key("host"), string_any("localhost"))].to_object().to_any();
+    let _b1: Any<A> = [(string_key("dev"), _b0.clone()), (string_key("prod"), _b0.clone())].to_object().to_any();
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b704: Any<A> = _args.rest(0).to_any();
+        Ok([(strict_eq((Any::dot(A::frame(_self)[0].clone(), string_any("dev")).end())?, (Any::dot(A::frame(_self)[0].clone(), string_any("prod")).end())?))?, ((Any::dot((Any::dot(A::frame(_self)[0].clone(), string_any("prod")).end())?, string_any("port")).end())? + (Any::dot(_b704.clone(), f64_any(0x0000000000000000)).end())?)?, (Any::dot((Any::dot(A::frame(_self)[0].clone(), string_any("dev")).end())?, string_any("host")).end())?].to_array().to_any())
+    }, 0, [_b1.clone()].to_array(), Some("(...$1)=>[$0.dev===$0.prod,$0.prod.port+$1[0],$0.dev.host]")).to_any())].to_object().to_any())
 }

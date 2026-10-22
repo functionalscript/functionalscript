@@ -4,16 +4,11 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        let c1: Any<A> = (Any::lt(c0.clone(), f64_any(0x0000000000000000)))?;
-        let c2 = || {
-            let c3: Any<A> = (Any::gt(c0.clone(), f64_any(0x0000000000000000)))?;
-            Any::conditional(c3, || Ok(string_any("positive")), || Ok(string_any("zero")))
-        };
-        Any::conditional(c1, || Ok(string_any("negative")), c2)
-    }, 0, Array::default(), Some("(...$0)=>{const $1=$0[0];return $1<0?\"negative\":$1>0?\"positive\":\"zero\";}")).to_any();
-    Ok([(string_key("default"), c0)].to_object().to_any())
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b264: Any<A> = _args.rest(0).to_any();
+        let _b1: Any<A> = (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())?;
+        if Any::<A>::to_boolean((Any::lt(_b1.clone(), f64_any(0x0000000000000000)))?) { Ok(string_any("negative")) } else { if Any::<A>::to_boolean((Any::gt(_b1.clone(), f64_any(0x0000000000000000)))?) { Ok(string_any("positive")) } else { Ok(string_any("zero")) } }
+    }, 0, Array::default(), Some("(...$0)=>{const $1=$0[0];return $1<0?\"negative\":$1>0?\"positive\":\"zero\";}")).to_any())].to_object().to_any())
 }

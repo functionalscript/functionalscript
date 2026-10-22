@@ -4,30 +4,15 @@ use nanvm_lib::vm::unstable::{f64_any, strict_eq, string_any, string_key};
 use nanvm_lib::vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|self_, args| {
-        let rest = args.rest(1);
-        let c0: Any<A> = rest.clone().to_any();
-        let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = (strict_eq(c1, Nullish::Undefined.to_any()))?;
-        let c3 = || Any::dot(c0.clone(), f64_any(0x0000000000000000)).end();
-        let c4: Any<A> = (Any::conditional(c2, || Ok(f64_any(0x4024000000000000)), c3))?;
-        let c5 = || Ok([f64_any(0x3ff0000000000000)].to_array().to_any());
-        let c6: Any<A> = Any::dot(c0.clone(), string_any("slice")).end_call(&A::frame(self_)[0], c5)?;
-        let c7: Any<A> = Any::dot(c6, string_any("length")).end()?;
-        Ok([args.argument(0), c4, c7].to_array().to_any())
-    }, 1, [runtime.clone()].to_array(), Some("($0,...$1)=>[$0,$1[0]===undefined?10:$1[0],$1.slice(1).length]")).to_any();
-    let c1: Any<A> = A::static_function(|self_, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = A::frame(self_)[0].clone();
-        let c1: Any<A> = rest.clone().to_any();
-        let c2: Any<A> = Any::dot(c1.clone(), f64_any(0x0000000000000000)).end()?;
-        let c3: Any<A> = Any::call(c0.clone(), [c2].to_array().to_any())?;
-        let c4: Any<A> = Any::dot(c1.clone(), f64_any(0x0000000000000000)).end()?;
-        let c5: Any<A> = Any::dot(c1.clone(), f64_any(0x0000000000000000)).end()?;
-        let c6: Any<A> = (c5 * f64_any(0x4000000000000000))?;
-        let c7: Any<A> = Any::call(c0.clone(), [c4, c6, f64_any(0x401c000000000000), f64_any(0x4020000000000000)].to_array().to_any())?;
-        Ok([c3, c7].to_array().to_any())
-    }, 0, [c0].to_array(), Some("(...$1)=>[$0($1[0]),$0($1[0],$1[0]*2,7,8)]")).to_any();
-    Ok([(string_key("default"), c1)].to_object().to_any())
+    let _b9: Any<A> = A::static_function(|_self, _args| {
+        let _b514: Any<A> = _args.rest(1).to_any();
+        let _b2: Any<A> = (Any::dot(_b514.clone(), f64_any(0x0000000000000000)).end())?;
+        Ok([_args.argument(0), if Any::<A>::to_boolean((strict_eq(_b2.clone(), Nullish::Undefined.to_any()))?) { f64_any(0x4024000000000000) } else { _b2.clone() }, (Any::dot((Any::dot(_b514.clone(), string_any("slice")).end_call(&A::frame(_self)[0], || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())))?, string_any("length")).end())?].to_array().to_any())
+    }, 1, [runtime.clone()].to_array(), Some("($0,...$1)=>{const $2=$1[0];return [$0,$2===undefined?10:$2,$1.slice(1).length];}")).to_any();
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b1044: Any<A> = _args.rest(0).to_any();
+        Ok([(Any::call(A::frame(_self)[0].clone(), [(Any::dot(_b1044.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()))?, (Any::call(A::frame(_self)[0].clone(), [(Any::dot(_b1044.clone(), f64_any(0x0000000000000000)).end())?, ((Any::dot(_b1044.clone(), f64_any(0x0000000000000000)).end())? * f64_any(0x4000000000000000))?, f64_any(0x401c000000000000), f64_any(0x4020000000000000)].to_array().to_any()))?].to_array().to_any())
+    }, 0, [_b9.clone(), runtime.clone()].to_array(), Some("(...$1)=>[$0($1[0]),$0($1[0],$1[0]*2,7,8)]")).to_any())].to_object().to_any())
 }

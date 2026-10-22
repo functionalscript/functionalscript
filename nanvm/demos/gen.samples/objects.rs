@@ -4,17 +4,12 @@ use nanvm_lib::vm::unstable::{f64_any, static_read, string_any, string_key};
 use nanvm_lib::vm::{Any, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|self_, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = static_read(&A::frame(self_)[0], "Object.entries")?;
-        let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
-        let c3: Any<A> = [(string_key("a"), string_any("hello")), (string_key("b"), c1), (string_key("c"), c2)].to_object().to_any();
-        let c4: Any<A> = Any::call(c0, [c3.clone()].to_array().to_any())?;
-        let c5: Any<A> = Any::dot(c4, string_any("length")).end()?;
-        let c6: Any<A> = Any::dot(c3.clone(), string_any("b")).end()?;
-        c5 + c6
-    }, 0, [runtime.clone()].to_array(), Some("(...$0)=>{const $1={\"a\":\"hello\",\"b\":$0[0],\"c\":[1,2]};return Object.entries($1).length+$1.b;}")).to_any();
-    Ok([(string_key("default"), c0)].to_object().to_any())
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b414: Any<A> = _args.rest(0).to_any();
+        let _b0: Any<A> = (static_read(&A::frame(_self)[0], "Object.entries"))?;
+        let _b4: Any<A> = [(string_key("a"), string_any("hello")), (string_key("b"), (Any::dot(_b414.clone(), f64_any(0x0000000000000000)).end())?), (string_key("c"), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())].to_object().to_any();
+        (Any::dot((Any::call(_b0.clone(), [_b4.clone()].to_array().to_any()))?, string_any("length")).end())? + (Any::dot(_b4.clone(), string_any("b")).end())?
+    }, 0, [runtime.clone()].to_array(), Some("(...$0)=>{const $1=Object.entries;const $2={\"a\":\"hello\",\"b\":$0[0],\"c\":[1,2]};return $1($2).length+$2.b;}")).to_any())].to_object().to_any())
 }

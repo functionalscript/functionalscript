@@ -3,7 +3,7 @@
  * EDAG interpreter: chunk boundaries are preserved in the AST, while full
  * substitutions, nested templates and coercion evaluate as source expressions.
  *
- * @import { AstConst } from '../ast/types.ts'
+ * @import { SourceValue } from '../../js/ast/sugar/source.ts'
  */
 
 import { parseFromTokens } from './module.f.mjs'
@@ -14,10 +14,11 @@ import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
-/** The parsed module's sole default expression. @type {(source: string) => AstConst} */
+/** The parsed module's sole default expression. @type {(source: string) => SourceValue} */
 const expression = source => {
-    const [, body] = assertOk(parseFromTokens(tokenizeString(`export default ${source};`)))
-    const exported = body[body.length - 1]
+    const { body } = assertOk(parseFromTokens(tokenizeString(`export default ${source};`)))
+    assert(body.exit[0] === 'yield')
+    const exported = body.exit[1]
     assert(exported instanceof Array && exported[0] === 'object')
     const [member] = exported[1]
     assert(member[0] === ':' && member[1] === 'default')

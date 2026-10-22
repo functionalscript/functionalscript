@@ -4,19 +4,10 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = rest.clone().to_any();
-        let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = (c1 + f64_any(0x4000000000000000))?;
-        let c3: Any<A> = (c2 * f64_any(0x4008000000000000))?;
-        let c4: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c5: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;
-        let c6: Any<A> = (c4 + c5)?;
-        let c7: Any<A> = [f64_any(0x4054000000000000), f64_any(0x407bb00000000000)].to_array().to_any();
-        let c8: Any<A> = Any::dot(c7, string_any("length")).end()?;
-        Ok([c3, c6, c8].to_array().to_any())
-    }, 0, Array::default(), Some("(...$0)=>[($0[0]+2)*3,$0[0]+2*3,[80,443].length]")).to_any();
-    Ok([(string_key("default"), c0)].to_object().to_any())
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b468: Any<A> = _args.rest(0).to_any();
+        Ok([(((Any::dot(_b468.clone(), f64_any(0x0000000000000000)).end())? + f64_any(0x4000000000000000))? * f64_any(0x4008000000000000))?, ((Any::dot(_b468.clone(), f64_any(0x0000000000000000)).end())? + (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?)?, (Any::dot([f64_any(0x4054000000000000), f64_any(0x407bb00000000000)].to_array().to_any(), string_any("length")).end())?].to_array().to_any())
+    }, 0, Array::default(), Some("(...$0)=>[($0[0]+2)*3,$0[0]+2*3,[80,443].length]")).to_any())].to_object().to_any())
 }

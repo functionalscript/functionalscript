@@ -1,6 +1,8 @@
 /**
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstConst, AstModule } from '../ast/types.ts'
+ * @import { Exp } from '../../edag/types.ts'
+ * @import { SourceBlock, SourceValue } from '../../js/ast/sugar/source.ts'
+ * @import { ResolvedModule } from './types.ts'
  * @import { EdagValue, Values } from '../../edag/value/types.ts'
  */
 
@@ -34,8 +36,8 @@ import { htmlToString } from '../../media/html/module.f.mjs'
  */
 export const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 
-/** A module as the proofs pin it: the compiler's own dump, since the tree holds bigints JSON cannot write. */
-export const stringifyModule = _stringifyTree
+/** Preserve the admitted graph behavior while the source representation changes. */
+export const stringifyModule = (/** @type {ResolvedModule} */ module) => _stringifyTree(unresolved(module).edag)
 
 /**
  * `count` copies of `element`, comma-joined.
@@ -83,7 +85,7 @@ export const expectRefused = (source, message, column) => {
     assertEq(value.metadata?.column, column, source)
 }
 
-/** Parser fixtures execute through the shared represented interpreter. @type {(ast: AstModule, args?: Values) => EdagValue} */
+/** Parser fixtures execute through the shared represented interpreter. @type {(ast: ResolvedModule, args?: Values) => EdagValue} */
 const evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
 
 export const proof = {
@@ -94,19 +96,19 @@ export const proof = {
     // completes. The `;` may be omitted at the end of input, as any
     // statement's may.
     throws: () => {
-        expectModule('throw 1;', '[[],[["throw",1]]]')
-        expectModule('throw 1', '[[],[["throw",1]]]')
-        expectModule('const a = [1]; throw a;', '[[],[["array",[1]],["throw",["cref",0]]]]')
-        expectModule('export const a = [1]; throw a;', '[[],[["array",[1]],["throw",["cref",0]]]]')
-        expectModule('import m from "./m.f.js";\nthrow m.x', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["throw",[".",["aref",0],"x"]]]]')
+        expectModule('throw 1;', "[\"throw\",1]")
+        expectModule('throw 1', "[\"throw\",1]")
+        expectModule('const a = [1]; throw a;', "[\"throw\",[\"[]\",[1]]]")
+        expectModule('export const a = [1]; throw a;', "[\"throw\",[\"[]\",[1]]]")
+        expectModule('import m from "./m.f.js";\nthrow m.x', "[\"throw\",[\".\",[\".\",[\".\",[\"args\"],0],\"default\"],\"x\"]]")
     },
     namedImports: {
         bindings: () => {
             const source = 'import d, { x, x as y, default as z, as as from, } from "./dep"; export default [d,x,y,z,from];'
             const module = unwrap(parseFromTokens(tokenizeString(source)))
-            assertStructurallySame(module[0], ['default', 'x', 'x', 'default', 'as'].map(name => ({ specifier: './dep', json: false, name })))
+            assertStructurallySame(module.imports.map(({ binding, ...record }) => record), ['default', 'x', 'x', 'default', 'as'].map(name => ({ specifier: './dep', json: false, name })))
             const exports = /** @type {const} */ (['{}', [[':', 'default', 1], [':', 'x', 2], [':', 'as', 3]]])
-            assertStructurallySame(assertOk(toData(evaluate(module, module[0].map(() => exports)))), { default: [1, 2, 2, 1, 3] })
+            assertStructurallySame(assertOk(toData(evaluate(module, module.imports.map(() => exports)))), { default: [1, 2, 2, 1, 3] })
             const syntax = unwrap(parseSyntax(tokenizeString(source)))
             assertStructurallySame(syntax.imports[0].bindings.map(({ name, local }) => [name, local.token]), [
                 ['default', { kind: 'id', value: 'd' }], ['x', { kind: 'id', value: 'x' }],
@@ -116,13 +118,13 @@ export const proof = {
         },
         empty: () => {
             const module = unwrap(parseFromTokens(tokenizeString('import {} from "./dep"; import d, {} from "./dep"; export default d;')))
-            assertStructurallySame(module[0].map(({ name }) => name), [null, 'default'])
+            assertStructurallySame(module.imports.map(({ name }) => name), [null, 'default'])
             const exports = /** @type {const} */ (['{}', [[':', 'default', 7]]])
             assertStructurallySame(assertOk(toData(evaluate(module, [exports, exports]))), { default: 7 })
         },
         json: () => {
             const module = unwrap(parseFromTokens(tokenizeString('import {default as data} from "./data.json" with {type:"json"}; export default data;')))
-            assertStructurallySame(module[0], [{ specifier: './data.json', json: true, name: 'default' }])
+            assertStructurallySame(module.imports.map(({ binding, ...record }) => record), [{ specifier: './data.json', json: true, name: 'default' }])
         },
         errors: () => {
             for (const source of [
@@ -246,60 +248,28 @@ export const proof = {
             assertEq(parseFromTokens(tokenizeString(source))[0], 'ok')
         },
     },
-    // A loop, `let r = init; while (c) { …; r = next; }`, is the fold's to
-    // shape as a guard is: the two statements are one entry, the call of a
-    // function of one parameter, the variable, whose body is the
-    // conditional of the condition, the block's call, and the variable —
-    // the block the body of a parameterless function, as a guard's arm is,
-    // ending in the call of the loop's function with the variable's last
-    // binding — and the variable names the entry from the loop on
-    // ([spec: loops](../../../spec/control-flow/loops/README.md)).
-    // A switch, `switch (d) { case a: case b: { … } … }`, is the fold's to
-    // shape as a guard is: the discriminant an entry of the body, read by
-    // the test of every label, `===`, the tests of one case joined by `||`
-    // in the labels' order; each case's block the body of a parameterless
-    // function called where it stands, as a guard's arm is; and the `?:` of
-    // each case's test over the next, the `default` block or the statements
-    // after the switch the last alternate
-    // ([spec: switch](../../../spec/control-flow/switch/README.md)).
+    // Source loops and switches retain their lexical structure. These baseline
+    // graph fixtures keep sugar's resulting scalar recursion and lazy branches
+    // consistent with the previously admitted source behavior.
     switches: {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { switch (n[0]) { case 1: case 2: { const x = [1]; return [x, x]; } case 3: { throw 3; } } const y = [2]; return y; };'))
             assert(tag === 'ok')
-            assertStructurallySame(value, [[], [['object', [[':', 'default', ['=>', 1, [
-                ['.', ['arg', 0], 0],
-                ['?:', ['||', ['===', ['cref', 0], 1], ['===', ['cref', 0], 2]],
-                    ['()', ['=>', 0, [['array', [1]], ['array', [['cref', 0], ['cref', 0]]]]], []],
-                    ['?:', ['===', ['cref', 0], 3],
-                        ['()', ['=>', 0, [['throw', 3]]], []],
-                        ['()', ['=>', 0, [['array', [2]], ['cref', 0]]], []]]],
-            ]]]]]]])
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"||\",[\"===\",[\".\",[\"arg\",0],0],1],[\"===\",[\".\",[\"arg\",0],0],2]],[\"[]\",[[\"[]\",[1]],[\"[]\",[1]]]],[\"?:\",[\"===\",[\".\",[\"arg\",0],0],3],[\"throw\",3],[\"[]\",[2]]]]]]]]")
             // with a `default`, its block is the last alternate, and the
             // switch is the body's last statement
             const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { return 1; } default: { return 0; } } };'))
             assert(tag2 === 'ok')
-            assertStructurallySame(value2, [[], [['object', [[':', 'default', ['=>', 1, [
-                ['arg', 0],
-                ['?:', ['===', ['cref', 0], 1], ['()', ['=>', 0, [1]], []], ['()', ['=>', 0, [0]], []]],
-            ]]]]]]])
+            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"arg\",0],1],1,0]]]]]")
             // a switch in a case block is the arm's own, its discriminant an
             // entry of the arm's function, read through the arm's frame
             const [tag3, value3] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { switch (n) { case 2: { return 2; } } return 1; } } return 0; };'))
             assert(tag3 === 'ok')
-            assertStructurallySame(value3, [[], [['object', [[':', 'default', ['=>', 1, [
-                ['arg', 0],
-                ['?:', ['===', ['cref', 0], 1],
-                    ['()', ['=>', 0, [['fref', 0], ['?:', ['===', ['cref', 0], 2], ['()', ['=>', 0, [2]], []], ['()', ['=>', 0, [1]], []]]], [['arg', 0]]], []],
-                    ['()', ['=>', 0, [0]], []]],
-            ]]]]]]])
+            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"arg\",0],1],[\"?:\",[\"===\",[\"arg\",0],2],2,1],0]]]]]")
             // after a loop, the switch reads the variable's last binding
             const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { r = r + 1; } switch (r) { case 1: { return r; } } return 0; };'))
             assert(tag4 === 'ok')
-            assertStructurallySame(value4, [[], [['object', [[':', 'default', ['=>', 1, [
-                ['()', ['=>', 1, [['?:', ['<', ['arg', 0], ['fref', 0]], ['()', ['=>', 0, [['+', ['fref', 0], 1], ['()', ['fref', 1], [['cref', 0]]]], [['arg', 0], ['self']]], []], ['arg', 0]]], [['arg', 0]]], [0]],
-                ['cref', 0],
-                ['?:', ['===', ['cref', 1], 1], ['()', ['=>', 0, [['fref', 0]], [['cref', 0]]], []], ['()', ['=>', 0, [0]], []]],
-            ]]]]]]])
+            assertEq(stringifyModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]],1],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]],0]]]]]")
         },
         // a switch of thousands of cases, or of labels, is that many levels
         // of the grammar's tree, read as a list's are: each mapping puts one
@@ -323,57 +293,29 @@ export const proof = {
             expectRefused('export default n => { const c = 1; return () => { switch (c) { case 1: { return 1; } } const c = 2; return c; }; };', 'capture shadowed', 94)
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { const c = 1; return () => { switch (n) { case 1: { const c = 2; return c; } } return c; }; };'))
             assert(tag === 'ok')
-            assertStructurallySame(value, [[], [['object', [[':', 'default', ['=>', 1, [
-                1,
-                ['=>', 0, [['fref', 0], ['?:', ['===', ['cref', 0], 1], ['()', ['=>', 0, [2, ['cref', 0]]], []], ['()', ['=>', 0, [['fref', 0]], [['fref', 1]]], []]]], [['arg', 0], ['cref', 0]]],
-            ]]]]]]])
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"=>\",0,[[\"arg\",0]],[\"?:\",[\"===\",[\"frame\",0],1],2,1]]]]]]")
         },
     },
     loops: {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const d = [2]; r = r + d[0]; } return [r, r]; };'))
             assert(tag === 'ok')
-            assertStructurallySame(value, [[], [['object', [[':', 'default', ['=>', 1, [
-                ['()', ['=>', 1, [['?:',
-                    ['<', ['arg', 0], ['fref', 0]],
-                    ['()', ['=>', 0, [['array', [2]], ['+', ['fref', 0], ['.', ['cref', 0], 0]], ['()', ['fref', 1], [['cref', 1]]]], [['arg', 0], ['self']]], []],
-                    ['arg', 0],
-                ]], [['arg', 0]]], [0]],
-                ['array', [['cref', 0], ['cref', 0]]],
-            ]]]]]]])
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"[]\",[[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\".\",[\"[]\",[2]],0]]]],[\"arg\",0]]],[0]],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\".\",[\"[]\",[2]],0]]]],[\"arg\",0]]],[0]]]]]]]]")
             // an assignment overwritten before any read is an anchor of
             // the block, established for what it does, as an unused
             // `const` is
             const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < 1) { r = null.x; r = 1; } return r; };'))
             assert(tag4 === 'ok')
-            assertStructurallySame(value4, [[], [['object', [[':', 'default', ['=>', 1, [
-                ['()', ['=>', 1, [['?:',
-                    ['<', ['arg', 0], 1],
-                    ['()', ['=>', 0, [['.', null, 'x'], 1, ['()', ['fref', 0], [['cref', 1]]]], [['self']]], []],
-                    ['arg', 0],
-                ]]], [0]],
-                ['cref', 0],
-            ]]]]]]])
+            assertEq(stringifyModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[],[\"?:\",[\"<\",[\"arg\",0],1],[\",\",[[\".\",null,\"x\"],[\"()\",[\"self\"],[1]]]],[\"arg\",0]]],[0]]]]]]")
             // a block assigning nothing continues with the variable as it is
             const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { } return r; };'))
             assert(tag2 === 'ok')
-            assertStructurallySame(value2, [[], [['object', [[':', 'default', ['=>', 1, [
-                ['()', ['=>', 1, [['?:',
-                    ['<', ['arg', 0], ['fref', 0]],
-                    ['()', ['=>', 0, [['()', ['fref', 0], [['fref', 1]]]], [['self'], ['arg', 0]]], []],
-                    ['arg', 0],
-                ]], [['arg', 0]]], [0]],
-                ['cref', 0],
-            ]]]]]]])
+            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"arg\",0]]],[\"arg\",0]]],[0]]]]]]")
             // a `const` after the loop is the next entry; the variable is a
             // name a later function captures, as any `const` is
             const [tag3, value3] = parseFromTokens(tokenizeString('export default () => { let r = 0; while (r) { r = 1; } const s = [r]; return () => [r, s]; };'))
             assert(tag3 === 'ok')
-            assertStructurallySame(value3, [[], [['object', [[':', 'default', ['=>', 0, [
-                ['()', ['=>', 1, [['?:', ['arg', 0], ['()', ['=>', 0, [1, ['()', ['fref', 0], [['cref', 0]]]], [['self']]], []], ['arg', 0]]]], [0]],
-                ['array', [['cref', 0]]],
-                ['=>', 0, [['array', [['fref', 0], ['fref', 1]]]], [['cref', 0], ['cref', 1]]],
-            ]]]]]]])
+            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",0,[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]],[\"[]\",[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]]]]],[\"[]\",[[\"frame\",0],[\"frame\",1]]]]]]]]")
             // a nested function's own parameter shadows the variable, as in
             // JavaScript, and reads as itself
             assertEq(parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const f = (r) => r; r = f(r); } return r; };'))[0], 'ok')
@@ -468,82 +410,82 @@ export const proof = {
     parseCorpus: [
         () => {
             for (const [source, expected] of [
-                ["export default null;", "[[],[[\"object\",[[\":\",\"default\",null]]]]]"],
-                ["export default true;", "[[],[[\"object\",[[\":\",\"default\",true]]]]]"],
-                ["export default false;", "[[],[[\"object\",[[\":\",\"default\",false]]]]]"],
-                ["export default undefined;", "[[],[[\"object\",[[\":\",\"default\",undefined]]]]]"],
-                ["export default 0.1;", "[[],[[\"object\",[[\":\",\"default\",0.1]]]]]"],
-                ["export default 1.1e+2;", "[[],[[\"object\",[[\":\",\"default\",110]]]]]"],
+                ["export default null;", "[\"{}\",[[\":\",\"default\",null]]]"],
+                ["export default true;", "[\"{}\",[[\":\",\"default\",true]]]"],
+                ["export default false;", "[\"{}\",[[\":\",\"default\",false]]]"],
+                ["export default undefined;", "[\"{}\",[[\":\",\"default\",[\"undefined\"]]]]"],
+                ["export default 0.1;", "[\"{}\",[[\":\",\"default\",0.1]]]"],
+                ["export default 1.1e+2;", "[\"{}\",[[\":\",\"default\",110]]]"],
                 // the three numbers JSON cannot spell, as words — and the
                 // third of them as the negation it is written as, the `-`
                 // being a prefix the grammar reads rather than part of the
                 // word. The one line of this corpus the language moved
                 // under; every other value still says what it recorded.
-                ["export default [NaN, Infinity, -Infinity];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[NaN,Infinity,[\"-\",Infinity]]]]]]]]"],
-                ["export default \"abc\";", "[[],[[\"object\",[[\":\",\"default\",\"abc\"]]]]]"],
-                ["export default 1234567890n;", "[[],[[\"object\",[[\":\",\"default\",1234567890n]]]]]"],
-                ["export default [];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[]]]]]]]"],
-                ["export default [1];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[1]]]]]]]"],
-                ["export default [1,];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[1]]]]]]]"],
-                ["export default [[]];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[[\"array\",[]]]]]]]]]"],
-                ["export default [0,[1,[2,[]]],3];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[0,[\"array\",[1,[\"array\",[2,[\"array\",[]]]]]],3]]]]]]]"],
-                ["export default [1234567890n];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[1234567890n]]]]]]]"],
-                ["export default {};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[]]]]]]]"],
-                ["export default {\"a\":1};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1]]]]]]]]"],
-                ["export default {a: 1};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1]]]]]]]]"],
-                ["export default {\"a\":1,};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1]]]]]]]]"],
-                ["export default {[\"a\"]:1};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1]]]]]]]]"],
-                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1],[\":\",\"b\",2],[\":\",\"c\",3]]]]]]]]"],
-                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",[\"object\",[[\":\",\"b\",[\"object\",[[\":\",\"c\",[\"array\",[\"d\"]]]]]]]]]]]]]]]]"],
-                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",undefined]]]]]]]]"],
-                ["export default {a:1,a:2};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1],[\":\",\"a\",2]]]]]]]]"],
-                ["export default {[\"__proto__\"]: 1};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"__proto__\",1]]]]]]]]"],
-                ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[[],[1,2,[\"object\",[[\":\",\"default\",[\"array\",[[\"cref\",0],[\"cref\",1]]]]]]]]"],
-                ["import x from \"m\";\nexport default x;", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"object\",[[\":\",\"default\",[\"aref\",0]]]]]]"],
-                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"},{\"json\":false,\"name\":\"default\",\"specifier\":\"n\"}],[[\"object\",[[\":\",\"default\",[\"array\",[[\"aref\",0],[\"aref\",1]]]]]]]]"],
-                ["// c\nexport default 1;", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
-                ["/* c */ export default 1;", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
-                ["\n\n export default 1; \n\n", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
-                ["const from = 1;\nexport default from;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["export default { from: 2, default: 3, with: 4 };", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"from\",2],[\":\",\"default\",3],[\":\",\"with\",4]]]]]]]]"],
+                ["export default [NaN, Infinity, -Infinity];", "[\"{}\",[[\":\",\"default\",[\"[]\",[NaN,Infinity,-Infinity]]]]]"],
+                ["export default \"abc\";", "[\"{}\",[[\":\",\"default\",\"abc\"]]]"],
+                ["export default 1234567890n;", "[\"{}\",[[\":\",\"default\",1234567890n]]]"],
+                ["export default [];", "[\"{}\",[[\":\",\"default\",[\"[]\",[]]]]]"],
+                ["export default [1];", "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]"],
+                ["export default [1,];", "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]"],
+                ["export default [[]];", "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"[]\",[]]]]]]]"],
+                ["export default [0,[1,[2,[]]],3];", "[\"{}\",[[\":\",\"default\",[\"[]\",[0,[\"[]\",[1,[\"[]\",[2,[\"[]\",[]]]]]],3]]]]]"],
+                ["export default [1234567890n];", "[\"{}\",[[\":\",\"default\",[\"[]\",[1234567890n]]]]]"],
+                ["export default {};", "[\"{}\",[[\":\",\"default\",[\"{}\",[]]]]]"],
+                ["export default {\"a\":1};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]"],
+                ["export default {a: 1};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]"],
+                ["export default {\"a\":1,};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]"],
+                ["export default {[\"a\"]:1};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]"],
+                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2],[\":\",\"c\",3]]]]]]"],
+                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",[\"{}\",[[\":\",\"c\",[\"[]\",[\"d\"]]]]]]]]]]]]]]"],
+                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",[\"undefined\"]]]]]]]"],
+                ["export default {a:1,a:2};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",\"a\",2]]]]]]"],
+                ["export default {[\"__proto__\"]: 1};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"__proto__\",1]]]]]]"],
+                ["const a = 1;\nexport default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[\"{}\",[[\":\",\"default\",[\"[]\",[1,2]]]]]"],
+                ["import x from \"m\";\nexport default x;", "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]"],
+                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[\",\",[[\".\",[\".\",[\"args\"],0],\"default\"],[\"{}\",[[\":\",\"default\",1]]]]]"],
+                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"],[\".\",[\".\",[\"args\"],1],\"default\"]]]]]]"],
+                ["// c\nexport default 1;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["/* c */ export default 1;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["\n\n export default 1; \n\n", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const from = 1;\nexport default from;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export default { from: 2, default: 3, with: 4 };", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"from\",2],[\":\",\"default\",3],[\":\",\"with\",4]]]]]]"],
                 // a `;` ends a statement wherever it stands, and a `;` on
                 // its own line, or several statements on one, are the same
                 // module. The last case is a normalized DataJS document
                 // verbatim: one line, `$`-names, every statement
                 // `;`-terminated, as DataJS requires (spec/datajs).
-                ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["export default 1;", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
-                ["const a = 1;export default a;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["import x from \"m\";const a = [x];export default [x,a];", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"array\",[[\"aref\",0]]],[\"object\",[[\":\",\"default\",[\"array\",[[\"aref\",0],[\"cref\",0]]]]]]]]"],
-                ["const a = 1 ; // c\nexport default a ;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["const a = 1;\nexport default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export default 1;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1;export default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["import x from \"m\";const a = [x];export default [x,a];", "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"],[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"]]]]]]]]"],
+                ["const a = 1 ; // c\nexport default a ;", "[\"{}\",[[\":\",\"default\",1]]]"],
                 // whitespace may precede the `;`, newlines included — a
                 // newline is trivia, so the value and its terminator may sit
                 // on different lines
-                ["export default 1\n;", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
-                ["const a = 1\n;\nexport default a;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["export default 1\n;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1\n;\nexport default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
                 // and a `;` may be omitted where JavaScript inserts one:
                 // at the end of input, whatever trivia stands there, and
                 // before a statement on a new line — a line comment ends
                 // the line, and a block comment holding a newline breaks
                 // it (spec/README.md, module structure)
-                ["export default 1", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
-                ["export default 1\n", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
-                ["export default 1 // c", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
-                ["const a = 1\nexport default a", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["import x from \"m\"\nexport default x", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"object\",[[\":\",\"default\",[\"aref\",0]]]]]]"],
-                ["import x from \"m\"\nconst a = x\nexport default a", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"aref\",0],[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["const a = 1 // c\nexport default a", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["const a = 1 /* c\n */ export default a", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["export const a = 1\nexport const b = 2", "[[],[1,2,[\"object\",[[\":\",\"a\",[\"cref\",0]],[\":\",\"b\",[\"cref\",1]]]]]]"],
-                ["const f = () => 1\nexport default f", "[[],[[\"=>\",0,[1]],[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
-                ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"object\",[[\":\",\"default\",[\"array\",[[\"cref\",0],[\"cref\",0]]]]]]]]"],
+                ["export default 1", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export default 1\n", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export default 1 // c", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1\nexport default a", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["import x from \"m\"\nexport default x", "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]"],
+                ["import x from \"m\"\nconst a = x\nexport default a", "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]"],
+                ["const a = 1 // c\nexport default a", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1 /* c\n */ export default a", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export const a = 1\nexport const b = 2", "[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2]]]"],
+                ["const f = () => 1\nexport default f", "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],1]]]]"],
+                ["const $0=[1];export default [$0,$0];", "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"[]\",[1]],[\"[]\",[1]]]]]]]"],
                 // a word that denotes a value still names a property: it is
                 // an `IdentifierName` in JavaScript, which reads it as the
                 // string, and `{ "NaN": 1 }` has always denoted that object
-                ["export default {NaN: 1, undefined: 2, true: 3};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"NaN\",1],[\":\",\"undefined\",2],[\":\",\"true\",3]]]]]]]]"],
-                ["const a = {NaN: 1};export default a.NaN;", "[[],[[\"object\",[[\":\",\"NaN\",1]]],[\"object\",[[\":\",\"default\",[\".\",[\"cref\",0],\"NaN\"]]]]]]"],
+                ["export default {NaN: 1, undefined: 2, true: 3};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"NaN\",1],[\":\",\"undefined\",2],[\":\",\"true\",3]]]]]]"],
+                ["const a = {NaN: 1};export default a.NaN;", "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"NaN\",1]]],\"NaN\"]]]]"],
             ]) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', [source, tag])
@@ -733,9 +675,11 @@ export const proof = {
             const [tag, value] = parseFromTokens(tokenizeString(`export default (a) => {\n${'if (a) { return 1; }\n'.repeat(5000)}return 0;\n};`))
             assert(tag === 'ok', tag)
             /** @type {any} */
-            let arm = /** @type {any} */ (value[1][0])[1][0][2][2][0]
-            for (let depth = 1; depth < 5_000; depth += 1) { arm = arm[3][1][2][0] }
-            assertEq(stringifySorted(arm[3]), '["()",["=>",0,[0]],[]]')
+            let arm = /** @type {any} */ (value.body.exit[1])[1][0][2][1].body
+            for (let depth = 1; depth < 5_000; depth += 1) { arm = arm.exit[3] }
+            assertEq(arm.exit[0], 'if')
+            assertEq(arm.exit[3].exit[0], 'return')
+            assertEq(arm.exit[3].exit[2], 0)
         },
     ],
     // An object's members stand in the order they are written, as JavaScript
@@ -749,7 +693,7 @@ export const proof = {
     membersAsWritten: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "1": 2, "b": 3};'))
         assert(tag === 'ok', tag)
-        assertEq(stringifyModule(value), '[[],[["object",[[":","default",["object",[[":","b",1],[":","1",2],[":","b",3]]]]]]]]')
+        assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"b\",1],[\":\",\"1\",2],[\":\",\"b\",3]]]]]]")
         const object = assertOk(toData(assertOk(read(ok(evaluate(value)), 'default'))))
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), '1,b')
@@ -767,26 +711,26 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyModule(value), expected)
             }
-            expect('const a = {}; export default a.b;', '[[],[["object",[]],["object",[[":","default",[".",["cref",0],"b"]]]]]]')
-            expect('const a = {}; export default a["b c"];', '[[],[["object",[]],["object",[[":","default",[".",["cref",0],"b c"]]]]]]')
-            expect('const a = []; export default a[0];', '[[],[["array",[]],["object",[[":","default",[".",["cref",0],0]]]]]]')
+            expect('const a = {}; export default a.b;', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[]],\"b\"]]]]")
+            expect('const a = {}; export default a["b c"];', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[]],\"b c\"]]]]")
+            expect('const a = []; export default a[0];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[]],0]]]]")
             // an index is a constant key, a string or a number token, and
             // the sign was only ever one because the fold made `-1.5` a
             // number. It is two tokens now, so a negative key is written as
             // the string it names — which is the key either spelling gives
-            expect('const a = []; export default a["-1.5"];', '[[],[["array",[]],["object",[[":","default",[".",["cref",0],"-1.5"]]]]]]')
-            expect('const a = {}; export default a.b[1].default;', '[[],[["object",[]],["object",[[":","default",[".",[".",[".",["cref",0],"b"],1],"default"]]]]]]')
+            expect('const a = []; export default a["-1.5"];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[]],\"-1.5\"]]]]")
+            expect('const a = {}; export default a.b[1].default;', "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\".\",[\"{}\",[]],\"b\"],1],\"default\"]]]]")
             // any value takes accesses, a literal as a reference does
-            expect('export default [1].length;', '[[],[["object",[[":","default",[".",["array",[1]],"length"]]]]]]')
-            expect('export default "ab"[0];', '[[],[["object",[[":","default",[".","ab",0]]]]]]')
-            expect('export default { a: [1] }.a[0];', '[[],[["object",[[":","default",[".",[".",["object",[[":","a",["array",[1]]]]],"a"],0]]]]]]')
-            expect('export default null.x;', '[[],[["object",[[":","default",[".",null,"x"]]]]]]')
-            expect('export default true.x;', '[[],[["object",[[":","default",[".",true,"x"]]]]]]')
-            expect('const n = -1; export default n.x;', '[[],[["-",1],["object",[[":","default",[".",["cref",0],"x"]]]]]]')
-            expect('const a = []; export default [a.length, a["length"]];', '[[],[["array",[]],["object",[[":","default",["array",[[".",["cref",0],"length"],[".",["cref",0],"length"]]]]]]]]')
+            expect('export default [1].length;', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[1]],\"length\"]]]]")
+            expect('export default "ab"[0];', "[\"{}\",[[\":\",\"default\",[\".\",\"ab\",0]]]]")
+            expect('export default { a: [1] }.a[0];', "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"{}\",[[\":\",\"a\",[\"[]\",[1]]]]],\"a\"],0]]]]")
+            expect('export default null.x;', "[\"{}\",[[\":\",\"default\",[\".\",null,\"x\"]]]]")
+            expect('export default true.x;', "[\"{}\",[[\":\",\"default\",[\".\",true,\"x\"]]]]")
+            expect('const n = -1; export default n.x;', "[\"{}\",[[\":\",\"default\",[\".\",-1,\"x\"]]]]")
+            expect('const a = []; export default [a.length, a["length"]];', "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\"[]\",[]],\"length\"],[\".\",[\"[]\",[]],\"length\"]]]]]]")
             // a prototype name is a key like any other: only reading it is refused
-            expect('export default { push: 1, toString: 2 };', '[[],[["object",[[":","default",["object",[[":","push",1],[":","toString",2]]]]]]]]')
-            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[[":","default",["array",[[".",["aref",0],"x"],["object",[[":","y",[".",["aref",0],"x"]]]]]]]]]]]')
+            expect('export default { push: 1, toString: 2 };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"push\",1],[\":\",\"toString\",2]]]]]]")
+            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\".\",[\"args\"],0],\"default\"],\"x\"],[\"{}\",[[\":\",\"y\",[\".\",[\".\",[\".\",[\"args\"],0],\"default\"],\"x\"]]]]]]]]]")
         },
         // The optional chains, in the EDAG's own shapes
         // (`fjs/edag/README.md`, Chains): a `?.` opens a region, the steps
@@ -797,8 +741,8 @@ export const proof = {
             const expect = (source, expected) => {
                 const [tag, value] = parseFromTokens(tokenizeString(`const a = {}; const c = 1; export default ${source};`))
                 assert(tag === 'ok', value)
-                const [, body] = value
-                assertEq(stringifyModule([[], [body[body.length - 1]]]), `[[],[["object",[[":","default",${expected}]]]]]`)
+                assert(value.body.exit[0] === 'yield')
+                assertEq(_stringifyTree(value.body.exit[1]), `["object",[[":","default",${expected.replaceAll('["cref",0]', '["ref",{"index":0}]').replaceAll('["cref",1]', '["ref",{"index":0}]')}]]]`)
             }
             expect('a?.b', '["?.",["cref",0],"b"]')
             expect('a?.["b c"]', '["?.",["cref",0],"b c"]')
@@ -865,17 +809,17 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyModule(value), ast)
             }
-            expect('export default -1 .x;', '[[],[["object",[[":","default",["-",[".",1,"x"]]]]]]]')
-            expect('export default -0 .x;', '[[],[["object",[[":","default",["-",[".",0,"x"]]]]]]]')
-            expect('export default -1n .x;', '[[],[["object",[[":","default",["-",[".",1n,"x"]]]]]]]')
-            expect('export default -0n .x;', '[[],[["object",[[":","default",["-",[".",0n,"x"]]]]]]]')
-            expect('export default -Infinity.x;', '[[],[["object",[[":","default",["-",[".",Infinity,"x"]]]]]]]')
-            expect('export default -1["x"];', '[[],[["object",[[":","default",["-",[".",1,"x"]]]]]]]')
+            expect('export default -1 .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",1,\"x\"]]]]]")
+            expect('export default -0 .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",0,\"x\"]]]]]")
+            expect('export default -1n .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",1n,\"x\"]]]]]")
+            expect('export default -0n .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",0n,\"x\"]]]]]")
+            expect('export default -Infinity.x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",Infinity,\"x\"]]]]]")
+            expect('export default -1["x"];', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",1,\"x\"]]]]]")
             // and without a sign the access is all there is
-            expect('export default 1 .x;', '[[],[["object",[[":","default",[".",1,"x"]]]]]]')
-            expect('export default 0n.x;', '[[],[["object",[[":","default",[".",0n,"x"]]]]]]')
-            expect('export default NaN.x;', '[[],[["object",[[":","default",[".",NaN,"x"]]]]]]')
-            expect('export default Infinity["x"];', '[[],[["object",[[":","default",[".",Infinity,"x"]]]]]]')
+            expect('export default 1 .x;', "[\"{}\",[[\":\",\"default\",[\".\",1,\"x\"]]]]")
+            expect('export default 0n.x;', "[\"{}\",[[\":\",\"default\",[\".\",0n,\"x\"]]]]")
+            expect('export default NaN.x;', "[\"{}\",[[\":\",\"default\",[\".\",NaN,\"x\"]]]]")
+            expect('export default Infinity["x"];', "[\"{}\",[[\":\",\"default\",[\".\",Infinity,\"x\"]]]]")
         },
         prohibited: () => {
             /** @type {(source: string, column: number) => void} */
@@ -970,7 +914,7 @@ export const proof = {
     },
     stringConversion: {
         read: () => {
-            /** @type {readonly (readonly [string, AstConst])[]} */
+            /** @type {readonly (readonly [string, Exp])[]} */
             const values = [
                 ['String(42)', ['String', 42]],
                 ['(String)(42)', ['String', 42]],
@@ -981,15 +925,15 @@ export const proof = {
                 ['String(1).length', ['.', ['String', 1], 'length']],
                 ['String(1)(2)', ['()', ['String', 1], [2]]],
                 ['-String(1)', ['-', ['String', 1]]],
-                ['(...a) => String(a[0])', ['=>', 0, [['String', ['.', ['rest'], 0]]]]],
+                ['(...a) => String(a[0])', ['=>', 0, [], ['String', ['.', ['rest'], 0]]]],
             ]
             for (const [source, value] of values) {
-                expectModule(`export default ${source};`, stringifyModule([[], [['object', [[':', 'default', value]]]]]))
+                expectModule(`export default ${source};`, _stringifyTree(['{}', [[':', 'default', value]]]))
             }
         },
         empty: () => {
-            expectModule('export default String();', stringifyModule([[], [['object', [[':', 'default', '']]]]]))
-            expectModule('export default String().length;', stringifyModule([[], [['object', [[':', 'default', ['.', '', 'length']]]]]]))
+            expectModule('export default String();', _stringifyTree(['{}', [[':', 'default', '']]]))
+            expectModule('export default String().length;', _stringifyTree(['{}', [[':', 'default', ['.', '', 'length']]]]))
         },
         reserved: () => {
             /** @type {readonly (readonly [string, number])[]} */
@@ -1016,8 +960,8 @@ export const proof = {
             }
         },
         key: () => {
-            expectModule('export default { String: 1 }.String;', stringifyModule([[], [['object', [[':', 'default', ['.', ['object', [[':', 'String', 1]]], 'String']]]]]]))
-            expectModule('export default { String: 1 }["String"];', stringifyModule([[], [['object', [[':', 'default', ['.', ['object', [[':', 'String', 1]]], 'String']]]]]]))
+            expectModule('export default { String: 1 }.String;', _stringifyTree(['{}', [[':', 'default', ['.', ['{}', [[':', 'String', 1]]], 'String']]]]))
+            expectModule('export default { String: 1 }["String"];', _stringifyTree(['{}', [[':', 'default', ['.', ['{}', [[':', 'String', 1]]], 'String']]]]))
         },
         indexRefused: () => {
             expectRefused('export default [1][String(0)];', 'computed key is not Number(...)', 20)
@@ -1032,23 +976,23 @@ export const proof = {
     // them as (spec/README.md, Number Conversion).
     conversion: {
         read: () => {
-            expectModule('export default Number("0x10");', '[[],[["object",[[":","default",["Number","0x10"]]]]]]')
+            expectModule('export default Number("0x10");', "[\"{}\",[[\":\",\"default\",[\"Number\",\"0x10\"]]]]")
             // a value like any other: an operand, a base, a callee, an
             // operand of itself, and the operand any value
-            expectModule('export default -Number(1);', '[[],[["object",[[":","default",["-",["Number",1]]]]]]]')
-            expectModule('export default Number(1 + 2) * 2;', '[[],[["object",[[":","default",["*",["Number",["+",1,2]],2]]]]]]')
-            expectModule('export default Number(1).x;', '[[],[["object",[[":","default",[".",["Number",1],"x"]]]]]]')
-            expectModule('export default Number(1)(2);', '[[],[["object",[[":","default",["()",["Number",1],[2]]]]]]]')
-            expectModule('export default Number(Number(1n));', '[[],[["object",[[":","default",["Number",["Number",1n]]]]]]]')
-            expectModule('export default Number({ valueOf: () => 7 });', '[[],[["object",[[":","default",["Number",["object",[[":","valueOf",["=>",0,[7]]]]]]]]]]]')
-            expectModule('export default (...a) => Number(a[0]);', '[[],[["object",[[":","default",["=>",0,[["Number",[".",["rest"],0]]]]]]]]]')
+            expectModule('export default -Number(1);', "[\"{}\",[[\":\",\"default\",[\"-\",[\"Number\",1]]]]]")
+            expectModule('export default Number(1 + 2) * 2;', "[\"{}\",[[\":\",\"default\",[\"*\",[\"Number\",[\"+\",1,2]],2]]]]")
+            expectModule('export default Number(1).x;', "[\"{}\",[[\":\",\"default\",[\".\",[\"Number\",1],\"x\"]]]]")
+            expectModule('export default Number(1)(2);', "[\"{}\",[[\":\",\"default\",[\"()\",[\"Number\",1],[2]]]]]")
+            expectModule('export default Number(Number(1n));', "[\"{}\",[[\":\",\"default\",[\"Number\",[\"Number\",1n]]]]]")
+            expectModule('export default Number({ valueOf: () => 7 });', "[\"{}\",[[\":\",\"default\",[\"Number\",[\"{}\",[[\":\",\"valueOf\",[\"=>\",0,[],7]]]]]]]]")
+            expectModule('export default (...a) => Number(a[0]);', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"Number\",[\".\",[\"rest\"],0]]]]]]")
             // a group is no boundary, and neither is a line break before
             // the arguments, as in JavaScript
-            expectModule('export default (Number)(1);', '[[],[["object",[[":","default",["Number",1]]]]]]')
-            expectModule('export default Number\n(1);', '[[],[["object",[[":","default",["Number",1]]]]]]')
+            expectModule('export default (Number)(1);', "[\"{}\",[[\":\",\"default\",[\"Number\",1]]]]")
+            expectModule('export default Number\n(1);', "[\"{}\",[[\":\",\"default\",[\"Number\",1]]]]")
             // `Number()` is `0`, the literal, as JavaScript has it
-            expectModule('export default Number();', '[[],[["object",[[":","default",0]]]]]')
-            expectModule('export default -Number();', '[[],[["object",[[":","default",["-",0]]]]]]')
+            expectModule('export default Number();', "[\"{}\",[[\":\",\"default\",0]]]")
+            expectModule('export default -Number();', "[\"{}\",[[\":\",\"default\",-0]]]")
         },
         // the conversion is the represented interpreter's `Number`: a
         // string read as a literal, a bigint converted, an array joined, an
@@ -1091,26 +1035,26 @@ export const proof = {
         // a key and a property name are not references: an own property of
         // the name is read, and called, as JavaScript reads and calls it
         key: () => {
-            expectModule('export default { Number: 1 }.Number;', '[[],[["object",[[":","default",[".",["object",[[":","Number",1]]],"Number"]]]]]]')
-            expectModule('export default { Number: 1 }["Number"];', '[[],[["object",[[":","default",[".",["object",[[":","Number",1]]],"Number"]]]]]]')
-            expectModule('export default { Number: () => 1 }.Number(1);', '[[],[["object",[[":","default",["()",[".",["object",[[":","Number",["=>",0,[1]]]]],"Number"],[1]]]]]]]')
-            expectModule('export default (...a) => a[0].Number;', '[[],[["object",[[":","default",["=>",0,[[".",[".",["rest"],0],"Number"]]]]]]]]')
+            expectModule('export default { Number: 1 }.Number;', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"Number\",1]]],\"Number\"]]]]")
+            expectModule('export default { Number: 1 }["Number"];', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"Number\",1]]],\"Number\"]]]]")
+            expectModule('export default { Number: () => 1 }.Number(1);', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"Number\",[\"=>\",0,[],1]]]],\"Number\",[\"|()\",[1]]]]]]")
+            expectModule('export default (...a) => a[0].Number;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\".\",[\"rest\"],0],\"Number\"]]]]]")
         },
         // A key computed at run time is the conversion, `a[Number(i)]`:
         // the AST's key is the conversion itself, entered after the base,
         // in a plain access, a method call, a guarded access and a chain's
         // step alike (spec/README.md, Property Access).
         index: () => {
-            expectModule('export default (...a) => a[Number(a[0])];', '[[],[["object",[[":","default",["=>",0,[[".",["rest"],["Number",[".",["rest"],0]]]]]]]]]]')
-            expectModule('export default (...a) => a[Number(a[0])](1);', '[[],[["object",[[":","default",["=>",0,[["()",[".",["rest"],["Number",[".",["rest"],0]]],[1]]]]]]]]]')
-            expectModule('export default (...a) => a?.[Number(a[0])];', '[[],[["object",[[":","default",["=>",0,[["?.",["rest"],["Number",[".",["rest"],0]]]]]]]]]]')
-            expectModule('export default (...a) => a?.b[Number(a[0])](1);', '[[],[["object",[[":","default",["=>",0,[["?.",["rest"],"b",["|.",["Number",[".",["rest"],0]],["|()",[1]]]]]]]]]]]')
-            expectModule('export default [1][Number([0][Number("0")])];', '[[],[["object",[[":","default",[".",["array",[1]],["Number",[".",["array",[0]],["Number","0"]]]]]]]]]')
+            expectModule('export default (...a) => a[Number(a[0])];', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\"rest\"],[\"Number\",[\".\",[\"rest\"],0]]]]]]]")
+            expectModule('export default (...a) => a[Number(a[0])](1);', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\"rest\"],[\"Number\",[\".\",[\"rest\"],0]],[\"|()\",[1]]]]]]]")
+            expectModule('export default (...a) => a?.[Number(a[0])];', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?.\",[\"rest\"],[\"Number\",[\".\",[\"rest\"],0]]]]]]]")
+            expectModule('export default (...a) => a?.b[Number(a[0])](1);', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?.\",[\"rest\"],\"b\",[\"|.\",[\"Number\",[\".\",[\"rest\"],0]],[\"|()\",[1]]]]]]]]")
+            expectModule('export default [1][Number([0][Number("0")])];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[1]],[\"Number\",[\".\",[\"[]\",[0]],[\"Number\",\"0\"]]]]]]]")
             // `Number()` is `0`, a constant key; a group is no boundary
-            expectModule('export default [1][Number()];', '[[],[["object",[[":","default",[".",["array",[1]],0]]]]]]')
-            expectModule('export default [1][(Number("0"))];', '[[],[["object",[[":","default",[".",["array",[1]],["Number","0"]]]]]]]')
+            expectModule('export default [1][Number()];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[1]],0]]]]")
+            expectModule('export default [1][(Number("0"))];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[1]],[\"Number\",\"0\"]]]]]")
             // a name the key reads is a capture as any read is
-            expectModule('const k = "0"; export default (...a) => a[Number(k)];', '[[],["0",["object",[[":","default",["=>",0,[[".",["rest"],["Number",["fref",0]]]],[["cref",0]]]]]]]]')
+            expectModule('const k = "0"; export default (...a) => a[Number(k)];', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\"rest\"],[\"Number\",\"0\"]]]]]]")
         },
         // the interpreter reads the key the conversion gives, as JavaScript
         // reads it: a number's string, so `NaN` names nothing
@@ -1138,7 +1082,7 @@ export const proof = {
         json: () => {
             const [tag, value] = parseFromTokens(tokenizeString('import x from "m" with { type: "json" };\nexport default x;'))
             assert(tag === 'ok', tag)
-            assertEq(stringifyModule(value), '[[{"json":true,"name":"default","specifier":"m"}],[["object",[[":","default",["aref",0]]]]]]')
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]")
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
@@ -1162,140 +1106,140 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",null]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",null]]]")
         },
         () => {
             const tokenList = tokenizeString('export default true;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",true]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",true]]]")
         },
         () => {
             const tokenList = tokenizeString('export default false;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",false]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",false]]]")
         },
         () => {
             const tokenList = tokenizeString('export default undefined;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",undefined]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"undefined\"]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default 0.1;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",0.1]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",0.1]]]")
         },
         () => {
             const tokenList = tokenizeString('export default 1.1e+2;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",110]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",110]]]")
         },
         () => {
             const tokenList = tokenizeString('export default "abc";')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default","abc"]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",\"abc\"]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["array",[]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [1];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["array",[1]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [[]];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["array",[["array",[]]]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"[]\",[]]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [0,[1,[2,[]]],3];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[0,[\"[]\",[1,[\"[]\",[2,[\"[]\",[]]]]]],3]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== '[[],[["object",[[":","default",["object",[]]]]]]]') { throw result }
+            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [{}];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== '[[],[["object",[[":","default",["array",[["object",[]]]]]]]]]') { throw result }
+            if (result !== "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"{}\",[]]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== '[[],[["object",[[":","default",["object",[[":","a",true],[":","b",false],[":","c",null],[":","d",undefined]]]]]]]]') { throw result }
+            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",[\"undefined\"]]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== '[[],[["object",[[":","default",["object",[[":","a",["object",[[":","b",["object",[[":","c",["array",["d"]]]]]]]]]]]]]]]]') { throw result }
+            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",[\"{}\",[[\":\",\"c\",[\"[]\",[\"d\"]]]]]]]]]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {a: 1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== '[[],[["object",[[":","default",["object",[[":","a",1]]]]]]]]') { throw result }
+            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default 1234567890n;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",1234567890n]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",1234567890n]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [1234567890n];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["array",[1234567890n]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[1234567890n]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [1,];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["array",[1]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {"a":1,};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== '[[],[["object",[[":","default",["object",[[":","a",1]]]]]]]]') { throw result }
+            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]") { throw result }
         }
     ],
     // A computed key `["a"]` is a third spelling of an ordinary key, next to
@@ -1309,7 +1253,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["object",[[":","a",1]]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
         },
         () => {
             // all three spellings in one object, plus a trailing comma
@@ -1317,7 +1261,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["object",[[":","a",1],[":","b",2],[":","c",3]]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2],[\":\",\"c\",3]]]]]]")
         },
         () => {
             // trivia is trivia inside the brackets too
@@ -1325,7 +1269,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["object",[[":","a",1]]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
         },
         () => {
             // the key that has no other spelling
@@ -1333,25 +1277,25 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["object",[[":","__proto__",["object",[[":","a",42]]]]]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"__proto__\",[\"{}\",[[\":\",\"a\",42]]]]]]]]]")
         },
         () => {
             // a reference resolves as it does anywhere: a `const` to its
             // node, a parameter to its slot
-            expectModule('const a = 0; export default {[a]: 5};', '[[],[0,["object",[[":","default",["object",[[":",["cref",0],5]]]]]]]]')
-            expectModule('const a = [1]; export default {[a]: 5};', '[[],[["array",[1]],["object",[[":","default",["object",[[":",["cref",0],5]]]]]]]]')
-            expectModule('export default (k) => ({[k]: 1});', '[[],[["object",[[":","default",["=>",1,[["object",[[":",["arg",0],1]]]]]]]]]]')
+            expectModule('const a = 0; export default {[a]: 5};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",0,5]]]]]]")
+            expectModule('const a = [1]; export default {[a]: 5};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",[\"[]\",[1]],5]]]]]]")
+            expectModule('export default (k) => ({[k]: 1});', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"{}\",[[\":\",[\"arg\",0],1]]]]]]]")
             // a literal of any type is itself, and an expression its node
-            expectModule('export default {["a"]: 1, [0]: 2, [null]: 3};', '[[],[["object",[[":","default",["object",[[":","a",1],[":",0,2],[":",null,3]]]]]]]]')
-            expectModule('export default {[1 + 1]: 2};', '[[],[["object",[[":","default",["object",[[":",["+",1,1],2]]]]]]]]')
-            expectModule('export default {[[1][Number(0)]]: 2};', '[[],[["object",[[":","default",["object",[[":",[".",["array",[1]],["Number",0]],2]]]]]]]]')
-            expectModule('export default {[(() => { const c = [1]; return c; })()]: 2};', '[[],[["object",[[":","default",["object",[[":",["()",["=>",0,[["array",[1]],["cref",0]]],[]],2]]]]]]]]')
+            expectModule('export default {["a"]: 1, [0]: 2, [null]: 3};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",0,2],[\":\",null,3]]]]]]")
+            expectModule('export default {[1 + 1]: 2};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",[\"+\",1,1],2]]]]]]")
+            expectModule('export default {[[1][Number(0)]]: 2};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",[\".\",[\"[]\",[1]],[\"Number\",0]],2]]]]]]")
+            expectModule('export default {[(() => { const c = [1]; return c; })()]: 2};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",[\"[]\",[1]],2]]]]]]")
         },
         () => {
             // a key that evaluates to `__proto__` is no spelling of the
             // key JavaScript reads as a prototype: it defines an own
             // property, as the constant computed spelling does
-            expectModule('const k = "__proto__"; export default {[k]: 1};', '[[],["__proto__",["object",[[":","default",["object",[[":",["cref",0],1]]]]]]]]')
+            expectModule('const k = "__proto__"; export default {[k]: 1};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"__proto__\",1]]]]]]")
         },
         () => {
             // the key is evaluated before the value, and after the members
@@ -1370,16 +1314,16 @@ export const proof = {
     // is a key alone and keeps its `:`.
     shorthand: [
         () => {
-            expectModule('const a = [1]; export default { a };', '[[],[["array",[1]],["object",[[":","default",["object",[[":","a",["cref",0]]]]]]]]]')
+            expectModule('const a = [1]; export default { a };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"[]\",[1]]]]]]]]")
             // mixed with the three keyed spellings, a trailing comma allowed
-            expectModule('const a = 1; const d = 2; export default { a, "b": 2, ["c"]: 3, d, };', '[[],[1,2,["object",[[":","default",["object",[[":","a",["cref",0]],[":","b",2],[":","c",3],[":","d",["cref",1]]]]]]]]]')
+            expectModule('const a = 1; const d = 2; export default { a, "b": 2, ["c"]: 3, d, };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2],[\":\",\"c\",3],[\":\",\"d\",2]]]]]]")
             // a parameter, and an import
-            expectModule('export default (a) => ({ a });', '[[],[["object",[[":","default",["=>",1,[["object",[[":","a",["arg",0]]]]]]]]]]]')
-            expectModule('import m from "./m.f.js"; export default { m };', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[[":","default",["object",[[":","m",["aref",0]]]]]]]]]')
+            expectModule('export default (a) => ({ a });', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"{}\",[[\":\",\"a\",[\"arg\",0]]]]]]]]")
+            expectModule('import m from "./m.f.js"; export default { m };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"m\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]]]]")
             // the shorthand denotes an own property whatever the name, as
             // JavaScript's does: `{ __proto__ }` is the property, not a
             // prototype, so it is accepted where `{ __proto__: v }` is not
-            expectModule('const __proto__ = 1; export default { __proto__ };', '[[],[1,["object",[[":","default",["object",[[":","__proto__",["cref",0]]]]]]]]]')
+            expectModule('const __proto__ = 1; export default { __proto__ };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"__proto__\",1]]]]]]")
         },
         () => {
             // a reference, refused as one: at the name
@@ -1490,7 +1434,7 @@ export const proof = {
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')
         },
-        // an array has no hole (spec/values/arrays/README.md)
+        // an array has no hole (spec/values/arrays.md)
         () => {
             const tokenList = tokenizeString('export default [,]')
             const obj = parseFromTokens(tokenList)
@@ -1731,28 +1675,28 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["array",[0,1,2]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[0,1,2]]]]]")
         },
         () => {
             const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ; ')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== '[[],[["object",[[":","default",["object",[[":","a",0],[":","b",1]]]]]]]]') { throw result }
+            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]") { throw result }
         },
         () => {
             const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n;\n')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",["array",[0,1,2]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[0,1,2]]]]]")
         },
         () => {
             const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r;\r')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== '[[],[["object",[[":","default",["object",[[":","a",0],[":","b",1]]]]]]]]') { throw result }
+            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]") { throw result }
         },
     ],
     comments: [
@@ -1761,7 +1705,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[["object",[[":","default",null]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",null]]]")
         },
     ],
     // Regression, from the hand-written parser: closing a container popped its
@@ -1775,7 +1719,7 @@ export const proof = {
             const [tag, value] = parseFromTokens(tokenizeString(
                 `export default [${repeated('{}')(20000)}];`))
             assert(tag === 'ok', tag)
-            assertEq(value[1].length, 1)
+            assertEq(value.body.statements.length, 0)
         },
         () => {
             const [tag] = parseFromTokens(tokenizeString(
@@ -1797,10 +1741,12 @@ export const proof = {
             // walked by a loop too: the outermost function captures the
             // module's `x`, every one inside it its parent's slot
             /** @type {any} */
-            let fn = /** @type {any} */ (value[1][1])[1][0][2]
-            assertEq(stringifySorted(fn[3]), '[["cref",0]]')
-            for (let depth = 1; depth < 20_000; depth += 1) { fn = fn[2][0] }
-            assertEq(stringifySorted(fn), '["=>",0,[["fref",0]],[["fref",0]]]')
+            let fn = /** @type {any} */ (value.body.exit[1])[1][0][2]
+            for (let depth = 1; depth < 20_000; depth += 1) { fn = fn[1].body.exit[2] }
+            assertEq(fn[0], 'function')
+            assertEq(fn[1].body.exit[0], 'return')
+            assertEq(fn[1].body.exit[2][0], 'ref')
+            assertEq(fn[1].body.exit[2][1], value.origins[0].id)
         },
         () => {
             // primitives never touched the stack — the baseline that always passed
@@ -1843,7 +1789,7 @@ export const proof = {
                 // what the pane marks, the tokenizer agrees with
                 if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }
-            assertEq(textOfResult(_astOf('export default 1;')), 'export default [[],[["object",[[":","default",1]]]]];')
+            assertEq(textOfResult(_astOf('export default 1;')), 'export default {"imports":[],"body":{"statements":[],"exit":["yield",["object",[[":","default",1]]]]}};')
             assertEq(textOfResult(_astOf('export default "\\x41";')), 'unexpected token')
         },
         view: () => {

@@ -740,7 +740,7 @@ and each proof stays `proof.f.mjs`. `media/rust/item`'s six importers are
 `compiler/rust`, `edag/rust`, `nanvm/commands`, `nanvm/harness`,
 `nanvm/methods` and `nanvm/rust`, and it is linked from `media/rust` and
 from `edag/rust`'s
-[let-bindings `todo/`](../fjs/edag/rust/todo/let-bindings-owner.md).
+[prepared Rust binding contract](../fjs/rust/serializer/README.md).
 `website/demo/code`'s nine importers are the `compiler`, `crypto/hmac`,
 `crypto/pow`, `crypto/secp`, `crypto/sign` and `crypto/vdf` demos,
 `website/cli`, `website/demo/hash` and `website/demo/highlight`, and it is

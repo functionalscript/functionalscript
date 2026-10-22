@@ -4,27 +4,10 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = rest.clone().to_any();
-        let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;
-        let c3: Any<A> = (c1 + c2)?;
-        let c4: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c5: Any<A> = (f64_any(0x401c000000000000) % c4)?;
-        let c6: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c7: Any<A> = (Any::pow(f64_any(0x4000000000000000), c6))?;
-        let c8: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c9: Any<A> = (Any::bitwise_not(c8))?;
-        let c10: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c11: Any<A> = (!(c10))?;
-        let c12: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c13: Any<A> = (Any::typeof_(c12))?;
-        let c14: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c15: Any<A> = (Any::gt(c14, f64_any(0x3ff0000000000000)))?;
-        let c16: Any<A> = (Any::conditional(c15, || Ok(string_any("big")), || Ok(string_any("small"))))?;
-        Ok([c3, c5, c7, c9, c11, c13, c16].to_array().to_any())
-    }, 0, Array::default(), Some("(...$0)=>[$0[0]+2*3,7%$0[0],2**$0[0],~$0[0],!$0[0],typeof $0[0],$0[0]>1?\"big\":\"small\"]")).to_any();
-    Ok([(string_key("default"), c0)].to_object().to_any())
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b972: Any<A> = _args.rest(0).to_any();
+        Ok([((Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())? + (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?)?, (f64_any(0x401c000000000000) % (Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?)?, (Any::pow(f64_any(0x4000000000000000), (Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?))?, (Any::bitwise_not((Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?))?, (<Any<A> as core::ops::Not>::not((Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?))?, (Any::typeof_((Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?))?, if Any::<A>::to_boolean((Any::gt((Any::dot(_b972.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)))?) { string_any("big") } else { string_any("small") }].to_array().to_any())
+    }, 0, Array::default(), Some("(...$0)=>[$0[0]+2*3,7%$0[0],2**$0[0],~$0[0],!$0[0],typeof $0[0],$0[0]>1?\"big\":\"small\"]")).to_any())].to_object().to_any())
 }

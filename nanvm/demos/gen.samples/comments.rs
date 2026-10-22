@@ -4,11 +4,10 @@ use nanvm_lib::vm::unstable::{f64_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        c0 * f64_any(0x4000000000000000)
-    }, 0, Array::default(), Some("(...$0)=>$0[0]*2")).to_any();
-    Ok([(string_key("default"), c0)].to_object().to_any())
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b132: Any<A> = _args.rest(0).to_any();
+        (Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end())? * f64_any(0x4000000000000000)
+    }, 0, Array::default(), Some("(...$0)=>$0[0]*2")).to_any())].to_object().to_any())
 }

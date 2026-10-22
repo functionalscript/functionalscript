@@ -4,20 +4,10 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        let c0: Any<A> = rest.clone().to_any();
-        let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = (c1.to_string().map(|v| v.to_any()))?;
-        let c3: Any<A> = (string_any("Hello, ") + c2)?;
-        let c4: Any<A> = (c3 + string_any(" world"))?;
-        let c5: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-        let c6: Any<A> = (Any::gt(c5, f64_any(0x3ff0000000000000)))?;
-        let c7: Any<A> = (Any::conditional(c6, || Ok(string_any("s")), || Ok(string_any(""))))?;
-        let c8: Any<A> = (c7.to_string().map(|v| v.to_any()))?;
-        let c9: Any<A> = (c4 + c8)?;
-        c9 + string_any("!")
-    }, 0, Array::default(), Some("(...$0)=>\"Hello, \"+String($0[0])+\" world\"+String($0[0]>1?\"s\":\"\")+\"!\"")).to_any();
-    Ok([(string_key("default"), c0)].to_object().to_any())
+    Ok([(string_key("default"), A::static_function(|_self, _args| {
+        let _b524: Any<A> = _args.rest(0).to_any();
+        (((string_any("Hello, ") + ((Any::dot(_b524.clone(), f64_any(0x0000000000000000)).end())?.to_string().map(|v| v.to_any()))?)? + string_any(" world"))? + ((if Any::<A>::to_boolean((Any::gt((Any::dot(_b524.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)))?) { string_any("s") } else { string_any("") }).to_string().map(|v| v.to_any()))?)? + string_any("!")
+    }, 0, Array::default(), Some("(...$0)=>\"Hello, \"+String($0[0])+\" world\"+String($0[0]>1?\"s\":\"\")+\"!\"")).to_any())].to_object().to_any())
 }

@@ -4,14 +4,9 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [f64_any(0x403e000000000000), f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any();
-    let c1: Any<A> = [f64_any(0x4008000000000000), f64_any(0x4026000000000000), f64_any(0x4036000000000000)].to_array().to_any();
-    let c2: Any<A> = [f64_any(0x4008000000000000), f64_any(0x4000000000000000)].to_array().to_any();
-    let c3: Any<A> = [f64_any(0x4008000000000000), f64_any(0x403e000000000000), f64_any(0x3ff0000000000000), f64_any(0x4024000000000000), f64_any(0x4000000000000000), f64_any(0x4034000000000000)].to_array().to_any();
-    let c4: Any<A> = [f64_any(0x402a000000000000), f64_any(0x402c000000000000), f64_any(0x402e000000000000)].to_array().to_any();
-    let c5: Any<A> = [c0, c1, c2, f64_any(0x404e000000000000), string_any("201030"), f64_any(0x4008000000000000), f64_any(0x4000000000000000), f64_any(0x4000000000000000), f64_any(0xbff0000000000000), true.to_any(), true.to_any(), c3, c4].to_array().to_any();
-    Ok([(string_key("default"), c5)].to_object().to_any())
+    Ok([(string_key("default"), [[f64_any(0x403e000000000000), f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any(), [f64_any(0x4008000000000000), f64_any(0x4026000000000000), f64_any(0x4036000000000000)].to_array().to_any(), [f64_any(0x4008000000000000), f64_any(0x4000000000000000)].to_array().to_any(), f64_any(0x404e000000000000), string_any("201030"), f64_any(0x4008000000000000), f64_any(0x4000000000000000), f64_any(0x4000000000000000), f64_any(0xbff0000000000000), true.to_any(), true.to_any(), [f64_any(0x4008000000000000), f64_any(0x403e000000000000), f64_any(0x3ff0000000000000), f64_any(0x4024000000000000), f64_any(0x4000000000000000), f64_any(0x4034000000000000)].to_array().to_any(), [f64_any(0x402a000000000000), f64_any(0x402c000000000000), f64_any(0x402e000000000000)].to_array().to_any()].to_array().to_any())].to_object().to_any())
 }
 
 #[rustfmt::skip]

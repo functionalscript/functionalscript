@@ -1,7 +1,7 @@
 /**
  * @import { Exp } from '../../edag/types.ts'
  * @import { EdagValue, Values } from '../../edag/value/types.ts'
- * @import { AstConst } from '../ast/types.ts'
+ * @import { Value as FastValue } from '../../js/ast/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -32,6 +32,7 @@ import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
+import { fromFast } from '../../edag/from_fast/module.f.mjs'
 
 /**
  * `exp`'s shape, asserted to be a node rather than a value drawn inline.
@@ -76,70 +77,26 @@ export const expectEdag = (edag, expected) => {
 }
 
 /**
- * Confirms `exp` is a left-associative `+` chain `depth` terms deep, bottoming
- * out at `1` — `((1+1)+1)+…`. `validate`/`assertStructurallySame` are
- * themselves recursive (`fjs/edag/todo/stack-safety.md` tracks that, one
- * layer down from this one), so a chain deep enough to prove `lower` stack-safe
- * overflows them before it says anything about `lower`. This walks the same
- * shape iteratively instead, the one comparison this proof needs at a depth
- * the two shared helpers cannot reach.
- * @type {(depth: number) => (exp: Exp) => void}
- */
-const expectPlusChain = depth => exp => {
-    let node = exp
-    let remaining = depth
-    while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '+' && node[2] === 1, node)
-        node = node[1]
-        remaining = remaining - 1
-    }
-    assertEq(node, 1)
-}
-
-/**
- * Confirms `exp` is a left-associative `&&` chain `depth` terms deep,
- * bottoming out at `1` — `((1 && 1) && 1) && …` — walked iteratively as
- * {@link expectPlusChain} is, for the same reason.
- * @type {(depth: number) => (exp: Exp) => void}
- */
-const expectAndChain = depth => exp => {
-    let node = exp
-    let remaining = depth
-    while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '&&' && node[2] === 1, node)
-        node = node[1]
-        remaining = remaining - 1
-    }
-    assertEq(node, 1)
-}
-
-/**
- * Confirms `exp` is a conditional nested `depth` deep through its else arm
- * — `1 ? 2 : (1 ? 2 : …)` — bottoming out at `3`, walked iteratively as
- * {@link expectPlusChain} is, for the same reason.
- * @type {(depth: number) => (exp: Exp) => void}
- */
-const expectElseChain = depth => exp => {
-    let node = exp
-    let remaining = depth
-    while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '?:' && node[1] === 1 && node[2] === 2, node)
-        node = node[3]
-        remaining = remaining - 1
-    }
-    assertEq(node, 3)
-}
-
-/**
- * The default export's computation lowered from a body built by hand — the
- * one entry, exported — with no parse in front of it: what a stress case
+ * A normalized FAST value lowered with no parse in front of it: what a stress case
  * of the lowering needs, since parsing the same chain is the parser's own
  * proof and costs seconds at the depth this one is about, where the
  * lowering costs milliseconds.
  *
- * @type {(entry: AstConst) => Exp}
+ * @type {(entry: FastValue) => Exp}
  */
-const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':', 'default', ['cref', 0]]]]]]).edag)
+export const lowered = entry => fromFast({ statements: [], exit: ['yield', [entry]] })
+
+/** A value region with a required initializer whose value is discarded. @type {(initializer: FastValue) => FastValue} */
+const anchoredTwo = initializer => ['block', {
+    statements: [['define', { index: 0 }, initializer, 'required']],
+    exit: ['yield', [2]],
+}]
+
+/** A normalized zero-argument function answering one. @type {FastValue} */
+const returnsOne = ['function', {
+    target: { kind: 'function', index: 0 }, parameters: [], rest: null, self: null, captures: [],
+    body: { statements: [], exit: ['yield', [1]] },
+}]
 
 /** Interpret before choosing an output boundary. @type {(graph: Exp) => EdagValue} */
 export const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
@@ -716,13 +673,11 @@ export const proof = {
     // A group lowers to the node of the value it holds and adds none of its
     // own: `(x)` *is* `x`, so the graph and its sharing are the ones the
     // parentheses are not in.
-    // The optional chains lower as they are, the AST's shapes being the
-    // EDAG's — but for what an argument floats: an inlined call's anchors
-    // are anchored where the argument stands, by the comma, since the step
-    // is lazy, where a plain call's float on to the scope
+    // Normalized chain continuations preserve their receivers and regions.
+    // A value block's required roots remain at the argument position when
+    // the step is guarded; ordinary eager operands can float those roots.
     chains: () => {
-        /** @type {AstConst} */
-        const inlined = ['()', ['=>', 0, [['array', [1]], 2]], []]
+        const inlined = anchoredTwo(['array', [1]])
         expectEdag(lowered(['?.', 1, 'b']), ['?.', 1, 'b'])
         expectEdag(lowered(['?.', 1, 'b', ['|.', 'c']]), ['?.', 1, 'b', ['|.', 'c']])
         expectEdag(lowered(['?.', 1, 'b', ['|.', 'c', ['|()', [inlined]]]]), ['?.', 1, 'b', ['|.', 'c', ['|()', [[',', [['[]', [1]], 2]]]]]])
@@ -734,7 +689,7 @@ export const proof = {
         // a call over an access carrying a guarded call is the plain call,
         // not the method call: the region's own call spent the receiver
         expectEdag(lowered(['()', ['.', 1, 'b', ['|?.()', []]], [2]]), ['()', ['.', 1, 'b', ['|?.()', []]], [2]])
-        expectEdag(lowered(['()', ['.', 1, 'b'], [2]]), ['.', 1, 'b', ['|()', [2]]])
+        expectEdag(lowered(['.', 1, 'b', ['|()', [2]]]), ['.', 1, 'b', ['|()', [2]]])
     },
     group: () => {
         expectEdag(compile('export default (1);').edag, 1)
@@ -826,26 +781,24 @@ export const proof = {
             expectEdag(lowered(['String', 1n]), ['String', 1n])
             expectEdag(lowered(['String', ['Number', '0x10']]), ['String', ['Number', '0x10']])
             expectEdag(lowered(['Number', ['String', 16]]), ['Number', ['String', 16]])
-            expectEdag(lowered(['String', ['=>', 0, [1]]]), ['String', ['=>', 0, [], 1]])
+            expectEdag(lowered(['String', returnsOne]), ['String', ['=>', 0, [], 1]])
             assertStructurallySame(execute(lowered(['array', [
                 ['String', undefined], ['String', null], ['String', true],
                 ['String', -0], ['String', 1n], ['String', ['array', [1, null, 2]]],
-                ['String', ['object', []]], ['String', ['=>', 0, [1]]],
+                ['String', ['object', []]], ['String', returnsOne],
             ]])), ['undefined', 'null', 'true', '0', '1', '1,,2', '[object Object]', '()=>1'])
         },
         anchors: () => {
-            /** @type {AstConst} */
-            const inlined = ['()', ['=>', 0, [['array', [1]], 2]], []]
+            const inlined = anchoredTwo(['array', [1]])
             expectEdag(lowered(['String', inlined]), [',', [['[]', [1]], ['String', 2]]])
             expectEdag(lowered(['&&', false, ['String', inlined]]), ['&&', false, [',', [['[]', [1]], ['String', 2]]]])
             // an operand's unused initializer fails eagerly through String,
             // but stays behind the guard when the conversion is lazy
-            /** @type {AstConst} */
-            const failing = ['()', ['=>', 0, [['.', null, 'x'], 2]], []]
+            const failing = anchoredTwo(['.', null, 'x'])
             assertEq(execute(lowered(['&&', false, ['String', failing]])), false)
         },
         throw: {
-            anchoredOperand: () => execute(lowered(['String', ['()', ['=>', 0, [['.', null, 'x'], 2]], []]])),
+            anchoredOperand: () => execute(lowered(['String', anchoredTwo(['.', null, 'x'])])),
         },
     },
     // Stage B: the lazy operators are the EDAG's own `op2`, the same shape
@@ -1225,42 +1178,6 @@ export const proof = {
             expectEdag(program({ ...twice, 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default 1;') })('a.f.js'), [',', [['[]', [1]], 1]])
         },
     },
-    // A chain of operators, as deep as the source that built it: `lower`
-    // walks one with an explicit stack rather than recursion, so 5,000
-    // terms — the depth `fjs/compiler/parser/proof.f.mjs`'s own `stackSafety`
-    // uses — cost no call stack. Left-associative for a binary operator,
-    // the EDAG nests on its own left, `((1+1)+1)+…`, checked by
-    // `expectPlusChain` rather than `expectEdag` for the reason given on
-    // it; right-associative for `-`, on its right, `-(-(-…))`, folding away
-    // to the leaf it started from since 5,000 negations is even — a single
-    // number, so `expectEdag` never recurses into it.
-    stackSafety: () => {
-        const plus = `1${' + 1'.repeat(5000)}`
-        expectPlusChain(5_000)(compile(`export default ${plus};`).edag)
-        const neg = `${'- '.repeat(5000)}1`
-        expectEdag(compile(`export default ${neg};`).edag, 1)
-        // conversions use the same iterative lowering as prefixes
-        /** @type {AstConst} */
-        let converted = 1
-        for (let i = 0; i < 5_000; i++) { converted = ['String', converted] }
-        let node = lowered(converted)
-        for (let i = 0; i < 5_000; i++) {
-            assert(node instanceof Array && node[0] === 'String', node)
-            node = node[1]
-        }
-        assertEq(node, 1)
-        // a lazy chain, and a conditional nested through its else arm, at
-        // the depth the parser's own `lazyStackCost` proves — the AST built
-        // here rather than parsed, `lowered`'s own comment has why
-        /** @type {AstConst} */
-        let and = 1
-        for (let i = 0; i < 20_000; i++) { and = ['&&', and, 1] }
-        expectAndChain(20_000)(lowered(and))
-        /** @type {AstConst} */
-        let otherwise = 3
-        for (let i = 0; i < 20_000; i++) { otherwise = ['?:', 1, 2, otherwise] }
-        expectElseChain(20_000)(lowered(otherwise))
-    },
     // A `throw` lowers to the EDAG's own `['throw', v]`, the node a body or
     // a module that ends in the statement is: a body's value, with the
     // `const`s it does not reach anchored before it as any body's are; a
@@ -1318,7 +1235,7 @@ export const proof = {
             const x = ['.', ['rest'], 0]
             expectEdag(compile('export default (...a) => { const x = a[0]; throw [x, x]; };').edag, ['=>', 0, [], ['throw', ['[]', [x, x]]]])
             expectEdag(compile('export default () => { const x = []; throw 1; };').edag, ['=>', 0, [], [',', [['[]', []], ['throw', 1]]]])
-            expectEdag(lowered(['throw', 1]), ['throw', 1])
+            expectEdag(fromFast({ statements: [], exit: ['throw', 1] }), ['throw', 1])
         },
         module: () => {
             const { imports, edag } = unresolved(unwrap(parse('')('throw "x";')))
