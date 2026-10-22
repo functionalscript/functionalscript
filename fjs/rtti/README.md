@@ -25,6 +25,7 @@ declaration:
 ```js
 import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
 import { parse } from 'functionalscript/fjs/rtti/parse/module.f.mjs'
+import { validate } from 'functionalscript/fjs/rtti/validate/module.f.mjs'
 
 const person = { name: string, age: number, tags: or(option, array(string)) }
 // Ts<typeof person> is
