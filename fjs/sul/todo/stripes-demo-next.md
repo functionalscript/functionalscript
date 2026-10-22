@@ -14,7 +14,7 @@ Each of these is its own step, after the first one shipped:
 
 - **Hash levels.** Rows above L3, up to the root, with the padding `end`
   adds, drawn from the encoder's own account of where words end
-  ([encode-step.md](./encode-step.md)) rather than a copy of it. A stripe
+  ([encode-height.md](./encode-height.md)) rather than a copy of it. A stripe
   is still the run of input bits one symbol covers, but a stripe is
   coloured by its kind too: a raw `Id`, which holds those bits inline, or a
   hash, which does not — so a reader sees where hashing starts. The root is
@@ -35,5 +35,5 @@ Each of these is its own step, after the first one shipped:
 
 ### Related
 
-- [encode-step.md](./encode-step.md) — what the hash-level rows are drawn
+- [encode-height.md](./encode-height.md) — what the hash-level rows are drawn
   from
