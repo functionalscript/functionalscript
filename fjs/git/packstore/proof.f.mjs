@@ -26,6 +26,9 @@ import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './mo
 import { max } from '../../types/number/max/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
+/** The first 8 hex digits of a fixture id, its other 32 being zeros. */
+const idPrefixHex = encodeScalar(8)
+
 /** How many bytes of a file one chunk of a `readWhole` carries at most. */
 const chunkBytes = Number(maxLengthBytes)
 
@@ -908,7 +911,7 @@ export const proof = {
         // first entry running to the pack's checksum
         const many = idxOf(Array.from(
             { length: 5_000 },
-            (_, k) => [`${encodeScalar(8)(k)}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
+            (_, k) => [`${idPrefixHex(k)}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
         assert(many.length > Number(maxLengthBytes))
         // the host hands it back in two, which is what a join has to survive
         assertEq(chunked(many).length, 2)

@@ -12,6 +12,9 @@ import { name, object, tagger, type, write as writeTag } from '../tag/module.f.m
 import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.mjs'
 import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.mjs'
 
+/** An id's 40 hex digits, as a `parent` header spells it. */
+const idHex = encodeScalar(40)
+
 /** @type {(input: readonly number[]) => Commit} */
 const read = input => {
     const c = tryRead(input)
@@ -245,7 +248,7 @@ export const proof = {
     // Git puts no bound on the parents: a merge of eight thousand is read,
     // vouched for, and walked without a stack to run out of.
     octopus: () => {
-        const ps = Array.from({ length: 8_000 }, (_, i) => `parent ${encodeScalar(40)(i)}`)
+        const ps = Array.from({ length: 8_000 }, (_, i) => `parent ${idHex(i)}`)
         const c = commit([`tree ${treeId}`, ...ps, `author ${who}`, `committer ${who}`, '', 'm'])
         assertEq(parents(c).length, 8_000)
         assertEq(hex(parents(c)[7_999]), '1f3f'.padStart(40, '0'))
