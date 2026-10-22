@@ -868,6 +868,7 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 /* A listing too long to read whole, a WASM module's WAT: a box of its own
    height that scrolls, its lines kept unbroken so the indentation reads. */
 [${listingMarker}] { max-height: 24rem; overflow: auto; overflow-wrap: normal; white-space: pre }
+[${listingMarker}] > pre { white-space: pre }
 /* A refused construct's banner: the page's verdict, read before anything
    else on it, so it is larger than a result and edged in the failure colour. */
 [${refusedMarker}] { background: var(--fail-bg); border: 2px solid var(--fail); border-left-width: 8px; border-radius: 6px; color: var(--fail); margin-block: 1rem; padding: .75rem 1rem }

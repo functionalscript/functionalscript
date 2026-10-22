@@ -30,6 +30,31 @@ token it refuses. Below that it shows what JavaScript answers for the same
 module: `true`, an empty object's `toString` found on the prototype chain,
 the answer FunctionalScript would have to give or contradict.
 
+## What to Write Instead
+
+To ask whether a value has an own entry, call `hasEntry`
+([entries](../../property-access/entries/README.md)), as
+[`alternative.f.js`](./alternative.f.js) does:
+
+```js
+const hasEntry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable === true;
+};
+export default hasEntry({}, "toString");
+```
+
+It answers `false`: `{}` owns no `toString`. That is a different question
+from the one `in` asks, which is why `in` is not given this meaning.
+
+## A Better Message
+
+Today `fjs compile` says only where it stopped, `unexpected token` at the
+`in`. The demo proposes what it should print instead: the reason at the same
+token, what JavaScript would answer there, and the allowed spelling, the line
+`alternative.f.js` writes, as `help`. The page compiles the alternative too,
+so the suggestion is one the compiler accepts.
+
 ## Reference
 
 - ECMA-262: [Relational operators](https://tc39.es/ecma262/#sec-relational-operators)
