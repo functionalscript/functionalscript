@@ -21,7 +21,7 @@
  */
 
 import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/module.f.mjs'
-import { bytesIn, length, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { bytesIn, length, u8ListMsb, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { flat, map, reverse, toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { append, end, init } from '../../zlib/inflate/module.f.mjs'
@@ -59,7 +59,7 @@ const pieceBytes = 0x400
  * @type {(chunk: Vec) => readonly Vec[]}
  */
 const piecesOf = chunk => {
-    const bytes = toArray(u8ListMsb(chunk))
+    const bytes = u8ArrayMsb(chunk)
     return Array.from(
         { length: Math.ceil(bytes.length / pieceBytes) },
         (_, i) => u8ListToVecMsb(bytes.slice(i * pieceBytes, (i + 1) * pieceBytes)))

@@ -20,8 +20,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { isWholeBytes, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { isWholeBytes, vec, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 
 /** The largest prime below 2^16. */
 const modulus = 65_521
@@ -61,7 +60,7 @@ export const appendBytes = bytes => state => {
  */
 export const append = v => {
     assert(isWholeBytes(v), 'Adler-32 is over bytes')
-    return appendBytes(toArray(u8ListMsb(v)))
+    return appendBytes(u8ArrayMsb(v))
 }
 
 /**
