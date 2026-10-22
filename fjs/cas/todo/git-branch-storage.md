@@ -30,9 +30,11 @@ bytes, as the current CLI does. Reuse the existing
 complete payload unchanged at its CAS path, with regular, non-executable
 Git file mode `100644`.
 
-Application content addresses remain CAS hashes. Git's internal blob,
-tree, and commit IDs belong to the storage backend. Using Git hashes as
-CAS content addresses is deferred.
+CAS content addresses remain its existing hashes. The Git backend uses
+Git object IDs internally, separately from the keys accepted by CAS.
+A stored document may contain other identifiers, such as the Git blob IDs
+that the build cache uses for source files. Using Git hashes as CAS
+content addresses is deferred.
 
 Provide content-key computation without storing or publishing the payload,
 using the same hash implementation as CAS `write`. For identical bytes,

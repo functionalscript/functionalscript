@@ -22,8 +22,9 @@ Implement this in two stages:
 
 The CAS backend owns branch access, commits, pushes, retries, and cleanup.
 This consumer owns input selection, build identity, and the success
-condition. Use the existing CAS hashes and layout; Git-based content
-identities are deferred.
+condition. Use CAS hashes for the JSON documents and reuse Git blob IDs for
+committed source files. The first target is CI; smart builds on developer
+machines are a separate [investigation](../../dev/todo/smart-builds.md).
 
 Initially define two blocks: one for Rust and one for JavaScript and
 FunctionalScript. Later add more granular, possibly overlapping blocks using
@@ -32,32 +33,30 @@ the same format and publication mechanism.
 #### Manifest format
 
 ```ts
-type Hash = string // Full CAS key encoded with existing CBase32
+type CasHash = string // Full CAS key encoded with existing CBase32
+type GitBlobHash = string // Full Git blob ID encoded with existing CBase32
 
 type Tree = {
-    readonly [name: string]: Tree | Hash
+    readonly [name: string]: Tree | GitBlobHash
 }
 
 type Manifest = {
-    readonly contract: Hash
+    readonly contract: CasHash
     readonly files: Tree
 }
 ```
 
 The `files` root is relative to the repository root. Each key is one path
-component; an object represents a directory, and a string is the CAS hash of
-the selected file's contents. Include every input the block depends on,
-including relevant build scripts, configuration, dependency lockfiles,
-toolchain pins, generator inputs, and test data. Select by dependency, not
-filename extension.
+component; an object represents a directory, and a string is the Git blob ID
+recorded for the selected file in the commit being built. Read these IDs
+from that commit's trees without reading and rehashing the source blobs.
+Reuse [Git tree lookup](../../git/walk/module.f.mjs); its `tryEntry` returns
+an entry without reading the entry's blob. These file IDs are input
+fingerprints, not keys for reading source files through CAS.
 
-Construct the identity from the snapshot actually built, including dirty or
-untracked inputs if supported. The complete input definition must account
-for build-relevant file kinds, executable modes, symlink behavior, and
-checkout transformations before enabling reuse. File-content hashes alone
-do not capture those distinctions. Define how the initial contracts include
-them in the hashed identity; affected work must bypass reuse until its
-inputs are fully represented.
+Include every input the block depends on, including relevant build scripts,
+configuration, dependency lockfiles, toolchain pins, generator inputs, and
+test data. Select by dependency, not filename extension.
 
 `contract` is the CAS hash of a canonical JSON descriptor of the selected
 work: its entrypoint and ordered arguments, working directory, relevant
@@ -81,16 +80,47 @@ arguments. Encode the result as UTF-8 with no BOM, whitespace outside
 strings, or trailing newline, preserving path spelling and using the
 serializer's string escaping.
 
-Use the existing CAS content hashing for source-file bytes, canonical
-contract-descriptor bytes, and complete canonical manifest bytes: initially
-SHA-256 over each payload. Reuse the existing CBase32 encoding and sharded
-path implementation through CAS.
+Use the existing CAS content hashing for canonical contract-descriptor
+bytes and complete canonical manifest bytes: initially SHA-256 over each
+payload. Source-file IDs come from Git. Encode full IDs with the existing
+CBase32 codec, and let CAS own the manifest's sharded path.
 
 The manifest key covers both `contract` and `files`. Store the complete
 canonical JSON manifest unchanged at that key. Compute keys without
 publishing: source files and contract descriptors are not added to
 `build-cache` merely to obtain their hashes, and hashing a candidate
 manifest does not record success.
+
+#### Initial CI scope and limitations
+
+The initial implementation targets CI building an explicitly selected
+committed source snapshot under a controlled build contract. Reuse is
+limited by the following boundaries:
+
+- **Commit, index, and working tree are different snapshots.** File IDs
+  taken from a commit describe that commit's tree. They do not cover staged
+  changes, modified tracked files, or additional untracked inputs. Pin input
+  enumeration to the exact commit being built. Developer-machine workflows
+  with mutable local inputs belong to the separate investigation.
+- **Blob IDs omit relevant metadata.** Git stores a file's mode separately
+  from its blob ID. The current `Tree` leaves do not capture executable
+  modes or distinguish a regular file from a symlink containing the same
+  bytes. A symlink blob identifies its target text, not automatically the
+  contents reached through the link. These are limitations of using blob
+  IDs alone; see [Git tree objects](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects).
+- **A clean checkout can still transform bytes.** Line-ending conversion
+  and filters can produce working-tree bytes different from the stored
+  blob. The supported CI contract must control checkout semantics and
+  relevant execution settings; cleanliness alone is insufficient. See
+  [checkout attributes](https://git-scm.com/docs/gitattributes).
+
+Do not reuse or publish a success entry for work whose relevant inputs or
+semantics are not represented by the selected contract and input identity.
+The limitation concerns additional inputs to the contract; outputs generated
+by that contract from its declared inputs remain within its scope.
+
+Investigation of [smart builds on developer machines](../../dev/todo/smart-builds.md)
+is a follow-up, not a prerequisite for this CI implementation.
 
 #### Build and publication
 
@@ -141,11 +171,16 @@ own complete input set and success condition.
       Rust and JS contracts, including the selected invocation and execution
       parameters. Define complete input selectors and the representation
       of build-relevant metadata before enabling reuse.
-- [ ] Construct and hash canonical manifests using the existing JSON and
-      CAS components. Prove deterministic ordering and invalidation when
-      relevant paths, contents, metadata, or contract parameters change.
-      Cover the same files with different invocations producing different
-      keys, and the same contract and inputs producing the same key.
+- [ ] Read selected source-file IDs from the exact CI commit and construct
+      canonical manifests with the existing Git, JSON, and CAS components.
+      Prove deterministic ordering, reuse of stored file IDs without reading
+      source blobs, and invalidation when relevant paths, contents, or
+      contract parameters change. Cover identical files with different
+      invocations producing different keys, and the same contract and inputs
+      producing the same key.
+- [ ] Enforce the initial CI limitations: cache reuse and publication must
+      be unavailable where relevant inputs or metadata are unrepresented,
+      or checkout and execution semantics do not match the contract.
 - [ ] Integrate CAS lookup and success-only publication through the CI
       generator. Cover failed or incomplete builds producing no entry,
       candidate hashing producing no success record, and hits applying only
@@ -159,6 +194,8 @@ own complete input set and success condition.
 
 - [CAS in a Git branch](../../cas/todo/git-branch-storage.md) — prerequisite
   backend and CLI, including publication and cleanup.
+- [Smart builds on developer machines](../../dev/todo/smart-builds.md) —
+  separate investigation; no developer-machine design is part of this task.
 - [change-aware-ci](./change-aware-ci.md) — classifies changed paths to select
   work; this task reuses success for an exact input set across commits.
 - [096-ci-caching](./096-ci-caching.md) — caches the tools needed to run builds.
