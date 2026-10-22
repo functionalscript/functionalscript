@@ -23,7 +23,7 @@ import { ok, error, mapOk, okThen } from '../../../types/result/module.f.js'
 import { allowedCalls, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype, objectPrototype } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.mjs'
 import { functionAt } from '../property/module.f.mjs'
-import { isFunction, typeOf } from '../semantics/module.f.mjs'
+import { isFunction, tagUndefined, typeOf } from '../semantics/module.f.mjs'
 import { toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
 import { max } from '../../../types/number/max/module.f.js'
@@ -102,9 +102,6 @@ export const hasMethod = (receiver, key, runtime, invoke) => {
     return mapOk(f => f !== undefined || !left.some(name => name === key))(callee(runtime, key, receiver, invoke))
 }
 
-/** @type {(args: Values, index: number) => EdagValue} */
-const argument = (args, index) => args[index] === undefined ? ['undefined'] : args[index]
-
 /** @type {(value: EdagValue) => boolean} */
 const absent = value => typeOf(value) === 'undefined'
 
@@ -163,8 +160,8 @@ const replace = (receiver, search, replacement, all, invoke) => {
 
 /** The native string built-ins, `undefined` for a name the runtime's body answers. @type {(receiver: string, key: string, args: Values, invoke: Invoke) => ValueResult | undefined} */
 const stringMethod = (receiver, key, args, invoke) => {
-    const first = argument(args, 0)
-    const second = argument(args, 1)
+    const first = tagUndefined(args[0])
+    const second = tagUndefined(args[1])
     switch (key) {
         case 'toString': { return ok(receiver) }
         // Supported hosts provide these admitted ES2024 methods; the
@@ -208,7 +205,7 @@ const stringMethod = (receiver, key, args, invoke) => {
             const [kind, index] = result
             if (kind === 'error') { return result }
             switch (key) {
-                case 'at': { return ok(receiver.at(index) ?? ['undefined']) }
+                case 'at': { return ok(tagUndefined(receiver.at(index))) }
                 case 'charAt': { return ok(receiver.charAt(index)) }
                 case 'charCodeAt': { return ok(receiver.charCodeAt(index)) }
                 case 'repeat': {
@@ -253,7 +250,7 @@ const stringMethod = (receiver, key, args, invoke) => {
 /** The native answer, `undefined` for a name this dispatcher leaves to the runtime. @type {(receiver: EdagValue, key: string, args: Values, invoke: Invoke) => ValueResult | undefined} */
 const native = (receiver, key, args, invoke) => {
     if (typeof receiver === 'string') { return stringMethod(receiver, key, args, invoke) }
-    if (typeof receiver === 'number' || typeof receiver === 'bigint') { return numberMethod(receiver, key, argument(args, 0), invoke) }
+    if (typeof receiver === 'number' || typeof receiver === 'bigint') { return numberMethod(receiver, key, tagUndefined(args[0]), invoke) }
     if (isArray(receiver) && receiver[0] === '[]') { return arrayMethod(receiver, key, args, invoke) }
     // Ordinary objects inherit the stock method regardless of valueOf.
     return isArray(receiver) && receiver[0] === '{}' ? ok('[object Object]') : toString(receiver, invoke)

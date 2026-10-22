@@ -18,13 +18,10 @@ import { join } from '../array/module.f.mjs'
 import { at } from '../at/module.f.mjs'
 import { call } from '../call/module.f.mjs'
 import { toNumber, toString } from '../convert/module.f.mjs'
-import { is, isFunction, strictEqual, truthy, typeOf } from '../semantics/module.f.mjs'
+import { is, isFunction, strictEqual, tagUndefined, truthy, typeOf } from '../semantics/module.f.mjs'
 import { slice } from '../slice/module.f.mjs'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
-
-/** @type {(args: Values, index: number) => EdagValue} */
-const argument = (args, index) => args[index] === undefined ? ['undefined'] : args[index]
 
 /** @type {(value: EdagValue) => boolean} */
 const absent = value => typeOf(value) === 'undefined'
@@ -100,12 +97,12 @@ const search = (receiver, key, args, invoke) => {
     const missing = key === 'includes' ? false : -1
     if (values.length === 0) { return ok(missing) }
     const reverse = key === 'lastIndexOf'
-    const result = reverse && args.length < 2 ? ok(values.length - 1) : toNumber(argument(args, 1), invoke)
+    const result = reverse && args.length < 2 ? ok(values.length - 1) : toNumber(tagUndefined(args[1]), invoke)
     const [kind, number] = result
     if (kind === 'error') { return result }
     const start = integer(number)
     const index = reverse ? min(start < 0 ? values.length + start : start, values.length - 1) : position(start, values.length)
-    const sought = argument(args, 0)
+    const sought = tagUndefined(args[0])
     for (let i = index; i >= 0 && i < values.length; i += reverse ? -1 : 1) {
         const value = values[i]
         if (strictEqual(value, sought) || key === 'includes' && is(value, sought)) { return ok(key === 'includes' ? true : i) }
@@ -152,8 +149,8 @@ const sorted = (values, comparator, invoke) => {
 /** Call an array's admitted method with already evaluated arguments. @type {(receiver: ValueArray, key: string, args: Values, invoke: Invoke) => ValueResult} */
 export const arrayMethod = (receiver, key, args, invoke) => {
     const [, values] = receiver
-    const first = argument(args, 0)
-    const second = argument(args, 1)
+    const first = tagUndefined(args[0])
+    const second = tagUndefined(args[1])
     switch (key) {
         case 'concat': { return ok(['[]', [...values, ...flatten(args, 1)]]) }
         case 'toReversed': { return ok(['[]', values.toReversed()]) }
