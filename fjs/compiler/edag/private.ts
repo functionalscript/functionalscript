@@ -6,6 +6,7 @@
  */
 
 import type { Exp } from '../../edag/types.ts'
+import type { Group } from '../../website/demo/graph/types.ts'
 
 /**
  * A module's full result and its export bindings. Select once so repeated
@@ -20,14 +21,14 @@ export type _Resolved = {
 export type _Child = readonly [label: string, value: Exp, kind?: 'lazy']
 
 /**
- * A chain `demo.f.mjs` is drawing, one node however many steps it has: the
- * label and ports so far, the spelling of the key the next call is on — none
- * after a call, whose value has no name — and whether a `?.` has been
- * passed, which makes the operands after it the ones a nullish value skips.
+ * A chain `demo.f.mjs` is drawing, one node however many steps it has: its
+ * spelling and rows so far, a group of rows per link, and whether a `?.`
+ * has been passed, which makes the operands after it the ones a nullish
+ * value skips.
  */
 export type _Chain = {
     readonly label: string
     readonly children: readonly _Child[]
-    readonly key: string
+    readonly groups: readonly Group[]
     readonly lazy: boolean
 }
