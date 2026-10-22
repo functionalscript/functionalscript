@@ -3,8 +3,8 @@
 **Status:** implemented
 
 `toData(s)` turns a schema — functions and all — into plain data: no
-functions, one spelling per set (up to the names of recursive rules), and
-comparable.
+functions, comparable, and one spelling per set up to a few documented
+structural limits.
 
 ```js
 equal(toData(or(true, false)))(toData(boolean))   // true
@@ -16,10 +16,14 @@ A schema is a set of values, and the data form represents the set, not the
 spelling. A union is merged kind by kind, a constant inside its whole kind is
 absorbed (`or(42, number)` is all numbers), a member another covers is dropped,
 and what is left is ordered canonically. So `equal` answers whether two
-schemas admit the same values (two recursive schemas that differ only in their
-rule names are a mutual `subset` but not `equal`; see the
-[data form's limits](../../../data/README.md#canonical-form)), `subset` whether every value of one is a value
+schemas admit the same values, `subset` whether every value of one is a value
 of the other, and `cmp` orders schemas for sorting.
+
+`equal` has known limits. Two recursive schemas that differ only in their rule
+names ([canonical form](../../../data/README.md#canonical-form)) can be one set
+that is a mutual `subset` without being `equal`. So can schemas that differ in
+a referenced `rest` or trailing position
+([tuple length](../../../data/README.md#tuple-length)).
 
 `subset` is **sound and deliberately incomplete**: when it says `true`, it is
 true; it may say `false` for a pair whose inclusion it cannot establish.

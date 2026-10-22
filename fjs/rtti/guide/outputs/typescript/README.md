@@ -18,11 +18,16 @@ printer()(s)
 return `Ts<typeof s>` on success, so a schema declared once is both the check
 and the static type, with no second declaration to drift.
 
-The two renderings denote the same set, with one known exception, and are
-spelled differently. The exception is a rest that is empty without being
-written `or()`, such as `rest([42], [or()])`: the printer drops its tail and
-`Ts<>` keeps a wider one
-([how `RestTs` renders a rest](../../../ts/README.md#how-restts-renders-a-rest)).
+The two renderings are spelled differently, and they can also differ in what
+they admit. The printer goes through the data form's normalization. `Ts<>`
+can't evaluate that normalization at the type level, so where it can't see a
+simplification it keeps a wider type. That covers a rest that is empty without
+being written `or()`, such as `rest([42], [or()])`, and a rest with no prefix:
+`rest([], string)` prints as `readonly string[]`, while `Ts<>` gives
+`readonly (string | undefined)[]`. [How `RestTs` renders a
+rest](../../../ts/README.md#how-restts-renders-a-rest) and
+[`ts/types.ts`](../../../ts/types.ts) explain both. The wider type is sound for
+a reader's result.
 
 | | `Ts<typeof s>` | `printer()(s)` |
 | --- | --- | --- |
