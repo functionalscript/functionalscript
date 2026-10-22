@@ -86,11 +86,15 @@ kinds.
 The undeclared members a reader looks for are a value's **own** keys, and for
 an array its own indices below `length`. A member only a prototype supplies,
 or an index at or above `length`, is not one of them, so a closed schema does
-not reject it and a `rest` does not check it. A DataJS value inherits no
-members, so for the values the readers are written for the two readings agree
+not reject it and a `rest` does not check it. A DataJS value inherits only
+what `Object.prototype` and `Array.prototype` supply, so for the values the
+readers are written for the two readings agree
 ([what the readers assume of a
 value](../../../README.md#what-the-readers-assume-of-a-value)); a foreign
 value is converted to DataJS at the host boundary before it reaches a reader.
+The one place an inherited member shows is a *declared* name such as
+`toString`, whose presence is asked through the prototype
+([`inherited-declared-member`](../../../todo/inherited-declared-member.md)).
 
 ## Examples
 

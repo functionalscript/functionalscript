@@ -47,8 +47,12 @@ value](../README.md#what-the-readers-assume-of-a-value)). An index at or above
 `length` is not answered either, on any reader.
 
 A *declared* member's presence is asked with `in` (HasProperty), because
-`getItem` reads through the prototype. On a DataJS value an own member and a
-readable one are the same thing, so the two questions agree.
+`getItem` reads through the prototype. The two questions differ even on a
+DataJS value when a struct declares a name `Object.prototype` carries:
+`{ toString: or(option, number) }` refuses `{}`, since `'toString' in {}` and
+the inherited function is no `number`
+([`inherited-declared-member`](../todo/inherited-declared-member.md)). For
+every other declared name an own member and a readable one are the same thing.
 
 ## Why a bare tuple is closed
 
