@@ -6,7 +6,7 @@
  */
 
 import type { Exp } from '../../edag/types.ts'
-import type { Group, Inline } from '../../website/demo/graph/types.ts'
+import type { Group } from '../../website/demo/graph/types.ts'
 
 /**
  * A module's full result and its export bindings. Select once so repeated
@@ -17,12 +17,8 @@ export type _Resolved = {
     readonly bindings: readonly (readonly [string, Exp])[]
 }
 
-/**
- * An edge of `demo.f.mjs`'s drawing: a port's label, the value it reaches,
- * and `lazy` where the position is one the node may never evaluate. A
- * chain's key is an {@link Inline} the demo spells itself, not an `Exp`.
- */
-export type _Child = readonly [label: string, value: Exp | Inline, kind?: 'lazy']
+/** An edge of `demo.f.mjs`'s drawing: a port's label, the value it reaches, and `lazy` where the position is one the node may never evaluate. */
+export type _Child = readonly [label: string, value: Exp, kind?: 'lazy']
 
 /**
  * A chain `demo.f.mjs` is drawing, one node however many steps it has: its

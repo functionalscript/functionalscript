@@ -34,8 +34,9 @@
  * `.`: the receiver stays live into the call rather than becoming a value
  * of its own, and a drawing with two nodes would show a value the EDAG never
  * has. So it draws as one node, **a table of its links**: a cell per link
- * holding its operator, beside that link's rows. The `.` link has two, the
- * receiver in `obj` and the key `f` as a value, and the `()` link one, its
+ * holding its operator, beside that link's rows, each row a role and its
+ * value or arrow, as every node's are. The `.` link has two, the receiver in
+ * `obj` and the key `"f"` in `key`, as a plain `o.f` draws, and the `()` link one, its
  * arguments in `...`, an arrow to the `[]` node they are drawn as. A call's
  * arguments are one node, as an array literal's items are, rather than a
  * port each: two calls in one chain would otherwise both have a `0`. A plain
@@ -46,10 +47,11 @@
  * **An optional chain is one node too, and its region is on the edges.**
  * `a?.b.c?.(x)` lowers to one `?.` node carrying its steps as its
  * continuation — `fjs/edag/README.md`, Chains — so it draws as one table:
- * `?.` beside `obj` and `b`, `.` beside `c`, `?.()` beside `...`. The first
- * link always takes two rows, so that every arrow has its name beside it; a
- * guarded call, `f?.(x)`, starts with `?.()` beside `callee` and `...`. A
- * computed key is an `idx` arrow in its link's row. Everything after a `?.`
+ * `?.` beside `obj` and `key`, `.` beside `key`, `?.()` beside `...`. The
+ * first link always takes two rows, receiver and key, as a plain `a.b` does;
+ * a guarded call, `f?.(x)`, starts with `?.()` beside `callee` and `...`. A
+ * numbered key is a value in its link's `idx` row and a computed one an
+ * arrow from it. Everything after a `?.`
  * is skipped when the value before it is nullish, so those edges are
  * broken: a guarded call's arguments and every step's after it, and a
  * guarded access's computed key. The receiver, a plain method call's
@@ -90,7 +92,7 @@
  * @import { Exp } from '../../edag/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
- * @import { Graph, Inline, Shape } from '../../website/demo/graph/types.ts'
+ * @import { Graph, Shape } from '../../website/demo/graph/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { _Chain, _Child } from './private.ts'
  */
@@ -164,15 +166,14 @@ const numbered = items => /** @type {readonly (readonly unknown[] | Exp)[]} */ (
 const argsRow = (items, lazy) => edge('...', /** @type {Exp} */ (['[]', items]), lazy)
 
 /**
- * A link's key as its row: a computed one an `idx` edge, lazy inside a
- * region, and a name or a numbered index a value spelled as the source
- * spells it, `c` or `[0]`.
+ * A link's key as its row, as a plain `.` node draws it: a name a value in
+ * its `key` row, and an index, literal or computed, in its `idx` row — a
+ * computed one an edge, lazy inside a region.
  *
  * @type {(index: unknown, lazy: boolean) => _Child}
  */
-const keyRow = (index, lazy) => index instanceof Array
-    ? edge('idx', /** @type {Exp} */ (/** @type {unknown} */ (index)), lazy)
-    : ['', { inline: keyLabel(index) }]
+const keyRow = (index, lazy) =>
+    edge(typeof index === 'string' ? 'key' : 'idx', /** @type {Exp} */ (index), lazy && index instanceof Array)
 
 /**
  * A chain's steps, each a link of its own in the node its first link
@@ -222,10 +223,10 @@ const chain = exp => {
         })(step)
     }
     const guarded = tag === '?.'
-    // A plain access with nothing after it is a `.` node drawing its key as
-    // a value: a name in its `key` port, an index in its `idx`.
+    // A plain access with nothing after it is a `.` node of its own, its key
+    // a value in its `key` row or its index in its `idx`.
     if (!guarded && step === undefined) {
-        return { kind: 'op', label: '.', children: [['obj', /** @type {Exp} */ (base)], [typeof x === 'string' ? 'key' : 'idx', /** @type {Exp} */ (x)]] }
+        return { kind: 'op', label: '.', children: [['obj', /** @type {Exp} */ (base)], keyRow(x, false)] }
     }
     return steps({
         label: guarded ? `?.${keyLabel(x)}` : dotLabel(x),
@@ -257,10 +258,6 @@ const chain = exp => {
  */
 export const _shapeOf = e => {
     if (e === null || typeof e !== 'object') { return { inline: chunksText(leafSerialize(/** @type {Primitive} */ (e))) } }
-    // A chain's key row, spelled by {@link keyRow}: the one value reaching
-    // here that is not an `Exp`, every variant of which is a primitive or
-    // a tagged tuple, so it is already the shape it draws as.
-    if (!(e instanceof Array)) { return /** @type {Inline} */ (e) }
     const exp = /** @type {readonly unknown[]} */ (e)
     const tag = exp[0]
     if (tag === '[]') { return { kind: 'op', label: '[]', children: numbered(exp[1]) } }
@@ -434,10 +431,10 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  * - **Closure** is a function that captures its enclosing parameter and a
  *   module `const`, each read inside the body through a frame slot.
  * - **Methods and properties** draws a method call as one node of two
- *   links: `.` beside the receiver in `obj` and the key `at`, and `()`
+ *   links: `.` beside the receiver in `obj` and `"at"` in `key`, and `()`
  *   beside its arguments, a `[]` node.
  * - **Optional chaining** draws each chain as one node, a cell per link:
- *   `o?.a.b` is `?.` beside `obj` and `a`, then `.` beside `b`, `n?.a.b`
+ *   `o?.a.b` is `?.` beside `obj` and `key`, then `.` beside `key`, `n?.a.b`
  *   the same over `null`, `o.f?.(2)` a `.` link and a `?.()` link whose
  *   `...` edge is broken — the argument is inside the region the guard
  *   opens — and `n?.(2)` one `?.()` link over a `null` callee. `(o?.a).b`
@@ -445,8 +442,8 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  *   access after them is a node of its own, where `o?.a.b` is one.
  * - **Optional chaining: a long chain** is the table at length:
  *   `o?.a.f(1)[Number(i)].length` is one node of six rows — `?.` beside
- *   `obj` and `a`, then `.f`, `()`, `.` beside its broken `idx` edge, and
- *   `.length` — and `(o?.a.f)(...[i, 2])` ends with a `(?.)()` link whose
+ *   `obj` and `key`, then `.` beside `key`, `()` beside `...`, `.` beside
+ *   its broken `idx` edge, and `.` beside `key` — and `(o?.a.f)(...[i, 2])` ends with a `(?.)()` link whose
  *   arguments, a `[]` node with its spread, run regardless and draw solid.
  * - **Named exports** draws the module as the object of its exports, each
  *   a port: a module that is not only a default is that object, and there
