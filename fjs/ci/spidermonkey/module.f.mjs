@@ -17,13 +17,14 @@
 
 import { spidermonkey } from '../config/module.f.js'
 import { nixVersionStep } from '../nix/module.f.mjs'
+import { isUbuntuArm } from '../common/module.f.mjs'
 
 /**
  * The platform whose job runs SpiderMonkey: ARM Linux.
  *
  * @type {(v: Os, a: Architecture) => boolean}
  */
-const spiderMonkeyPlatform = (v, a) => v === 'ubuntu' && a === 'arm'
+const spiderMonkeyPlatform = isUbuntuArm
 
 /**
  * What a platform job asserts before running anything: on

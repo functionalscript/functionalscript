@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { Image, Step, Job, MetaStep, StepType } from './types.ts'
+ * @import { Architecture, Image, Step, Job, MetaStep, Os, StepType } from './types.ts'
  */
 
 import { actions, images, jobTimeout } from '../config/module.f.js'
@@ -157,3 +157,12 @@ export const ubuntu = job(images.ubuntu.intel)
 
 /** @type {(ms: readonly MetaStep[]) => Job} */
 export const ubuntuArm = job(images.ubuntu.arm)
+
+/**
+ * Whether a platform is the one {@link ubuntuArm} runs on: Ubuntu on ARM, the
+ * runner every canonical job uses. A platform job that carries a canonical
+ * check of its own asks this, rather than naming the pair itself.
+ *
+ * @type {(v: Os, a: Architecture) => boolean}
+ */
+export const isUbuntuArm = (v, a) => v === 'ubuntu' && a === 'arm'
