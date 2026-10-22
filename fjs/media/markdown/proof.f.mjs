@@ -261,6 +261,9 @@ export const proof = {
         bareUrlInParens: () => assertStructurallySame(unwrap(proseSpans(true)('(http://e.x)')),
             [['text', '('], ['link', [['text', 'http://e.x']], 'http://e.x'], ['text', ')']]),
         bareUrlHost: () => assertEq(bareUrl('https://a_b.c-d.e/f g'), 'https://a_b.c-d.e/f'),
+        // A bare URL that opens the prose has no text before it.
+        bareUrlFirst: () => assertStructurallySame(unwrap(proseSpans(true)('https://e.x b')),
+            [['link', [['text', 'https://e.x']], 'https://e.x'], ['text', ' b']]),
         snakeCase: () => assertEq(proseRefusal('a_b and 9_x_é'), null),
         oneTilde: () => assertEq(proseRefusal('about ~100'), null),
         colons: () => assertEq(proseRefusal('label: and :: and :two words:'), null),

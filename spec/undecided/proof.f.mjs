@@ -127,9 +127,9 @@ export const proof = {
         assertEq(rows[1].map(row => row.id).join(), 'op.void,st.try,zz.none,zz.ok')
         assertStructurallySame(rows[1][1].related, [['text', 'related: '], ['link', [['text', 'promise']], './3380-promise.md']])
         assertEq(rows[1][0].related.length, 0)
-        const refused = openRows('1. a numbered list\n')
+        const refused = openRows('<div>raw</div>\n')
         assert(refused[0] === 'error')
-        assertEq(refused[1], `${registerPath} is not read here: line 1: a numbered list`)
+        assertEq(refused[1], `${registerPath} is not read here: line 1: raw HTML`)
     },
     related: () => {
         assertStructurallySame(related([['text', 'open (no record plans it)']]), [['text', 'no record plans it']])
@@ -169,7 +169,7 @@ export const proof = {
         assert(readmes.includes('<a href="/spec/todo/blocked/README.md">nested</a>'), readmes)
         assert(readmes.includes('<a href="/spec/index.html">spec</a>'), readmes)
         assert(!text.includes('id="op.in"'), text)
-        assert(shown(loaded('1. a\n')).includes('is not read here'))
+        assert(shown(loaded('<div>a</div>\n')).includes('is not read here'))
         assert(!htmlToString(undecidedDemo({}).view(loaded(register))).includes('no longer open'))
         assert(htmlToString(demo.view(loaded(''))).includes('Samples for rows that are no longer open: lex.trivia,'))
     },
