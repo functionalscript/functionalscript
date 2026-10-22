@@ -200,7 +200,7 @@
  */
 
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
-import { isDirectory, isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { isDirectory, isNotFound, leadsNowhere, notAFileMessage, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { occurrences } from '../../types/array/module.f.mjs'
 import { u8ListMsb, uint } from '../../types/bit_vec/module.f.mjs'
@@ -429,7 +429,7 @@ const answered = (id, packed) => [{ id, left: 0, packed }, null]
 const headBytes = dirs => catchStep(
     step(readdir(dirs.gitdir, {}), entries => headIsFile(entries)
         ? tryBytes(under(dirs.gitdir, head))
-        : refuseHeadKind(headKindMessage(under(dirs.gitdir, head)))),
+        : refuseHeadKind(notAFileMessage(under(dirs.gitdir, head)))),
     orElse(isNotFound, null))
 
 /**
@@ -1062,11 +1062,12 @@ const ownRefs = (dirs, entries) => {
  */
 export const headKindCode = /** @type {const} */ ('ERR_HEAD_KIND')
 
-/** Refuses with {@link headKindCode}. */
+/**
+ * Refuses with {@link headKindCode}, in the words `effects/node`'s
+ * `notAFileMessage` gives any path that is no regular file: the code says
+ * which refusal it is, and the message is the one the runners already use.
+ */
 const refuseHeadKind = refuse(headKindCode)
-
-/** @type {(path: string) => string} */
-const headKindMessage = path => `${path} is not a regular file`
 
 /**
  * The code a listing is refused with when `packed-refs` names `HEAD` and a
@@ -1216,7 +1217,7 @@ const headIsFile = entries => entries.every(d => d.name !== head || d.isFile)
 const tryHeadFound = (dirs, oidBytes, entries) => {
     const readRef = tryRef(oidBytes)
     if (!headIsFile(entries)) {
-        return refuseHeadKind(headKindMessage(under(dirs.gitdir, head)))
+        return refuseHeadKind(notAFileMessage(under(dirs.gitdir, head)))
     }
     return mapStep(tryBytes(under(dirs.gitdir, head)), bytes => {
         if (bytes === null) { return { roots: [], names: [], pending: [] } }
