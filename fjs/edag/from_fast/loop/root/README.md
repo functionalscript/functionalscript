@@ -1,8 +1,10 @@
 # Canonical invocation roots
 
 `invocationRootOf` extends the scalar root domain to an ordered fixed invocation
-signature and one whole public result. It requires no rest binding, only aliases
-of fixed arguments before the loop, matching positional entry values, and a
+signature and one whole public result. It supports zero through sixteen fixed
+parameters, following the shared function-length limit. It requires no rest
+binding, only aliases of fixed arguments before the loop, matching positional
+entry values, and a
 direct return of the loop result to its owning function. One-time computation,
 changed input order and following result processing do not qualify.
 

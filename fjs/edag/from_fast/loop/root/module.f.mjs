@@ -11,6 +11,7 @@
  */
 
 import { iterable } from '../../../../types/list/module.f.mjs'
+import { maxLength } from '../../../../types/function/length/module.f.mjs'
 import { invocationAliases } from '../module.f.mjs'
 
 /** @type {(value: Value, binding: BindingId) => boolean} */
@@ -26,7 +27,7 @@ const names = (value, binding) => value instanceof Array && value[0] === 'ref' &
 export const invocationRootOf = fn => {
     const { body } = fn
     const exit = body.exit
-    if (fn.rest !== null || exit[0] !== 'return' || exit[1] !== fn.target) { return null }
+    if (fn.parameters.length > maxLength || fn.rest !== null || exit[0] !== 'return' || exit[1] !== fn.target) { return null }
     const last = body.statements.at(-1)
     if (last === undefined || last[0] !== 'loop') { return null }
     const loop = last[1]

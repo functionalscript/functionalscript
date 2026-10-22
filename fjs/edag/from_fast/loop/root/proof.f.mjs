@@ -4,7 +4,7 @@
  * @import { Exp } from '../../../types.ts'
  */
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { identityAnalysis } from '../../../analysis/module.f.mjs'
+import { checked, identityAnalysis } from '../../../analysis/module.f.mjs'
 import { memo } from '../../../memo/module.f.mjs'
 import { toData } from '../../../value/to_unknown/module.f.mjs'
 import { toFast } from '../../../to_fast/module.f.mjs'
@@ -24,6 +24,13 @@ const a = id(0), b = id(1), x = id(2), y = id(3), output = id(4), alias = id(5),
 const loopOf = (region, parameters = [x, y]) => ({ target: loopTarget, parameters, initial: parameters.map((_, i) => ref([a, b][i])), results: [output], body: region })
 /** @type {(loop: Loop) => FastFunction} */
 const root = loop => ({ target, parameters: [a, b], rest: null, self: null, captures: [], body: body(['return', target, ref(output)], [['loop', loop]]) })
+/** @type {(length: number) => FastFunction} */
+const fixedRoot = length => {
+    const parameters = Array.from({ length }, () => id(0))
+    const states = Array.from({ length }, () => id(0))
+    const loop = { ...loopOf(body(['break', loopTarget, [0]])), parameters: states, initial: parameters.map(ref) }
+    return { ...root(loop), parameters }
+}
 /** @type {(fn: FastFunction) => Exp} */
 const graph = fn => fromFast(body(['yield', [['function', fn]]]))
 /** @type {(fn: FastFunction, args: readonly Value[]) => import('../../../../types/result/types.ts').Result<unknown, unknown>} */
@@ -37,6 +44,7 @@ export const proof = {
         const loop = loopOf(body(['break', loopTarget, [ref(x)]]))
         const fn = root(loop)
         assertEq(invocationRootOf(fn), loop)
+        assertEq(invocationRootOf(fixedRoot(17)), null)
         const aliased = { ...loop, initial: [ref(alias), ref(b)] }
         assertEq(invocationRootOf({ ...fn, body: body(['return', target, ref(output)], [['define', alias, ref(a), 'lazy'], ['loop', aliased]]) }), aliased)
         const zero = { ...loop, parameters: [], initial: [] }
@@ -122,6 +130,7 @@ export const proof = {
         const wide = { ...loop, parameters: states, initial: parameters.map(ref), body: body(['break', loopTarget, [['array', states.map(ref)]]]) }
         const wideFn = { ...root(wide), parameters }
         assertEq(invocationRootOf(wideFn), wide)
+        assertOk(checked(assertOk(identityAnalysis(graph(wideFn)))))
         assertStructurallySame(assertOk(evaluate(wideFn, Array.from({ length: 16 }, (_, i) => i))), Array.from({ length: 16 }, (_, i) => i))
     },
     establishedPrefixAliases: () => {
@@ -203,6 +212,7 @@ export const proof = {
         assertStructurallySame(conditional, ['arg', 0])
     },
     throw: {
+        fixedArityLimit: () => { graph(fixedRoot(17)) },
         loopBodyYieldZero: () => { const loop = { ...loopOf(body(['yield', []])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
         loopBodyYieldOne: () => { const loop = { ...loopOf(body(['yield', [3]])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
         nestedLoop: () => { const inner = loopOf(body(['break', loopTarget, [0]])); directInvocationRoot(root(inner), { ...inner, body: body(['break', loopTarget, [0]], [['loop', inner]]) }) },
