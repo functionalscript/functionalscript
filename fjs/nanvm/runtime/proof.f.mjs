@@ -14,7 +14,7 @@ export const proof = {
     paths: () => {
         assertEq(source, './fjs/js/runtime/module.f.js')
         assertEq(rustPath, 'nanvm/lib/src/vm/gen.runtime.rs')
-        assertEq(edagPath, 'fjs/js/runtime/gen.edag.data.mjs')
+        assertEq(edagPath, 'fjs/js/runtime/gen.edag.data.js')
     },
     // Both compiles, in order: the static runtime, a module holding one
     // body, read back as the item it becomes; the EDAG, read back as the

@@ -1,7 +1,7 @@
 /** @import { Exp } from '../../../edag/types.ts' */
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { fromTagged } from '../../../text/marked/module.f.mjs'
-import runtime from '../../../js/runtime/gen.edag.data.mjs'
+import runtime from '../../../js/runtime/gen.edag.data.js'
 import { generateRuntime, generateRuntimeTagged } from './module.f.mjs'
 
 /** A function node: its length, slots and body. @type {(length: number, slots: readonly Exp[], body: Exp) => Exp} */
