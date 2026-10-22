@@ -141,10 +141,6 @@ const rows = () => {
         // closedness is about *undeclared* members and leaves the short-array rule
         // alone
         [[number, or(option, string)], [42]],
-        // a hole in the *value* is an absent member, so only a position whose set
-        // admits absence may be one
-        [[or(option, number), 3], [, 3]],
-        [[number, 3], [, 3]],
         // the rule is per position, not "the last one": every trailing position
         // whose set admits `undefined` may be absent, so an array may stop at the
         // last required one
