@@ -142,6 +142,8 @@ export const proof = {
         assert(loop.parameters[0] !== variable.id && loop.results[0] !== variable.id && loop.parameters[0] !== loop.results[0])
         assertStructurallySame(result('export default (start=>{let value=start;while(value<3){const snapshot=value;const read=()=>snapshot;value=read()+1;}return value;})(0);'), { default: 3 })
         assertStructurallySame(result('export default (()=>{let value=0;while(value<3){const observed=(()=>value)();value=observed+1;}return value;})();'), { default: 3 })
+        assertStructurallySame(result('export default (()=>{let value=0;value=value+1;value=value*3;return value;})();'), { default: 3 })
+        assertStructurallySame(result('export default (start=>{while(start<3){start=start+1;}return start;})(0);'), { default: 3 })
         assertStructurallySame(result('export default (()=>{let value=0;while(value<2){value=value+1;}const snapshot=value;return ()=>snapshot;})()();'), { default: 2 })
         assertStructurallySame(result('export default (()=>{let value=1;while(false){value=value;}return value;})();'), { default: 1 })
         assertError(memo(assertOk(analysis(graph('export default (()=>{let value=null.x;while(false){value=1;}return value;})();'))))({ args: [] }))

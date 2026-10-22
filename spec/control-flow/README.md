@@ -1,6 +1,6 @@
 # Control Flow
 
-The statements of a function body: terminating `if` guards, `return`, `throw`, the one-variable `let`/`while` loop, and the terminating `switch`.
+The statements of a function body: terminating `if` guards, `return`, `throw`, the one-variable `while` loop, and the terminating `switch`.
 
 ## Pages
 

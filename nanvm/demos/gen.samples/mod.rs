@@ -37,6 +37,7 @@ pub mod strings;
 pub mod switch_statement;
 pub mod template_literals;
 pub mod values;
+pub mod variables;
 pub mod whitespace;
 
 /// Loads the `arrays` sample.
@@ -259,6 +260,12 @@ pub extern "C" fn template_literals() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn values() -> i32 {
     crate::export(values::module::<nanvm_lib::naive::Naive>)
+}
+
+/// Loads the `variables` sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn variables() -> i32 {
+    crate::export(variables::module::<nanvm_lib::naive::Naive>)
 }
 
 /// Loads the `whitespace` sample.

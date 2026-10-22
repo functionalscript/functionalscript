@@ -39,7 +39,7 @@ export const proof = {
         assertEq(render(['=>', 1, [], ['?:', true, [',', [['[]', [2]], call(0)]], ['arg', 0]]]),
             '($0)=>{let $1=$0;while((()=>{const $2=$1;return true;})()){const $3=$1;const $4=[2];const $5=0;$1=$5;}return $1;}')
         assertEq(render(['=>', 1, [], ['?:', ['arg', 0], call(['arg', 0]), ['arg', 0]]]),
-            '($0)=>{let $1=$0;while((()=>{const $2=$1;return $2;})()){const $3=$1;}return $1;}')
+            '($0)=>{let $1=$0;while((()=>{const $2=$1;return $2;})()){const $3=$1;$1=$1;}return $1;}')
         // a shared body value is established once in each iteration
         const shared = /** @type {const} */ (['[]', [['arg', 0]]])
         assertEq(render(['=>', 1, [], ['?:', ['<', ['arg', 0], 3], call(['+', ['.', shared, 0], ['.', shared, 'length']]), ['arg', 0]]]),

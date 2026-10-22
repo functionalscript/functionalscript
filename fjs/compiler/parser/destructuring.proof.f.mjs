@@ -268,10 +268,10 @@ export const proof = {
             // loop's block as in a body
             expectRefused('const a = [1]; export default () => { const { a } = a; return a; };', 'capture shadowed', 47)
             expectRefused('const d = { d: 1 }; export default n => { let r = 0; while (r < n) { const { d } = d; r = 1; } return r; };', 'capture shadowed', 78)
-            // a loop's block may not bind the loop's variable, in a pattern
-            // as by name
-            expectRefused('export default n => { let r = 0; while (r < n) { const [r] = [1]; } return r; };', 'loop variable shadowed', 57)
-            expectRefused('export default n => { let r = 0; while (r < n) { const { a: [r] } = {}; } return r; };', 'loop variable shadowed', 62)
+            // a `const`'s pattern binds no variable: an assignment to a name
+            // it binds is refused, in a loop's block as in a body
+            expectRefused('export default n => { let r = 0; while (r < n) { const [r] = [1]; r = 2; } return r; };', 'assignment to const', 67)
+            expectRefused('export default n => { let r = 0; while (r < n) { const { a: [r] } = {}; r = 2; } return r; };', 'assignment to const', 73)
             // and `Object`, a reserved global, bound by a pattern after an
             // `entry` helper read it
             expectRefused('const e = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }; const { Object } = {}; export default e;', 'reserved word', 127)
