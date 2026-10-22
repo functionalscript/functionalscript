@@ -15,7 +15,8 @@ toJsonSchema({ id: bigint, note: or(option, string) })
 ```
 
 It goes through the [data form](../data-form/README.md), so two spellings of
-one set write one JSON Schema, a union's members come in canonical order, and a
+one set write one JSON Schema (recursive schemas aside, whose rule names the
+data form keeps; see [its canonical form](../../../data/README.md#canonical-form)), a union's members come in canonical order, and a
 recursive schema is written once under `$defs` and referred to with `$ref`.
 
 | rtti | JSON Schema |
@@ -31,10 +32,12 @@ recursive schema is written once under `$defs` and referred to with `$ref`.
 | `or(…)` | `anyOf`, or one `type` when the union is a whole kind |
 
 JSON cannot write every value a schema describes, so the conversion is
-**lossy** in three places:
+**lossy** in four places:
 
 - a `bigint` becomes an integer, and a bigint constant the nearest double:
   `9007199254740993n` is written `9007199254740992`;
+- `-0` is a constant of its own to rtti, and JSON writes it `0`, so
+  `toJsonSchema(-0)` is `{ "const": 0 }`, the same as `toJsonSchema(0)`;
 - `undefined` has no JSON value, so the constant becomes `{ "not": {} }`;
 - `NaN` and the infinities are numbers to rtti and not JSON values at all.
 

@@ -18,7 +18,11 @@ printer()(s)
 return `Ts<typeof s>` on success, so a schema declared once is both the check
 and the static type, with no second declaration to drift.
 
-The two renderings denote the same set but are spelled differently:
+The two renderings denote the same set, with one known exception, and are
+spelled differently. The exception is a rest that is empty without being
+written `or()`, such as `rest([42], [or()])`: the printer drops its tail and
+`Ts<>` keeps a wider one
+([how `RestTs` renders a rest](../../../ts/README.md#how-restts-renders-a-rest)).
 
 | | `Ts<typeof s>` | `printer()(s)` |
 | --- | --- | --- |

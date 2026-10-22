@@ -13,8 +13,6 @@ import { demo } from './demo.f.mjs'
 const verdicts = verdictsOf(lessons)
 
 const s = { a: or(option, number), b: or(number, undefined) }
-/** @typedef {{ readonly a?: number } & { readonly b: number | undefined }} _Page */
-/** @typedef {Assert<[Ts<typeof s>] extends [_Page] ? [_Page] extends [Ts<typeof s>] ? true : false : false>} _PageType */
 
 export const proof = {
     // The lesson's value, and the ones the page invites the reader to type.
@@ -25,7 +23,11 @@ export const proof = {
     },
     // The page's examples.
     printer: {
-        page: () => assertEq(printer()(s), '{readonly"a"?:number,readonly"b":undefined|number}'),
+        page: () => {
+            /** @typedef {{ readonly a?: number } & { readonly b: number | undefined }} _Page */
+            /** @typedef {Assert<[Ts<typeof s>] extends [_Page] ? [_Page] extends [Ts<typeof s>] ? true : false : false>} _PageType */
+            assertEq(printer()(s), '{readonly"a"?:number,readonly"b":undefined|number}')
+        },
         mutable: () => assertEq(printer(true)(array(number)), '(number)[]'),
         tuple: () => assertEq(printer()([number, or(option, string)]), 'readonly[number,(string)?]'),
         record: () => assertEq(printer()(record(number)), '{readonly[k in string]?:number}'),
