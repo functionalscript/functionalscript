@@ -12,6 +12,10 @@ import { concat as stringConcat } from '../../types/string/module.f.mjs'
 import { element, htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
+
+/** A 256-bit target's 64 hex digits, as the demo shows it. */
+const targetHex = encodeScalar(64)
 
 const p256 = sha256Pow
 const p224 = pow(sha224)
@@ -96,7 +100,7 @@ export const proof = {
             assert(passed.includes('data-result="ok"'), passed)
             assert(!passed.includes('OpenSSL'), passed)
             const genesis = htmlToString(demo.view({ ...demo.init, nBits: '0x1d00ffff' }))
-            assert(genesis.includes(`<pre>${genesisTarget.toString(16).padStart(64, '0')}</pre>`), genesis)
+            assert(genesis.includes(`<pre>${targetHex(genesisTarget)}</pre>`), genesis)
             assert(genesis.includes('Hash does not meet target'), genesis)
             const multiline = htmlToString(demo.view({ ...demo.init, text: '\nПривіт 🌍\n' }))
             assert(multiline.includes('<pre>\nПривіт 🌍\n42</pre>'), multiline)
