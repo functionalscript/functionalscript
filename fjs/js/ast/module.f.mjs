@@ -5,8 +5,11 @@
  *
  * @module
  *
- * @import { Binding, BindingId, BindingEvent, BindingScope, FunctionTarget, Item, Key, Operator, Step } from './types.ts'
+ * @import { Binding, BindingId, BindingEvent, BindingScope, Entry, FunctionTarget, Item, Key, Operator, Step } from './types.ts'
+ * @import { List } from '../../types/list/types.ts'
  */
+
+import { reverse, toArray } from '../../types/list/module.f.mjs'
 
 /**
  * Reassignment and nested references over the complete expanded source scope.
@@ -76,18 +79,25 @@ const mapStep = (map, offset) => step => {
  * The callback index is the operand's position in operatorOperands, including
  * repeated equal operands. This does not establish values or move regions.
  *
- * @type {<T, U>(map: (value: T, index: number) => U) => (operator: Operator<T>) => Operator<U>}
+ * @template T, U
+ * @param {(value: T, index: number) => U} map
+ * @returns {(operator: Operator<T>) => Operator<U>}
  */
 export const mapOperator = map => operator => {
     if (operator.length === 1) { return operator }
     switch (operator[0]) {
         case 'array': { return ['array', operator[1].map(mapItem(map, 0))] }
         case 'object': {
-            const entries = operator[1].map((entry, index, entries) => {
-                const offset = entries.slice(0, index).reduce((count, previous) => count + (previous[0] === '...' ? 1 : 2), 0)
-                return entry[0] === '...' ? /** @type {const} */ (['...', map(entry[1], offset)]) : /** @type {const} */ ([':', map(entry[1], offset), map(entry[2], offset + 1)])
-            })
-            return ['object', entries]
+            /** @type {List<Entry<U>>} */
+            let entries = null
+            let offset = 0
+            for (const entry of operator[1]) {
+                const mapped = entry[0] === '...' ? /** @type {const} */ (['...', map(entry[1], offset)])
+                    : /** @type {const} */ ([':', map(entry[1], offset), map(entry[2], offset + 1)])
+                entries = { first: mapped, tail: entries }
+                offset += entry[0] === '...' ? 1 : 2
+            }
+            return ['object', toArray(reverse(entries))]
         }
         case ',': { return [',', operator[1].map(map)] }
         case '()': { return ['()', map(operator[1], 0), operator[2].map(mapItem(map, 1))] }
