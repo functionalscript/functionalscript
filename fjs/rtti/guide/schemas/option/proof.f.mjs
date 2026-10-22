@@ -13,8 +13,8 @@ export const proof = {
         absentVsUndefined: () => verdicts('Absent vs undefined', [true, false]),
         swapped: () => verdicts('Absent vs undefined', [false, true], 'export default {"a":undefined};'),
     },
-    // The page's examples. The hole, `[, 3]`, is host-made, so it is pinned in
-    // `../../../validate/proof.f.mjs`'s agreement table.
+    // The page's examples, but the hole: `[, 3]` is host-made, and
+    // FunctionalScript proofs take only values it can build.
     examples: {
         mayBeAbsent: () => assert(admits({ a: or(option, number) }, {}) && !admits({ a: or(option, number) }, { a: undefined })),
         mustBePresent: () => assert(admits({ a: or(number, undefined) }, { a: undefined }) && !admits({ a: or(number, undefined) }, {})),
