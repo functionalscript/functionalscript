@@ -221,18 +221,38 @@ const functionValue = (source, environment, context) => {
     }
 }
 
+/**
+ * A block normalized as a value, in the scope `outer` that goes on after it:
+ * its environment is dropped, so a write in it to a binding established
+ * before it would be lost, the scope reading the old value where JavaScript
+ * reads the new. The parser refuses every such program — an assignment from
+ * a function called where it is written is `reassigned variable captured`,
+ * and a loop in one over an outer variable assigns it the same way — and
+ * this is the assertion that keeps it so, until a block's writes become its
+ * results ([let](../../../spec/todo/3220-let.md), "General loops"). `inner`
+ * is `outer` with the block's own bindings before its statements, a rest
+ * parameter's, which the block may assign.
+ *
+ * @type {(source: SourceBlock, outer: Environment, inner: Environment, context: Context) => Block}
+ */
+const enclosed = (source, outer, inner, context) => {
+    const made = normalizedBlock(source, inner, context)
+    assert(made.environment.slice(inner.length).every(([id]) => !outer.some(([established]) => established === id)), 'a write escapes its block')
+    return made.block
+}
+
 /** @type {(environment: Environment, context: Context, value: SourceValue) => { readonly value: Value } | null} */
 const leaf = (environment, context, value) => {
     if (value === null || typeof value !== 'object') { return { value } }
     if (value[0] === 'ref') { return { value: lookup(environment, value[1]) } }
     if (value[0] === 'function') { return { value: ['function', functionValue(value[1], environment, context)] } }
-    if (value[0] === 'block') { return { value: ['block', normalizedBlock(value[1], environment, context).block] } }
+    if (value[0] === 'block') { return { value: ['block', enclosed(value[1], environment, environment, context)] } }
     if (value[0] === '()' && value[2].length === 0 && value[1] instanceof Array && value[1][0] === 'function') {
         const source = value[1][1]
         const fn = functionValue(source, environment, context)
         if (fn.parameters.length === 0 && fn.rest === null) {
             const inner = source.rest === null ? environment : expanded(source.rest, undefined, environment, true).environment
-            return { value: ['block', normalizedBlock(source.body, inner, context).block] }
+            return { value: ['block', enclosed(source.body, environment, inner, context)] }
         }
         return { value: ['()', ['function', fn], []] }
     }
