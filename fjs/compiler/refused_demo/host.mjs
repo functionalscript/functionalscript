@@ -8,8 +8,10 @@
  * `fjs compile` prints for it. That statement is one more copy of
  * `sample.mjs`, so this proof holds it to the file, and holds the README to
  * show the same module and the proposed message's fix to be the line
- * `alternative.f.js` writes. An edit to any one of them that the others do
- * not follow fails here, not on the deployed page.
+ * `alternative.f.js` writes; and, for a page whose sample imports, its
+ * `a.f.js` to be the module the page compiles beside the sample. An edit to
+ * any one of them that the others do not follow fails here, not on the
+ * deployed page.
  *
  * A host module, since FunctionalScript reads no files and imports no
  * plain `.mjs`: the sample is one, valid JavaScript the compiler refuses.
@@ -19,9 +21,9 @@
  * @import { Suggestion } from './types.ts'
  */
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { alternativeName, sampleName } from './module.f.mjs'
+import { alternativeName, dependency, dependencyName, sampleName } from './module.f.mjs'
 
 /**
  * The file `name` beside the module at `url`, as text.
@@ -46,5 +48,6 @@ export const hostProof = (url, value, { answer, sample: text, suggestion }, host
         sample: () => assertEq(file(sampleName), text),
         readme: () => assert(file('README.md').includes(text.trimEnd()), 'the README does not show sample.mjs'),
         fix: () => assert(file(alternativeName).includes(suggestion.fix), 'the suggested fix is not a line of alternative.f.js'),
+        dependency: () => assert(!existsSync(new URL(dependencyName, url)) || file(dependencyName) === dependency, 'a.f.js is not the module the page compiles beside the sample'),
     }
 }
