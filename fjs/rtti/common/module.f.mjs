@@ -460,8 +460,8 @@ export const containerRead =
  * Reading `length` and enumerating the keys before the members assumes those
  * reads have no effect — true of every DataJS value, and the assumption the
  * readers are written under. What that gives up for a value built by arbitrary
- * JavaScript is stated in "What the readers assume of a value" in
- * `../README.md`.
+ * JavaScript is stated in
+ * `../guide/readers/assumptions/README.md`.
  */
 export const constContainerRead =
     /**
@@ -507,8 +507,8 @@ export const constContainerRead =
             // reading walk asks `in` again — to read a member and to collect
             // it — rather than being handed a recorded flag: a `HasProperty`
             // on a value whose reads have no effect, which is the assumption
-            // stated in `../README.md`, and cheaper than a list the
-            // short-circuit would waste.
+            // stated in `../guide/readers/assumptions/README.md`, and cheaper
+            // than a list the short-circuit would waste.
             const a = eachEntry(
                 rttiEntries,
                 (k, t) => k in value ? ok(undefined) : absentMember(t),

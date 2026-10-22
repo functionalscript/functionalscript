@@ -24,7 +24,7 @@
  * with the same error `path` and `message`. They differ only in what a success
  * carries. `./proof.f.mjs` pins that agreement as a table rather than leaving
  * it to convention. Which reader a caller wants, and why both exist, is in
- * "The two schema-form readers" in `../README.md`.
+ * `../guide/readers/parse-and-validate/README.md`.
  *
  * ## Structs and tuples are closed
  *

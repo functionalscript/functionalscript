@@ -47,5 +47,7 @@ Each step is its own pull request and leaves the site working.
   demo as a factory; each `schemas/` page has its `sample.f.mjs`, `demo.f.mjs`
   and proof, and the root demo's lessons are assembled from the pages by
   [`guide/schemas/module.f.mjs`](../guide/schemas/module.f.mjs).
-- Move `readers/`, then `outputs/`, then `in-the-project/`.
+- **Done:** the `readers/` area, with a demo for each page that has a value to
+  show, and the root demo's lessons grouped by area.
+- Move `outputs/`, then `in-the-project/`.
 - Shrink the root README to the index, as `spec/README.md` became.

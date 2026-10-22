@@ -90,7 +90,7 @@ not reject it and a `rest` does not check it. A DataJS value inherits only
 what `Object.prototype` and `Array.prototype` supply, so for the values the
 readers are written for the two readings agree
 ([what the readers assume of a
-value](../../../README.md#what-the-readers-assume-of-a-value)); a foreign
+value](../../readers/assumptions/README.md)); a foreign
 value is converted to DataJS at the host boundary before it reaches a reader.
 The one place an inherited member shows is a *declared* name such as
 `toString`, whose presence is asked through the prototype

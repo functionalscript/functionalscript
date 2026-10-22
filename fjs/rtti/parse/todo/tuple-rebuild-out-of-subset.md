@@ -62,7 +62,7 @@ preservation, and no fourth. `trailingRunShortens` and `structDropsTheKey`
 stay green.
 
 **A hole is outside the readers' stated domain.** The
-[rtti README](../../README.md#what-the-readers-assume-of-a-value) says the
+[what the readers assume of a value](../../guide/readers/assumptions/README.md) says the
 readers are written for DataJS values, the values FunctionalScript itself can
 build, and
 [`structurally_same`](../../../types/object/structurally_same/README.md) says
@@ -151,7 +151,7 @@ alone does not stand in for that approval.
   it.
 - [Built-in](../../../../spec/todo/2360-built-in.md) — `Array` as a namespace
   and `defineProperty` as `mutate`.
-- [rtti README](../../README.md#what-the-readers-assume-of-a-value) — the
+- [what the readers assume of a value](../../guide/readers/assumptions/README.md) — the
   DataJS premise.
 - [`structurally_same`](../../../types/object/structurally_same/README.md) —
   the dense premise on the other side of `parse`'s output.
