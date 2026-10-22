@@ -15,6 +15,7 @@ import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
 import { value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { _valueSymbol as valueSymbol, mappings, tryParse, tryParseBytes } from './module.f.mjs'
+import { isObject } from '../../../types/object/module.f.mjs'
 
 const { is, keys, hasOwn, getPrototypeOf } = Object
 
@@ -55,7 +56,7 @@ const asArray = value => {
 
 /** @type {(value: Unknown) => object} */
 const asObject = value => {
-    assert(typeof value === 'object' && value !== null && !(value instanceof Array))
+    assert(isObject(value))
     return value
 }
 
@@ -186,7 +187,7 @@ export const proof = {
         const distinct = asArray(parsed('export default [[],[]];'))
         assert(!is(distinct[0], distinct[1]))
         const nested = parsed('const $0={};const $1=[$0];export default {"a":$1,"b":$0,"c":$1};')
-        assert(typeof nested === 'object' && nested !== null && !(nested instanceof Array))
+        assert(isObject(nested))
         assert(is(asArray(nested.a)[0], nested.b))
         assert(is(nested.a, nested.c))
         assertStructurallySame(nested, { a: [{}], b: {}, c: [{}] })
