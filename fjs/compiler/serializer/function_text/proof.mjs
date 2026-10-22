@@ -5,7 +5,7 @@
  * @import { Exp, Function as FunctionExp } from '../../../edag/types.ts'
  */
 
-import { conditional } from '../../../edag/testlib.f.mjs'
+import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tryFunctionText } from '../module.f.mjs'

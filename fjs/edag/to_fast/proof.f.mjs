@@ -9,7 +9,7 @@
  * @import { List } from '../../types/list/types.ts'
  */
 
-import { conditional } from '../testlib.f.mjs'
+import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
 import { fromFast } from '../from_fast/module.f.mjs'

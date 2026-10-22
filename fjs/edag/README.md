@@ -685,7 +685,7 @@ need it.
 ## Source logical operators
 
 Source `&&`, `||` and `??` are lowered once by
-[`js/ast/sugar/logical`](../js/ast/sugar/logical/module.f.mjs) to conditional
+[`js/ast/sugar/logical`](../js/ast/sugar/logical/module.f.js) to conditional
 FAST. Establish the left operand in an immutable binding `t` in its original
 execution region, or reuse its existing reference:
 

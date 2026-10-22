@@ -5,7 +5,7 @@
  * @import { EdagValue } from '../types.ts'
  */
 
-import { conditional } from '../../testlib.f.mjs'
+import { conditional } from '../../testlib.f.js'
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { validateClosure } from './module.f.mjs'
 

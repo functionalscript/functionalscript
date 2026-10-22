@@ -1,7 +1,7 @@
 /** @import { Exp } from './types.ts' */
 
 import { assert, assertStructurallySame } from '../asserts/module.f.js'
-import { conditional } from './testlib.f.mjs'
+import { conditional } from './testlib.f.js'
 
 export const proof = {
     and: () => assertStructurallySame(conditional('&&', 0, 2), ['?:', 0, 2, 0]),

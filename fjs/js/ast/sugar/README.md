@@ -44,7 +44,7 @@ sign of zero. Required input definitions retain unused and lazy-only module
 loads. The resulting FAST contains no source assignment or mutable slot.
 
 Logical syntax remains in `SourceValue`, independently of the canonical
-operation vocabulary. [`logicalValue`](./logical/module.f.mjs) establishes a
+operation vocabulary. [`logicalValue`](./logical/module.f.js) establishes a
 left operand once in an immutable binding in the original expression region,
 then selects the right operand or the established left value. An existing
 reference is reused. The right operand stays in its selected yielding arm;

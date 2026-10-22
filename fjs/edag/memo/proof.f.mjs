@@ -7,7 +7,7 @@
  * @import { EdagValue, Values, Array as ValueArray } from '../value/types.ts'
  */
 
-import { conditional } from '../testlib.f.mjs'
+import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'

@@ -9,7 +9,7 @@
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { throwValue, conditional, sequence } from './module.f.mjs'
-import { conditional as sourceConditional } from '../../testlib.f.mjs'
+import { conditional as sourceConditional } from '../../testlib.f.js'
 import { analysis } from '../../analysis/module.f.mjs'
 import { memo } from '../../memo/module.f.mjs'
 

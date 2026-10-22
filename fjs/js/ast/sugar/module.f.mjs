@@ -14,7 +14,7 @@
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
-import { logicalValue } from './logical/module.f.mjs'
+import { logicalValue } from './logical/module.f.js'
 
 /** Indices are diagnostic; each allocation establishes a distinct identity. @type {(index: number) => BindingId} */
 const binding = index => ({ index })

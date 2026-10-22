@@ -6,7 +6,7 @@
  * @import { Invoke } from '../call/types.ts'
  */
 
-import { conditional } from '../../testlib.f.mjs'
+import { conditional } from '../../testlib.f.js'
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { toPrimitive, toString, toNumber } from './module.f.mjs'
