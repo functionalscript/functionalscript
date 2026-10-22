@@ -20,7 +20,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
-import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
+import { hexBytes, latin1, noFile, packMixed, packMixedIdx } from '../testlib.f.mjs'
 import { maxDeltaBytes } from '../pack/module.f.mjs'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'
 import { max } from '../../types/number/max/module.f.js'
@@ -220,9 +220,6 @@ const tree = hexBytes([
     '20692e74787400b00a3b66a7a094e6165bfcd39e0b8524042140db',
 ].join(''))
 
-const notFound = /** @type {(path: string) => IoChannel} */ (
-    path => ioError({ code: 'ENOENT', message: `no such file: ${path}` }))
-
 /**
  * A host over one pack directory: a listing and the files it holds. Every command is logged, so a case can see which files were
  * opened, in what order, and which pack was never touched.
@@ -239,18 +236,18 @@ const notFound = /** @type {(path: string) => IoChannel} */ (
 const hostOf = (dir, files) => ({
     readdir: path => log => [
         [...log, `readdir ${path}`],
-        dir === null ? error(notFound(path)) : ok(dir),
+        dir === null ? error(noFile(path)) : ok(dir),
     ],
     readFile: path => log => {
         const b = files(path)
-        return [[...log, `readFile ${path}`], b === null ? error(notFound(path)) : ok(u8ListToVecMsb(b))]
+        return [[...log, `readFile ${path}`], b === null ? error(noFile(path)) : ok(u8ListToVecMsb(b))]
     },
     stat: path => log => {
         const b = files(path)
         return [
             [...log, `stat ${path}`],
             b === null
-                ? error(notFound(path))
+                ? error(noFile(path))
                 : ok({ size: b.length, isFile: true, isDirectory: false }),
         ]
     },
@@ -258,14 +255,14 @@ const hostOf = (dir, files) => ({
         const b = files(path)
         return [
             [...log, `readBytes ${path} ${at} ${size}`],
-            b === null ? error(notFound(path)) : ok(u8ListToVecMsb(b.slice(at, at + size))),
+            b === null ? error(noFile(path)) : ok(u8ListToVecMsb(b.slice(at, at + size))),
         ]
     },
     readWhole: path => log => {
         const b = files(path)
         return [
             [...log, `readWhole ${path}`],
-            b === null ? error(notFound(path)) : ok(chunked(b)),
+            b === null ? error(noFile(path)) : ok(chunked(b)),
         ]
     },
 })

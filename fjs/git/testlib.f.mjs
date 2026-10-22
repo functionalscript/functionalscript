@@ -6,10 +6,12 @@
  * @module
  *
  * @import { Bytes } from './types.ts'
+ * @import { IoError } from '../effects/types.ts'
  */
 
 import { assert } from '../asserts/module.f.js'
 import { decode } from '../basen/base16/module.f.mjs'
+import { ioError } from '../effects/module.f.mjs'
 
 /**
  * The bytes a Latin-1 string spells, one per code unit: how a fixture is
@@ -19,6 +21,15 @@ import { decode } from '../basen/base16/module.f.mjs'
  * @type {(s: string) => readonly number[]}
  */
 export const latin1 = s => [...s].map(c => c.charCodeAt(0))
+
+/**
+ * The error a proof's in-memory host answers for a path it holds nothing
+ * at: `ENOENT`, which `effects/node`'s `isNotFound` reads as absent, under a
+ * message naming the path.
+ *
+ * @type {(path: string) => IoError}
+ */
+export const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
 
 /**
  * The payload of commit `d2bc56a53b2d6d7c1dc0860dec10435ed479b22d` of this

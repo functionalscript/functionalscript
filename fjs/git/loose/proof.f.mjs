@@ -4,14 +4,13 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
-import { latin1, tagLoose, tagPayload } from '../testlib.f.mjs'
+import { latin1, noFile, tagLoose, tagPayload } from '../testlib.f.mjs'
 import { tryRead } from './module.f.mjs'
 
 /** The file, as the chunks one open takes. @type {(bytes: readonly number[], size: number) => readonly import('../../types/bit_vec/types.ts').Vec[]} */
@@ -52,7 +51,7 @@ const hostOf = size => ({
         [...log, `readWhole ${path}`],
         path in files
             ? ok(chunks(files[path], size))
-            : error(ioError({ code: 'ENOENT', message: `no such file: ${path}` })),
+            : error(noFile(path)),
     ],
 })
 

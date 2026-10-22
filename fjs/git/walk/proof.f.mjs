@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError, pureOk } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
@@ -18,7 +18,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
 import { objectPath, objectsDir, readIn } from '../store/module.f.mjs'
-import { latin1 } from '../testlib.f.mjs'
+import { latin1, noFile } from '../testlib.f.mjs'
 import { mode, write as writeTree } from '../tree/module.f.mjs'
 import { peel, tryEntries, tryEntry } from './module.f.mjs'
 
@@ -233,9 +233,6 @@ const files = Object.fromEntries([
     treeFile(lyingId, lying),
     ...chain.slice(1).map(t => tagFile(t.id, t.payload)),
 ])
-
-/** @type {(path: string) => ReturnType<typeof ioError>} */
-const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
 
 /**
  * The host the store reads through: the objects above, each as a stored zlib

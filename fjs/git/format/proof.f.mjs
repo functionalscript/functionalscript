@@ -7,12 +7,11 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { tryEntries } from '../config/module.f.js'
-import { initConfig, initSha256Config, latin1 } from '../testlib.f.mjs'
+import { initConfig, initSha256Config, latin1, noFile } from '../testlib.f.mjs'
 import { oidBytes, tryOidBytes } from './module.f.mjs'
 
 /**
@@ -49,7 +48,7 @@ const host = {
         return [
             [...log, `readFile ${path}`],
             file === undefined
-                ? error(ioError({ code: 'ENOENT', message: `no such file: ${path}` }))
+                ? error(noFile(path))
                 : ok(u8ListToVecMsb(file)),
         ]
     },
