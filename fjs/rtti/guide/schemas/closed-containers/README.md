@@ -35,9 +35,9 @@ The data form says the same thing in its own vocabulary — a bare container's
 `parse(s)` and `validate(s)` do. `fjs/rtti/validate/proof.f.mjs` runs one acceptance
 table through all three readers.
 
-**A schema that admits more says so** — see [open containers](../open-containers/README.md)
-below. What a container admits beyond what it declares is stated, never
-inferred.
+**A schema that admits more says so** — see
+[open containers](../open-containers/README.md). What a container admits
+beyond what it declares is stated, never inferred.
 
 ## A hole is a declared position
 

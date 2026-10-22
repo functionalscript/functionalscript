@@ -170,8 +170,8 @@ export const proof = {
                 /** @typedef {Assert<Equal<typeof p, Parse<{ readonly a: 42, readonly b: 'hello' }>>>} _ConstParameter */
                 assertStructurallySame(unwrap(p({ a: 42, b: 'hello' })), { a: 42, b: 'hello' })
             },
-            // A struct is CLOSED, on the same terms as a tuple. See "Structs
-            // and tuples are closed" in ../README.md.
+            // A struct is CLOSED, on the same terms as a tuple. See
+            // ../guide/schemas/closed-containers/README.md.
             extraKeysRejected: () => {
                 assertError(parse({ a: 42 })({ a: 42, b: 'extra' }))
                 assertStructurallySame(unwrap(parse(open({ a: 42 }))({ a: 42, b: 'extra' })), { a: 42 })
