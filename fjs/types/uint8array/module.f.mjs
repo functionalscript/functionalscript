@@ -18,6 +18,7 @@ import { utf8 } from '../../text/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { length, maxLengthBytes, msb, vec } from '../bit_vec/module.f.mjs'
 import { compose } from '../function/module.f.js'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import { iterable } from '../list/module.f.mjs'
 
 // Both conversions go through the bigint's hexadecimal spelling, two digits
@@ -27,8 +28,8 @@ import { iterable } from '../list/module.f.mjs'
 // and eighteen times faster this way, by machine, which is what keeps the
 // pump's parked-socket proof inside the five seconds Bun gives one.
 
-/** @type {(byte: number) => string} */
-const hexOfByte = byte => byte.toString(16).padStart(2, '0')
+/** A byte as two lowercase hexadecimal digits. */
+const hexOfByte = encodeScalar(2)
 
 /** @type {(bytes: Uint8Array) => string} */
 const hexOf = bytes => Array.from(bytes, hexOfByte).join('')
@@ -73,7 +74,7 @@ export const fromVec = input => {
     // padded to the byte count rather than marked with a leading `1`: on a
     // vector of `maxLength` bits the mark would be one bit past the bigint
     // Bun can build
-    const hex = (msb.front(bits)(input) << ((8n - bits % 8n) % 8n)).toString(16).padStart(bytes << 1, '0')
+    const hex = encodeScalar(bytes << 1)(msb.front(bits)(input) << ((8n - bits % 8n) % 8n))
     return Uint8Array.from({ length: bytes }, (_, i) => Number(`0x${hex.substring(i << 1, (i << 1) + 2)}`))
 }
 
