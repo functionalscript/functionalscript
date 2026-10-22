@@ -106,6 +106,8 @@ const words = span => span[0] === 'link' || span[0] === 'strong' || span[0] === 
 const anchorChar = c => {
     const code = /** @type {number} */(c.codePointAt(0))
     const within = /** @type {(from: number, to: number) => boolean} */((from, to) => code >= from && code <= to)
+    // Latin-1's ordinal indicators and micro sign are letters amid symbols.
+    if (code === 0xaa || code === 0xb5 || code === 0xba) { return 'keep' }
     if (within(0xa0, 0xbf) || code === 0xd7 || code === 0xf7 || within(0x2000, 0x2bff) || within(0x3000, 0x303f) || within(0xff00, 0xff0f) || within(0x1f000, 0x1faff)
         // Kana's sound marks, double hyphen and middle dot.
         || code === 0x309b || code === 0x309c || code === 0x30a0 || code === 0x30fb) { return 'drop' }

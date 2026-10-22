@@ -262,6 +262,18 @@ const entityAt = (text, i) => {
     return body !== '' && [...body].every(isWordChar)
 }
 
+/**
+ * Refuse shortcode candidates rather than maintain a copy of GitHub's emoji
+ * catalogue. Code spans and link destinations are checked outside prose.
+ *
+ * @type {(text: string, i: number) => boolean}
+ */
+const shortcodeAt = (text, i) => {
+    if (text[i] !== ':') { return false }
+    const end = text.indexOf(':', i + 1)
+    return end > i + 1 && [...text.slice(i + 1, end)].every(c => isWordChar(c) || c === '_' || c === '+' || c === '-')
+}
+
 /** Whether a character may stand in an email address's domain. @type {(c: string | undefined) => boolean} */
 const isDomainChar = c => c !== undefined && (charIs(isDigit)(c) || charIs(isLatinLetter)(c) || c === '-' || c === '_')
 
@@ -316,6 +328,7 @@ export const proseSpans = autolinks => text => {
         }
         if (c === '~' && text.indexOf('~', i + 1) !== -1) { return error(`a tilde pair, which GitHub reads as strikethrough, at ${i}`) }
         if (entityAt(text, i)) { return error(`an entity, which GitHub reads as the character it names, at ${i}`) }
+        if (shortcodeAt(text, i)) { return error(`an emoji shortcode candidate at ${i}`) }
         if (autolinks && c === '@' && emailAt(text, i)) { return error(`an email address, which GitHub reads as a link, at ${i}`) }
         if (rest.startsWith('http://') || rest.startsWith('https://') || rest.startsWith('www.')) {
             if (text[i - 1] !== '<') { return error(`a bare URL, which GitHub reads as a link, at ${i}`) }
@@ -550,7 +563,7 @@ const foreignBlock = line => {
     let digits = 0
     while (charIs(isDigit)(trimmed[digits] ?? '')) { digits++ }
     if (digits !== 0 && (trimmed[digits] === '.' || trimmed[digits] === ')')
-        && (trimmed[digits + 1] === ' ' || trimmed.length === digits + 1)) { return 'a numbered list' }
+        && (trimmed[digits + 1] === ' ' || trimmed[digits + 1] === '\t' || trimmed.length === digits + 1)) { return 'a numbered list' }
     if (trimmed.length !== 0 && '-=*_'.includes(trimmed[0])
         && [...trimmed].every(c => c === trimmed[0] || c === ' ')) {
         return 'a thematic break or a heading underline'
@@ -633,6 +646,7 @@ const readBlocks = (base, inItem) => lines => {
             const info = line.slice(3)
             if (info.includes('`') || info.includes(' ') || info.includes('\t')) { return refuseAt(i, 'a code fence whose info string is not one word') }
             if (info.includes('\\')) { return refuseAt(i, 'a code fence whose info string contains a backslash escape') }
+            if ([...info].some((_, index) => entityAt(info, index))) { return refuseAt(i, 'an entity in a code fence info string') }
             const close = lines.findIndex((candidate, index) => index > i && isClosingFence(candidate))
             if (close === -1) { return refuseAt(i, 'a code fence that is never closed') }
             out = [...out, [['code', info, close === i + 1 ? '' : lines.slice(i + 1, close).join('\n') + '\n'], i, close]]
@@ -672,6 +686,7 @@ const readBlocks = (base, inItem) => lines => {
                 j++
                 while (j < lines.length && !lines[j].startsWith('- ')) {
                     const l = lines[j]
+                    if (l.slice(0, l.length - l.trimStart().length).includes('\t')) { return refuseAt(j, 'a tab in an indent') }
                     if (l.trim() === '') {
                         // A blank line stays in the item when an indented
                         // line follows it, and ends the list otherwise.
