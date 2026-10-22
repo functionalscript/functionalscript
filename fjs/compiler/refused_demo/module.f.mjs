@@ -195,15 +195,22 @@ const fetchFile = (directory, name) => resultStep(fetchText(`/${directory}/${nam
     r => pureOk(r[0] === 'ok' ? r : error(errorMessage(r[1]))))
 
 /**
- * Fetches the sample's text and the alternative's on `start`; a file that
- * does not arrive is the reason the page does not show it.
+ * Fetches the sample's text and then the alternative's; a file that does not
+ * arrive is the reason the page does not show it.
+ *
+ * @type {(directory: string) => Effect<FetchText, State, never>}
+ */
+const load = directory => {
+    const source = mapStep(fetchFile(directory, sampleName), source => /** @type {State} */ ({ ...init, source }))
+    return step(source, state => mapStep(fetchFile(directory, alternativeName), alternative => ({ ...state, alternative })))
+}
+
+/**
+ * Loads the files on `start`.
  *
  * @type {(sample: RefusedSample) => (state: State) => (event: DemoEvent) => Effect<FetchText, State, never>}
  */
-export const update = ({ directory }) => state => event => event.kind === 'start'
-    ? step(fetchFile(directory, sampleName), source => mapStep(fetchFile(directory, alternativeName),
-        /** @type {(alternative: Result<string, string>) => State} */ (alternative => ({ source, alternative }))))
-    : pureOk(state)
+export const update = ({ directory }) => state => event => event.kind === 'start' ? load(directory) : pureOk(state)
 
 /** @type {(sample: RefusedSample) => Demo<State, DemoEvent, FetchText>} */
 export const refusedDemo = sample => ({ init, update: update(sample), view: view(sample) })

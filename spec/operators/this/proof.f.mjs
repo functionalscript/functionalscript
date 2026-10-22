@@ -9,7 +9,8 @@ const sample = "export default typeof this;\n"
 
 export const proof = {
     // What JavaScript answers, which the refusal keeps FunctionalScript from contradicting.
-    javaScript: () => assertEq(String(entry), "undefined"),
+    // A module's `this` is `undefined` by the standard; Bun gives it an object.
+    javaScript: () => assert(entry === 'undefined' || entry === 'object', String(entry)),
     // `op.this` (spec/todo/refused-constructs.md): the message and the position.
     refused: () => {
         const r = report(sample)

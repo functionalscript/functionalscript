@@ -19,7 +19,9 @@ export default typeof this;
 The demo on this page compiles [`sample.mjs`](./sample.mjs), the module
 above, with this build's `fjs compile`, and shows the line it prints and the
 token it refuses. Below that it shows what JavaScript answers for the same
-module: `undefined`.
+module: `undefined` in Node.js, Deno and browsers, where a module's `this` is
+`undefined`, and `object` in Bun, which gives it one: even the engines do
+not agree on what `this` is.
 
 ## What to Write Instead
 
