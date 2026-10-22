@@ -26,13 +26,18 @@ reports `no match` at the union's own path. So
 
 `parse` and `validate` report the same error for the same value: they read a
 container in the same order and stop at the same first failure
-([`parse` and `validate`](../parse-and-validate/README.md)). That order settles
-the container's **shape** before reading any member — a missing required key,
-then an undeclared member, then the members one by one — so
-`{ a: number, b: number }` refuses `{ a: 'x' }` at `['b']`, the absent key,
-rather than at `['a']`.
+([`parse` and `validate`](../parse-and-validate/README.md)). For a closed
+container that order settles the **shape** before reading any member — a
+missing required key, then an undeclared member, then the members one by
+one — so `{ a: number, b: number }` refuses `{ a: 'x' }` at `['b']`, the absent
+key, rather than at `['a']`. A container with a stated rest reads its declared
+members first, in order, and only then the undeclared ones against the rest:
+`rest({ a: number }, string)` refuses `{ a: 'x', extra: 0 }` at `['a']`.
 
-The data form's `validate` refuses the same values but reads in its own order,
+The data form's `validate` refuses the same DataJS values (outside DataJS it is
+more permissive; see
+[`data-validate-admits-non-djs-values`](../../../todo/data-validate-admits-non-djs-values.md))
+but reads in its own order,
 so its path can name another member: against `{ a: number }` it refuses
 `{ a: 1, b: 2 }` at `['b']`, where the schema-form readers answer `[]`, the
 container. Use the schema-form readers' path when the exact member matters.

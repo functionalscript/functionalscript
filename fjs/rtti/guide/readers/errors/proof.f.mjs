@@ -2,7 +2,7 @@ import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.j
 import { parse } from '../../../parse/module.f.mjs'
 import { validate } from '../../../validate/module.f.mjs'
 import { toData, validate as dataValidate } from '../../../data/module.f.mjs'
-import { array, number, or, string } from '../../../module.f.mjs'
+import { array, number, or, rest, string } from '../../../module.f.mjs'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.mjs'
 import { demo } from './demo.f.mjs'
@@ -50,6 +50,10 @@ export const proof = {
         // reported, not the wrong `a`.
         shapeFirst: () => assertStructurallySame(errorOf({ a: number, b: number }, { a: 'x' }),
             { path: ['b'], message: 'unexpected value' }),
+        // A stated rest reads the declared members first: the wrong `a` is
+        // reported before the undeclared `extra`.
+        restMembersFirst: () => assertStructurallySame(errorOf(rest({ a: number }, string), { a: 'x', extra: 0 }),
+            { path: ['a'], message: 'unexpected value' }),
         // The data form agrees on acceptance and may name another member.
         dataFormPath: () => assertStructurallySame(
             dataValidate(toData({ a: number }))({ a: 1, b: 2 }),
