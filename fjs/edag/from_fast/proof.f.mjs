@@ -50,6 +50,50 @@ const returned = (exit, environment) => {
 }
 
 export const proof = {
+    deepRegions: () => {
+        /** @type {Value} */
+        let left = 1
+        /** @type {Value} */
+        let right = 1
+        for (let depth = 0; depth < 20_000; ++depth) {
+            const a = id(depth)
+            const b = id(depth)
+            left = ['block', result(['if', ref(a), result(1), result(ref(a))], [['define', a, left, 'required']])]
+            right = ['block', result(['if', ref(b), result(right), result(ref(b))], [['define', b, 1, 'required']])]
+        }
+        let a = fromFast(result(left))
+        let b = fromFast(result(right))
+        for (let depth = 0; depth < 20_000; ++depth) {
+            assert(a instanceof Array && a[0] === '?:')
+            assert(b instanceof Array && b[0] === '?:')
+            assert(a[1] === a[3])
+            assertEq(a[2], 1)
+            assertEq(b[1], 1)
+            assertEq(b[3], 1)
+            a = a[1]
+            b = b[2]
+        }
+        assertEq(a, 1)
+        assertEq(b, 1)
+    },
+    customTransfers: () => {
+        const external = id(0)
+        const local = id(1)
+        const block = result(ref(local), [['define', local, ref(external), 'required']])
+        const transfer = /** @type {import('./types.ts').Transfer} */ ((exit, environment) => {
+            assertEq(exit[0], 'yield')
+            assertStructurallySame(environment, [[external, 4], [local, 4]])
+            return { exp: 7, anchors: [8] }
+        })
+        assertStructurallySame(lowerBlock(block, [[external, 4]], transfer), { exp: 7, anchors: [8] })
+        assertStructurallySame(lowerValue(['block', block], [[external, 4]], transfer), { exp: 7, anchors: [8] })
+        const capture = id(2)
+        assertStructurallySame(lowerValue(['function', {
+            target, parameters: [], rest: null, self: null,
+            captures: [{ binding: capture, value: ['block', result(ref(external))] }],
+            body: result(ref(capture)),
+        }], [[external, 4]], transfer), { exp: ['=>', 0, [], 4], anchors: [] })
+    },
     bindingIdentityAndOrder: () => {
         const first = id(0), second = id(0), local = id(0)
         const a = /** @type {Exp} */ (['[]', [1]])
@@ -76,6 +120,19 @@ export const proof = {
             assert(exit[0] === 'yield')
             return lowerValue(exit[1][0], entries)
         }).exp, a)
+        const shadow = result(ref(first), [['define', first, ['array', [4]], 'lazy']])
+        const scoped = /** @type {readonly ['[]', readonly Exp[]]} */ (fromFast(result(['array', [ref(first), ['block', shadow], ref(first)]]), environment))
+        assertEq(scoped[1][0], a)
+        assertStructurallySame(scoped[1][1], ['[]', [4]])
+        assertEq(scoped[1][2], a)
+        const normal = result(ref(first), shadow.statements)
+        assertStructurallySame(lowerBlock(normal, environment, (exit, entries) => {
+            assert(exit[0] === 'yield')
+            assertStructurallySame(entries, [...environment, [first, ['[]', [4]], 'lazy']])
+            assertEq(entries[0][1], a)
+            assertEq(entries[2][1], ignored)
+            return { exp: 5, anchors: [] }
+        }), { exp: 5, anchors: [] })
     },
     lexicalBindingScopes: () => {
         const outer = id(0), inner = id(0), parameter = id(0), capture = id(0)
@@ -143,7 +200,7 @@ export const proof = {
         const definitions = /** @type {readonly Statement[]} */ ([['define', a, init, 'lazy']])
         assertEq(fromFast(result(2, definitions)), 2)
         assertStructurallySame(fromFast(result(['?:', false, ref(a), 0], definitions)), ['?:', false, [',', [['.', null, 'x'], 3]], 0])
-        assertStructurallySame(fromFast(result(['&&', false, init])), ['&&', false, [',', [['.', null, 'x'], 3]]])
+        assertStructurallySame(fromFast(result(['if', false, result(init), result(false)])), ['?:', false, [',', [['.', null, 'x'], 3]], false])
         // Equal values in eager and lazy positions are separate occurrences.
         assertStructurallySame(fromFast(result(['?:', init, init, init])), [',', [['.', null, 'x'], ['?:', 3, [',', [['.', null, 'x'], 3]], [',', [['.', null, 'x'], 3]]]]])
     },
@@ -282,6 +339,10 @@ export const proof = {
             const alias = id(1)
             const loop = counting(0, ref(alias))
             fromFast(result(ref(loop.results[0]), [['define', limit, ['.', null, 'x'], 'lazy'], ['define', alias, ref(limit), 'lazy'], ['loop', loop]]))
+        },
+        unboundLoopCapture: () => {
+            const loop = counting(0, ref(id(0)))
+            fromFast(afterLoop(loop, ref(loop.results[0])))
         },
     },
 }

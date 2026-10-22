@@ -43,7 +43,7 @@ export const proof = {
             'Some("function isNaN() { [native code] }")',
             'Some("function isInteger() { [native code] }")',
             'A::static_function(|_self, _args| Any::entries(_args.argument(0)), 1, Array::default(), Some("function entries() { [native code] }")).to_any()',
-            'Some("($0)=>$0===0&&1/$0<0")',
+            'Some("($0)=>{const $1=$0===0;return $1?1/$0<0:$1;}")',
             'string_any("slice")).end_call_native(|| Ok([_args.argument(1), _args.argument(2)].to_array().to_any()))',
             'string_any("charCodeAt")).end_call_native(|| Ok([_args.argument(1)].to_array().to_any()))',
             '(string_key("Object.is"), ',

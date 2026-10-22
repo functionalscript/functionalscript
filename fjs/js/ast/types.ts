@@ -8,6 +8,12 @@
 import type { BinaryTag, UnaryTag } from '../../compiler/ast/types.ts'
 import type { ConstructorId, IntrinsicId, StaticId } from '../../edag/types.ts'
 import type { Primitive } from '../../media/datajs/types.ts'
+import type { Assert } from '../../asserts/types.ts'
+import type { Equal } from '../../types/ts/types.ts'
+
+/** Logical and nullish syntax is expanded before normalized FAST. */
+export type CoreBinaryTag = Exclude<BinaryTag, '&&' | '||' | '??'>
+type _CoreExcludesLogical = Assert<Equal<Extract<CoreBinaryTag, '&&' | '||' | '??'>, never>>
 
 /** Identity is object identity; the index only supplies deterministic presentation. */
 export type BindingId = { readonly index: number }
@@ -28,7 +34,7 @@ export type Step<V> =
 /**
  * Existing value operations, parameterized by their operands. Lazy operands
  * stay values in their original region; a block value makes their steps explicit.
- * Logical operations remain only during the baseline migration (epic D removes them).
+ * Logical source syntax is absent: conditionals express every core choice.
  */
 export type Operator<V> =
     | _Unary<V> | _Binary<V> | _InstanceOf<V> | _Array<V> | _Object<V>
@@ -38,7 +44,7 @@ export type Operator<V> =
 // Tuple interfaces defer recursive operand resolution. The concrete Value union
 // names them directly because TypeScript rejects recursive generic union aliases.
 export interface _Unary<V> extends Readonly<[UnaryTag | '+', V]> {}
-export interface _Binary<V> extends Readonly<[BinaryTag, V, V]> {}
+export interface _Binary<V> extends Readonly<[CoreBinaryTag, V, V]> {}
 export interface _InstanceOf<V> extends Readonly<['instanceof', V, ConstructorId]> {}
 export interface _Array<V> extends Readonly<['array', readonly Item<V>[]]> {}
 export interface _Object<V> extends Readonly<['object', readonly Entry<V>[]]> {}

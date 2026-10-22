@@ -18,6 +18,9 @@ const id = index => ({ index })
 /** @type {(value: Value) => Block} */
 const yielding = value => ({ statements: [], exit: ['yield', [value]] })
 
+/** Prepared choice fixtures; source logical lowering is tested in sugar. @type {(condition: Value, then: Value, otherwise: Value) => Value} */
+const choice = (condition, then, otherwise) => ['if', condition, yielding(then), yielding(otherwise)]
+
 /** @type {(block: Block, runtime?: boolean) => any} */
 const runBlock = (block, runtime = true) => Function(`"use strict";return (${stringify(block, 'expression', runtime)});`)()
 
@@ -29,6 +32,9 @@ const compile = (fn, external = []) => Function(...external.map((_, index) => `$
 
 export const proof = {
     expressions: () => {
+        const andValue = choice(true, 1, true)
+        const nullishValue = choice(choice(['===', undefined, null], true, ['===', undefined, undefined]), 2, undefined)
+        const blocked = /** @type {Value} */ (['block', yielding(andValue)])
         /** @type {readonly (readonly [Value, unknown])[]} */
         const cases = [
             [undefined, undefined], [NaN, NaN], [-0, -0], [4n, 4n],
@@ -40,9 +46,9 @@ export const proof = {
             [['**', ['block', yielding(['block', yielding(-2)])], 2], 4],
             [['~', 1], -2], [['!', 1], false], [['typeof', 2], 'number'],
             [['Number', '2'], 2], [['String', 2], '2'],
-            [['||', false, 2], 2], [['&&', true, 2], 2], [['??', undefined, 2], 2],
-            [['??', ['&&', true, 1], 2], 1], [['&&', true, ['??', undefined, 2]], 2],
-            [['??', ['block', yielding(['&&', true, 1])], 2], 1],
+            [choice(false, false, 2), 2], [choice(true, 2, true), 2], [nullishValue, 2],
+            [choice(choice(['===', andValue, null], true, ['===', andValue, undefined]), 2, andValue), 1], [choice(true, nullishValue, true), 2],
+            [choice(choice(['===', blocked, null], true, ['===', blocked, undefined]), 2, blocked), 1],
             [['|', 1, 2], 3], [['^', 1, 3], 2], [['&', 3, 1], 1],
             [['===', 1, 2], false], [['!==', 1, 2], true],
             [['<', 1, 2], true], [['<=', 1, 1], true], [['>', 2, 1], true], [['>=', 2, 2], true],

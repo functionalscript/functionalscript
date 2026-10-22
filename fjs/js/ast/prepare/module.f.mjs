@@ -258,7 +258,6 @@ const prepareValue = (value, context) => call(() => {
         }
         case '?:': { return prepareValue(['if', value[1], { statements: [], exit: ['yield', [value[2]]] }, { statements: [], exit: ['yield', [value[3]]] }], context) }
         default: {
-            if ((value[0] === '&&' || value[0] === '||' || value[0] === '??') && nonlocalValue(value[2], context)) { return logical(value[0], value[1], value[2], context) }
             const input = operatorOperands(value)
             if ((value[0] === '?.' || value[0] === '?.()' || (value[0] === '.' && value.length === 4))
                 && input.slice(1).some(child => nonlocalValue(child, context))) {
@@ -268,26 +267,6 @@ const prepareValue = (value, context) => call(() => {
         }
     }
 })
-
-/** @type {(tag: '&&' | '||' | '??', a: NormalValue, b: NormalValue, context: _Context) => _Task<_Value>} */
-const logical = (tag, a, b, context) => call(() => bind(prepareValue(a, context), left => {
-    const [operand, result] = fresh(left.next, 2)
-    return bind(prepareValue(b, { ...context, next: left.next + 2 }), right => {
-        /** @type {Value} */
-        const read = ['ref', operand]
-        /** @type {Value} */
-        const condition = tag === '??' ? ['?:', ['===', read, null], true, ['===', read, undefined]] : read
-        /** @type {Block} */
-        const selected = withSlots({ statements: [...right.statements, ['write', result, right.value]], exit: ['yield', []] })
-        /** @type {Block} */
-        const unchanged = { statements: [['write', result, read]], exit: ['yield', []] }
-        return done({
-            value: ['ref', result],
-            statements: [...left.statements, ['define', operand, left.value], ['slot', result, undefined, false], ['if', condition, tag === '||' ? unchanged : selected, tag === '||' ? selected : unchanged]],
-            next: right.next,
-        })
-    })
-}))
 
 /**
  * Establish every transfer value before writing the first destination slot.

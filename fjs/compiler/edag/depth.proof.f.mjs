@@ -7,6 +7,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.js'
+import { logicalValue } from '../../js/ast/sugar/logical/module.f.js'
 import { compile, expectEdag, lowered } from './proof.f.mjs'
 
 /**
@@ -31,8 +32,8 @@ const expectPlusChain = depth => exp => {
 }
 
 /**
- * Confirms `exp` is a left-associative `&&` chain `depth` terms deep,
- * bottoming out at `1` — `((1 && 1) && 1) && …` — walked iteratively as
+ * Confirms the conditional graph of a left-associative source `&&` chain,
+ * with each result reusing its condition and bottoming out at `1`. Walked as
  * {@link expectPlusChain} is, for the same reason.
  * @type {(depth: number) => (exp: Exp) => void}
  */
@@ -40,7 +41,7 @@ const expectAndChain = depth => exp => {
     let node = exp
     let remaining = depth
     while (remaining > 0) {
-        assert(Array.isArray(node) && node[0] === '&&' && node[2] === 1, node)
+        assert(Array.isArray(node) && node[0] === '?:' && node[2] === 1 && node[3] === node[1], node)
         node = node[1]
         remaining = remaining - 1
     }
@@ -94,7 +95,7 @@ export const proof = {
         // here rather than parsed, `lowered`'s own comment has why
         /** @type {FastValue} */
         let and = 1
-        for (let i = 0; i < 20_000; i++) { and = ['&&', and, 1] }
+        for (let i = 0; i < 20_000; i++) { and = logicalValue('&&', and, 1) }
         expectAndChain(20_000)(lowered(and))
         /** @type {FastValue} */
         let otherwise = 3

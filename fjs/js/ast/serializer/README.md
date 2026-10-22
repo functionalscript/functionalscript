@@ -2,6 +2,9 @@
 
 This serializer consumes the prepared model in [`prepare`](../prepare/README.md).
 It chooses JavaScript grouping, lexical names, helper syntax and token marks.
+Source logical operators have already become single-evaluation conditional
+regions. The prepared serializer emits their conditional spelling; it contains
+no logical/nullish tag handling or source-operator recovery.
 EDAG reachability, shared-value ownership, lazy memo lifetimes, loop slots and
 simultaneous transfers have already been decided by the common passes.
 

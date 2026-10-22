@@ -6,7 +6,11 @@ value output, code-only function text and Rust output use this same conversion.
 Serializers receive prepared instructions and allocate lexical names; they do
 not inspect EDAG reachability, choose value owners or reconstruct recursion.
 `fromAnalysis` accepts a trusted table, including explicit fragment bindings;
-`toFast` is the checked graph boundary.
+`toFast` is the checked graph boundary. Canonical graphs contain conditionals
+rather than logical/nullish tags. Source `&&`, `||` and `??` are lowered by
+AST-to-FAST sugar before graph construction; old tagged graphs are rejected at
+checked admission. Output conversion does not carry a compatibility rewrite or
+a second logical-lowering algorithm.
 
 Graph conversion assumes the canonical `Exp` shapes. `checked` admits invocation
 bindings and scopes; it does not replace the EDAG shape schema. In particular,

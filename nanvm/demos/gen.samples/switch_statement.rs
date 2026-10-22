@@ -10,6 +10,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b768: Any<A> = _args.rest(0).to_any();
         let _b5: Any<A> = (Any::dot(A::frame(_self)[0].clone(), (Any::number((Any::dot(_b768.clone(), f64_any(0x0000000000000000)).end())?))?).end())?;
-        if Any::<A>::to_boolean((Any::logical_or((strict_eq(_b5.clone(), string_any("array")))?, || strict_eq(_b5.clone(), string_any("object"))))?) { Ok(string_any("container")) } else { if Any::<A>::to_boolean((strict_eq(_b5.clone(), string_any("string")))?) { Ok(string_any("text")) } else { Err([string_any("unknown"), (Any::dot(_b768.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()) } }
-    }, 0, [_b0.clone()].to_array(), Some("(...$1)=>{const $2=$0[Number($1[0])];return $2===\"array\"||$2===\"object\"?\"container\":$2===\"string\"?\"text\":(()=>{throw [\"unknown\",$1[0]];})();}")).to_any())].to_object().to_any())
+        let _b6: Any<A> = (strict_eq(_b5.clone(), string_any("array")))?;
+        if Any::<A>::to_boolean(if Any::<A>::to_boolean(_b6.clone()) { _b6.clone() } else { (strict_eq(_b5.clone(), string_any("object")))? }) { Ok(string_any("container")) } else { if Any::<A>::to_boolean((strict_eq(_b5.clone(), string_any("string")))?) { Ok(string_any("text")) } else { Err([string_any("unknown"), (Any::dot(_b768.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()) } }
+    }, 0, [_b0.clone()].to_array(), Some("(...$1)=>{const $2=$0[Number($1[0])];const $3=$2===\"array\";return ($3?$3:$2===\"object\")?\"container\":$2===\"string\"?\"text\":(()=>{throw [\"unknown\",$1[0]];})();}")).to_any())].to_object().to_any())
 }

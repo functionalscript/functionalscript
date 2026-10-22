@@ -12,7 +12,7 @@
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
-import { truthy, typeOf } from '../semantics/module.f.mjs'
+import { truthy } from '../semantics/module.f.mjs'
 
 /**
  * Comma/sequence evaluation: earlier operands run even though their values
@@ -35,27 +35,6 @@ export const sequence = operands => {
 export const throwValue = result => {
     const [kind, value] = result
     return kind === 'error' ? result : error(value)
-}
-
-/** `&&`: evaluates the right operand only for a truthy left value. @type {(result: ValueResult, right: ValueThunk) => ValueResult} */
-export const and = (result, right) => {
-    const [kind, value] = result
-    if (kind === 'error') { return result }
-    return truthy(value) ? right() : result
-}
-
-/** `||`: evaluates the right operand only for a falsy left value. @type {(result: ValueResult, right: ValueThunk) => ValueResult} */
-export const or = (result, right) => {
-    const [kind, value] = result
-    if (kind === 'error') { return result }
-    return truthy(value) ? result : right()
-}
-
-/** `??`: evaluates the right operand only for null or tagged undefined. @type {(result: ValueResult, right: ValueThunk) => ValueResult} */
-export const coalesce = (result, right) => {
-    const [kind, value] = result
-    if (kind === 'error') { return result }
-    return value === null || typeOf(value) === 'undefined' ? right() : result
 }
 
 /** `?:`: evaluates exactly the branch selected by a successful condition. @type {(result: ValueResult, consequent: ValueThunk, alternate: ValueThunk) => ValueResult} */

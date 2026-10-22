@@ -17,6 +17,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
+import { conditional } from '../../edag/testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
@@ -168,11 +169,11 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */([',', [x]])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, [], copy(x)]]])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, [x], ['frame', 0]]]])),
-    ...p.map(x => /** @type {Exp} */(['&&', x, x])),
-    ...p.map(x => /** @type {Exp} */(['??', ['[]', []], x])),
+    ...p.map(x => /** @type {Exp} */(conditional('&&', x, x))),
+    ...p.map(x => /** @type {Exp} */(conditional('??', ['[]', []], x))),
     ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x, x]], 2])),
     ...p.map(x => /** @type {Exp} */(['?:', x, ['-', ['[]', [x]]], x])),
-    ...p.map(x => /** @type {Exp} */(['||', 1, [',', [x, 2]]])),
+    ...p.map(x => /** @type {Exp} */(conditional('||', 1, [',', [x, 2]]))),
     ...p.map(x => /** @type {Exp} */(['?:', true, ['.', x, 'k'], ['.', x, 'k']])),
     ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x]], ['[]', [x]]])),
     ...p.map(x => /** @type {Exp} */(['-', x, x])),
@@ -499,7 +500,7 @@ export const proof = {
         writes(['===', ['entry'], ['entry']], `export default (${text})===(${second});`)
         writes(['**', ['entry'], 2], `export default (${text})**2;`)
         writes(['**', 2, ['entry']], `export default 2**(${text});`)
-        writes(['&&', 1, ['entry']], `export default 1&&(${text});`)
+        writes(conditional('&&', 1, ['entry']), `export default 1?${text}:1;`)
         writes(['?:', ['entry'], 1, 2], `export default (${text})?1:2;`)
         writes(['?:', 1, ['entry'], 2], `export default 1?${text}:2;`)
         writes(['()', ['=>', 0, [], 1], [['entry']]], `const $0=()=>1;export default $0(${named});`)
@@ -762,7 +763,7 @@ export const proof = {
         writes(['?:', true, ['[]', [m, m]], 2], 'export default true?(()=>{const $0=(1).m();return [$0,$0];})():2;')
         /** @type {Exp} */
         const n = ['()', 1, []]
-        writes(['&&', ['[]', []], ['[]', [n, n]]], 'export default []&&(()=>{const $0=1();return [$0,$0];})();')
+        writes(conditional('&&', ['[]', []], ['[]', [n, n]]), 'const $0=[];export default $0?(()=>{const $1=1();return [$1,$1];})():$0;')
         // a spread argument, `...` before its operand
         writes(f(['()', a, [['...', a]]]), 'export default (...$0)=>$0(...$0);')
         writes(f(['.', a, 'm', ['|()', [1, ['...', a]]]]), 'export default (...$0)=>$0.m(1,...$0);')
@@ -866,8 +867,8 @@ export const proof = {
                 [['=>', 0, [], ['=>', 0, [['.', null, 'x']], 1]],
                 '()=>{const $0=null.x;return ()=>1;}'],
                 // The shared nested function lives in a lazy operand's block.
-                [['=>', 0, [1, 2], ['&&', true, ['[]', [inner, inner]]]],
-                '()=>true&&(()=>{const $2=($3)=>[$1,$3];return [$2,$2];})()'],
+                [['=>', 0, [1, 2], conditional('&&', true, ['[]', [inner, inner]])],
+                '()=>true?(()=>{const $2=($3)=>[$1,$3];return [$2,$2];})():true'],
                 // A parent's reversed reads keep positional external slots;
                 // its nested function may leave a capture unused.
                 [['=>', 0, [1, 2], ['[]', [['frame', 1], ['frame', 0], inner]]],
@@ -1260,8 +1261,8 @@ export const proof = {
         const one = /** @type {const} */ (['[]', [1]])
         writes(['=>', 1, [], ['()', loop([], ['===', one, one], call(['+', ['arg', 0], 1])), [0]]],
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;const $5=[1];return $5===$5;})()){const $6=$3;const $7=$6+1;$3=$7;}return $3;};return $1(0);};')
-        writes(['=>', 1, [], ['()', loop([], ['&&', ['<', ['arg', 0], 3], ['===', one, one]], call(['+', ['arg', 0], 1])), [0]]],
-            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3&&(()=>{const $5=[1];return $5===$5;})();})()){const $6=$3;const $7=$6+1;$3=$7;}return $3;};return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], conditional('&&', ['<', ['arg', 0], 3], ['===', one, one]), call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;const $5=$4<3;return $5?(()=>{const $6=[1];return $6===$6;})():$5;})()){const $7=$3;const $8=$7+1;$3=$8;}return $3;};return $1(0);};')
         const over = /** @type {const} */ (['[]', [['arg', 0]]])
         // a block reading the variable is a function called where it is
         // written, which the language admits in a loop: the condition's
@@ -1270,14 +1271,14 @@ export const proof = {
         // written in place
         writes(['=>', 1, [], ['()', loop([], ['<', ['.', over, 0], ['.', over, 'length']], call(['+', ['arg', 0], 1])), [0]]],
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;const $5=[$4];return $5[0]<$5.length;})()){const $6=$3;const $7=$6+1;$3=$7;}return $3;};return $1(0);};')
-        writes(['=>', 1, [], ['()', loop([], ['&&', ['<', ['arg', 0], 3], ['===', ['.', over, 0], ['.', over, 0]]], call(['+', ['arg', 0], 1])), [0]]],
-            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3&&(()=>{const $5=[$4];return $5[0]===$5[0];})();})()){const $6=$3;const $7=$6+1;$3=$7;}return $3;};return $1(0);};')
-        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['&&', true, ['+', ['.', over, 0], ['.', over, 0]]])), [0]]],
-            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true&&(()=>{const $7=[$5];return $7[0]+$7[0];})();$3=$6;}return $3;};return $1(0);};')
-        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['&&', true, ['.', over, 0]])), [0]]],
-            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true&&[$5][0];$3=$6;}return $3;};return $1(0);};')
-        writes(['=>', 1, [], ['()', loop([], ['&&', one, ['===', one, one]], call(['+', ['arg', 0], 1])), [0]]],
-            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;const $5=[1];return $5&&$5===$5;})()){const $6=$3;const $7=$6+1;$3=$7;}return $3;};return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], conditional('&&', ['<', ['arg', 0], 3], ['===', ['.', over, 0], ['.', over, 0]]), call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;const $5=$4<3;return $5?(()=>{const $6=[$4];return $6[0]===$6[0];})():$5;})()){const $7=$3;const $8=$7+1;$3=$8;}return $3;};return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(conditional('&&', true, ['+', ['.', over, 0], ['.', over, 0]]))), [0]]],
+            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true?(()=>{const $7=[$5];return $7[0]+$7[0];})():true;$3=$6;}return $3;};return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(conditional('&&', true, ['.', over, 0]))), [0]]],
+            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true?[$5][0]:true;$3=$6;}return $3;};return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], conditional('&&', one, ['===', one, one]), call(['+', ['arg', 0], 1])), [0]]],
+            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;const $5=[1];return $5?$5===$5:$5;})()){const $6=$3;const $7=$6+1;$3=$7;}return $3;};return $1(0);};')
         // a loop called in another loop's block — as an assert, or as the
         // next value — keeps the recursion there, since the block holds
         // `const`s and assignments alone; called in a lazy operand's block,
@@ -1288,8 +1289,8 @@ export const proof = {
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=($7)=>{let $8=$7;while((()=>{const $9=$8;return $9<2;})()){const $10=$8;const $11=$10+1;$8=$11;}return $8;};const $12=$6(0);const $13=$5+1;$3=$13;}return $3;};return $1(0);};')
         writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(countTo(2))), [0]]],
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=($7)=>{let $8=$7;while((()=>{const $9=$8;return $9<2;})()){const $10=$8;const $11=$10+1;$8=$11;}return $8;};const $12=$6(0);$3=$12;}return $3;};return $1(0);};')
-        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(['&&', true, ['()', loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1])), [['[]', [1]]]]])), [0]]],
-            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true&&(()=>{const $7=($8)=>{let $9=$8;while((()=>{const $10=$9;return $10<2;})()){const $11=$9;const $12=$11+1;$9=$12;}return $9;};return $7([1]);})();$3=$6;}return $3;};return $1(0);};')
+        writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], call(conditional('&&', true, ['()', loop([], ['<', ['arg', 0], 2], call(['+', ['arg', 0], 1])), [['[]', [1]]]]))), [0]]],
+            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true?(()=>{const $7=($8)=>{let $9=$8;while((()=>{const $10=$9;return $10<2;})()){const $11=$9;const $12=$11+1;$9=$12;}return $9;};return $7([1]);})():true;$3=$6;}return $3;};return $1(0);};')
         // a frame slot no name stands for is refused as it is anywhere
         refuses(['=>', 1, [], ['()', loop([1], true, call(0)), [0]]], 'a frame slot holding a primitive')
         // a value the condition shares with the block that the block would
@@ -1367,11 +1368,11 @@ export const proof = {
         writes(['^', 1, ['|', 2, 3]], 'export default 1^(2|3);')
         // under the lazy operators and the conditional, which bind looser
         // than them all
-        writes(fn(['&&', ['+', r0, 1], r1]), 'export default (...$0)=>$0[0]+1&&$0[1];')
-        writes(fn(['+', ['&&', r0, r1], 1]), 'export default (...$0)=>($0[0]&&$0[1])+1;')
+        writes(fn(conditional('&&', ['+', r0, 1], r1)), 'export default (...$0)=>{const $1=$0[0]+1;return $1?$0[1]:$1;};')
+        writes(fn(['+', conditional('&&', r0, r1), 1]), 'export default (...$0)=>{const $1=$0[0];return ($1?$0[1]:$1)+1;};')
         writes(fn(['+', r0, ['?:', r1, 1, 2]]), 'export default (...$0)=>$0[0]+($0[1]?1:2);')
         writes(fn(['?:', ['+', r0, 1], 1, 2]), 'export default (...$0)=>$0[0]+1?1:2;')
-        writes(fn(['|', r0, ['??', r1, 1]]), 'export default (...$0)=>$0[0]|($0[1]??1);')
+        writes(fn(['|', r0, conditional('??', r1, 1)]), 'export default (...$0)=>{const $1=$0[1];return $0[0]|(($1===null?true:$1===undefined)?1:$1);};')
         // the prefixes bind tighter than every binary operator, so an
         // operator's text is grouped under one and a prefix stands bare
         // under anything, another prefix included
@@ -1492,8 +1493,8 @@ export const proof = {
         // in a body, the same
         writes(fn(['[]', [sum, sum]]), 'export default ()=>{const $0=[]+1;return [$0,$0];};')
     },
-    // The lazy operators and the conditional. Each operand of `&&`, `||`
-    // and `??` after the first, and each arm of `?:`, is a block root: a
+    // Canonical conditional forms of source &&, || and ??. Each selected
+    // arm is a block root: a
     // value shared under it alone is hoisted in a block of its own, an
     // IIFE, which is the call the front end inlines, and so is a comma
     // there — its anchors the block's unreferenced `const`s. A value the
@@ -1510,36 +1511,35 @@ export const proof = {
             const r1 = ['.', ['rest'], 1]
             /** @type {Exp} */
             const r2 = ['.', ['rest'], 2]
-            writes(fn(['&&', r0, r1]), 'export default (...$0)=>$0[0]&&$0[1];')
-            writes(fn(['||', r0, r1]), 'export default (...$0)=>$0[0]||$0[1];')
-            writes(fn(['??', r0, r1]), 'export default (...$0)=>$0[0]??$0[1];')
+            writes(fn(conditional('&&', r0, r1)), 'export default (...$0)=>{const $1=$0[0];return $1?$0[1]:$1;};')
+            writes(fn(conditional('||', r0, r1)), 'export default (...$0)=>{const $1=$0[0];return $1?$1:$0[1];};')
+            writes(fn(conditional('??', r0, r1)), 'export default (...$0)=>{const $1=$0[0];return ($1===null?true:$1===undefined)?$0[1]:$1;};')
             writes(fn(['?:', r0, r1, r2]), 'export default (...$0)=>$0[0]?$0[1]:$0[2];')
-            // precedence: a left operand as loose as the operator stands
-            // bare, a right one that loose takes parentheses, since bare it
-            // would read as the left operand's; `??` never mixes bare with
-            // `&&` or `||`; a conditional is looser than them all, and its
-            // arms take anything bare, a conditional and a function included
-            writes(fn(['&&', ['&&', r0, r1], r2]), 'export default (...$0)=>$0[0]&&$0[1]&&$0[2];')
-            writes(fn(['&&', r0, ['&&', r1, r2]]), 'export default (...$0)=>$0[0]&&($0[1]&&$0[2]);')
-            writes(fn(['||', ['&&', r0, r1], r2]), 'export default (...$0)=>$0[0]&&$0[1]||$0[2];')
-            writes(fn(['&&', ['||', r0, r1], r2]), 'export default (...$0)=>($0[0]||$0[1])&&$0[2];')
-            writes(fn(['??', r0, ['||', r1, r2]]), 'export default (...$0)=>$0[0]??($0[1]||$0[2]);')
-            writes(fn(['||', ['??', r0, r1], r2]), 'export default (...$0)=>($0[0]??$0[1])||$0[2];')
+            // Nesting retains the source operators' operand-selection order.
+            // Canonical output uses conditional precedence; source mixing
+            // restrictions remain parser tests. Conditional arms accept both
+            // nested choices and function values.
+            writes(fn(conditional('&&', conditional('&&', r0, r1), r2)), 'export default (...$0)=>{const $1=$0[0];const $2=$1?$0[1]:$1;return $2?$0[2]:$2;};')
+            writes(fn(conditional('&&', r0, conditional('&&', r1, r2))), 'export default (...$0)=>{const $1=$0[0];return $1?(()=>{const $2=$0[1];return $2?$0[2]:$2;})():$1;};')
+            writes(fn(conditional('||', conditional('&&', r0, r1), r2)), 'export default (...$0)=>{const $1=$0[0];const $2=$1?$0[1]:$1;return $2?$2:$0[2];};')
+            writes(fn(conditional('&&', conditional('||', r0, r1), r2)), 'export default (...$0)=>{const $1=$0[0];const $2=$1?$1:$0[1];return $2?$0[2]:$2;};')
+            writes(fn(conditional('??', r0, conditional('||', r1, r2))), 'export default (...$0)=>{const $1=$0[0];return ($1===null?true:$1===undefined)?(()=>{const $2=$0[1];return $2?$2:$0[2];})():$1;};')
+            writes(fn(conditional('||', conditional('??', r0, r1), r2)), 'export default (...$0)=>{const $1=$0[0];const $2=($1===null?true:$1===undefined)?$0[1]:$1;return $2?$2:$0[2];};')
             writes(fn(['?:', ['?:', r0, 1, 2], 3, 4]), 'export default (...$0)=>($0[0]?1:2)?3:4;')
             writes(fn(['?:', r0, ['?:', r1, 1, 2], 3]), 'export default (...$0)=>$0[0]?$0[1]?1:2:3;')
             writes(fn(['?:', r0, 1, ['?:', r1, 2, 3]]), 'export default (...$0)=>$0[0]?1:$0[1]?2:3;')
-            writes(fn(['&&', ['?:', r0, 1, 2], r1]), 'export default (...$0)=>($0[0]?1:2)&&$0[1];')
-            writes(fn(['?:', r0, 1, ['&&', r1, r2]]), 'export default (...$0)=>$0[0]?1:$0[1]&&$0[2];')
+            writes(fn(conditional('&&', ['?:', r0, 1, 2], r1)), 'export default (...$0)=>{const $1=$0[0]?1:2;return $1?$0[1]:$1;};')
+            writes(fn(['?:', r0, 1, conditional('&&', r1, r2)]), 'export default (...$0)=>$0[0]?1:(()=>{const $1=$0[1];return $1?$0[2]:$1;})();')
             // a function is no operand bare, an arm excepted
-            writes(fn(['&&', r0, ['=>', 0, [], 1]]), 'export default (...$0)=>$0[0]&&(()=>1);')
-            writes(fn(['&&', ['=>', 0, [], 1], r0]), 'export default (...$0)=>(()=>1)&&$0[0];')
+            writes(fn(conditional('&&', r0, ['=>', 0, [], 1])), 'export default (...$0)=>{const $1=$0[0];return $1?()=>1:$1;};')
+            writes(fn(conditional('&&', ['=>', 0, [], 1], r0)), 'export default (...$0)=>{const $1=()=>1;return $1?$0[0]:$1;};')
             writes(fn(['?:', ['=>', 0, [], 1], 1, 2]), 'export default ()=>(()=>1)?1:2;')
             writes(fn(['?:', r0, ['=>', 0, [], 1], 2]), 'export default (...$0)=>$0[0]?()=>1:2;')
             writes(fn(['?:', r0, 1, ['=>', 0, [], 1]]), 'export default (...$0)=>$0[0]?1:()=>1;')
             // an operator binds looser than a step and than the prefix
-            writes(fn(['.', ['&&', r0, r1], 'x']), 'export default (...$0)=>($0[0]&&$0[1]).x;')
-            writes(fn(['-', ['&&', r0, r1]]), 'export default (...$0)=>-($0[0]&&$0[1]);')
-            writes(fn(['&&', ['-', r0], r1]), 'export default (...$0)=>-$0[0]&&$0[1];')
+            writes(fn(['.', conditional('&&', r0, r1), 'x']), 'export default (...$0)=>{const $1=$0[0];return ($1?$0[1]:$1).x;};')
+            writes(fn(['-', conditional('&&', r0, r1)]), 'export default (...$0)=>{const $1=$0[0];return -($1?$0[1]:$1);};')
+            writes(fn(conditional('&&', ['-', r0], r1)), 'export default (...$0)=>{const $1=-$0[0];return $1?$0[1]:$1;};')
             // a body whose text opens with `{` is a block, whatever follows
             writes(fn(['?:', ['.', ['{}', []], 'x'], 1, 2]), 'export default ()=>{return {}.x?1:2;};')
             writes(fn(['?:', r0, ['.', ['{}', []], 'x'], 2]), 'export default (...$0)=>$0[0]?{}.x:2;')
@@ -1560,8 +1560,8 @@ export const proof = {
             writes(['?:', true, ['[]', [c, c]], 4], 'export default true?(()=>{const $0=[1];return [$0,$0];})():4;')
             // a comma under a lazy operand is a block too, its anchors the
             // block's own `const`s, unreferenced
-            writes(fn(['&&', r0, [',', [['.', null, 'x'], 1]]]), 'export default (...$0)=>$0[0]&&(()=>{const $1=null.x;return 1;})();')
-            writes(fn(['&&', r0, [',', [['.', null, 'x'], ['[]', [c, c]]]]]), 'export default (...$0)=>$0[0]&&(()=>{const $1=null.x;const $2=[1];return [$2,$2];})();')
+            writes(fn(conditional('&&', r0, [',', [['.', null, 'x'], 1]])), 'export default (...$0)=>{const $1=$0[0];return $1?(()=>{const $2=null.x;return 1;})():$1;};')
+            writes(fn(conditional('&&', r0, [',', [['.', null, 'x'], ['[]', [c, c]]]])), 'export default (...$0)=>{const $1=$0[0];return $1?(()=>{const $2=null.x;const $3=[1];return [$3,$3];})():$1;};')
             // the block reads the names around it: the function's
             // arguments and parameters, and the scopes' `const`s
             writes(fn(['?:', r0, ['[]', [c, c, ['rest']]], 1]), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];return [$1,$1,$0];})():1;')
@@ -1573,16 +1573,16 @@ export const proof = {
             // blocks nest as lazy operands do
             /** @type {Exp} */
             const d = ['[]', [2]]
-            writes(fn(['?:', r0, ['[]', [c, c, ['&&', r1, ['[]', [d, d]]]]], 4]), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];return [$1,$1,$0[1]&&(()=>{const $2=[2];return [$2,$2];})()];})():4;')
+            writes(fn(['?:', r0, ['[]', [c, c, conditional('&&', r1, ['[]', [d, d]])]], 4]), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];const $2=$0[1];return [$1,$1,$2?(()=>{const $3=[2];return [$3,$3];})():$2];})():4;')
             // a value the scope reaches eagerly as well — in the same
             // statement, or a later one — is the scope's `const`
             writes(fn(['[]', [c, ['?:', r0, ['[]', [c, c]], 1]]]), 'export default (...$0)=>{const $1=[1];return [$1,$0[0]?[$1,$1]:1];};')
-            writes([',', [['[]', [['&&', 1, c]]], ['[]', [c, 2]]]], 'const $0=[1];const $1=[1&&$0];export default [$0,2];')
+            writes([',', [['[]', [conditional('&&', 1, c)]], ['[]', [c, 2]]]], 'const $0=[1];const $1=[1?$0:1];export default [$0,2];')
             // an anchor that is a value the scope reaches only lazily is
             // its `const` and nothing more: read back, the `const` is
             // anchored for the same reason
-            writes([',', [c, ['[]', [['&&', 1, c], ['&&', 2, c]]]]], 'const $0=[1];export default [1&&$0,2&&$0];')
-            writes([',', [['[]', [2]], c, ['[]', [['&&', 1, ['[]', [c, c]]], ['&&', 2, ['[]', [2]]]]]]], 'const $0=[2];const $1=[1];export default [1&&[$1,$1],2&&[2]];')
+            writes([',', [c, ['[]', [conditional('&&', 1, c), conditional('&&', 2, c)]]]], 'const $0=[1];export default [1?$0:1,2?$0:2];')
+            writes([',', [['[]', [2]], c, ['[]', [conditional('&&', 1, ['[]', [c, c]]), conditional('&&', 2, ['[]', [2]])]]]], 'const $0=[2];const $1=[1];export default [1?[$1,$1]:1,2?[2]:2];')
             // a shared node takes a `const`, whatever it holds: a value
             // minting identity through a lazy edge, which written twice
             // would mint twice, or values alone, which written twice would
@@ -1597,12 +1597,12 @@ export const proof = {
             const n = ['-', ['?:', r0, ['[]', []], 1]]
             writes(fn(['[]', [n, n]]), 'export default (...$0)=>{const $1=-($0[0]?[]:1);return [$1,$1];};')
             /** @type {Exp} */
-            const z = ['??', r0, r1]
-            writes(fn(['[]', [z, z]]), 'export default (...$0)=>{const $1=$0[0]??$0[1];return [$1,$1];};')
+            const z = conditional('??', r0, r1)
+            writes(fn(['[]', [z, z]]), 'export default (...$0)=>{const $1=$0[0];const $2=($1===null?true:$1===undefined)?$0[1]:$1;return [$2,$2];};')
             // and two equal nodes are two, each written where it stands
             /** @type {() => Exp} */
-            const twin = () => ['??', ['.', ['rest'], 0], ['.', ['rest'], 1]]
-            writes(fn(['[]', [twin(), twin()]]), 'export default (...$0)=>[$0[0]??$0[1],$0[0]??$0[1]];')
+            const twin = () => conditional('??', ['.', ['rest'], 0], ['.', ['rest'], 1])
+            writes(fn(['[]', [twin(), twin()]]), 'export default (...$0)=>{const $1=$0[0];const $2=$0[0];return [($1===null?true:$1===undefined)?$0[1]:$1,($2===null?true:$2===undefined)?$0[1]:$2];};')
             /** @type {Exp} */
             const m = ['?:', r0, c, 1]
             writes(fn([',', [c, ['[]', [m, m]]]]), 'export default (...$0)=>{const $1=[1];const $2=$0[0]?$1:1;return [$2,$2];};')
@@ -1610,22 +1610,22 @@ export const proof = {
             // lazy operands do, or one that is the operand itself, has no
             // text that reads back as one node
             refuses(['?:', true, c, c], 'a shared node reached from outside the lazy operand that establishes it')
-            refuses(['[]', [['&&', 1, c], ['&&', 2, c]]], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['[]', [conditional('&&', 1, c), conditional('&&', 2, c)]], 'a shared node reached from outside the lazy operand that establishes it')
             refuses(['?:', true, ['[]', [c, c]], c], 'a shared node reached from outside the lazy operand that establishes it')
-            refuses(fn(['?:', r0, ['[]', [['&&', 1, c], ['&&', 2, c]]], 1]), 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(fn(['?:', r0, ['[]', [conditional('&&', 1, c), conditional('&&', 2, c)]], 1]), 'a shared node reached from outside the lazy operand that establishes it')
             // and so has an operand two edges reach that holds one: the
             // access is written at each and merges again when read, but
             // the array under it would be built twice
             /** @type {Exp} */
             const length = ['.', c, 'length']
             refuses(['?:', true, length, length], 'a shared node reached from outside the lazy operand that establishes it')
-            refuses(['[]', [['&&', 1, length], ['&&', 2, length]]], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['[]', [conditional('&&', 1, length), conditional('&&', 2, length)]], 'a shared node reached from outside the lazy operand that establishes it')
             // and so has one each of two lazy operands reaches once, held
             // in place — under a container of the operand's own, or under
             // an access two containers hold
-            refuses(['[]', [['&&', 1, ['[]', [c]]], ['&&', 2, ['[]', [c]]]]], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['[]', [conditional('&&', 1, ['[]', [c]]), conditional('&&', 2, ['[]', [c]])]], 'a shared node reached from outside the lazy operand that establishes it')
             refuses(['?:', true, ['[]', [c]], ['[]', [c]]], 'a shared node reached from outside the lazy operand that establishes it')
-            refuses(['[]', [['&&', 1, ['[]', [length]]], ['&&', 2, ['[]', [length]]]]], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['[]', [conditional('&&', 1, ['[]', [length]]), conditional('&&', 2, ['[]', [length]])]], 'a shared node reached from outside the lazy operand that establishes it')
             // where one holding values alone is written at each, and reads
             // back merged
             writes(fn(['?:', r0, r1, r1]), 'export default (...$0)=>$0[0]?$0[1]:$0[1];')
@@ -1645,7 +1645,7 @@ export const proof = {
             const call = ['()', ['rest'], []]
             /** @type {() => Exp} */
             const field = () => ['.', call, 'a']
-            writes(fn(['||', ['===', field(), 1], ['===', field(), 2]]), 'export default (...$0)=>{const $1=$0();return $1.a===1||$1.a===2;};')
+            writes(fn(conditional('||', ['===', field(), 1], ['===', field(), 2])), 'export default (...$0)=>{const $1=$0();const $2=$1.a===1;return $2?$2:$1.a===2;};')
             writes(fn(['[]', [field(), ['?:', r0, field(), 0]]]), 'export default (...$0)=>{const $1=$0();return [$1.a,$0[0]?$1.a:0];};')
             writes(fn([',', [call, ['?:', r0, field(), field()]]]), 'export default (...$0)=>{const $1=$0();return $0[0]?$1.a:$1.a;};')
             // and so is what the value holds under a lazy operand of its
@@ -1658,10 +1658,10 @@ export const proof = {
             writes(fn([',', [choice, ['?:', r2, choiceField, choiceField]]]), 'export default (...$0)=>{const $1=$0[0]?[$0[1]]:0;return $0[2]?$1.a:$1.a;};')
             writes(fn(['[]', [choice, ['?:', r2, choiceField, ['[]', [choiceField]]]]]), 'export default (...$0)=>{const $1=$0[0]?[$0[1]]:0;return [$1,$0[2]?$1.a:[$1.a]];};')
             /** @type {Exp} */
-            const defaulted = ['()', ['rest'], [['??', r0, ['{}', []]]]]
+            const defaulted = ['()', ['rest'], [conditional('??', r0, ['{}', []])]]
             /** @type {Exp} */
             const defaultedField = ['.', defaulted, 'a']
-            writes(fn([',', [defaulted, ['?:', r1, defaultedField, defaultedField]]]), 'export default (...$0)=>{const $1=$0($0[0]??{});return $0[1]?$1.a:$1.a;};')
+            writes(fn([',', [defaulted, ['?:', r1, defaultedField, defaultedField]]]), 'export default (...$0)=>{const $1=$0[0];const $2=$0(($1===null?true:$1===undefined)?{}:$1);return $0[1]?$2.a:$2.a;};')
         },
     },
     // The writer's one law, over graphs nobody chose: a graph is refused,

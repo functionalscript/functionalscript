@@ -74,6 +74,24 @@ spellings and host behavior are pinned by the
 [function-text proofs](../compiler/serializer/function_text/proof.f.mjs) and the
 [prepared JavaScript proofs](../js/ast/serializer/proof.mjs).
 
+## Conditional representation of short-circuit expressions
+
+Source `&&`, `||` and `??` now lower to conditionals before canonical EDAG
+construction. The left operand is established once in its original evaluation
+region, and each selected arm returns the original operand value. Code-only
+text therefore uses conditional syntax; for example, a two-parameter `a && b`
+body has the form `($0,$1)=>$0?$1:$0`. Nullish choice uses strict comparisons
+with `null` and primitive `undefined`, preserving ordinary falsy values and
+source name shadowing.
+
+This is a deliberate graph-schema and function-text migration. Former EDAG
+logical tags are rejected at checked graph boundaries; they are not retained
+as an alternate serializer input. Source syntax remains supported. Newly
+canonical graphs have their own structure and hash, and repeated conversions
+stabilize without restoring logical tags or accumulating wrappers. Captured
+identity, required left-operand work, skipped right-operand failures and exact
+returned values retain their existing semantic contracts.
+
 ## A loop
 
 An eligible scalar function recognized by [`edag/loop`](./loop/module.f.mjs),

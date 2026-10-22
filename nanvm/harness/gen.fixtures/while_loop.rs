@@ -44,7 +44,8 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let mut _b3829: Any<A> = _args.argument(0);
             '_loop44: while Any::<A>::to_boolean({
                 let _b3830: Any<A> = _b3829.clone();
-                (Any::logical_and((Any::lt(_b3830.clone(), A::frame(_self)[0].clone()))?, || Any::ge(_b3830.clone(), f64_any(0x0000000000000000))))?
+                let _b33: Any<A> = (Any::lt(_b3830.clone(), A::frame(_self)[0].clone()))?;
+                if Any::<A>::to_boolean(_b33.clone()) { (Any::ge(_b3830.clone(), f64_any(0x0000000000000000)))? } else { _b33.clone() }
             }) {
                 let _b3676: Any<A> = _b3829.clone();
                 let _b3831: Any<A> = if Any::<A>::to_boolean((strict_eq((_b3676.clone() % f64_any(0x4000000000000000))?, f64_any(0x0000000000000000)))?) { (_b3676.clone() + f64_any(0x3ff0000000000000))? } else { (_b3676.clone() + f64_any(0x4008000000000000))? };
@@ -52,8 +53,8 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             }
             let _b3677: Any<A> = _b3829;
             Ok(_b3677.clone())
-        }, 1, [_args.argument(0)].to_array(), Some("($1)=>{let $2=$1;while((()=>{const $3=$2;return $3<$0&&$3>=0;})()){const $4=$2;const $5=$4%2===0?$4+1:$4+3;$2=$5;}return $2;}")).to_any();
+        }, 1, [_args.argument(0)].to_array(), Some("($1)=>{let $2=$1;while((()=>{const $3=$2;const $4=$3<$0;return $4?$3>=0:$4;})()){const $5=$2;const $6=$5%2===0?$5+1:$5+3;$2=$6;}return $2;}")).to_any();
         Any::call(_b44.clone(), [f64_any(0x0000000000000000)].to_array().to_any())
-    }, 1, Array::default(), Some("($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<$0&&$4>=0;})()){const $5=$3;const $6=$5%2===0?$5+1:$5+3;$3=$6;}return $3;};return $1(0);}")).to_any();
+    }, 1, Array::default(), Some("($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;const $5=$4<$0;return $5?$4>=0:$5;})()){const $6=$3;const $7=$6%2===0?$6+1:$6+3;$3=$7;}return $3;};return $1(0);}")).to_any();
     Ok([(string_key("count"), _b10.clone()), (string_key("default"), [(Any::call(_b10.clone(), [f64_any(0x4059000000000000)].to_array().to_any()))?, (Any::call(_b28.clone(), [f64_any(0x4024000000000000)].to_array().to_any()))?, (Any::call(_b46.clone(), [f64_any(0x4024000000000000)].to_array().to_any()))?].to_array().to_any()), (string_key("lazy"), _b46.clone()), (string_key("sums"), _b28.clone())].to_object().to_any())
 }

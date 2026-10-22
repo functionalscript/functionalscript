@@ -276,8 +276,9 @@ from unparenthesized `&&`/`||` as JavaScript does. Required definition placement
 belongs to [`edag/from_fast`](../edag/from_fast/README.md): an initializer read
 only in a lazy arm still executes when its declaration executes, so
 `const c = null.x; export default [a && c, b && c];` fails during initialization.
-The separate [short-circuit migration](../edag/todo/short-circuit-conditionals.md)
-owns removal of logical EDAG tags after the shared foundation gate.
+The shared [logical lowering](../edag/README.md#source-logical-operators)
+establishes the left value once and constructs conditionals; canonical EDAG
+rejects the former logical tags. Source operators retain their grammar.
 
 `!` and `typeof` came after both stages, the third and fourth prefixes
 beside `-` and `~`: the grammar gives each `unaryOperand` as the other two

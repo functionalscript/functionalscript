@@ -255,7 +255,7 @@ export const proof = {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { switch (n[0]) { case 1: case 2: { const x = [1]; return [x, x]; } case 3: { throw 3; } } const y = [2]; return y; };'))
             assert(tag === 'ok')
-            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"||\",[\"===\",[\".\",[\"arg\",0],0],1],[\"===\",[\".\",[\"arg\",0],0],2]],[\"[]\",[[\"[]\",[1]],[\"[]\",[1]]]],[\"?:\",[\"===\",[\".\",[\"arg\",0],0],3],[\"throw\",3],[\"[]\",[2]]]]]]]]")
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"?:\",[\"===\",[\".\",[\"arg\",0],0],1],[\"===\",[\".\",[\"arg\",0],0],1],[\"===\",[\".\",[\"arg\",0],0],2]],[\"[]\",[[\"[]\",[1]],[\"[]\",[1]]]],[\"?:\",[\"===\",[\".\",[\"arg\",0],0],3],[\"throw\",3],[\"[]\",[2]]]]]]]]")
             // with a `default`, its block is the last alternate, and the
             // switch is the body's last statement
             const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { return 1; } default: { return 0; } } };'))
