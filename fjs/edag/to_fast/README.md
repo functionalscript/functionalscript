@@ -12,6 +12,17 @@ AST-to-FAST sugar before graph construction; old tagged graphs are rejected at
 checked admission. Output conversion does not carry a compatibility rewrite or
 a second logical-lowering algorithm.
 
+Graph conversion assumes the canonical `Exp` shapes. `checked` admits invocation
+bindings and scopes; it does not replace the EDAG shape schema. In particular,
+a plain `.` continuation starts with a terminal `|()` or an optional `|?.()`.
+An ordinary path such as `base.x.y(args)` uses nested `.` nodes, so its final
+call's arguments are eager operands. A `|.` continuation is legal only inside
+an optional region, for example `base?.x.y(args)` or `base.x?.().y(args)`; its
+later keys and calls remain inside that region. See the
+[chain grammar](../README.md#which-step-is-legal-where). Extending the traversal
+to accept `|.` directly after a plain `.` would admit a second graph spelling
+which the canonical schema and source parser exclude.
+
 Required definitions remain in the execution region that establishes them.
 Captures establish their values before closure construction, including unused
 nonprimitive captures. Shared allocations and calls reached only through lazy
