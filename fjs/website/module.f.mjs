@@ -57,7 +57,7 @@
 import { utf8 } from '../text/module.f.mjs'
 import { codePoints } from '../text/ascii/module.f.js'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
-import { errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { basename, concat as pathConcat, parent } from '../path/module.f.mjs'
 import { resolve } from '../path/import/module.f.mjs'
@@ -231,7 +231,7 @@ const importsOf = path => source => {
  * @type {(path: string) => (acc: readonly [_Graph, readonly string[]]) => Effect<ReadFile, readonly [_Graph, readonly string[]], IoChannel>}
  */
 const readModule = path => ([graph, reached]) => step(
-    resultStep(readUtf8File(path), read => pureOk(read)),
+    attemptStep(readUtf8File(path)),
     read => {
         if (read[0] === 'error') {
             return isNotFound(read[1])
@@ -714,7 +714,7 @@ const writeChangelog = build => tree => {
  *
  * @type {(path: string) => Effect<Access, IoResult<void>, IoChannel>}
  */
-const foundAt = path => resultStep(access(path), found => pureOk(found))
+const foundAt = path => attemptStep(access(path))
 
 /**
  * One directory of rustdoc's output, copied to the same place under

@@ -59,6 +59,10 @@ Three branch-aware operations, in [`./module.f.mjs`](./module.f.mjs):
 - `catchStep` — continue on `error`, preserve the success value. The error path.
 - `resultStep` — continue with the complete `Result`. Both paths, explicitly.
 
+and one form of the last that takes no continuation: `attemptStep(e)` answers
+`e`'s complete `Result` as its value and never fails, so the chain goes on
+either way and a later step decides. Both paths, as a value.
+
 The union rules follow `okThen` in
 [`../types/result/module.f.js`](../types/result/module.f.js): error
 types are **unioned, not unified**, so neither side is pre-widened and a branch

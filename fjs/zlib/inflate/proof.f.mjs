@@ -1,6 +1,6 @@
 import { assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
-import { bytes, bytesOf, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.mjs'
+import { u8ArrayMsb, u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
+import { bytes, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.mjs'
 import { append, end, init } from './module.f.mjs'
 
 /**
@@ -17,7 +17,7 @@ const read = (...pieces) => {
         const result = append(u8ListToVecMsb(piece))(state)
         if (result === null) { return null }
         state = result.state
-        output = [...output, ...result.output.flatMap(bytesOf)]
+        output = [...output, ...result.output.flatMap(u8ArrayMsb)]
     }
     return { output, rest: end(state) }
 }
@@ -111,7 +111,7 @@ export const proof = {
     twoBlocks: () => {
         const stream = stored([data.slice(0, 65_531), data.slice(65_531)])
         const result = append(u8ListToVecMsb(stream))(init)
-        assertEq(result === null ? -1 : result.output.map(bytesOf).map(a => a.length).join(), '65531,4469')
+        assertEq(result === null ? -1 : result.output.map(u8ArrayMsb).map(a => a.length).join(), '65531,4469')
         assertStructurallySame(read(stream), { output: data, rest: 0 })
     },
     // Blocks of no bytes, between the others and last.
@@ -157,12 +157,12 @@ export const proof = {
     // chunks, none more than a step makes, over a window that copies from itself.
     manyChunks: () => {
         const result = assertNotNullish(append(u8ListToVecMsb(hex(streams.zeros)))(init), 'refused')
-        const sizes = result.output.map(v => bytesOf(v).length)
+        const sizes = result.output.map(v => u8ArrayMsb(v).length)
         assertEq(sizes.reduce((a, b) => a + b, 0), 300_000)
         assertEq(Math.max(...sizes) <= 0x4000 + 258, true)
         assertEq(sizes.length >= 300_000 / (0x4000 + 258), true)
         assertEq(end(result.state) !== null, true)
-        assertEq(result.output.flatMap(bytesOf).every(byte => byte === 0), true)
+        assertEq(result.output.flatMap(u8ArrayMsb).every(byte => byte === 0), true)
     },
     // A stream in pieces is the stream whole, wherever the pieces meet: in the
     // header, a block's opening, a table description, a symbol and its extra

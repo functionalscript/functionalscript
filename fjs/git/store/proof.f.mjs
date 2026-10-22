@@ -9,7 +9,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { normalize } from '../../path/module.f.mjs'
-import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
@@ -73,7 +73,7 @@ const u32 = n => [n >> 24 & 0xFF, n >> 16 & 0xFF, n >> 8 & 0xFF, n & 0xFF]
  *
  * @type {(hex: string) => readonly number[]}
  */
-const idBytes = hex => toArray(u8ListMsb(id(hex)))
+const idBytes = hex => u8ArrayMsb(id(hex))
 
 /**
  * A version 2 index over `named`, each an id and the offset its entry begins

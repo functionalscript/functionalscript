@@ -27,12 +27,12 @@ import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, test } from '../effects/node/module.f.mjs'
 import { catch_, sandbox } from '../effects/common/module.f.mjs'
 import {
-    catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
-    resultMapStep, resultStep, step,
+    attemptStep, catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
+    resultStep, step,
     unreadableThrownValue, walkStep,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
-import { invert, ok } from '../types/result/module.f.js'
+import { invert } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { concat } from '../types/list/module.f.mjs'
 import { isIdentifier, isInteger } from '../js/identifier/module.f.mjs'
@@ -325,8 +325,8 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
         // Both are still needed after they have been reported, so the reporting
         // call is captured rather than nested inside its own step.
         //
-        // **Its `Result` is carried as a value** — that is what `resultMapStep`
-        // with `ok` does — because the leaf has already run by the time it is
+        // **Its `Result` is carried as a value** — that is what `attemptStep`
+        // does — because the leaf has already run by the time it is
         // reported, and a report that fails must not erase the test that
         // succeeded or failed underneath it. Handling the failure by nesting a
         // continuation inside this one would see `t` and `sr`, and is what
@@ -334,7 +334,7 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
         // hands the next line both the outcome and the leaf it belongs to.
         const reported = historyStep(
             history(evaluated),
-            ([t, sr]) => resultMapStep(result(t, sr, set.throws), ok))
+            ([t, sr]) => attemptStep(result(t, sr, set.throws)))
         // The leaf's children are *answered*, not walked here: `walkEntries`
         // puts them in front of the siblings that remain, which is the same
         // order — the tree a leaf returned, then the next leaf — without a

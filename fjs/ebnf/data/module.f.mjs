@@ -22,6 +22,7 @@
 import { assert } from '../../asserts/module.f.js'
 import { errorMask } from '../../text/code_point/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { fixpoint } from '../../types/function/module.f.js'
 import { toArray } from '../../types/list/module.f.mjs'
 import { at, definedEntries, isObject, structurallySame } from '../../types/object/module.f.mjs'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.mjs'
@@ -120,32 +121,6 @@ const emptyTagStep = ruleSet => map => {
 }
 
 /**
- * Relaxes `start` one round at a time until a round's result is `same` as
- * what it was given.
- *
- * A loop rather than a recursion: a chain of rules each naming the next
- * advances one fact per round, so the rounds are as many as the rules, and a
- * recursion that deep is a stack overflow on a few thousand.
- *
- * `same` is the caller's, because only the caller knows its values: an
- * `EmptyTag` is a primitive and `===` decides it, but a round that rebuilds
- * an array rebuilds it even when its contents stop changing, and `===` would
- * never see that round as the last.
- *
- * Exported for `../ll1`, whose follow sets are such arrays.
- *
- * @type {<T>(step: (value: T) => T, same: (a: T, b: T) => boolean) => (start: T) => T}
- */
-export const _fixpoint = (step, same) => start => {
-    let current = start
-    while (true) {
-        const next = step(current)
-        if (same(next, current)) { return next }
-        current = next
-    }
-}
-
-/**
  * Whether two maps agree on every rule named — each read as an own entry,
  * and compared by `===`, which an `EmptyTag` is decided by.
  *
@@ -166,7 +141,7 @@ const sameTags = names => (a, b) => names.every(name => at(name)(a) === at(name)
  *
  * @type {(ruleSet: RuleSet) => EmptyTagMap}
  */
-export const emptyTagMap = ruleSet => _fixpoint(emptyTagStep(ruleSet), sameTags(keys(ruleSet)))({})
+export const emptyTagMap = ruleSet => fixpoint(emptyTagStep(ruleSet), sameTags(keys(ruleSet)))({})
 
 /**
  * EOF's number: the one symbol below the domain, so it can be told from

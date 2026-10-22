@@ -15,7 +15,7 @@ import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { inflateTrailingCode, inflateTrailingMessage, notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
@@ -24,6 +24,10 @@ import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
 import { maxDeltaBytes } from '../pack/module.f.mjs'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'
 import { max } from '../../types/number/max/module.f.js'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
+
+/** The first 8 hex digits of a fixture id, its other 32 being zeros. */
+const idPrefixHex = encodeScalar(8)
 
 /** How many bytes of a file one chunk of a `readWhole` carries at most. */
 const chunkBytes = Number(maxLengthBytes)
@@ -48,9 +52,6 @@ const id = hex => {
     assert(i !== null)
     return i
 }
-
-/** @type {(oid: Oid) => readonly number[]} */
-const idBytes = oid => toArray(u8ListMsb(oid))
 
 /** A big-endian 32-bit word as bytes. */
 const u32 = /** @type {(v: number) => readonly number[]} */ (v => [
@@ -80,7 +81,7 @@ const name = /** @type {const} */ ('pack-9a32788c2cd72bdef63b26b7320c2fc2729359b
  * @type {(named: readonly (readonly [string, number])[]) => readonly number[]}
  */
 const idxOf = named => {
-    const ids = named.map(([h]) => idBytes(id(h)))
+    const ids = named.map(([h]) => u8ArrayMsb(id(h)))
     const bytes = [
         0xFF, 0x74, 0x4F, 0x63, ...u32(2),
         ...Array.from({ length: 256 }, (_, k) => u32(ids.filter(v => v[0] <= k).length)).flat(),
@@ -89,9 +90,9 @@ const idxOf = named => {
         ...named.map(([, at]) => u32(at)).flat(),
         // the pack's checksum, which the reader compares with the pack's own
         // trailer, so a built index has to carry the fixture's
-        ...idBytes(id(packName)),
+        ...u8ArrayMsb(id(packName)),
     ]
-    return [...bytes, ...idBytes(digestOf(width)(bytes))]
+    return [...bytes, ...u8ArrayMsb(digestOf(width)(bytes))]
 }
 
 /** The six objects of {@link packMixed}, each with the id it has and the offset its entry begins at. */
@@ -155,7 +156,7 @@ const leading = m => m < 0x80 ? [0x80 | m] : [...leading(Math.floor(m / 0x80) - 
 const backDistance = n => n < 0x80 ? [n] : [...leading(Math.floor(n / 0x80) - 1), n % 0x80]
 
 /** A pack of these entries, closed by the checksum the built indexes name. @type {(entries: readonly (readonly number[])[]) => readonly number[]} */
-const packOfEntries = entries => [...latin1('PACK'), ...u32(2), ...u32(entries.length), ...entries.flat(), ...idBytes(id(packName))]
+const packOfEntries = entries => [...latin1('PACK'), ...u32(2), ...u32(entries.length), ...entries.flat(), ...u8ArrayMsb(id(packName))]
 
 /** The first of the objects here, a blob, and the second, which is a delta against it. */
 const firstId = 'b00a3b66a7a094e6165bfcd39e0b8524042140db'
@@ -641,7 +642,7 @@ export const proof = {
             ...latin1('PACK'), ...u32(2), ...u32(1),
             0x63, 8, ...storedBytes([4, 5, 6]),
             // the checksum the built index names, which the reader compares
-            ...idBytes(id(packName)),
+            ...u8ArrayMsb(id(packName)),
         ]
         const one = idxOf([['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 12]])
         const [, r] = readBy(
@@ -680,7 +681,7 @@ export const proof = {
             // an `ofsDelta` of three bytes, naming a base one byte into the entry
             // above: 13 is one byte inside the entry at 12
             0x63, second - 13, ...stream,
-            ...idBytes(id(packName)),
+            ...u8ArrayMsb(id(packName)),
         ]
         const two = idxOf([
             ['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 12],
@@ -907,7 +908,7 @@ export const proof = {
         // first entry running to the pack's checksum
         const many = idxOf(Array.from(
             { length: 5_000 },
-            (_, k) => [`${k.toString(16).padStart(8, '0')}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
+            (_, k) => [`${idPrefixHex(k)}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
         assert(many.length > Number(maxLengthBytes))
         // the host hands it back in two, which is what a join has to survive
         assertEq(chunked(many).length, 2)

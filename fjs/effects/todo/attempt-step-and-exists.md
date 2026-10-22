@@ -67,8 +67,9 @@ path is a file or the links cycle, rather than failing.
 
 ### Tasks
 
-- [ ] `attemptStep` with its proof and README row; `website`,
-      `emergent_testing` and its browser runner import it.
+- [x] `attemptStep` with its proof and README row; `website`,
+      `emergent_testing` and its browser runner import it. The sites quoted
+      under Problem now read `attemptStep(e)`.
 - [ ] `exists` with its proof; `website`, `cas` and `ci` import it.
 - [ ] A `ci` proof for an `access` failure `namesNothing` does not cover,
       such as `EACCES`.
