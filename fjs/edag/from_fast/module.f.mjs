@@ -6,13 +6,16 @@
  * @module
  *
  * @import { Exp, ExpOp } from '../types.ts'
- * @import { BindingId, Block, Exit, Function as FastFunction, Operator, Value } from '../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
  * @import { Binding, Results, Scope, ScopedTransfer, Work } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
+import { scalarLoopOf } from '../../js/ast/loop/module.f.mjs'
+import { freeLoopBindings } from './control/module.f.mjs'
+import { rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 
@@ -75,7 +78,49 @@ const functionValue = (fn, environment) => {
             captures[i].exp instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (captures[i].exp)))] : captures[i].exp,
         ])),
     ]
-    return { exp: ['=>', fn.parameters.length, slots, anchored(scopedBlock(fn.body, scopeOf(inner)))], anchors: floated(captures) }
+    const scope = scopeOf(inner)
+    const root = rootLoopOf(fn)
+    const body = root === null ? scopedBlock(fn.body, scope) : scalarRoot(fn, root, scope)
+    return { exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: floated(captures) }
+}
+
+/** The canonical scalar invocation loop reuses its owning function. @type {(fn: FastFunction, loop: Loop, environment: Scope) => Lowered} */
+const scalarRoot = (fn, loop, environment) => {
+    const parts = scalarLoopOf(loop)
+    if (parts === null) { throw 'general structured loop construction is not connected yet' }
+    let scope = environment
+    for (const statement of fn.body.statements.slice(0, -1)) {
+        // rootLoopOf admits only aliases of already established bindings.
+        const alias = /** @type {Definition} */ (statement)
+        scope = established(scope, [alias[1], scopedValue(alias[2], scope).exp])
+    }
+    const parameter = scopedValue(loop.initial[0], scope)
+    const inner = established(scope, [loop.parameters[0], parameter.exp])
+    const self = fn.self === null ? /** @type {Exp} */ (['self']) : lookup(environment, fn.self)
+    /** @type {ScopedTransfer} */
+    const transition = (exit, scope) => {
+        if (exit[0] === 'yield' || exit[0] === 'throw') { return defaultTransfer(exit, scope) }
+        // scalarLoopOf fixes the step's transfer; child value regions admit
+        // normal yields or failures only, so no other nonlocal exit reaches us.
+        const continued = /** @type {Extract<Exit, readonly ['continue', ...unknown[]]>} */ (exit)
+        const next = scopedValue(continued[2][0], scope, transition)
+        return { exp: ['()', self, [next.exp]], anchors: next.anchors }
+    }
+    const condition = scopedValue(parts.condition, inner)
+    const step = scopedBlock(parts.step, inner, transition)
+    return { exp: ['?:', condition.exp, anchored(step), parameter.exp], anchors: [...parameter.anchors, ...condition.anchors] }
+}
+
+/** Existing scalar helpers capture already-established immutable values. @type {(loop: Loop, environment: Scope, transfer: ScopedTransfer) => Lowered} */
+const scalarLoop = (loop, environment, transfer) => {
+    if (scalarLoopOf(loop) === null) { throw 'general structured loop construction is not connected yet' }
+    const free = freeLoopBindings(loop)
+    if (free.some(binding => bindingOf(environment, binding)?.[2] === 'lazy')) {
+        throw 'lazy free loop bindings require shared demand-state lowering'
+    }
+    const fn = functionValue(scalarHelper(loop), environment)
+    const initial = scopedValue(loop.initial[0], environment, transfer)
+    return { exp: ['()', fn.exp, [initial.exp]], anchors: [...fn.anchors, ...initial.anchors] }
 }
 
 /**
@@ -139,7 +184,7 @@ const requiredReferences = block => [
     ...block.statements.flatMap(statement => statement[0] === 'define' ? statement[3] === 'required' ? eagerReferences(statement[2]) : []
         : statement[0] === 'block' ? blockReferences(statement[2])
         : statement[0] === 'if' ? eagerReferences(statement[2])
-        : statement[1].initial.flatMap(eagerReferences)),
+        : [...statement[1].initial.flatMap(eagerReferences), ...freeLoopBindings(statement[1])]),
 ]
 
 /** A result block's dependencies outside the identities it establishes. @type {(block: Block) => readonly BindingId[]} */
@@ -235,7 +280,7 @@ const conditional = (condition, then, otherwise, environment, transfer) => {
 
 /** Baseline value regions have normal results or fail; nonlocal exits follow in E. @type {(block: Block, environment: Scope, transfer: ScopedTransfer) => Lowered} */
 const lowerRegion = (block, environment, transfer) => {
-    if (transfer === defaultTransfer && block.exit[0] !== 'yield' && block.exit[0] !== 'throw') {
+    if (block.exit[0] !== 'yield' && block.exit[0] !== 'throw') {
         throw 'nonlocal transfers in value regions require structured completion lowering'
     }
     return scopedBlock(block, environment, transfer)
@@ -267,18 +312,27 @@ const resultBindings = (bindings, exp) => bindings.map((binding, i) => [binding,
 const scopedBlock = (block, environment, transfer = defaultTransfer) => {
     let scope = environment
     const required = requiredRoots(block)
+    const reached = closure(dependencies(block), requiredReferences(block))
     /** @type {readonly Exp[]} */
     let anchors = []
     for (const statement of block.statements) {
         if (statement[0] === 'define') {
             const value = scopedValue(statement[2], scope, transfer)
-            scope = established(scope, [statement[1], statement[3] === 'lazy' ? anchored(value) : value.exp])
+            const initializer = statement[2]
+            const deferred = statement[3] === 'lazy' && initializer !== null && typeof initializer === 'object'
+                && (initializer[0] !== 'ref' || bindingOf(scope, initializer[1])?.[2] === 'lazy')
+            scope = established(scope, deferred ? [statement[1], anchored(value), 'lazy'] : [statement[1], statement[3] === 'lazy' ? anchored(value) : value.exp])
             if (statement[3] === 'required') {
                 anchors = [...anchors, ...value.anchors, ...(required.includes(statement[1]) ? [value.exp] : [])]
             }
             continue
         }
-        if (statement[0] === 'loop') { throw 'structured loop construction is not connected yet' }
+        if (statement[0] === 'loop') {
+            const value = scalarLoop(statement[1], scope, transfer)
+            scope = established(scope, [statement[1].results[0], value.exp])
+            anchors = [...anchors, ...value.anchors, ...(!reached.includes(statement[1].results[0]) ? [value.exp] : [])]
+            continue
+        }
         const value = statement[0] === 'block' ? lowerRegion(statement[2], scope, transfer)
             : conditional(statement[2], statement[3], statement[4], scope, transfer)
         scope = resultBindings(statement[1], value.exp).reduce(established, scope)

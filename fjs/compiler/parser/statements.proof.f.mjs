@@ -40,7 +40,7 @@ export const proof = {
     // `f(x);` is `const _ = f(x);` where nothing can read `_`: the same
     // AST, and the same graph as the comma, `(f(x), rest)`.
     sugar: () => {
-        assertStructurallySame(resolvedOf(`${f} f(1); export default 2;`).ast, resolvedOf(`${f} const _ = f(1); export default 2;`).ast)
+        assertEq(stringifyModule(resolvedOf(`${f} f(1); export default 2;`)), stringifyModule(resolvedOf(`${f} const _ = f(1); export default 2;`)))
         assertStructurallySame(edagOf(`${f} f(1); export default 2;`), edagOf(`${f} export default (f(1), 2);`))
         assertStructurallySame(
             edagOf(`${f} export default (...a) => { f(a[0]); return a; };`),
@@ -52,9 +52,9 @@ export const proof = {
     // and the case's establish it only where JavaScript would.
     blocks: () => {
         expectModule('const f = (...a) => 1; f(1); export default 2;',
-            '[[],[["=>",0,[1]],["()",["cref",0],[1]],["object",[[":","default",2]]]]]')
+            "[\",\",[[\"()\",[\"=>\",0,[],1],[1]],[\"{}\",[[\":\",\"default\",2]]]]]")
         expectModule('const f = (...a) => 1; export const a = 1; f(a)\nexport const b = 2;',
-            '[[],[["=>",0,[1]],1,["()",["cref",0],[["cref",1]]],2,["object",[[":","a",["cref",1]],[":","b",["cref",3]]]]]]')
+            "[\",\",[[\"()\",[\"=>\",0,[],1],[1]],[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2]]]]]")
         assertStructurallySame(edagOf('export default (...a) => { a.f(1); return a; };'),
             ['{}', [[':', 'default', ['=>', 0, [], [',', [['.', ['rest'], 'f', ['|()', [1]]], ['rest']]]]]]])
         assertStructurallySame(edagOf('export default (...a) => { if (a[0]) { a.f(1); return 1; } return 2; };'),
@@ -68,9 +68,9 @@ export const proof = {
     // a call, a call of a call, and a static function's.
     shapes: () => {
         expectModule('const o = { f: (...a) => 1 }; o.f(1); o?.f(2); o.f?.(3); o?.f(4).g(5); o?.f?.(6)(7); export default 1;',
-            '[[],[["object",[[":","f",["=>",0,[1]]]]],["()",[".",["cref",0],"f"],[1]],["?.",["cref",0],"f",["|()",[2]]],[".",["cref",0],"f",["|?.()",[3]]],["?.",["cref",0],"f",["|()",[4],["|.","g",["|()",[5]]]]],["?.",["cref",0],"f",["|?.()",[6],["|()",[7]]]],["object",[[":","default",1]]]]]')
+            "[\",\",[[\".\",[\"{}\",[[\":\",\"f\",[\"=>\",0,[],1]]]],\"f\",[\"|()\",[1]]],[\"?.\",[\"{}\",[[\":\",\"f\",[\"=>\",0,[],1]]]],\"f\",[\"|()\",[2]]],[\".\",[\"{}\",[[\":\",\"f\",[\"=>\",0,[],1]]]],\"f\",[\"|?.()\",[3]]],[\"?.\",[\"{}\",[[\":\",\"f\",[\"=>\",0,[],1]]]],\"f\",[\"|()\",[4],[\"|.\",\"g\",[\"|()\",[5]]]]],[\"?.\",[\"{}\",[[\":\",\"f\",[\"=>\",0,[],1]]]],\"f\",[\"|?.()\",[6],[\"|()\",[7]]]],[\"{}\",[[\":\",\"default\",1]]]]]")
         expectModule('const f = (...a) => f; f(1)(2); f?.(3); Object.is(1, 2); export default 1;',
-            '[[],[["=>",0,[["self"]]],["()",["()",["cref",0],[1]],[2]],["?.()",["cref",0],[3]],["()",["Object.is"],[1,2]],["object",[[":","default",1]]]]]')
+            "[\",\",[[\"()\",[\"()\",[\"=>\",0,[],[\"self\"]],[1]],[2]],[\"?.()\",[\"=>\",0,[],[\"self\"]],[3]],[\"()\",[\"Object.is\"],[1,2]],[\"{}\",[[\":\",\"default\",1]]]]]")
     },
     // A statement that is no call is refused at its name: an operator's
     // result discarded is almost always a mistake, and a conversion is an
@@ -230,7 +230,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[{"json":false,"name":"default","specifier":"a.f.js"}],[1,["object",[[":","default",["array",[["aref",0],["cref",0]]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"],1]]]]]")
         },
         () => {
             const tokenList = tokenizeString('const b = 1; \n import a from "a.f.js"; \n export default [a,b];')
@@ -283,28 +283,28 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[1,2,["object",[[":","default",3]]]]]')
+            assertEq(result, "[\",\",[1,2,[\"{}\",[[\":\",\"default\",3]]]]]")
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default b;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[1,2,["object",[[":","default",["cref",1]]]]]]')
+            assertEq(result, "[\",\",[1,[\"{}\",[[\":\",\"default\",2]]]]]")
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default [b,a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[],[1,2,["object",[[":","default",["array",[["cref",1],["cref",0],["cref",1]]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[2,1,2]]]]]")
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default {"1st":b,"2nd":a,"3rd":b};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== '[[],[1,2,["object",[[":","default",["object",[[":","1st",["cref",1]],[":","2nd",["cref",0]],[":","3rd",["cref",1]]]]]]]]]') { throw result }
+            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"1st\",2],[\":\",\"2nd\",1],[\":\",\"3rd\",2]]]]]]") { throw result }
         },
     ],
     invalidWithConst:[
@@ -341,21 +341,21 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[["object",[[":","default",["aref",0]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]")
         },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs"; \n import b from "second/test.f.mjs"; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[{"json":false,"name":"default","specifier":"first/test.f.mjs"},{"json":false,"name":"default","specifier":"second/test.f.mjs"}],[["object",[[":","default",["array",[["aref",1],["aref",0],["aref",1]]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],1],\"default\"],[\".\",[\".\",[\"args\"],0],\"default\"],[\".\",[\".\",[\"args\"],1],\"default\"]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n const b = null; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[null,["object",[[":","default",["array",[["cref",0],["aref",0],["cref",0]]]]]]]]')
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[null,[\".\",[\".\",[\"args\"],0],\"default\"],null]]]]]")
         },
     ],
     invalidWithArgs:[

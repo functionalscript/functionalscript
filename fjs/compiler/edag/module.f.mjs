@@ -47,7 +47,7 @@ const over = imports => edag => ({ imports, edag })
  *
  * @type {(module: ResolvedModule) => Unresolved}
  */
-export const unresolved = module => over(module.ast[0])(lowered(module.ast[0].map(parameter))(module))
+export const unresolved = module => over(module.imports.map(({ binding, ...record }) => record))(lowered(module.imports.map(parameter))(module))
 
 /**
  * Whether a module's computation ends in a `throw`, past its evaluation

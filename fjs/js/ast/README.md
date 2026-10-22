@@ -63,3 +63,6 @@ rediscovering source writes or loop state. Output preparation owns physical
 slots, simultaneous updates, invocation resets and capture snapshots; target
 serializers consume that prepared form. Graph round-trip claims apply before
 physical preparation, under the graph domains in the architecture document.
+
+[`sugar`](./sugar/README.md) owns the resolved source constructs, structural
+pattern plans and their normalization after shared binding analysis.

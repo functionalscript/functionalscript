@@ -232,7 +232,7 @@ export const _walk = load => {
         const entered = { ...context, stack: { first: id, tail: context.stack } }
         if (json) { return mapStep(_parseJson(path), value => completed(id, entered)(load.json(value))) }
         const parsed = history(_parseModule(path))
-        const loaded = historyStep(parsed, module => foldStep(_importSources(source)(module.ast[0]), { context: entered, imports: [] }, walkImport))
+        const loaded = historyStep(parsed, module => foldStep(_importSources(source)(module.imports), { context: entered, imports: [] }, walkImport))
         const initialized = historyStep(loaded, ({ imports }, module) => pure(load.module(source, imports, module)))
         return mapStep(initialized, ([value, { context: next }]) => completed(id, next)(value))
     }

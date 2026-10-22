@@ -73,7 +73,10 @@ Exact graph round trips are claimed only for explicitly supported canonical
 forms before physical preparation. Existing source-output fixtures compare
 the graph's analysis-normalized form; their redundant-anchor removal and
 permitted splitting of non-minting lazy expressions are not raw identity
-equality. The [FAST contract](../todo/compiler-vocabulary-and-modularization.md#fast-contract)
+equality. References canonicalize invocation reads to one node per binding;
+primitive or equivalent duplicate capture slots can compact. These declared
+normalizations can change graph bytes and hashes. Unused nonprimitive captures
+remain eager. The [FAST contract](../todo/compiler-vocabulary-and-modularization.md#fast-contract)
 and [loop construction contract](../edag/todo/fast-loop-construction.md)
 record stronger domains as their implementations land. A schema migration
 creates a new graph identity; it cannot retain an old content hash merely
