@@ -1,4 +1,4 @@
-# Recursion
+# Recursion and sharing
 
 **Status:** implemented
 
@@ -15,13 +15,26 @@ the same way, `() => ['const', c]`, which keeps every name the definition uses
 a function.
 
 The data form turns each recursive definition into one named rule, which the
-JSON Schema writer emits once under `$defs` and refers to with `$ref`. A
-sub-schema that is shared but not recursive is one value too, and the demo's
-graph draws it once with an edge per use.
+JSON Schema writer emits once under `$defs` and refers to with `$ref`.
 
 `Ts<>` of a recursive schema can exceed TypeScript's instantiation depth
 (TS2589); [`ts/README.md`](../../../ts/README.md) describes the `WithOut`
 phantom output type that avoids it.
+
+## Sharing
+
+A sub-schema used in two places is one value, as any JavaScript value named by
+a `const` is:
+
+```js
+const address = { street: string, city: string }
+const order = { billing: address, shipping: address }
+```
+
+The demo's graph draws `address` once, with an edge per use. A value can
+share a member the same way, and the two readers treat that differently:
+`validate` hands back the value it was given, sharing included, while `parse`
+builds a fresh copy for each use.
 
 ## Examples
 

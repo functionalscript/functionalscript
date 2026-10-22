@@ -3,12 +3,15 @@
  * @import { Assert } from '../asserts/types.ts'
  * @import { Equal } from '../types/ts/types.ts'
  * @import { Option, Or, Rest, Type1, Unknown } from './types.ts'
+ * @import { Ts } from './ts/types.ts'
  */
 
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
+import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.js'
 import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 import { examples, lessons, projectSchemas } from './demo.f.mjs'
 import { _readersOf } from './schema-demo/module.f.mjs'
+import { parse } from './parse/module.f.mjs'
+import { validate } from './validate/module.f.mjs'
 
 /** @type {StringMap<readonly unknown[]>} */
 const tests = {
@@ -62,15 +65,9 @@ const constInference = () => {
 }
 
 const demoProof = /** @type {const} */ ({
-    // The module comment and the README count the examples — nine lessons,
-    // five single and four pairs, and fourteen project schemas — so a change
-    // to either list fails here and points at the two places that say it.
-    counts: () => {
-        assertEq(lessons.length, 9)
-        assertEq(lessons.filter(e => e.schemas.length === 2).length, 4)
-        assertEq(projectSchemas.length, 14)
-        assertEq(examples.length, lessons.length + projectSchemas.length)
-    },
+    // The drop-down lists the lessons and then the project schemas, each
+    // once.
+    examples: () => assertEq(examples.length, lessons.length + projectSchemas.length),
     // Every project schema's value is one the schema accepts, on both
     // readers: the reader starts from a working document, and a change to a
     // schema that stops accepting it fails here rather than on the page.
@@ -82,8 +79,26 @@ const demoProof = /** @type {const} */ ({
     },
 })
 
+// The README's examples, as it writes them.
+const readme = () => {
+    const person = { name: string, age: number, tags: or(option, array(string)) }
+    // `Ts<>` spells it as an intersection of the required and the optional
+    // keys, so the README's type is checked both ways rather than by `Equal`.
+    /** @typedef {{ readonly name: string, readonly age: number, readonly tags?: readonly string[] }} _ReadmePerson */
+    /** @typedef {Assert<[Ts<typeof person>] extends [_ReadmePerson] ? [_ReadmePerson] extends [Ts<typeof person>] ? true : false : false>} _Person */
+    assertOk(parse(person)({ name: 'Ann', age: 3 }))
+    assertErrorPath(['age'])(parse(person)({ name: 'Ann' }))
+    assertError(parse(person)({ name: 'Ann', age: 3, x: 1 }))
+    assertOk(parse(open(person))({ name: 'Ann', age: 3, x: 1 }))
+    // The two readers.
+    const alice = { name: 'Alice', age: 30, admin: true }
+    assertStructurallySame(assertOk(parse(open(person))(alice)), { name: 'Alice', age: 30 })
+    assert(assertOk(validate(open(person))(alice)) === alice)
+}
+
 export const proof = {
     constInference,
+    readme,
     demo: demoProof,
     typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, assertNotNullish(a).map(v => () => {
         assertEq(typeof v, k)

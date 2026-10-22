@@ -926,8 +926,8 @@ export const proof = {
             assert(visits <= 3 * depth, 'the shared operand is walked once per level, not once per arm')
         }
     },
-    // The walk is bounded by what the value and its prototypes carry rather
-    // than by `length`: a sparse array as long as the index space allows
+    // The walk is bounded by the value's own indices rather than by
+    // `length`: a sparse array as long as the index space allows
     // answers at once, where materializing the range exhausted memory first.
     // The verdicts are the ordinary ones — a bare tuple is too short for it,
     // a rest with nothing present past the prefix admits it.

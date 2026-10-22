@@ -98,6 +98,22 @@ lets the compiler short-circuit earlier. Named-alias memoization only helps for
 acyclic type graphs; it does not help when the recursion is inherent in the
 schema structure. The split was reverted.
 
+## How `RestTs` renders a rest
+
+`RestTs` renders `rest(c, r)`'s tuple tail as `...(Ts<r> | undefined)[]`, and
+an **empty** rest as no tail, since `rest(c, or())` is the bare `c`: one set,
+so one rendering
+([open containers](../guide/schemas/open-containers/README.md)).
+
+What counts as empty is `emptyRest`'s question in
+[`data/module.f.mjs`](../data/module.f.mjs), a `toData` conversion compared with
+`subset` both ways, which `types.ts` cannot invoke. So `RestTs` recognizes the
+one directly spellable empty rest, `or()`, and keeps the tail whenever it
+cannot tell. A kept tail is wider than the schema but sound, which is the
+direction a success cast needs. The runtime printer goes through the data form
+and recognizes the rest semantically, so the two differ on `rest([42], [or()])`:
+the printer drops the tail there and `Ts<>` does not.
+
 ## Remaining open problems
 
 The `as any` casts in `parse/module.f.mjs` cannot

@@ -232,8 +232,8 @@ const readIndices = value => {
  * is skipped: a hole is no member, so it meets no `rest` — the same rule the
  * struct kind states by walking own keys.
  *
- * An index at or above `length` is not answered here. See "Beyond `length`" in
- * `../guide/schemas/closed-containers/README.md`.
+ * An index at or above `length` is not answered here. See "The members a
+ * value carries" in `./README.md`.
  *
  * Passing {@link noDeclared} asks for every member, which is what the uniform
  * `array`/`record` readers want — so they share this walk rather than reaching

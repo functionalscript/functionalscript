@@ -45,17 +45,11 @@ undeclared member must be, not that the reader should keep it — the reader tha
 keeps every member is `validate`, which returns the value it was given here as
 everywhere else.
 
-**`Ts<>` renders the tail.** `RestTs` renders `rest(c, r)`'s tuple tail as
+**`Ts<>` renders the tail.** `rest(c, r)`'s tuple tail renders as
 `...(Ts<r> | undefined)[]`: a hole past the prefix is no member, so a reader
-skips it and the index reads `undefined`. An **empty** rest renders no tail —
-`rest(c, or())` is the bare `c`, one set and so one rendering. What counts as
-empty is `emptyRest`'s question in `fjs/rtti/data/module.f.mjs`, a `toData` conversion
-compared with `subset` both ways, which `types.ts` cannot invoke; `RestTs`
-recognizes the one directly spellable empty rest, `or()`, and keeps the tail
-whenever it cannot tell. A kept tail is wider than the schema but sound, which
-is the direction a success cast needs. The runtime printer goes through the data
-form and recognizes the rest semantically, so the two differ on
-`rest([42], [or()])` — the printer drops the tail there and `Ts<>` does not.
+skips it and the index reads `undefined`. An empty rest such as `or()` renders
+no tail, `rest(c, or())` being the bare `c`
+([how `RestTs` decides](../../../ts/README.md#how-restts-renders-a-rest)).
 
 An **empty rest bounds an array's length**, which is the bare form's rule
 arriving through the other spelling: `array(or())` is the empty array and not

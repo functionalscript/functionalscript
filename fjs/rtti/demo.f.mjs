@@ -15,13 +15,13 @@
  * results are written back as DataJS by the same codec.
  *
  * **Lessons, then the project's own schemas.** The drop-down has two groups.
- * The nine lessons are schemas written to show one rule each, every one owned
- * by the guide page that explains the rule and shown on that page too. The
- * fourteen others are schemas the project itself uses, imported from the
- * modules that declare them, each with a value it accepts.
+ * The lessons are schemas written to show one rule each, every one owned by
+ * the guide page that explains the rule and shown on that page too. The
+ * others are schemas the project itself uses, imported from the modules that
+ * declare them, each with a value it accepts.
  *
- * **One schema, or two where the difference is the lesson.** Of the nine
- * lessons, five show a single schema and four are pairs. A pair shows both
+ * **One schema, or two where the difference is the lesson.** A lesson shows
+ * a single schema or a pair. A pair shows both
  * schemas, each a block with a radio dot, and the reader picks one while the
  * value stays put, so the one thing that changes is the schema. The schemas'
  * own code tells them apart, so they carry no names.

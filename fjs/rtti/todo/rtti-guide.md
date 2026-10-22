@@ -31,7 +31,7 @@ its picker from those lists, one `<optgroup>` per area.
 ### The tree
 
 - `schemas/`: constants, primitives, structs and tuples, open containers,
-  absence, unions, arrays and records, recursion
+  absence, unions, arrays and records, recursion and sharing
 - `readers/`: `parse` and `validate`, the error shape, what the readers
   assume of a value
 - `outputs/`: the TypeScript type, JSON Schema, the canonical data form

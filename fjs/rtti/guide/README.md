@@ -15,11 +15,11 @@ corresponds to, and the module that implements it.
 
 ## Contents
 
-`●` has a demo of its own, a lesson the page owns run through the
-[RTTI demo](../README.md)'s machinery; `○` has none yet; `◌` is planned and
-has a `todo/`. The areas not linked yet are still sections
-of [the RTTI README](../README.md), and move here one area at a time
-([the plan](../todo/rtti-guide.md)).
+`●` has a demo of its own, a lesson the page owns run through
+[`schemaDemo`](../schema-demo/module.f.mjs), the machinery behind the module
+page's demo; `◌` is planned and has a `todo/`. The areas not linked yet are
+still sections of [the RTTI README](../README.md), and move here one area at a
+time ([the plan](../todo/rtti-guide.md)).
 
 - [Schemas](./schemas/README.md): the vocabulary
   - `●` [constants](./schemas/constants/README.md)
@@ -29,8 +29,9 @@ of [the RTTI README](../README.md), and move here one area at a time
   - `●` [absence](./schemas/option/README.md)
   - `●` [unions](./schemas/unions/README.md)
   - `●` [arrays and records](./schemas/arrays-and-records/README.md)
-  - `●` [recursion](./schemas/recursion/README.md)
-  - `◌` function types, excluded string values
+  - `●` [recursion and sharing](./schemas/recursion/README.md)
+  - `◌` [function types](../todo/668-rtti-function-types.md)
+  - `◌` [excluded string values](../todo/excluded-string-values.md)
 - Readers: `parse` and `validate`, the error shape, what the readers assume of
   a value
 - Outputs: the TypeScript type, JSON Schema, the canonical data form

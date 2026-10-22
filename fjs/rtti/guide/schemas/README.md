@@ -41,7 +41,8 @@ tuple; unary schemas (`array`, `record`) return a tag and the inner type.
 - [Absence](./option/README.md): `option`, and why it is not `undefined`
 - [Unions](./unions/README.md): `or` and `never`
 - [Arrays and records](./arrays-and-records/README.md): homogeneous containers
-- [Recursion](./recursion/README.md): a schema that uses itself
+- [Recursion and sharing](./recursion/README.md): a schema that uses itself,
+  and one used in two places
 
 ## Planned
 
