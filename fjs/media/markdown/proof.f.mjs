@@ -433,6 +433,8 @@ export const proof = {
             // An empty marker is refused before the code under it is read.
             codeAfterEmptyMarker: () => assertEq(refusal('- \n      code'), 'line 1: a list item whose text does not follow its marker'),
             tabAfterEmptyMarker: () => assertEq(refusal('- \n  \t  code'), 'line 1: a list item whose text does not follow its marker'),
+            tabAfterMarker: () => assertEq(refusal('-   \tcode'), 'line 1: a list item whose text does not follow its marker'),
+            tabAfterLaterMarker: () => assertEq(refusal('- ok\n- \tcode'), 'line 2: a tab in an indent'),
             tabAfterNonemptyMarker: () => assertEq(refusal('- text\n  \tcontinued'), 'line 2: a tab in an indent'),
             codeAfterLaterEmptyMarker: () => assertEq(refusal('- ok\n- \n       code'), 'line 2: a list item whose text does not follow its marker'),
             textAfterEmptyMarker: () => assertEq(refusal('- \n  text'), 'line 1: a list item whose text does not follow its marker'),

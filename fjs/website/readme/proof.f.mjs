@@ -96,6 +96,8 @@ export const proof = {
         },
         // A link it cannot place refuses the README, wherever it stands.
         refuses: {
+            letterlike: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'ℂ']]]]),
+                error('a heading character whose anchor GitHub may make otherwise: ℂ')),
             heading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['link', [['text', 'x']], 'bad']]]]), error('no')),
             paragraph: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['text', 'a'], ['link', [['text', 'x']], 'bad']]]]), error('no')),
             list: () => assertStructurallySame(readmeNodes(href)([['list', false, [[['paragraph', [['link', [['text', 'x']], 'bad']]]]]]]), error('no')),
