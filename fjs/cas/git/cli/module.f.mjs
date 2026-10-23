@@ -7,12 +7,14 @@
  * calling the API does. Nothing moves between repositories here: `git push`
  * and `git fetch` carry the branch, and `git merge` joins two writers'.
  *
- * The repository is the current directory's: its `.git` directory or file,
- * read as Git reads one through `commondir`, or the directory itself where
- * it is a repository directory — bare, or a worktree's own `.git`. The
- * parents are not searched, so the commands run from the root of the
- * worktree. The author of `add`'s commit is the repository's configured
- * `user.name` and `user.email`, as `git commit`'s is.
+ * The repository is the one at the current directory: its `.git` directory
+ * or file, read as Git reads one through `commondir`, or the directory
+ * itself where it is a repository directory — bare, or a worktree's own
+ * `.git`. The parents are not searched as `git` searches them, so the
+ * commands run from the root of the worktree
+ * ([`todo/find-repository-upward.md`](./todo/find-repository-upward.md)).
+ * The author of `add`'s commit is the repository's configured `user.name`
+ * and `user.email`, as `git commit`'s is.
  *
  * @module
  *

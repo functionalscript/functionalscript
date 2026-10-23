@@ -75,7 +75,7 @@ export const commands = [
         description: 'Use a Git branch as the store: add, get and list',
         usage: 'fjs cas git <command> <branch> [args]',
         examples: ['fjs cas git help'],
-        note: 'The same three commands over a branch of the repository the current directory is in. Nothing moves between repositories: git push, git fetch and git merge do.',
+        note: 'The same three commands over a branch of the repository at the current directory, run from the root of the worktree. Nothing moves between repositories: git push, git fetch and git merge do.',
         docs: 'fjs/cas/git/README.md',
         handler: gitCommands,
     },
