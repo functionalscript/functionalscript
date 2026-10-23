@@ -13,7 +13,7 @@
 
 import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.mjs'
 import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries, isObject } from '../../types/object/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
 import { codeUnitToString, stringToList } from '../../text/utf16/module.f.mjs'
 import { findMap, includes } from '../../types/array/module.f.mjs'
@@ -105,7 +105,7 @@ export const parseElement = e => {
     const [tag, item1, ...list] = e
     return item1 === undefined ?
             [tag, {}, []] :
-        typeof item1 === 'object' && !(item1 instanceof Array) ?
+        isObject(item1) ?
             [tag, item1, list] :
             [tag, {}, [item1, ...list]]
 }

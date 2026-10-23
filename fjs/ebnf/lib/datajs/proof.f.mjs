@@ -10,6 +10,7 @@ import { diagramPage, force } from '../../testlib.f.mjs'
 import { string, ws, wsSymbol } from '../json/module.f.mjs'
 import { constStatement, dataJs, exportStatement, id, number, property, value as exportedValue } from './module.f.mjs'
 import { demo, diagrams } from './demo.f.mjs'
+import { isObject } from '../../../types/object/module.f.mjs'
 
 const { keys } = Object
 
@@ -33,7 +34,7 @@ const digitsData = /**@type {const}*/([digitData, digits0Data])
 const constVariant = t => {
     const [tag, r] = t()
     assertEq(tag, 'const')
-    assert(typeof r === 'object' && r !== null && !(r instanceof Array))
+    assert(isObject(r))
     return /** @type {Variant} */ (r)
 }
 
