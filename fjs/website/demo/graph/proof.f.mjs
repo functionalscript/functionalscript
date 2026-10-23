@@ -123,6 +123,23 @@ export const proof = {
                 ],
             })
         },
+        // A node shape can explicitly permit recursive uses of its own
+        // identity. Both direct and mutual recursion close with back edges;
+        // a later shared use still points forward to the one definition.
+        recursive: () => {
+            /** @type {(v: number) => Shape<number>} */
+            const shape = v => ({ kind: 'n', label: `${v}`, recursive: true,
+                children: v === 0 ? [['self', 0], ['first', 1], ['shared', 1]] : [['parent', 0]] })
+            const g = graphOf(shape)(0)
+            assertStructurallySame(g.nodes.map(n => n.rank), [0, 1])
+            assertStructurallySame(g.edges, [
+                { from: 0, to: 0, label: 'self', kind: undefined, back: true },
+                { from: 1, to: 0, label: 'parent', kind: undefined, back: true },
+                { from: 0, to: 1, label: 'first', kind: undefined },
+                { from: 0, to: 1, label: 'shared', kind: undefined },
+            ])
+            assertEq(_crossings(g), 0)
+        },
         // A value reached again from outside the node it is under is shared,
         // not a cycle: `0` reaches `1` directly and through `2`.
         sharedIsNotACycle: () => {

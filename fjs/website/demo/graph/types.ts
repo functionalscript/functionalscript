@@ -179,6 +179,8 @@ export type NodeShape<V> = {
     readonly label: string
     readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
     readonly groups?: readonly Group[] | undefined
+    /** A use of this node from inside itself draws as a back edge. */
+    readonly recursive?: boolean | undefined
 }
 
 /**

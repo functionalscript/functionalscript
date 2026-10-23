@@ -163,14 +163,17 @@ const ownerOf = (stack, owner) => {
  * `kind` is the inline's own where it has one and `"leaf"` where it has
  * none.
  *
- * **A value that reaches itself is refused.** An edge back to a node the
+ * **A value that reaches itself is refused unless its node shape opts in
+ * with `recursive: true`.** An edge back to a node the
  * walk is still inside would be drawn pointing left, which is the one thing
  * {@link ranked}'s longest path cannot place: it would push the cycle's
  * ranks up for as many rounds as it runs and answer a plausible wrong
- * picture instead.
+ * picture instead. With the opt-in, that use is a back edge and does not
+ * participate in ranking. The value's identity still shares its definition,
+ * so recursive thunks can describe a finite graph without expanding forever.
  *
- * **A cycle the demo means is a {@link Back} shape** instead: an edge,
- * marked `back`, to the innermost node the walk is inside that the shape's
+ * **A reference to an enclosing node can also be a {@link Back} shape**:
+ * an edge, marked `back`, to the innermost node the walk is inside that the shape's
  * `owner` takes. Ranking ignores it, so it has no rank to need. A root
  * that is a back reference is inside no node, and is refused.
  *
@@ -224,8 +227,9 @@ export const graphOf =
                     } else {
                         // a value already drawn is one node however many
                         // edges reach it, unless the walk is still inside it
-                        if (top.path.includes(found[1])) { throw `graph: a cycle through node ${found[1]}` }
-                        walk = withEdge(walk, { from: top.id, to: found[1], label, kind })
+                        const back = top.path.includes(found[1])
+                        if (back && c.recursive !== true) { throw `graph: a cycle through node ${found[1]}` }
+                        walk = withEdge(walk, { from: top.id, to: found[1], label, kind, ...(back ? { back: true } : {}) })
                         stack = advanced
                     }
                 }
