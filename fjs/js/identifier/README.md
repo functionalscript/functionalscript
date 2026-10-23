@@ -1,9 +1,11 @@
 # Identifier
 
-JavaScript's rule for a word: what may start an identifier and what may
-continue one. [`module.f.mjs`](./module.f.mjs) adds only what JavaScript adds
-to the character classes of [`text/ascii`](../../text/ascii/module.f.js):
-`_` and `$` as identifier characters.
+What may start an identifier and what may continue one, for the ASCII
+identifiers this repository writes: Latin letters, digits, `_` and `$`.
+[`module.f.mjs`](./module.f.mjs) adds `_` and `$` to the character classes of
+[`text/ascii`](../../text/ascii/module.f.js) and nothing more. JavaScript
+itself also admits Unicode letters such as `π`; these predicates refuse them,
+so they do not validate an arbitrary JavaScript identifier.
 
 |Export                  |Answers                                                         |
 |------------------------|----------------------------------------------------------------|
