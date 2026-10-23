@@ -25,15 +25,25 @@ export const proof = /** @type {const} */ ({
     rust: () => {
         for (const path of ['Cargo.toml', 'Cargo.lock', '.cargo/config.toml',
             'nanvm/lib/src/vm/README.md', 'nanvm/harness/tests/a.rs',
-            'nanvm/effects-node/Cargo.toml', 'nanvm/demos/publish/src/lib.rs']) {
+            'nanvm/effects-node/Cargo.toml', 'nanvm/demos/publish/src/lib.rs',
+            'fjs/ci/config.json', '.github/workflows/ci.yml']) {
             assertStructurallySame(select(path), ['rust'])
         }
+    },
+    ciDocumentation: () => {
+        for (const directory of ['fjs/ci/', 'gen.nix/', '.github/workflows/']) {
+            for (const path of ['README.md', 'nested/todo/proposal.md', 'todo/proposal.txt', 'todo/example.f.mjs']) {
+                assertStructurallySame(select(`${directory}${path}`), [])
+            }
+        }
+        assertStructurallySame(select('fjs/ci/cache/publish/todo/publish-only-new-information.md'), [])
     },
     overlappingInputs: () => {
         assertStructurallySame(select('nanvm/lib/src/gen.methods.rs'), ['fjs', 'rust'])
         assertStructurallySame(select('nanvm/harness/fixtures/a.mjs'), ['js', 'rust'])
         assertStructurallySame(select('nanvm/demos/a/types.ts'), ['ts', 'rust'])
         assertStructurallySame(select('gen.nix/run'), ['fjs', 'rust'])
+        assertStructurallySame(select('gen.nix/flake.nix'), ['fjs', 'rust'])
         assertStructurallySame(select('.github/workflows/gen.ci.yml'), ['fjs', 'rust'])
         assertStructurallySame(select('fjs/ci/cache/module.f.mjs'), ['fjs', 'rust'])
         assertStructurallySame(select('fjs/ci/cache/types.ts'), ['ts', 'rust'])
