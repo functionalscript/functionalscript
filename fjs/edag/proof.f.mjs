@@ -40,7 +40,10 @@
  */
 
 import { validate } from '../rtti/validate/module.f.mjs'
-import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
+import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
+import { demo, run as runDemo } from './demo.f.mjs'
+import { htmlToString } from '../media/html/module.f.mjs'
+import { runPure } from '../effects/module.f.mjs'
 import {
     exp, fromValue, isStatic, mapItems, mapSteps, op0Id, op1Id, op12Id, op2Id, op3Id,
     intrinsicIds, intrinsicLength, intrinsics, isIntrinsic,
@@ -1014,6 +1017,44 @@ export const proof = {
                 steps(['|.', 'a', ['|()', ['x', ['...', 'y']], ['|?.()', ['z']]]]),
                 ['|.', '.a', ['|()', ['X', ['...', 'Y']], ['|?.()', ['Z']]]])
             assertStructurallySame(steps(['|!()', ['x']]), ['|!()', ['X']])
+        },
+    },
+    demo: {
+        /**
+         * **The interpreters agree on data and differ on identity.** A shared
+         * number is the same either way; a shared `{}` is one object under
+         * memo and two under amnesia, which is the difference the page shows.
+         */
+        initial: () => assertStructurallySame(assertOk(runDemo(demo.init)), [
+            'export default {"default":[9,10,[1,4],true]};',
+            'export default {"default":[9,10,[1,4],false]};',
+        ]),
+        // An operation's own failure is what the module throws, in both.
+        throws: () => assertStructurallySame(assertOk(runDemo('export default 1n / 0n')),
+            ['throws export default undefined;', 'throws export default undefined;']),
+        // A built-in the package runtime defines answers as it does in the
+        // compiler's executors, in both.
+        runtime: () => assertStructurallySame(assertOk(runDemo("export default 'abc'.startsWith('a')")),
+            ['export default {"default":true};', 'export default {"default":true};']),
+        // A function has no data form, and the page says why.
+        callable: () => assert(assertOk(runDemo('export default x => x'))[0].startsWith('(callable'), 'a function is not data'),
+        // Source the parser refuses is refused before any graph exists.
+        refused: () => {
+            assertEq(assertError(runDemo('export default (')), 'unexpected end')
+            const html = htmlToString(demo.view('export default ('))
+            assert(html.includes('unexpected end'), html)
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            const [typed] = runPure(demo.update('')({ kind: 'input', name: 'module', value: 'x' }))
+            assertEq(assertOk(assertNotNullish(typed)), 'x')
+            const [kept] = runPure(demo.update('kept')({ kind: 'start' }))
+            assertEq(assertOk(assertNotNullish(kept)), 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="module"'), html)
+            assert(html.includes('amnesia answers:'), html)
         },
     },
 }

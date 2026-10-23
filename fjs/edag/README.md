@@ -18,6 +18,27 @@ The [FunctionalScript](../compiler/) compiler lowers parsed modules to EDAG
 the interpreter and Rust code generation execute it. Value conversion reuses
 the compiler serializer's function-text renderer.
 
+## Map of this directory
+
+|Module                                |Holds                                                                    |
+|--------------------------------------|-------------------------------------------------------------------------|
+|[`.`](module.f.mjs)                   |the schema: every node kind and its operands                              |
+|[`value`](value/README.md)            |what a graph evaluates to, and every operation on it                     |
+|[`analysis`](analysis/README.md)      |one table of a graph's nodes, scopes and shared entries                  |
+|[`sharing`](sharing/README.md)        |which nodes are reached from more than one place                         |
+|[`operations`](operations/README.md)  |the dispatcher both interpreters share                                   |
+|[`memo`](memo/README.md)              |the interpreter that evaluates a shared node once per call               |
+|[`amnesia`](amnesia/README.md)        |the interpreter that evaluates a node again at every edge                |
+|[`loop`](loop/README.md)              |recognizing a self-call that every writer spells as a loop               |
+|[`from_fast`](from_fast/README.md), [`to_fast`](to_fast/README.md)|converting from and to the Foundation AST    |
+|[`rust`](rust/README.md)              |admitting a graph into the Rust writer                                   |
+
+The demo on this page compiles a module you type, shows its graph as
+`fjs compile` writes it, and runs it with both interpreters, so the one place
+they differ, a shared object's identity, can be seen.
+
+## Values and evaluation
+
 [`value`](value/module.f.mjs) defines the evaluated-value subset's type and
 shape schema: data and functions with evaluated captures and unevaluated
 bodies. Both FJS interpreters and compiler module initialization use this
