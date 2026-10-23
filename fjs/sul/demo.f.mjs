@@ -46,6 +46,7 @@
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
  * @import { Element, Node } from '../media/html/types.ts'
  * @import { Result } from '../types/result/types.ts'
+ * @import { Examples } from '../website/demo/examples/types.ts'
  * @import { _DemoState, _DemoStripes, _DemoUnit, EncodeState } from './types.ts'
  */
 
@@ -55,6 +56,8 @@ import { isHash, isHashLength, isRaw } from './id/module.f.mjs'
 import { byteChars } from '../website/demo/bits/module.f.mjs'
 import { caption, fieldUpdate, inputField, radios, refusal } from '../website/demo/module.f.mjs'
 import { codeBlock } from '../website/demo/code/module.f.js'
+import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
+import { pureOk } from '../effects/module.f.mjs'
 import { asBase } from '../types/nominal/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 
@@ -217,18 +220,44 @@ const stripesView = units => {
 
 const intro = 'Cuts bits into SUL words, level by level, up to one symbol, the root: L1 words are made of bits, L2 words of L1 symbols, and so on through L3 and the hash levels H1, H2 and up. Each row switches colour where a word ends, so a stripe is the run of input bits one symbol encodes; a hatched stripe is a hash, the others hold their bits inline. After the input, a 1 and then 0s pad the bits until the root. Compare the L1 row with the L1 table in levels.md: 00, 01, 100, 101 and 11.'
 
+/**
+ * The texts the drop-down offers, each one showing what the others cannot.
+ * The first, which the demo opens on, is the shortest text found whose
+ * stripes show hashing start inside a row: one H row holds both raw and
+ * hashed stripes. The others: a root that is the one L3 symbol, a raw root
+ * with more padding than input, hashing up to the top at the limit,
+ * characters of two, three and four bytes, and no input, all padding.
+ *
+ * @type {Examples}
+ */
+export const examples = [
+    ['Overview', 'Hello, world! SUL is a universal encoding.'],
+    ['Two bytes', 'Hi'],
+    ['A word', 'Hello'],
+    ['The longest text', 'SUL maps any finite sequence of bits to one root: bits make words, words make symbols, and once a word is too long it is hashed.'],
+    ['Characters of several bytes', 'é € 😀'],
+    ['Empty', ''],
+]
+
+const picker = examplePicker(examples)
+
 /** @type {Demo<_DemoState, DemoEvent>} */
 export const demo = {
-    init: { input: 'text', text: 'Hello', bits: '0100100001101001' },
-    update: fieldUpdate,
+    init: { input: 'text', text: picker.pick('Overview'), bits: '0100100001101001' },
+    // A pick is a text: it fills the text field and shows it.
+    update: state => event => event.kind === 'input' && event.name === exampleName
+        ? pureOk({ ...state, input: 'text', text: picker.pick(event.value) })
+        : fieldUpdate(state)(event),
     view: state => {
         const [kind, u] = units(state)
         return ['div',
             ['p', intro],
             radios('input', 'Input', [{ value: 'text', label: 'UTF-8 text' }, { value: 'bits', label: 'Bits' }], state.input),
-            state.input === 'bits'
-                ? inputField({ name: 'bits', label: 'Bits' }, state.bits)
-                : inputField({ name: 'text', label: 'Text' }, state.text),
+            // The examples are texts, so they are offered over the text field
+            // only: over typed bits, the one selected would be a text not shown.
+            ...(state.input === 'bits'
+                ? [inputField({ name: 'bits', label: 'Bits' }, state.bits)]
+                : [picker.view(state.text), inputField({ name: 'text', label: 'Text' }, state.text)]),
             ...(kind === 'error' ? [refusal(u)] : stripesView(u)),
         ]
     },
