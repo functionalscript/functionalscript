@@ -151,15 +151,15 @@ export const init = ({ env }) => {
     const trees = historyStep(files, inputTrees)
     const cache = historyStep(trees, (_t, _f, _ods, _w, b) => snapshot(b))
     const created = historyStep(cache, () => mkdir(manifestDirectory(env), { recursive: true }))
-    const outputs = step(created, ([, cas, t, , , , , host, cs]) => {
+    const prepared = mapStep(created, ([, cas, t, , , , , host, cs]) => {
         const inputs = inputKeys(t)
-        return foldStep(pureOk(cs), '', check => output => {
-            const manifest = checkManifest(check, host, inputs, t)
-            const key = contentHash(manifest)
-            const hit = history(catchStep(mapStep(collectRead(cas.read(key)), () => true), orElse(isNotFound, false)))
-            const written = historyStep(hit, () => writeUtf8File(join(manifestDirectory(env), `${check.id}.json`), stringifySorted(manifest)))
-            return mapStep(written, ([, found]) => `${output}hit-${check.id}=${found}\n`)
-        })
+        return cs.map(check => ({ check, manifest: checkManifest(check, host, inputs, t), cas }))
+    })
+    const outputs = foldStep(prepared, '', ({ check, manifest, cas }) => output => {
+        const key = contentHash(manifest)
+        const hit = history(catchStep(mapStep(collectRead(cas.read(key)), () => true), orElse(isNotFound, false)))
+        const written = historyStep(hit, () => writeUtf8File(join(manifestDirectory(env), `${check.id}.json`), stringifySorted(manifest)))
+        return mapStep(written, ([, found]) => `${output}hit-${check.id}=${found}\n`)
     })
     const written = step(outputs, output => writeUtf8File(env.GITHUB_OUTPUT ?? '', output))
     return exitStep(written)
