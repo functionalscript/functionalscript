@@ -60,6 +60,6 @@ See [example.md](example.md) for a full 16-leaf worked trace showing the state a
 
 ## References
 
-- Donald R. Morrison, [*PATRICIA — Practical Algorithm To Retrieve Information Coded in Alphanumeric*](https://dl.acm.org/doi/abs/10.1145/321479.321481), Journal of the ACM, 15(4):514–534, 1968.
+- Donald R. Morrison, [PATRICIA — Practical Algorithm To Retrieve Information Coded in Alphanumeric](https://dl.acm.org/doi/abs/10.1145/321479.321481), Journal of the ACM, 15(4):514–534, 1968.
 - Wikipedia: [Radix tree](https://en.wikipedia.org/wiki/Radix_tree)
 - NIST: [Patricia tree](https://xlinux.nist.gov/dads/HTML/patriciatree.html)

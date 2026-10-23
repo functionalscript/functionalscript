@@ -9,10 +9,10 @@ Literal alphabet sizes grow via **tetration** (iterated exponentiation). Startin
 | 0 | $2$ |
 | 1 | $5$ |
 | 2 | $129$ |
-| 3 | $\approx 2^{136}$ |
-| 4 | $\approx 2^{2^{136}}$ |
+| 3 | $≈ 2^{136}$ |
+| 4 | $≈ 2^{2^{136}}$ |
 
-Level 4 alone would require $\approx 2^{136}$ bits just to index a single symbol — far beyond any practical storage or computation.
+Level 4 alone would require $≈ 2^{136}$ bits just to index a single symbol — far beyond any practical storage or computation.
 
 This module sidesteps that explosion by giving every value a fixed-size **256-bit identifier**, regardless of how deeply nested or large the underlying data is. Two identifiers are merged into a single new identifier; the result can itself be used as an input to the next merge. This enables:
 

@@ -31,7 +31,7 @@ where `trie([s0, ..., sk])` is the root of a Patricia trie built from the
 decreasing prefix, and `compress` is the SUL hash merge function.
 
 The Patricia trie produces a balanced binary hash tree from the prefix, so
-the depth of merging is $O(\log k)$.
+the depth of merging is O(log k).
 
 ## Storage model
 

@@ -1,8 +1,8 @@
 # FunctionalScript
 
-> **Note:** This file is parked and stale; see [todo/samples.md](../samples.md) for
-> the plan to migrate its usable content into a top-level `samples/` directory
-> and delete this file.
+**Note:** this file is parked and stale; see [todo/samples.md](../samples.md) for
+the plan to migrate its usable content into a top-level `samples/` directory
+and delete this file.
 
 ## 1. What is FunctionalScript?
 
@@ -10,12 +10,12 @@ FunctionalScript is a **purely functional subset of JavaScript**.
 
 ### What does that mean?
 
-* **Subset**: `.f.mjs` modules can be imported and used in JavaScript or TypeScript code without transpilation.
-* **Functional**: Functions are first-class citizens and support composition and currying.
-* **Purely functional**: No side effects. Execution is deterministic and reproducible:
+- **Subset**: `.f.mjs` modules can be imported and used in JavaScript or TypeScript code without transpilation.
+- **Functional**: Functions are first-class citizens and support composition and currying.
+- **Purely functional**: No side effects. Execution is deterministic and reproducible:
 
-  * All values are **immutable**.
-  * No direct access to I/O (file system, network, etc.).
+  - All values are **immutable**.
+  - No direct access to I/O (file system, network, etc.).
 
 ## 2. Example
 
@@ -124,25 +124,25 @@ fjs test
 
 We are gradually adding more features:
 
-* Language features:
+- Language features:
 
-  * Function support
-  * Operators and control flow
-  * Non-default exports
-* Tooling:
+  - Function support
+  - Operators and control flow
+  - Non-default exports
+- Tooling:
 
-  * BAST: Binary Abstract Syntax Tree for FunctionalScript
-  * Language specification (draft in progress)
-* Virtual Machines (executes BAST):
+  - BAST: Binary Abstract Syntax Tree for FunctionalScript
+  - Language specification (draft in progress)
+- Virtual Machines (executes BAST):
 
-  * Content-addressable VM written in Rust compatible with Web3 and DWeb
-  * AOT compiler: BAST to WebAssembly
+  - Content-addressable VM written in Rust compatible with Web3 and DWeb
+  - AOT compiler: BAST to WebAssembly
 
 ## 7. Contribute & License
 
-* **GitHub**: [github.com/functionalscript/functionalscript](https://github.com/functionalscript/functionalscript)
-* **Contribute**: We host **weekly contributor meetings**: everyone’s welcome.
-* **License**:
+- **GitHub**: [github.com/functionalscript/functionalscript](https://github.com/functionalscript/functionalscript)
+- **Contribute**: We host **weekly contributor meetings**: everyone’s welcome.
+- **License**:
 
-  * Currently: MIT.
-  * Need a custom license? Contact us: `sergey.oss@proton.me`
+  - Currently: MIT.
+  - Need a custom license? Contact us: `sergey.oss@proton.me`

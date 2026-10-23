@@ -17,23 +17,23 @@ text itself, for a page or a terminal to colour without reading it again, is
 
 Requirement: no loss for UTF8 => codepoint => UTF8
 
-|utf8     |utf8 code                              |size     |codepoint                                         |
-|---------|---------------------------------------|---------|--------------------------------------------------|
-|[a]      |0xxx_xxxx                              |7 bit    |0_0000_0000_0000_0xxx_xxxx                        |
-|[b,a]    |110x_xxxx 10xx_xxxx                    |11 bit   |0_0000_0000_0xxx_xxxx_xxxx + 0_0000_0000_1000_0000|
-|[c,b,a]  |1110_xxxx 10xx_xxxx 10xx_xxxx          |16 bit   |0_0000_xxxx_xxxx_xxxx_xxxx + 0_0000_1000_0000_0000|
-|[d,c,b,a]|1111_0xxx 10xx_xxxx 10xx_xxxx 10xx_xxxx|21 bit   |x_xxxx_xxxx_xxxx_xxxx_xxxx + 1_0000_0000_0000_0000|
+|utf8       |utf8 code                                |size  |codepoint                                           |
+|-----------|-----------------------------------------|------|----------------------------------------------------|
+|`[a]`      |`0xxx_xxxx`                              |7 bit |`0_0000_0000_0000_0xxx_xxxx`                        |
+|`[b,a]`    |`110x_xxxx 10xx_xxxx`                    |11 bit|`0_0000_0000_0xxx_xxxx_xxxx + 0_0000_0000_1000_0000`|
+|`[c,b,a]`  |`1110_xxxx 10xx_xxxx 10xx_xxxx`          |16 bit|`0_0000_xxxx_xxxx_xxxx_xxxx + 0_0000_1000_0000_0000`|
+|`[d,c,b,a]`|`1111_0xxx 10xx_xxxx 10xx_xxxx 10xx_xxxx`|21 bit|`x_xxxx_xxxx_xxxx_xxxx_xxxx + 1_0000_0000_0000_0000`|
 
-|utf8 error|utf8 code                    |size  |codepoint          |flag                 |
-|----------|-----------------------------|------|-------------------|---------------------|
-|[e]       |1111_1xxx                    | 3 bit|                   |`errorByteFlag`      |
-|[d,]      |1111_0xxx                    | 3 bit|                   |`errorByteFlag`      |
-|[c,]      |1110_xxxx                    | 4 bit|                   |`errorByteFlag`      |
-|[b,]      |110x_xxxx                    | 5 bit|                   |`errorByteFlag`      |
-|[e]       |10xx_xxxx                    | 6 bit|0000_0000 1xxx_xxxx|`errorByteFlag`      |
-|[d,c,]    |1111_0xxx 10xx_xxxx          | 9 bit|0000_001x xxxx_xxxx|`errorLead4ContFlag` |
-|[c,b,]    |1110_xxxx 10xx_xxxx          |10 bit|0000_01xx xxxx_xxxx|`errorLead3ContFlag` |
-|[d,c,b,]  |1111_0xxx 10xx_xxxx 10xx_xxxx|15 bit|1xxx_xxxx xxxx_xxxx|`errorLead4Cont2Flag`|
+|utf8 error|utf8 code                      |size  |codepoint            |flag                 |
+|----------|-------------------------------|------|---------------------|---------------------|
+|`[e]`     |`1111_1xxx`                    |3 bit |                     |`errorByteFlag`      |
+|`[d,]`    |`1111_0xxx`                    |3 bit |                     |`errorByteFlag`      |
+|`[c,]`    |`1110_xxxx`                    |4 bit |                     |`errorByteFlag`      |
+|`[b,]`    |`110x_xxxx`                    |5 bit |                     |`errorByteFlag`      |
+|`[e]`     |`10xx_xxxx`                    |6 bit |`0000_0000 1xxx_xxxx`|`errorByteFlag`      |
+|`[d,c,]`  |`1111_0xxx 10xx_xxxx`          |9 bit |`0000_001x xxxx_xxxx`|`errorLead4ContFlag` |
+|`[c,b,]`  |`1110_xxxx 10xx_xxxx`          |10 bit|`0000_01xx xxxx_xxxx`|`errorLead3ContFlag` |
+|`[d,c,b,]`|`1111_0xxx 10xx_xxxx 10xx_xxxx`|15 bit|`1xxx_xxxx xxxx_xxxx`|`errorLead4Cont2Flag`|
 
 Each code point is also tagged with `errorMask`. The flags are named once, in
 [`utf8/module.f.mjs`](./utf8/module.f.mjs), and both the encoder and the
@@ -41,15 +41,17 @@ decoder read them from there.
 
 Total error states:
 
-- 2^6 + 2^3 + 2^5 + 2^4 + 2^10 + 2^3 + + 2^9 + 2^15
-- 2^4 + 2^6 + 2^5 + 2^4 + 2^10 + 2^9 + 2^15
-- 2^5 + 2^6 + 2^5 + 2^10 + 2^9 + 2^15
-- 2^6 + 2^6 + 2^10 + 2^9 + 2^15
-- 2^7 + 2^9 + 2^10 + 2^15
-- 0b1000_0110_1000_000
-- 128 + 512 + 1024 + 32_768
-- 34_432
-- < 2^16
+```text
+2^6 + 2^3 + 2^5 + 2^4 + 2^10 + 2^3 + + 2^9 + 2^15
+2^4 + 2^6 + 2^5 + 2^4 + 2^10 + 2^9 + 2^15
+2^5 + 2^6 + 2^5 + 2^10 + 2^9 + 2^15
+2^6 + 2^6 + 2^10 + 2^9 + 2^15
+2^7 + 2^9 + 2^10 + 2^15
+0b1000_0110_1000_000
+128 + 512 + 1024 + 32_768
+34_432
+< 2^16
+```
 
 ### utf8/module.f.mjs
 
@@ -62,6 +64,7 @@ const fromCodePointList: (input: List<CodePoint>) => List<u8>
 
 Requirement: no loss for UTF16 => codepoint => UTF16
 
+```text
 0xD800..0xDFFF
 0b_1101_1000_0000_0000
 0b_1101_1111_1111_1111
@@ -70,16 +73,17 @@ Requirement: no loss for UTF16 => codepoint => UTF16
 
 - first : 0xD800: 0b_1101_10xx_xxxx_xxxx : 10 bit
 - second: 0xDC00: 0b_1101_11xx_xxxx_xxxx : 10 bit
+```
 
-|utf16    |utf16 code                             |size  |codepoint                                       |
-|---------|---------------------------------------|------|------------------------------------------------|
-|[a]      |xxxx_xxxx_xxxx_xxxx                    |16 bit|0000_xxxx_xxxx_xxxx_xxxx                        |
-|[b,a]    |1101_10xx_xxxx_xxxx 1101_11xx_xxxx_xxxx|20 bit|xxxx_xxxx_xxxx_xxxx_xxxx + 1_0000_0000_0000_0000|
+|utf16  |utf16 code                               |size  |codepoint                                         |
+|-------|-----------------------------------------|------|--------------------------------------------------|
+|`[a]`  |`xxxx_xxxx_xxxx_xxxx`                    |16 bit|`0000_xxxx_xxxx_xxxx_xxxx`                        |
+|`[b,a]`|`1101_10xx_xxxx_xxxx 1101_11xx_xxxx_xxxx`|20 bit|`xxxx_xxxx_xxxx_xxxx_xxxx + 1_0000_0000_0000_0000`|
 
-|utf16 error|utf16 code         |size  |codepoint          |
-|-----------|-------------------|------|-------------------|
-|[e]        |1101_11xx_xxxx_xxxx|10 bit|1101_11xx_xxxx_xxxx|
-|[b,]       |1101_10xx_xxxx_xxxx|10 bit|1101_10xx_xxxx_xxxx|
+|utf16 error|utf16 code           |size  |codepoint            |
+|-----------|---------------------|------|---------------------|
+|`[e]`      |`1101_11xx_xxxx_xxxx`|10 bit|`1101_11xx_xxxx_xxxx`|
+|`[b,]`     |`1101_10xx_xxxx_xxxx`|10 bit|`1101_10xx_xxxx_xxxx`|
 
 Total error states: 11 bit
 
@@ -92,26 +96,28 @@ const stringToList: (input: string) => List<u16>
 const listToString: (input: List<u16>) => string
 ```
 
-UTF-16 => CP => UTF-8 => CP = UTF-16
+`UTF-16 => CP => UTF-8 => CP = UTF-16`
 
 ## Example
 
-- UTF-16:
-  - 1101_11xx_xxxx_xxxx
-  - 1101_11xx_xxxx_xxxx
-- CP:
-  - 1000_0000_0000_0000_1101_11xx_xxxx_xxxx
-  - 1000_0000_0000_0000_1101_11xx_xxxx_xxxx
-- UTF-8:
-  - 1111_0.101
-  - 10.11_xxxx
-  - 10xx_xxxx
-  - 1111_0.101
-  - 10.11_xxxx
-  - 10xx_xxxx
-- CP:
-  - 1000_0000_0000_0000_1101_11xx_xxxx_xxxx
-  - 1000_0000_0000_0000_1101_11xx_xxxx_xxxx
-- UTF-16:
-  - 1101_11xx_xxxx_xxxx
-  - 1101_11xx_xxxx_xxxx
+```text
+UTF-16:
+  1101_11xx_xxxx_xxxx
+  1101_11xx_xxxx_xxxx
+CP:
+  1000_0000_0000_0000_1101_11xx_xxxx_xxxx
+  1000_0000_0000_0000_1101_11xx_xxxx_xxxx
+UTF-8:
+  1111_0.101
+  10.11_xxxx
+  10xx_xxxx
+  1111_0.101
+  10.11_xxxx
+  10xx_xxxx
+CP:
+  1000_0000_0000_0000_1101_11xx_xxxx_xxxx
+  1000_0000_0000_0000_1101_11xx_xxxx_xxxx
+UTF-16:
+  1101_11xx_xxxx_xxxx
+  1101_11xx_xxxx_xxxx
+```

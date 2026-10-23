@@ -528,7 +528,7 @@ exactly that runner. A command *not* named is a malformed node and panics: a
 vocabulary and a handler map are two different things, which is why the
 runtime declares both.
 
-**The browser's own operations are [`effects/browser`](../effects/browser/types.ts)'s**:
+**The browser's own operations** are [`effects/browser`](../effects/browser/types.ts)'s:
 `fetchText`, a file from the site as text, and `instantiate`, a WebAssembly
 module from the site with how long loading it took. The WASM demo pages
 ([`todo/wasm-demos.md`](../../todo/wasm-demos.md)) are the first demos to need
@@ -811,7 +811,7 @@ and a link per channel — built by `footer` in
   page of its own, and a strip under the header — and the footer won: it is
   on every page, where a reader arriving from a search lands, without
   competing with the site's navigation.
-- **Read from [`funding.json`](../../funding.json)**, by
+- **Read from** [`funding.json`](../../funding.json), by
   [`funding/module.f.mjs`](./funding/module.f.mjs): one link per channel, its
   `description` the text and its `address` the target. `.github/FUNDING.yml`
   holds only usernames, and turning those into links would mean copying

@@ -229,7 +229,7 @@ MCP draws a line the dispatcher already respects:
 
 ## Design invariant: the server never emits a server path
 
-> No tool result or error text carries a path on the server's filesystem.
+**No tool result or error text carries a path on the server's filesystem.**
 
 The store lives under the home directory of the account the server runs as,
 and its absolute path names that account. Over stdio the client is a local
@@ -247,9 +247,9 @@ the tool that adds it.
 
 ## Design invariant: the server never opens a client-named local path
 
-> The MCP server only ever touches paths under `~/.cas/`, and every such path
-> is one the server derives itself — never a path supplied (in whole or in
-> part) by the client.
+**The MCP server only ever touches paths under `~/.cas/`, and every such path
+is one the server derives itself — never a path supplied (in whole or in
+part) by the client.**
 
 Every server file operation is on a self-derived path: `cas_add` writes via
 staging under `~/.cas/_stage/` then renames to the hash-sharded `~/.cas/<shard>`;
