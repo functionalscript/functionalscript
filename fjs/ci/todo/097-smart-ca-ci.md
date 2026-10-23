@@ -210,9 +210,9 @@ below it:
 
 | group | files | read by |
 | --- | --- | --- |
-| `fjs` | `*.f.mjs`, `*.f.js`, `*.data.js`; `package.json`; every `gen.*` file in the tree; [`fjs/module.mjs`](../../module.mjs) and [`fjs/emergent_testing`](../../emergent_testing/) | `tsc`, the suite, coverage, `npm start compile`, the `gen` check |
-| `js` | every other JavaScript file (`.mjs`, `.js`, `.cjs`); `package-lock.json`, `deno.json`, `deno.lock`, `bun.lock` | `tsc`, the suite |
-| `ts` | every `.ts`; `tsconfig.json` | `tsc` |
+| `fjs` | `*.f.mjs`, `*.f.js`, `*.data.js`; `package.json`, `deno.json`; every `gen.*` file in the tree; [`fjs/module.mjs`](../../module.mjs) and [`fjs/emergent_testing`](../../emergent_testing/) | `tsc`, the suite, coverage, `npm start compile`, the `gen` check, the packed-package check |
+| `js` | every other JavaScript file (`.mjs`, `.js`, `.cjs`); `package-lock.json`, `deno.lock`, `bun.lock` | `tsc`, the suite, the packed-package check |
+| `ts` | every `.ts`; `tsconfig.json` | `tsc`, the packed-package check |
 
 Each group contributes one manifest to `build-cache`: `fjs` lists its
 files, `js` lists its files and names the `fjs` manifest's key as `below`,
@@ -226,6 +226,7 @@ key it needs, and no diff is ever computed:
 | coverage | the `js` manifest's, until the coverage run loads FunctionalScript proofs only; the `fjs` manifest's after | FJS or JS changes until then; FJS changes after |
 | the suite on every engine | the `js` manifest's | FJS or JS changes, never TS alone |
 | `tsc` | the `ts` manifest's | any of the three changes |
+| the packed-package check — `npm pack`, the clean consumer's `tsc` and run | the `ts` manifest's, since the package holds all three groups | any of the three changes |
 
 A run publishes exactly the entries of the rungs it ran: a TS-only change
 runs `tsc` and publishes one entry; an FJS change runs all three and
@@ -233,10 +234,11 @@ publishes three. The groups are the exceptions to "select by dependency,
 not filename extension" above, and deliberately: for these three tools the
 extension is what decides which reads a file. A file that is not code goes
 to the lowest rung whose command reads it, so that a hit on that rung never
-certifies a command it was never run under: `package.json` holds the
-scripts coverage, compile and the `gen` check run, so it is `fjs`; the
-lockfiles and the Deno and Bun configuration are read by the installs
-before the suite, so they are `js`; `tsconfig.json` is `ts`; the tool pins
+certifies a command it was never run under: `package.json` and
+`deno.json` hold the scripts and tasks coverage, compile and the `gen`
+check run — `deno.json` defines the `cov` task itself — so they are `fjs`;
+the lockfiles are read by the installs before the suite, so they are
+`js`; `tsconfig.json` is `ts`; the tool pins
 in [`fjs/ci/config`](../config/module.f.js) are FJS already. The `gen.*`
 files are `fjs` for the same reason: the `gen` check compares the
 generators' outputs with the tree, and a hand edit of an output, forbidden
@@ -322,7 +324,7 @@ own complete input set and success condition.
       work.
 - [ ] Split the JavaScript block into the `fjs`, `js` and `ts` rungs: the
       three chained manifests, one contract per rung, the check that every
-      tracked file under `fjs/` is listed or excluded by name.
+      tracked file of the repository is listed or excluded by name.
 - [ ] Enumerate the `gen` check's inputs from what the generators read,
       and cache it on them; until then it runs on every run.
 - [ ] Measure the native backend's lookup and add on a cache branch of
