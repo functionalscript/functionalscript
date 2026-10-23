@@ -37,13 +37,15 @@ plain JavaScript proofs keep running in the suite, without coverage, where
 the `js` rung of the cache reruns them.
 
 The measured set stays `module.f.mjs` and `module.f.js`. FunctionalScript
-files under other names — a parser's fixtures, the `rtti` guide's examples,
-`testlib.f.js`, `data.f.js`, `*.data.js` — are loaded but not measured:
-`loadModuleMap` imports every file `isAuthored` accepts and evaluates it
-before asking for a `proof` export, so they run as modules under the
-switch as they do today, and the proofs that use them import them as data
-or parse them as text besides. Measuring them is a rule change to decide
-separately, not a consequence of this one.
+files under other names are loaded but not measured, by two routes. A
+parser's fixtures, the `rtti` guide's examples, `testlib.f.js` and
+`data.f.js` are discovered: `loadModuleMap` imports every file
+`isAuthored` accepts and evaluates it before asking for a `proof` export,
+so they run as modules under the switch as they do today. A `*.data.js`
+file is not discovered, since `isAuthored` accepts `.f.mjs` and `.f.js`
+alone; it is reached by import from the modules that use it, as
+`fjs/js/runtime/gen.edag.data.js` is. Measuring any of them is a rule
+change to decide separately, not a consequence of this one.
 
 A module whose coverage drops when its JavaScript proofs stop counting has
 a proof gap `fjs/AGENTS.md` §1.2 already names: its own proof does not reach
@@ -59,6 +61,9 @@ other modules' proofs.
 - [ ] Close each gap in the module's own `proof.f.mjs`.
 - [ ] `npm run cov` and `deno task cov` load FunctionalScript proofs only,
       and `bun test --coverage` the same; the generated CI runs them so.
+      The Deno and Bun jobs run only their coverage command today, so each
+      gains a plain run beside it — `deno task test`, `bun test` — or the
+      plain JavaScript proofs stop running on those engines.
 - [ ] [`CONTRIBUTING.md`](../../../CONTRIBUTING.md) says what coverage runs
       and measures, and the build cache's `fjs` rung cites it.
 
