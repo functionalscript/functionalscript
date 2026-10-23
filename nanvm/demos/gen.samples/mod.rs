@@ -529,6 +529,13 @@ mod tests {
     }
 
     #[test]
+    fn variables() {
+        let entry = crate::load(super::variables::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 3.0, Ok("[3,1,6]"));
+        crate::assert_call(&entry, -2.0, Ok("[2,1]"));
+    }
+
+    #[test]
     fn whitespace() {
         let entry = crate::load(super::whitespace::module::<Naive>).unwrap();
         crate::assert_call(&entry, 1.0, Ok("2"));
