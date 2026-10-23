@@ -8,8 +8,10 @@ answers from the text alone.
 
 A path is a root followed by segments. The root is `/`, `//` for a UNC path,
 `C:/` for a drive, or nothing for a relative path. It is not a segment, and
-`..` cannot climb above it. Both `/` and `\` separate segments, and every
-answer uses `/`.
+`..` cannot climb above it. Both `/` and `\` separate segments. Every
+function that normalizes (`normalize`, `parse`, `root`, `concat`) answers
+with `/`; the string helpers `join`, `under` and `relativize` only splice
+text, so a `\` already in their input stays.
 
 ```js
 import { normalize, parse, root, escapes } from './module.f.mjs'
