@@ -55,9 +55,11 @@ What puts a path in an area is what a check *reads*, not the file's extension:
   and `nanvm-effects-node`'s `gen.commands.rs` — so a JavaScript change that
   alters Rust commits the regenerated files, which are themselves Rust and
   Generated changes, and one that forgets is caught by the drift check.
-- **No check reads the other markdown.** No proof reads repository markdown at
-  run time, and the website build, which reads `todo/`, runs outside GitHub
-  Actions. A document a check is ever found to read moves to that check's area.
+- **One check reads other markdown.** `fjs/nanvm/demos/samples/proof.mjs`
+  reads `spec/**/README.md` at run time, so the spec pages are in the
+  JavaScript and FunctionalScript area; the website build, which reads
+  `todo/`, runs outside GitHub Actions. A document a check is ever found to
+  read moves to that check's area.
 - **The drift check is more than `npm run gen`.** Its `git diff --cached` judges
   what every earlier step wrote to the tree, `cargo` included, and its
   generators read FunctionalScript and whether `Cargo.toml` exists — so it runs
@@ -143,7 +145,11 @@ What puts a path in an area is what a check *reads*, not the file's extension:
 
 - [six-ci-jobs](./six-ci-jobs.md) — folds the toolchain jobs into one serial
   job, whose length this brings back down; this works with today's layout too.
-- [097-smart-ca-ci](./097-smart-ca-ci.md) — remembers successful build contracts
-  and file inputs through branch CAS, with finer blocks added later.
+- [097-smart-ca-ci](./097-smart-ca-ci.md) — supersedes this: its rungs key
+  each job on the inputs the job reads and skip the job whole where they
+  passed before, on pull requests and the merge queue alike, where this
+  gated single checks on a diff of pull-request commits. A job runs whole
+  or hits whole, since an entry certifies the job's whole contract. What
+  each check reads, as listed above, carries over into its input lists.
 - [096-ci-caching](./096-ci-caching.md) — caching makes the checks that do run
   cheaper; this runs fewer of them.

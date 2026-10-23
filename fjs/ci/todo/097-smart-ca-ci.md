@@ -202,7 +202,14 @@ critical path of a run that misses.
    job's manifest and writes it through one `add` — a no-op where the
    branch already holds the key, so a job that hit and a job that ran are
    published alike — and, where every job of a rung is green, the rung's
-   entry; then `git push origin build-cache`. Each new entry is a commit
+   entry; then `git push origin build-cache`. An entry certifies the
+   job's whole contract, so a job runs whole or hits whole, and the
+   per-job check is the one gate a job has: a gate inside the job that
+   skipped a check on a pull request, as
+   [change-aware-ci](./change-aware-ci.md) proposes, would let a green
+   job publish an entry for work that never ran. The rungs decide by
+   inputs what those areas decided by diff, on the merge queue too, and
+   supersede them. Each new entry is a commit
    of its own, since `add` commits per entry, so a fresh run pushes a few
    commits and a run of hits pushes none; a batch `add` is not worth
    building for a history nobody reads. There is nothing to collect from
@@ -546,8 +553,10 @@ own complete input set and success condition.
 - [Smart builds on developer machines](../../dev/todo/smart-builds.md) —
   the direction is decided here, a developer machine as one more job
   through `fjs ci run`; that task records what the direction leaves open.
-- [change-aware-ci](./change-aware-ci.md) — classifies changed paths to select
-  work; this task reuses success for an exact input set across commits.
+- [change-aware-ci](./change-aware-ci.md) — superseded by the rungs, which
+  decide by inputs what its areas decided by diff, and on the merge queue
+  too; a job runs whole or hits whole. Its reading of what each check reads
+  carries over into the input lists.
 - [096-ci-caching](./096-ci-caching.md) — caches the tools needed to run builds.
 - [CI generator](../README.md) — owns the generated GitHub workflows.
 - [JSON utilities](../../media/json/module.f.mjs) — reuse `stringifySorted`.
