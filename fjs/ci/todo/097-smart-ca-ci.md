@@ -44,6 +44,7 @@ type Tree = {
 type Manifest = {
     readonly contract: CasHash
     readonly files: Tree
+    readonly below?: CasHash // the key of the manifest of the group below
 }
 ```
 
@@ -86,8 +87,11 @@ bytes and complete canonical manifest bytes: initially SHA-256 over each
 payload. Source-file IDs come from Git. Encode full IDs with the existing
 CBase32 codec, and let CAS own the manifest's sharded path.
 
-The manifest key covers both `contract` and `files`. Store the complete
-canonical JSON manifest unchanged at that key. Compute keys without
+The manifest key covers `contract`, `files` and, where present, `below`
+— the key of another manifest, chained in by the rungs
+[below](#finer-blocks-later), so that a change in the group below changes
+this key too. Store the complete canonical JSON manifest unchanged at that
+key. Compute keys without
 publishing: source files and contract descriptors are not added to
 `build-cache` merely to obtain their hashes, and hashing a candidate
 manifest does not record success.
@@ -206,14 +210,14 @@ below it:
 
 | group | files | read by |
 | --- | --- | --- |
-| `fjs` | `*.f.mjs`, `*.f.js`, `*.data.js` | `tsc`, the suite, coverage, `npm start compile`, the `gen` check |
-| `js` | every other JavaScript file (`.mjs`, `.js`, `.cjs`), `package.json`, `package-lock.json` | `tsc`, the suite |
-| `ts` | every `.ts`, `tsconfig.json` | `tsc` |
+| `fjs` | `*.f.mjs`, `*.f.js`, `*.data.js`; `package.json`; every `gen.*` file in the tree; [`fjs/emergent_testing`](../../emergent_testing/) | `tsc`, the suite, coverage, `npm start compile`, the `gen` check |
+| `js` | every other JavaScript file (`.mjs`, `.js`, `.cjs`); `package-lock.json`, `deno.json`, `deno.lock`, `bun.lock` | `tsc`, the suite |
+| `ts` | every `.ts`; `tsconfig.json` | `tsc` |
 
 Each group contributes one manifest to `build-cache`: `fjs` lists its
-files, `js` lists its files and the `fjs` manifest's key, `ts` lists its
-files and the `js` manifest's key. A list entry is a path and its Git blob
-id, so building a manifest reads no file. The chain gives each contract the
+files, `js` lists its files and names the `fjs` manifest's key as `below`,
+`ts` lists its files and names the `js` manifest's key. A list entry is a
+path and its Git blob id, so building a manifest reads no file. The chain gives each contract the
 key it needs, and no diff is ever computed:
 
 | contract | key | changes when |
@@ -226,21 +230,29 @@ A run publishes exactly the entries of the rungs it ran: a TS-only change
 runs `tsc` and publishes one entry; an FJS change runs all three and
 publishes three. The groups are the exceptions to "select by dependency,
 not filename extension" above, and deliberately: for these three tools the
-extension is what decides which reads a file, and the files that are not
-code — the lockfile, `tsconfig.json`, the tool pins in
-[`fjs/ci/config`](../config/module.f.js), itself FJS — are listed with the
-group whose tool reads them. Every tracked file under `fjs/` is in one of
-the three lists or in a named exclusion set, checked, so a new fixture
-cannot go unlisted silently.
+extension is what decides which reads a file. A file that is not code goes
+to the lowest rung whose command reads it, so that a hit on that rung never
+certifies a command it was never run under: `package.json` holds the
+scripts coverage, compile and the `gen` check run, so it is `fjs`; the
+lockfiles and the Deno and Bun configuration are read by the installs
+before the suite, so they are `js`; `tsconfig.json` is `ts`; the tool pins
+in [`fjs/ci/config`](../config/module.f.js) are FJS already. The `gen.*`
+files are `fjs` for the same reason: the `gen` check compares the
+generators' outputs with the tree, and a hand edit of an output, forbidden
+as it is, is what that check exists to catch — left out of every list, a
+hit would skip the one check that sees it. And the test runner and
+reporter under `fjs/emergent_testing` are `fjs`, plain JavaScript though
+they are, since they decide which proofs run and how coverage is read.
+Every tracked file under `fjs/` is in one of the three lists or in a named
+exclusion set, checked, so a new fixture cannot go unlisted silently.
 
-Two things the chain leaves out, on purpose. The `gen` check compares the
-generators' outputs, and the outputs are not listed: a hand edit of a
-`gen.*` file is forbidden, and the workflow is itself one of them. The test
-runner under [`fjs/emergent_testing`](../../emergent_testing/) is plain
-JavaScript that decides which proofs run, and coverage keys on `fjs` alone:
-a runner change reruns the suite on the `js` rung and not coverage. Making
-the coverage run a function of FJS files by construction — FJS proofs only
-— is [its own task](../../emergent_testing/todo/coverage-over-fjs-only.md).
+What the `fjs` key still does not see is a plain JavaScript module that a
+FunctionalScript proof imports — a host adapter — since those are `js`.
+Under coverage today the plain JavaScript proofs run too, so a `proof.mjs`
+alone can cover a FunctionalScript line; making the coverage run load
+FunctionalScript proofs only is
+[its own task](../../emergent_testing/todo/coverage-over-fjs-only.md), and
+the adapters are the residual the dependency graph below closes.
 
 Beyond the rungs, testing only what a change reaches needs the dependency
 graph. Three ways to get one, all cheaper than a parser of our own, which
