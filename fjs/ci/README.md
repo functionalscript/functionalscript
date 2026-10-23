@@ -540,13 +540,14 @@ the packed package's consumer:
 
 ```ts
 export type Setup = {
-    readonly nodeExtra: (os: Os) => readonly MetaStep[]
+    readonly nodeExtra: (os: Os, architecture: Architecture) => readonly MetaStep[]
     readonly packageConsumer?: PackageConsumer
     readonly mergeQueueOnly?: readonly Os[]
 }
 ```
 
-`nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
+`nodeExtra` receives the target OS and architecture so callers can conditionally add
+platform-specific steps.
 
 `packageConsumer` is the consumer half of the packed-package check: a published module
 and a runtime export it must load, its `types.ts` as a consumer spells it,

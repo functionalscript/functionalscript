@@ -54,6 +54,18 @@
         },
         {
           "run": "sh ./gen.nix/run node --test"
+        },
+        {
+          "run": "sh ./gen.nix/run bash -e -c \"$FJS_CI_RUN\"",
+          "env": {
+            "FJS_CI_RUN": "sh ./nanvm/demos/gen.build.sh"
+          }
+        },
+        {
+          "run": "sh ./gen.nix/run bash -e -c \"$FJS_CI_RUN\"",
+          "env": {
+            "FJS_CI_RUN": "git add -A && git diff --cached --exit-code"
+          }
         }
       ]
     },

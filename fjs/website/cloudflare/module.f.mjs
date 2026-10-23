@@ -1,7 +1,8 @@
 /**
  * The Cloudflare build, generated: `gen.cloudflare/build.sh` is the build
  * command Cloudflare's Workers Builds runs. It installs what the build image
- * lacks — Rust today — documents the workspace's crates with `cargo doc`, and
+ * lacks — Rust today, for `cargo doc` alone — documents the workspace's
+ * crates with `cargo doc`, and
  * runs `npm run website`, which stays the generator alone, so a checkout
  * builds the site with `npm run website` exactly as before and only the
  * deploy carries the installs.
@@ -22,8 +23,6 @@
 import { rust } from '../../ci/config/module.f.js'
 import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
-import { samples } from '../../nanvm/demos/module.f.mjs'
-import { buildDirectory, wasmPath } from '../../nanvm/demos/page/module.f.mjs'
 
 /**
  * The generated directory, beside `gen.nix/` at the repository root, where
@@ -38,12 +37,6 @@ export const generatedDirectory = 'gen.cloudflare'
 /** @type {string} */
 export const buildPath = `${generatedDirectory}/build.sh`
 
-/** The target the WASM demo pages' module is built for. @type {string} */
-export const wasmTarget = 'wasm32-unknown-unknown'
-
-/** Where `cargo build` writes that module. @type {string} */
-export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
-
 /**
  * The script's text.
  *
@@ -55,12 +48,11 @@ export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
  * pinned toolchain, and no edit to a shell profile nothing would read: the
  * script puts the new `cargo` on its own `PATH` instead.
  *
- * **Then the WASM demo pages' module**
- * ([`todo/wasm-demos.md`](../../../todo/wasm-demos.md)): the `wasm32` target
- * added to the toolchain just installed, `nanvm-demos` built for it, and
- * `nanvm-demos-publish` copying the module out of `target/`, which the site
- * does not serve, to where the page fetches it, and printing each sample's WAT
- * beside it. Built here, and never committed, so nothing can go stale.
+ * **Not the WASM demo pages' module**
+ * ([`todo/wasm-demos.md`](../../../todo/wasm-demos.md)): that is committed in
+ * `nanvm/demos/wasm/`, with each sample's WAT, and CI rebuilds it and fails on
+ * any difference (`../../nanvm/demos/module.f.mjs`), so the site is served
+ * as checked out and the deploy builds no `wasm32` target.
  *
  * **Then the site's bars, `cargo doc`, and the site** — the order
  * [`../README.md`](../README.md#the-rust-api-reference) gives.
@@ -74,8 +66,8 @@ export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
  * `set -e` makes the first failing step the script's result, so a build that
  * could not install does not go on to publish as if it had.
  *
- * The script calls external tools — `curl`, `rustup`'s installer, `rustup`,
- * `npm` and `cargo` —
+ * The script calls external tools — `curl`, `rustup`'s installer, `npm` and
+ * `cargo` —
  * which the repository owner approved for this one script
  * ([`AGENTS.md` §6](../../../AGENTS.md#6-external-tools)). Its proof pins the
  * text exactly, so no tool joins it unseen.
@@ -87,9 +79,6 @@ set -e
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$HOME/rustup-init.sh"
 sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-modify-path
 export PATH="$HOME/.cargo/bin:$PATH"
-rustup target add ${wasmTarget}
-cargo build -p nanvm-demos --release --target ${wasmTarget}
-cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${buildDirectory} ${samples.map(({ name }) => name).join(' ')}
 npm run rustdoc-bars
 RUSTDOCFLAGS="--html-in-header $PWD/${rustdocHeadPath} --html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
 npm run website

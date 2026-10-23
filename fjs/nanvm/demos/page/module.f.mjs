@@ -61,10 +61,11 @@ export const rustDirectory = 'nanvm/demos/gen.samples'
 export const rustPath = name => `${rustDirectory}/${name}.rs`
 
 /**
- * Where the deployment build puts the module and its disassembly: a `_` name,
- * which git ignores and the site serves.
+ * Where the module and its disassembly are committed, which the site serves
+ * as it is: built by `cargo`, so not a `gen.` name `npm run gen` writes, and
+ * held to its sources by CI's rebuild of it (`../module.f.mjs`).
  */
-export const buildDirectory = 'nanvm/demos/_build'
+export const buildDirectory = 'nanvm/demos/wasm'
 
 /** The module every sample is in, as `cargo build` names it. */
 export const wasmPath = `${buildDirectory}/nanvm_demos.wasm`

@@ -1,6 +1,6 @@
 //! The WASM demo pages' samples (`todo/wasm-demos.md`), compiled by `fjs
-//! compile` into `gen.samples/` and built for `wasm32-unknown-unknown` by the
-//! deployment build. A page loads a sample with its export, runs it with
+//! compile` into `gen.samples/` and built for `wasm32-unknown-unknown` by
+//! `gen.build.sh` into the committed `wasm/`. A page loads a sample with its export, runs it with
 //! [`run_sample`], and then reads what the sample wrote to standard output,
 //! one byte at a time, with [`output_byte`]: the page is FunctionalScript,
 //! which can call a function but cannot construct a view of the module's

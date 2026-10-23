@@ -54,19 +54,18 @@ output:
   provides.
 - **The generated Rust is committed**: the `.rs` from `fjs compile`, named
   `gen.*`, which `npm run gen` rebuilds, as NaNVM's other generated Rust is.
-- **The deployment build makes the `.wasm` and its WAT.**
-  `gen.cloudflare/build.sh` already installs Rust and runs `cargo doc` before
-  the website generator, so it builds the demo crate for `wasm32` there too.
-  The script is generated: the steps go in `buildText()` in
-  [`fjs/website/cloudflare`](../fjs/website/cloudflare/module.f.mjs), whose
-  proof pins the text.
-  Neither file is committed: they are gitignored output, like the site's
-  `index.html` files, so nothing can go stale and no reproducible build is
-  needed. Committing them was the other option. It would need byte-identical
-  rebuilds, because `npm run gen` deletes and rebuilds every `gen.*` file, and
-  a `*.wasm binary` line in `.gitattributes`.
-- **The page fetches** the `.wasm` and the WAT by the paths the deployment
-  build writes them to, as module pages already load files from the served
+- **The `.wasm` and its WAT are committed**, in `nanvm/demos/wasm/`, so
+  building the site takes no Rust for them. `nanvm/demos/gen.build.sh`,
+  generated with the samples' Rust by
+  [`fjs/nanvm/demos`](../fjs/nanvm/demos/module.f.mjs), builds them with the
+  pinned Rust, which the build is reproducible with; CI runs it on Intel
+  Linux and fails on any difference. Until 2026-10-23 the deployment build
+  made them, and committed nothing; the site needed Rust for them, which it
+  had avoided. The directory is not a `gen.` name, since `npm run gen` does
+  not write it and `gen:clean` must not delete it, and `.gitattributes` keeps
+  `*.wasm` binary.
+- **The page fetches** the `.wasm` and the WAT by the paths the build script
+  writes them to, as module pages already load files from the served
   tree ([website/README.md](../fjs/website/README.md)).
 
 ### Status
@@ -85,9 +84,9 @@ built:
   a demo over two new browser operations,
   [`effects/browser`](../fjs/effects/browser/types.ts)'s `fetchText` and
   `instantiate`.
-- **The deployment build** adds the `wasm32-unknown-unknown` target, builds
-  `nanvm-demos`, and `nanvm-demos-publish` copies the module to
-  `nanvm/demos/_build/`, which git ignores and the site serves, and prints
+- **The build script** builds `nanvm-demos` for `wasm32-unknown-unknown`,
+  and `nanvm-demos-publish` copies the module to `nanvm/demos/wasm/`,
+  committed and served as it is, and prints
   each sample's WAT beside it with the `wasmprinter` crate, which Sasha
   approved. The WAT holds only the functions Rust compiled from the sample's
   module, picked by their names in the module's name section, read with

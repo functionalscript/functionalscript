@@ -177,8 +177,26 @@ fn wat(bytes: &[u8], sample: &str) -> Result<String, String> {
     Ok(text)
 }
 
+/// Removes each `.wat` in `wat_to` that names none of `samples`, so a sample
+/// removed or renamed leaves no disassembly behind for the site to serve, or
+/// for the committed directory's drift check to miss.
+fn remove_stale(wat_to: &Path, samples: &[String]) -> io::Result<()> {
+    for entry in fs::read_dir(wat_to)? {
+        let path = entry?.path();
+        let stale = path.extension().is_some_and(|e| e == "wat")
+            && path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .is_none_or(|s| !samples.iter().any(|n| n == s));
+        if stale {
+            fs::remove_file(&path)?;
+        }
+    }
+    Ok(())
+}
+
 /// Copies `from` to `to`, and writes each sample's WAT to `<sample>.wat` in
-/// `wat_to`, making each directory first.
+/// `wat_to`, making each directory first, then removes any other WAT there.
 fn publish(from: &Path, to: &Path, wat_to: &Path, samples: &[String]) -> Result<(), String> {
     let bytes = fs::read(from).map_err(|e| format!("{}: {e}", from.display()))?;
     let mut files = vec![(to.to_path_buf(), bytes.clone())];
@@ -191,7 +209,7 @@ fn publish(from: &Path, to: &Path, wat_to: &Path, samples: &[String]) -> Result<
             .and_then(|()| fs::write(&path, contents))
             .map_err(|e| format!("{}: {e}", path.display()))?;
     }
-    Ok(())
+    remove_stale(wat_to, samples).map_err(|e| format!("{}: {e}", wat_to.display()))
 }
 
 fn main() -> ExitCode {
@@ -280,10 +298,15 @@ mod tests {
         let to = root.join("a/published.wasm");
         let wat_to = root.join("b");
         let module = named("other", SAMPLE);
-        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&wat_to).unwrap();
         fs::write(&from, &module).unwrap();
+        // A removed sample's WAT, and a file that is no WAT.
+        fs::write(wat_to.join("gone.wat"), "").unwrap();
+        fs::write(wat_to.join("notes.txt"), "").unwrap();
         publish(&from, &to, &wat_to, &["hello".to_string()]).unwrap();
         assert_eq!(fs::read(&to).unwrap(), module);
+        assert!(!wat_to.join("gone.wat").exists());
+        assert!(wat_to.join("notes.txt").exists());
         assert!(
             fs::read_to_string(wat_to.join("hello.wat"))
                 .unwrap()

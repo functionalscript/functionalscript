@@ -6,7 +6,7 @@
 ### Problem
 
 [WASM demo pages](./wasm-demos.md) builds each sample's WASM ahead of time,
-in the deployment build. The page
+and commits it. The page
 can only show a module that already exists, so a visitor cannot change the
 source and see what the change does to the code, and the IR between the Rust
 and the WASM is gone by the time the page loads.
@@ -96,7 +96,7 @@ only, so NaNVM gets there one of two ways:
 | - | - | - |
 | Editable source | no | yes |
 | Shows CLIF and waffle IR | no | CLIF yes; waffle IR needs a patch |
-| Rust build | in the deployment build | none, in the visitor's browser |
+| Rust build | ahead of time, committed | none, in the visitor's browser |
 | First visit | small download | about 60 MiB compressed, then cached |
 | Codegen | upstream rustc, LLVM | Cranelift through waffle, experimental |
 | Running time it measures | LLVM-optimized code | Cranelift code, about 5× slower |
