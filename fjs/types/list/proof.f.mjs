@@ -437,12 +437,12 @@ export const proof = {
         parse: () => {
             assertEq(str(unwrap(parse(' 1,2\n 3 '))), '[1,2,3]')
             assertEq(str(unwrap(parse(''))), '[]')
-            assertEq(str(/** @type {any} */(parse('1, 2.5'))), '["error","a whole number of at most six digits, not: 2.5"]')
-            assertEq(str(/** @type {any} */(parse('9007199254740993'))), '["error","a whole number of at most six digits, not: 9007199254740993"]')
-            assertEq(str(/** @type {any} */(parse('1000000'))), '["error","a whole number of at most six digits, not: 1000000"]')
+            assertEq(str(parse('1, 2.5')), '["error","a whole number of at most six digits, not: 2.5"]')
+            assertEq(str(parse('9007199254740993')), '["error","a whole number of at most six digits, not: 9007199254740993"]')
+            assertEq(str(parse('1000000')), '["error","a whole number of at most six digits, not: 1000000"]')
             assertEq(str(unwrap(parse('-999999 999999'))), '[-999999,999999]')
-            assertEq(str(/** @type {any} */(parse('1,\t,2'))), '["error","a whole number of at most six digits, not: \\t"]')
-            assertEq(str(/** @type {any} */(parse('0x10'))), '["error","a whole number of at most six digits, not: 0x10"]')
+            assertEq(str(parse('1,\t,2')), '["error","a whole number of at most six digits, not: \\t"]')
+            assertEq(str(parse('0x10')), '["error","a whole number of at most six digits, not: 0x10"]')
             assertEq(str(unwrap(parse('-3 0'))), '[-3,0]')
         },
         // Typing replaces the text; every other event leaves it alone.

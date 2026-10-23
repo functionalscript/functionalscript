@@ -98,8 +98,8 @@ export const demo = textDemo({
     rows: 1,
     init: '3, 1, 4, 1, 5',
 })(text => {
-    const xs = parse(text)
-    return xs[0] === 'error'
-        ? [refusal(xs[1])]
-        : [caption('Calls, answers:'), ['pre', { [codeMarker]: '' }, listing(xs[1])]]
+    const [tag, value] = parse(text)
+    return tag === 'error'
+        ? [refusal(value)]
+        : [caption('Calls, answers:'), ['pre', { [codeMarker]: '' }, listing(value)]]
 })
