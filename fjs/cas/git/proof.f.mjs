@@ -826,15 +826,24 @@ export const proof = {
         assert(o.length === 1, o)
         assertEq(codeOf(o[0]), snapshotHeadCode)
     },
-    // An author an ident cannot hold — `<`, `>`, a line feed or a NUL in the
-    // name or the email — is refused before anything is opened, which `runPure`
-    // finishing is the proof of, rather than carried to the ident writer
-    // that throws once the blob and trees are written.
+    // An author an ident cannot hold — a name or an email that is empty or
+    // blank, or holds `<`, `>`, a line feed or a NUL — is refused before
+    // anything is opened, which `runPure` finishing is the proof of, rather
+    // than carried to the ident writer that throws once the blob and trees
+    // are written, or written as a commit `git fsck` refuses.
     writeBadAuthor: () => {
-        for (const bad of [{ name: 'A <B>', email: 'a@b' }, { name: 'A', email: 'a@b\nc' }, { name: 'A\0B', email: 'a@b' }]) {
-            const o = runPure(branchCas(sha256, branch, bad))
+        /** @type {readonly Author[]} */
+        const bad = [
+            { name: 'A <B>', email: 'a@b' },
+            { name: 'A', email: 'a@b\nc' },
+            { name: 'A\0B', email: 'a@b' },
+            { name: '', email: 'a@b' },
+            { name: 'A', email: ' ' },
+        ]
+        for (const author of bad) {
+            const o = runPure(branchCas(sha256, branch, author))
             assert(o.length === 1, o)
-            assertEq(codeOf(o[0]), authorCode, bad.name)
+            assertEq(codeOf(o[0]), authorCode, JSON.stringify(author))
         }
     },
     // ## Writing an object

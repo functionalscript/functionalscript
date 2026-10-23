@@ -152,14 +152,16 @@ const refuseFormat = refuse(repositoryFormatCode)
 const refuseAuthor = refuse(authorCode)
 
 /**
- * Whether an author's name or email holds a character an ident cannot: `<`,
- * `>` or a line feed, the delimiters of an identification line, which the
+ * Whether a value is one no ident can carry as an author's name or email:
+ * empty or blank, which `git commit` refuses as an empty ident and which
+ * would otherwise sign a commit as nobody or as `<>`; or holding `<`, `>`
+ * or a line feed, the delimiters of an identification line, which the
  * ident writer throws on and `git commit` silently strips; or a NUL, which
  * no header holds and `git fsck` refuses as `nulInHeader`.
  *
  * @type {(value: string) => boolean}
  */
-const holdsDelimiter = value => ['<', '>', '\n', '\0'].some(c => value.includes(c))
+const noIdent = value => value.trim() === '' || ['<', '>', '\n', '\0'].some(c => value.includes(c))
 
 /**
  * An object read from the store, with a store that has no such object
@@ -748,9 +750,9 @@ const commitOf = (author, tree, parents, message, ms) => {
  * Content already in the tree under its key writes no object and no
  * commit: the key is answered and the branch stands. Every commit is by
  * `author`, as `author` and `committer` both, at the `now` effect's time;
- * an author whose name or email holds `<`, `>`, a line feed or a NUL, which no
- * ident can carry, is refused as {@link authorCode} before anything is
- * opened or written.
+ * an author whose name or email is empty or holds `<`, `>`, a line feed or
+ * a NUL, which no ident can carry, is refused as {@link authorCode} before
+ * anything is opened or written.
  *
  * The source checkout is not touched: the writes are below `objects/` and
  * at the branch ref, and nowhere else — not `HEAD`, not the index, not a
@@ -763,8 +765,8 @@ const commitOf = (author, tree, parents, message, ms) => {
  * @returns {Effect<WriteOperation, Cas<WriteOperation>, IoChannel>}
  */
 export const branchCas = (sha2, branch, author) => {
-    if (holdsDelimiter(author.name) || holdsDelimiter(author.email)) {
-        return refuseAuthor(`the author holds "<", ">", a line break or a NUL: ${author.name} <${author.email}>`)
+    if (noIdent(author.name) || noIdent(author.email)) {
+        return refuseAuthor(`the author's name or email is empty or holds "<", ">", a line break or a NUL: ${author.name} <${author.email}>`)
     }
     const ref = branchRef(branch)
     const named = history(refName(ref))
@@ -888,13 +890,9 @@ export const configuredAuthor = (dir, home) => {
         if (name === null || email === null) { return pureOk(null) }
         /** @type {readonly (readonly [string, string])[]} */
         const values = [['name', name], ['email', email]]
-        const empty = values.find(([, v]) => v.trim() === '')
-        if (empty !== undefined) {
-            return refuseAuthor(`user.${empty[0]} is empty; set it in ${dir}/config or ${home}/.gitconfig`)
-        }
-        const bad = values.find(([, v]) => holdsDelimiter(v))
+        const bad = values.find(([, v]) => noIdent(v))
         return bad === undefined
             ? pureOk({ name, email })
-            : refuseAuthor(`user.${bad[0]} holds "<", ">", a line break or a NUL; set it without them in ${dir}/config or ${home}/.gitconfig`)
+            : refuseAuthor(`user.${bad[0]} is empty or holds "<", ">", a line break or a NUL; set it in ${dir}/config or ${home}/.gitconfig`)
     })
 }
