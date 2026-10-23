@@ -384,10 +384,16 @@ export const casAt = (read, oidBytes) => {
     return tree => ({
         read: key => {
             if (tree === null) { return notFound(key) }
-            // Two links: the entry the key's path names, and its object.
+            // Two links: the entry the key's path names, and its object. A
+            // subtree at the key's path is no object to read: the listing
+            // walks it as a tree and refuses what it names, so the read
+            // refuses the entry rather than streaming the blob a `40000`
+            // entry may wrongly name.
             const entry = history(entryAt(tree, components(key)))
-            const object = historyStep(entry, e => e === null ? pureOk(null) : present(read(e.oid)))
-            return step(object, ([o, e]) => e === null ? notFound(key) : blobOf(e, o))
+            const object = historyStep(entry, e => e === null || isDirectory(e) ? pureOk(null) : present(read(e.oid)))
+            return step(object, ([o, e]) => e === null
+                ? notFound(key)
+                : isDirectory(e) ? refuseEntry(`${toPath(key)} has mode ${nameText(e.mode)}`) : blobOf(e, o))
         },
         list: () => {
             if (tree === null) { return pureOk([]) }

@@ -501,6 +501,16 @@ export const proof = {
         assertEq(codeOf(listed(blobRoot)), casEntryCode)
         assertEq(codeOf(readAll(blobRoot, alphaKey)), casEntryCode)
     },
+    // A `40000` entry at the key's own path naming a blob: the listing walks
+    // it as a subtree and refuses the blob as no tree, and a read refuses
+    // the entry rather than streaming the blob it wrongly names — the one
+    // mode `malformed` lets below `.cas` that is no file.
+    leafIsDirectory: () => {
+        const { root, objects } = casEntry(alphaKey, '40000', sha1.idOf('blob', alpha))
+        const r = over(root, [...objects, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(r)), casEntryCode)
+        assertEq(codeOf(readAll(r, alphaKey)), casEntryCode)
+    },
     // ## The map over any reader
     //
     // `casAt` takes the store's reader, so a blob longer than one `Vec` is
