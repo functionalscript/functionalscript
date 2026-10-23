@@ -140,9 +140,11 @@ which is refused as a read but accepted as a call) is an included page with a
 5. **Bindings**
    - `●` `const`; `●` sharing (a `const` used twice, a repeated expression)
    - `●` [Destructuring](./2450-destructuring.md)
+   - `●` [Variables](../bindings/variables/README.md): `let` and assignment
+     ([`let`](./3220-let.md), "General bindings")
    - `◌` [Shadowing](./3150-shadowing.md),
-     [forward references](./3140-forward-references.md), [`let`](./3220-let.md)
-     beyond the loop, [assignments](./3430-assignments.md)
+     [forward references](./3140-forward-references.md), a module's `let`,
+     [compound assignments](./3430-assignments.md)
 6. **Operators**
    - `●` Grouping and precedence
    - `●` Arithmetic, comparison, bitwise
@@ -161,7 +163,7 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` Captures, closures, self recursion
    - `●` Calls; `○` function identity and text
 10. **Control flow**
-    - `●` Guards and early `return`; `●` `throw`; `●` the `let`/`while` loop
+    - `●` Guards and early `return`; `●` `throw`; `●` the one-variable `while` loop
     - `●` [call statements](../functions/call-statements/README.md); `◌` other loops and statements
 11. **Built-ins**
     - `●` Member functions (`at`, `toString`, …); `●` static functions
@@ -187,7 +189,7 @@ of pages with a status line, an Examples section and a Reference
 | `lexical/` | whitespace, comments, identifiers, string escapes |
 | `values/` | numbers, bigints, strings, template literals, arrays, objects |
 | `modules/` | structure, exports, imports |
-| `bindings/` | constants, destructuring |
+| `bindings/` | constants, variables, destructuring |
 | `operators/` | operators, grouping, `instanceof`, `in` |
 | `conversions/` | `Number`, `String` |
 | `property-access/` | access, optional chaining, entries |

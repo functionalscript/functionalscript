@@ -73,7 +73,6 @@ describes:
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md); page: [`in` Is Refused](../operators/in/README.md)) |
 | `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof/README.md); page: [`instanceof` Other Than `Array` Is Refused](../operators/instanceof/other-classes/README.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma/README.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
-| `op.assignment` | `a = 1` outside a loop's block | planned ([let](./3220-let.md), "Later": a `let` outside a loop is a rebinding) |
 | `op.compound-assignment` | `a += 1`, `a **= 2`, `a &&= 2` | planned ([assignments](./3430-assignments.md)) |
 | `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) |
 | `op.delete` | `delete a.b` | open |
@@ -113,7 +112,7 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `st.let-while` | a `let` or `while` outside the one-variable loop, or its block holding a statement that is no `const`, no assignment to the loop variable and no call statement | planned ([let](./3220-let.md)) |
+| `st.loop-variables` | a `while` whose block assigns no variable declared outside it, `while (r < n) { }`, or a second, `while (r < n) { r = r + 1; s = s + 1; }`; a loop at module level | planned ([let](./3220-let.md), "General loops"; the one-variable form is [loops](../control-flow/loops/README.md)) |
 | `st.guard` | `else`, an unbraced `if`, a guard block that does not terminate (in `return`, `throw`, or a switch with a `default`), a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
 | `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
@@ -124,9 +123,9 @@ describes:
 | `st.try` | `try`, `catch`, `finally` | open |
 | `st.debugger` | `debugger` | open |
 | `st.label` | `x: while (c) { }` | open |
-| `st.var` | `var a = 1` | design ([constants](../bindings/constants/README.md): `var` is not admitted; [let](./3220-let.md) adds only the loop variable; page: [`var` Is Refused](../bindings/var/README.md)) |
+| `st.var` | `var a = 1` | design ([constants](../bindings/constants/README.md): `var` is not admitted; [variables](../bindings/variables/README.md) give `let` its block and no hoisting; page: [`var` Is Refused](../bindings/var/README.md)) |
 | `st.empty` | `;;`, a stray `;` | design ([module structure](../modules/README.md); page: [An Empty Statement Is Refused](../modules/empty-statements/README.md)) |
-| `st.expression` | an expression statement that is no call statement, no assignment to a loop's variable in its block and no directive (`st.directive`): one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with `(`, `[` or a backtick, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements/README.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it; page: [An Expression Statement That Is No Call Is Refused](../functions/call-statements/expression-statements/README.md)) |
+| `st.expression` | an expression statement that is no call statement, no assignment to a variable and no directive (`st.directive`): one whose value is no call, `x;`, `a.b;`, `f(x).y;`, `Number(x);`, or that opens with `(`, `[` or a backtick, `(0, f)(x);`, `[a].at(0);`, `` `a`.trim(); `` | design ([call statements](../functions/call-statements/README.md): an operator's result discarded is almost always a mistake, a conversion is an operator, and a statement opening with `(`, `[` or a backtick would continue the one before it; page: [An Expression Statement That Is No Call Is Refused](../functions/call-statements/expression-statements/README.md)) |
 | `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](../functions/call-statements/README.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
 | `st.literal-call` | a call statement opening with a literal, `"a".trim();`, `1 .toFixed(2);` | open ([call statements](../functions/call-statements/README.md) begin with a name; a literal continues no statement before it, so no hazard refuses it, and no record admits it) |
 | `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch/README.md)) — `{}` | design ([functions](../functions/README.md); page: [A Body That Does Not Terminate Is Refused](../functions/body-end/README.md)) |
@@ -158,7 +157,8 @@ describes:
 | `mod.import-after-export` | `export const a = 1; import b from "m";` | design ([module structure](../modules/README.md); page: [An Import After an Export Is Refused](../modules/import-after-export/README.md)) |
 | `mod.throw-position` | `throw 1; export default 2;`, `export default 2; throw 1;` | design ([module structure](../modules/README.md); page: [A `throw` Beside an Export Is Refused](../modules/throw-position/README.md)) |
 | `mod.export-list` | `const a = 1; export { a };` | open (investigated in [export lists](./export-lists.md)) |
-| `mod.export-let` | `export let a = 1;` | design (`let` only opens a loop, [let](./3220-let.md); page: [`export let` Is Refused](../modules/export-let/README.md)) |
+| `mod.let` | `let a = 1;` at module level | planned ([let](./3220-let.md), "General bindings": a module's variables) |
+| `mod.export-let` | `export let a = 1;` | design (an export is a `const`, [variables](../bindings/variables/README.md) being a body's; page: [`export let` Is Refused](../modules/export-let/README.md)) |
 | `mod.reexport` | `export { a } from "m"`, `export * from "m"` | open (whether it belongs is a question in [export lists](./export-lists.md)) |
 | `mod.side-effect-import` | `import "./d";` | open ([named imports](../named-imports.md) leaves it unsupported; no record plans it) |
 | `mod.string-import-name` | `import { "x" as y } from "./d";` | open ([named imports](../named-imports.md) leaves it unsupported; no record plans it) |

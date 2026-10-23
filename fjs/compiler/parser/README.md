@@ -44,9 +44,16 @@ They create no source capture boundary. An ordinary nested function does, even
 when it is called immediately. Whole-helper recognition retains its parameter
 and local facts before replacing the helper with an intrinsic operation.
 
-These facts preserve the current source admission policy, including its loop
-capture exceptions. The broader write-based capture policy remains a later
-language milestone. [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs) owns
+These facts decide the capture policy: a variable assigned anywhere in its
+scope, a `let`'s or a parameter's, is refused to a function held as a value,
+while a function called where it is written, by a plain or an optional call,
+keeps reading it — reading, not assigning, since its block is inlined with
+values of its own — and a variable
+assigned nowhere is captured as a `const` is
+([spec: variables](../../../spec/bindings/variables/README.md)). The fold
+records each reference across a function boundary and decides it when the
+function closes; the shared analysis says, at the end, which bindings were
+reassigned. [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs) owns
 pattern planning, invocation layout, defaults, branch normalization and
 immutable assignment versions. Its pattern planner runs source admission
 callbacks during one ordered walk before shared binding analysis.
@@ -92,14 +99,16 @@ template ::= noSubstitutionTemplate
            | templateHead value { templateMiddle value } templateTail
 block  ::= '{' statement* terminator '}'
 statement ::= const | 'if' '(' value ')' block
-            | 'let' id '=' value end | 'while' '(' value ')' loopBlock
+            | 'let' bindingTarget '=' value end
+            | 'while' '(' value ')' loopBlock | bodyNameStatement
 terminator ::= 'return' value end | 'throw' value end
            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
 caseTail ::= 'case' value ':' caseTail | block afterCase
 afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
            | '}' statement* terminator
 loopBlock ::= '{' loopStatement* '}'
-loopStatement ::= const | id '=' value end
+loopStatement ::= const | 'let' bindingTarget '=' value end | bodyNameStatement
+bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
 func   ::= [ '...' id ] ')' '=>' body
 afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
              | '=' value [ ',' [ names ] ] ')' '=>' body
@@ -412,8 +421,9 @@ as checked source blocks and original binding references. `() => 7` and
 `() => { return 7; }` resolve to the same targeted return. A guard retains its
 condition and two lexical blocks: the written block and the remaining
 statements. A switch retains the discriminant, ordered labels, cases and final
-fallback. A scalar loop retains its source variable and assignments; it creates
-no parser-generated function or recursive call.
+fallback. A loop retains the one variable declared outside its block that
+the block assigns, and the block's assignments; it creates no parser-generated
+function or recursive call.
 
 The common sugar pass expands these records into normalized FAST regions,
 immutable definitions and explicit loop transfers. The grammar still requires

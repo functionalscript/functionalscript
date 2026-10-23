@@ -477,20 +477,20 @@ export type End = Option<readonly [number]>
  */
 export type Block = readonly [number, RepeatFrom<0, Statement>, Terminator, number]
 
-/** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a loop's `let`, its `while` whose block is a {@link LoopBlock}, or a call statement, {@link NameStatement}. A thunk, as {@link Value} is, since it names itself through the block. */
+/** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a `let`, a loop, `while` over a {@link LoopBlock}, or what begins with a name, an assignment or a call statement, {@link BodyNameStatement}. A thunk, as {@link Value} is, since it names itself through the block. */
 export type Statement = () => readonly ['const', {
     readonly const: ConstStatement
     readonly if: readonly [number, number, Value, number, Block]
     readonly let: LetStatement
     readonly while: readonly [number, number, Value, number, LoopBlock]
-    readonly name: NameStatement
+    readonly name: BodyNameStatement
 }]
 
-/** A call statement: a name, the rest of the value it begins, and {@link End}. */
+/** A module's call statement: a name, the rest of the value it begins, and {@link End}. */
 export type NameStatement = readonly [typeof assignable, ArrowOrRest, End]
 
-/** A loop block's statement that begins with a name: the name, then `=` and the assigned value or the rest of the value the name begins, and {@link End}. */
-export type LoopNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [number, Value] }, End]
+/** A body's statement that begins with a name: the name, then `=` and the assigned value or the rest of the value the name begins, and {@link End}. */
+export type BodyNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [number, Value] }, End]
 
 /** A module's statement before its exports: a `const`, or a call statement. */
 export type ModuleStatement = {
@@ -501,10 +501,11 @@ export type ModuleStatement = {
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 
-/** A loop block's statement: a `const`, or what begins with a name, {@link LoopNameStatement}. A thunk, since it holds a value. */
+/** A loop block's statement: a `const`, a `let`, or what begins with a name, {@link BodyNameStatement}. A thunk, since it holds a value. */
 export type LoopStatement = () => readonly ['const', {
     readonly const: ConstStatement
-    readonly name: LoopNameStatement
+    readonly let: LetStatement
+    readonly name: BodyNameStatement
 }]
 
 /**
@@ -526,8 +527,8 @@ export type BindingTarget = {
 /** A `const` statement: `const`, what it binds, `=`, the value, and {@link End}. */
 export type ConstStatement = readonly [number, BindingTarget, number, Value, End]
 
-/** A loop's `let`: `let`, the one variable's name — a name and never a pattern, the loop having one variable — `=`, the initial value, and {@link End}. */
-export type LetStatement = readonly [number, typeof identifierName, number, Value, End]
+/** A `let` statement: `let`, what it binds, `=`, the value, and {@link End} — the {@link ConstStatement} under the other keyword. */
+export type LetStatement = readonly [number, BindingTarget, number, Value, End]
 
 /**
  * The statement a block ends with: `return` or `throw`, its value, and

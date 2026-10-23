@@ -5,7 +5,7 @@
 **`var` is not FunctionalScript.** `var a = 1` is valid JavaScript, and
 `fjs compile` refuses it by design: the demo below shows what it prints.
 
-A `var` is a variable: it can be assigned again, it is visible before its declaration as `undefined`, and its scope is the whole function rather than its block. FunctionalScript binds a name once, with `const`, and admits `let` only as the variable of a loop ([let](../../todo/3220-let.md)), so `var` is refused.
+A `var` is a variable: it can be assigned again, it is visible before its declaration as `undefined`, and its scope is the whole function rather than its block. FunctionalScript binds a name with `const`, or with `let` as a variable of its block, declared before it is read ([variables](../variables/README.md)), so `var` is refused.
 
 The row `st.var` of [refused constructs](../../todo/refused-constructs.md)
 registers the refusal, and [constants](../constants/README.md) gives its reason.
