@@ -100,31 +100,25 @@ const infoShape = name => info => {
 }
 
 /**
- * A schema reached from another: an anonymous thunk is what it returns; a
- * named one is a definition, drawn by its name.
+ * A thunk is what it returns, with its name on the node. Its identity shares
+ * that definition across uses; a recursive use is a back edge to it.
+ * Built-ins and primitive constants stay inline.
  *
  * @type {(t: Type) => Shape<Type>}
  */
-const shapeOf = t => typeof t !== 'function' ? constShape(t)
-    : t.name === '' ? infoShape('')(t())
-        : { inline: t.name, kind: 'ref' }
+const shapeOf = t => {
+    const shape = typeof t !== 'function' ? constShape(t) : infoShape(t.name)(t())
+    return 'children' in shape ? { ...shape, recursive: true } : shape
+}
 
 /**
- * `schema` as a graph. A named root is expanded — it is the definition being
- * shown — through the one `Info` it returns, which nothing else can reach,
- * so every use of that schema below it is a back edge to the definition.
- * Other named schemas stay compact references, as in `shapeOf`.
+ * `schema` as a graph, including the definitions of every reachable named
+ * schema. Each definition is drawn once; shared uses point to that node,
+ * and recursive uses go back to it around the graph.
  *
  * @type {(schema: Type) => Graph}
  */
-export const _graphOf = schema => {
-    if (typeof schema !== 'function' || schema.name === '') { return graphOf(shapeOf)(schema) }
-    const info = schema()
-    const root = infoShape(schema.name)(info)
-    return graphOf(/** @type {(t: Type) => Shape<Type>} */ (t => t === info ? root
-        : t === schema ? { owner: value => value === info }
-            : shapeOf(t)))(info)
-}
+export const _graphOf = graphOf(shapeOf)
 
 // ── readers ──────────────────────────────────────────────────────────────────
 

@@ -37,7 +37,7 @@ export const lessons = [
     },
     {
         name: 'Any JSON value',
-        about: 'The JSON data model as a schema: a primitive, an object of JSON values, or an array of them. Recursive, so the graph draws the use of unknown by its name.',
+        about: 'The JSON data model as a schema: a primitive, an object of JSON values, or an array of them. The graph draws recursive uses as arrows back to the definition.',
         schemas: projectSchema('unknown', 'media/json/rtti', jsonValue),
         value: 'export default {"name":"fjs","tags":["data","schema"],"stars":42,"private":false,"homepage":null};',
     },
