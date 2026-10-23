@@ -385,11 +385,14 @@ export const fileCas = sha2 => path => {
     }
 }
 
-/** 256-bit random `Vec` built from 8 sequential `randomInt` (32-bit) calls.
+/** 256-bit random `Vec` built from 8 sequential `randomInt` (32-bit) calls:
+ * what a name nobody else is writing to is made of, here for a staging file
+ * and in [`fjs/cas/git`](./git/module.f.mjs) for a loose object's temporary
+ * file, which is why it is exported.
  *
  * @type {Effect<RandomInt, Vec, NotImplemented>}
  */
-const random256 =
+export const random256 =
     foldStep(
         pureOk([0, 1, 2, 3, 4, 5, 6, 7]),
         empty,

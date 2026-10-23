@@ -57,10 +57,13 @@ nothing, publishes nothing and retries nothing.
       a `CasReader`, the read half of `Cas<O>`, byte-preserving over the
       existing encoding, paths and Git primitives, in SHA-1 and SHA-256
       repositories — [`fjs/cas/git`](../git/module.f.mjs).
-- [ ] Write to a branch: a whole `Cas<O>` whose `write` stores the blob and
-      the rebuilt trees as loose objects and moves the branch to one new
-      commit, or to nothing where the key is already there. Prove that the
-      source checkout's `HEAD`, working tree and index stay unchanged.
+- [x] Write to a branch: `branchCas` is the whole `Cas<O>`, whose `write`
+      stores the blob and the rebuilt trees as loose objects and moves the
+      branch to one new commit, or writes nothing where the key is already
+      there, by the author `configuredAuthor` reads as `git commit` does.
+      The proof compares the filesystem to show the source checkout's
+      `HEAD`, working tree and index unchanged —
+      [`fjs/cas/git`](../git/module.f.mjs).
 - [ ] Add the three CLI commands over the same backend, the repository found
       from the current directory, and document them. Prove CLI and API
       behavior agree without a second implementation.
