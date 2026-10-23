@@ -67,10 +67,10 @@
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import {
-    catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step, walkStep,
+    catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultMapStep, resultStep, step, walkStep,
 } from '../../effects/module.f.mjs'
 import { fromList } from '../../effects/list/module.f.mjs'
-import { isNotFound, mkdir, namesNothing, now, readUtf8File, rename, rm, writeExclusive } from '../../effects/node/module.f.mjs'
+import { isNotFound, mkdir, namesNothing, now, readUtf8File, rename, rm, stat, writeExclusive } from '../../effects/node/module.f.mjs'
 import { tryTreeAt } from '../../git/commit/module.f.mjs'
 import { lastValue, tryEntries as configEntries } from '../../git/config/module.f.js'
 import { oidBytes as widthOf } from '../../git/format/module.f.mjs'
@@ -550,6 +550,35 @@ const refName = ref => {
 }
 
 /**
+ * Whether nothing is at `path`: a `stat` that names nothing. Any other
+ * failure is one.
+ *
+ * @type {(path: string) => Effect<SnapshotOperation, boolean, IoChannel>}
+ */
+const absent = path => catchStep(mapStep(stat(path), () => false), orElse(namesNothing, true))
+
+/**
+ * The commit `ref` is at, or `null` where there is no such ref — a branch
+ * nobody has created yet — or refused as {@link snapshotHeadCode} where the
+ * ref's file is there and names no commit. `tryResolve` answers `null` for a
+ * ref that is absent and for one it cannot read alike — a loose file
+ * holding no id, a symbolic ref to nothing — so where it answers `null` the
+ * loose file is `stat`ed once: a file there is a ref this backend cannot
+ * read, and nothing to open as the empty map or write over as if it were
+ * none. One `stat`, on the path where the branch does not exist yet alone;
+ * a malformed `packed-refs` is the case left to
+ * [`todo/absent-or-malformed.md`](./todo/absent-or-malformed.md).
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes, ref: string, name: Bytes) => Effect<SnapshotOperation, Nullable<Oid>, IoChannel>}
+ */
+const headOf = (dirs, oidBytes, ref, name) => {
+    const path = under(dirs.common, ref)
+    const resolved = history(tryResolve(dirs, oidBytes)(name))
+    const gone = historyStep(resolved, c => c === null ? absent(path) : pureOk(true))
+    return step(gone, ([g, c]) => g ? pureOk(c) : refuseHead(`${path} names no commit`))
+}
+
+/**
  * The snapshot of `branch`: the CAS map at the commit its {@link branchRef}
  * names, pinned there, or the empty map where the ref is not there — a
  * branch nobody has created yet.
@@ -559,12 +588,8 @@ const refName = ref => {
  * directories, the ref, and the commit the ref names, read to the tree it
  * holds. A `config` Git does not open is {@link repositoryFormatCode}; a ref
  * naming what is no commit, or a commit with no tree to read, is
- * {@link snapshotHeadCode}, and so is a branch whose name is no ref name. A
- * ref that is there but malformed — a loose file holding no id, a dangling
- * symbolic ref, a `packed-refs` Git refuses — is `null` to `tryResolve` as
- * an absent ref is, and so opens the empty map here;
- * [`todo/absent-or-malformed.md`](./todo/absent-or-malformed.md) tracks
- * telling the two apart.
+ * {@link snapshotHeadCode}, and so is a branch whose name is no ref name,
+ * and a ref file that names no commit ({@link headOf}).
  *
  * @type {(branch: Branch) => Effect<SnapshotOperation, CasReader<SnapshotOperation>, IoChannel>}
  */
@@ -572,7 +597,7 @@ export const snapshot = branch => {
     const ref = branchRef(branch)
     const named = history(refName(ref))
     const o = historyStep(named, () => opened(branch.dir))
-    const head = historyStep(o, ({ oidBytes, dirs }, name) => tryResolve(dirs, oidBytes)(name))
+    const head = historyStep(o, ({ oidBytes, dirs }, name) => headOf(dirs, oidBytes, ref, name))
     const tree = historyStep(head, (commit, { oidBytes, read }) => commit === null ? pureOk(null) : treeOfCommit(read, oidBytes, ref)(commit))
     return mapStep(tree, ([t, , { oidBytes, read }]) => casAt(read, oidBytes)(t))
 }
@@ -778,8 +803,8 @@ export const branchCas = (sha2, branch, author) => {
         const place = placed(read, write, oidBytes)
         const treeOf = treeOfCommit(read, oidBytes, ref)
         const writeRef = tryWrite(dirs, oidBytes)(name)
-        /** The commit the branch is at, or none. */
-        const head = tryResolve(dirs, oidBytes)(name)
+        /** The commit the branch is at, or none; a ref file naming none is refused. */
+        const head = headOf(dirs, oidBytes, ref, name)
         /** That commit's tree, or `null` for the empty one. */
         const tree = step(head, c => c === null ? pureOk(null) : treeOf(c))
         /** The bytes of a blob, from the chunks gathered: what is hashed for its id and written. @type {(chunks: readonly Vec[]) => Bytes} */

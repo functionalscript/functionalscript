@@ -380,6 +380,22 @@ export const proof = {
         assert(isNotFound(assertError(readAll(root, alphaKey))))
         assertStructurallySame(assertOk(listed(root)), [])
     },
+    // A ref file that names no commit — junk where an id should be, or a
+    // symbolic ref to nothing — is not the absent branch `tryResolve` folds
+    // it into: a read refuses it rather than opening the empty map, and a
+    // write refuses it rather than writing a root commit over it, with the
+    // file left as it was.
+    malformedRef: () => {
+        for (const bytes of ['junk\n', 'ref: refs/heads/nowhere\n']) {
+            const root = fs([[`${dir}/config`, text(initConfig)], [refPath, text(bytes)]])
+            assertEq(codeOf(opened(root)[1]), snapshotHeadCode, bytes)
+            const [s0, cas] = writable(root)
+            assertEq(codeOf(virtual(s0)(cas.list())[1]), snapshotHeadCode, bytes)
+            const [s1, w] = wrote(s0, cas, [gamma])
+            assertEq(codeOf(w), snapshotHeadCode, bytes)
+            assertStructurallySame(s1.root, root)
+        }
+    },
     // A commit with no `.cas` in its tree is the empty map too: nothing has
     // been stored on this branch yet, though the branch itself exists.
     noCasTree: () => {
