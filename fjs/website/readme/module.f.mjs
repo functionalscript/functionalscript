@@ -122,14 +122,29 @@ const anchorChar = c => {
 }
 
 /**
+ * A heading's words, lowercased, one character at a time: what its anchor
+ * is made of, and so what is asked about it. `İ` lowercases to `i` and a
+ * combining dot.
+ *
+ * @type {(spans: readonly Inline[]) => readonly string[]}
+ */
+const anchorSource = spans => [...spans.map(words).join('').toLowerCase()]
+
+/**
+ * {@link anchorChar} of a character outside ASCII, or `undefined` for one
+ * in it, whose fate the anchor's own rule decides.
+ *
+ * @type {(c: string) => 'keep' | 'drop' | 'unknown' | undefined}
+ */
+const nonAsciiAnchorChar = c => /** @type {number} */(c.codePointAt(0)) > 0x7f ? anchorChar(c) : undefined
+
+/**
  * The first character of a heading whose anchor this cannot make as GitHub
- * does, or `undefined`. It is asked of the lowercased words, as the anchor
- * is made of them: `İ` lowercases to `i` and a combining dot.
+ * does, or `undefined`.
  *
  * @type {(spans: readonly Inline[]) => string | undefined}
  */
-const unknownAnchorChar = spans => [...spans.map(words).join('').toLowerCase()]
-    .find(c => /** @type {number} */(c.codePointAt(0)) > 0x7f && anchorChar(c) === 'unknown')
+const unknownAnchorChar = spans => anchorSource(spans).find(c => nonAsciiAnchorChar(c) === 'unknown')
 
 /**
  * A heading's anchor as GitHub makes it: its words lowercased, spaces as
@@ -139,10 +154,10 @@ const unknownAnchorChar = spans => [...spans.map(words).join('').toLowerCase()]
  *
  * @type {(spans: readonly Inline[]) => string}
  */
-export const slug = spans => [...spans.map(words).join('').toLowerCase()]
+export const slug = spans => anchorSource(spans)
     .flatMap(c => c === ' ' ? ['-']
         : c === '-' || c === '_' || charIs(isDigit)(c) || charIs(isLatinLetter)(c)
-            || (/** @type {number} */(c.codePointAt(0)) > 0x7f && anchorChar(c) === 'keep') ? [c]
+            || nonAsciiAnchorChar(c) === 'keep' ? [c]
         : [])
     .join('')
 
