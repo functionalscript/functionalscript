@@ -6,10 +6,11 @@
 ### Problem
 
 The [build cache](../../ci/todo/097-smart-ca-ci.md) decides the direction
-for a developer machine: it is one more job. `fjs ci run`, later, detects
-the host, picks the CI job its facts satisfy, runs it as the workflow
-would, and publishes on success, with the toolset and the files as they
-are recorded in the key rather than validated. What that leaves open is
+for a developer machine: it runs the same generated steps as CI.
+`fjs run`, later and lower priority, picks the jobs for the host's
+platform, runs their steps in the workflow's order, and publishes on
+success, with the toolset and the files as they are recorded in the key
+rather than validated. What that leaves open is
 whether a developer's everyday work is served by running CI's jobs, and
 where it is not.
 
@@ -33,4 +34,4 @@ command is the build cache's and is not redone here.
 ### Related
 
 - [CI build cache](../../ci/todo/097-smart-ca-ci.md) — decides the
-  direction: a developer machine is one more job, through `fjs ci run`.
+  direction: a developer machine runs the same steps, through `fjs run`.
