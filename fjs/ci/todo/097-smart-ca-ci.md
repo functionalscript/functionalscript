@@ -19,9 +19,11 @@ Implement this in two stages:
 2. Use that CAS backend to create and read the `build-cache` branch in the
    same repository and publish complete JSON manifests after build success.
 
-The CAS backend owns branch access, commits, pushes, retries, and cleanup.
-This consumer owns input selection, build identity, and the success
-condition. Use CAS hashes for the JSON documents and reuse Git blob IDs for
+The CAS backend owns branch access and the commit each `add` makes; it
+does not sync, publish, retry or delete — `git push`, `git fetch`,
+`git merge` and a deletion commit are Git's own, and the job runs them.
+This consumer owns input selection, build identity, the success
+condition, and the publication loop below. Use CAS hashes for the JSON documents and reuse Git blob IDs for
 committed source files. The first target is CI; smart builds on developer
 machines are a separate [investigation](../../dev/todo/smart-builds.md).
 
@@ -125,27 +127,35 @@ is a follow-up, not a prerequisite for this CI implementation.
 
 1. Compute the selected contract, complete input tree, canonical manifest,
    and its CAS key without publishing it.
-2. Read that key through CAS in a fetched `build-cache` branch snapshot.
-   Its presence there allows the corresponding work to be skipped.
-   Historical objects, objects in another CAS store, and unpublished local
-   writes do not establish a successful build.
+2. `git fetch origin build-cache`, then read that key through CAS in the
+   fetched branch (`snapshot` of `refs/remotes/origin/build-cache`, or
+   `fjs cas git get` on a local branch reset to it). Its presence there
+   allows the corresponding work to be skipped. Historical objects, objects
+   in another CAS store, and local writes not yet pushed do not establish
+   a successful build.
 3. On a miss, run the block. Only after all checks required by that block
-   succeed, write the original complete manifest through CAS and publish it
-   to `build-cache`. A failed, cancelled, or partial run adds no entry.
-4. Let the branch backend handle commit creation, concurrency, and retries.
-   A publication retry does not repeat the successful build.
+   succeed, write the original complete manifest through CAS — one `add`,
+   one commit on the local `build-cache` — and `git push origin
+   build-cache`. A failed, cancelled, or partial run adds no entry.
+4. Where the push is refused as a non-fast-forward because another job
+   published first, `git fetch` and `git merge origin/build-cache` — different
+   keys are different paths, so independent additions never conflict — and
+   push again, a few times. The loop is the job's, in its script; a retry
+   does not repeat the successful build.
 
-Keep the source checkout unchanged during cache access and publication,
-using the backend's explicit branch operations. Publish an initial Rust or
+Keep the source checkout unchanged during cache access and publication:
+the backend writes only objects and the branch ref, and the fetch, merge
+and push name the branch rather than checking it out. Publish an initial Rust or
 JS entry only after its entire hashed contract succeeds; one platform or a
 narrower check cannot certify the full block. Another build system may
 reuse the entry when its canonical contract and complete inputs describe
 equivalent work.
 
-Use the backend's ordinary deletion commits to clear some or all cache
-entries. Membership in the current published tree determines a hit; Git
-storage reclamation is independent. Concurrent additions may appear after
-cleanup, as specified in the branch-CAS task.
+Clear some or all cache entries with an ordinary deletion commit on the
+branch — `git rm` on a checkout of it, or a commit built the same way —
+and push it. Membership in the fetched tree determines a hit; Git storage
+reclamation is independent. Concurrent additions may appear after cleanup,
+merged in as any addition is.
 
 These records establish successful work. Restoring build outputs is a
 separate requirement.
