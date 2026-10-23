@@ -1,5 +1,6 @@
 /**
  * @import { JsToken } from '../../ebnf/lib/js/types.ts'
+ * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
@@ -8,7 +9,11 @@ import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { assertRecognizes, recognizer } from '../../ebnf/testlib.f.mjs'
 import { _positions, tokenize } from './module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { demo, tokensOf } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 /**
  * The tokens of a text, positions left out — `error` where the text does not
@@ -1398,4 +1403,33 @@ export const proof = {
             assertStructurallySame(result, [{ kind: 'id', value }, { kind: 'eof' }])
         },
     ],
+    demo: {
+        // Trivia is kept: a comment shows its text, and whitespace is one token.
+        tokens: () => assertEq(tokensOf('a // c\n`t${1n}`'), [
+            '1:1  id  "a"',
+            '1:2  ws',
+            '1:3  //  " c"',
+            '1:7  nl',
+            '2:1  templateHead  "t"',
+            '2:5  bigint  1n',
+            '2:7  templateTail  ""',
+            '2:9  eof',
+        ].join('\n')),
+        // An error is the whole stream.
+        error: () => assertEq(tokensOf('123abc'), '1:4  error  invalid number'),
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            /** @type {(event: DemoEvent) => (state: string) => string} */
+            const step = event => state => unwrap(assertNotNullish(
+                runPure(demo.update(state)(event))[0],
+                'expected the demo to reach a value without asking for an operation'))
+            assertEq(step({ kind: 'input', name: 'source', value: 'x' })(''), 'x')
+            assertEq(step({ kind: 'start' })('kept'), 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="source"'), html)
+            assert(html.includes('templateHead'), html)
+        },
+    },
 }
