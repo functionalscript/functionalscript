@@ -5,7 +5,7 @@
  */
 
 import type { InternalState } from '../types/patricia_trie/types.ts'
-import type { EncodeState as LiteralEncodeState, PipelineState } from './level/literal/types.ts'
+import type { PipelineState } from './level/literal/types.ts'
 import type { Id } from './id/types.ts'
 
 type HashState = InternalState<Id>
@@ -53,23 +53,12 @@ export type _DemoUnit = {
 }
 
 /**
- * One literal level as the demo follows bits through it: its encoder state,
- * the bit where its current word starts, and the length in bits of each word
- * it has closed.
- */
-export type _DemoLevel = {
-    readonly state: LiteralEncodeState
-    readonly start: number
-    readonly words: readonly number[]
-}
-
-/**
- * How the literal levels cut bits into words: the padding added after the
- * input — a `1`, then `0`s until L3 closes a word — and, for each level from
- * L1 to L3, the length in bits of each of its words, in order. Every level's
- * lengths add up to the input and the padding together.
+ * What the demo draws from: the padding `end` adds after the input — a `1`,
+ * then `0`s — each bit's height, the input's then the padding's, and the
+ * root.
  */
 export type _DemoStripes = {
     readonly padding: string
-    readonly words: readonly (readonly number[])[]
+    readonly heights: readonly number[]
+    readonly root: Id
 }

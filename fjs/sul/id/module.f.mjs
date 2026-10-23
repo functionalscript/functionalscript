@@ -145,3 +145,14 @@ export const compress = (a, b) => {
     }
     return rawId(concat(ra)(rb))
 }
+
+/**
+ * Whether a hash-level symbol covering `length` input bits is a hash. Every
+ * `compress` of raw parts keeps their bits inline, in order, as a raw `Id`
+ * while they fit in 253, and hashes them once they do not; a part that is a
+ * hash covers more than 253 bits already. So a symbol is raw exactly when the
+ * input bits it covers fit, and a hash exactly when they do not.
+ *
+ * @type {(length: number) => boolean}
+ */
+export const isHashLength = length => BigInt(length) > rawLenMax

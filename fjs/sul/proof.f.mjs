@@ -8,7 +8,7 @@
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.js'
 import { compress, level3Id } from './id/module.f.mjs'
 import { encode, emptyEncodeState } from './module.f.mjs'
-import { demo, maxBits, stripes, units } from './demo.f.mjs'
+import { demo, maxBits, rowWords, stripes, units } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
@@ -134,18 +134,27 @@ export const proof = {
      * the demo refuses.
      */
     demo: {
-        // `Hi` is `01 00 100 00 11 01 00 1`, its last L1 word closed by the
-        // padding's `1`: eight L1 words, three L2 words, one L3 word.
-        hi: () => assertEq(JSON.stringify(stripes('0100100001101001')),
-            JSON.stringify({ padding: '1', words: [[2, 2, 3, 2, 2, 2, 2, 2], [7, 4, 6], [17]] })),
-        // No input is all padding, a `1` and then `0`s until L3 closes.
-        empty: () => assertEq(JSON.stringify(stripes('')),
-            JSON.stringify({ padding: '100000000000000', words: [[3, 2, 2, 2, 2, 2, 2], [7, 4, 4], [15]] })),
-        // Every level's words cover the input and the padding exactly.
+        // `Hi` is `01 00 100 00 11 01 00 1·1`: its heights are the encoder's,
+        // its one padding bit closes L1, L2 and L3, and its root is that L3
+        // symbol.
+        hi: () => {
+            const { padding, heights, root } = stripes('0100100001101001')
+            assertEq(padding, '1')
+            assertEq(JSON.stringify(heights), JSON.stringify([0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 2, 0, 1, 0, 1, 0, 3]))
+            assertEq(root, level3Id(0x4e94n))
+            assertEq(JSON.stringify([1, 2, 3].map(k => rowWords(heights, k))), JSON.stringify([[2, 2, 3, 2, 2, 2, 2, 2], [7, 4, 6], [17]]))
+        },
+        // No input is all padding, a `1` and then `0`s until the root.
+        empty: () => assertEq(stripes('').padding, '100000000000000'),
+        // Every row's words cover the input and the padding exactly, up to
+        // the root's, which covers them all.
         covers: () => {
-            const bits = '0100100001100101011011000110110001101111'
-            const { padding, words } = stripes(bits)
-            for (const w of words) { assertEq(w.reduce((a, b) => a + b, 0), bits.length + padding.length) }
+            const { padding, heights } = stripes(bitsOf('Hello').join(''))
+            const top = Math.max(...heights)
+            for (const k of Array.from({ length: top }, (_, i) => i + 1)) {
+                assertEq(rowWords(heights, k).reduce((a, b) => a + b, 0), 40 + padding.length)
+            }
+            assertEq(JSON.stringify(rowWords(heights, top)), JSON.stringify([40 + padding.length]))
         },
         units: {
             text: () => assertEq(JSON.stringify(assertOk(units({ input: 'text', text: 'a é', bits: 'x' }))), JSON.stringify([
@@ -160,12 +169,12 @@ export const proof = {
             surrogate: () => assertEq(assertError(units({ input: 'text', text: '\ud800', bits: '' })), 'unpaired surrogate, no UTF-8'),
             textLimit: () => {
                 assertEq(assertOk(units({ input: 'text', text: 'a'.repeat(maxBits / 8), bits: '' })).length, maxBits / 8)
-                assertEq(assertError(units({ input: 'text', text: 'a'.repeat(maxBits / 8 + 1), bits: '' })), 'text too long: more than 32 UTF-8 bytes')
+                assertEq(assertError(units({ input: 'text', text: 'a'.repeat(maxBits / 8 + 1), bits: '' })), 'text too long: more than 128 UTF-8 bytes')
             },
             notBits: () => assertEq(assertError(units({ input: 'bits', text: '', bits: '012' })), 'bits are 0 and 1 only'),
             bitLimit: () => {
                 assertEq(assertOk(units({ input: 'bits', text: '', bits: '0'.repeat(maxBits) })).length, maxBits / 8)
-                assertEq(assertError(units({ input: 'bits', text: '', bits: '0'.repeat(maxBits + 1) })), 'too many bits: more than 256')
+                assertEq(assertError(units({ input: 'bits', text: '', bits: '0'.repeat(maxBits + 1) })), 'too many bits: more than 1024')
             },
         },
         update: () => {
@@ -186,12 +195,31 @@ export const proof = {
                 assert(h.includes('<div data-sul-unit="" data-sul-pad=""><span data-sul-label="" data-stand-in="">end</span>'), h)
                 assert(h.includes('<span data-sul-bit="" data-bit="stop">1</span>'), h)
                 assert(h.includes('<span data-sul-px="a"></span>') && h.includes('<span data-sul-px="b"></span>'), h)
-                assert(h.includes('40 input bits and '), h)
+                assert(h.includes('40 input bits and 57 padding bits: L1 45, L2 21, L3 9, H1 4, H2 1 words.'), h)
+                assert(h.includes('<p data-caption="">Root, raw, its bits held inline:</p>'), h)
+                assert(!h.includes('data-sul-hash'), h)
             },
             bits: () => {
                 const h = htmlToString(demo.view({ ...demo.init, input: 'bits' }))
                 assert(h.includes('<input type="text" id="bits" name="bits" value="0100100001101001">'), h)
                 assert(h.includes('16 input bits and 1 padding bits: L1 8, L2 3, L3 1 words.'), h)
+                assert(h.includes('<p data-caption="">Root, an L3 symbol:</p>'), h)
+                assert(h.includes(`<pre>0x${'4e94'.padStart(64, '0')}</pre>`), h)
+            },
+            // The longest text reaches the hash levels' hashes: a stripe wider
+            // than 253 bits is hatched, and the root is a hash. (`init`
+            // checks that `Hello`, all of whose stripes are narrower, has
+            // none.)
+            hashes: () => {
+                const h = htmlToString(demo.view({ ...demo.init, text: 'a'.repeat(maxBits / 8) }))
+                assert(h.includes('<span data-sul-px="a" data-sul-hash=""></span>'), h)
+                assert(h.includes('<div data-sul-row="">H6</div>'), h)
+                assert(h.includes('<p data-caption="">Root, a hash:</p>'), h)
+            },
+            // The padding is units of eight bits, the first labelled `end`.
+            padding: () => {
+                const h = htmlToString(demo.view(demo.init))
+                assert(h.includes('<div data-sul-unit="" data-sul-pad=""><span data-sul-label=""></span>'), h)
             },
             // Each row is its own level, and each unit draws its own bits of
             // it. `Hi`'s L1 words are `01 00 100 00 11 01 00 1·1`, its L2
