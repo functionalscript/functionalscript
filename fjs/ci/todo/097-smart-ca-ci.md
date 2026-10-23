@@ -215,7 +215,11 @@ another, and nothing is added to the critical path of a run that misses.
    with its suite, `npm run gen` with the drift check's diff, `npm pack`
    with the clean consumer's checks — since gating them apart lets a
    consumer pass on nothing: skip the generation and the diff compares the
-   committed files with themselves. A gated-off check reports as skipped
+   committed files with themselves. A step several checks need — the one
+   `npm ci` in `node26` ahead of `tsc`, compile, coverage and the
+   packed-package check, whose `prepack` build wants `@types/node` — is
+   gated on the union of their misses, so it runs if any of them does,
+   and belongs to none of their entries. A gated-off check reports as skipped
    inside a job that reports green, which a required check accepts; a
    workflow-level `paths:` filter would leave the check unreported and
    block the pull request, so steps are skipped and never the workflow.
@@ -488,9 +492,13 @@ key it needs, and no diff is ever computed:
 | `tsc` | the `ts` manifest's | any of the three changes |
 | the packed-package check — `npm pack`, the clean consumer's `tsc` and run | the `ts` manifest's, since the package holds all three groups | any of the three changes |
 
-A run publishes exactly the entries of the rungs it ran: a TS-only change
-runs `tsc` and publishes one entry; an FJS change runs all three and
-publishes three. The groups are the exceptions to "select by dependency,
+A rung is a manifest, not a contract: every check keeps its own contract
+and its own entry, and a check's key is its contract over its rung's
+manifest, so `tsc` and the packed-package check share the `ts` manifest
+and never each other's entry. A run publishes an entry per check it ran: a
+TS-only change runs `tsc` and the packed-package check and publishes
+those two; an FJS change runs every check and publishes every entry. The
+groups are the exceptions to "select by dependency,
 not filename extension" above, and deliberately: for these three tools the
 extension is what decides which reads a file. A file that is not code goes
 to the lowest rung whose command reads it, so that a hit on that rung never
@@ -601,8 +609,9 @@ own complete input set and success condition.
       retaining complete inputs and distinct hashed contracts for different
       work.
 - [ ] Split the JavaScript block into the `fjs`, `js` and `ts` rungs: the
-      three chained manifests, one contract per rung, the check that every
-      tracked file of the repository is listed or excluded by name.
+      three chained manifests, each check's contract over its rung's
+      manifest, the check that every tracked file of the repository is
+      listed or excluded by name.
 - [ ] Enumerate the `gen` check's inputs from what the generators read,
       and cache it on them; until then it runs on every run.
 - [ ] Measure the native backend's lookup and add on a cache branch of
