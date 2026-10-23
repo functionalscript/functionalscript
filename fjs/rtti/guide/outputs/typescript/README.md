@@ -34,7 +34,7 @@ a reader's result.
 | computed by | the type checker | a function, at run time |
 | goes through | the schema as written | the data form, `toData(s)` |
 | a struct | required and optional keys as an intersection | one object type, keys sorted |
-| a recursive schema | a recursive type | a named alias, `type tree = …` |
+| a recursive schema | a recursive type | the alias name only; `dataToTs` also returns the `type tree = …` definitions |
 
 Every container is `readonly`; `printer(true)` drops the modifier. A key
 admitting absence is optional, `a?:`, and its value type leaves out

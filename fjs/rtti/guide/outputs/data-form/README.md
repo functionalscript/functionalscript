@@ -3,8 +3,7 @@
 **Status:** implemented
 
 `toData(s)` turns a schema — functions and all — into plain data: no
-functions, comparable, and one spelling per set up to a few documented
-structural limits.
+functions, normalized toward one spelling per set, and comparable.
 
 ```js
 equal(toData(or(true, false)))(toData(boolean))   // true
@@ -15,19 +14,18 @@ subset(toData({ a: number }))(toData({ a: 42 }))  // false
 A schema is a set of values, and the data form represents the set, not the
 spelling. A union is merged kind by kind, a constant inside its whole kind is
 absorbed (`or(42, number)` is all numbers), a member another covers is dropped,
-and what is left is ordered canonically. So `equal` answers whether two
-schemas admit the same values, `subset` whether every value of one is a value
-of the other, and `cmp` orders schemas for sorting.
+and what is left is ordered canonically. `equal` compares two such forms,
+`subset` asks whether every value of one is a value of the other, and `cmp`
+orders schemas for sorting.
 
-`equal` compares structure, and the form is fully canonical only for schemas
-without recursion. A recursive schema is kept as named rules, and the form does
-not normalize a reference to the set it stands for. So two schemas that use
-references can be one set without being `equal`. Examples include rule names
-that differ, a referenced `rest`, and a reference whose set is all of
-`unknown`. For such a pair, `subset` holds both ways. The data form's
+The normalization is deliberately not complete, so `equal` is sound but not
+exact. When it says `true`, the two schemas admit the same values. When it says
+`false`, they may still admit the same values but be spelled differently. Two
+examples are `[or(number, string)]` against `or([number], [string])`, and two
+recursive rules that differ only in name. The data form's
 [canonical form](../../../data/README.md#canonical-form) and
-[tuple length](../../../data/README.md#tuple-length) sections list these
-cases.
+[`subset`](../../../data/README.md#subset-is-sound-and-deliberately-incomplete)
+sections list the known cases.
 
 `subset` is **sound and deliberately incomplete**: when it says `true`, it is
 true; it may say `false` for a pair whose inclusion it cannot establish.
