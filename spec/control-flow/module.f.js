@@ -18,6 +18,7 @@ const guards = [
 /** @type {Examples} */
 const loops = [
     ['Loop', 'export default n => {\n    let r = 1;\n    while (r < n) {\n        r = r * 2;\n    }\n    return r;\n};'],
+    ['Loop over a parameter', 'export default n => {\n    while (n > 0) {\n        n = n - 7;\n    }\n    return n;\n};'],
 ]
 
 /** @type {Examples} */

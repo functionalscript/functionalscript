@@ -99,8 +99,11 @@ export type Block = readonly ['block', readonly [...(readonly BlockStatement[]),
  */
 export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch]
 
-/** A block's statement before the one that ends it, tagged by its keyword: a `const`, a guard, a loop's `let`, its `while`, or a switch without a `default`, {@link Switch}, the statements after it in the list being what runs when no label matched. */
-export type BlockStatement = readonly ['const', Const] | readonly ['if', If] | readonly ['let', Let] | readonly ['while', While] | readonly ['switch', Switch]
+/** A block's statement before the one that ends it, tagged by its keyword: a `const`, a `let` — the record a `const` has, under the keyword that declares a variable — an assignment, {@link Assignment}, a guard, a loop, or a switch without a `default`, {@link Switch}, the statements after it in the list being what runs when no label matched. */
+export type BlockStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['while', While] | readonly ['switch', Switch]
+
+/** What begins with a name, tagged: a call statement, the record a `const` has, or an assignment. */
+export type NamedStatement = readonly ['const', Const] | readonly ['assign', Assignment]
 
 /**
  * A switch, `switch (discriminant) { case a: case b: block … default: block }`:
@@ -136,9 +139,8 @@ export type SwitchEnd = readonly ['default', Block] | readonly ['rest', Block[1]
 /**
  * A loop, `while (condition) block`: the token it begins with, its
  * condition, and its block, {@link LoopBlock}. It records no `;`, as a
- * guard does not. The `let` before it, a {@link Let},
- * declares the variable the block assigns; the fold reads the two
- * statements as one loop and refuses either alone
+ * guard does not. Which variable the loop steps is the fold's to find,
+ * from the assignments in the block
  * ([spec: loops](../../../../spec/control-flow/loops/README.md)).
  */
 export type While = {
@@ -147,16 +149,16 @@ export type While = {
     readonly block: LoopBlock
 }
 
-/** A loop's block: its statements in order, `const`s and assignments, and no terminator. */
+/** A loop's block: its statements in order, `const`s, `let`s and assignments, and no terminator. */
 export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
 
-/** A loop block's statement, tagged: a `const`, or an assignment. */
-export type LoopStatement = readonly ['const', Const] | readonly ['assign', Assignment]
+/** A loop block's statement, tagged: a `const`, a `let`, or an assignment. */
+export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the
- * statement begins at, and its value. The fold admits the loop's own
- * variable and refuses every other name.
+ * statement begins at, and its value. Which names may be assigned — a
+ * `let`'s or a parameter's — is the fold's to say.
  */
 export type Assignment = Statement & {
     readonly name: ModuleTokenWithMetadata
@@ -344,17 +346,6 @@ export type Const = Statement & {
 export type Discard = readonly ['discard', ModuleTokenWithMetadata]
 
 /**
- * A loop's `let`, `let x = init;`: the token naming the one variable the
- * loop's block assigns, and its initial value. It begins at its `let`. A
- * name and never a pattern, the loop having one variable
- * ([spec: loops](../../../../spec/control-flow/loops/README.md)).
- */
-export type Let = Statement & {
-    readonly name: ModuleTokenWithMetadata
-    readonly value: Node
-}
-
-/**
  * What a binding binds, as written — a `const`'s, or a fixed parameter's:
  * a name, by its token; an array pattern, `[t, …]`, by its `[` and its
  * elements; or an object pattern, `{ p, … }`, by its `{` and its
@@ -410,14 +401,17 @@ export type ModuleConst = {
     readonly exported: boolean
 }
 
+/** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, or an assignment. */
+export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment]
+
 /**
- * A whole module as matched: declarations in order, and what ends it — an
+ * A whole module as matched: its statements in order, and what ends it — an
  * optional final `export default`, or the `throw` that stands in its place,
  * never both. A module with neither exports its named `const`s alone.
  */
 export type Module = {
     readonly imports: readonly Import[]
-    readonly consts: readonly ModuleConst[]
+    readonly statements: readonly ModuleStatement[]
     readonly exported: ValueStatement | null
     readonly thrown: ValueStatement | null
 }
@@ -496,10 +490,12 @@ export type Out =
     | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
+    | { readonly id: 'named', readonly statement: NamedStatement }
     | { readonly id: 'statement', readonly statement: BlockStatement }
     | { readonly id: 'end', readonly end: Block[1] }
     | { readonly id: 'caseTail', readonly labels: List<Node>, readonly block: Block, readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'afterCase', readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }
-    | { readonly id: 'last', readonly consts: List<ModuleConst>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
+    | { readonly id: 'moduleStatement', readonly statement: ModuleStatement }
+    | { readonly id: 'last', readonly statements: List<ModuleStatement>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }

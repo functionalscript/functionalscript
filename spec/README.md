@@ -60,6 +60,7 @@ output; the others say under *Examples* that theirs are still to come
 - [Modules](./modules/README.md): [exports](./modules/exports/README.md),
   [imports](./modules/imports.md)
 - [Bindings](./bindings/README.md): [constants](./bindings/constants/README.md),
+  [variables](./bindings/variables/README.md),
   [destructuring](./bindings/destructuring/README.md)
 - [Operators](./operators/README.md): [grouping](./operators/grouping/README.md),
   [`instanceof`](./operators/instanceof/README.md), [`in`](./operators/in/README.md)
@@ -87,20 +88,20 @@ output; the others say under *Examples* that theirs are still to come
 
 | Area | Supported today |
 | --- | --- |
-| Modules | Default, named and combined imports; JSON import attributes; local and exported `const`; named and default exports; terminal `throw` |
+| Modules | Default, named and combined imports; JSON import attributes; local and exported `const`, local `let` and assignments; named and default exports; terminal `throw` |
 | Literals | JSON values, `undefined`, `NaN`, infinities and arbitrary-width bigints; decimal, hexadecimal and binary integers; numeric separators; single- and double-quoted strings; untagged template literals |
 | Containers | Dense arrays, object literals, shorthand members, constant and computed keys, trailing commas, array/call spread and object spread |
 | Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
-| Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, terminating `if` guards, `let`/`while` loops over one variable, the terminating `switch`, `return`, `throw`, ordinary and method calls |
+| Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, `let` variables and assignments, terminating `if` guards, `while` loops over one variable, the terminating `switch`, `return`, `throw`, ordinary and method calls |
 | Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](./built-ins/member-functions/README.md)); `Object.is`, `Object.entries` and the `Number` predicates `isInteger`, `isSafeInteger`, `isNaN`, `isFinite` ([static functions](./built-ins/static-functions/README.md)) |
 | Compiler | JSON/DataJS evaluation; FunctionalScript, EDAG and Rust graph output; import linking and the authored `.f.js` check |
 
 The sections below give the restrictions and executor-specific limits for
 each feature. This overview records compiler support; optional chaining's
 required [language-design approval record](./todo/2335-optional-chaining.md#authorization-and-approval)
-remains open. TypeScript-only syntax, mutation beyond a loop's variable,
-loops beyond the one `let`/`while` form ([loops](./control-flow/loops/README.md)), classes, numeric
+remains open. TypeScript-only syntax, mutation of a value's contents,
+loops beyond the one-variable `while` ([loops](./control-flow/loops/README.md)), classes, numeric
 key literals and general forward references remain outside the implemented
 language.
 

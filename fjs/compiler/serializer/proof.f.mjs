@@ -1179,7 +1179,7 @@ export const proof = {
     // lowering reconstructs the same canonical scalar function graph.
     scalarNoUpdate: () => {
         writes(['=>', 1, [], ['?:', false, ['()', ['self'], [['arg', 0]]], ['arg', 0]]],
-            'export default ($0)=>{let $1=$0;while((()=>{const $2=$1;return false;})()){const $3=$1;}return $1;};')
+            'export default ($0)=>{let $1=$0;while((()=>{const $2=$1;return false;})()){const $3=$1;$1=$1;}return $1;};')
     },
     loops: () => {
         /** @type {(next: Exp) => Exp} */
@@ -1212,9 +1212,9 @@ export const proof = {
         // leaves the variable as it is is empty, as one of asserts alone is
         // its asserts
         writes(['=>', 1, [], ['()', loop([['arg', 0]], ['()', ['frame', 0], [['arg', 0]]], call(['arg', 0])), [['[]', [1]]]]],
-            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $0($4);})()){const $5=$3;}return $3;};return $1([1]);};')
+            'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $0($4);})()){const $5=$3;$3=$3;}return $3;};return $1([1]);};')
         writes(['=>', 0, [], ['()', loop([], true, [',', [['[]', [1]], call(['arg', 0])]]), [0]]],
-            'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;return true;})()){const $4=$2;const $5=[1];}return $2;};return $0(0);};')
+            'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;return true;})()){const $4=$2;const $5=[1];$2=$2;}return $2;};return $0(0);};')
         // a loop under a lazy operand is the block's, as any value there
         writes(['=>', 1, [], ['?:', ['arg', 0], counted, 1]],
             'export default ($0)=>$0?(()=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<$0;})()){const $5=$3;const $6=$5+2;$3=$6;}return $3;};return $1(0);})():1;')

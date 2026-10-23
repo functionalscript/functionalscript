@@ -60,12 +60,12 @@ written.
   keep what such a `const` computes, and the value outputs, which write only
   the value, still evaluate it and refuse the module when it fails
   ([output](../../command-line/output.md)).
-- Every ordinary or exported `const` comes after every `import` and before
-  `export default`, when present
+- Every ordinary or exported `const`, and every `let`, comes after every
+  `import` and before `export default`, when present
   ([module structure](../../modules/README.md)).
-- `let` is part of the language only as the first statement of a loop,
-  `let x = init;` followed by `while` ([loops](../../control-flow/loops/README.md)), and `var` not at
-  all ([let](../../todo/3220-let.md)).
+- `let` declares a variable, a name an assignment may rebind
+  ([variables](../variables/README.md)); `var` is not part of the language
+  ([`var`](../var/README.md)).
 
 Sharing is a property of the *value*, not of the name, so what the compiler
 preserves is what the graph actually shares. A DataJS document writes it in

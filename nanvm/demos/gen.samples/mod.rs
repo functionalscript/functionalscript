@@ -37,6 +37,7 @@ pub mod strings;
 pub mod switch_statement;
 pub mod template_literals;
 pub mod values;
+pub mod variables;
 pub mod whitespace;
 
 /// Loads the `arrays` sample.
@@ -259,6 +260,12 @@ pub extern "C" fn template_literals() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn values() -> i32 {
     crate::export(values::module::<nanvm_lib::naive::Naive>)
+}
+
+/// Loads the `variables` sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn variables() -> i32 {
+    crate::export(variables::module::<nanvm_lib::naive::Naive>)
 }
 
 /// Loads the `whitespace` sample.
@@ -519,6 +526,13 @@ mod tests {
         let entry = crate::load(super::values::module::<Naive>).unwrap();
         crate::assert_call(&entry, 1.0, Ok("[1,\"s\",true,null,[1],-1,\"bigint\"]"));
         crate::assert_call(&entry, 2.0, Ok("[2,\"s\",true,null,[2],-2,\"bigint\"]"));
+    }
+
+    #[test]
+    fn variables() {
+        let entry = crate::load(super::variables::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 3.0, Ok("[3,1,6]"));
+        crate::assert_call(&entry, -2.0, Ok("[2,1]"));
     }
 
     #[test]

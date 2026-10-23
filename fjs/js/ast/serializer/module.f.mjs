@@ -366,7 +366,12 @@ const statementText = (context, statement) => {
         case 'loop': { return `L${context.loops.indexOf(statement[1])}:${keyword('while')}(${primitive(true)}){${blockText(context, statement[2], 'none')}}` }
         case 'while': {
             const loop = statement[1]
-            return `${keyword('let')} ${declared(context, loop.slot)}=${expression(context, loop.initial)};${keyword('while')}(${expression(context, loop.condition)}){${blockText(context, loop.body, 'none')}}`
+            // a loop whose block writes its variable nowhere writes it back
+            // unchanged: the language's loop is over the variable its block
+            // assigns, and refuses a block assigning none
+            // ([spec: loops](../../../spec/control-flow/loops/README.md))
+            const unchanged = loop.mutable ? '' : `${name(context, loop.slot)}=${name(context, loop.slot)};`
+            return `${keyword('let')} ${declared(context, loop.slot)}=${expression(context, loop.initial)};${keyword('while')}(${expression(context, loop.condition)}){${blockText(context, loop.body, 'none')}${unchanged}}`
         }
     }
 }

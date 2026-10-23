@@ -20,7 +20,7 @@ import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopStatement, member, object, parameters, paren, statement,
-    afterCase, caseTail, loopNameStatement, moduleStatement, nameStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value,
+    afterCase, caseTail, bodyNameStatement, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -110,8 +110,7 @@ export const proof = {
         block: () => { parser(/** @type {Rule} */ (block)) },
         loopBlock: () => { parser(/** @type {Rule} */ (loopBlock)) },
         loopStatement: () => { parser(/** @type {Rule} */ (loopStatement)) },
-        nameStatement: () => { parser(/** @type {Rule} */ (nameStatement)) },
-        loopNameStatement: () => { parser(/** @type {Rule} */ (loopNameStatement)) },
+        bodyNameStatement: () => { parser(/** @type {Rule} */ (bodyNameStatement)) },
         moduleStatement: () => { parser(/** @type {Rule} */ (moduleStatement)) },
         attribute: () => { parser(attribute) },
         importStatement: () => { parser(/** @type {Rule} */ (importStatement)) },
@@ -420,13 +419,14 @@ export const proof = {
         assertStructurallySame(read('if (1) { throw 1; } export default 2;'), ['error', 'if'])
         assertStructurallySame(read('export default 1; if (1) { throw 1; }'), ['error', 'if'])
         assertStructurallySame(read('throw 1; const a = 1;'), ['error', 'const'])
-        // a loop, `let name = value; while ( value ) loopBlock`, two
-        // statements the grammar reads where a `const` may stand, each on
-        // its own — that the `while` follows its `let` is the fold's to
-        // ask. The loop's block holds `const`s and assignments to a name
-        // and no terminator; a `return`, a guard, a `let` or a nested loop
-        // in it are outside the grammar, and so is an assignment anywhere
-        // else, or a loop at module level. No `;` follows its `}`.
+        // a `let`, `let bindingTarget = value;`, and a loop, `while (
+        // value ) loopBlock`, two statements the grammar reads where a
+        // `const` may stand, each on its own — which variable the loop
+        // steps is the fold's to find. The loop's block holds `const`s,
+        // `let`s, assignments and call statements and no terminator; a
+        // `return`, a guard or a nested loop in it are outside the
+        // grammar, and so is a `let` or a loop at module level. No `;`
+        // follows its `}`.
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { const x = 1; r = x; r = x; } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) {} return r; };'), ['ok'])
@@ -437,18 +437,24 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { let r = 0; return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { return r; } return r; };'), ['error', 'return'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { if (r) { return 1; } } return r; };'), ['error', 'if'])
-        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { let x = 1; } return r; };'), ['error', 'let'])
+        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { let x = 1; } return r; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { let [r, { s }] = a; while (r) { r = 1; } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { while (r) { } } return r; };'), ['error', 'while'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; }; return r; };'), ['error', ';'])
+        // a `let` takes its initializer as a `const` does: `let x;` is refused
         assertStructurallySame(read('export default (...a) => { let r; while (r) { } return r; };'), ['error', ';'])
+        assertStructurallySame(read('export default (...a) => { let [r]; while (r) { } return r; };'), ['error', ';'])
         // a name in the block begins the assignment or a call statement,
         // and `=` after any other value is no assignment
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { a(r); r = 1; a.b(r) } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { a.b = 1; } return r; };'), ['error', '='])
         assertStructurallySame(read('export default (...a) => { let r = 0; while r { r = 1; } return r; };'), ['error', 'r'])
-        // outside a loop's block a name begins a call statement alone, so
-        // an assignment there is refused at its `=`
-        assertStructurallySame(read('export default (...a) => { r = 1; return r; };'), ['error', '='])
+        // in a body and in a module alike, a name begins an assignment or a
+        // call statement
+        assertStructurallySame(read('export default (...a) => { r = 1; return r; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { if (a) { r = 1; return r; } return a; };'), ['ok'])
+        assertStructurallySame(read('r = 1; export default r;'), ['ok'])
+        assertStructurallySame(read('let r = 0; let [s] = [r]; s = 1; export default r;'), ['ok'])
         // a reserved word begins no statement, so one opening a statement
         // is refused at the word, as no rule begins with it
         assertStructurallySame(read('export default (...a) => { var r = 1; return r; };'), ['error', 'var'])
@@ -456,8 +462,12 @@ export const proof = {
         assertStructurallySame(read('const r = 1; eval(r); export default r;'), ['error', 'eval'])
         // and stands where a name does elsewhere, a key and a property
         assertStructurallySame(read('export default { var: 1 }.var;'), ['ok'])
-        assertStructurallySame(read('let r = 0; while (r) { r = 1; } export default r;'), ['error', 'let'])
-        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { let = 1; } return r; };'), ['error', 'let'])
+        // a `let` stands at module level, a loop does not yet
+        assertStructurallySame(read('let r = 0; while (r) { r = 1; } export default r;'), ['error', 'while'])
+        assertStructurallySame(read('export let r = 0; export default r;'), ['error', 'let'])
+        // `let` begins a declaration in a loop's block as in a body, so what
+        // follows it is refused as no binding target
+        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { let = 1; } return r; };'), ['error', '='])
         // a switch, `switch ( value ) { case value : block … }`, is a
         // terminator the grammar reads where `return` and `throw` stand:
         // one or more cases, each one or more labels and then the block

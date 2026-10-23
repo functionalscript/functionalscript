@@ -140,23 +140,55 @@ export const proof = {
         const write = events.findIndex(event => event[0] === 'write' && event[1] === value.origin.id)
         assert(captureRead < write)
         assertEq(events.filter(event => event[0] === 'initialize' && event[1] === value.origin.id).length, 1)
+        // a variable assigned nowhere is a parameter's equal: captured
+        // freely, and immutable
+        const unwritten = parsed('export default ()=>{let value=0; const other=value; return ()=>[value,other];};')
+        assertEq(named(unwritten, 'value', 'let').binding.isMutable, false)
+        assertEq(named(unwritten, 'value', 'let').binding.capturedBy.length, 1)
+        // an assigned parameter is a variable as a `let` is
+        const parameter = parsed('export default value=>{value=value+1; return value;};')
+        assertEq(named(parameter, 'value', 'parameter').binding.isMutable, true)
+        assertEq(named(parameter, 'value', 'parameter').binding.capturedBy.length, 0)
         const snapshot = parsed('export default ()=>{let value=0; while(value<3){value=value+1;} const snapshot=value; return ()=>snapshot;};')
         assertEq(named(snapshot, 'value').binding.isMutable, true)
         assertEq(named(snapshot, 'value').binding.capturedBy.length, 0)
         assertEq(named(snapshot, 'snapshot').binding.isMutable, false)
         assertEq(named(snapshot, 'snapshot').binding.capturedBy.length, 1)
     },
+    // an assignment's write follows the reads of its value, the order the
+    // statement runs in — in a body, in a loop's block and in a module
+    assignmentOrder: () => {
+        /** @type {readonly (readonly [string, readonly string[]])[]} */
+        const cases = [
+            ['export default ()=>{let x=0; x=x+1; return x;};', ['initialize', 'read', 'write', 'read']],
+            ['export default n=>{let x=0; while(x<n){x=x+1;} return x;};', ['initialize', 'read', 'read', 'write', 'read']],
+            ['let x=0; x=x+1; export default x;', ['initialize', 'read', 'write', 'read']],
+        ]
+        for (const [source, expected] of cases) {
+            const module = parsed(source)
+            const x = named(module, 'x', 'let')
+            assertStructurallySame(allEvents(module.scope.events).filter(event => event[1] === x.origin.id).map(event => event[0]), expected, source)
+        }
+    },
     completeSourceScan: () => {
         const unreachable = parsed('export default ()=>{let value=0; while(false){value=1;} return value;};')
         assertEq(named(unreachable, 'value').binding.isMutable, true)
-        const unwritten = parsed('export default ()=>{let value=0; while(false){} return ()=>value;};')
+        const unwritten = parsed('export default ()=>{let value=0; return ()=>value;};')
         assertEq(named(unwritten, 'value').binding.isMutable, false)
         assertEq(named(unwritten, 'value').binding.capturedBy.length, 1)
         const captured = parsed('export default n=>{const value=n; if(false){return ()=>value;} return 0;};')
         assertEq(named(captured, 'value').binding.capturedBy.length, 1)
-        const after = parsed('export default ()=>{let value=0; while(value<1){value=1;} return ()=>value;};')
-        assertEq(named(after, 'value').binding.isMutable, true)
-        assertEq(named(after, 'value').binding.capturedBy.length, 1)
+        // a capture of a variable assigned anywhere in its scope by a
+        // function held as a value is refused once the whole scope is read,
+        // the write coming before or after
+        for (const source of [
+            'export default ()=>{let value=0; while(value<1){value=1;} return ()=>value;};',
+            'export default ()=>{let value=0; const f=()=>value; while(value<1){value=1;} return f;};',
+        ]) {
+            const [tag, refusal] = parseFromTokens(tokenizeString(source))
+            assert(tag === 'error', source)
+            assertEq(refusal.message, 'reassigned variable captured', source)
+        }
     },
     patternsAndDefaults: () => {
         const module = parsed('export default ([a],{b},c=a,...rest)=>()=>[a,b,c,rest];')
@@ -205,8 +237,8 @@ export const proof = {
     },
     currentAdmission: () => {
         assertError(parseFromTokens(tokenizeString('export default ()=>{const value=0; value=1; return value;};')))
-        assertError(parseFromTokens(tokenizeString('export default ()=>{let value=0; return value;};')))
-        assertError(parseFromTokens(tokenizeString('export default ()=>{let value=0; while(value<1){const f=()=>value;} return value;};')))
+        assertOk(parseFromTokens(tokenizeString('export default ()=>{let value=0; return value;};')))
+        assertError(parseFromTokens(tokenizeString('export default ()=>{let value=0; while(value<1){const f=()=>value; value=1;} return value;};')))
         assertError(parseFromTokens(tokenizeString('const value=1; export default ()=>{const value=value; return value;};')))
     },
 }

@@ -296,6 +296,134 @@ export const proof = {
             assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"=>\",0,[[\"arg\",0]],[\"?:\",[\"===\",[\"frame\",0],1],2,1]]]]]]")
         },
     },
+    variables: {
+        accepted: () => {
+            // a `let` stands where a `const` does, on its own: a variable
+            // never assigned is a `const` under another name
+            const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; return r; };'))
+            assert(tag === 'ok')
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],0]]]]")
+            // an assignment rebinds the variable for the statements after
+            // it, in order, as JavaScript reads them
+            const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; r = r + n; r = r * 2; return r; };'))
+            assert(tag2 === 'ok')
+            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"*\",[\"+\",0,[\"arg\",0]],2]]]]]")
+            // a parameter is a variable too
+            const [tag3, value3] = parseFromTokens(tokenizeString('export default n => { n = n + 1; return n; };'))
+            assert(tag3 === 'ok')
+            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"+\",[\"arg\",0],1]]]]]")
+            // in a guard's block as in the body: each block's assignments
+            // are its own, the block ending in its terminator
+            const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; if (n) { r = 1; return r; } r = 2; return r; };'))
+            assert(tag4 === 'ok')
+            assertEq(stringifyModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\",\",[0,[\"?:\",[\"arg\",0],1,2]]]]]]]")
+            // a pattern binds each of its names as a variable
+            const [tag5, value5] = parseFromTokens(tokenizeString('export default n => { let { a } = n; a = 1; return a; };'))
+            assert(tag5 === 'ok')
+            assertEq(stringifyModule(value5), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\",\",[[\".\",[\"arg\",0],\"a\"],1]]]]]]")
+            // a variable never reassigned is captured as a `const` is
+            const [tag6, value6] = parseFromTokens(tokenizeString('export default n => { let r = 0; const f = () => r; return f; };'))
+            assert(tag6 === 'ok')
+            assertEq(stringifyModule(value6), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"=>\",0,[],0]]]]]")
+            // and a function that is a variable's whole value names itself,
+            // as a `const`'s does, while the variable is never reassigned
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('export default () => { let f = n => n ? f(n - 1) : 0; return f; };')))), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[[\"-\",[\"arg\",0],1]]],0]]]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('export default () => { let f = () => f; return f; };')))), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",0,[],[\"self\"]]]]]]")
+            // a function called where it is written reads a reassigned
+            // variable as JavaScript's does, the value of that moment
+            const [tag7, value7] = parseFromTokens(tokenizeString('export default n => { let r = 0; r = (() => r + 1)(); return r; };'))
+            assert(tag7 === 'ok')
+            assertEq(stringifyModule(value7), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"+\",0,1]]]]]")
+            // a module's variables: a module is a function, and its `let`,
+            // its assignments and its captures follow a body's rules
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let a = 0; a = a + 1; export default a;')))), "[\"{}\",[[\":\",\"default\",[\"+\",0,1]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let [a] = [1]; export default a;')))), "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[[\"...\",[\"[]\",[1]]]]],0]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let a = 0; a = a + 1; export const b = a; export default 1;')))), "[\"{}\",[[\":\",\"b\",[\"+\",0,1]],[\":\",\"default\",1]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let r = 0; export const f = () => r; export default 1;')))), "[\"{}\",[[\":\",\"default\",1],[\":\",\"f\",[\"=>\",0,[],0]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let f = n => n ? f(n - 1) : 0; export default f;')))), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[[\"-\",[\"arg\",0],1]]],0]]]]]")
+            // called where it is written by an optional call as well
+            const [tag9, value9] = parseFromTokens(tokenizeString('export default () => { let r = 0; r = (() => r + 1)?.(); return r; };'))
+            assert(tag9 === 'ok')
+            assertEq(stringifyModule(value9), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?.()\",[\"=>\",0,[],[\"+\",0,1]],[]]]]]]")
+            // a pattern over a namespace names its static functions, as a
+            // `const`'s does
+            const [tag8, value8] = parseFromTokens(tokenizeString('export default x => { let { is } = Object; return is(x, x); };'))
+            assert(tag8 === 'ok')
+            assertEq(stringifyModule(value8), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"Object.is\"],[[\"arg\",0],[\"arg\",0]]]]]]]")
+        },
+        refused: () => {
+            for (const [source, message, column] of /** @type {const} */ ([
+                // an assignment rebinds a variable, a `let`'s or a
+                // parameter's, and nothing else: not a `const`, an import or
+                // the function's own name
+                ['export default n => { const c = 1; c = 2; return c; };', 'assignment to const', 36],
+                ['import x from "./x"; export default n => { x = 1; return x; };', 'assignment to const', 44],
+                ['const f = n => { f = 1; return n; }; export default f;', 'assignment to const', 18],
+                // a variable assigned anywhere in its scope is read by no
+                // function nested in that scope and held as a value, whether
+                // the assignment comes before or after the read, and whether
+                // the function reads or assigns it: JavaScript's closure sees
+                // the last value, where the capture would hold one. Refused
+                // at the first such reference, once the whole scope is read
+                ['export default n => { let r = 0; const f = () => r; r = 1; return f; };', 'reassigned variable captured', 50],
+                ['export default n => { let r = 0; r = 1; const f = () => r; return f; };', 'reassigned variable captured', 57],
+                ['export default n => { let r = 0; const f = () => { r = 1; return r; }; return f; };', 'reassigned variable captured', 52],
+                ['export default n => { n = 1; return () => n; };', 'reassigned variable captured', 43],
+                // a function a chain holds, an optional access on it, is held
+                // as a value; only an optional call calls it where written
+                ['export default () => { let r = 0; const f = (() => r)?.x; r = 1; return f; };', 'reassigned variable captured', 52],
+                // the first offending reference in document order, whether a
+                // held function's own or a function held inside it makes it
+                ['export default () => { let x = 0; let y = 0; const f = () => { const a = x; const g = () => y; return a; }; x = 1; y = 1; return f; };', 'reassigned variable captured', 74],
+                ['export default () => { let r = 0; const f = () => { const g = () => r; return g; }; r = 1; return f; };', 'reassigned variable captured', 69],
+                // a function called where it is written reads a variable, and
+                // assigns none: its block is inlined with values of its own,
+                // which the scope around it never sees, where JavaScript's
+                // assignment reaches the variable
+                ['export default () => { let r = 0; const x = (() => { r = 1; return 0; })(); return r; };', 'reassigned variable captured', 54],
+                // a variable is a name of the body as a `const` is
+                ['export default n => { x = 1; return n; };', 'const not found', 23],
+                ['export default n => { let r = r; return r; };', 'const not found', 31],
+                // a function's reference to the variable it is the value of
+                // is a capture: JavaScript's closure would read the variable
+                // where `self` reads the function, so reassigning the variable
+                // anywhere, inside the function or after it, is refused there
+                ['export default () => { let f = n => f(n - 1); f = 1; return f; };', 'reassigned variable captured', 37],
+                ['export default () => { let f = n => { f = 1; return n; }; return f; };', 'reassigned variable captured', 39],
+                ['export default n => { let n = 0; return n; };', 'duplicate id', 27],
+                ['export default r => () => { let r = r; return r; };', 'capture shadowed', 33],
+                ['export default n => { let if = 0; return n; };', 'reserved word', 27],
+                // an assignment ends as every statement does
+                ['export default n => { let r = 0; r = 1 return r; };', 'unexpected token', 40],
+                ['let a = 0; a = 1 export default a;', 'unexpected token', 18],
+                ['let a = 0 a = 1; export default a;', 'unexpected token', 11],
+                ['let a = 0; a = b; export default a;', 'const not found', 16],
+                // a module's variables follow a body's rules: a `const`, an
+                // import or an unknown name is assigned nowhere, a name is
+                // bound once, and a reassigned variable is read by no function
+                // held as a value — an export among them
+                ['const x = 1; x = 2; export default 1;', 'assignment to const', 14],
+                ['a = 1; export default 1;', 'const not found', 1],
+                ['let a = 1; let a = 2; export default a;', 'duplicate id', 16],
+                ['let a = 1; export const a = 2;', 'duplicate id', 25],
+                ['let r = 0; const f = () => r; r = 1; export default f;', 'reassigned variable captured', 28],
+                ['let f = n => f(n); f = 1; export default f;', 'reassigned variable captured', 14],
+                // a `let` takes its initializer, as a `const` does: a variable
+                // names its value where it is declared, and `let x;` is refused
+                // by design; a module's `let` is no export, `export let` refused
+                ['export default () => { let x; return x; };', 'unexpected token', 29],
+                ['let a; export default a;', 'unexpected token', 6],
+                ['export default () => { let [a]; return a; };', 'unexpected token', 31],
+                ['export let a = 1; export default a;', 'unexpected token', 8],
+                ['let r = 0; while (r) { r = 1; } export default r;', 'unexpected token', 12],
+            ])) {
+                const result = parseFromTokens(tokenizeString(source))
+                assert(result[0] === 'error', source)
+                assertEq(result[1].message, message, source)
+                assertEq(result[1].metadata?.column, column, source)
+            }
+        },
+    },
     loops: {
         shape: () => {
             const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const d = [2]; r = r + d[0]; } return [r, r]; };'))
@@ -307,15 +435,37 @@ export const proof = {
             const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < 1) { r = null.x; r = 1; } return r; };'))
             assert(tag4 === 'ok')
             assertEq(stringifyModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[],[\"?:\",[\"<\",[\"arg\",0],1],[\",\",[[\".\",null,\"x\"],[\"()\",[\"self\"],[1]]]],[\"arg\",0]]],[0]]]]]]")
-            // a block assigning nothing continues with the variable as it is
-            const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { } return r; };'))
+            // the `let` and the `while` are two statements: the loop steps
+            // the variable its block assigns, whatever stands between them
+            const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; const x = 1; while (r < n) { r = r + x; } return r; };'))
             assert(tag2 === 'ok')
-            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"arg\",0]]],[\"arg\",0]]],[0]]]]]]")
-            // a `const` after the loop is the next entry; the variable is a
-            // name a later function captures, as any `const` is
-            const [tag3, value3] = parseFromTokens(tokenizeString('export default () => { let r = 0; while (r) { r = 1; } const s = [r]; return () => [r, s]; };'))
+            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]]]]]]")
+            // a parameter is a variable: a loop over one steps the
+            // function's own argument
+            const [tag5, value5] = parseFromTokens(tokenizeString('export default n => { while (n) { n = n - 1; } return n; };'))
+            assert(tag5 === 'ok')
+            assertEq(stringifyModule(value5), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[[\"-\",[\"arg\",0],1]]],[\"arg\",0]]]]]]")
+            // a `let` in the block is the block's own, as a `const` is, its
+            // assignments the round's: the loop steps the one variable
+            // declared outside the block
+            const [tag6, value6] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { let s = 0; s = s + 1; r = r + s; } return r; };'))
+            assert(tag6 === 'ok')
+            assertEq(stringifyModule(value6), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\"+\",0,1]]]],[\"arg\",0]]],[0]]]]]]")
+            // a `let` over a namespace in the block names its static functions
+            const [tag8, value8] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { let { is } = Object; r = is(r, 0) ? n : r + 1; } return r; };'))
+            assert(tag8 === 'ok')
+            assertEq(stringifyModule(value8), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"?:\",[\"()\",[\"Object.is\"],[[\"arg\",0],0]],[\"frame\",0],[\"+\",[\"arg\",0],1]]]],[\"arg\",0]]],[0]]]]]]")
+            // a `let` with a pattern binds each name once, as a `const`'s
+            // does; the loop steps the one its block assigns
+            const [tag7, value7] = parseFromTokens(tokenizeString('export default n => { let [a, b] = [1, n]; while (a < b) { a = a + 1; } return [a, b]; };'))
+            assert(tag7 === 'ok')
+            assertEq(stringifyModule(value7), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"[]\",[[\"()\",[\"=>\",1,[[\".\",[\"[]\",[[\"...\",[\"[]\",[1,[\"arg\",0]]]]]],1]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[[\".\",[\"[]\",[[\"...\",[\"[]\",[1,[\"arg\",0]]]]]],0]]],[\".\",[\"[]\",[[\"...\",[\"[]\",[1,[\"arg\",0]]]]]],1]]]]]]]")
+            // a `const` after the loop holds the value the last round left,
+            // a snapshot, which a later function captures as any `const`;
+            // the variable itself it may not
+            const [tag3, value3] = parseFromTokens(tokenizeString('export default () => { let r = 0; while (r) { r = 1; } const s = [r]; return () => s; };'))
             assert(tag3 === 'ok')
-            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",0,[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]],[\"[]\",[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]]]]],[\"[]\",[[\"frame\",0],[\"frame\",1]]]]]]]]")
+            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",0,[[\"[]\",[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]]]]],[\"frame\",0]]]]]]")
             // a nested function's own parameter shadows the variable, as in
             // JavaScript, and reads as itself
             assertEq(parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const f = (r) => r; r = f(r); } return r; };'))[0], 'ok')
@@ -326,14 +476,13 @@ export const proof = {
             for (const source of [
                 'export default n => { let r = 0; while (r < n) { r = (() => r + 1)(); } return r; };',
                 'export default n => { let r = 0; while ((() => r < n)()) { r = r + 1; } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => r + 1)?.(); } return r; };',
                 'export default n => { let r = 0; while (r < n) { r = ((x) => r + x)(1); } return r; };',
                 'export default n => { let r = 0; while (r < n) { r = (() => (() => r + 1)())(); } return r; };',
                 // a loop in such a function may read the outer variable, in
                 // its condition or in a function its block calls where written
                 'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < r + 1) { s = s + 1; } return s; })(); } return r; };',
                 'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < n) { s = (() => s + r)(); } return s; })(); } return r; };',
-                // every variable read is noted, the inner loop's and the
-                // outer's alike, and each once however many functions read it
                 'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < n) { s = (() => (() => s)() + (() => r)())(); } return s; })(); } return r; };',
                 'export default n => { let r = 0; while (r < n) { r = (() => { const a = (() => r)(); const b = (() => r)(); return a + b; })(); } return r; };',
             ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'ok', source) }
@@ -343,50 +492,45 @@ export const proof = {
         },
         refused: () => {
             for (const [source, message, column] of /** @type {const} */ ([
-                // the two statements are one loop: neither stands alone
-                ['export default n => { let r = 0; return r; };', 'let without while', 23],
-                ['export default n => { let r = 0; const x = 1; while (r) { } return r; };', 'let without while', 23],
-                ['export default n => { while (n) { } return n; };', 'while without let', 23],
-                // the block rebinds the loop's variable and nothing else
-                ['export default n => { let r = 0; while (r < n) { n = 1; } return r; };', 'not the loop variable', 50],
-                ['export default n => { let r = 0; while (r < n) { const x = 1; x = 2; } return r; };', 'not the loop variable', 63],
-                // nor may it bind the variable's name, which JavaScript would
-                // read as the block's own binding
-                ['export default n => { let r = 0; while (r < n) { const r = 1; } return r; };', 'loop variable shadowed', 56],
+                // the block steps one variable declared outside it: a block
+                // assigning none — a `const` of the variable's name in it
+                // being the block's own — is a loop that cannot advance,
+                // and a second variable is more than the graph constructs
+                ['export default n => { let r = 0; while (r < n) { } return r; };', 'loop variable missing', 34],
+                ['export default n => { let r = 0; while (r < n) { const r = 1; } return r; };', 'loop variable missing', 34],
+                ['export default n => { let r = 0; let s = 0; while (r < n) { r = r + 1; s = s + 1; } return r; };', 'second loop variable', 72],
+                // an assignment in the block rebinds a variable, as anywhere
+                ['export default n => { let r = 0; while (r < n) { const x = 1; x = 2; } return r; };', 'assignment to const', 63],
                 // a function nested in the loop that reads the variable is
                 // refused unless called where it is written: held as a value,
                 // its closure would see the last value where the capture
                 // holds the round's — a `const`, a condition, an item, an
                 // argument, a value a function called where written returns,
-                // and one held inside such a function
-                ['export default n => { let r = 0; while (r < n) { const f = () => r; r = r + 1; } return r; };', 'loop variable captured', 66],
-                ['export default n => { let r = 0; while (f => r) { r = r + 1; } return r; };', 'loop variable captured', 46],
-                ['export default n => { let r = 0; while (r < n) { r = [() => r]; } return r; };', 'loop variable captured', 61],
-                ['export default n => { let r = 0; while (r < n) { r = ((f) => f())(() => r); } return r; };', 'loop variable captured', 73],
-                ['export default n => { let r = 0; while (r < n) { r = (() => () => r)()(); } return r; };', 'loop variable captured', 67],
-                ['export default n => { let r = 0; while (r < n) { r = (() => { const g = () => r; return g(); })(); } return r; };', 'loop variable captured', 79],
-                // the read is every enclosing function's up to the loop: a
-                // function held as a value is refused for a read a function
-                // it calls where written makes, and so is one holding a loop
-                // whose condition reads the outer variable
-                ['export default n => { let r = 0; while (typeof r === "number") { r = () => ((() => r)()); } return r(); };', 'loop variable captured', 84],
-                ['export default n => { let r = 0; while (r < n) { r = (() => { const f = () => { let s = 0; while (s < r + 1) { s = s + 1; } return s; }; return f(); })(); } return r; };', 'loop variable captured', 103],
-                // a read of the outer variable after the inner loop's own is
-                // the held function's all the same
-                ['export default n => { let r = 0; while (typeof r === "number") { r = () => { let s = 0; while (s < 1) { s = (() => s + (typeof r === "number" ? 1 : 2))(); } return s; }; } return r(); };', 'loop variable captured', 128],
+                // one held inside such a function, and a function after the
+                // loop, which reads a snapshot instead
+                ['export default n => { let r = 0; while (r < n) { const f = () => r; r = r + 1; } return r; };', 'reassigned variable captured', 66],
+                ['export default n => { let r = 0; while (f => r) { r = r + 1; } return r; };', 'reassigned variable captured', 46],
+                ['export default n => { let r = 0; while (r < n) { r = [() => r]; } return r; };', 'reassigned variable captured', 61],
+                ['export default n => { let r = 0; while (r < n) { r = ((f) => f())(() => r); } return r; };', 'reassigned variable captured', 73],
+                ['export default n => { let r = 0; while (r < n) { r = (() => () => r)()(); } return r; };', 'reassigned variable captured', 67],
+                ['export default n => { let r = 0; while (r < n) { r = (() => { const g = () => r; return g(); })(); } return r; };', 'reassigned variable captured', 79],
+                ['export default n => { let r = 0; while (r < n) { r = (() => { r = r + 1; return r; })(); } return r; };', 'reassigned variable captured', 63],
+                // the read is every enclosing function's up to the one that
+                // declares the variable: a function held as a value is
+                // refused for a read a function it calls where written makes,
+                // and so is one holding a loop whose condition reads the
+                // outer variable
+                ['export default n => { let r = 0; while (typeof r === "number") { r = () => ((() => r)()); } return r(); };', 'reassigned variable captured', 84],
+                ['export default n => { let r = 0; while (r < n) { r = (() => { const f = () => { let s = 0; while (s < r + 1) { s = s + 1; } return s; }; return f(); })(); } return r; };', 'reassigned variable captured', 103],
+                ['export default n => { let r = 0; while (r < n) { r = r + 1; } return () => r; };', 'reassigned variable captured', 76],
                 // the variable is a name of the body as a `const` is
                 ['export default n => { let r = 0; while (r < n) { r = 1; } const r = 2; return r; };', 'duplicate id', 65],
-                ['export default n => { let n = 0; while (n) { n = 1; } return n; };', 'duplicate id', 27],
-                ['export default n => { const x = r; let r = 0; while (r) { r = 1; } return r; };', 'const not found', 33],
-                ['export default n => { let r = r; while (r) { r = 1; } return r; };', 'const not found', 31],
-                ['export default n => { let r = () => r; while (typeof r === "function") { r = [r]; } return r; };', 'const not found', 37],
                 ['export default n => { let r = 0; while (x) { r = 1; } return r; };', 'const not found', 41],
-                ['export default n => { let if = 0; while (n) { } return n; };', 'reserved word', 27],
+                ['export default n => { let r = () => r; while (typeof r === "function") { r = [r]; } return r; };', 'reassigned variable captured', 37],
                 ['export default n => { let r = 0; while (r) { const if = 1; } return r; };', 'reserved word', 52],
                 ['export default n => { let r = 0; while (r) { Array = 1; } return r; };', 'reserved word', 46],
-                // a `let` or a block `const` of a name its initializer read
-                // from outside is refused as a body `const` is
-                ['export default r => () => { let r = r; while (r) { } return r; };', 'capture shadowed', 33],
+                // a block `const` of a name its initializer read from
+                // outside is refused as a body `const` is
                 ['export default n => { let r = 0; while (r) { const n = n; } return r; };', 'capture shadowed', 52],
                 // a statement on the line of one that ended without its `;`
                 ['export default n => { let r = 0 while (r) { r = 1; } return r; };', 'unexpected token', 33],
