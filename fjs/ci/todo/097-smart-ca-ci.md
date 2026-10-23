@@ -210,7 +210,7 @@ below it:
 
 | group | files | read by |
 | --- | --- | --- |
-| `fjs` | `*.f.mjs`, `*.f.js`, `*.data.js`; `package.json`; every `gen.*` file in the tree; [`fjs/emergent_testing`](../../emergent_testing/) | `tsc`, the suite, coverage, `npm start compile`, the `gen` check |
+| `fjs` | `*.f.mjs`, `*.f.js`, `*.data.js`; `package.json`; every `gen.*` file in the tree; [`fjs/module.mjs`](../../module.mjs) and [`fjs/emergent_testing`](../../emergent_testing/) | `tsc`, the suite, coverage, `npm start compile`, the `gen` check |
 | `js` | every other JavaScript file (`.mjs`, `.js`, `.cjs`); `package-lock.json`, `deno.json`, `deno.lock`, `bun.lock` | `tsc`, the suite |
 | `ts` | every `.ts`; `tsconfig.json` | `tsc` |
 
@@ -222,7 +222,7 @@ key it needs, and no diff is ever computed:
 
 | contract | key | changes when |
 | --- | --- | --- |
-| coverage, `npm start compile`, the `gen` check | the `fjs` manifest's | FJS changes |
+| coverage, `npm start compile` | the `fjs` manifest's | FJS changes |
 | the suite on every engine | the `js` manifest's | FJS or JS changes, never TS alone |
 | `tsc` | the `ts` manifest's | any of the three changes |
 
@@ -240,9 +240,16 @@ in [`fjs/ci/config`](../config/module.f.js) are FJS already. The `gen.*`
 files are `fjs` for the same reason: the `gen` check compares the
 generators' outputs with the tree, and a hand edit of an output, forbidden
 as it is, is what that check exists to catch — left out of every list, a
-hit would skip the one check that sees it. And the test runner and
-reporter under `fjs/emergent_testing` are `fjs`, plain JavaScript though
-they are, since they decide which proofs run and how coverage is read.
+hit would skip the one check that sees it. And the tooling every rung's
+command runs through is `fjs`, plain JavaScript though it is: the CLI's
+entry point `fjs/module.mjs`, which `npm start` is, and the test runner
+and reporter under `fjs/emergent_testing`, which decide which proofs run
+and how coverage is read. Other plain JavaScript a `fjs` command reaches
+is not chased by hand: that is what the dependency graph below is for.
+Until then the `gen` check is the one command of the rung that is not
+cached, since its inputs — whatever the generators read, fixtures under
+`nanvm/` among them — are not enumerated, and a check whose inputs are not
+listed runs on every run rather than hitting on a list that misses one.
 Every tracked file under `fjs/` is in one of the three lists or in a named
 exclusion set, checked, so a new fixture cannot go unlisted silently.
 
@@ -305,6 +312,8 @@ own complete input set and success condition.
 - [ ] Split the JavaScript block into the `fjs`, `js` and `ts` rungs: the
       three chained manifests, one contract per rung, the check that every
       tracked file under `fjs/` is listed or excluded by name.
+- [ ] Enumerate the `gen` check's inputs from what the generators read,
+      and cache it on them; until then it runs on every run.
 - [ ] Measure the native backend's lookup and add on a cache branch of
       CI's size; where it is slow, ask approval for the `git` CLI fallback
       and put it behind the same three commands.
