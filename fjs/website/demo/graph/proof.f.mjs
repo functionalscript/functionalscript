@@ -349,7 +349,12 @@ export const proof = {
             assertEq(occurrences(' data-graph-title-hover=')(html), 2)
             assert(html.includes('width="47" height="20" rx="4" data-graph-trace="" data-graph-title-outline="1"'), html)
             assertEq(occurrences('data-graph-port-outline=')(html), 2)
-            assertEq(occurrences(' data-graph-port-edge=')(html), 6)
+            assertEq(occurrences(' data-graph-port-edge=')(html), 4)
+            // The key and reference are separate cells. Only the reference
+            // carries hover metadata and receives the connection outline.
+            assert(html.includes('<rect x="50" y="10" width="68" height="20" data-graph-port="">'), html)
+            assert(html.includes('<text x="84" y="20" text-anchor="middle" data-graph-edge-label="">item<'), html)
+            assert(html.includes('<rect x="118" y="10" width="47" height="20" data-graph-trace="" data-graph-port-outline="0">'), html)
             assertEq(occurrences(' data-graph-node-name=')(html), 2)
             assert(html.includes('data-graph-from="0" data-graph-to="1"'), html)
             assert(html.includes('svg:has([data-graph-port-edge="0"]:hover) [data-graph-connection="0"]'), html)
