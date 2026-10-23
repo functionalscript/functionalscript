@@ -21,28 +21,37 @@ an error channel, and the combinators below decide what happens to an error
 without a `try`.
 
 ```js
-import { catchStep, do_, mapStep, pureOk, step } from './module.f.mjs'
+/**
+ * @import { DemoAsk as Ask, Effect } from './types.ts'
+ * @import { MemOperationMap } from './mock/types.ts'
+ */
+import { catchStep, do_, pureOk, step } from './module.f.mjs'
 import { run } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 
 // An operation: a command name, called like a function, returning an Effect.
+// Its type says what the command takes and answers; the name alone cannot.
+/** @type {(question: string) => Effect<Ask, string, string>} */
 const ask = do_('ask')
 
 // A program: ask, then build a greeting from the answer.
 const greet = step(ask('name?'), name => pureOk(`hello, ${name}`))
 
 // A runner: here a mock whose state is a string and whose `ask` answers it.
-run({ ask: () => state => [state, ok(state)] })('Ada')(greet)
+/** @type {MemOperationMap<Ask, string>} */
+const answers = { ask: () => state => [state, ok(state)] }
+run(answers)('Ada')(greet)
 // ['Ada', ['ok', 'hello, Ada']]
 
 // The same program when `ask` fails: `step` skips its continuation.
-run({ ask: () => state => [state, error('no one')] })('Ada')(greet)
+/** @type {MemOperationMap<Ask, string>} */
+const refuses = { ask: () => state => [state, error('no one')] }
+run(refuses)('Ada')(greet)
 // ['Ada', ['error', 'no one']]
 
 // `catchStep` is the error path, as `step` is the success path.
-run({ ask: () => state => [state, error('stranger')] })('Ada')(
-    catchStep(greet, e => pureOk(`hello, ${e}?`)))
-// ['Ada', ['ok', 'hello, stranger?']]
+run(refuses)('Ada')(catchStep(greet, e => pureOk(`hello, ${e}?`)))
+// ['Ada', ['ok', 'hello, no one?']]
 ```
 
 The demo on this directory's page runs a program like this one and prints

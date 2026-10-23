@@ -6,16 +6,24 @@ command and threading a state through, with no host at all.
 `MemOperationMap` handler shape.
 
 ```js
+/**
+ * @import { Effect } from '../types.ts'
+ * @import { MemOperationMap } from './types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ */
 import { do_, history, historyStep } from '../module.f.mjs'
 import { run } from './module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 
+/** @type {() => Effect<readonly ['count', () => Result<number, never>], number, never>} */
 const count = do_('count')
 const first = history(count())
 const twice = historyStep(first, () => count())
 
 // Each handler takes the payload, then the state, and answers [state, result].
-run({ count: () => n => [n + 1, ok(n)] })(0)(twice) // [2, ['ok', [1, 0]]], newest first
+/** @type {MemOperationMap<readonly ['count', () => Result<number, never>], number>} */
+const counter = { count: () => n => [n + 1, ok(n)] }
+run(counter)(0)(twice) // [2, ['ok', [1, 0]]], newest first
 ```
 
 |Runner                    |Use it when                                                              |
