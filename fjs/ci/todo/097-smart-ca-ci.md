@@ -222,7 +222,8 @@ key it needs, and no diff is ever computed:
 
 | contract | key | changes when |
 | --- | --- | --- |
-| coverage, `npm start compile` | the `fjs` manifest's | FJS changes |
+| `npm start compile` | the `fjs` manifest's | FJS changes |
+| coverage | the `js` manifest's, until the coverage run loads FunctionalScript proofs only; the `fjs` manifest's after | FJS or JS changes until then; FJS changes after |
 | the suite on every engine | the `js` manifest's | FJS or JS changes, never TS alone |
 | `tsc` | the `ts` manifest's | any of the three changes |
 
@@ -250,16 +251,26 @@ Until then the `gen` check is the one command of the rung that is not
 cached, since its inputs — whatever the generators read, fixtures under
 `nanvm/` among them — are not enumerated, and a check whose inputs are not
 listed runs on every run rather than hitting on a list that misses one.
-Every tracked file under `fjs/` is in one of the three lists or in a named
-exclusion set, checked, so a new fixture cannot go unlisted silently.
+Every tracked file of the repository is in one of the three lists, in the
+Rust manifest's, or in a named exclusion set of what no command reads —
+`todo/`, the changelog, the documents no proof opens — checked, so a new
+file cannot go unlisted silently. What a proof reads at run time is listed
+where the proof is: `fjs/nanvm/demos/samples/proof.mjs` reads
+`spec/**/README.md`, so `spec/` is `js` whole. The exclusion set is the one
+judgement in the scheme and is audited by hand; a document a proof is
+found to read moves out of it and into that proof's rung, as the spec
+pages do here.
 
-What the `fjs` key still does not see is a plain JavaScript module that a
-FunctionalScript proof imports — a host adapter — since those are `js`.
-Under coverage today the plain JavaScript proofs run too, so a `proof.mjs`
-alone can cover a FunctionalScript line; making the coverage run load
+Coverage keys on `js` for now, not `fjs`: under coverage today the plain
+JavaScript proofs run too, so a `proof.mjs` alone can cover a
+FunctionalScript line, and an `fjs` key would keep a cached success a
+changed `proof.mjs` no longer earns. Making the coverage run load
 FunctionalScript proofs only is
 [its own task](../../emergent_testing/todo/coverage-over-fjs-only.md), and
-the adapters are the residual the dependency graph below closes.
+coverage moves to the `fjs` key when it lands. What the `fjs` key then
+still does not see is a plain JavaScript module a FunctionalScript proof
+imports — a host adapter — since those are `js`: the residual the
+dependency graph below closes.
 
 Beyond the rungs, testing only what a change reaches needs the dependency
 graph. Three ways to get one, all cheaper than a parser of our own, which
