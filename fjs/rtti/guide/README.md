@@ -37,5 +37,8 @@ time ([the plan](../todo/rtti-guide.md)).
   - `●` [`parse` and `validate`](./readers/parse-and-validate/README.md)
   - `●` [errors](./readers/errors/README.md)
   - `○` [what the readers assume of a value](./readers/assumptions/README.md)
-- Outputs: the TypeScript type, JSON Schema, the canonical data form
+- [Outputs](./outputs/README.md): what a schema gives besides the readers
+  - `●` [the TypeScript type](./outputs/typescript/README.md)
+  - `●` [JSON Schema](./outputs/json-schema/README.md)
+  - `●` [the canonical data form](./outputs/data-form/README.md)
 - In the project: the schemas the repository itself declares
