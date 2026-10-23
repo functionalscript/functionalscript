@@ -25,7 +25,8 @@ easier to read.
   [`Result`](./result/README.md): `['ok', value]` or `['error', e]`. Throwing is
   kept for broken invariants, not for input a caller could get wrong.
 - **Sequences are lazy lists.** A [`List`](./list/README.md) may be an array, a
-  `null`, a cons cell or a thunk, and every combinator accepts all four. Work
+  `null`, a cons cell, a concatenation of two lists or a thunk, and every
+  combinator accepts all five. Work
   happens only when something reads the result.
 - **Functions take their configuration first.** `map(f)(list)`,
   `at(key)(object)`, `okThen(step)(result)`: the argument that varies least

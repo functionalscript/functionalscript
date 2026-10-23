@@ -12,10 +12,11 @@
  * `take(10)` stops it, which is what laziness buys: the walk ends after ten
  * items instead of running forever.
  *
- * **What is not a whole number is refused**, naming the first item that is
- * not, rather than read as `NaN` and carried through every line. So is a
- * number too large to hold exactly, which `Number` would silently round, and
- * any spelling but decimal digits with an optional `-`: `Number` would read a
+ * **Only whole numbers of at most six digits are read**, and anything else
+ * is refused, naming the first item, rather than read as `NaN` and carried
+ * through every line. Six digits keep every answer the page computes, such as
+ * a sum, far below `Number.MAX_SAFE_INTEGER`, so each one is exact. A number is
+ * decimal digits with an optional `-`, nothing else: `Number` would read a
  * tab as `0` and `0x10` as `16`.
  *
  * **It needs no operations.** Every answer is a pure function of the text, so
@@ -36,14 +37,17 @@ import { cycle, entries, filter, fold, foldScan, intersperse, map, reverse, take
 
 /**
  * The typed text as whole numbers, split at commas and spaces, or the first
- * item that is not one.
+ * item that is not one. Each is at most six digits, with an optional `-`.
  *
  * @type {(text: string) => Result<readonly number[], string>}
  */
 export const parse = text => {
     const items = text.replaceAll(',', ' ').replaceAll('\n', ' ').split(' ').filter(item => item !== '')
-    const bad = items.find(item => !isDigits(item.startsWith('-') ? item.slice(1) : item) || !Number.isSafeInteger(Number(item)))
-    return bad === undefined ? ok(items.map(Number)) : error(`not a whole number: ${bad}`)
+    const bad = items.find(item => {
+        const digits = item.startsWith('-') ? item.slice(1) : item
+        return !isDigits(digits) || digits.length > 6
+    })
+    return bad === undefined ? ok(items.map(Number)) : error(`a whole number of at most six digits, not: ${bad}`)
 }
 
 /**
