@@ -8,7 +8,7 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { array, number, open, or, record, rest, string } from '../module.f.mjs'
 import { demo, examples } from '../demo.f.mjs'
 import { _compare, _graphOf, _marked, _outputsOf, _readersOf, schemaDemo } from './module.f.mjs'
@@ -365,18 +365,38 @@ const demoProof = /** @type {const} */ ({
             // Beside `id`'s value, each edge's row names its target.
             assert(html.includes('data-graph-value-label="" data-graph-value-ref="">{}<'), html)
         },
-        // A named root is expanded under its name; its use of itself is a
-        // reference by name, drawn inline, so the graph has no cycle.
+        // A named root is expanded under its name; a use of itself points
+        // back to that definition, with no edge through a box.
         recursive: () => {
-            const html = svg(exampleNamed('Recursion').schemas[0].schema)
+            const g = _graphOf(exampleNamed('Recursion').schemas[0].schema)
+            assertEq(g.nodes.length, 2)
+            assertStructurallySame(g.edges.filter(e => e.back), [{ from: 1, to: 0, label: '', kind: undefined, back: true }])
+            assertEq(_crossings(g), 0)
+            const html = htmlToString(graphSvg(g))
             assert(html.includes('>tree {}<'), html)
-            assert(html.includes('data-graph-value-kind="ref">tree<'), html)
+            assert(!html.includes('data-graph-value-kind="ref">tree<'), html)
+        },
+        // Multiple uses, including a direct self edge, return to the same
+        // root. A different named schema stays an inline reference.
+        recursiveBranches: () => {
+            /** @type {import('../types.ts').Type} */
+            const other = () => ['array', string]
+            /** @type {import('../types.ts').Type} */
+            const tree = () => ['const', { left: tree, children: array(tree), other }]
+            const g = _graphOf(tree)
+            assertEq(g.nodes.length, 2)
+            assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to, e.label]), [[0, 0, 'left'], [1, 0, '']])
+            assertEq(_crossings(g), 0)
+            assert(htmlToString(graphSvg(g)).includes('data-graph-value-kind="ref">other<'), 'another named schema stays a reference')
         },
         // A named thunk that is not a const is labelled with its name too.
         namedArray: () => {
             /** @type {import('../types.ts').Type} */
             const list = () => ['array', list]
-            const html = svg(list)
+            const g = _graphOf(list)
+            assertStructurallySame(g.edges, [{ from: 0, to: 0, label: '', kind: undefined, back: true }])
+            assertEq(_crossings(g), 0)
+            const html = htmlToString(graphSvg(g))
             assert(html.includes('>list array<'), html)
         },
         // A built-in or a constant draws inline; a root with no port to sit

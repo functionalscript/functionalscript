@@ -26,7 +26,7 @@ const tree = () => ['const', { value: number, children: array(tree) }]
 /** @type {DemoExample} */
 export const recursion = {
     name: 'Recursion',
-    about: 'A schema can use itself. The graph draws that use by its name.',
+    about: 'A schema can use itself. The graph draws that use as an arrow back to its definition.',
     schemas: [{ source: "const tree = () => ['const', { value: number, children: array(tree) }]", schema: tree }],
     value: 'export default {"value":1,"children":[{"value":2,"children":[]}]};',
 }
