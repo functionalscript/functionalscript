@@ -38,10 +38,12 @@ the `js` rung of the cache reruns them.
 
 The measured set stays `module.f.mjs` and `module.f.js`. FunctionalScript
 files under other names — a parser's fixtures, the `rtti` guide's examples,
-`testlib.f.js`, `data.f.js`, `*.data.js` — are parsed as text or imported
-as data by the proofs that use them and never executed as modules, so
-measuring them is a rule change to decide separately, not a consequence of
-this one.
+`testlib.f.js`, `data.f.js`, `*.data.js` — are loaded but not measured:
+`loadModuleMap` imports every file `isAuthored` accepts and evaluates it
+before asking for a `proof` export, so they run as modules under the
+switch as they do today, and the proofs that use them import them as data
+or parse them as text besides. Measuring them is a rule change to decide
+separately, not a consequence of this one.
 
 A module whose coverage drops when its JavaScript proofs stop counting has
 a proof gap `fjs/AGENTS.md` §1.2 already names: its own proof does not reach
