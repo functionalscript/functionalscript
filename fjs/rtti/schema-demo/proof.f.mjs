@@ -363,7 +363,7 @@ const demoProof = /** @type {const} */ ({
             assertEq(occurrences('data-graph-kind="struct"')(html), 3)
             assertEq(occurrences('data-graph-edge=""')(html), 5)
             // Beside `id`'s value, each edge's row names its target.
-            assert(html.includes('data-graph-value-label="" data-graph-value-ref="">{}<'), html)
+            assert(html.includes('data-graph-value-label="" data-graph-value-ref="" data-graph-port-edge="3">{}<'), html)
         },
         // A named root is expanded under its name; a use of itself points
         // back to that definition, with no edge through a box.
@@ -449,7 +449,7 @@ const demoProof = /** @type {const} */ ({
             const html = svg(record(array(or(number, [string]))))
             for (const key of ['>value<', '>item<', '>|<']) { assert(!html.includes(key), html) }
             // A tuple's brackets touch, as a struct's do.
-            assert(html.includes('data-graph-label="">[]<'), html)
+            assert(html.includes('data-graph-label="" data-graph-node-name="3">[]<'), html)
         },
     },
 })

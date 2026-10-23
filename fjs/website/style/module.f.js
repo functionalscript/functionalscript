@@ -644,8 +644,14 @@ svg text { font: inherit }
 [data-graph-hit] { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer }
 [data-graph-trace] { opacity: 0; fill: none; stroke: var(--value); stroke-width: 3; pointer-events: none }
 [data-graph-trace-arrow] { fill: var(--value) }
-[data-graph-connection]:is(:has(> [data-graph-hit]:hover), :focus) [data-graph-trace] { opacity: 1 }
-[data-graph]:has([data-graph-hit]:hover) [data-graph-connection]:focus:not(:has(> [data-graph-hit]:hover)) [data-graph-trace] { opacity: 0 }
+/* Focus is the fallback while no explicit graph hover target is active.
+   Low specificity lets the SVG's port/name relationship rules take over. */
+:where([data-graph-connection]:focus) [data-graph-trace] { opacity: 1 }
+[data-graph]:where(:has([data-graph-hit]:hover, [data-graph-port-edge]:hover, [data-graph-node-name]:hover)) :where([data-graph-connection]:focus) [data-graph-trace] { opacity: 0 }
+[data-graph-connection]:has(> [data-graph-hit]:hover) [data-graph-trace] { opacity: 1 }
+[data-graph-port-edge], [data-graph-node-name] { cursor: pointer }
+[data-graph-port-edge] { pointer-events: all }
+[data-graph-node-name]:hover { fill: var(--value) }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port], [data-graph-group] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }

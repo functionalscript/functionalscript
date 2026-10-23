@@ -911,6 +911,9 @@ const groupCellsOf = ({ groups = [] }) => toArray(stateScan(
  * highlights its route and both endpoints; clicking gives it persistent
  * focus, and Tab moves to the next connection. Bundled returns keep every
  * logical route so one source can still be followed through a shared run.
+ * Hovering an output port traces that route and outlines its source row;
+ * hovering a node name traces all incoming and outgoing connections. The
+ * SVG's own CSS relationships use numeric identities, not display names.
  *
  * @type {(g: Graph) => Element}
  */
@@ -962,6 +965,7 @@ export const graphSvg = g => {
         const description = `${from.label} [${edge.label}] → ${target.label}${edge.back === true ? ' (recursive)' : ''}`
         return /** @type {Element} */ (['g', {
             'data-graph-connection': String(index), tabindex: '0', role: 'group', 'aria-label': description,
+            'data-graph-from': String(edge.from), 'data-graph-to': String(to),
             ...pathKeyOf('connection', from.key, String(slotOf(index, edge.from)), target.key),
         },
             ['title', description],
@@ -971,6 +975,11 @@ export const graphSvg = g => {
             ...(edge.from === to ? [from] : [from, target]).map(p => /** @type {Element} */ (['rect', {
                 x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
                 'data-graph-trace': '',
+            }])),
+            ...from.ports.filter(port => port.index === index && from.title < from.width).map(port => /** @type {Element} */ (['rect', {
+                x: String(from.x + from.title), y: String(from.y + port.y),
+                width: String(from.width - from.title), height: String(portHeight),
+                'data-graph-trace': '', 'data-graph-port-outline': String(index),
             }])),
         ])
     })
@@ -1000,6 +1009,11 @@ export const graphSvg = g => {
     const keyWidthOf = p => port => valueOf(port) === null ? p.width - p.title
         : port.edge.label === '' ? 0
         : p.keyWidth
+    /** @type {(port: _Port) => { readonly 'data-graph-port-edge'?: string }} */
+    const portAttrOf = port => g.trace === true && typeof port.edge.to === 'number'
+        ? { 'data-graph-port-edge': String(port.index) } : {}
+    /** @type {(id: number) => { readonly 'data-graph-node-name'?: string }} */
+    const nameAttrOf = id => g.trace === true ? { 'data-graph-node-name': String(id) } : {}
     // A keyed graph draws its keyed groups in an order of their own, by
     // key, in a layer each: a page that patches it then finds a node's
     // group among the same siblings, in the same order, from one drawing
@@ -1031,11 +1045,13 @@ export const graphSvg = g => {
                 x: String(p.x + p.title), y: String(p.y + port.y),
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-port': '',
+                ...portAttrOf(port),
             }])]),
             ...p.ports.flatMap(port => valueOf(port) === null ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x + p.title + keyWidthOf(p)(port)), y: String(p.y + port.y),
                 width: String(p.width - p.title - keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-value': '',
+                ...portAttrOf(port),
                 // A value with no key is the whole row: marked, so a
                 // stylesheet can leave it unfilled where a tint across
                 // every row would hide the node's own fill.
@@ -1070,14 +1086,17 @@ export const graphSvg = g => {
             ? groupCellsOf(p).map(cell => /** @type {Element} */ (['text', {
                 x: String(p.x + p.title / 2), y: String(p.y + cell.y + cell.height / 2),
                 'text-anchor': 'middle', 'data-graph-label': '',
+                ...nameAttrOf(p.id),
             }, cell.label]))
             : p.label === '' ? [] : [/** @type {Element} */ (['text', {
                 x: String(p.x + p.title / 2), y: String(p.y + p.height / 2),
                 'text-anchor': 'middle', 'data-graph-label': '',
+                ...nameAttrOf(p.id),
             }, p.label])]),
         ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.title + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',
+            ...portAttrOf(port),
         }, port.edge.label])]),
         ...p.ports.flatMap(port => {
             const { to } = port.edge
@@ -1085,7 +1104,7 @@ export const graphSvg = g => {
                 x: String(p.x + (p.title + keyWidthOf(p)(port) + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
                 'text-anchor': 'middle', 'data-graph-value-label': '',
             }
-            return port.ref !== null ? [/** @type {Element} */ (['text', { ...at, ...refAttrOf(port) }, port.ref])]
+            return port.ref !== null ? [/** @type {Element} */ (['text', { ...at, ...refAttrOf(port), ...portAttrOf(port) }, port.ref])]
                 : typeof to === 'number' ? [] : [/** @type {Element} */ (['text', {
                 ...at,
                 ...valueKindOf(port.edge),
@@ -1096,6 +1115,13 @@ export const graphSvg = g => {
         ])
     })
     return ['div', { 'data-graph': '', ...(g.trace === true ? { tabindex: '-1' } : {}) }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
+        ...(g.trace === true ? [/** @type {Element} */ (['style', { 'data-graph-trace-style': '' },
+            // Numeric identities keep the selectors independent of labels.
+            // Each :has is scoped to its SVG, so equal ids in another graph
+            // on the same page do not share a hover state.
+            ...positioned.map(p => `svg:has([data-graph-node-name="${p.id}"]:hover) :is([data-graph-from="${p.id}"], [data-graph-to="${p.id}"]) [data-graph-trace] { opacity: 1 }\n`),
+            ...routes.map(r => `svg:has([data-graph-port-edge="${r.index}"]:hover) [data-graph-connection="${r.index}"] [data-graph-trace] { opacity: 1 }\n`),
+        ])] : []),
         ['defs',
             ['marker', {
                 id: 'graph-arrow', viewBox: '0 0 10 10', refX: '9', refY: '5',

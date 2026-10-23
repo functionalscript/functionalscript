@@ -312,12 +312,21 @@ export const proof = {
             const html = htmlToString(graphSvg({
                 trace: true, bundleBacks: true,
                 nodes: [{ id: 0, kind: 'n', label: 'root', rank: 0 }, { id: 1, kind: 'n', label: 'child', rank: 1 }],
-                edges: [{ from: 0, to: 1, label: 'item' }, { from: 1, to: 1, label: 'self', back: true }],
+                edges: [
+                    { from: 0, to: 1, label: 'item' }, { from: 1, to: 1, label: 'self', back: true },
+                    { from: 0, to: { inline: '42' }, label: 'constant' },
+                ],
             }))
-            assertEq(occurrences('data-graph-connection=')(html), 2)
+            assertEq(occurrences(' data-graph-connection=')(html), 2)
             assertEq(occurrences('tabindex="0"')(html), 2)
             assertEq(occurrences('data-graph-hit=')(html), 2)
-            assertEq(occurrences('data-graph-trace=""')(html), 5)
+            assertEq(occurrences('data-graph-trace=""')(html), 7)
+            assertEq(occurrences('data-graph-port-outline=')(html), 2)
+            assertEq(occurrences(' data-graph-port-edge=')(html), 6)
+            assertEq(occurrences(' data-graph-node-name=')(html), 2)
+            assert(html.includes('data-graph-from="0" data-graph-to="1"'), html)
+            assert(html.includes('svg:has([data-graph-port-edge="0"]:hover) [data-graph-connection="0"]'), html)
+            assert(html.includes('svg:has([data-graph-node-name="1"]:hover) :is([data-graph-from="1"], [data-graph-to="1"])'), html)
             assert(html.includes('aria-label="root [item] → child"'), html)
             assert(html.includes('aria-label="child [self] → child (recursive)"'), html)
             assert(html.includes('id="graph-trace-arrow"'), html)

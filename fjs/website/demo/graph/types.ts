@@ -164,7 +164,7 @@ export type Graph = {
     readonly entries?: readonly Entry[] | undefined
     /** Share return lanes and an arrowhead for back edges to the same node of the same kind. */
     readonly bundleBacks?: boolean | undefined
-    /** Trace connections and their endpoints on hover or native keyboard/click focus. */
+    /** Trace connections from lines, output ports and node names, or native keyboard/click focus. */
     readonly trace?: boolean | undefined
     /**
      * Center columns vertically, keeping their nodes and routing lanes
