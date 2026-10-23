@@ -439,10 +439,11 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  * - **Closure** is a function that captures its enclosing parameter and a
  *   module `const`, each read inside the body through a frame slot.
  * - **Recursion** draws the recursive call's `callee` as an arrow back to
- *   the `=>`, routed around the graph rather than through it. **Recursion:
- *   two calls** has two such arrows, one lane each below the graph: the
- *   higher call's arrow passes beside where the lower one leaves, so the
- *   two never cross.
+ *   the `=>`, routed around the graph rather than through it.
+ *   **Recursion: Ackermann** has three such arrows, one lane each below the
+ *   graph. The inner `ack(m, n - 1)` is the outer call's argument, so its
+ *   arrow spans more ranks and runs outside the other two rather than
+ *   across them.
  * - **Methods and properties** draws a method call as one node of two
  *   links: `.` beside the receiver in `obj` and `"at"` in `key`, and `()`
  *   beside its arguments, a `[]` node.
