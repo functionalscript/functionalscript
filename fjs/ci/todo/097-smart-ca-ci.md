@@ -183,8 +183,10 @@ branch of CI's size is not measured yet, and a job that spends longer in
 the lookup than in the work it skips has no cache. If the measurement says
 so, the fallback is native Git: the job spawns the `git` CLI for the same
 three operations — `git cat-file --batch` to read a key's blob and the
-tree it is filed in, `git hash-object -w`, `git mktree` and
-`git commit-tree` to add one, `git update-ref` to move the branch — behind
+tree it is filed in, `git hash-object -w --no-filters` — the file's bytes
+as they are, since a clean or EOL filter would store other bytes under
+the key of these — `git mktree` and `git commit-tree` to add one,
+`git update-ref` to move the branch — behind
 the same `fjs cas git add`, `get` and `list` commands, so nothing else in
 the job changes. Calling an external tool from our code needs approval
 first ([AGENTS.md §6](../../../AGENTS.md#6-external-tools)), so the
