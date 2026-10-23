@@ -242,9 +242,9 @@ const nameText = name => codePointListToString(toArray(name))
 const keyOf = rel => e => isDirectory(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
 
 /**
- * What is wrong with a tree as a tree, in a few words, or nothing: the two
- * shapes `git fsck` refuses in any tree, which a walk cannot take as the
- * tree means them, so every walk here refuses a tree holding either
+ * What is wrong with a tree as a tree, in a few words, or nothing: the
+ * three shapes `git fsck` refuses in any tree, which a walk cannot take as
+ * the tree means them, so every walk here refuses a tree holding any
  * wherever it meets one.
  *
  * - A name the tree holds twice, `duplicateEntries`: the tree answers no
@@ -252,6 +252,9 @@ const keyOf = rel => e => isDirectory(e) ? [] : toOption(unshard(join(rel, nameT
  *   costs what sorting them does and not a scan per name.
  * - A name holding a `/`, `fullPathname`: it spells a path, and is no
  *   entry a walk reaches.
+ * - Entries out of the order Git writes, `treeNotSorted`: a writer
+ *   rebuilding the tree around one entry would keep the order and write a
+ *   tree Git refuses.
  *
  * @type {(es: readonly TreeEntry[]) => readonly string[]}
  */
@@ -260,7 +263,9 @@ const illFormed = es => {
     const twice = sorted.filter((n, i) => i !== 0 && sorted[i - 1] === n)
     if (twice.length !== 0) { return [`names ${twice[0]} twice`] }
     const slashed = sorted.filter(n => n.includes('/'))
-    return slashed.length === 0 ? [] : [`names ${slashed[0]}, which holds a /`]
+    if (slashed.length !== 0) { return [`names ${slashed[0]}, which holds a /`] }
+    const unsorted = es.filter((e, i) => i !== 0 && compare(es[i - 1], e) > 0)
+    return unsorted.length === 0 ? [] : [`is not in Git's order at ${nameText(unsorted[0].name)}`]
 }
 
 /**
@@ -737,6 +742,7 @@ export const proposal = (sha2, branch, author) => {
         const at = casAt(read, oidBytes)
         const treeOf = treeOfCommit(read, oidBytes, ref)
         const write = writeObject(branch.dir, oidBytes)
+        const idOf = of(oidBytes)
         const place = placed(read, write, oidBytes)
         const writeRef = tryWrite(dirs, oidBytes)(name)
         /**
@@ -746,11 +752,17 @@ export const proposal = (sha2, branch, author) => {
         const head = step(resolve(name), c => c === null ? resolve(published) : pureOk(c))
         /** That commit's tree, or `null` for the empty one. */
         const tree = step(head, c => c === null ? pureOk(null) : treeOf(c))
+        /** The bytes of a blob, from the chunks gathered: what is hashed for its id and written. @type {(chunks: readonly Vec[]) => Bytes} */
+        const bytesOf = chunks => flat(map(u8ListMsb)(chunks))
         /**
          * Seven links, one per line and in the order they run: the payload
-         * gathered, its blob written, the proposal's head and tree read, the
-         * tree rebuilt around the blob, the time taken, and the commit written
-         * and the ref moved to it — or neither, where the tree stood.
+         * gathered, the proposal's head and tree read, the tree rebuilt
+         * around the blob's id, the blob written where the tree changed, the
+         * time taken, and the commit written and the ref moved to it — or
+         * none of the last three, where the tree stood. The tree decides
+         * before the blob is stored, so content already under its key
+         * writes nothing, even where its blob sits in a pack or a borrowed
+         * directory and no loose file of it is there to find.
          *
          * @template {Operation} O1
          * @param {EffectList<O1, Vec, IoChannel>} payload
@@ -758,12 +770,12 @@ export const proposal = (sha2, branch, author) => {
          */
         const add = payload => {
             const got = history(gathered(sha2, payload))
-            const blob = historyStep(got, ({ chunks }) => write('blob', flat(map(u8ListMsb)(chunks))))
-            const base = historyStep(blob, () => head)
+            const base = historyStep(got, () => head)
             const baseTree = historyStep(base, c => c === null ? pureOk(null) : treeOf(c))
-            const root = historyStep(baseTree, (t, _c, b, { key }) => place(t, components(key), b))
-            const when = historyStep(root, () => now())
-            return step(when, ([ms, newTree, , c, , { key }]) => {
+            const root = historyStep(baseTree, (t, _c, { key, chunks }) => place(t, components(key), idOf('blob', bytesOf(chunks))))
+            const blob = historyStep(root, (newTree, _t, _c, { chunks }) => newTree === null ? pureOk(null) : write('blob', bytesOf(chunks)))
+            const when = historyStep(blob, () => now())
+            return step(when, ([ms, , newTree, , c, { key }]) => {
                 if (newTree === null) { return pureOk(key) }
                 const commit = write('commit', commitOf(author, newTree, c, key, ms))
                 return step(commit, id => mapStep(writeRef(id), () => key))
