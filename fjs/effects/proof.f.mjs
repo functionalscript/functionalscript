@@ -13,6 +13,8 @@ import { run as mockRun } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.js'
 import { assertIoMessage } from './testlib.f.js'
+import { demo, runWords } from './demo.f.mjs'
+import { htmlToString } from '../media/html/module.f.mjs'
 
 /**
  * Asserts that `e` reaches `expected` without performing a command.
@@ -695,6 +697,34 @@ export const proof = {
             const [log, r] = runNoted(finallyStep(pureOk(5), () => note('fail')))
             assertEq(log.join(','), 'fail')
             assertEq(assertOk(r), 5)
+        },
+    },
+    demo: {
+        // Every word is asked, in order, and the answers are collected.
+        answers: () => {
+            const [trace, r] = runWords('a\nb')
+            assertEq(trace.join('|'), "ask('a') -> ok 'A'|ask('b') -> ok 'B'")
+            assertEq(assertOk(r).join(','), 'A,B')
+        },
+        // A refusal stops the program: no word after it is asked.
+        stops: () => {
+            const [trace, r] = runWords('read the fail file')
+            assertEq(trace.length, 3)
+            assertEq(trace[2], "ask('fail') -> error 'refused'")
+            assertEq(assertError(r), 'refused')
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            const typed = runPure(demo.update('')({ kind: 'input', name: 'words', value: 'x' }))
+            assertEq(typed.length === 1 ? assertOk(typed[0]) : null, 'x')
+            const kept = runPure(demo.update('kept')({ kind: 'start' }))
+            assertEq(kept.length === 1 ? assertOk(kept[0]) : null, 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="words"'), html)
+            assert(html.includes("error &#39;refused&#39;") || html.includes("error 'refused'"), html)
+            assert(htmlToString(demo.view('')).includes('(none)'), 'an empty program performs nothing')
         },
     },
 }
