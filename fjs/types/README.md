@@ -6,8 +6,10 @@ imported directory in the tree — the compiler, the effects layer, RTTI, the
 media formats and the website all reach for `result`, `list`, `nullable` and
 `function` before anything else.
 
-Every module here is plain FunctionalScript. A value is never mutated, a
-function is curried one argument at a time, and nothing performs I/O. Most
+Every module here is plain FunctionalScript. A value is never mutated,
+functions are curried with the configuration first and the data last, and
+nothing performs I/O. Most calls take one argument each, but not all:
+`fixpoint(step, same)(start)` takes two in its first call. Most
 directories hold a `module.f.mjs` (or `module.f.js`), its `types.ts`, and a
 `proof.f.mjs` whose exported `proof` is the module's test suite.
 

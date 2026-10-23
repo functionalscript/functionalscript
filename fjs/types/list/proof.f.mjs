@@ -438,6 +438,7 @@ export const proof = {
             assertEq(str(unwrap(parse(' 1,2\n 3 '))), '[1,2,3]')
             assertEq(str(unwrap(parse(''))), '[]')
             assertEq(str(/** @type {any} */(parse('1, 2.5'))), '["error","not a whole number: 2.5"]')
+            assertEq(str(/** @type {any} */(parse('9007199254740993'))), '["error","not a whole number: 9007199254740993"]')
         },
         // Typing replaces the text; every other event leaves it alone.
         update: () => {

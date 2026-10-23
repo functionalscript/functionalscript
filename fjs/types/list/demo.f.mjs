@@ -9,11 +9,12 @@
  * shorter list.
  *
  * **The last line reads an infinite list.** `cycle(xs)` never ends, and
- * `take(10)` stops it, which is what laziness buys: nothing past the tenth
- * item is computed.
+ * `take(10)` stops it, which is what laziness buys: the walk ends after ten
+ * items instead of running forever.
  *
  * **What is not a whole number is refused**, naming the first item that is
- * not, rather than read as `NaN` and carried through every line.
+ * not, rather than read as `NaN` and carried through every line. So is a
+ * number too large to hold exactly, which `Number` would silently round.
  *
  * **It needs no operations.** Every answer is a pure function of the text, so
  * `update` returns its next state through `pureOk`.
@@ -38,7 +39,7 @@ import { cycle, entries, filter, fold, foldScan, intersperse, map, reverse, take
  */
 export const parse = text => {
     const items = text.replaceAll(',', ' ').replaceAll('\n', ' ').split(' ').filter(item => item !== '')
-    const bad = items.find(item => !Number.isInteger(Number(item)))
+    const bad = items.find(item => !Number.isSafeInteger(Number(item)))
     return bad === undefined ? ok(items.map(Number)) : error(`not a whole number: ${bad}`)
 }
 
