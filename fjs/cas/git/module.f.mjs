@@ -72,7 +72,7 @@ import {
     step, walkStep,
 } from '../../effects/module.f.mjs'
 import { fromList } from '../../effects/list/module.f.mjs'
-import { isNotFound, mkdir, now, rename, rm, stat, writeExclusive } from '../../effects/node/module.f.mjs'
+import { isNotFound, mkdir, now, rename, rm, writeExclusive } from '../../effects/node/module.f.mjs'
 import { tryTreeAt } from '../../git/commit/module.f.mjs'
 import { oidBytes as widthOf } from '../../git/format/module.f.mjs'
 import { write as writePayload } from '../../git/header/module.f.mjs'
@@ -435,11 +435,15 @@ export const snapshot = branch => {
  * Writes an object into the repository's own `objects/`, as the loose file
  * Git stores one in — `<type> SP <size> NUL <payload>`, one zlib stream, at
  * `objects/ab/<rest>` of its id — and answers the id. An object already
- * there is left as it is: the id names its bytes, so nothing is to be
- * written. Otherwise the stream goes to a temporary name below `objects/`,
- * as Git's own `tmp_obj_*` does, and is renamed into place once whole, so
- * no reader meets a loose file that is not an object; a rename that fails
- * takes the temporary file with it.
+ * there is read through `read`, the store's checked reader, and left as it
+ * is where it is the object: the id names its bytes, so nothing is to be
+ * written. A file at the path that is not the object — truncated, no zlib
+ * stream, another object's bytes — is replaced, since a `stat` alone would
+ * have taken it for the object and a later read would refuse what this
+ * write had reported stored. Otherwise the stream goes to a temporary name
+ * below `objects/`, as Git's own `tmp_obj_*` does, and is renamed into place
+ * once whole, so no reader meets a loose file that is not an object; a
+ * rename that fails takes the temporary file with it.
  *
  * The payload is held whole: the envelope states the size before the
  * bytes, which is the limit
@@ -447,16 +451,22 @@ export const snapshot = branch => {
  *
  * @throws If an item of `payload` is not a byte, as the envelope's writer throws.
  *
- * @type {(dir: string, oidBytes: OidBytes) => (type: ObjectType, payload: Bytes) => Effect<ProposalOperation, Oid, IoChannel>}
+ * @template {Operation} O
+ * @param {string} dir
+ * @param {OidBytes} oidBytes
+ * @param {Read<O>} read
+ * @returns {(type: ObjectType, payload: Bytes) => Effect<O | ProposalOperation, Oid, IoChannel>}
  */
-export const writeObject = (dir, oidBytes) => {
+export const writeObject = (dir, oidBytes, read) => {
     const idOf = of(oidBytes)
     const at = objectPath(dir)
     const od = objectsDir(dir)
     return (type, payload) => {
         const id = idOf(type, payload)
         const path = at(id)
-        const there = catchStep(mapStep(stat(path), () => true), () => pureOk(false))
+        // Any failure to read the object — no file, a stream that is no zlib
+        // stream, bytes hashing to another id — is an object to write.
+        const there = catchStep(mapStep(read(id), o => o !== null), () => pureOk(false))
         return step(there, found => {
             if (found) { return pureOk(id) }
             const named = history(mapStep(random256, rnd => join(od, `tmp_obj_${vecToCBase32(rnd)}`)))
@@ -605,7 +615,7 @@ export const proposal = (sha2, branch, author) => {
         const resolve = tryResolve(dirs, oidBytes)
         const at = casAt(read, oidBytes)
         const treeOf = treeOfCommit(read, oidBytes, ref)
-        const write = writeObject(branch.dir, oidBytes)
+        const write = writeObject(branch.dir, oidBytes, read)
         const place = placed(read, write, oidBytes)
         const writeRef = tryWrite(dirs, oidBytes)(name)
         /**

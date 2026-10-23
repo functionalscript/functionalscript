@@ -23,7 +23,7 @@ import { author as authorOf, parents, tryRead as readCommit } from '../../git/co
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { hexText, of } from '../../git/oid/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
-import { objectPath, tryRead as readObject } from '../../git/store/module.f.mjs'
+import { objectPath, objectsDir, readIn, tryRead as readObject } from '../../git/store/module.f.mjs'
 import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.mjs'
 import { write as writeTree } from '../../git/tree/module.f.mjs'
 import { length, maxLength, msb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
@@ -642,18 +642,35 @@ export const proof = {
     },
     // ## Writing an object
     //
+    // A file already at the object's path that is not the object — junk that
+    // inflates to no object here — is replaced, so the proposal never commits
+    // a tree naming a path a read would then refuse. A good object there is
+    // left alone, which `proposalWritesOnce` shows by the unchanged repository.
+    writeObjectReplacesCorrupt: () => {
+        const gammaId = sha1.idOf('blob', gamma)
+        const root = ordinary(20, initConfig)
+        const corrupt = setIn(root, objectPath(dir)(gammaId).split('/'), [u8ListToVecMsb(storedBytes(latin1('junk')))])
+        const [s0, cas] = proposed(corrupt)
+        const [s1, w] = wrote(s0, cas, [gamma])
+        assertOk(w)
+        const o = assertNotNullish(assertOk(virtual(s1)(readObject(dir, 20)(gammaId))[1]))
+        assertEq(o.type, 'blob')
+        assertEq(msb.cmp(assertOk(virtual(s1)(collectRead(cas.read(gammaKey)))[1]))(u8ListToVecMsb(gamma)), 0)
+    },
     // The loose file is renamed into place once whole, and a rename that
     // fails takes the temporary file with it: driven with the virtual
     // filesystem's commands answered by hand, since no filesystem fails a
-    // rename on request. The `stat` says the object is not there yet, the
-    // `rename` fails, and the log shows the `rm` that followed it.
+    // rename on request. The store's read finds no object yet, the `rename`
+    // fails, and the log shows the `rm` that followed it.
     writeObjectRenameFails: () => {
-        const drive = _driveCas({ writeExclusive: ok(undefined) })
+        const drive = _driveCas({
+            writeExclusive: ok(undefined),
+            readWhole: error(ioError({ code: 'ENOENT', message: 'no such file or directory' })),
+        })
         const boom = ioError({ message: 'boom' })
         const [r, log] = drive({
-            stat: [error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))],
             rename: [error(boom)],
-        })(writeObject(dir, 20)('blob', alpha))
+        })(writeObject(dir, 20, readIn([objectsDir(dir)], 20))('blob', alpha))
         assertEq(assertError(r), boom)
         assertStructurallySame(log.slice(log.indexOf('rename')), ['rename', 'rm'])
     },
