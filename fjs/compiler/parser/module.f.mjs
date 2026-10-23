@@ -1871,7 +1871,7 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
             if (tag === 'error') { return error(target) }
             const [resolved, evaluated] = evaluate(target[0], null)(assignment.value)
             if (resolved === 'error') { return error(evaluated) }
-            scope = evaluated.scope
+            scope = traced(evaluated.scope, [['write', target[1]]])
             body = [...body, ['write', target[1], evaluated.value]]
             continue
         }
@@ -1887,11 +1887,10 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
         if (tag === 'error') { return error(plan) }
         const then = named ? plan.names.find(([name]) => nameOf(name) === 'then') : undefined
         if (then !== undefined) { return error({ message: 'reserved export name then', metadata: then[0].metadata }) }
-        // a function that is the whole value of a `const` of one name is
-        // entered under that name, its `self`; a pattern names no function,
-        // a `let`'s name is a variable, which a closure may not read, and a
-        // pattern over the `Object` namespace enters nothing,
-        // {@link constValue}
+        // a function that is the whole value of a declaration of one name is
+        // entered under that name, its `self`, a `let`'s a capture; a pattern
+        // names no function, and a pattern over the `Object` namespace
+        // enters nothing, {@link declaredValue}
         scope = declared(scope, plan, kind)
         const [resolved, evaluated] = namespace !== null ? ok({ value: undefined, scope }) : evaluate(scope, target[0] === 'name' ? [nameOf(target[1]), plan.ids[0], isVariable(kind)] : null)(node)
         if (resolved === 'error') { return error(evaluated) }

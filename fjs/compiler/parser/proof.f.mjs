@@ -340,6 +340,7 @@ export const proof = {
             assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let [a] = [1]; export default a;')))), "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[[\"...\",[\"[]\",[1]]]]],0]]]]")
             assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let a = 0; a = a + 1; export const b = a; export default 1;')))), "[\"{}\",[[\":\",\"b\",[\"+\",0,1]],[\":\",\"default\",1]]]")
             assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let r = 0; export const f = () => r; export default 1;')))), "[\"{}\",[[\":\",\"default\",1],[\":\",\"f\",[\"=>\",0,[],0]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let f = n => n ? f(n - 1) : 0; export default f;')))), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[[\"-\",[\"arg\",0],1]]],0]]]]]")
             // called where it is written by an optional call as well
             const [tag9, value9] = parseFromTokens(tokenizeString('export default () => { let r = 0; r = (() => r + 1)?.(); return r; };'))
             assert(tag9 === 'ok')
@@ -406,6 +407,7 @@ export const proof = {
                 ['let a = 1; let a = 2; export default a;', 'duplicate id', 16],
                 ['let a = 1; export const a = 2;', 'duplicate id', 25],
                 ['let r = 0; const f = () => r; r = 1; export default f;', 'reassigned variable captured', 28],
+                ['let f = n => f(n); f = 1; export default f;', 'reassigned variable captured', 14],
                 // a `let` takes its initializer, as a `const` does: a variable
                 // names its value where it is declared, and `let x;` is refused
                 // by design; a module's `let` is no export, `export let` refused
