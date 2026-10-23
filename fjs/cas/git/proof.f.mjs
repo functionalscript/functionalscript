@@ -8,6 +8,7 @@
  * @import { ObjectType, Oid, OidBytes } from '../../git/types.ts'
  * @import { Read } from '../../git/walk/types.ts'
  * @import { EffectList } from '../../effects/list/types.ts'
+ * @import { Dirs } from '../../git/refstore/types.ts'
  * @import { Author, Branch, CasReader, SnapshotOperation, WriteOperation } from './types.ts'
  * @import { Cas } from '../types.ts'
  */
@@ -262,7 +263,7 @@ const writable = root => {
 /** Writes `chunks` through `cas` over `state`: the filesystem after and the key. @type {(state: State, cas: Cas<WriteOperation>, chunks: readonly (readonly number[])[]) => readonly [State, Result<Vec, IoChannel>]} */
 const wrote = (state, cas, chunks) => virtual(state)(cas.write(payload(chunks)))
 
-/** The two directories of the fixture repository, as the ref store takes them. */
+/** The two directories of the fixture repository, as the ref store takes them. @type {Dirs} */
 const dirs = { gitdir: dir, common: dir }
 
 /** The id a ref holds over `state`, or `null`. @type {(state: State, name: string) => Oid | null} */
@@ -734,6 +735,7 @@ export const proof = {
         const gammaId = sha1.idOf('blob', gamma)
         const { root, objects } = casEntry(gammaKey, '100644', gammaId)
         const borrowing = setIn(over(root, objects), ['repo', 'objects', 'info', 'alternates'], [u8ListToVecMsb(latin1('../../donor/objects\n'))])
+        /** @type {readonly Vec[]} */
         const good = [u8ListToVecMsb(storedBytes(toArray(writeEnvelope('blob', gamma))))]
         const withDonor = setIn(setIn(borrowing, objectPath('donor')(gammaId).split('/'), good), ['donor', 'objects', 'pack'], {})
         const [s0, cas] = writable(withDonor)
@@ -862,6 +864,7 @@ export const proof = {
     // compared, not the file's being an object, and the write replaces it.
     writeObjectReplacesOther: () => {
         const gammaId = sha1.idOf('blob', gamma)
+        /** @type {readonly Vec[]} */
         const other = [u8ListToVecMsb(storedBytes(toArray(writeEnvelope('blob', alpha))))]
         const swapped = setIn(ordinary(20, initConfig), objectPath(dir)(gammaId).split('/'), other)
         const [s0, cas] = writable(swapped)
@@ -879,6 +882,7 @@ export const proof = {
     // repository's own `objects/`, read alone, holds the object.
     writeObjectReplacesCorruptBesideDonor: () => {
         const gammaId = sha1.idOf('blob', gamma)
+        /** @type {readonly Vec[]} */
         const good = [u8ListToVecMsb(storedBytes(toArray(writeEnvelope('blob', gamma))))]
         const borrowing = setIn(ordinary(20, initConfig), ['repo', 'objects', 'info', 'alternates'], [u8ListToVecMsb(latin1('../../donor/objects\n'))])
         const withDonor = setIn(setIn(borrowing, objectPath('donor')(gammaId).split('/'), good), ['donor', 'objects', 'pack'], {})
