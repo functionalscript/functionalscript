@@ -152,6 +152,15 @@ const refuseFormat = refuse(repositoryFormatCode)
 const refuseAuthor = refuse(authorCode)
 
 /**
+ * Whether an author's name or email holds a character an ident cannot: `<`,
+ * `>` or a line feed, the delimiters of an identification line, which the
+ * ident writer throws on and `git commit` silently strips.
+ *
+ * @type {(value: string) => boolean}
+ */
+const holdsDelimiter = value => ['<', '>', '\n'].some(c => value.includes(c))
+
+/**
  * An object read from the store, with a store that has no such object
  * refused as {@link casEntryCode} rather than passed on. The store reports
  * a missing object as the host's word for nothing at the path — `ENOENT`,
@@ -704,8 +713,8 @@ const gathered = (sha2, payload) => {
  * `author` and `committer` the one ident at `ms`, the `now` effect's
  * milliseconds as the seconds Git counts, in `+0000`, and `message`.
  *
- * @throws As the ident writer throws, on a name or an email holding `<`, `>`
- * or a line feed.
+ * `author` holds no `<`, `>` or line feed: {@link branchCas} refuses one
+ * that does before anything is written.
  *
  * @type {(author: Author, tree: Oid, parents: readonly Oid[], message: string, ms: number) => Bytes}
  */
@@ -737,7 +746,10 @@ const commitOf = (author, tree, parents, message, ms) => {
  * the commit the branch was at, or none where the branch did not exist.
  * Content already in the tree under its key writes no object and no
  * commit: the key is answered and the branch stands. Every commit is by
- * `author`, as `author` and `committer` both, at the `now` effect's time.
+ * `author`, as `author` and `committer` both, at the `now` effect's time;
+ * an author whose name or email holds `<`, `>` or a line feed, which no
+ * ident can carry, is refused as {@link authorCode} before anything is
+ * opened or written.
  *
  * The source checkout is not touched: the writes are below `objects/` and
  * at the branch ref, and nowhere else — not `HEAD`, not the index, not a
@@ -750,6 +762,9 @@ const commitOf = (author, tree, parents, message, ms) => {
  * @returns {Effect<WriteOperation, Cas<WriteOperation>, IoChannel>}
  */
 export const branchCas = (sha2, branch, author) => {
+    if (holdsDelimiter(author.name) || holdsDelimiter(author.email)) {
+        return refuseAuthor(`the author holds "<", ">" or a line break: ${author.name} <${author.email}>`)
+    }
     const ref = branchRef(branch)
     const named = history(refName(ref))
     const o = historyStep(named, () => opened(branch.dir))
@@ -876,7 +891,7 @@ export const configuredAuthor = (dir, home) => {
         if (empty !== undefined) {
             return refuseAuthor(`user.${empty[0]} is empty; set it in ${dir}/config or ${home}/.gitconfig`)
         }
-        const bad = values.find(([, v]) => ['<', '>', '\n'].some(c => v.includes(c)))
+        const bad = values.find(([, v]) => holdsDelimiter(v))
         return bad === undefined
             ? pureOk({ name, email })
             : refuseAuthor(`user.${bad[0]} holds "<", ">" or a line break; set it without them in ${dir}/config or ${home}/.gitconfig`)

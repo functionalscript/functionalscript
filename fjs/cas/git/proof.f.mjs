@@ -826,6 +826,17 @@ export const proof = {
         assert(o.length === 1, o)
         assertEq(codeOf(o[0]), snapshotHeadCode)
     },
+    // An author an ident cannot hold — `<`, `>` or a line feed in the name
+    // or the email — is refused before anything is opened, which `runPure`
+    // finishing is the proof of, rather than carried to the ident writer
+    // that throws once the blob and trees are written.
+    writeBadAuthor: () => {
+        for (const bad of [{ name: 'A <B>', email: 'a@b' }, { name: 'A', email: 'a@b\nc' }]) {
+            const o = runPure(branchCas(sha256, branch, bad))
+            assert(o.length === 1, o)
+            assertEq(codeOf(o[0]), authorCode, bad.name)
+        }
+    },
     // ## Writing an object
     //
     // A file already at the object's path that is not the object — junk that
