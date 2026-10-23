@@ -197,6 +197,64 @@ filesystem, and the CLI path is proved against the real `git` in CI.
 #### Finer blocks later
 
 Granularity belongs to input selection and the hashed contract of a block.
+The first refinement is decided: the JavaScript block splits into three
+rungs, one per set of tools, keyed by three manifests that hash into one
+another.
+
+Three nested groups of files, each read by one more tool than the one
+below it:
+
+| group | files | read by |
+| --- | --- | --- |
+| `fjs` | `*.f.mjs`, `*.f.js`, `*.data.js` | `tsc`, the suite, coverage, `npm start compile`, the `gen` check |
+| `js` | every other JavaScript file (`.mjs`, `.js`, `.cjs`), `package.json`, `package-lock.json` | `tsc`, the suite |
+| `ts` | every `.ts`, `tsconfig.json` | `tsc` |
+
+Each group contributes one manifest to `build-cache`: `fjs` lists its
+files, `js` lists its files and the `fjs` manifest's key, `ts` lists its
+files and the `js` manifest's key. A list entry is a path and its Git blob
+id, so building a manifest reads no file. The chain gives each contract the
+key it needs, and no diff is ever computed:
+
+| contract | key | changes when |
+| --- | --- | --- |
+| coverage, `npm start compile`, the `gen` check | the `fjs` manifest's | FJS changes |
+| the suite on every engine | the `js` manifest's | FJS or JS changes, never TS alone |
+| `tsc` | the `ts` manifest's | any of the three changes |
+
+A run publishes exactly the entries of the rungs it ran: a TS-only change
+runs `tsc` and publishes one entry; an FJS change runs all three and
+publishes three. The groups are the exceptions to "select by dependency,
+not filename extension" above, and deliberately: for these three tools the
+extension is what decides which reads a file, and the files that are not
+code — the lockfile, `tsconfig.json`, the tool pins in
+[`fjs/ci/config`](../config/module.f.js), itself FJS — are listed with the
+group whose tool reads them. Every tracked file under `fjs/` is in one of
+the three lists or in a named exclusion set, checked, so a new fixture
+cannot go unlisted silently.
+
+Two things the chain leaves out, on purpose. The `gen` check compares the
+generators' outputs, and the outputs are not listed: a hand edit of a
+`gen.*` file is forbidden, and the workflow is itself one of them. The test
+runner under [`fjs/emergent_testing`](../../emergent_testing/) is plain
+JavaScript that decides which proofs run, and coverage keys on `fjs` alone:
+a runner change reruns the suite on the `js` rung and not coverage. Making
+the coverage run a function of FJS files by construction — FJS proofs only
+— is [its own task](../../emergent_testing/todo/coverage-over-fjs-only.md).
+
+Beyond the rungs, testing only what a change reaches needs the dependency
+graph. Three ways to get one, all cheaper than a parser of our own, which
+[AGENTS.md §6](../../../AGENTS.md#6-external-tools) would want to be a real
+one: the TypeScript API resolves every static `import` and JSDoc `@import`
+across `.mjs`, `.f.mjs` and `.ts` in one program, with the pinned tool that
+already parses what it checks; a Node module customization hook records
+which modules each proof loads during the run that publishes the entry, so
+the per-proof input set comes out of the run at no parsing cost; and a block
+per directory, whose inputs are its files plus their transitive imports,
+is most of the win at a fraction of per-file granularity, since
+`npm start test` from a directory already scopes the suite and coverage to
+that subtree. What no graph sees — a file a proof reads at run time, a
+module only a generator reaches — needs a declared input or the coarse rung.
 Individual crates, packages, generators, or proof groups can later have their
 own manifests without changing the JSON format, hashing, or CAS layout.
 
@@ -232,6 +290,9 @@ own complete input set and success condition.
 - [ ] Document cleanup and how to add finer, overlapping blocks while
       retaining complete inputs and distinct hashed contracts for different
       work.
+- [ ] Split the JavaScript block into the `fjs`, `js` and `ts` rungs: the
+      three chained manifests, one contract per rung, the check that every
+      tracked file under `fjs/` is listed or excluded by name.
 - [ ] Measure the native backend's lookup and add on a cache branch of
       CI's size; where it is slow, ask approval for the `git` CLI fallback
       and put it behind the same three commands.
