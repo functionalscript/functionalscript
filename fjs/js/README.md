@@ -3,9 +3,11 @@
 `fjs/js` holds JavaScript's own facts, each written once: which words are
 keywords, what an identifier is, how a string is escaped, which built-in
 functions and prototype members exist, and how JavaScript text is cut into
-tokens. FunctionalScript is a subset of JavaScript, so every part of the
-repository that reads, checks or writes JavaScript asks these modules instead
-of keeping its own copy. A list kept in two places drifts, and then the
+tokens. They cover the part of JavaScript the repository reads and writes,
+not all of it: `identifier` admits ASCII names only, and the tokenizer does
+not read every string escape, such as `\x41`. FunctionalScript is a subset of
+JavaScript, so every part of the repository that reads, checks or writes
+JavaScript asks these modules instead of keeping its own copy. A list kept in two places drifts, and then the
 compiler and the RTTI printer disagree about whether `enum` is a keyword.
 
 None of this is the FunctionalScript language itself. The rules of the subset
@@ -38,7 +40,7 @@ it as it is to colour source text.
 |[`array_index`](./array_index/module.f.js)  |`arrayIndex`: whether a property key names an array element                 |rtti, edag                                   |
 |[`prototype`](./prototype/README.md)        |the own property names of the seven built-in prototypes                     |compiler, edag, nanvm                        |
 |[`static`](./static/README.md)              |the static functions a module may call, such as `Object.is`                 |compiler, edag, nanvm                        |
-|[`members`](./members/module.f.js)          |the member functions of the built-in types, as one table                    |runtime                                      |
+|[`members`](./members/module.f.js)          |the member functions of the built-in types, as one table                    |none yet; executors will be generated from it|
 |[`intrinsic`](./intrinsic/module.f.js)      |the primitives no function body can define: `slice`, `charCodeAt`           |compiler, edag                               |
 |[`runtime`](./runtime/README.md)            |the built-in functions, defined once for every executor                     |compiler, edag, nanvm, effects/node          |
 |[`ast`](./ast/README.md)                    |the Foundation AST, the compiler's intermediate representation              |compiler, edag, nanvm, rust                  |

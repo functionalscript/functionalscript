@@ -1420,9 +1420,11 @@ export const proof = {
         // Typing replaces the text; every other event leaves it alone.
         update: () => {
             /** @type {(event: DemoEvent) => (state: string) => string} */
-            const step = event => state => unwrap(assertNotNullish(
-                runPure(demo.update(state)(event))[0],
-                'expected the demo to reach a value without asking for an operation'))
+            const step = event => state => {
+                const [result] = runPure(demo.update(state)(event))
+                return unwrap(assertNotNullish(result,
+                    'expected the demo to reach a value without asking for an operation'))
+            }
             assertEq(step({ kind: 'input', name: 'source', value: 'x' })(''), 'x')
             assertEq(step({ kind: 'start' })('kept'), 'kept')
         },
