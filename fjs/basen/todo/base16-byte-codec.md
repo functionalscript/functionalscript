@@ -14,14 +14,11 @@ codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
 `hexBytes`, `fjs/zlib/testlib.f.mjs`'s `hex`, `fjs/git/refstore/name`'s
 `nameForMessage` and `fjs/media/datajs/vectors`'s `bytes` are on it. These still spell their own:
 
-- [`fjs/text/percent`](../../text/percent/module.f.mjs) — `escapeByte` reads
-  the two digits after a `%`, at the front of a longer part; one byte, which
-  is closer to the fixed-width scalar below than to a byte list.
 - [`fjs/types/uint8array`](../../types/uint8array/module.f.mjs) —
-  `hexOfByte` and `hexOf` spell bytes in lowercase, and `fromVec` reads a
-  pair back with ``Number(`0x…`)``; it works a bigint at a time for a
-  reason its doc gives, which the codec's byte lists do not respect, so it
-  is not moved.
+  `fromVec` reads a pair back with ``Number(`0x…`)``; it works a bigint at
+  a time for a reason its doc gives, which the codec's byte lists do not
+  respect, so it is not moved. Its writers, `hexOfByte` and the padding of
+  the whole vector's spelling, are `encodeScalar`.
 - [`fjs/website`](../../website/module.f.mjs) — `commitOf` turns the
   environment's string into code units and screens out anything above `0x7f`
   by hand, because `fjs/git/oid`'s reader takes bytes; the codec's `decode`
@@ -62,8 +59,10 @@ the codec covers it as `encodeScalar(width)(value)`: lowercase, padded to
 a time, are on it. So are the fixtures of the `git/tree`, `git/walk`,
 `git/commit`, `git/packstore`, `crypto/pow` and `media/datajs/parser`
 proofs.
-`fjs/types/uint8array`'s `hexOfByte` stays with the rest of that module,
-for the reason above.
+`fjs/types/uint8array`'s `hexOfByte` is on it too, and so is the width its
+`fromVec` pads the whole vector's spelling to: the bigint-at-a-time reason
+above is about the bytes, not the digits. `fjs/text/percent`'s `escapeByte`
+reads the two digits after a `%` with `decode`.
 
 ### Proposal
 
