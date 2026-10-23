@@ -23,6 +23,9 @@ without reading source blobs. It builds four input manifests:
 The selectors also name files excluded from the cache. Every tracked file must
 be selected or explicitly excluded, so adding a new kind of input requires a
 decision. Groups may overlap: generated Rust belongs to both `fjs` and `rust`.
+Markdown and TODO files under shared CI tooling (`fjs/ci/`, `gen.nix/`, and
+`.github/workflows/`) are excluded. Documents in the Rust workspace and `spec/`
+remain inputs because those checks may read them.
 
 Each check hashes its ordered commands and execution settings, platform facts,
 and pinned tool versions into a contract. Its entry contains that contract and
@@ -37,9 +40,11 @@ enumerated.
 
 ## Job lifecycle
 
-Each job fetches only the tip of `build-cache`, then initializes the cache
-before expensive tool installation. Initialization writes one hit flag per
-check to `$GITHUB_OUTPUT` and saves the original manifests under `$RUNNER_TEMP`.
+Each job fetches only the tip of `build-cache` into the local cache branch and
+`refs/remotes/origin/build-cache`, then initializes the cache before expensive
+tool installation. The remote ref preserves the initial publication baseline.
+Initialization writes one hit flag per check to `$GITHUB_OUTPUT` and saves the
+original manifests under `$RUNNER_TEMP`.
 Checks keep their producer and consumer steps under one gate. A shared install
 runs when any dependent check misses.
 
@@ -52,13 +57,21 @@ even if a later check failed; fork and Dependabot pull requests do not publish.
 The workflow also supplies `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` to
 the publisher for Git merge commits.
 
-Publication makes at most ten total push attempts. After a failed push, it
-fetches the current `build-cache` tip, merges it with the local cache branch in
-a temporary worktree, and retries. Fetches and pushes run from the source
-checkout so Git uses the credentials configured there by `actions/checkout`.
-Only the separate worktree checks out the cache branch; publication leaves the
-source checkout untouched. Concurrent reports accumulate without rerunning the
-checks that produced them.
+Publication compares the committed trees of the local cache branch and that
+initial remote ref. An unchanged tree needs no push or temporary worktree,
+regardless of differences in commit metadata. A missing local branch means
+there is no cache information to publish; a missing baseline permits the first
+publication. These decisions use Git refs and trees, without marker files.
+
+When there is new information, publication makes at most ten total push
+attempts. After a failed push, it fetches the current `build-cache` tip and
+merges it with the local cache branch in a temporary worktree. It compares the
+merged tree with the latest remote tree before retrying: if they match, it
+stops without pushing a metadata-only change. Fetches and pushes run from the
+source checkout so Git uses the credentials configured there by
+`actions/checkout`. Only the separate worktree checks out the cache branch;
+publication leaves the source checkout untouched. Concurrent reports accumulate
+without rerunning the checks that produced them.
 
 Cache fetch, initialization, reporting, and publication are best effort.
 Initialization failure leaves the checks to run normally and disables

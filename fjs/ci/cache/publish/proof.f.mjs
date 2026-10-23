@@ -20,8 +20,18 @@ const child = asNominal('git')
 const done = ok(['exited', 0])
 /** @type {IoResult<ExitStatus>} */
 const rejected = ok(['exited', 1])
+/** @type {IoResult<ExitStatus>} */
+const invalid = ok(['exited', 128])
 /** @type {Env} */
 const env = { RUNNER_TEMP: 'tmp', GITHUB_JOB: 'node' }
+/** A local branch and baseline whose committed trees differ. @type {readonly IoResult<ExitStatus>[]} */
+const different = [done, done, rejected]
+/** @type {readonly (readonly string[])[]} */
+const comparison = [
+    ['show-ref', '--verify', '--quiet', 'refs/heads/build-cache'],
+    ['show-ref', '--verify', '--quiet', 'refs/remotes/origin/build-cache'],
+    ['diff', '--quiet', 'refs/remotes/origin/build-cache', 'refs/heads/build-cache', '--'],
+]
 
 /**
  * Script child outcomes while retaining an immutable transcript of Git argv.
@@ -45,28 +55,54 @@ const execute = (outcomes, environment = env, failSpawn = false) => {
 
 export const proof = /** @type {const} */ ({
     uncontended: () => {
-        const [calls, result] = execute([done])
+        const [calls, result] = execute([...different, done])
         assertEq(exitCode(result), 0)
-        assertStructurallySame(calls, [['push', 'origin', 'build-cache']])
+        assertStructurallySame(calls, [...comparison, ['push', 'origin', 'build-cache']])
+    },
+    unchanged: () => {
+        const [calls, result] = execute([done, done, done])
+        assertEq(exitCode(result), 0)
+        assertStructurallySame(calls, comparison)
+    },
+    noLocalCache: () => {
+        const [calls, result] = execute([rejected])
+        assertEq(exitCode(result), 0)
+        assertStructurallySame(calls, [comparison[0]])
+    },
+    firstPublication: () => {
+        const [calls, result] = execute([done, rejected, done])
+        assertEq(exitCode(result), 0)
+        assertStructurallySame(calls, [...comparison.slice(0, 2), ['push', 'origin', 'build-cache']])
     },
     repeatedRaces: () => {
-        const [calls, result] = execute([rejected, done, done, done, rejected, done, done, done, done])
+        const [calls, result] = execute([...different, rejected, done, done, done, ...different, rejected, done, done, ...different, done, done])
         assertEq(exitCode(result), 0)
         assertStructurallySame(calls, [
+            ...comparison,
             ['push', 'origin', 'build-cache'],
             ['worktree', 'add', 'tmp/fjs-ci-node/publish', 'build-cache'],
             ['fetch', 'origin', 'build-cache:refs/remotes/origin/build-cache'],
             ['-C', 'tmp/fjs-ci-node/publish', 'merge', '--no-edit', '--allow-unrelated-histories', 'refs/remotes/origin/build-cache'],
+            ...comparison,
             ['push', 'origin', 'build-cache'],
             ['fetch', 'origin', 'build-cache:refs/remotes/origin/build-cache'],
             ['-C', 'tmp/fjs-ci-node/publish', 'merge', '--no-edit', '--allow-unrelated-histories', 'refs/remotes/origin/build-cache'],
+            ...comparison,
             ['push', 'origin', 'build-cache'],
             ['worktree', 'remove', '--force', 'tmp/fjs-ci-node/publish'],
         ])
     },
+    alreadyPublishedAfterMerge: () => {
+        const [calls, result] = execute([...different, rejected, done, done, done, done, done, done, done])
+        assertEq(exitCode(result), 0)
+        assertEq(calls.filter(args => args[0] === 'push').length, 1)
+        assertEq(calls.filter(args => args[0] === 'fetch').length, 1)
+        assertEq(calls.filter(args => args[0] === 'diff').length, 2)
+        assertEq(calls.at(-1)?.[1], 'remove')
+    },
     bounded: () => {
         /** @type {readonly IoResult<ExitStatus>[]} */
-        const outcomes = [rejected, done, ...Array.from({ length: 9 }, () => [done, done, rejected]).flat(), done]
+        const outcomes = [...different, rejected, done, ...Array.from({ length: 9 }, () => [done, done, ...different, rejected]).flat(), done]
         const [calls, result] = execute(outcomes)
         assertEq(exitCode(result), 1)
         assertEq(calls.filter(args => args[0] === 'push').length, 10)
@@ -74,44 +110,58 @@ export const proof = /** @type {const} */ ({
         assertEq(calls.at(-1)?.[1], 'remove')
     },
     creationFailure: () => {
-        const [calls, result] = execute([rejected, rejected])
+        const [calls, result] = execute([...different, rejected, rejected])
         assertEq(exitCode(result), 1)
-        assertEq(calls.length, 2)
+        assertEq(calls.length, 5)
     },
     fetchFailure: () => {
-        const [calls, result] = execute([rejected, done, rejected, done])
+        const [calls, result] = execute([...different, rejected, done, rejected, done])
         assertEq(exitCode(result), 1)
-        assertEq(calls.length, 4)
+        assertEq(calls.length, 7)
         assertEq(calls.at(-1)?.[1], 'remove')
     },
     mergeFailure: () => {
-        const [calls, result] = execute([rejected, done, done, rejected, done])
+        const [calls, result] = execute([...different, rejected, done, done, rejected, done])
         assertEq(exitCode(result), 1)
-        assertEq(calls.length, 5)
+        assertEq(calls.length, 8)
         assertEq(calls.at(-1)?.[1], 'remove')
     },
     cleanupDoesNotReplaceSuccess: () => {
-        const [, result] = execute([rejected, done, done, done, done, rejected])
+        const [, result] = execute([...different, rejected, done, done, done, ...different, done, rejected])
         assertEq(exitCode(result), 0)
     },
     cannotStart: () => {
         const [calls, result] = execute([], env, true)
         assertEq(exitCode(result), 1)
-        assertEq(calls.length, 2)
+        assertEq(calls.length, 1)
     },
     cannotWait: () => {
-        const [calls, result] = execute([rejected, done, error(ioError({ message: 'cannot wait' })), done])
+        const [calls, result] = execute([error(ioError({ message: 'cannot wait' }))])
         assertEq(exitCode(result), 1)
-        assertEq(calls.length, 4)
+        assertEq(calls.length, 1)
     },
     signaled: () => {
-        const [calls, result] = execute([rejected, done, done, ok(['signaled', 'SIGTERM']), done])
+        const [calls, result] = execute([ok(['signaled', 'SIGTERM'])])
         assertEq(exitCode(result), 1)
-        assertEq(calls.length, 5)
+        assertEq(calls.length, 1)
+    },
+    comparisonFailures: () => {
+        for (const outcomes of [[invalid], [done, invalid], [done, done, invalid]]) {
+            const [calls, result] = execute(outcomes)
+            assertEq(exitCode(result), 1)
+            assertEq(calls.filter(args => args[0] === 'push' || args[0] === 'worktree').length, 0)
+        }
+    },
+    comparisonFailureAfterMerge: () => {
+        const [calls, result] = execute([...different, rejected, done, done, done, done, done, invalid, done])
+        assertEq(exitCode(result), 1)
+        assertEq(calls.filter(args => args[0] === 'push').length, 1)
+        assertEq(calls.filter(args => args[0] === 'fetch').length, 1)
+        assertEq(calls.at(-1)?.[1], 'remove')
     },
     defaultDirectory: () => {
-        const [calls, result] = execute([rejected, done, done, done, done, done], {})
+        const [calls, result] = execute([...different, rejected, done, done, done, ...different, done, done], {})
         assertEq(exitCode(result), 0)
-        assertEq(calls[1]?.[2], '/fjs-ci-/publish')
+        assertEq(calls[4]?.[2], '/fjs-ci-/publish')
     },
 })
