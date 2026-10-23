@@ -1,7 +1,7 @@
 ## Publish only new cache information
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
