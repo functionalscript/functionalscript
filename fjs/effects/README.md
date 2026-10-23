@@ -14,7 +14,10 @@ the command `readFile`, its payload, and what to do with the answer. A
 **runner** walks that value, performs each command it meets, and feeds the
 answer back. The same program runs on Node, in a browser page, in the
 SpiderMonkey shell, or against a mock in a proof, because only the runner
-changes.
+changes, provided that runner answers every operation the program uses: the
+`ask` below has a handler only in its mock, and a host operation such as
+`fetchText` only on the browser page (the runners table below names each
+runner's operations).
 
 Every answer is a [`Result`](../types/result/types.ts), so every effect has
 an error channel, and the combinators below decide what happens to an error

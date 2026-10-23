@@ -55,7 +55,8 @@ export const program = words => foldStep(
  */
 const answerAsk = word => trace => {
     const r = word === 'fail' ? error('refused') : ok(word.toUpperCase())
-    return [[...trace, `ask('${word}') -> ${r[0]} '${r[1]}'`], r]
+    const [tag, value] = r
+    return [[...trace, `ask('${word}') -> ${tag} '${value}'`], r]
 }
 
 /** The mock runner's handlers: `ask` alone. @type {MemOperationMap<Ask, readonly string[]>} */
@@ -73,7 +74,7 @@ export const runWords = text => {
 }
 
 /** @type {(r: Result<readonly string[], string>) => string} */
-const showResult = r => r[0] === 'ok' ? `ok [${r[1].map(w => `'${w}'`).join(', ')}]` : `error '${r[1]}'`
+const showResult = ([tag, value]) => tag === 'ok' ? `ok [${value.map(w => `'${w}'`).join(', ')}]` : `error '${value}'`
 
 /** @type {Demo<string, DemoEvent>} */
 export const demo = textDemo({
