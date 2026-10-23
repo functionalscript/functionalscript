@@ -1,5 +1,5 @@
 /** Source vocabulary agrees with grammar layers and distinguishes unary arity. */
-import { binaryTags, eagerLayers, isBinary, isUnary, lazyLayers, unaryTags } from './module.f.mjs'
+import { binaryTags, eagerLayers, isBinary, isUnary, lazyLayers, unaryTags } from './module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {

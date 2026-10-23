@@ -14,7 +14,7 @@ import type { Equal } from '../../../types/ts/types.ts'
 import type { ModuleToken } from '../../tokenizer/types.ts'
 import type { BinaryTag } from '../../ast/types.ts'
 import type { literalWords } from '../../../js/keywords/module.f.js'
-import type { eagerLayers } from '../../ast/module.f.mjs'
+import type { eagerLayers } from '../../ast/module.f.js'
 import type {
     _framingKeywords,
     _ordinaryTokenNames,
@@ -261,7 +261,7 @@ type _BitwiseOrTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _Shi
 
 /**
  * The eager binary-operator suffix, one layer per record of `eagerLayers`
- * in `../../ast/module.f.mjs`, `multiplicative` through `bitwiseOr`,
+ * in `../../ast/module.f.js`, `multiplicative` through `bitwiseOr`,
  * each layer built on the ones below it, `bitwiseOr` this type's own top:
  * the first part of {@link Tail}, and every lazy operator's own operand —
  * {@link Unary} followed by these eight, which is what a `bitwiseOr`-level

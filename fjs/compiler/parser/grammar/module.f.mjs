@@ -146,7 +146,7 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { _moduleTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
-import { eagerLayers, lazyLayers } from '../../ast/module.f.mjs'
+import { eagerLayers, lazyLayers } from '../../ast/module.f.js'
 
 const { fromEntries } = Object
 
@@ -439,7 +439,7 @@ const reference = /** @type {const} */ ([identifier, accesses])
  * Every binary layer's rounds keyed by a name none of the other layers
  * use, read back to the operator's tag — which is also the token the round
  * opens with, so {@link opOf} makes each layer's grammar from its own
- * record of `eagerLayers` or `lazyLayers` in `../../ast/module.f.mjs`, and
+ * record of `eagerLayers` or `lazyLayers` in `../../ast/module.f.js`, and
  * this one merged map serves `../syntax/module.f.mjs` a round from any
  * layer with a plain lookup. `**` is not here: it is {@link powTail}'s, no
  * layer's round. The lookup is by a name read at run time, so it is typed
@@ -641,7 +641,7 @@ export const unaryOperand = () => ['const', {
 
 /**
  * The eager binary-operator suffix, one layer per record of `eagerLayers`
- * in `../../ast/module.f.mjs`, tightest first, `|` the ladder's own top:
+ * in `../../ast/module.f.js`, tightest first, `|` the ladder's own top:
  * every layer whose operands are all established, and so the first part
  * of {@link tail}, and every lazy operator's own operand — `unary`
  * followed by these lists, which is what a `bitwiseOr`-level expression

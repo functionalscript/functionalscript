@@ -21,7 +21,7 @@
  */
 
 import { mapOperator, operatorOperands } from '../module.f.mjs'
-import { scalarLoopOf } from '../loop/module.f.mjs'
+import { scalarLoopOf } from '../loop/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { iterable, toArray } from '../../../types/list/module.f.mjs'
 

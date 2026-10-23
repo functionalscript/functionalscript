@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { scalarLoopOf } from './module.f.mjs'
+import { scalarLoopOf } from './module.f.js'
 
 const state = { index: 0 }
 const result = { index: 1 }

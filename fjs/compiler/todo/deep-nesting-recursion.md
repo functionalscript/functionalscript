@@ -5,7 +5,7 @@
 
 ### Problem
 
-The explicit-stack fixes in [`../ast/module.f.mjs`](../ast/module.f.mjs)
+The explicit-stack fixes in [`../ast/module.f.js`](../ast/module.f.js)
 (`refsOf`) and [`../edag/module.f.mjs`](../edag/module.f.mjs) (`lower`)
 cover operator chains only. A container or a function body still recurses
 once per level, before the EDAG analysis that
