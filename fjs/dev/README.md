@@ -4,7 +4,7 @@ The main principle is that tests don't depend on test framework. We use conventi
 
 ## Conventions
 
-- file name 'test.f.*',
+- file name `test.f.*`,
 - parsing default exports.
 
 ## Regeneration

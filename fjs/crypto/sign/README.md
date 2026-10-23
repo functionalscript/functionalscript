@@ -72,20 +72,23 @@ The pair `(r, s)` is the signature.
 
 ### 3.2. Generation of `k`
 
-a. `h1 = H(m)`
-b. `V = 0x01 0x01 ... 0x01` such that the length of `V` is equal to `8*ceil(hlen/8)`.
-c. `K = 0x00 0x00 ... 0x00` such that the length of K, in bits, is equal to `8*ceil(hlen/8)`.
-d. `K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))`.
-e. `V = HMAC_K(V)`.
-h. Apply the following algorithm until a proper value is for `k`:
-   1. Set `T` to the empty sequence, so `tlen = 0`.
-   2. while `tlen < qlen` do:
-      - `V = HMAC_K(V)`
-      - `T = T || V`
-   3. Compute `k = bits2int(T)`. If `k` is not in `[1, q-1]` or `kG = 0` then
-      - `K = HMAC_K(V || 0x00)`
-      - `V = HMAC_K(V)`
-      and loop (try to generate a new `T`, and so on). Return to step `1`.
+- a. `h1 = H(m)`
+- b. `V = 0x01 0x01 ... 0x01` such that the length of `V` is equal to `8*ceil(hlen/8)`.
+- c. `K = 0x00 0x00 ... 0x00` such that the length of K, in bits, is equal to `8*ceil(hlen/8)`.
+- d. `K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))`.
+- e. `V = HMAC_K(V)`.
+- h. Apply the following algorithm until a proper value is found for `k`:
+
+```text
+1. Set T to the empty sequence, so tlen = 0.
+2. while tlen < qlen do:
+   - V = HMAC_K(V)
+   - T = T || V
+3. Compute k = bits2int(T). If k is not in [1, q-1] or kG = 0 then
+   - K = HMAC_K(V || 0x00)
+   - V = HMAC_K(V)
+   and loop (try to generate a new T, and so on). Return to step 1.
+```
 
 ## Digital Signature
 

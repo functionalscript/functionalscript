@@ -35,12 +35,12 @@ https://en.wikipedia.org/wiki/B-tree
 |-------|-----|-------------------|
 |leaf1  |`0`  |`left right`       |
 |leaf2  |`0 1`|`left middle right`|
-|branch3|`1`  |_left right_       |
-|branch5|`1 3`|_left middle right_|
+|branch3|`1`  |*left right*       |
+|branch5|`1 3`|*left middle right*|
 
 Note: 5 transitional states:
-- branch3: _left right_
-- branch5: _left middle right_
+- branch3: *left right*
+- branch5: *left middle right*
 
 Posible actions:
 
@@ -81,11 +81,11 @@ Posible actions:
 
 `concat` accepts `left` and `right` branches of the same level.
 
-|left         |right        |result                    |
-|-------------|-------------|--------------------------|
-|[an0]        |[bn0]        |[an0, value, r?]          |
-|[an0]        |[bn0,bv1,bn2]|[an0, value, r?, bv1, bn2]|
-|[an0,av1,an2]|[bn0]        |[an0, av1, an2, value, r?]|
+|left           |right          |result                      |
+|---------------|---------------|----------------------------|
+|`[an0]`        |`[bn0]`        |`[an0, value, r?]`          |
+|`[an0]`        |`[bn0,bv1,bn2]`|`[an0, value, r?, bv1, bn2]`|
+|`[an0,av1,an2]`|`[bn0]`        |`[an0, av1, an2, value, r?]`|
 
 `popLeft` accepts `node` and returns
 `value` and `['leaf', [] | Leaf1]` | `['branch', Branch1 | Branch3 | Branch5]`

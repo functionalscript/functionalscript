@@ -38,7 +38,7 @@ native implementation.
 | `__defineSetter__` | ❌ | ❌ | Object. Annex B. Mutates an object. |
 | `__lookupGetter__` | ❌ | ❌ | Object. Annex B. Prototype reflection. |
 | `__lookupSetter__` | ❌ | ❌ | Object. Annex B. Prototype reflection. |
-| `__proto__` | ❌ | ❌ | Object. [object Object] |
+| `__proto__` | ❌ | ❌ | Object. Annex B. Accessor that reads and replaces the prototype. |
 | `anchor` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `apply` | ❌ | ❌ | Function. Passes `this`, which no function here reads. |
 | `arguments` | ❌ | ❌ | Function. Annex B. Data property, throws in strict mode. |

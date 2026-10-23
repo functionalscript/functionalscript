@@ -33,8 +33,6 @@ established practice it follows and the alternatives it rejected, is
 11. [Adding a producer: a checklist](#11-adding-a-producer-a-checklist)
 12. [Design record](#12-design-record)
 
----
-
 ## 1. The model
 
 | Type | Is | Notes |
@@ -362,10 +360,8 @@ here builds it.
    the oracle where the tokenizer reads the language.
 6. **Use it where it is shown:** a demo renders `render(marked)` and drops its
    call to `highlight`.
-7. **Update the table in [§2](#2-kinds-and-what-each-producer-marks) and
-   [§5](#5-producers-and-their-entry-points)** of this file.
-
----
+7. **Update the tables** in [§2](#2-kinds-and-what-each-producer-marks) and
+   [§5](#5-producers-and-their-entry-points) of this file.
 
 ## 12. Design record
 

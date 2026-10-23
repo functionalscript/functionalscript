@@ -2,17 +2,17 @@
 
 ## Motivation
 
-Literal alphabet sizes grow via **tetration** (iterated exponentiation). Starting from $n_0 = 2$:
+Literal alphabet sizes grow via **tetration** (iterated exponentiation). Starting from n₀ = 2:
 
-| Level | Alphabet size $n$ |
+| Level | Alphabet size n |
 |-------|-------------------|
-| 0 | $2$ |
-| 1 | $5$ |
-| 2 | $129$ |
-| 3 | $\approx 2^{136}$ |
-| 4 | $\approx 2^{2^{136}}$ |
+| 0 | 2 |
+| 1 | 5 |
+| 2 | 129 |
+| 3 | ≈ 2¹³⁶ |
+| 4 | ≈ 2^(2¹³⁶) |
 
-Level 4 alone would require $\approx 2^{136}$ bits just to index a single symbol — far beyond any practical storage or computation.
+Level 4 alone would require ≈ 2¹³⁶ bits just to index a single symbol — far beyond any practical storage or computation.
 
 This module sidesteps that explosion by giving every value a fixed-size **256-bit identifier**, regardless of how deeply nested or large the underlying data is. Two identifiers are merged into a single new identifier; the result can itself be used as an input to the next merge. This enables:
 
@@ -32,7 +32,7 @@ Every value is a 256-bit unsigned integer. The top bits form a discriminator pre
 
 ### Level 3 Symbol (`00…`)
 
-A Level 3 literal symbol fits entirely below $2^{254}$, so no prefix bits need to be added — the identity function is the encoding. There are $f(f(f(2))) = 2^{136}+1$ possible Level 3 symbols, all well within this range.
+A Level 3 literal symbol fits entirely below 2²⁵⁴, so no prefix bits need to be added — the identity function is the encoding. There are f(f(f(2))) = 2¹³⁶ + 1 possible Level 3 symbols, all well within this range.
 
 ### Raw Bit Vector (`01…`)
 
@@ -77,12 +77,12 @@ This is the x-coordinate of a point on **secp256r1** (NIST P-256), used as the I
    scalar = uint(utf8("Synthetic Universal Language 001"))
    ```
 
-3. **Elliptic curve point** — multiply the secp256r1 base point $G$ by the scalar:
+3. **Elliptic curve point** — multiply the secp256r1 base point G by the scalar:
    ```
    P = scalar × G   (on secp256r1)
    ```
 
-4. **IV** — take the x-coordinate of $P$:
+4. **IV** — take the x-coordinate of P:
    ```
    IV = P.x = 0x325d5666_573eb118_f32191de_20d17f64_33392ba3_291ae46c_1474a5ed_a5383f25
    ```

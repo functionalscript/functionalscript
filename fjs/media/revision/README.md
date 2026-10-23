@@ -96,8 +96,8 @@ means what it always did. It stays inside this dialect rather than becoming
 
 ## Shared lock references
 
-In place of the map, `lock` may be a **hash naming a
-[`vnd.fjs.lock`](../lock/) blob** that holds one. A revision whose bindings are
+In place of the map, `lock` may be a **hash** naming a
+[`vnd.fjs.lock`](../lock/) blob that holds one. A revision whose bindings are
 unchanged from its parent's then re-serializes one hash instead of the whole
 map, and several subjects resolving the same dependency set can point at one
 agreed resolution rather than each carrying a copy that nothing checks stays
@@ -178,7 +178,7 @@ dereferencing a hash is fetching, not inference, exactly as it is for
 `snapshot` and `parents`.
 
 The rule that produces it: **a field whose absent value would have to be
-*derived from other data* is required; optional is reserved for fields whose
+derived from other data is required; optional is reserved for fields whose
 absent value is a constant default.** `snapshot` and `generation` are required
 because their absence would force inference (a resolution algorithm and an
 ancestry walk, respectively). `archived` is the documented boundary of the

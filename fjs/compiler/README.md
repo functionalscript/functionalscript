@@ -787,7 +787,7 @@ afterwards is a later rename and no part of this decision.
   - `Infinity` - infinity
   - `NaN` - nan
 - `[` - propertyBegin
-- `]` - propertyEnd`
+- `]` - propertyEnd
 - `^` - bitwiseXor
   - `^=` - bitwiseXorAssignment
 - `_` - idBegin

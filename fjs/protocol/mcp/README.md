@@ -229,6 +229,7 @@ TypeScript ensures that:
 ### How It Works
 
 The `toolEntry` builder:
+
 1. Takes the RTTI schema `T` and a handler expecting `Ts<T>` (the TypeScript type)
 2. Returns a `ToolEntry<O>` with a wrapper that validates at runtime
 3. The wrapper calls `validate(inputRtti)` and casts the result as `Ts<T>`
