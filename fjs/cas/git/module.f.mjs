@@ -100,7 +100,7 @@ import { tryRead as readLoose } from '../../git/loose/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { tryDelete, tryWrite } from '../../git/refstore/write/module.f.mjs'
 import { objectPath, objectsDir, objectsDirs, readIn } from '../../git/store/module.f.mjs'
-import { compare, tryRead as readTree, write as writeTree } from '../../git/tree/module.f.mjs'
+import { compare, tryRead as readTree, validate, write as writeTree } from '../../git/tree/module.f.mjs'
 import { join, parent } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
@@ -292,30 +292,22 @@ const keyedOf = rel => e => {
 }
 
 /**
- * What is wrong with a tree as a tree, in a few words, or nothing: the
- * three shapes `git fsck` refuses in any tree, which a walk cannot take as
- * the tree means them, so every walk here refuses a tree holding any
- * wherever it meets one.
- *
- * - A name the tree holds twice, `duplicateEntries`: the tree answers no
- *   one entry for it. Found by sorting the names, so a tree of many names
- *   costs what sorting them does and not a scan per name.
- * - A name holding a `/`, `fullPathname`: it spells a path, and is no
- *   entry a walk reaches.
- * - Entries out of the order Git writes, `treeNotSorted`: a writer
- *   rebuilding the tree around one entry would keep the order and write a
- *   tree Git refuses.
+ * What is wrong with a tree as a tree, in a few words, or nothing: what
+ * `git fsck` refuses in any tree, as [`fjs/git/tree`](../../git/tree/module.f.mjs)'s
+ * `validate` vouches for it — a name held twice, which a walk answers no
+ * one entry for; a name holding `/`, which spells a path no walk reaches;
+ * entries out of the order Git writes, which a writer rebuilding the tree
+ * would keep; an id of all zero bytes; a mode zero-padded or none of Git's
+ * five; an empty, `.`, `..`, `.git` or over-long name. Every walk here
+ * refuses a tree holding any wherever it meets one, so no tree Git
+ * refuses is read as a map, and none is rebuilt into a commit of this
+ * backend's.
  *
  * @type {(es: readonly TreeEntry[]) => readonly string[]}
  */
 const illFormed = es => {
-    const sorted = es.map(e => nameText(e.name)).toSorted()
-    const twice = sorted.filter((n, i) => i !== 0 && sorted[i - 1] === n)
-    if (twice.length !== 0) { return [`names ${twice[0]} twice`] }
-    const slashed = sorted.filter(n => n.includes('/'))
-    if (slashed.length !== 0) { return [`names ${slashed[0]}, which holds a /`] }
-    const unsorted = es.filter((e, i) => i !== 0 && compare(es[i - 1], e) > 0)
-    return unsorted.length === 0 ? [] : [`is not in Git's order at ${nameText(unsorted[0].name)}`]
+    const r = validate(es)
+    return r[0] === 'ok' ? [] : [`is no tree Git writes: ${r[1]}`]
 }
 
 /**
@@ -541,9 +533,12 @@ const keyedEntries = (read, oidBytes) => {
  * `read` of a key walks `.cas/ab/cd/<rest>` to the entry ({@link walkTo})
  * and streams the blob it names; a path the tree does not take it down is
  * the ordinary miss. `list` is {@link keyedEntries}' keys. Neither reads an
- * object it need not: a listing reads trees and no blob. Both check every
- * tree they read for the layout before taking it, so what one answers the
- * other would answer too, and a tree this backend did not write is refused
+ * object it need not: a listing reads trees and no blob, so it names a key
+ * by the tree's word and the read of that key is where the blob is asked
+ * for — an object the repository does not hold, or one that is no blob, is
+ * refused then, as `fileCas` lists a shard without opening it. Both check
+ * every tree they read for the layout before taking it, so what one lists
+ * the other walks to, and a tree this backend did not write is refused
  * rather than read as a map it is not.
  *
  * Parameterized by the reader rather than a directory so that one reader
@@ -755,8 +750,9 @@ const gone = /** @type {_Removal} */ (['gone'])
  * the path rebuilt and stored, and a tree left with no entries taken out of
  * the tree above it rather than written empty, so a cleared `.cas/ab/cd`
  * leaves no empty subtree behind, as `git rm` leaves none. `same` where
- * the tree does not hold the path — a path through a file is a path it does
- * not hold, and so is one ending at an entry `wanted` does not take —
+ * the tree does not hold the path — a component no tree has, or a path
+ * ending at an entry `wanted` does not take; a file where the path needs
+ * a subtree is refused, as every walk here refuses it —
  * {@link isFile} for a key, {@link casSubtree} for `clear`, which may
  * refuse instead — `gone` where the root
  * itself is empty without it, which the
@@ -783,8 +779,10 @@ const removed = (read, write, oidBytes) => {
             return step(taking, ([w, { es }]) => w ? rebuilt(es.filter(x => !named(name)(x))) : pureOk(same))
         }
         const under = rel === null ? '' : join(rel, nameText(name))
-        const below = historyStep(history(looked), ({ found }) =>
-            found === null || !isDirectory(found) ? pureOk(same) : go(found.oid, rest, wanted, under))
+        const below = historyStep(history(looked), ({ found }) => {
+            if (found === null) { return pureOk(same) }
+            return isDirectory(found) ? go(found.oid, rest, wanted, under) : refuseEntry(`${prefix}${under} has mode ${nameText(found.mode)}`)
+        })
         return step(below, ([r, { es }]) => {
             if (r[0] === 'same') { return pureOk(r) }
             return r[0] === 'gone'
@@ -1059,9 +1057,14 @@ const attempted = (remote, branch, author, open, name, published) => {
             : commit(tree, [c, p], `cas: reconcile ${cs.length} changes`))
     }
     /**
-     * One attempt, the `n`th: six links in the order they run — the remote
-     * fetched, the proposal read, their merge base asked, the candidate
-     * chosen, pushed — and what the push's answer calls for.
+     * One attempt, the `n`th: seven links in the order they run — the
+     * remote fetched, the proposal read, their merge base asked, the
+     * candidate chosen, pushed, the snapshot ref moved where the push
+     * landed, the proposal ref dropped or moved to the candidate — and then
+     * what the push's answer calls for: the commit published, or the next
+     * attempt, or the refusal once {@link maxAttempts} are spent. The
+     * proposal ref follows every refused push, the last attempt's too, so
+     * the next publication starts from the last reconciliation.
      *
      * @type {(n: number) => Effect<O | ProposalOperation, Nullable<Oid>, IoChannel>}
      */
@@ -1074,16 +1077,14 @@ const attempted = (remote, branch, author, open, name, published) => {
             return c === null || b === c ? pureOk(p) : reconciled(c, p, b)
         })
         const pushed = historyStep(candidate, cand => cand === null ? pureOk(false) : remote.push(cand))
-        return step(pushed, ([landed, cand, , , c]) => {
-            if (cand === null) { return mapStep(deleteRef(name), () => c) }
-            if (landed) {
-                const noted = step(writeRef(published)(cand), () => deleteRef(name))
-                return mapStep(noted, () => cand)
-            }
-            if (n === maxAttempts) {
-                return refuse(publishAttemptsCode)(`${proposalRef(branch)} was not published in ${maxAttempts} attempts`)
-            }
-            return step(writeRef(name)(cand), () => attempt(n + 1))
+        const snapshotMoved = historyStep(pushed, (landed, cand) => landed && cand !== null ? writeRef(published)(cand) : pureOk(undefined))
+        const noted = historyStep(snapshotMoved, (_moved, landed, cand) => cand === null || landed ? mapStep(deleteRef(name), () => undefined) : writeRef(name)(cand))
+        return step(noted, ([, , landed, cand, , , c]) => {
+            if (cand === null) { return pureOk(c) }
+            if (landed) { return pureOk(cand) }
+            return n === maxAttempts
+                ? refuse(publishAttemptsCode)(`${proposalRef(branch)} was not published in ${maxAttempts} attempts`)
+                : attempt(n + 1)
         })
     }
     return attempt(1)

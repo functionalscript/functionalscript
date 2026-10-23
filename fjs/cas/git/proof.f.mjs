@@ -612,6 +612,18 @@ export const proof = {
         assertEq(codeOf(listed(root)), casEntryCode)
         assertEq(codeOf(readAll(root, alphaKey)), casEntryCode)
     },
+    // An entry whose id is all zero bytes, which Git never writes and `git
+    // fsck` refuses as `nullSha1`: refused by the listing rather than named
+    // as a key, and by a read rather than asked of the store.
+    nullId: () => {
+        const [, ab, cd, rest] = pathOf(alphaKey)
+        const leaf = sha1.treeOf([entry('100644', rest, u8ListToVecMsb(Array(20).fill(0)))])
+        const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
+        const top = sha1.treeOf([entry('40000', ab, mid.id)])
+        const root = over([entry('40000', '.cas', top.id)], [leaf.object, mid.object, top.object])
+        assertEq(codeOf(listed(root)), casEntryCode)
+        assertEq(codeOf(readAll(root, alphaKey)), casEntryCode)
+    },
     // The root tree, which the layout shares with the rest of the branch, is
     // checked as a tree and no more: a name it holds twice refuses a read
     // and the listing, where a `README.md` beside `.cas` is nobody's
@@ -1134,6 +1146,11 @@ export const proof = {
         const [s3, c] = virtual(s2)(cas2.clear())
         assertEq(codeOf(c), casEntryCode)
         assertStructurallySame(s3.root, s2.root)
+        // A key's removal through that `.cas` is refused the same way, rather
+        // than answered as a key that is not there.
+        const [s4, r2] = virtual(s2)(cas2.remove(alphaKey))
+        assertEq(codeOf(r2), casEntryCode)
+        assertStructurallySame(s4.root, s2.root)
     },
     // The key's first directory holds another directory beside the key's
     // (a stray `zz/other.txt`, which is no key): the key's own directory
