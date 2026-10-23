@@ -143,6 +143,7 @@ Every README has a heading, so today's reader renders none of them.
 - [x] Nested and loose lists.
 - [ ] Numbered lists.
 - [x] Code inside bold, and two-backtick code spans.
+- [x] GitHub task list items, `- [ ]` and `- [x]`, as disabled checkboxes.
 - [ ] Links inside bold, and the other refusals in
       [commonmark-constructs](../../ebnf/lib/markdown/todo/commonmark-constructs.md)
       the READMEs need.

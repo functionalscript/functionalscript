@@ -815,6 +815,8 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-readme] li + li { margin-top: .25em }
 [data-readme] li > :is(p, pre) { margin-top: 1rem }
 [data-readme] li > ul { margin: .25em 0 0 }
+[data-readme] .task-list-item { list-style: none }
+[data-readme] .task-list-item input { margin: 0 .2em .25em -1.4em; vertical-align: middle }
 [data-readme] table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; width: max-content }
 [data-readme] :is(th, td) { border: 1px solid var(--border); padding: 6px 13px }
 [data-readme] th { font-weight: 600 }
