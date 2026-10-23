@@ -138,7 +138,8 @@ export const commands = [
         handler: exactArgs('cas git list', 1)(({ args: [branch] }) => {
             const s = step(branchOf(branch), snapshot)
             const keys = step(s, cas => cas.list())
-            return exitStep(forEachStep(keys, key => log(vecToCBase32(key))))
+            const logged = forEachStep(keys, key => log(vecToCBase32(key)))
+            return exitStep(logged)
         }),
     },
 ]
