@@ -14,8 +14,9 @@ const naturals = () => ({ first: 0, tail: map(x => x + 1)(naturals) })
 toArray(take(3)(filter(x => x % 2 === 0)(naturals))) // [0, 2, 4]
 ```
 
-The list above never ends, and the example still finishes: `filter` and `take`
-build thunks, and only `toArray` walks them, stopping after the third item.
+The list above never ends, and the example still finishes with three items:
+`filter` and `take` build thunks, and `toArray` walks them only as far as
+`take` lets it, which may be one match past the third.
 
 ## The five shapes
 

@@ -28,10 +28,11 @@ easier to read.
   kept for broken invariants, not for input a caller could get wrong.
 - **Sequences are lazy lists.** A [`List`](./list/README.md) may be an array, a
   `null`, a cons cell, a concatenation of two lists or a thunk, and every
-  combinator accepts all five. A combinator that answers a list, such as
-  `map` or `filter`, does its work only when something reads the result. One
-  that answers a single value, such as `fold`, `length` or `reverse`, reads
-  the whole list when called, so it never returns on an infinite one.
+  combinator accepts all five. Most combinators that answer a list, such as
+  `map` or `filter`, do their work only when something reads the result. A
+  few read the whole input when called, so they never return on an infinite
+  list: those that answer a single value, such as `fold` and `length`, and
+  `reverse`, which answers a list but has to reach the end first.
 - **Functions take their configuration first.** `map(f)(list)`,
   `at(key)(object)`, `okThen(step)(result)`: the argument that varies least
   comes first, so a partially applied function is a reusable value.

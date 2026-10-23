@@ -54,8 +54,10 @@ on as the very tuple it was.
 
 **Use `okThen` when each step needs only the value before it.** A chain whose
 later steps also read earlier values would nest a closure per step; write that
-as a flat sequence of `if (r[0] === 'error') { return r }` guards instead, as
-[`fjs/AGENTS.md`](../../AGENTS.md) asks.
+as a flat sequence of guards instead, as [`fjs/AGENTS.md`](../../AGENTS.md)
+asks, destructuring each result once:
+`const [tag, value] = r; if (tag === 'error') { return r }`, after which
+`value` is the `ok` payload.
 
 ## When to use `Result`, and when not
 

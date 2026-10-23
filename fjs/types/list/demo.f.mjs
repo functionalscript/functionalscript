@@ -8,9 +8,10 @@
  * `fold(x => acc => …)` takes the item first, and `zip(a)(b)` stops at the
  * shorter list.
  *
- * **The last line reads an infinite list.** `cycle(xs)` never ends, and
- * `take(10)` stops it, which is what laziness buys: the walk ends after ten
- * items instead of running forever.
+ * **The last line reads an infinite list.** For a non-empty `xs`, `cycle(xs)`
+ * never ends, and `take(10)` stops it, which is what laziness buys: the walk
+ * ends after ten items instead of running forever. An empty `xs` cycles to an
+ * empty list.
  *
  * **Only whole numbers of at most six digits are read**, and anything else
  * is refused, naming the first item, rather than read as `NaN` and carried
@@ -91,7 +92,7 @@ export const listing = xs => {
 
 /** @type {Demo<string, DemoEvent>} */
 export const demo = textDemo({
-    intro: 'Type a list of whole numbers. Each line below is one call of this module on it, written as code, with its answer; the last line takes ten items of an infinite list.',
+    intro: 'Type a list of whole numbers. Each line below is one call of this module on it, written as code, with its answer; the last line takes ten items of an infinite list, cycling xs, when xs is not empty.',
     name: 'xs',
     label: 'xs',
     rows: 1,
