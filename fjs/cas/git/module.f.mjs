@@ -41,7 +41,7 @@
 
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
-import { errorMessage, history, historyStep, ioError, mapStep, pureError, pureOk, refuse, resultMapStep, step, walkStep } from '../../effects/module.f.mjs'
+import { errorMessage, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, refuse, resultMapStep, step, walkStep } from '../../effects/module.f.mjs'
 import { fromList } from '../../effects/list/module.f.mjs'
 import { isNotFound } from '../../effects/node/module.f.mjs'
 import { tryTreeAt } from '../../git/commit/module.f.mjs'
@@ -50,8 +50,7 @@ import { hexText } from '../../git/oid/module.f.mjs'
 import { isWholeName } from '../../git/refname/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { objectsDirs, readIn } from '../../git/store/module.f.mjs'
-import { isSubtree } from '../../git/tree/module.f.mjs'
-import { tryEntries, tryEntry } from '../../git/walk/module.f.mjs'
+import { tryRead as readTree } from '../../git/tree/module.f.mjs'
 import { join } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
@@ -133,6 +132,17 @@ const regularFile = '100644'
 const isRegularFile = e => nameText(e.mode) === regularFile
 
 /**
+ * The one mode a subtree has, as Git spells it: `40000`, and the spelling
+ * is the mode as it is for a file — `040000` and `40755` name the same
+ * kind and are trees Git refuses, so `fjs/git/tree`'s `isSubtree`, which
+ * reads the kind off the number, is not what the layout asks.
+ */
+const subtreeDir = '40000'
+
+/** Whether an entry's mode is {@link subtreeDir}, spelled as it is. @type {(e: TreeEntry) => boolean} */
+const isDirectory = e => nameText(e.mode) === subtreeDir
+
+/**
  * A key the snapshot does not hold, reported as `fileCas` reports a missing
  * shard: a host `ENOENT`, so `isNotFound` tells a miss from a refusal for
  * either store.
@@ -174,20 +184,41 @@ const nameText = name => codePointListToString(toArray(name))
  *
  * @type {(rel: string) => (e: TreeEntry) => readonly Vec[]}
  */
-const keyOf = rel => e => isSubtree(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
+const keyOf = rel => e => isDirectory(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
 
 /**
- * What is wrong with one tree below `.cas`, in the listing's words, or
- * nothing: every way a tree this backend did not write can name a key the
- * same snapshot cannot read, so that the listing refuses the layout rather
- * than naming the key.
+ * What is wrong with a tree as a tree, in a few words, or nothing: the two
+ * shapes `git fsck` refuses in any tree, which a walk cannot take as the
+ * tree means them, so every walk here refuses a tree holding either
+ * wherever it meets one.
  *
- * - A name the tree holds twice, which `git fsck` refuses as
- *   `duplicateEntries`; a read of the path answers no entry for it.
- * - A name holding a `/`, which `git fsck` refuses as `fullPathname`: it
- *   spells a path, and is no entry the walk reaches.
- * - A file whose mode is not {@link regularFile} as spelled: a read refuses
- *   its blob, and `0100644` is a tree Git refuses.
+ * - A name the tree holds twice, `duplicateEntries`: the tree answers no
+ *   one entry for it. Found by sorting the names, so a tree of many names
+ *   costs what sorting them does and not a scan per name.
+ * - A name holding a `/`, `fullPathname`: it spells a path, and is no
+ *   entry a walk reaches.
+ *
+ * @type {(es: readonly TreeEntry[]) => readonly string[]}
+ */
+const illFormed = es => {
+    const sorted = es.map(e => nameText(e.name)).toSorted()
+    const twice = sorted.filter((n, i) => i !== 0 && sorted[i - 1] === n)
+    if (twice.length !== 0) { return [`names ${twice[0]} twice`] }
+    const slashed = sorted.filter(n => n.includes('/'))
+    return slashed.length === 0 ? [] : [`names ${slashed[0]}, which holds a /`]
+}
+
+/**
+ * What is wrong with one tree below `.cas` for the layout, in the
+ * listing's words, or nothing: every way a tree this backend did not write
+ * can name a key the same snapshot cannot read, so that a walk refuses the
+ * layout rather than naming the key or answering its content.
+ *
+ * - A tree that is {@link illFormed}.
+ * - An entry whose mode is neither {@link regularFile} nor
+ *   {@link subtreeDir} as spelled: an executable, a link, a submodule, and
+ *   `0100644` or `040000`, which name the same kinds in spellings Git
+ *   refuses.
  * - A file that spells a key `toPath` files elsewhere — `.cas/a/b/<rest>`,
  *   or `.cas/<whole>`, for a key filed at `.cas/ab/cd/<rest>`: `unshard`
  *   reads the key off any split of its digits, and a read walks the one
@@ -197,14 +228,12 @@ const keyOf = rel => e => isSubtree(e) ? [] : toOption(unshard(join(rel, nameTex
  */
 const malformed = rel => es => {
     const dir = `${prefix}${rel}`
-    const names = es.map(e => nameText(e.name))
-    const twice = names.filter((n, i) => names.indexOf(n) !== i)
-    if (twice.length !== 0) { return [`${dir} names ${twice[0]} twice`] }
+    const wrong = illFormed(es)
+    if (wrong.length !== 0) { return [`${dir} ${wrong[0]}`] }
     return es.flatMap(e => {
         const name = nameText(e.name)
         const path = `${prefix}${join(rel, name)}`
-        if (name.includes('/')) { return [`${path} is no path of the layout`] }
-        if (isSubtree(e)) { return [] }
+        if (isDirectory(e)) { return [] }
         if (!isRegularFile(e)) { return [`${path} has mode ${nameText(e.mode)}`] }
         const key = unshard(join(rel, name))
         return key === null || toPath(key) === path ? [] : [`${path} is no path of the layout`]
@@ -217,24 +246,92 @@ const malformed = rel => es => {
  *
  * @type {(rel: string) => (e: TreeEntry) => readonly { readonly id: Oid, readonly rel: string }[]}
  */
-const subtreeOf = rel => e => isSubtree(e) ? [{ id: e.oid, rel: join(rel, nameText(e.name)) }] : []
+const subtreeOf = rel => e => isDirectory(e) ? [{ id: e.oid, rel: join(rel, nameText(e.name)) }] : []
+
+/**
+ * The entries of the tree an id names, read through `read`, or refused where
+ * the id names no tree or an object the repository does not hold. The id
+ * must name a tree itself: a commit or a tag, which `fjs/git/walk`'s
+ * `tryEntries` peels to a tree, is refused here, since the layout names
+ * trees and a `40000` entry naming anything else is a tree Git refuses.
+ *
+ * @template {Operation} O
+ * @param {Read<O>} read
+ * @param {OidBytes} oidBytes
+ * @returns {(id: Oid) => Effect<O, readonly TreeEntry[], IoChannel>}
+ */
+const treeEntries = (read, oidBytes) => {
+    const parse = readTree(oidBytes)
+    return id => step(present(read(id)), o => {
+        const es = o === null || o.type !== 'tree' ? null : parse(o.payload)
+        return es === null ? refuseEntry(`${hexText(id)} is no tree`) : pureOk(es)
+    })
+}
+
+/**
+ * Where a walk down a path stands: the tree to read next, or none where
+ * the path has run out of tree; the path below `.cas` of that tree, or
+ * `null` above `.cas`, which is the root the layout shares with whatever
+ * else the branch holds; and the entry the path named, once it has.
+ */
+const lost = /** @type {{ readonly at: Nullable<Oid>, readonly rel: Nullable<string>, readonly found: Nullable<TreeEntry> }} */ ({ at: null, rel: null, found: null })
+
+/**
+ * The entry a path names below a tree, or `null` where the tree does not
+ * hold the path — a component no tree has, or a path through a file. Every
+ * tree on the way is read as a tree and checked before it is walked: the
+ * root for being {@link illFormed}, since the layout shares it with the
+ * rest of the branch, and every tree below `.cas` for the layout
+ * ({@link malformed}), so a key's content is answered only out of a tree
+ * the listing would name it from. A `.cas` that is no subtree is refused
+ * as the listing refuses it, and a `40000` entry naming no tree is refused
+ * as no tree, rather than either reading as a key that is not there.
+ *
+ * @template {Operation} O
+ * @param {(id: Oid) => Effect<O, readonly TreeEntry[], IoChannel>} entriesOf
+ * @returns {(tree: Oid, path: readonly (readonly number[])[]) => Effect<O, Nullable<TreeEntry>, IoChannel>}
+ */
+const walkTo = entriesOf => {
+    /** @type {(item: { readonly name: readonly number[], readonly last: boolean }) => (state: typeof lost) => Effect<O, typeof lost, IoChannel>} */
+    const component = ({ name, last }) => state => {
+        if (state.at === null) { return pureOk(lost) }
+        const { rel } = state
+        return step(entriesOf(state.at), es => {
+            const wrong = rel === null ? illFormed(es) : malformed(rel)(es)
+            if (wrong.length !== 0) { return refuseEntry(rel === null ? `the root tree ${wrong[0]}` : wrong[0]) }
+            const text = nameText(name)
+            const found = es.find(e => nameText(e.name) === text)
+            if (found === undefined) { return pureOk(lost) }
+            if (last) { return pureOk({ ...lost, found }) }
+            // Below `.cas`, `malformed` has refused every file the path could
+            // run into before this, since a file at a subtree's depth is
+            // filed where the layout files no key; at the root this is
+            // `.cas` itself, a file where the listing refuses it too.
+            const below = rel === null ? '' : join(rel, text)
+            if (!isDirectory(found)) { return refuseEntry(`${prefix}${below} has mode ${nameText(found.mode)}`) }
+            return pureOk({ at: found.oid, rel: below, found: null })
+        })
+    }
+    return (tree, path) => {
+        const items = path.map((name, i) => ({ name, last: i === path.length - 1 }))
+        return mapStep(foldStep(pureOk(items), { ...lost, at: tree }, component), s => s.found)
+    }
+}
 
 /**
  * The CAS map the tree `tree` holds, read through `read`, a store's reader
  * at the repository's id width; `null` is the empty map, which is what a
  * branch nobody has published has.
  *
- * `read` of a key walks `.cas/ab/cd/<rest>` to the entry and streams the
- * blob it names; a path the tree does not take it down is the ordinary
- * miss. `list` walks the `.cas` subtree, every file below it a key and every
- * subtree walked in turn, flat in the tree's size as `walkStep` keeps a walk.
- * Neither reads an object it need not: a listing reads trees and no blob.
- *
- * A path the walk cannot take because the tree is malformed — a `40000`
- * entry naming a blob, a root that is no tree — is `null` to `tryEntry` as
- * a path the tree does not have is, and so reads as the miss here; telling
- * the two apart is the primitive's to do, and
- * [`todo/absent-or-malformed.md`](./todo/absent-or-malformed.md) tracks it.
+ * `read` of a key walks `.cas/ab/cd/<rest>` to the entry ({@link walkTo})
+ * and streams the blob it names; a path the tree does not take it down is
+ * the ordinary miss. `list` walks the `.cas` subtree, every file below it a
+ * key and every subtree walked in turn, flat in the tree's size as
+ * `walkStep` keeps a walk. Neither reads an object it need not: a listing
+ * reads trees and no blob. Both check every tree they read for the layout
+ * before taking it, so what one answers the other would answer too, and a
+ * tree this backend did not write is refused rather than read as a map it
+ * is not.
  *
  * Parameterized by the reader rather than a directory so that one reader
  * serves every read of a snapshot — `readIn` resolves a repository's
@@ -246,23 +343,18 @@ const subtreeOf = rel => e => isSubtree(e) ? [{ id: e.oid, rel: join(rel, nameTe
  * @returns {(tree: Nullable<Oid>) => CasReader<O>}
  */
 export const casAt = (read, oidBytes) => {
-    const entryAt = tryEntry(read, oidBytes)
-    const entriesAt = tryEntries(read, oidBytes)
+    const entriesOf = treeEntries(read, oidBytes)
+    const entryAt = walkTo(entriesOf)
     /**
-     * The blob a key's entry names, streamed: refused where the entry is no
-     * regular file or its object no blob, since either holds something that is
-     * not the key's content.
+     * The blob a key's entry names, streamed: refused where its object is no
+     * blob, which holds something that is not the key's content. The
+     * entry's mode was the walk's to check, in the tree it came from.
      *
      * @type {(e: TreeEntry) => EffectList<O, Vec, IoChannel>}
      */
-    const blobOf = e => {
-        if (!isRegularFile(e)) {
-            return refuseEntry(`${nameText(e.name)} has mode ${nameText(e.mode)}`)
-        }
-        return step(present(read(e.oid)), o => o === null || o.type !== 'blob'
-            ? refuseEntry(`${hexText(e.oid)} is no blob`)
-            : fromList(chunksOf(o.payload)))
-    }
+    const blobOf = e => step(present(read(e.oid)), o => o === null || o.type !== 'blob'
+        ? refuseEntry(`${hexText(e.oid)} is no blob`)
+        : fromList(chunksOf(o.payload)))
     /**
      * One subtree of the listing's walk: its files' keys added, its subtrees
      * walked next. An object below `.cas` that is no tree refuses the listing
@@ -273,8 +365,7 @@ export const casAt = (read, oidBytes) => {
      *
      * @type {(item: { readonly id: Oid, readonly rel: string }) => (keys: List<Vec>) => Effect<O, readonly [List<Vec>, readonly { readonly id: Oid, readonly rel: string }[]], IoChannel>}
      */
-    const listStep = ({ id, rel }) => keys => step(present(entriesAt(id)), es => {
-        if (es === null) { return refuseEntry(`${hexText(id)} is no tree`) }
+    const listStep = ({ id, rel }) => keys => step(entriesOf(id), es => {
         const wrong = malformed(rel)(es)
         return wrong.length !== 0
             ? refuseEntry(wrong[0])
@@ -283,15 +374,15 @@ export const casAt = (read, oidBytes) => {
     return tree => ({
         read: key => tree === null
             ? notFound(key)
-            : step(present(entryAt(tree, components(key))), e => e === null ? notFound(key) : blobOf(e)),
+            : step(entryAt(tree, components(key)), e => e === null ? notFound(key) : blobOf(e)),
         list: () => {
             if (tree === null) { return pureOk([]) }
             // Three links: the `.cas` entry, the walk below it, the list
             // flattened. No `.cas` is the empty map; one that is no subtree
             // is refused; and `toArray` of the empty list is `[]`.
-            const cas = step(present(entryAt(tree, casDir)), e => {
+            const cas = step(entryAt(tree, casDir), e => {
                 if (e === null) { return pureOk(null) }
-                return isSubtree(e) ? pureOk(e.oid) : refuseEntry(`${prefix} has mode ${nameText(e.mode)}`)
+                return isDirectory(e) ? pureOk(e.oid) : refuseEntry(`${prefix} has mode ${nameText(e.mode)}`)
             })
             const keys = step(cas, id => id === null
                 ? pureOk(/** @type {List<Vec>} */ (null))
