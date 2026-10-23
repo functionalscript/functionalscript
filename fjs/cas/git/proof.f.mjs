@@ -16,7 +16,7 @@
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
-import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, runPure, step, walkStep } from '../../effects/module.f.mjs'
+import { history, historyStep, ioError, mapStep, pureError, pureOk, runPure, step, walkStep } from '../../effects/module.f.mjs'
 import { empty, nonEmpty } from '../../effects/list/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { isNotFound, nodeCommands } from '../../effects/node/module.f.mjs'
@@ -475,7 +475,7 @@ const epsilonKey = keyOf(latin1('epsilon\n'))
 const git = {
     lsRemote: 'git --git-dir="repo" ls-remote "origin" "refs/heads/build-cache"',
     fetch: 'git --git-dir="repo" fetch "origin" "+refs/heads/build-cache:refs/remotes/origin/build-cache"',
-    push: /** @type {(hex: string) => string} */ (hex => `git --git-dir="repo" push "origin" ${hex}:refs/heads/build-cache`),
+    push: /** @type {(hex: string) => string} */ (hex => `git --git-dir="repo" push "origin" "${hex}:refs/heads/build-cache"`),
     mergeBase: /** @type {(a: string, b: string) => string} */ ((a, b) => `git --git-dir="repo" merge-base ${a} ${b}`),
 }
 
@@ -1259,5 +1259,12 @@ export const proof = {
         const windows = gitRemote({ dir: 'C:\\Users\\Jo Doe\\repo\\.git', remote: 'origin', branch: 'build-cache' })
         const o = runPure(windows.mergeBase(alphaKey, alphaKey))
         assertEq(o.length, 0, 'expected a command to run')
+        // A branch name Git accepts and a shell would read as two commands:
+        // the push's refspec reaches `exec` quoted, so the `;` is an argument's
+        // character and not the shell's. The script knows only the quoted
+        // spelling, and the push lands through it.
+        const odd = gitRemote({ dir, remote: 'origin', branch: 'x;id' })
+        const quotedPush = `git --git-dir="repo" push "origin" "${hexText(alphaKey)}:refs/heads/x;id"`
+        assertEq(assertOk(scripted(ordinary(20, initConfig), new Map([[quotedPush, printed('')]]))(odd.push(alphaKey))[1]), true)
     },
 }

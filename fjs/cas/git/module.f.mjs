@@ -1094,8 +1094,13 @@ export const gitRemote = branch => {
                 return step(fetched, () => tryResolve(dirs, oidBytes)(name))
             })
         },
+        // The refspec is quoted as every argument is. Its ref half is the
+        // `refs/heads/<branch>` that `args` exists only because `quoted`
+        // accepted, and its id half is hex, so the pair quotes as the parts
+        // did — where `check-ref-format` accepts a branch named `x;id`, the
+        // shell is never shown the `;`.
         push: commit => ran(
-            command(a => ['push', a.remote, `${hexText(commit)}:refs/heads/${b}`]),
+            command(a => ['push', a.remote, `"${hexText(commit)}:refs/heads/${b}"`]),
             () => ok(true),
             stderr => stderr !== null && stderr.includes('[rejected]') && (stderr.includes('non-fast-forward') || stderr.includes('fetch first'))
                 ? [false]
