@@ -63,6 +63,8 @@ export const tokensOf = text => toArray(tokenize(toArray(stringToCodePointList(t
 /**
  * The text the page opens on: a bigint, a comment and a template with a
  * substitution, each a token kind of its own.
+ *
+ * @type {string}
  */
 const overview = 'const answer = 42n // a bigint\nconst text = `x is ${answer}`\n'
 
