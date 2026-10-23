@@ -23,8 +23,8 @@ import { ok, error, mapOk, okThen } from '../../../types/result/module.f.js'
 import { allowedCalls, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype, objectPrototype } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.mjs'
 import { functionAt } from '../property/module.f.mjs'
-import { isFunction, tagUndefined, typeOf } from '../semantics/module.f.mjs'
-import { toNumber, toString } from '../convert/module.f.mjs'
+import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/module.f.mjs'
+import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
 import { max } from '../../../types/number/max/module.f.js'
 
@@ -63,7 +63,7 @@ export const callee = (runtime, key, receiver, invoke) => {
     const dot = functionAt(runtime, ['dot'])
     if (dot === undefined) { return ok(undefined) }
     const answer = call(ok(dot), [() => ok(receiver), () => ok(key)], invoke)
-    return answer[0] === 'error' ? answer : ok(absent(answer[1]) ? undefined : answer[1])
+    return answer[0] === 'error' ? answer : ok(isUndefined(answer[1]) ? undefined : answer[1])
 }
 
 /**
@@ -83,7 +83,7 @@ const left = ['startsWith', 'codePointAt']
  * @type {(receiver: EdagValue, key: string) => boolean}
  */
 export const admits = (receiver, key) => {
-    if (receiver === null || typeOf(receiver) === 'undefined') { return false }
+    if (isNullish(receiver)) { return false }
     return prototypes[typeName(receiver)].some(name => name === key) && allowedCalls.some(name => name === key)
 }
 
@@ -102,30 +102,24 @@ export const hasMethod = (receiver, key, runtime, invoke) => {
     return mapOk(f => f !== undefined || !left.some(name => name === key))(callee(runtime, key, receiver, invoke))
 }
 
-/** @type {(value: EdagValue) => boolean} */
-const absent = value => typeOf(value) === 'undefined'
-
-/** ToIntegerOrInfinity after ToNumber. @type {(value: number) => number} */
-const integer = value => Math.trunc(value) || 0
-
 /** @type {(receiver: number | bigint, key: string, value: EdagValue, invoke: Invoke) => ValueResult} */
 const numberMethod = (receiver, key, value, invoke) => {
     if (key === 'toString') {
-        const result = absent(value) ? ok(10) : toNumber(value, invoke)
+        const result = isUndefined(value) ? ok(10) : toNumber(value, invoke)
         const [kind, number] = result
         if (kind === 'error') { return result }
-        const radix = integer(number)
+        const radix = toIntegerOrInfinity(number)
         return radix < 2 || radix > 36 ? error(['undefined']) : ok(receiver.toString(radix))
     }
     // Only numbers have the three formatting methods.
     const number = /** @type {number} */ (receiver)
-    if (absent(value)) {
+    if (isUndefined(value)) {
         return ok(key === 'toFixed' ? number.toFixed() : key === 'toPrecision' ? number.toPrecision() : number.toExponential())
     }
     const result = toNumber(value, invoke)
     const [kind, digits] = result
     if (kind === 'error') { return result }
-    const count = integer(digits)
+    const count = toIntegerOrInfinity(digits)
     if (key !== 'toFixed' && !Number.isFinite(number)) { return ok(String(number)) }
     if (count < (key === 'toPrecision' ? 1 : 0) || count > 100) { return error(['undefined']) }
     return ok(key === 'toFixed' ? number.toFixed(count) : key === 'toPrecision' ? number.toPrecision(count) : number.toExponential(count))
@@ -191,10 +185,10 @@ const stringMethod = (receiver, key, args, invoke) => {
             return kind === 'error' ? result : replace(receiver, search, second, key === 'replaceAll', invoke)
         }
         case 'split': {
-            const result = absent(second) ? ok(0xFFFF_FFFF) : toNumber(second, invoke)
+            const result = isUndefined(second) ? ok(0xFFFF_FFFF) : toNumber(second, invoke)
             const [kind, limit] = result
             if (kind === 'error') { return result }
-            const separator = absent(first) ? ok(undefined) : toString(first, invoke)
+            const separator = isUndefined(first) ? ok(undefined) : toString(first, invoke)
             const [separatorKind, text] = separator
             if (separatorKind === 'error') { return separator }
             return ok(['[]', receiver.split(/** @type {string} */ (text), limit >>> 0)])
@@ -209,19 +203,19 @@ const stringMethod = (receiver, key, args, invoke) => {
                 case 'charAt': { return ok(receiver.charAt(index)) }
                 case 'charCodeAt': { return ok(receiver.charCodeAt(index)) }
                 case 'repeat': {
-                    const count = integer(index)
+                    const count = toIntegerOrInfinity(index)
                     return count < 0 || count === Infinity ? error(['undefined']) : ok(receiver.repeat(count))
                 }
                 case 'padStart': case 'padEnd': {
                     // ToLength can establish a no-op before fill conversion.
-                    if (integer(index) <= receiver.length) { return ok(receiver) }
-                    const fill = absent(second) ? ok(' ') : toString(second, invoke)
+                    if (toIntegerOrInfinity(index) <= receiver.length) { return ok(receiver) }
+                    const fill = isUndefined(second) ? ok(' ') : toString(second, invoke)
                     const [fillKind, text] = fill
                     if (fillKind === 'error') { return fill }
                     return ok(key === 'padStart' ? receiver.padStart(index, text) : receiver.padEnd(index, text))
                 }
                 default: {
-                    const end = absent(second) ? ok(undefined) : toNumber(second, invoke)
+                    const end = isUndefined(second) ? ok(undefined) : toNumber(second, invoke)
                     const [endKind, last] = end
                     if (endKind === 'error') { return end }
                     return ok(key === 'slice' ? receiver.slice(index, last) : receiver.substring(index, last))
@@ -232,7 +226,7 @@ const stringMethod = (receiver, key, args, invoke) => {
             const result = toString(first, invoke)
             const [kind, search] = result
             if (kind === 'error') { return result }
-            const position = absent(second) ? ok(undefined) : toNumber(second, invoke)
+            const position = isUndefined(second) ? ok(undefined) : toNumber(second, invoke)
             const [positionKind, index] = position
             if (positionKind === 'error') { return position }
             switch (key) {

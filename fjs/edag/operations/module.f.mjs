@@ -27,7 +27,7 @@ import { func } from '../value/function/module.f.mjs'
 import { bind, call, invoker, prepare, settle } from '../value/call/module.f.mjs'
 import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.mjs'
 import { throwValue } from '../value/control/module.f.mjs'
-import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
+import { isNullish, truthy, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
 import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
@@ -49,9 +49,6 @@ const then = (evaluation, next) => {
     return kind === 'error' ? evaluation : next(value, state)
 }
 
-/** @type {(value: EdagValue) => boolean} */
-const nullish = value => value === null || typeOf(value) === 'undefined'
-
 /**
  * The `entry` helper called, `['entry']`'s body for the executors that
  * invoke it: the value of the entry its second argument names among the
@@ -65,7 +62,7 @@ const nullish = value => value === null || typeOf(value) === 'undefined'
  * @type {(fixed: Values, invoke: Invoke) => ValueResult}
  */
 export const entryCall = ([receiver, key], invoke) =>
-    nullish(receiver) ? error(['undefined']) : okThen(name => entry(receiver, name))(toString(key, invoke))
+    isNullish(receiver) ? error(['undefined']) : okThen(name => entry(receiver, name))(toString(key, invoke))
 
 /**
  * The `hasEntry` helper called, `['hasEntry']`'s body: whether the entry
@@ -75,7 +72,7 @@ export const entryCall = ([receiver, key], invoke) =>
  * @type {(fixed: Values, invoke: Invoke) => ValueResult}
  */
 export const hasEntryCall = ([receiver, key], invoke) =>
-    nullish(receiver) ? error(['undefined']) : okThen(name => hasEntry(receiver, name))(toString(key, invoke))
+    isNullish(receiver) ? error(['undefined']) : okThen(name => hasEntry(receiver, name))(toString(key, invoke))
 
 /**
  * An intrinsic called, `['slice']`'s body: the member call of the name on
@@ -229,7 +226,7 @@ export const operation = evaluator => {
             // nullish skips, and so does a built-in no implementation is
             // bound for, which the runtime's body decides for its receiver
             // and may throw deciding
-            const guard = builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!nullish(own))
+            const guard = builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!isNullish(own))
             return then([next, guard], (has, after) => has ? proceed(own, after) : skip(continuation, after))
         })
     }
@@ -303,11 +300,11 @@ export const operation = evaluator => {
                     func(length, /** @type {ValueArray} */ (value)[1].map(v => () => ok(v)), expression(body))])
             }
             case '()': { return then(operand(node[1], state), (callee, next) => callValue(callee, node[2], next)) }
-            case '?.()': { return then(operand(node[1], state), (callee, next) => nullish(callee)
+            case '?.()': { return then(operand(node[1], state), (callee, next) => isNullish(callee)
                 ? skip(node[3], next)
                 : continued(callValue(callee, node[2], next), node[3])) }
             case '.': case '?.': { return then(operand(node[1], state), (receiver, next) =>
-                node[0] === '?.' && nullish(receiver) ? skip(node[3], next)
+                node[0] === '?.' && isNullish(receiver) ? skip(node[3], next)
                     : then(operand(node[2], next), (key, after) => property(receiver, key, node[3], after))) }
             case ',': {
                 const [, parts] = node

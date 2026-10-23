@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { tagUndefined, untagUndefined, truthy, typeOf, strictEqual, is, unary, binary } from './module.f.mjs'
+import { tagUndefined, untagUndefined, truthy, typeOf, isUndefined, isNullish, strictEqual, is, unary, binary } from './module.f.mjs'
 
 /** @type {readonly (readonly [EdagValue, boolean, string])[]} */
 const classifications = [
@@ -70,6 +70,14 @@ export const proof = {
         for (const [value, , expected] of classifications) {
             assertEq(typeOf(value), expected)
             assertEq(assertOk(unary.typeof(value)), expected)
+        }
+    },
+    // Only the tagged `undefined` is `undefined`, and `null` beside it is
+    // nullish: a string spelled `'undefined'` and a `0` are neither.
+    nullish: () => {
+        for (const [value, , type] of classifications) {
+            assertEq(isUndefined(value), type === 'undefined')
+            assertEq(isNullish(value), value === null || type === 'undefined')
         }
     },
     primitives: () => {
