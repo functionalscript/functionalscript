@@ -592,12 +592,37 @@ export const proof = {
         assertEq(codeOf(opened(root)[1]), casEntryCode)
     },
     // `.cas` is a file: the listing refuses it, since the map it would walk is
-    // not there. A read walks a path through it and finds nothing, which is a
-    // miss — the walk's answer for a path a tree does not take.
+    // not there, and a read refuses it the same way rather than walking a
+    // path through it to a miss.
     casIsFile: () => {
         const root = over([entry('100644', '.cas', sha1.idOf('blob', alpha))], [sha1.object('blob', alpha)])
         assertEq(codeOf(listed(root)), casEntryCode)
-        assert(isNotFound(assertError(readAll(root, alphaKey))))
+        assertEq(codeOf(readAll(root, alphaKey)), casEntryCode)
+    },
+    // The root tree, which the layout shares with the rest of the branch, is
+    // checked as a tree and no more: a name it holds twice refuses a read
+    // and the listing, where a `README.md` beside `.cas` is nobody's
+    // business.
+    rootIllFormed: () => {
+        const readme = sha1.idOf('blob', alpha)
+        const { root, objects } = casEntry(alphaKey, '100644', readme)
+        const twice = over([...root, entry('100644', 'README.md', readme), entry('100644', 'README.md', readme)], [...objects, sha1.object('blob', alpha)])
+        assertEq(codeOf(readAll(twice, alphaKey)), casEntryCode)
+        assertEq(codeOf(listed(twice)), casEntryCode)
+    },
+    // A subtree spelled `040000` or `40755` — the same kind as `40000`, in a
+    // spelling Git refuses — is refused by the listing and by a read through
+    // it, as a file's spelling is.
+    directoryMode: () => {
+        for (const mode of ['040000', '40755']) {
+            const [, ab, cd, rest] = pathOf(alphaKey)
+            const leaf = sha1.treeOf([entry('100644', rest, sha1.idOf('blob', alpha))])
+            const mid = sha1.treeOf([entry(mode, cd, leaf.id)])
+            const top = sha1.treeOf([entry('40000', ab, mid.id)])
+            const root = over([entry('40000', '.cas', top.id)], [leaf.object, mid.object, top.object, sha1.object('blob', alpha)])
+            assertEq(codeOf(listed(root)), casEntryCode, mode)
+            assertEq(codeOf(readAll(root, alphaKey)), casEntryCode, mode)
+        }
     },
     // An entry at a key's path whose mode is not `100644`: an executable, a
     // symbolic link whose blob holds its target's path, and `100644` spelled
@@ -614,9 +639,7 @@ export const proof = {
     },
     // A tree naming the key's file twice, which `git fsck` refuses as
     // `duplicateEntries`: the listing refuses it rather than naming the key
-    // twice, and the walk answers no entry for the path, so the read is a
-    // miss — the walk's answer for an ambiguous name, recorded in
-    // `todo/absent-or-malformed.md`.
+    // twice, and a read refuses it rather than choosing one of them.
     duplicateEntries: () => {
         const [, ab, cd, rest] = pathOf(alphaKey)
         const blob = sha1.idOf('blob', alpha)
@@ -625,7 +648,7 @@ export const proof = {
         const top = sha1.treeOf([entry('40000', ab, mid.id)])
         const root = over([entry('40000', '.cas', top.id)], [leaf.object, mid.object, top.object, sha1.object('blob', alpha)])
         assertEq(codeOf(listed(root)), casEntryCode)
-        assert(isNotFound(assertError(readAll(root, alphaKey))))
+        assertEq(codeOf(readAll(root, alphaKey)), casEntryCode)
     },
     // A `100644` entry whose object is a tree, and one whose object is bytes
     // that are no object: neither is the key's content.
@@ -692,9 +715,10 @@ export const proof = {
         const slashedDirRoot = over([entry('40000', '.cas', slashedDir.id)], [deep.object, slashedDir.object, sha1.object('blob', alpha)])
         assertEq(codeOf(listed(slashedDirRoot)), casEntryCode)
     },
-    // A subtree below `.cas` whose object is bytes that are no tree, and one
-    // the repository does not hold: the listing is refused rather than cut
-    // short at either.
+    // A subtree below `.cas` whose object is bytes that are no tree, one
+    // the repository does not hold, and one that is a blob: the listing is
+    // refused rather than cut short at any of them, and a read down the
+    // key's path is refused at the blob rather than answered as a miss.
     subtreeNoTree: () => {
         const junk = latin1('junk')
         const junkId = sha1.idOf('tree', junk)
@@ -703,6 +727,11 @@ export const proof = {
         assertEq(codeOf(listed(root)), casEntryCode)
         const gone = sha1.treeOf([entry('40000', 'zz', sha1.idOf('tree', []))])
         assertEq(codeOf(listed(over([entry('40000', '.cas', gone.id)], [gone.object]))), casEntryCode)
+        const [, ab] = pathOf(alphaKey)
+        const blobDir = sha1.treeOf([entry('40000', ab, sha1.idOf('blob', alpha))])
+        const blobRoot = over([entry('40000', '.cas', blobDir.id)], [blobDir.object, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(blobRoot)), casEntryCode)
+        assertEq(codeOf(readAll(blobRoot, alphaKey)), casEntryCode)
     },
     // ## The map over any reader
     //
@@ -810,6 +839,15 @@ export const proof = {
         const [s5, w3] = wrote(s4, cas4, [alpha])
         assertEq(codeOf(w3), casEntryCode)
         assertStructurallySame(s5.root, s4.root)
+        // A sibling the listing refuses for the layout — an executable
+        // beside the key's directory — is refused by the write too, rather
+        // than carried into a proposal the listing then refuses.
+        const executable = sha1.treeOf([entry('40000', cd, emptyTree.id), entry('100755', 'zz', blob)])
+        const top4 = sha1.treeOf([entry('40000', ab, executable.id)])
+        const [s6, cas6] = proposed(over([entry('40000', '.cas', top4.id)], [emptyTree.object, executable.object, top4.object, sha1.object('blob', alpha)]))
+        const [s7, w4] = wrote(s6, cas6, [alpha])
+        assertEq(codeOf(w4), casEntryCode)
+        assertStructurallySame(s7.root, s6.root)
     },
     proposalWritesOnce: () => {
         const [s0, cas] = proposed(ordinary(20, initConfig))
@@ -862,7 +900,10 @@ export const proof = {
     },
     // The tree already holds the key's path over another blob — a collision,
     // or a corrupt store — or holds a file where the key's path needs a
-    // subtree. Neither is a write to make, and neither changes the repository.
+    // subtree: below `.cas`, where the layout refuses the file as filed
+    // where no key is, and at the root, where `.cas` itself is the file. A
+    // root tree naming an entry twice is refused as a tree. None is a write
+    // to make, and none changes the repository.
     proposalRefuses: () => {
         const other = sha1.idOf('blob', alpha)
         const collided = casEntry(gammaKey, '100644', other)
@@ -878,6 +919,10 @@ export const proof = {
         const file = sha1.treeOf([entry('100644', ab, other)])
         const [s2, cas2] = proposed(over([entry('40000', '.cas', file.id)], [file.object, sha1.object('blob', alpha)]))
         assertEq(codeOf(wrote(s2, cas2, [gamma])[1]), casEntryCode)
+        const [s3, cas3] = proposed(over([entry('100644', '.cas', other)], [sha1.object('blob', alpha)]))
+        assertEq(codeOf(wrote(s3, cas3, [gamma])[1]), casEntryCode)
+        const [s4, cas4] = proposed(over([entry('100644', 'README.md', other), entry('100644', 'README.md', other)], [sha1.object('blob', alpha)]))
+        assertEq(codeOf(wrote(s4, cas4, [gamma])[1]), casEntryCode)
     },
     // A proposal over a repository whose ref names no commit is refused when
     // it is read, as a snapshot is; and a branch whose name is no ref name
@@ -904,6 +949,20 @@ export const proof = {
         assertOk(w)
         const o = assertNotNullish(assertOk(virtual(s1)(readObject(dir, 20)(gammaId))[1]))
         assertEq(o.type, 'blob')
+        assertEq(msb.cmp(assertOk(virtual(s1)(collectRead(cas.read(gammaKey)))[1]))(u8ListToVecMsb(gamma)), 0)
+    },
+    // A valid loose object at the path that is another object — alpha's
+    // bytes filed under gamma's id — is not the object either: the hash is
+    // compared, not the file's being an object, and the write replaces it.
+    writeObjectReplacesOther: () => {
+        const gammaId = sha1.idOf('blob', gamma)
+        const other = [u8ListToVecMsb(storedBytes(toArray(writeEnvelope('blob', alpha))))]
+        const swapped = setIn(ordinary(20, initConfig), objectPath(dir)(gammaId).split('/'), other)
+        const [s0, cas] = proposed(swapped)
+        const [s1, w] = wrote(s0, cas, [gamma])
+        assertOk(w)
+        const o = assertNotNullish(assertOk(virtual(s1)(readObject(dir, 20)(gammaId))[1]))
+        assertEq(msb.cmp(u8ListToVecMsb(toArray(o.payload)))(u8ListToVecMsb(gamma)), 0)
         assertEq(msb.cmp(assertOk(virtual(s1)(collectRead(cas.read(gammaKey)))[1]))(u8ListToVecMsb(gamma)), 0)
     },
     // The decision reads the loose file itself and not the store: the same
@@ -980,10 +1039,11 @@ export const proof = {
         // The published snapshot has seen none of it.
         assertStructurallySame(spelled(assertOk(listed(s4.root))), spelled([alphaKey, betaKey]))
     },
-    // Nothing to take out of a branch with no snapshot and no proposal,
-    // nothing where the key's path runs into a file, and nothing where it
-    // ends at a subtree: a key is a file, and what is below the subtree is
-    // other keys', which stay.
+    // Nothing to take out of a branch with no snapshot and no proposal, and
+    // nothing where the key's path ends at a subtree: a key is a file, and
+    // what is below the subtree is other keys', which stay. A file where
+    // the key's path needs a subtree is a file filed where the layout files
+    // no key, refused as the listing refuses it.
     proposalRemovesNothing: () => {
         const [s0, cas] = proposed(repository(initConfig, null, []))
         assertEq(assertOk(virtual(s0)(cas.remove(alphaKey))[1]), false)
@@ -991,7 +1051,7 @@ export const proof = {
         const [, ab, cd] = pathOf(alphaKey)
         const file = sha1.treeOf([entry('100644', ab, sha1.idOf('blob', alpha))])
         const [s1, cas1] = proposed(over([entry('40000', '.cas', file.id)], [file.object, sha1.object('blob', alpha)]))
-        assertEq(assertOk(virtual(s1)(cas1.remove(alphaKey))[1]), false)
+        assertEq(codeOf(virtual(s1)(cas1.remove(alphaKey))[1]), casEntryCode)
         // The key's directories are there and hold another file: nothing to
         // take out, and nothing written.
         const leaf = sha1.treeOf([entry('100644', 'other.txt', sha1.idOf('blob', alpha))])
