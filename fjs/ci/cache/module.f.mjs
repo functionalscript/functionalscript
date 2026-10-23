@@ -19,7 +19,7 @@
 
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { collectRead, casAddFile } from '../../cas/module.f.mjs'
-import { branchCas, configuredAuthor, snapshot } from '../../cas/git/module.f.mjs'
+import { branchCas, snapshot } from '../../cas/git/module.f.mjs'
 import { exactArgs } from '../../cli/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step } from '../../effects/module.f.mjs'
@@ -162,12 +162,9 @@ export const init = ({ env }) => {
 }
 
 /** @type {(options: NodeProgramOptions) => Effect<NodeOp, 0, number>} */
-export const report = ({ env, home, args: [check] }) => {
-    const repo = history(repository())
-    const author = historyStep(repo, b => configuredAuthor(b.dir, home))
-    const cache = step(author, ([a, b]) => a === null
-        ? refuse('ERR_CI_AUTHOR')('configure user.name and user.email before reporting')
-        : branchCas(sha256, b, a))
+export const report = ({ env, args: [check] }) => {
+    const author = { name: env.GIT_AUTHOR_NAME ?? '', email: env.GIT_AUTHOR_EMAIL ?? '' }
+    const cache = step(repository(), b => branchCas(sha256, b, author))
     const added = step(cache, cas => casAddFile(cas)(join(manifestDirectory(env), `${check}.json`)))
     return exitStep(added)
 }

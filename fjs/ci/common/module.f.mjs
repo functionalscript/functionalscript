@@ -37,7 +37,7 @@ export const _workflowsDirectory = /** @type {const} */ ('.github/workflows')
 // nothing, and a schema that accepts both invites a step that spells its
 // default out. A step carrying it is a step whose failure is an expected
 // outcome: npm publish may find the version already published, and cache
-// fetches and pushes may find no branch or lose a concurrent push.
+// access and reports may fail without invalidating the checks themselves.
 export const stepSchema = /** @type {const} */ ({
     // The cache bootstrap exposes hit flags through $GITHUB_OUTPUT; its id
     // and each dependent step's condition name those flags.

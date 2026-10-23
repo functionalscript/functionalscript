@@ -87,6 +87,28 @@ export const proof = {
         assert(push.if?.includes('github.event.pull_request.head.repo.full_name == github.repository') === true)
         assertEq(source.steps.at(-1), push)
     },
+    /** A cache failure leaves the remaining checks strict and able to run. */
+    cacheFailuresDoNotStopChecks: () => {
+        const source = cached([{ run: 'cargo test' }, suite], 'ubuntu-intel')
+        const rust = stepWith(source, 'cargo test')
+        const report = stepWith(source, 'npm start ci report rust')
+        const next = stepWith(source, suite.run)
+        const bootstrap = stepWith(source, 'npm start ci init')
+        assertEq(bootstrap['continue-on-error'], true)
+        assertEq(report['continue-on-error'], true)
+        assertStructurallySame(report.env, {
+            GIT_AUTHOR_NAME: 'github-actions[bot]',
+            GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+        })
+        assert(source.steps.indexOf(rust) < source.steps.indexOf(report))
+        assert(source.steps.indexOf(report) < source.steps.indexOf(next))
+        assertEq(rust['continue-on-error'], undefined)
+        assertEq(next['continue-on-error'], undefined)
+        assertEq(next.if, "steps.init.outputs.hit-suite != 'true'")
+        assert(source.steps.every(step => !step.run?.startsWith('git config user.')))
+        assert(source.steps.filter(step => step.run?.startsWith('npm start ci report '))
+            .every(step => step['continue-on-error'] === true))
+    },
     /** A partial hit cannot skip npm ci when another dependent check misses. */
     sharedInstallAndPackage: () => {
         const source = cached([

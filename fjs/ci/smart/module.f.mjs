@@ -134,7 +134,15 @@ const cachedJob = (jobId, source) => {
         const last = own !== undefined && !work.slice(index + 1).some(next => checkId(jobId, next) === own)
         return [
             { ...step, ...condition },
-            ...(last ? [{ run: `npm start ci report ${own}`, if: misses([own]) }] : []),
+            ...(last ? [{
+                run: `npm start ci report ${own}`,
+                if: misses([own]),
+                env: {
+                    GIT_AUTHOR_NAME: 'github-actions[bot]',
+                    GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+                },
+                'continue-on-error': /** @type {const} */ (true),
+            }] : []),
         ]
     })
     return {
@@ -143,12 +151,12 @@ const cachedJob = (jobId, source) => {
         steps: [
             uses('actions/checkout', { 'fetch-depth': '1' }),
             installNode({ 'package-manager-cache': 'false' }),
-            { run: 'git config user.name "github-actions[bot]"' },
-            { run: 'git config user.email "41898282+github-actions[bot]@users.noreply.github.com"' },
             { run: 'git fetch --depth 1 origin build-cache:build-cache', 'continue-on-error': true },
             {
                 id: 'init',
                 run: 'npm start ci init',
+                // Missing hit flags run the checks when lookup is unavailable.
+                'continue-on-error': true,
                 env: {
                     // Keep GitHub expressions as contract text rather than
                     // substituting the current runner's temporary paths.

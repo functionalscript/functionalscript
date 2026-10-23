@@ -44,10 +44,17 @@ Checks keep their producer and consumer steps under one gate. A shared install
 runs when any dependent check misses.
 
 `npm start ci report <check>` stores the manifest only after that check
-succeeds. A hit writes nothing. The final step attempts one push, even if a
-later check failed; fork and Dependabot pull requests do not publish. Fetch
-and push failures are best effort: losing a cache entry only costs another
-run. There is no retry or merge loop.
+succeeds. The workflow supplies the bot's name and email through
+`GIT_AUTHOR_NAME` and `GIT_AUTHOR_EMAIL`; the reporter does not resolve identity
+through Git config, whose credential includes belong to checkout. A hit writes
+nothing. The final step attempts one push, even if a later check failed; fork
+and Dependabot pull requests do not publish.
+
+Cache fetch, initialization, reporting, and push are best effort. Initialization
+failure leaves the checks to run normally and disables publication. A report
+failure does not block later checks. The checks themselves still fail the job
+on error. Losing a cache entry only costs another run; there is no retry or
+merge loop.
 
 Only committed CI snapshots are supported. The checkout uses LF line endings;
 symlinks, submodules, or unrepresented inputs cannot certify a check. Executable

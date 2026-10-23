@@ -16,10 +16,12 @@ import { history, historyStep, pureOk, runPure } from '../../effects/module.f.mj
 import { readUtf8File, writeFiles } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
-import { hexText, of } from '../../git/oid/module.f.mjs'
+import { hexText, of, tryFromHexOf } from '../../git/oid/module.f.mjs'
+import { tryRead as readObject } from '../../git/store/module.f.mjs'
 import { write as writeTree } from '../../git/tree/module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
+import { u8ListToString } from '../../text/utf8/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { checkManifest, committedFiles, init, inputKeys, inputTrees, keyOf, report } from './module.f.mjs'
 
@@ -78,6 +80,8 @@ const options = {
     env: {
         FJS_CI_CHECKS: stringifySorted([check]), FJS_CI_PLATFORM: stringifySorted(platform),
         GITHUB_SHA: hexText(commitId), GITHUB_JOB: 'node', RUNNER_TEMP: 'tmp', GITHUB_OUTPUT: 'tmp/output',
+        GIT_AUTHOR_NAME: 'github-actions[bot]',
+        GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
     },
 }
 
@@ -177,7 +181,28 @@ export const proof = {
         assertError(virtual(corrupt)(init(options))[1])
     },
     reportRefusal: () => {
-        const noAuthor = { ...root, '.git': { config: [utf8('[core]\nrepositoryformatversion = 0\n')], objects: { pack: {} } } }
-        assertError(virtualAt(noAuthor)(report({ ...options, args: ['suite'] }))[1])
+        for (const name of ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL']) {
+            const env = Object.fromEntries(Object.entries(options.env).filter(([key]) => key !== name))
+            assertError(virtual(seeded())(report({ ...options, env, args: ['suite'] }))[1])
+        }
+    },
+    reportWithCheckoutIncludes: () => {
+        const included = `${config}[includeIf "gitdir:/runner/_work/functionalscript/functionalscript/.git"]\npath = /runner/_temp/checkout-auth.config\n`
+        const [checkout, configured] = virtual(seeded())(writeFiles([['.git/config', included]]))
+        assertOk(configured)
+        const [miss, initialized] = virtual(checkout)(init(options))
+        assertOk(initialized)
+        const [added, reported] = virtual(miss)(report({ ...options, args: ['suite'] }))
+        assertOk(reported)
+        const id = assertNotNullish(tryFromHexOf(20)(ascii(textAt(added, '.git/refs/heads/build-cache').trim())))
+        const commit = assertNotNullish(assertOk(virtual(added)(readObject('.git', 20)(id))[1]))
+        assertEq(commit.type, 'commit')
+        const text = u8ListToString(commit.payload)
+        assert(text.includes('author github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'))
+        assert(text.includes('committer github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'))
+        const [hit, rechecked] = virtual(added)(init(options))
+        assertOk(rechecked)
+        assertEq(textAt(hit, 'tmp/output'), 'hit-suite=true\n')
+        assertEq(textAt(hit, '.git/config'), included)
     },
 }
