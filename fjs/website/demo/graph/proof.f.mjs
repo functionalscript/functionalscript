@@ -363,6 +363,11 @@ export const proof = {
             assert(html.includes('aria-label="root [item] → child"'), html)
             assert(html.includes('aria-label="child [self] → child (recursive)"'), html)
             assert(html.includes('id="graph-trace-arrow"'), html)
+            // Later ordinary routes must never paint over an earlier
+            // selected route. Keep all overlays after every base arrow.
+            const overlays = html.indexOf('<g data-graph-trace-layer="">')
+            assert(overlays > html.lastIndexOf('data-graph-edge=""'), html)
+            assert(html.indexOf('<g data-graph-connection="0"') > overlays, html)
         },
         // A corner or a compact node has no separate source port cell.
         // Use its title; an empty title gets no invented block, and a

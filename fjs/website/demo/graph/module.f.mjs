@@ -1025,7 +1025,7 @@ export const graphSvg = g => {
     // between the same nodes apart.
     /** @type {(index: number, from: number) => number} */
     const slotOf = (index, from) => g.edges.slice(0, index).filter(e => e.from === from).length
-    /** @type {readonly Element[]} */
+    /** @type {readonly { readonly line: Element, readonly trace: readonly Element[] }[]} */
     const edgeEls = routes.map(({ edge, index, to, points }) => {
         const from = nodeOf(edge.from)
         const target = nodeOf(to)
@@ -1041,16 +1041,15 @@ export const graphSvg = g => {
             ...fade(edge.from, to),
             ...pathKeyOf('edge', from.key, String(slotOf(index, edge.from)), target.key),
         }])
-        if (g.trace !== true) { return line }
+        if (g.trace !== true) { return { line, trace: [] } }
         const sourcePorts = from.ports.filter(port => port.index === index && from.title < from.width)
         const description = `${from.label} [${edge.label}] → ${target.label}${edge.back === true ? ' (recursive)' : ''}`
-        return /** @type {Element} */ (['g', {
+        return { line, trace: [/** @type {Element} */ (['g', {
             'data-graph-connection': String(index), tabindex: '0', role: 'group', 'aria-label': description,
             'data-graph-from': String(edge.from), 'data-graph-to': String(to),
             ...pathKeyOf('connection', from.key, String(slotOf(index, edge.from)), target.key),
         },
             ['title', description],
-            line,
             ['path', { d, 'data-graph-hit': '' }],
             ['path', { d, 'data-graph-trace': '', 'marker-end': 'url(#graph-trace-arrow)' }],
             ...titleTraceOf(target)({ 'data-graph-title-outline': String(to) }),
@@ -1063,7 +1062,7 @@ export const graphSvg = g => {
                     'data-graph-trace': '', 'data-graph-port-outline': String(index),
                 }])
             }),
-        ])
+        ])] }
     })
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge
@@ -1208,7 +1207,12 @@ export const graphSvg = g => {
             }, ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-trace-arrow': '' }]])] : []),
             ...clipEls],
         ...layer(boxEls),
-        ...layer(byKey([...edgeEls, ...entryEls])),
+        ...layer(byKey([...edgeEls.map(({ line }) => line), ...entryEls])),
+        // SVG paints siblings in order: all ordinary arrows must precede
+        // every selection overlay, including routes listed earlier.
+        ...(g.trace === true ? [/** @type {Element} */ (['g', { 'data-graph-trace-layer': '' },
+            ...byKey(edgeEls.flatMap(({ trace }) => trace)),
+        ])] : []),
         ...layer(labelEls),
     ]]
 }
