@@ -34,7 +34,8 @@ const excludedFiles = [
 /** The JavaScript rung a path contributes to, independently of Rust. */
 const javascript = (/** @type {string} */ path) => {
     if (sharedFiles.includes(path) || path === 'package.json' || path === 'deno.json'
-        || path === 'fjs/module.mjs' || path.split('/').some(p => p.startsWith('gen.'))
+        || path === 'fjs/module.mjs' || path === 'fjs/spidermonkey.mjs'
+        || path.split('/').some(p => p.startsWith('gen.'))
         || path.endsWith('.f.mjs') || path.endsWith('.f.js') || path.endsWith('.data.js')) { return 'fjs' }
     if (path.endsWith('.mjs') || path.endsWith('.js') || path.endsWith('.cjs')) {
         return path.startsWith('fjs/effects/') || path.startsWith('fjs/emergent_testing/') ? 'fjs' : 'js'

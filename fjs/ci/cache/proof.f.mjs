@@ -7,6 +7,7 @@
  * @import { File, Rung, Tree } from './types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { RequiredMap } from '../../types/object/types.ts'
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
@@ -40,7 +41,7 @@ const files = [
 /** @template T, E @param {Effect<never, T, E>} e @returns {Result<T, E>} */
 const pureResult = e => assertNotNullish(runPure(e)[0])
 
-/** @type {(fs: readonly File[]) => Readonly<Record<Rung, Tree>>} */
+/** @type {(fs: readonly File[]) => RequiredMap<Rung, Tree>} */
 const treesOf = fs => assertOk(pureResult(inputTrees(fs)))
 
 const trees = treesOf(files)
@@ -48,7 +49,7 @@ const inputs = inputKeys(trees)
 
 const idOf = of(20)
 const sourceId = idOf('blob', ascii('source'))
-const regular = { mode: ascii('100644'), name: ascii('package.json'), oid: sourceId }
+const regular = /** @type {const} */ ({ mode: ascii('100644'), name: ascii('package.json'), oid: sourceId })
 const tree = toArray(writeTree(20)([regular]))
 const treeId = idOf('tree', tree)
 const commit = ascii(`tree ${hexText(treeId)}\nauthor A <a@b> 1 +0000\ncommitter A <a@b> 1 +0000\n\nsource\n`)
@@ -58,7 +59,7 @@ const commitId = idOf('commit', commit)
 const sourceObject = id => id === commitId ? { type: 'commit', payload: commit }
     : id === treeId ? { type: 'tree', payload: tree } : null
 
-const config = '[core]\nrepositoryformatversion = 0\n[user]\nname = Cache Writer\nemail = cache@example.com\n'
+const config = /** @type {const} */ ('[core]\nrepositoryformatversion = 0\n[user]\nname = Cache Writer\nemail = cache@example.com\n')
 
 /** @type {Dir} */
 const root = { '.git': { config: [utf8(config)], objects: { pack: {} } }, tmp: {}, home: {} }
@@ -88,7 +89,7 @@ const options = {
 /** @type {(s: State, path: string) => string} */
 const textAt = (s, path) => assertOk(virtual(s)(readUtf8File(path))[1])
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     keys: () => {
         assertEq(keyOf({ z: 1, a: { z: 2, a: 3 } }), keyOf({ a: { a: 3, z: 2 }, z: 1 }))
         assert(keyOf(['test', 'lint']) !== keyOf(['lint', 'test']))
@@ -111,6 +112,20 @@ export const proof = {
         assert(changedFjs.fjs !== inputs.fjs)
         assert(changedFjs.js !== inputs.js)
         assert(changedFjs.ts !== inputs.ts)
+    },
+    spiderMonkeyCompileInputs: () => {
+        const before = treesOf([...files, ['fjs/spidermonkey.mjs', 'before']])
+        const after = treesOf([...files, ['fjs/spidermonkey.mjs', 'after']])
+        const beforeInputs = inputKeys(before)
+        const afterInputs = inputKeys(after)
+        /** @type {Check} */
+        const compile = { id: 'spidermonkey-compile', rung: 'fjs', steps: [{ run: 'npm run sm c' }] }
+        assert(beforeInputs.fjs !== afterInputs.fjs)
+        assert(beforeInputs.js !== afterInputs.js)
+        assert(beforeInputs.ts !== afterInputs.ts)
+        assertEq(beforeInputs.rust, afterInputs.rust)
+        assert(keyOf(checkManifest(compile, platform, beforeInputs, before))
+            !== keyOf(checkManifest(compile, platform, afterInputs, after)))
     },
     contracts: () => {
         const manifest = checkManifest(check, platform, inputs, trees)
@@ -174,6 +189,7 @@ export const proof = {
             assertOk(virtual(state)(init({ ...options, env }))[1])
         }
         assertError(virtualAt({ '.git': [utf8('bad')], tmp: {} })(init(options))[1])
+        /** @type {Dir} */
         const malformed = { ...root, '.git': { config: [utf8('[core]\nrepositoryformatversion = 99\n')], objects: { pack: {} } } }
         assertError(virtualAt(malformed)(init(options))[1])
         const [corrupt, written] = virtual(state)(writeFiles([['.git/refs/heads/build-cache', 'not a ref\n']]))
@@ -205,4 +221,4 @@ export const proof = {
         assertEq(textAt(hit, 'tmp/output'), 'hit-suite=true\n')
         assertEq(textAt(hit, '.git/config'), included)
     },
-}
+})

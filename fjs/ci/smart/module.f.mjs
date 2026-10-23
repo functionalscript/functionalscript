@@ -28,7 +28,7 @@ export const platformSchema = /** @type {const} */ ({
     architecture: string,
 })
 
-const shellPrefix = 'sh ./gen.nix/run '
+const shellPrefix = /** @type {const} */ ('sh ./gen.nix/run ')
 
 /** The command inside the generated Nix wrapper or an injected step. */
 /** @type {(step: Step) => string} */
@@ -104,10 +104,10 @@ export const platform = image => {
  */
 export const checks = (jobId, job) => {
     const work = job.steps.filter(step => !isAction(step, 'actions/checkout'))
-    const ids = [...new Set(work.flatMap(step => {
+    const ids = /** @type {const} */ ([...new Set(work.flatMap(step => {
         const id = checkId(jobId, step)
         return id === undefined ? [] : [id]
-    }))]
+    }))])
     return ids.map(id => ({
         id,
         rung: rung(id),

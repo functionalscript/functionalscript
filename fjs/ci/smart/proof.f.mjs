@@ -31,17 +31,17 @@ const stepWith = (source, run) => {
 }
 
 const nix = uses('cachix/install-nix-action')
-const nodeVersion = { run: 'test "$(sh ./gen.nix/run node --version)" = "v26.12.1"' }
-const tscVersion = { run: 'test "$(sh ./gen.nix/run tsc --version)" = "Version 7.0.2"' }
-const install = { run: 'sh ./gen.nix/run npm ci' }
-const suite = { run: 'sh ./gen.nix/run node --test' }
-const compile = { run: 'sh ./gen.nix/run npm start compile' }
-const tsc = { run: 'sh ./gen.nix/run tsc' }
-const coverage = { run: 'sh ./gen.nix/run npm run cov' }
-const pack = { run: 'sh ./gen.nix/run npm pack --pack-destination "$RUNNER_TEMP/consumer"' }
-const consumer = { run: 'node good.mts', 'working-directory': '${{ runner.temp }}/consumer' }
+const nodeVersion = /** @type {const} */ ({ run: 'test "$(sh ./gen.nix/run node --version)" = "v26.12.1"' })
+const tscVersion = /** @type {const} */ ({ run: 'test "$(sh ./gen.nix/run tsc --version)" = "Version 7.0.2"' })
+const install = /** @type {const} */ ({ run: 'sh ./gen.nix/run npm ci' })
+const suite = /** @type {const} */ ({ run: 'sh ./gen.nix/run node --test' })
+const compile = /** @type {const} */ ({ run: 'sh ./gen.nix/run npm start compile' })
+const tsc = /** @type {const} */ ({ run: 'sh ./gen.nix/run tsc' })
+const coverage = /** @type {const} */ ({ run: 'sh ./gen.nix/run npm run cov' })
+const pack = /** @type {const} */ ({ run: 'sh ./gen.nix/run npm pack --pack-destination "$RUNNER_TEMP/consumer"' })
+const consumer = /** @type {const} */ ({ run: 'node good.mts', 'working-directory': '${{ runner.temp }}/consumer' })
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     platform: () => {
         for (const [image, expected] of /** @type {const} */ ([
             ['ubuntu-26.04', { os: 'ubuntu', version: '26.04', architecture: 'x64' }],
@@ -116,7 +116,7 @@ export const proof = {
             { run: 'mkdir "$RUNNER_TEMP/consumer"' }, pack,
             installNode({ 'package-manager-cache': 'false' }), consumer,
         ])
-        const gate = "steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-coverage != 'true' || steps.init.outputs.hit-package != 'true'"
+        const gate = /** @type {const} */ ("steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-coverage != 'true' || steps.init.outputs.hit-package != 'true'")
         assertEq(stepWith(source, install.run).if, gate)
         for (const run of ['mkdir "$RUNNER_TEMP/consumer"', pack.run, consumer.run]) {
             assertEq(stepWith(source, run).if, "steps.init.outputs.hit-package != 'true'")
@@ -179,4 +179,4 @@ export const proof = {
         assertStructurallySame(checks('empty', job([])), [])
         assertStructurallySame(smartJobs({}), {})
     },
-}
+})

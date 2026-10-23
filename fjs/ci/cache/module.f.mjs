@@ -12,6 +12,7 @@
  * @import { Oid, OidBytes } from '../../git/types.ts'
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { RequiredMap } from '../../types/object/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Check, Platform } from '../smart/types.ts'
  * @import { File, Manifest, Rung, Tree } from './types.ts'
@@ -49,7 +50,7 @@ const contentHash = value => digest(chunks(stringToU8List(stringifySorted(value)
 /** Canonical JSON's existing SHA-256 CAS identity, with no publication. @type {(value: Unknown) => string} */
 export const keyOf = value => vecToCBase32(contentHash(value))
 
-/** The input groups each rung reads, including its lower rungs. @type {Readonly<Record<Rung, readonly Rung[]>>} */
+/** The input groups each rung reads, including its lower rungs. @type {RequiredMap<Rung, readonly Rung[]>} */
 const above = { fjs: ['fjs', 'js', 'ts'], js: ['js', 'ts'], ts: ['ts'], rust: ['rust'] }
 
 /** A file added to its nested, repository-relative manifest tree. @type {(tree: Tree, path: readonly string[], id: string) => Tree} */
@@ -62,16 +63,16 @@ const setFile = (tree, [first, ...rest], id) => {
  * Four input trees, including the deliberate overlaps between generated code
  * and Rust's workspace. An unclassified tracked file fails enumeration.
  *
- * @type {(files: readonly File[]) => Effect<never, Readonly<Record<Rung, Tree>>, IoChannel>}
+ * @type {(files: readonly File[]) => Effect<never, RequiredMap<Rung, Tree>, IoChannel>}
  */
-export const inputTrees = files => foldStep(pureOk(files), /** @type {Readonly<Record<Rung, Tree>>} */ ({ fjs: {}, js: {}, ts: {}, rust: {} }), ([path, id]) => trees => {
+export const inputTrees = files => foldStep(pureOk(files), /** @type {RequiredMap<Rung, Tree>} */ ({ fjs: {}, js: {}, ts: {}, rust: {} }), ([path, id]) => trees => {
     const groups = select(path)
     return groups === null
         ? refuse('ERR_CI_INPUT')(`classify the tracked build input: ${path}`)
         : pureOk(groups.flatMap(group => above[group]).reduce((t, group) => ({ ...t, [group]: setFile(t[group], path.split('/'), id) }), trees))
 })
 
-/** The chained input manifests; a higher rung includes the one below by key. @type {(trees: Readonly<Record<Rung, Tree>>) => Readonly<Record<Rung, string>>} */
+/** The chained input manifests; a higher rung includes the one below by key. @type {(trees: RequiredMap<Rung, Tree>) => RequiredMap<Rung, string>} */
 export const inputKeys = trees => {
     const contract = keyOf({ inputs: 1 })
     const fjs = keyOf({ contract, files: trees.fjs })
@@ -79,7 +80,7 @@ export const inputKeys = trees => {
     return { fjs, js, ts: keyOf({ contract, files: trees.ts, below: js }), rust: keyOf({ contract, files: trees.rust }) }
 }
 
-/** One check's identity over its rung, distinct even when two checks share inputs. @type {(check: Check, platform: Platform, inputs: Readonly<Record<Rung, string>>, trees: Readonly<Record<Rung, Tree>>) => Manifest} */
+/** One check's identity over its rung, distinct even when two checks share inputs. @type {(check: Check, platform: Platform, inputs: RequiredMap<Rung, string>, trees: RequiredMap<Rung, Tree>) => Manifest} */
 export const checkManifest = (check, platform, inputs, trees) => ({
     contract: keyOf({ version: 1, check: check.id, commands: check.steps, platform, tools: pins }),
     files: trees[check.rung],
@@ -98,9 +99,11 @@ export const checkManifest = (check, platform, inputs, trees) => ({
 export const committedFiles = (read, width) => {
     const entries = tryEntries(read, width)
     /** @type {(id: Oid, path: string) => Effect<O, readonly File[], IoChannel>} */
-    const walk = (id, path) => step(entries(id), es => es === null
-        ? refuse('ERR_CI_TREE')(`cannot read the committed tree at ${path}`)
-        : foldStep(pureOk(es), /** @type {readonly File[]} */ ([]), e => files => {
+    const walk = (id, path) => {
+        const admitted = step(entries(id), es => es === null
+            ? refuse('ERR_CI_TREE')(`cannot read the committed tree at ${path}`)
+            : pureOk(es))
+        return foldStep(admitted, /** @type {readonly File[]} */ ([]), e => files => {
             const decoded = u8ListToString(e.name)
             const name = path === '' ? decoded : join(path, decoded)
             return isSubtree(e)
@@ -108,7 +111,8 @@ export const committedFiles = (read, width) => {
                 : ['100644', '100755'].includes(u8ListToString(e.mode))
                     ? pureOk([...files, [name, vecToCBase32(e.oid)]])
                     : refuse('ERR_CI_INPUT')(`unsupported committed input mode: ${name}`)
-        }))
+        })
+    }
     return commit => walk(commit, '')
 }
 
@@ -163,7 +167,7 @@ export const init = ({ env }) => {
 
 /** @type {(options: NodeProgramOptions) => Effect<NodeOp, 0, number>} */
 export const report = ({ env, args: [check] }) => {
-    const author = { name: env.GIT_AUTHOR_NAME ?? '', email: env.GIT_AUTHOR_EMAIL ?? '' }
+    const author = /** @type {const} */ ({ name: env.GIT_AUTHOR_NAME ?? '', email: env.GIT_AUTHOR_EMAIL ?? '' })
     const cache = step(repository(), b => branchCas(sha256, b, author))
     const added = step(cache, cas => casAddFile(cas)(join(manifestDirectory(env), `${check}.json`)))
     return exitStep(added)

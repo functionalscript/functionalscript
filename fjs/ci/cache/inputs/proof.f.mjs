@@ -1,10 +1,10 @@
 import { assertStructurallySame } from '../../../asserts/module.f.js'
 import { select } from './module.f.js'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     functionalScript: () => {
         for (const path of ['fjs/a/module.f.mjs', 'fjs/a/module.f.js', 'fjs/a/input.data.js',
-            'package.json', 'deno.json', 'fjs/module.mjs', 'gen.cloudflare',
+            'package.json', 'deno.json', 'fjs/module.mjs', 'fjs/spidermonkey.mjs', 'gen.cloudflare',
             'fjs/a/gen.output/data.bin', 'fjs/effects/node/module.mjs',
             'fjs/emergent_testing/node/module.mjs', 'fjs/emergent_testing/loader.cjs',
             'spec/types/module.f.js']) {
@@ -54,4 +54,4 @@ export const proof = {
         assertStructurallySame(select('fjs/a/new-fixture.json'), null)
         assertStructurallySame(select('new-tool.config'), null)
     },
-}
+})
