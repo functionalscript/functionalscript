@@ -15,14 +15,14 @@ const check = { run: 'check' }
 const checkout = uses('actions/checkout')
 
 export const proof = {
-    /** A pinned global npm install is an `install` step running `npm install -g`. */
-    // Of every platform, only Ubuntu on ARM is the canonical runner's.
+    /** Of every platform, only Ubuntu on ARM is the canonical runner's. */
     isUbuntuArm: () => {
         assertStructurallySame(
             os.flatMap(v => architecture.flatMap(a => isUbuntuArm(v, a) ? [`${v}-${a}`] : [])),
             ['ubuntu-arm'],
         )
     },
+    /** A pinned global npm install is an `install` step running `npm install -g`. */
     npmGlobalInstall: () => {
         assertStructurallySame(
             npmGlobalInstall('pkg')('1.2.3'),
