@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { invocationAliases, readsEntryParameters, rootLoopOf, scalarHelper } from './module.f.mjs'
+import { invocationAliases, namesBinding, readsEntryParameters, rootLoopOf, scalarHelper } from './module.f.mjs'
 
 const parameter = { index: 0 }
 const state = { index: 1 }
@@ -32,6 +32,13 @@ const fn = body => ({ target, parameters: [parameter], rest: null, self: null, c
 const root = loop => fn({ statements: [['loop', loop]], exit: ['return', target, ['ref', result]] })
 
 export const proof = {
+    // A `ref` to the binding names it; a `ref` to another binding, and a
+    // primitive, do not.
+    namesBinding: () => {
+        assert(namesBinding(['ref', state], state))
+        assert(!namesBinding(['ref', other], state))
+        assert(!namesBinding(1, state))
+    },
     invocationAliases: () => {
         const value = { ...fn({ statements: [], exit: ['yield', []] }), parameters: [parameter, state], self: other, captures: [{ binding: result, value: 1 }] }
         assertStructurallySame(invocationAliases(value, [
