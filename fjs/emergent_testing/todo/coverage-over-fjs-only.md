@@ -8,10 +8,10 @@
 `npm run cov` runs every proof `shouldLoad` in
 [`fjs/dev`](../../dev/module.f.mjs) accepts and then measures
 `module.f.mjs` and `module.f.js`. The proofs include the plain JavaScript
-ones — fifty-one `proof.mjs` files at `c58b36e`, nineteen under `fjs/` and
-thirty-two under `spec/`, since `npm run cov` from the root walks the whole
-tree; `fjs/effects/node/proof.mjs` and `fjs/compiler/transpiler/proof.mjs`
-among them, and several under `spec/` reaching measured modules through
+ones — every file whose name ends in `proof.mjs`, under `fjs/` and `spec/`
+alike, since `npm run cov` from the root walks the whole tree;
+`fjs/effects/node/proof.mjs` and `fjs/compiler/transpiler/proof.mjs` among
+them, and proofs under `spec/` reaching measured modules through
 `fjs/compiler/refused_demo/host.mjs` — so a line of a
 FunctionalScript module may be covered by a JavaScript proof alone. The
 coverage verdict is then a function of JavaScript files as well as
