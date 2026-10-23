@@ -245,8 +245,8 @@ const railroadLabel = kind => `[${railroadLabelMarker}="${kind}"]`
  * Named because two stylesheets declare them: {@link stylesheet} on every
  * page, and {@link rustdocStylesheet} on rustdoc's.
  */
-const lightTokens = '--graph-new-bg: #aecbfa; --graph-added-bg: #a8dab5; --graph-removed-bg: #f6aea9; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
-const darkTokens = '--graph-new-bg: #1c2d4d; --graph-added-bg: #1c3d27; --graph-removed-bg: #4d1c1c; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
+const lightTokens = '--graph-highlight: #b45309; --graph-highlight-bg: color-mix(in srgb, var(--graph-highlight) 10%, var(--bg)); --graph-new-bg: #aecbfa; --graph-added-bg: #a8dab5; --graph-removed-bg: #f6aea9; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
+const darkTokens = '--graph-highlight: #fbbf24; --graph-highlight-bg: color-mix(in srgb, var(--graph-highlight) 16%, var(--bg)); --graph-new-bg: #1c2d4d; --graph-added-bg: #1c3d27; --graph-removed-bg: #4d1c1c; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
 
 /**
  * The rules for the site's two bars, the header and the funding footer,
@@ -642,8 +642,11 @@ svg text { font: inherit }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-connection] { outline: none; pointer-events: none }
 [data-graph-hit] { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer }
-[data-graph-trace] { opacity: 0; fill: none; stroke: var(--value); stroke-width: 3; pointer-events: none }
-[data-graph-trace-arrow] { fill: var(--value) }
+/* Selection has its own accent; schema values keep their semantic blue. */
+[data-graph-trace] { opacity: 0; fill: none; stroke: var(--graph-highlight); stroke-width: 3.5; pointer-events: none }
+/* An opaque tint stays faint when several incoming routes outline one title. */
+rect[data-graph-trace] { fill: var(--graph-highlight-bg) }
+[data-graph-trace-arrow] { fill: var(--graph-highlight) }
 /* Focus is the fallback while no explicit graph hover target is active.
    Low specificity lets the SVG's port/name relationship rules take over. */
 :where([data-graph-connection]:focus) [data-graph-trace] { opacity: 1 }
@@ -651,7 +654,6 @@ svg text { font: inherit }
 [data-graph-connection]:has(> [data-graph-hit]:hover) [data-graph-trace] { opacity: 1 }
 [data-graph-port-edge], [data-graph-node-name] { cursor: pointer }
 [data-graph-port-edge] { pointer-events: all }
-[data-graph-node-name]:hover { fill: var(--value) }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port], [data-graph-group] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }

@@ -698,6 +698,19 @@ link in that same green would make one colour mean both "this went well" and
 values is coincidence, not aliasing: moving one later must not drag the other
 with it.
 
+## Graph selection has its own colour
+
+Graph hover and focus use `--graph-highlight`, amber `#b45309` on the light
+canvas and gold `#fbbf24` on the dark one. `--graph-highlight-bg` adds a faint
+fill to the selected port and title blocks. The thicker arrow and outlines
+also distinguish the selection; labels keep their normal text colours.
+The tint is opaque, so several incoming connections cannot darken the same
+title by stacking translucent fills.
+
+These tokens are independent of `--value`: selecting a connection must not
+recolour the schema values. Both schemes live in the shared stylesheet,
+alongside the rest of the site's palette.
+
 ## The favicon is "fjs", committed rather than generated
 
 `favicon.ico` at the repository root, `favicon.svg` in
