@@ -1,5 +1,5 @@
 {
-    inputs.nixpkgs.url = "github:NixOS/nixpkgs/36fd15bbb657815e2028e31d715c2e43a1230c91";
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/da6dc0e7b26060f2f71ce3ef7088fb56ee44fa36";
     inputs.rust-overlay.url = "git+https://github.com/oxalica/rust-overlay?ref=master&rev=ec07af44be2e0ce4e1a17e00a97d44232607c1ec";
     inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     outputs = { self, nixpkgs, rust-overlay, ... }: let
@@ -9,7 +9,7 @@
                 targets = targets;
             };
             pinned = pkgs.bun.overrideAttrs {
-                version = "1.4.3";
+                version = "1.4.4";
                 src = pkgs.fetchurl {
                     url = url;
                     hash = hash;
@@ -32,8 +32,8 @@
             pkgs = pkgs;
             targets = [ "wasm32-wasip1" "wasm32-wasip2" "wasm32-unknown-unknown" "wasm32-wasip1-threads" ];
             shellHook = "";
-            url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.3/bun-linux-aarch64.zip";
-            hash = "sha256-76mBPaXtckI7+Ef5FujSxHwNd2rdlyNUAmp14Q2pqiE=";
+            url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-linux-aarch64.zip";
+            hash = "sha256-uqa7NvUdblhWHgK76oJQOKnfRU9nPW13bou/hvjHhQ4=";
         };
         devShells.x86_64-linux.default = let
             pkgs = import nixpkgs {
@@ -47,8 +47,8 @@
             shellHook = ''
                 export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=${pkgs.pkgsi686Linux.stdenv.cc}/bin/cc
             '';
-            url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.3/bun-linux-x64.zip";
-            hash = "sha256-PnMFKNiXdfA/h/BcBnh8TfQJnQo38/JS57gpyyOBbhg=";
+            url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-linux-x64.zip";
+            hash = "sha256-v4zL+ysLgBWeD5ptFcVTF63YB3U028YTCj7bUvzLOVw=";
         };
         devShells.aarch64-darwin.default = let
             pkgs = import nixpkgs {
@@ -60,8 +60,8 @@
             pkgs = pkgs;
             targets = [ "wasm32-wasip1" "wasm32-wasip2" "wasm32-unknown-unknown" "wasm32-wasip1-threads" ];
             shellHook = "";
-            url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.3/bun-darwin-aarch64.zip";
-            hash = "sha256-gK/UwGm0am+o8+xSC+vHUKeEPkqNW5WD0prUNsAKNAM=";
+            url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-darwin-aarch64.zip";
+            hash = "sha256-wkDX8My5DCY6hJ/NsJt+5iYw2SE0jtaq/ahrnVd7xRA=";
         };
         packages.aarch64-linux.devTools = let
             pkgs = import nixpkgs {

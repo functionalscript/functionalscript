@@ -39,7 +39,7 @@ export const functionalscript = /** @type {const} */ '0.56.0'
 // package definition. Delete this and the table below the day the snapshot
 // carries a Bun this suite passes on.
 // https://bun.sh/
-export const bun = '1.4.3'
+export const bun = '1.4.4'
 
 // The archive that release publishes for each system a generated flake targets,
 // with the SHA-256 its content must have, as an SRI string.
@@ -56,15 +56,15 @@ export const bun = '1.4.3'
 export const bunSources = {
     'aarch64-linux': {
         archive: 'bun-linux-aarch64',
-        hash: 'sha256-76mBPaXtckI7+Ef5FujSxHwNd2rdlyNUAmp14Q2pqiE=',
+        hash: 'sha256-uqa7NvUdblhWHgK76oJQOKnfRU9nPW13bou/hvjHhQ4=',
     },
     'x86_64-linux': {
         archive: 'bun-linux-x64',
-        hash: 'sha256-PnMFKNiXdfA/h/BcBnh8TfQJnQo38/JS57gpyyOBbhg=',
+        hash: 'sha256-v4zL+ysLgBWeD5ptFcVTF63YB3U028YTCj7bUvzLOVw=',
     },
     'aarch64-darwin': {
         archive: 'bun-darwin-aarch64',
-        hash: 'sha256-gK/UwGm0am+o8+xSC+vHUKeEPkqNW5WD0prUNsAKNAM=',
+        hash: 'sha256-wkDX8My5DCY6hJ/NsJt+5iYw2SE0jtaq/ahrnVd7xRA=',
     },
 }
 
@@ -85,7 +85,7 @@ export const deno = '2.8.3'
 // engine, package-lock.json's root engine and .node-version synchronized with
 // this exact pin; an accepted update replaces the supported Node version.
 // https://nodejs.org/en/download
-export const node = /** @type {const} */ ('26.12.0')
+export const node = /** @type {const} */ ('26.12.1')
 
 // The TypeScript this repository type-checks with, and the one the
 // packed-package check installs from npm to check the declarations the packed
@@ -150,7 +150,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixpkgs-26.05-darwin',
-    commit: '36fd15bbb657815e2028e31d715c2e43a1230c91',
+    commit: 'da6dc0e7b26060f2f71ce3ef7088fb56ee44fa36',
 })
 
 // `rust-overlay`, the second input of the shared flake. Nixpkgs builds
