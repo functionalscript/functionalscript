@@ -25,12 +25,17 @@ import { flat, toArray } from '../../types/list/module.f.mjs'
 import { append, end, init } from '../adler32/module.f.mjs'
 
 /** The most bytes a stored block holds: `LEN` is sixteen bits. */
-const blockBytes = 0xffff
+const blockBytes = /** @type {const} */ (0xffff)
 
 /** The bytes in blocks of as many as a block holds, the last one shorter. */
 const blocksOf = u8ListToVecChunksMsb(blockBytes)
 
-/** The zlib header: CM 8, CINFO 7, FLEVEL fastest, FCHECK making the pair a multiple of 31. */
+/**
+ * The zlib header: CM 8, CINFO 7, FLEVEL fastest, FCHECK making the pair a
+ * multiple of 31.
+ *
+ * @type {readonly number[]}
+ */
 const header = [0x78, 0x01]
 
 /**

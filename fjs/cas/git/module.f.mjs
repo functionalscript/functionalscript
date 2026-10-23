@@ -870,6 +870,7 @@ export const configuredAuthor = (dir, home) => {
             return refuseAuthor(`${included} has an [include] or [includeIf], which is not followed here; set user.name and user.email in it directly`)
         }
         if (name === null || email === null) { return pureOk(null) }
+        /** @type {readonly (readonly [string, string])[]} */
         const values = [['name', name], ['email', email]]
         const empty = values.find(([, v]) => v.trim() === '')
         if (empty !== undefined) {
