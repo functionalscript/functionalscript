@@ -3,7 +3,7 @@
  */
 
 import { actions, images, jobTimeout } from '../config/module.f.js'
-import { install, job, npmGlobalInstall, parseGitHubAction, test, toSteps, ubuntu, ubuntuArm, uses } from './module.f.mjs'
+import { architecture, install, isUbuntuArm, job, npmGlobalInstall, os, parseGitHubAction, test, toSteps, ubuntu, ubuntuArm, uses } from './module.f.mjs'
 import { assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 /** @type {Step} */
@@ -15,6 +15,13 @@ const check = { run: 'check' }
 const checkout = uses('actions/checkout')
 
 export const proof = {
+    /** Of every platform, only Ubuntu on ARM is the canonical runner's. */
+    isUbuntuArm: () => {
+        assertStructurallySame(
+            os.flatMap(v => architecture.flatMap(a => isUbuntuArm(v, a) ? [`${v}-${a}`] : [])),
+            ['ubuntu-arm'],
+        )
+    },
     /** A pinned global npm install is an `install` step running `npm install -g`. */
     npmGlobalInstall: () => {
         assertStructurallySame(

@@ -22,7 +22,7 @@
  */
 
 import { rust, wasmer, wasmtime } from '../config/module.f.js'
-import { test } from '../common/module.f.mjs'
+import { isUbuntuArm, test } from '../common/module.f.mjs'
 import { nixVersionStep } from '../nix/module.f.mjs'
 
 /**
@@ -184,7 +184,7 @@ export const rustPlatformSteps = (v, a) => [
  *
  * @type {(v: Os, a: Architecture) => boolean}
  */
-const wasmPlatform = (v, a) => v === 'ubuntu' && a === 'arm'
+const wasmPlatform = isUbuntuArm
 
 /**
  * What a platform job on the shared shell asserts before its `cargo` commands
