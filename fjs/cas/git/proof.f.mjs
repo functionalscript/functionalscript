@@ -364,6 +364,24 @@ export const proof = {
         const root = over([entry('40000', '.cas', cas.id)], [leaf.object, mid.object, cas.object, sha1.object('blob', readme), sha1.object('blob', alpha)])
         assertStructurallySame(spelled(assertOk(listed(root))), spelled([alphaKey]))
     },
+    // A key filed where `toPath` does not file it — `.cas/a/b/<rest>` and
+    // `.cas/<whole>` for a key filed at `.cas/ab/cd/<rest>` — spells a key
+    // `unshard` reads all the same, and a read of that key walks the one
+    // canonical path and misses. The listing refuses the layout rather than
+    // naming a key the snapshot cannot read.
+    misfiled: () => {
+        const s = vecToCBase32(alphaKey)
+        const blob = sha1.idOf('blob', alpha)
+        const leaf = sha1.treeOf([entry('100644', s.slice(2), blob)])
+        const b = sha1.treeOf([entry('40000', s[1], leaf.id)])
+        const split = sha1.treeOf([entry('40000', s[0], b.id)])
+        const splitRoot = over([entry('40000', '.cas', split.id)], [leaf.object, b.object, split.object, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(splitRoot)), casEntryCode)
+        assert(isNotFound(assertError(readAll(splitRoot, alphaKey))))
+        const whole = sha1.treeOf([entry('100644', s, blob)])
+        const wholeRoot = over([entry('40000', '.cas', whole.id)], [whole.object, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(wholeRoot)), casEntryCode)
+    },
     // A subtree below `.cas` whose object is bytes that are no tree, and one
     // the repository does not hold: the listing is refused rather than cut
     // short at either.
