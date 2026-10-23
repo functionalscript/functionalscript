@@ -174,6 +174,24 @@ merged in as any addition is.
 These records establish successful work. Restoring build outputs is a
 separate requirement.
 
+#### If the native backend is slow
+
+The backend is native: [`fjs/cas/git`](../../cas/git/README.md) reads and
+writes objects, trees, commits and the branch ref through
+[`fjs/git`](../../git/README.md), and no `git` runs. Its cost on a cache
+branch of CI's size is not measured yet, and a job that spends longer in
+the lookup than in the work it skips has no cache. If the measurement says
+so, the fallback is native Git: the job spawns the `git` CLI for the same
+three operations — `git cat-file --batch` to read a key's blob and the
+tree it is filed in, `git hash-object -w`, `git mktree` and
+`git commit-tree` to add one, `git update-ref` to move the branch — behind
+the same `fjs cas git add`, `get` and `list` commands, so nothing else in
+the job changes. Calling an external tool from our code needs approval
+first ([AGENTS.md §6](../../../AGENTS.md#6-external-tools)), so the
+measurement comes first and the approval is asked with it, not assumed
+here; the native path stays the one proofs run against the virtual
+filesystem, and the CLI path is proved against the real `git` in CI.
+
 #### Finer blocks later
 
 Granularity belongs to input selection and the hashed contract of a block.
@@ -212,6 +230,9 @@ own complete input set and success condition.
 - [ ] Document cleanup and how to add finer, overlapping blocks while
       retaining complete inputs and distinct hashed contracts for different
       work.
+- [ ] Measure the native backend's lookup and add on a cache branch of
+      CI's size; where it is slow, ask approval for the `git` CLI fallback
+      and put it behind the same three commands.
 
 ### Related
 
