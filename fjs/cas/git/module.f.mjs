@@ -34,6 +34,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Oid, OidBytes } from '../../git/types.ts'
+ * @import { Envelope } from '../../git/object/types.ts'
  * @import { TreeEntry } from '../../git/tree/types.ts'
  * @import { Read } from '../../git/walk/types.ts'
  * @import { Branch, CasReader, SnapshotOperation } from './types.ts'
@@ -98,6 +99,12 @@ export const casEntryCode = /** @type {const} */ ('ERR_CAS_ENTRY')
 
 /** Refuses with {@link casEntryCode}. */
 const refuseEntry = refuse(casEntryCode)
+
+/** Refuses with {@link snapshotHeadCode}. */
+const refuseHead = refuse(snapshotHeadCode)
+
+/** Refuses with {@link repositoryFormatCode}. */
+const refuseFormat = refuse(repositoryFormatCode)
 
 /**
  * An object read from the store, with a store that has no such object
@@ -346,15 +353,16 @@ export const casAt = (read, oidBytes) => {
     const entriesOf = treeEntries(read, oidBytes)
     const entryAt = walkTo(entriesOf)
     /**
-     * The blob a key's entry names, streamed: refused where its object is no
-     * blob, which holds something that is not the key's content. The
-     * entry's mode was the walk's to check, in the tree it came from.
+     * The blob a key's entry names, streamed, given its object as read:
+     * refused where the object is no blob, which holds something that is
+     * not the key's content. The entry's mode was the walk's to check, in
+     * the tree it came from.
      *
-     * @type {(e: TreeEntry) => EffectList<O, Vec, IoChannel>}
+     * @type {(e: TreeEntry, o: Nullable<Envelope>) => EffectList<O, Vec, IoChannel>}
      */
-    const blobOf = e => step(present(read(e.oid)), o => o === null || o.type !== 'blob'
+    const blobOf = (e, o) => o === null || o.type !== 'blob'
         ? refuseEntry(`${hexText(e.oid)} is no blob`)
-        : fromList(chunksOf(o.payload)))
+        : fromList(chunksOf(o.payload))
     /**
      * One subtree of the listing's walk: its files' keys added, its subtrees
      * walked next. An object below `.cas` that is no tree refuses the listing
@@ -372,9 +380,13 @@ export const casAt = (read, oidBytes) => {
             : pureOk([concat(keys)(es.flatMap(keyOf(rel))), es.flatMap(subtreeOf(rel))])
     })
     return tree => ({
-        read: key => tree === null
-            ? notFound(key)
-            : step(entryAt(tree, components(key)), e => e === null ? notFound(key) : blobOf(e)),
+        read: key => {
+            if (tree === null) { return notFound(key) }
+            // Two links: the entry the key's path names, and its object.
+            const entry = history(entryAt(tree, components(key)))
+            const object = historyStep(entry, e => e === null ? pureOk(null) : present(read(e.oid)))
+            return step(object, ([o, e]) => e === null ? notFound(key) : blobOf(e, o))
+        },
         list: () => {
             if (tree === null) { return pureOk([]) }
             // Three links: the `.cas` entry, the walk below it, the list
@@ -417,10 +429,10 @@ export const snapshot = branch => {
     const { dir } = branch
     const name = stringToU8List(branchRef(branch))
     if (!isWholeName(name)) {
-        return refuse(snapshotHeadCode)(`${branchRef(branch)} is not a ref name`)
+        return refuseHead(`${branchRef(branch)} is not a ref name`)
     }
     const width = step(widthOf(dir), w => w === null
-        ? refuse(repositoryFormatCode)(`${dir} is not a repository Git opens`)
+        ? refuseFormat(`${dir} is not a repository Git opens`)
         : pureOk(w))
     const dirs = historyStep(history(width), () => objectsDirs(dir))
     const reader = historyStep(dirs, (ods, w) => pureOk(readIn(ods, w)))
@@ -431,7 +443,7 @@ export const snapshot = branch => {
         if (commit === null) { return pureOk(at(null)) }
         const tree = o === null || o.type !== 'commit' ? null : tryTreeAt(w)(o.payload)
         return tree === null
-            ? refuse(snapshotHeadCode)(`${branchRef(branch)} names ${hexText(commit)}, which is no commit`)
+            ? refuseHead(`${branchRef(branch)} names ${hexText(commit)}, which is no commit`)
             : pureOk(at(tree))
     })
 }

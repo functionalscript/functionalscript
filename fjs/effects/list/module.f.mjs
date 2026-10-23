@@ -54,11 +54,7 @@ export const nonEmpty = (first, tail) =>
  * @param {List<T>} list
  * @returns {Effect<O, Next<O, T, E>, E>}
  */
-export const fromList = list => {
-    /** @type {(l: List<T>) => Effect<O, Next<O, T, E>, E>} */
-    const cells = l => () => {
-        const n = next(l)
-        return ok(n === null ? undefined : { first: n.first, tail: cells(n.tail) })
-    }
-    return cells(list)
+export const fromList = list => () => {
+    const n = next(list)
+    return ok(n === null ? undefined : { first: n.first, tail: /** @type {EffectList<O, T, E>} */ (fromList(n.tail)) })
 }
