@@ -14,7 +14,9 @@
  *
  * **What is not a whole number is refused**, naming the first item that is
  * not, rather than read as `NaN` and carried through every line. So is a
- * number too large to hold exactly, which `Number` would silently round.
+ * number too large to hold exactly, which `Number` would silently round, and
+ * any spelling but decimal digits with an optional `-`: `Number` would read a
+ * tab as `0` and `0x10` as `16`.
  *
  * **It needs no operations.** Every answer is a pure function of the text, so
  * `update` returns its next state through `pureOk`.
@@ -25,6 +27,7 @@
  * @import { Result } from '../result/types.ts'
  */
 
+import { isDigits } from '../../text/ascii/module.f.js'
 import { codeMarker } from '../../website/style/module.f.js'
 import { textDemo, caption, refusal } from '../../website/demo/module.f.mjs'
 import { addition } from '../function/operator/module.f.js'
@@ -39,7 +42,7 @@ import { cycle, entries, filter, fold, foldScan, intersperse, map, reverse, take
  */
 export const parse = text => {
     const items = text.replaceAll(',', ' ').replaceAll('\n', ' ').split(' ').filter(item => item !== '')
-    const bad = items.find(item => !Number.isSafeInteger(Number(item)))
+    const bad = items.find(item => !isDigits(item.startsWith('-') ? item.slice(1) : item) || !Number.isSafeInteger(Number(item)))
     return bad === undefined ? ok(items.map(Number)) : error(`not a whole number: ${bad}`)
 }
 
