@@ -33,12 +33,12 @@ const workflowOf = program => {
 
 export const proof = {
     // This repository's generation is `ci` with its consumer and the WASM
-    // demos' rebuild and nothing else: the same text, so a change to what
+    // demos' rebuild and smart cache: the same text, so a change to what
     // `main` passes shows here.
     isCiWithTheConsumer: () => {
         assertEq(
             workflowOf(main()),
-            workflowOf(ci({ nodeExtra, packageConsumer })))
+            workflowOf(ci({ nodeExtra, packageConsumer, smart: true })))
     },
     // The rebuild runs on Intel Linux alone, where the module is reproduced,
     // and the drift check follows it.

@@ -25,6 +25,18 @@ export const proof = {
         assertEq(exitCode(code), 0)
         assert(state.stdout.includes('compile'), 'expected command list in stdout')
     },
+    ciGenerator: () => {
+        const [, code] = run({})(['ci'])
+        assertEq(exitCode(code), 0)
+    },
+    ciCacheArguments: () => {
+        const [initState, initCode] = run({})(['ci', 'init', 'extra'])
+        assertEq(exitCode(initCode), 1)
+        assert(initState.stderr.includes("'ci init' expects no parameters"), initState.stderr)
+        const [reportState, reportCode] = run({})(['ci', 'report'])
+        assertEq(exitCode(reportCode), 1)
+        assert(reportState.stderr.includes("'ci report' expects one parameter"), reportState.stderr)
+    },
     compileAloneChecks: () => {
         // `fjs compile` with no arguments is the `.f.js` check, and an empty
         // tree passes it, saying how many files it saw.
