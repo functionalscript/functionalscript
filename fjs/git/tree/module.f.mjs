@@ -208,26 +208,29 @@ const problem = e => {
 }
 
 /**
- * What is wrong between an entry and the one before it, or `null`: the
- * same name twice, a file and a subtree of one name included, since Git
- * refuses the pair as `duplicateEntries` whatever their modes; or the
- * order Git requires broken.
+ * The index of the last entry whose name another entry has, or `-1`: Git
+ * refuses the pair as `duplicateEntries` whatever their modes. A file and
+ * a subtree of one name need not be neighbours — `a`, `a.txt`, `a/` is the
+ * order Git requires, and the pair is still refused — so the names are
+ * sorted on their own, which puts two of one name side by side.
  *
- * @type {(a: TreeEntry, b: TreeEntry) => Nullable<string>}
+ * @type {(entries: readonly TreeEntry[]) => number}
  */
-const pairProblem = (a, b) =>
-    cmp(byteArray(a.name), byteArray(b.name)) === 0 ? 'duplicate name'
-        : compare(a, b) >= 0 ? 'not sorted'
-        : null
+const duplicateName = entries => {
+    const names = entries.map(e => byteArray(e.name))
+    const sorted = names.toSorted(cmp)
+    const twice = sorted.find((n, i) => i !== 0 && cmp(sorted[i - 1], n) === 0)
+    return twice === undefined ? -1 : names.findLastIndex(n => cmp(n, twice) === 0)
+}
 
 /**
  * Vouches for a tree as `git fsck` does, or refuses it, naming the first
  * entry it cannot vouch for and why: a zero-padded mode, a mode that is
  * none of the five Git writes, an empty name, a name holding `/`, a name
  * that is `.` or `..`, a name that is `.git` in any case, a name over
- * 4096 bytes, an id of all zero bytes, a name twice whatever the modes, or
- * entries out of the order Git requires — by name, a subtree as if its
- * name ended in `/`.
+ * 4096 bytes, an id of all zero bytes, a name twice whatever the modes and
+ * wherever the two stand, or entries out of the order Git requires — by
+ * name, a subtree as if its name ended in `/`.
  *
  * Separate from {@link tryRead} on purpose: a reader reads what it can,
  * and only this says no.
@@ -238,9 +241,10 @@ export const validate = entries => {
     const problems = entries.map(problem)
     const i = problems.findIndex(p => p !== null)
     if (i !== -1) { return error(`${problems[i]} at ${i}`) }
-    const pairs = entries.map((e, i) => i === 0 ? null : pairProblem(entries[i - 1], e))
-    const j = pairs.findIndex(p => p !== null)
-    return j === -1 ? ok(entries) : error(`${pairs[j]} at ${j}`)
+    const d = duplicateName(entries)
+    if (d !== -1) { return error(`duplicate name at ${d}`) }
+    const unsorted = entries.findIndex((e, i) => i !== 0 && compare(entries[i - 1], e) >= 0)
+    return unsorted === -1 ? ok(entries) : error(`not sorted at ${unsorted}`)
 }
 
 /**
