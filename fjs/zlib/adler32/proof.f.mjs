@@ -1,6 +1,7 @@
 import { assertEq } from '../../asserts/module.f.js'
 import { u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { fold } from '../../types/list/module.f.mjs'
+import { codePoints } from '../../text/ascii/module.f.js'
 import { append, appendBytes, end, init } from './module.f.mjs'
 
 /**
@@ -9,9 +10,6 @@ import { append, appendBytes, end, init } from './module.f.mjs'
  * @type {(...pieces: readonly (readonly number[])[]) => bigint}
  */
 const adler = (...pieces) => uint(end(fold(append)(init)(pieces.map(u8ListToVecMsb))))
-
-/** @type {(text: string) => readonly number[]} */
-const ascii = text => Array.from(text, c => c.charCodeAt(0))
 
 // The expected values are the last four bytes of Node's `zlib.deflateSync` of
 // the same bytes, which is the Adler-32 zlib closes its stream with.
@@ -24,7 +22,7 @@ export const proof = {
         assertEq(adler([]), 1n)
     },
     // The example RFC 1950's Wikipedia article gives.
-    wikipedia: () => { assertEq(adler(ascii('Wikipedia')), 0x11e6_0398n) },
+    wikipedia: () => { assertEq(adler(codePoints('Wikipedia')), 0x11e6_0398n) },
     // Bytes of 0xff are the worst case for `a` and `b`, which reduce
     // modulo 65 521 well before 5 552 of them, the most zlib sums at once.
     reduces: () => {

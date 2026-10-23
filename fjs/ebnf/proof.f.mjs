@@ -9,6 +9,7 @@
 
 import { assertStructurallySame } from '../asserts/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
+import { one as c } from '../text/ascii/module.f.js'
 import { parser } from './ll1/module.f.mjs'
 import { units, utf16 } from './utf16/module.f.mjs'
 import {
@@ -30,9 +31,6 @@ import {
     union,
 } from './module.f.mjs'
 import { assertRecognizes, force, recognizer } from './testlib.f.mjs'
-
-/** @type {(a: string) => number} */
-const c = a => a.codePointAt(0) ?? 0
 
 /**
  * The boundaries a `SetInfo` carries. Every constructor returns a thunk, so

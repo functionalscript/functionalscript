@@ -4,6 +4,7 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { one as c } from '../../text/ascii/module.f.js'
 import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { digit, json, string, uint, ws, wsSymbol } from '../lib/json/module.f.mjs'
@@ -11,9 +12,6 @@ import { codePoints, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, valida
 
 const { keys } = Object
 const { MAX_SAFE_INTEGER } = Number
-
-/** @type {(a: string) => number} */
-const c = a => a.codePointAt(0) ?? 0
 
 /**
  * Values as they arrive from outside the type system — a deserialized set, a
