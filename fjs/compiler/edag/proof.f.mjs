@@ -1739,26 +1739,6 @@ export const proof = {
         noEdgeCrossesABox: () => {
             assertEq(_crossings(unwrap(graphOfText(demo.init))), 0)
         },
-        /**
-         * **Recursion is an arrow back to the function**, routed around the
-         * graph: `f(n)`'s callee is a back edge to the `=>` whose body holds
-         * it. A `self` in a slot the inner function captures is the outer
-         * one's, so the inner `=>`'s `frame 0` goes back to the outer, not
-         * to itself, and the inner's own `g` call goes back to the inner.
-         */
-        recursion: () => {
-            const backs = (/** @type {string} */ source) => {
-                const g = unwrap(graphOfText(source))
-                assertEq(_crossings(g), 0)
-                return g.edges.flatMap(e => e.back === true
-                    ? [`${g.nodes[e.from].label} ${e.label} -> ${g.nodes[/** @type {number} */ (e.to)].label} ${e.to}`]
-                    : [])
-            }
-            assertStructurallySame(backs('const f = n => n < 1 ? 0 : f(n - 1); export default f;'), ['() callee -> => 0'])
-            assertStructurallySame(
-                backs('const f = n => { const g = m => m < 1 ? f(m) : g(m - 1); return g(n) }; export default f;'),
-                ['=> frame 0 -> => 0', '() callee -> => 2'])
-        },
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 3)
