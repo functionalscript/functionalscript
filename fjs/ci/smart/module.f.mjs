@@ -30,6 +30,11 @@ export const platformSchema = /** @type {const} */ ({
 
 const shellPrefix = /** @type {const} */ ('sh ./gen.nix/run ')
 
+const botIdentity = /** @type {const} */ ({
+    GIT_AUTHOR_NAME: 'github-actions[bot]',
+    GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+})
+
 /** The command inside the generated Nix wrapper or an injected step. */
 /** @type {(step: Step) => string} */
 const command = step => {
@@ -137,10 +142,7 @@ const cachedJob = (jobId, source) => {
             ...(last ? [{
                 run: `npm start ci report ${own}`,
                 if: misses([own]),
-                env: {
-                    GIT_AUTHOR_NAME: 'github-actions[bot]',
-                    GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
-                },
+                env: botIdentity,
                 'continue-on-error': /** @type {const} */ (true),
             }] : []),
         ]
@@ -166,8 +168,13 @@ const cachedJob = (jobId, source) => {
             },
             ...gated,
             {
-                run: 'git push origin build-cache',
+                run: 'npm start ci publish',
                 if: "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+                env: {
+                    ...botIdentity,
+                    GIT_COMMITTER_NAME: botIdentity.GIT_AUTHOR_NAME,
+                    GIT_COMMITTER_EMAIL: botIdentity.GIT_AUTHOR_EMAIL,
+                },
                 'continue-on-error': true,
             },
         ],

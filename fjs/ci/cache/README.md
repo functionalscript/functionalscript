@@ -47,14 +47,24 @@ runs when any dependent check misses.
 succeeds. The workflow supplies the bot's name and email through
 `GIT_AUTHOR_NAME` and `GIT_AUTHOR_EMAIL`; the reporter does not resolve identity
 through Git config, whose credential includes belong to checkout. A hit writes
-nothing. The final step attempts one push, even if a later check failed; fork
-and Dependabot pull requests do not publish.
+nothing. The final `npm start ci publish` step publishes the recorded successes,
+even if a later check failed; fork and Dependabot pull requests do not publish.
+The workflow also supplies `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` to
+the publisher for Git merge commits.
 
-Cache fetch, initialization, reporting, and push are best effort. Initialization
-failure leaves the checks to run normally and disables publication. A report
-failure does not block later checks. The checks themselves still fail the job
-on error. Losing a cache entry only costs another run; there is no retry or
-merge loop.
+Publication makes at most ten total push attempts. After a failed push, it
+fetches the current `build-cache` tip, merges it with the local cache branch in
+a temporary worktree, and retries. Fetches and pushes run from the source
+checkout so Git uses the credentials configured there by `actions/checkout`.
+Only the separate worktree checks out the cache branch; publication leaves the
+source checkout untouched. Concurrent reports accumulate without rerunning the
+checks that produced them.
+
+Cache fetch, initialization, reporting, and publication are best effort.
+Initialization failure leaves the checks to run normally and disables
+publication. A report failure does not block later checks. The checks themselves
+still fail the job on error. Publication stops if fetching or merging fails, or
+after ten unsuccessful push attempts. Unpublished entries only cost another run.
 
 Only committed CI snapshots are supported. The checkout uses LF line endings;
 symlinks, submodules, or unrepresented inputs cannot certify a check. Executable

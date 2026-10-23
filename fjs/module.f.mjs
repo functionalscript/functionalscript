@@ -69,7 +69,7 @@ export const commands = [
     {
         names: ['ci', 'i'],
         description: 'Generate CI workflows or cache successful checks',
-        usage: 'fjs ci\nfjs ci init\nfjs ci report <check>',
+        usage: 'fjs ci\nfjs ci init\nfjs ci report <check>\nfjs ci publish',
         examples: ['fjs ci', 'npm start ci init'],
         note: 'Run in the project whose GitHub Actions workflows you want to generate. This writes .github/workflows/gen.ci.yml and gen.npm-publish.yml.',
         docs: 'fjs/ci/README.md',
