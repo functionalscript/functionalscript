@@ -189,6 +189,10 @@ export const proof = {
         assertStructurallySame(validate([entry('100644', 'a', idA), entry('100644', 'a', idB)]), ['error', 'duplicate name at 1'])
         assertStructurallySame(validate([entry('100644', 'a', idA), entry('40000', 'a', idB)]), ['error', 'duplicate name at 1'])
         assertStructurallySame(validate([entry('40000', 'a', idA), entry('100644', 'a', idB)]), ['error', 'duplicate name at 1'])
+        // A file and a subtree of one name with another name between them,
+        // in the order Git requires — `a`, `a.txt`, `a/` — is the pair Git
+        // refuses all the same.
+        assertStructurallySame(validate([entry('100644', 'a', idA), entry('100644', 'a.txt', idA), entry('40000', 'a', idB)]), ['error', 'duplicate name at 2'])
         assertStructurallySame(validate([entry('100644', 'b', idA), entry('100644', 'a', idB)]), ['error', 'not sorted at 1'])
         assertStructurallySame(validate([entry('100644', 'a', idA), entry('100644', 'ab', idB)])[0], 'ok')
         assertStructurallySame(validate([entry('100644', 'ab', idA), entry('100644', 'a', idB)]), ['error', 'not sorted at 1'])

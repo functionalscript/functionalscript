@@ -50,7 +50,12 @@ import { splitAt } from '../types/string/module.f.mjs'
 
 const split2 = splitAt(2)
 
-const prefix = '.cas'
+/**
+ * The directory every shard sits under, relative to the store's root: the
+ * `.cas` of `~/.cas/`, and of a Git branch's tree in
+ * [`fjs/cas/git`](./git/module.f.mjs), whose listing starts at it.
+ */
+export const prefix = '.cas'
 
 /** The sharded location of a content key: its relative directory and file name.
  * The one owner of the shard layout; `toPath` and `publish` are its two views,
@@ -70,9 +75,12 @@ const shard = key => {
  * not cBase32. It does not check the key's length, so a cBase32 path of the
  * wrong length decodes to a key no hash produced.
  *
+ * Exported for the listing of a store that is no directory — a Git tree's,
+ * in [`fjs/cas/git`](./git/module.f.mjs) — which walks the same layout.
+ *
  * @type {(relPath: string) => Vec | null}
  */
-const unshard = relPath => cBase32ToVec(relPath.replaceAll('/', ''))
+export const unshard = relPath => cBase32ToVec(relPath.replaceAll('/', ''))
 
 /** Converts a content key to its sharded relative CAS file path.
  *
