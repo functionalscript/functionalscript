@@ -92,6 +92,8 @@ written out again.
       `text/ascii`.
 - [x] `fjs/website/browser-source`: `nameChar` over the identifier rule,
       `isIdentifierPart`, which `isIdentifier` reads too.
+- [x] `fjs/text/marked`: `withNames`' `isNameStart` and `isNamePart` over
+      `isIdentifierStart` and `isIdentifierPart`, through `charIs`.
 - [x] `fjs/website/changelog`: `isDigit` and `isHex` from `text/ascii`.
 - [x] `fjs/path`: `isDriveLetter` over `isLatinLetter`.
 - [x] `fjs/media/nix`: its range sets over `text/ascii`'s classes, keeping
