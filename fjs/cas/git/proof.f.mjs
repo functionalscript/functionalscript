@@ -13,7 +13,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
-import { pureOk, runPure } from '../../effects/module.f.mjs'
+import { ioError, pureError, pureOk, runPure } from '../../effects/module.f.mjs'
 import { isNotFound } from '../../effects/node/module.f.mjs'
 import { virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
@@ -221,6 +221,32 @@ const assertReads = (root, key, bytes) => {
 }
 
 /**
+ * A SHA-1 CAS holding `bytes` under its key, as objects in memory: the root
+ * tree's id and every object by its hex id, for a reader that is no store.
+ *
+ * @type {(bytes: readonly number[]) => { readonly root: Oid, readonly held: ReadonlyMap<string, Envelope> }}
+ */
+const inMemory = bytes => {
+    const { idOf } = sha1
+    const blobId = idOf('blob', bytes)
+    const [, ab, cd, rest] = pathOf(alphaKey)
+    const leaf = toArray(writeTree(20)([entry('100644', rest, blobId)]))
+    const mid = toArray(writeTree(20)([entry('40000', cd, idOf('tree', leaf))]))
+    const cas = toArray(writeTree(20)([entry('40000', ab, idOf('tree', mid))]))
+    const root = toArray(writeTree(20)([entry('40000', '.cas', idOf('tree', cas))]))
+    return {
+        root: idOf('tree', root),
+        held: new Map([
+            [hexText(blobId), { type: 'blob', payload: bytes }],
+            [hexText(idOf('tree', leaf)), { type: 'tree', payload: leaf }],
+            [hexText(idOf('tree', mid)), { type: 'tree', payload: mid }],
+            [hexText(idOf('tree', cas)), { type: 'tree', payload: cas }],
+            [hexText(idOf('tree', root)), { type: 'tree', payload: root }],
+        ]),
+    }
+}
+
+/**
  * The ordinary repository behaves as a store: both contents read back byte
  * for byte, the binary one included, and the listing is exactly the two
  * keys — the `README` beside `.cas` is no key and is not listed.
@@ -406,15 +432,10 @@ export const proof = {
     },
     // A `100644` entry whose blob the repository does not hold — a partial
     // clone, a corrupt store — is a missing object, refused, and not a key
-    // that is not in the snapshot. So is one whose loose path runs through a
-    // file where its directory should be, which the host reports as
-    // `ENOTDIR` rather than `ENOENT` and the store reads as nothing there.
+    // that is not in the snapshot.
     entryMissing: () => {
-        const blob = sha1.idOf('blob', alpha)
-        const { root, objects } = casEntry(alphaKey, '100644', blob)
+        const { root, objects } = casEntry(alphaKey, '100644', sha1.idOf('blob', alpha))
         assertEq(codeOf(readAll(over(root, objects), alphaKey)), casEntryCode)
-        const through = setIn(over(root, objects), objectPath(dir)(blob).split('/').slice(0, -1), text('a file, not a directory\n'))
-        assertEq(codeOf(readAll(through, alphaKey)), casEntryCode)
     },
     // A file below `.cas` whose name is no cBase32 — a `README.md` someone
     // put there, a name with a byte above `0x7F` — spells no key and is
@@ -486,25 +507,11 @@ export const proof = {
     // read through a reader that holds it in memory, with no file to inflate:
     // it streams as two cells, a full `Vec` and the rest, and then ends.
     bigBlob: () => {
-        const { idOf } = sha1
         const big = Array.from({ length: Number(maxLength / 8n) + 1 }, (_, i) => i & 0xff)
-        const bigId = idOf('blob', big)
-        const [, ab, cd, rest] = pathOf(alphaKey)
-        const leaf = toArray(writeTree(20)([entry('100644', rest, bigId)]))
-        const mid = toArray(writeTree(20)([entry('40000', cd, idOf('tree', leaf))]))
-        const cas = toArray(writeTree(20)([entry('40000', ab, idOf('tree', mid))]))
-        const root = toArray(writeTree(20)([entry('40000', '.cas', idOf('tree', cas))]))
-        /** @type {ReadonlyMap<string, Envelope>} */
-        const held = new Map([
-            [hexText(bigId), { type: 'blob', payload: big }],
-            [hexText(idOf('tree', leaf)), { type: 'tree', payload: leaf }],
-            [hexText(idOf('tree', mid)), { type: 'tree', payload: mid }],
-            [hexText(idOf('tree', cas)), { type: 'tree', payload: cas }],
-            [hexText(idOf('tree', root)), { type: 'tree', payload: root }],
-        ])
+        const { root, held } = inMemory(big)
         /** @type {Read<never>} */
         const read = id => pureOk(held.get(hexText(id)) ?? null)
-        const stream = casAt(read, 20)(idOf('tree', root)).read(alphaKey)
+        const stream = casAt(read, 20)(root).read(alphaKey)
         const o1 = runPure(stream)
         assert(o1.length === 1, o1)
         const c1 = assertOk(o1[0])
@@ -518,5 +525,28 @@ export const proof = {
         const o3 = runPure(c2.tail)
         assert(o3.length === 1, o3)
         assertEq(assertOk(o3[0]), undefined)
+    },
+    // A store whose read of the blob fails with the host's other words for
+    // nothing at the path — `ENOTDIR`, a loose path through a file, and
+    // `ELOOP`, a cycle of links — is a missing object, refused as the
+    // `ENOENT` one is; a failure that says the file may well be there,
+    // `EACCES`, is passed on as it is. Driven through an in-memory reader,
+    // since the virtual filesystem answers `ENOENT` for all three
+    // ([its todo](../../effects/node/virtual/todo/reads-enotdir-through-a-file.md)).
+    entryUnreachable: () => {
+        const { root, held } = inMemory(alpha)
+        const blobId = sha1.idOf('blob', alpha)
+        /** @type {(code: string) => Read<never>} */
+        const failing = code => id => hexText(id) === hexText(blobId)
+            ? pureError(ioError({ code, message: code }))
+            : pureOk(held.get(hexText(id)) ?? null)
+        for (const code of ['ENOTDIR', 'ELOOP']) {
+            const o = runPure(casAt(failing(code), 20)(root).read(alphaKey))
+            assert(o.length === 1, o)
+            assertEq(codeOf(o[0]), casEntryCode, code)
+        }
+        const o = runPure(casAt(failing('EACCES'), 20)(root).read(alphaKey))
+        assert(o.length === 1, o)
+        assertEq(codeOf(o[0]), 'EACCES')
     },
 }
