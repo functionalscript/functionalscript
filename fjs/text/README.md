@@ -13,6 +13,10 @@ Text that says what its words are — keywords, strings, numbers — beside the
 text itself, for a page or a terminal to colour without reading it again, is
 `marked`: [`marked/README.md`](./marked/README.md).
 
+Which function to call for each encoding is on its own page:
+[`utf8`](./utf8/README.md), [`utf16`](./utf16/README.md) and
+[`ascii`](./ascii/README.md). The rest of this page is the bit-level design.
+
 ## UTF-8
 
 Requirement: no loss for UTF8 => codepoint => UTF8
