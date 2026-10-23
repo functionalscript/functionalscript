@@ -113,10 +113,17 @@ export type _Lane = {
     readonly right: number
 }
 
+/** A back edge's source/target ranks and source height. */
+export type _BackEdge = {
+    readonly index: number
+    readonly from: number
+    readonly to: number
+    readonly y: number
+}
+
 /**
  * Where a back edge runs: `lane`, its place below the graph, nearest first,
- * and `out` and `into`, its place among the back edges going down the gap
- * right of its source's column and up the gap left of its target's.
+ * and `out` and `into`, its place in its source and target gaps.
  */
 export type _BackLane = {
     readonly lane: number

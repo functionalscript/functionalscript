@@ -85,7 +85,9 @@ export type Ranked = Node & { readonly rank: number }
  * so it can point to its source's own rank or any rank left of it. It is drawn
  * around the outside of the graph: down from its port to below every node,
  * left along the bottom, and up into its target's left side, in a lane of
- * its own below the graph and in each gap it goes down or up.
+ * its own below the graph and in each gap it goes down or up. Returns
+ * enter at distinct points down the target's left side, with the outermost
+ * route entering highest. Each return keeps its own arrowhead.
  */
 export type Edge = {
     readonly from: number
@@ -160,6 +162,14 @@ export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
     readonly entries?: readonly Entry[] | undefined
+    /** Trace lines/output ports, incoming connections at node names, or native keyboard/click focus. */
+    readonly trace?: boolean | undefined
+    /**
+     * Center non-tree nodes on incoming forward connections, fitting nodes
+     * and routing lanes within the tallest packed column without overlaps.
+     * Trees retain their parent/child centering.
+     */
+    readonly centerColumns?: boolean | undefined
 }
 
 /**
