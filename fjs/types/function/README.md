@@ -23,7 +23,7 @@ identity('a')                             // 'a'
 |`fn(f).map(g).result`    |the same composition as a chain, for longer pipelines                          |
 |`identity(x)`            |`x`                                                                            |
 |`flip(f)(b)(a)`          |`f(a)(b)`: swaps the first two arguments of a curried function                 |
-|`iterate(n)(x)(f)`       |`f` applied `n` times. `n` is a `bigint`, and the recursion is `O(log n)` deep.|
+|`iterate(n)(x)(f)`       |`f` applied `n` times, none for `n <= 0n`. `n` is a `bigint`, and the recursion is `O(log n)` deep.|
 |`fixpoint(step, same)(x)`|applies `step` until a round answers something `same` as its input             |
 
 **`fixpoint` is a loop, not a recursion,** so a relaxation that takes

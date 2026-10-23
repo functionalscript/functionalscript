@@ -45,7 +45,8 @@ for the same reason.
 
 [`types.ts`](./types.ts) holds the shapes the library uses for records:
 
-- `StringMap<T>`: a dictionary, any string to `T`.
+- `StringMap<T>`: a dictionary from strings to `T`, where any key may be
+  missing, so reading one gives `T | undefined`.
 - `OptionalMap<K, T>` and `RequiredMap<K, T>`: records over a known set of
   keys, each optional or required.
 - `Entry<T>`: one `[key, value]` pair.

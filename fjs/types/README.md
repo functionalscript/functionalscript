@@ -78,7 +78,7 @@ easier to read.
 |-----------------------|-----------------------------------------------------------------------------------------|
 |[`nominal`](./nominal/)|Branded types that the type checker will neither mix nor order-compare with another.     |
 |[`phantom`](./phantom/)|`Phantom<S, T>`, a type parameter with no runtime field, like Rust's `PhantomData`.      |
-|[`ts`](./ts/)          |The `Equal`/`Assert` compile-time checks, and a printer that writes TypeScript type text.|
+|[`ts`](./ts/)          |The `Equal` compile-time check, used with `Assert` from [`asserts`](../asserts/types.ts), and a printer that writes TypeScript type text.|
 
 ### Persistent collections
 
