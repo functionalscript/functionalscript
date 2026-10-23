@@ -316,6 +316,19 @@ export const proof = {
         assertEq(codeOf(listed(root)), casEntryCode)
         assertEq(codeOf(readAll(root, alphaKey)), casEntryCode)
     },
+    // A tree whose entries are out of the order Git writes — which `git
+    // fsck` refuses as `treeNotSorted` — is refused by the listing and by a
+    // read through it: a writer rebuilding it would write one Git refuses.
+    unsortedTree: () => {
+        const [, ab, cd, rest] = pathOf(alphaKey)
+        const blob = sha1.idOf('blob', alpha)
+        const leaf = sha1.treeOf([entry('100644', 'zz', blob), entry('100644', rest, blob)])
+        const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
+        const top = sha1.treeOf([entry('40000', ab, mid.id)])
+        const root = over([entry('40000', '.cas', top.id)], [leaf.object, mid.object, top.object, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(root)), casEntryCode)
+        assertEq(codeOf(readAll(root, alphaKey)), casEntryCode)
+    },
     // The root tree, which the layout shares with the rest of the branch, is
     // checked as a tree and no more: a name it holds twice refuses a read
     // and the listing, where a `README.md` beside `.cas` is nobody's
@@ -398,7 +411,7 @@ export const proof = {
         const [, ab, cd, rest] = pathOf(alphaKey)
         const leaf = sha1.treeOf([entry('100644', rest, sha1.idOf('blob', alpha))])
         const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
-        const cas = sha1.treeOf([entry('100644', 'README.md', readmeId), entry('100644', '\xff', readmeId), entry('40000', ab, mid.id)])
+        const cas = sha1.treeOf([entry('100644', 'README.md', readmeId), entry('100644', '\xff', readmeId), entry('40000', ab, mid.id)].toSorted((a, b) => nameOf(a.name) < nameOf(b.name) ? -1 : 1))
         const root = over([entry('40000', '.cas', cas.id)], [leaf.object, mid.object, cas.object, sha1.object('blob', readme), sha1.object('blob', alpha)])
         assertStructurallySame(spelled(assertOk(listed(root))), spelled([alphaKey]))
     },
