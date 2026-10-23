@@ -12,6 +12,9 @@ need them.
   all served from one process.
 - [`cas` CLI](cli/module.f.mjs) — direct filesystem access for content larger
   than the MCP inline-content cap.
+- [fjs/cas/git](git/) — the same store in a Git branch: a commit's tree as
+  the map, `add` as one commit on a local branch; `fjs cas git` from the
+  command line, and `git push`, `git fetch` and `git merge` for the rest.
 - [fjs/cas/evo](evo/) — the Evo API: subjects and revision heads
   ([vnd.fjs.revision](../media/revision/)) cached in memory over this
   store.

@@ -18,7 +18,7 @@
  * branch between repositories is `git push` and `git fetch`, and joining
  * two writers' branches is `git merge`, as for any branch; this backend
  * syncs nothing
- * ([`todo/git-branch-storage.md`](../todo/git-branch-storage.md)).
+ * ([`README.md`](./README.md)).
  *
  * Everything here is native over [`fjs/git`](../../git/README.md): the
  * repository's id width from its `config`, the refs through the ref store

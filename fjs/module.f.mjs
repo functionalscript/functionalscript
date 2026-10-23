@@ -42,7 +42,7 @@ export const commands = [
         description: 'Content-addressable storage operations',
         usage: 'fjs cas <command> [args]',
         examples: ['fjs help cas'],
-        note: 'Choose add, get or list below. Content is stored under ~/.cas/.',
+        note: 'Choose add, get or list below for the store under ~/.cas/, or git for the same three over a Git branch.',
         docs: 'fjs/cas/README.md',
         handler: casCommands,
     },

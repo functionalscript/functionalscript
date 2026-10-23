@@ -2,7 +2,6 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [CAS in a Git branch](../../cas/todo/git-branch-storage.md)
 
 ### Problem
 
@@ -15,14 +14,16 @@ result.
 
 Implement this in two stages:
 
-1. Add [CAS support for a non-current Git branch](../../cas/todo/git-branch-storage.md),
-   including CLI access.
+1. Add [CAS support for a non-current Git branch](../../cas/git/README.md),
+   including CLI access — done, as `fjs/cas/git` and `fjs cas git`.
 2. Use that CAS backend to create and read the `build-cache` branch in the
    same repository and publish complete JSON manifests after build success.
 
-The CAS backend owns branch access, commits, pushes, retries, and cleanup.
-This consumer owns input selection, build identity, and the success
-condition. Use CAS hashes for the JSON documents and reuse Git blob IDs for
+The CAS backend owns branch access and the commit each `add` makes; it
+does not sync, publish, retry or delete — `git push`, `git fetch`,
+`git merge` and a deletion commit are Git's own, and the job runs them.
+This consumer owns input selection, build identity, the success
+condition, and the publication loop below. Use CAS hashes for the JSON documents and reuse Git blob IDs for
 committed source files. The first target is CI; smart builds on developer
 machines are a separate [investigation](../../dev/todo/smart-builds.md).
 
@@ -126,27 +127,49 @@ is a follow-up, not a prerequisite for this CI implementation.
 
 1. Compute the selected contract, complete input tree, canonical manifest,
    and its CAS key without publishing it.
-2. Read that key through CAS in a fetched `build-cache` branch snapshot.
-   Its presence there allows the corresponding work to be skipped.
-   Historical objects, objects in another CAS store, and unpublished local
-   writes do not establish a successful build.
+2. `git fetch origin build-cache:build-cache` — a fast-forward of the
+   local branch, which is never checked out — then read that key through
+   CAS in it (`snapshot` of the local `build-cache`, or `fjs cas git get`).
+   Its presence there allows the corresponding work to be skipped. Where
+   `origin` has no `build-cache` yet — the first build of a repository —
+   the fetch fails with `couldn't find remote ref`, and that is the empty
+   cache, not a failure: `git ls-remote --exit-code --heads origin
+   build-cache` exits 2 for it, the lookup goes on against the absent
+   local branch, which `snapshot` opens as the empty map, and step 3's
+   push creates the remote branch. Any other fetch failure fails the job.
+   Historical objects, objects in another CAS store, and local writes not
+   yet pushed do not establish a successful build.
 3. On a miss, run the block. Only after all checks required by that block
-   succeed, write the original complete manifest through CAS and publish it
-   to `build-cache`. A failed, cancelled, or partial run adds no entry.
-4. Let the branch backend handle commit creation, concurrency, and retries.
-   A publication retry does not repeat the successful build.
+   succeed, write the original complete manifest through CAS — one `add`,
+   one commit on the local `build-cache` — and `git push origin
+   build-cache`. A failed, cancelled, or partial run adds no entry. The
+   checkout has no committer identity of its own, and `fjs cas git add`
+   reads one from the repository's `config` and refuses without it, so the
+   job sets the bot's first, as any job that commits does:
+   `git config user.name "github-actions[bot]"` and `git config user.email
+   "41898282+github-actions[bot]@users.noreply.github.com"`.
+4. Where the push is refused as a non-fast-forward because another job
+   published first, `git fetch origin build-cache`, merge it into the local
+   branch in a worktree (`git worktree add ../cache build-cache`, then
+   `git merge origin/build-cache` there; `--allow-unrelated-histories` where
+   the two branches began apart) — different keys are different paths, so
+   independent additions never conflict — and push again, a few times. The
+   loop is the job's, in its script; a retry does not repeat the successful
+   build.
 
-Keep the source checkout unchanged during cache access and publication,
-using the backend's explicit branch operations. Publish an initial Rust or
+Keep the source checkout unchanged during cache access and publication:
+the backend writes only objects and the branch ref, and the fetch, merge
+and push name the branch rather than checking it out. Publish an initial Rust or
 JS entry only after its entire hashed contract succeeds; one platform or a
 narrower check cannot certify the full block. Another build system may
 reuse the entry when its canonical contract and complete inputs describe
 equivalent work.
 
-Use the backend's ordinary deletion commits to clear some or all cache
-entries. Membership in the current published tree determines a hit; Git
-storage reclamation is independent. Concurrent additions may appear after
-cleanup, as specified in the branch-CAS task.
+Clear some or all cache entries with an ordinary deletion commit on the
+branch — `git rm` on a checkout of it, or a commit built the same way —
+and push it. Membership in the fetched tree determines a hit; Git storage
+reclamation is independent. Concurrent additions may appear after cleanup,
+merged in as any addition is.
 
 These records establish successful work. Restoring build outputs is a
 separate requirement.
@@ -165,7 +188,7 @@ own complete input set and success condition.
 
 ### Tasks
 
-- [ ] Complete [branch CAS and its CLI](../../cas/todo/git-branch-storage.md)
+- [x] Complete [branch CAS and its CLI](../../cas/git/README.md)
       before implementing build-cache integration.
 - [ ] Define the canonical contract-descriptor schema and the two initial
       Rust and JS contracts, including the selected invocation and execution
@@ -192,8 +215,8 @@ own complete input set and success condition.
 
 ### Related
 
-- [CAS in a Git branch](../../cas/todo/git-branch-storage.md) — prerequisite
-  backend and CLI, including publication and cleanup.
+- [CAS in a Git branch](../../cas/git/README.md) — the backend and CLI; the
+  branch moves with `git push` and `git fetch`.
 - [Smart builds on developer machines](../../dev/todo/smart-builds.md) —
   separate investigation; no developer-machine design is part of this task.
 - [change-aware-ci](./change-aware-ci.md) — classifies changed paths to select
