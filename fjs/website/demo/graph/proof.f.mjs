@@ -394,6 +394,24 @@ export const proof = {
             assert(!html.includes('data-graph-title-outline="1"'), html)
             assert(!html.includes(' data-graph-title-hover="1"'), html)
         },
+        // A compact node still has a row in the layout, but its title
+        // fills the entire width. Trace its title rather than drawing a
+        // phantom zero-width port outline beside it.
+        tracingCompactPort: () => {
+            const html = htmlToString(graphSvg({
+                trace: true,
+                nodes: [
+                    { id: 0, kind: 'n', label: 'or', rank: 0 },
+                    { id: 1, kind: 'n', label: 'leaf', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: '' }],
+            }))
+            assertEq(occurrences('data-graph-port-outline=')(html), 0)
+            assertEq(occurrences('data-graph-title-outline=')(html), 2)
+            assert(html.includes('data-graph-title-outline="0"'), html)
+            assert(html.includes('data-graph-title-outline="1"'), html)
+            assertEq(occurrences(' data-graph-connection=')(html), 1)
+        },
         // A node's rect and label render, and so does an edge's path and label.
         rendersNodesAndEdges: () => {
             const html = htmlToString(graphSvg({
