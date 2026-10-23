@@ -13,3 +13,7 @@ gen.* linguist-generated=true
 # Generated too, under the name its tool requires: the devcontainer CLI writes
 # this lock from `.devcontainer/devcontainer.json` in `npm run lock-update`.
 .devcontainer/devcontainer-lock.json linguist-generated=true
+
+# Binary: the WASM demo pages' committed module, which the text rule above
+# would corrupt wherever its bytes hold a CRLF.
+*.wasm binary

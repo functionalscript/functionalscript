@@ -286,7 +286,7 @@ const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => rust =>
     /** @type {Jobs} */
     const jobs = {
         ...Object.fromEntries(os.flatMap(o =>
-            architecture.map(platformJob(rust, nodeExtra(o), mergeQueueOnly.includes(o))(o)))),
+            architecture.map(a => platformJob(rust, nodeExtra(o, a), mergeQueueOnly.includes(o))(o)(a)))),
         ...canonicalJobs(packageConsumer),
     }
     /** @type {GitHubAction} */

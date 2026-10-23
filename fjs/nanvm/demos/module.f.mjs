@@ -4,7 +4,16 @@
  * `sample.f.js` compiled through the compiler's Rust output into
  * `nanvm/demos/gen.samples/<name>.rs`, and `gen.samples/mod.rs` naming each.
  * The `nanvm-demos` crate reaches the set through one `#[path]` to that
- * `mod.rs`, and builds it for `wasm32` in the deployment build.
+ * `mod.rs`.
+ *
+ * **And the script that builds the module the pages load**,
+ * `nanvm/demos/gen.build.sh`: `nanvm-demos` built for `wasm32`, and
+ * `nanvm-demos-publish` copying it into `nanvm/demos/wasm/` with each
+ * sample's WAT beside it. Its output is committed, so building the site
+ * takes no Rust; CI runs the script on Intel Linux and fails when the
+ * committed files differ from what it built. The build is reproducible only
+ * with the pinned Rust, so the script refuses any other `rustc` rather than
+ * writing a module that would differ for that reason alone.
  *
  * Invoked from `gen`, so the drift check fails when a committed `.rs` is
  * stale. The samples are listed, not found by a walk, in
@@ -27,13 +36,14 @@
  * @import { FunctionPlace, ListedCall, Place } from './page/types.ts'
  */
 
+import { rust } from '../../ci/config/module.f.js'
 import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
 import { forEachStep, pureOk, step } from '../../effects/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
-import { rustDirectory, rustPath, samplePath } from './page/module.f.mjs'
+import { buildDirectory, rustDirectory, rustPath, samplePath, wasmPath } from './page/module.f.mjs'
 import { samples } from './samples/module.f.mjs'
 
 export { rustPath, samplePath, samples }
@@ -126,15 +136,47 @@ export const modules = places => {
     ].join('\n')
 }
 
+/** The target the pages' module is built for. */
+export const wasmTarget = 'wasm32-unknown-unknown'
+
+/** Where `cargo build` writes that module. */
+export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
+
+/**
+ * The script that builds the module and its disassembly: a `gen.` name, run
+ * through `sh` as `sh ./nanvm/demos/gen.build.sh`, since a regenerated file
+ * has no executable bit.
+ */
+export const buildScriptPath = 'nanvm/demos/gen.build.sh'
+
+/**
+ * The script's text: the pinned Rust checked first, then the module built and
+ * published with the WAT of each of `places`. Run in the shared shell, which
+ * carries that Rust and the `wasm32` target: `sh ./gen.nix/run sh
+ * ./nanvm/demos/gen.build.sh`.
+ *
+ * @type {(places: readonly Place[]) => string}
+ */
+export const buildScript = places => `#!/bin/sh
+set -e
+case "$(rustc --version)" in
+"rustc ${rust} "*) ;;
+*) echo "nanvm/demos/wasm/ is built with Rust ${rust}, not $(rustc --version): run sh ./gen.nix/run sh ./${buildScriptPath}" >&2; exit 1 ;;
+esac
+cargo build -p nanvm-demos --release --target ${wasmTarget}
+cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(({ name }) => name).join(' ')}
+`
+
 /**
  * Compiles every sample into its `.rs`, in order, stopping at the first the
- * compiler refuses, then writes `mod.rs` naming them all.
+ * compiler refuses, then writes `mod.rs` naming them all and the script that
+ * builds them for the pages.
  *
  * @type {(places: readonly (Place | FunctionPlace)[]) => Effect<_CompileOp, void, IoChannel>}
  */
 export const generate = places => step(
     forEachStep(pureOk(places), ({ name, directory }) => compileFile(noRuntime)(samplePath(directory), rustPath(name))),
-    () => writeFiles([[modulesPath, modules(places)]]))
+    () => writeFiles([[modulesPath, modules(places)], [buildScriptPath, buildScript(places)]]))
 
 /** @type {NodeProgram} */
 export const main = _options => exitStep(generate(samples))

@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { MetaStep, Os } from './common/types.ts'
+import type { Architecture, MetaStep, Os } from './common/types.ts'
 
 /**
  * What the packed-package check asks of the tarball as a clean consumer: a
@@ -23,7 +23,7 @@ export type PackageConsumer = {
 }
 
 export type Setup = {
-    readonly nodeExtra: (os: Os) => readonly MetaStep[],
+    readonly nodeExtra: (os: Os, architecture: Architecture) => readonly MetaStep[],
     /**
      * The consumer half of the packed-package check, when the project has a
      * module to offer it; without one the check reads the shipped

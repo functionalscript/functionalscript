@@ -1,8 +1,8 @@
 /**
  * The WASM demo pages' samples, each by its name and the directory that
  * holds its `sample.f.js`: the one list the generator compiles
- * ([`../module.f.mjs`](../module.f.mjs)), the deployment build publishes
- * (`gen.cloudflare/build.sh`), and each page finds its own place in.
+ * ([`../module.f.mjs`](../module.f.mjs)), its build script publishes
+ * (`nanvm/demos/gen.build.sh`), and each page finds its own place in.
  *
  * A function sample, a spec page's example, also lists its calls: each
  * input the page's Run button calls it with, and what JavaScript answers,

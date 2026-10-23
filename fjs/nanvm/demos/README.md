@@ -37,5 +37,9 @@ are on the [Undecided](../../../spec/undecided/README.md) page.
 - `npm run gen` compiles each sample to `nanvm/demos/gen.samples/<name>.rs`,
   committed, with a Rust test per listed call, so the two runs a page
   compares are tested before it is deployed.
-- The deployment build (`gen.cloudflare/build.sh`) builds the `nanvm-demos`
-  crate for `wasm32` and prints each sample's WAT. Neither is committed.
+- `nanvm/demos/gen.build.sh`, which `npm run gen` writes, builds the
+  `nanvm-demos` crate for `wasm32` into `nanvm/demos/wasm/` and prints each
+  sample's WAT beside it. Both are committed, so the deploy needs no Rust for
+  them. The build is reproducible with the pinned Rust only, so run it in the
+  shared shell: `sh ./gen.nix/run sh ./nanvm/demos/gen.build.sh`. CI runs it
+  on Intel Linux and fails when the committed files differ.
