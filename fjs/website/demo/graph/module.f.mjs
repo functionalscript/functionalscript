@@ -51,7 +51,7 @@
  *
  * @import { Back, Corner, Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _BackLane, _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk } from './private.ts'
+ * @import { _BackEdge, _BackLane, _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk } from './private.ts'
  * @import { StateScan } from '../../../types/function/operator/types.ts'
  */
 
@@ -538,16 +538,30 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
  * nest the other way can still cross there, where no order of lanes
  * would keep them apart.
  *
- * @type {(edges: readonly { readonly index: number, readonly from: number, readonly to: number, readonly y: number }[]) => ReadonlyMap<number, _BackLane>}
+ * With bundling, edges returning to the same node with the same kind share
+ * a bottom lane and a return into that node. A source column also shares
+ * its descent for those edges. Each complete route is kept for tracing.
+ *
+ * @type {(edges: readonly _BackEdge[], bundle: boolean) => ReadonlyMap<number, _BackLane>}
  */
-const backLanesOf = edges => {
-    const backs = edges.toSorted((a, b) => (a.from - a.to) - (b.from - b.to) || b.y - a.y)
-    return new Map(backs.map(({ index, from, to }, lane) => [index, {
+const backLanesOf = (edges, bundle) => {
+    const groups = edges.reduce(
+        /** @type {(groups: readonly (readonly _BackEdge[])[], edge: _BackEdge) => readonly (readonly _BackEdge[])[]} */
+        ((groups, edge) => {
+            const found = bundle ? groups.findIndex(g => sameReturn(g[0], edge)) : -1
+            return found === -1 ? [...groups, [edge]] : groups.map((g, i) => i === found ? [...g, edge] : g)
+        }), [])
+    const backs = groups.map(edges => ({ edges, from: maxOf(edges.map(e => e.from)), to: edges[0].to, y: maxOf(edges.map(e => e.y)) }))
+        .toSorted((a, b) => (a.from - a.to) - (b.from - b.to) || b.y - a.y)
+    return new Map(backs.flatMap(({ edges }, lane) => edges.map(({ index, from, to }) => [index, {
         lane,
-        out: backs.slice(0, lane).filter(b => b.from === from).length,
+        out: backs.slice(0, lane).filter(b => b.edges.some(e => e.from === from)).length,
         into: backs.slice(0, lane).filter(b => b.to === to).length,
-    }]))
+    }])))
 }
+
+/** @type {(a: Pick<_BackEdge, 'target' | 'kind'>, b: Pick<_BackEdge, 'target' | 'kind'>) => boolean} */
+const sameReturn = (a, b) => a.target === b.target && a.kind === b.kind
 
 /**
  * Every column, left to right: its nodes and lanes in `key` order, each
@@ -587,13 +601,14 @@ const backLanesOf = edges => {
  *
  * **A back edge has no lane in any column.** It goes down a gap, along the
  * bottom and up another gap ({@link routesOf}), so a gap is wider by a lane
- * for each back edge that goes down or up it.
+ * for each back edge that goes down or up it. Bundled returns reserve
+ * one such lane per destination and edge kind in each gap they use.
  *
  * The first column starts at `left`.
  *
- * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
+ * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[], bundle: boolean) => _Placed}
  */
-const layout = left => nodes => edges => {
+const layout = left => nodes => (edges, bundle) => {
     // **An edge must name nodes the graph has, or the graph is refused.**
     // An edge is drawn from a port of its source, so one whose source is
     // missing would have nowhere to leave from and would simply vanish,
@@ -617,11 +632,12 @@ const layout = left => nodes => edges => {
     const spans = edges.map(({ from, to, back }) =>
         ({ from: rankOf(from), to: typeof to === 'number' && back !== true ? rankOf(to) : rankOf(from), key: from + 0.5 }))
     // A back edge's ranks, from and to, which its route needs a gap at.
-    const backRanks = edges.flatMap(({ from, to, back }, index) =>
-        back === true && typeof to === 'number' ? [{ index, from: rankOf(from), to: rankOf(to) }] : [])
+    const backRanks = edges.flatMap(({ from, to, back, kind }, index) =>
+        back === true && typeof to === 'number' ? [{ index, from: rankOf(from), to: rankOf(to), target: to, kind }] : [])
     // the back edges going down the gap left of `rank`'s column, or up it
     /** @type {(rank: number) => number} */
-    const gapOf = rank => laneSize * backRanks.filter(({ from, to }) => from + 1 === rank || to === rank).length
+    const gapOf = rank => laneSize * backRanks.filter(({ from, to }) => from + 1 === rank || to === rank)
+        .filter((back, i, all) => !bundle || all.findIndex(b => sameReturn(b, back)) === i).length
     const maxRank = nodes.reduce((m, n) => max(m, n.rank), 0)
     const sizes = new Map(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
@@ -664,7 +680,7 @@ const layout = left => nodes => edges => {
         nodes: placedNodes,
         lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
         ends: placedColumns.map(column => column.end),
-        backs: backLanesOf(backRanks.map(back => ({ ...back, y: /** @type {number} */ (heights.get(back.index)) }))),
+        backs: backLanesOf(backRanks.map(back => ({ ...back, y: /** @type {number} */ (heights.get(back.index)) })), bundle),
     }
 }
 
@@ -686,7 +702,8 @@ const layout = left => nodes => edges => {
  * and lane, left along it to the gap before its target's column, and up
  * into the middle of its target's left side. It turns only in gaps and
  * below the graph, so it crosses no box either, and its lane keeps it off
- * every other back edge ({@link backLanesOf}).
+ * every other return group ({@link backLanesOf}). Bundled edges meet at
+ * the same bottom lane and share the run into their target.
  *
  * @type {(placed: _Placed) => readonly _Route[]}
  */
@@ -781,7 +798,7 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  *
  * @type {(g: Graph) => _Placed}
  */
-const placedOf = ({ nodes, edges, entries = [] }) => {
+const placedOf = ({ nodes, edges, entries = [], bundleBacks = false }) => {
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
@@ -801,7 +818,7 @@ const placedOf = ({ nodes, edges, entries = [] }) => {
         groups.some(([, rows]) => rows < 1)
         || groups.reduce((n, [, rows]) => n + rows, 0) !== edges.filter(e => e.from === id && e.corner === undefined).length))
     if (misgrouped !== undefined) { throw `graph: node ${misgrouped.id}'s groups do not take its rows, at least one each` }
-    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, bundleBacks)
 }
 
 /**
@@ -877,6 +894,12 @@ const groupCellsOf = ({ groups = [] }) => toArray(stateScan(
  * as wide as its ranks or its ports make it, often wider than the page,
  * and without the container the whole page would scroll with it.
  *
+ * **Tracing is opt-in.** `Graph.trace` makes each complete connection a
+ * native focus target with a wider transparent hit area. Hover or focus
+ * highlights its route and both endpoints; clicking gives it persistent
+ * focus, and Tab moves to the next connection. Bundled returns keep every
+ * logical route so one source can still be followed through a shared run.
+ *
  * @type {(g: Graph) => Element}
  */
 export const graphSvg = g => {
@@ -908,13 +931,37 @@ export const graphSvg = g => {
     /** @type {(index: number, from: number) => number} */
     const slotOf = (index, from) => g.edges.slice(0, index).filter(e => e.from === from).length
     /** @type {readonly Element[]} */
-    const edgeEls = routes.map(({ edge, index, to, points }) => ['path', {
-        d: `M${even(points).map(([x, y]) => `${x},${y}`).join(' L')}`,
-        'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
-        ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
-        ...fade(edge.from, to),
-        ...pathKeyOf('edge', nodeOf(edge.from).key, String(slotOf(index, edge.from)), nodeOf(to).key),
-    }])
+    const edgeEls = routes.map(({ edge, index, to, points }) => {
+        const from = nodeOf(edge.from)
+        const target = nodeOf(to)
+        const d = `M${even(points).map(([x, y]) => `${x},${y}`).join(' L')}`
+        // Bundled paths overlap on their shared return. Only one draws the
+        // arrowhead, but every complete logical path remains traceable.
+        const arrow = g.bundleBacks !== true || edge.back !== true
+            || !routes.some(r => r.index < index && r.edge.back === true && r.to === to && r.edge.kind === edge.kind)
+        const line = /** @type {Element} */ (['path', {
+            d, 'data-graph-edge': '',
+            ...(arrow ? { 'marker-end': 'url(#graph-arrow)' } : {}),
+            ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
+            ...fade(edge.from, to),
+            ...pathKeyOf('edge', from.key, String(slotOf(index, edge.from)), target.key),
+        }])
+        if (g.trace !== true) { return line }
+        const description = `${from.label} [${edge.label}] → ${target.label}${edge.back === true ? ' (recursive)' : ''}`
+        return /** @type {Element} */ (['g', {
+            'data-graph-connection': String(index), tabindex: '0', role: 'group', 'aria-label': description,
+            ...pathKeyOf('connection', from.key, String(slotOf(index, edge.from)), target.key),
+        },
+            ['title', description],
+            line,
+            ['path', { d, 'data-graph-hit': '' }],
+            ['path', { d, 'data-graph-trace': '', 'marker-end': 'url(#graph-trace-arrow)' }],
+            ...(edge.from === to ? [from] : [from, target]).map(p => /** @type {Element} */ (['rect', {
+                x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
+                'data-graph-trace': '',
+            }])),
+        ])
+    })
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge
     // would arrive.
@@ -1036,13 +1083,17 @@ export const graphSvg = g => {
         }),
         ])
     })
-    return ['div', { 'data-graph': '' }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
+    return ['div', { 'data-graph': '', ...(g.trace === true ? { tabindex: '-1' } : {}) }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
         ['defs',
             ['marker', {
                 id: 'graph-arrow', viewBox: '0 0 10 10', refX: '9', refY: '5',
                 markerWidth: '6', markerHeight: '6', orient: 'auto',
             },
                 ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-arrow': '' }]],
+            ...(g.trace === true ? [/** @type {Element} */ (['marker', {
+                id: 'graph-trace-arrow', viewBox: '0 0 10 10', refX: '9', refY: '5',
+                markerWidth: '6', markerHeight: '6', orient: 'auto',
+            }, ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-trace-arrow': '' }]])] : []),
             ...clipEls],
         ...layer(boxEls),
         ...layer(byKey([...edgeEls, ...entryEls])),
