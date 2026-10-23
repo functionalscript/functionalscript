@@ -243,6 +243,8 @@ const portHeight = /** @type {const} */ (20)
 const rankGap = /** @type {const} */ (40)
 const nodeGap = /** @type {const} */ (14)
 const laneSize = /** @type {const} */ (10)
+// Leave room for the highlighted arrowhead before the nearest return bend.
+const backEntryPadding = /** @type {const} */ (20)
 const margin = /** @type {const} */ (10)
 const charWidth = /** @type {const} */ (7)
 const entryLength = /** @type {const} */ (24)
@@ -662,9 +664,9 @@ const offsetOf = ({ size }, offset) => [offset, offset + (size === null ? laneSi
  *
  * The first column starts at `left`.
  *
- * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[], bundle: boolean, center: boolean) => _Placed}
+ * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[], bundle: boolean, center: boolean, separate: boolean) => _Placed}
  */
-const layout = left => nodes => (edges, bundle, center) => {
+const layout = left => nodes => (edges, bundle, center, separate) => {
     // **An edge must name nodes the graph has, or the graph is refused.**
     // An edge is drawn from a port of its source, so one whose source is
     // missing would have nowhere to leave from and would simply vanish,
@@ -694,6 +696,7 @@ const layout = left => nodes => (edges, bundle, center) => {
     /** @type {(rank: number) => number} */
     const gapOf = rank => laneSize * backRanks.filter(({ from, to }) => from + 1 === rank || to === rank)
         .filter((back, i, all) => !bundle || all.findIndex(b => sameReturn(b, back)) === i).length
+        + (separate && backRanks.some(({ to }) => to === rank) ? backEntryPadding : 0)
     const maxRank = nodes.reduce((m, n) => max(m, n.rank), 0)
     const sizes = new Map(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
@@ -808,7 +811,7 @@ const routesOf = (placed, separate = false) => {
         /** @type {(back: _BackLane) => readonly _Point[]} */
         const around = ({ lane, out, into }) => {
             const down = placed.ends[from.rank] + laneSize * (out + 1)
-            const up = to.x - laneSize * (into + 1)
+            const up = to.x - laneSize * (into + 1) - (separate ? backEntryPadding : 0)
             const below = bottom + laneSize * (lane + 1)
             const entry = separate ? to.y + to.height * assertNotNullish(entries.get(port.index)) : middle
             return [[right, y], [down, y], [down, below], [up, below], [up, entry], [to.x, entry]]
@@ -900,7 +903,7 @@ const placedOf = ({ nodes, edges, entries = [], backRouting, centerColumns = fal
         groups.some(([, rows]) => rows < 1)
         || groups.reduce((n, [, rows]) => n + rows, 0) !== edges.filter(e => e.from === id && e.corner === undefined).length))
     if (misgrouped !== undefined) { throw `graph: node ${misgrouped.id}'s groups do not take its rows, at least one each` }
-    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, backRouting === 'shared', centerColumns)
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, backRouting === 'shared', centerColumns, backRouting === 'separate')
 }
 
 /**
@@ -1058,7 +1061,7 @@ export const graphSvg = g => {
                 const key = port.ref === null ? 0 : keyWidthOf(from)(port)
                 return /** @type {Element} */ (['rect', {
                     x: String(from.x + from.title + key), y: String(from.y + port.y),
-                    width: String(from.width - from.title - key), height: String(portHeight),
+                    width: String(from.width - from.title - key), height: String(portHeight), rx: String(radius),
                     'data-graph-trace': '', 'data-graph-port-outline': String(index),
                 }])
             }),
