@@ -481,3 +481,9 @@ type _Summary<E> = Parameters<typeof unwrapStep<_AddOp, number, E>>[1]
 type _UnwrapStepPinsItsChannel = Assert<Equal<
     _Summary<NotImplemented> extends _Summary<NotImplemented | string> ? true : false,
     false>>
+
+/**
+ * The effects demo's one operation ([`demo.f.mjs`](./demo.f.mjs)): ask about a
+ * word, and be answered a string or refused with one.
+ */
+export type DemoAsk = readonly ['ask', (word: string) => Result<string, string>]

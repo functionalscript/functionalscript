@@ -1,7 +1,11 @@
 # Common effects
 
-Operations that belong to no host in particular, so that a program using only
-these runs on Node, in a browser page and in the SpiderMonkey shell alike.
+Operations that belong to no host in particular: they are declared once here,
+and each host implements the ones it can. That does not make every program
+built from them portable. `sandbox`, `catch_`, `import_` and `randomInt` are
+answered by a browser page as well as by Node, but `write`, `read` and `all`
+are answered by Node alone, so a program that writes to `stdout` does not run
+in a page.
 [`module.f.mjs`](./module.f.mjs) declares them, [`types.ts`](./types.ts)
 says which hosts implement which, and [`module.mjs`](./module.mjs) holds the
 handlers the hosts share.

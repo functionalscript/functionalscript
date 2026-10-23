@@ -6,15 +6,16 @@ command and threading a state through, with no host at all.
 `MemOperationMap` handler shape.
 
 ```js
-import { do_, pureOk, step } from '../module.f.mjs'
+import { do_, history, historyStep } from '../module.f.mjs'
 import { run } from './module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 
 const count = do_('count')
-const twice = step(count(), a => step(count(), b => pureOk([a, b])))
+const first = history(count())
+const twice = historyStep(first, () => count())
 
 // Each handler takes the payload, then the state, and answers [state, result].
-run({ count: () => n => [n + 1, ok(n)] })(0)(twice) // [2, ['ok', [0, 1]]]
+run({ count: () => n => [n + 1, ok(n)] })(0)(twice) // [2, ['ok', [1, 0]]], newest first
 ```
 
 |Runner                    |Use it when                                                              |

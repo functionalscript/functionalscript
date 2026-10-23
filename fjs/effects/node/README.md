@@ -12,9 +12,11 @@ import { log } from '../common/module.f.mjs'
 import { mapStep, step } from '../module.f.mjs'
 
 /** Prints how many lines a file has. @type {import('./types.ts').NodeProgram} */
-export const main = ({ args }) => exitStep(step(
-    mapStep(readUtf8File(args[0]), text => text.split('\n').length),
-    n => log(`${n} lines`)))
+export const main = ({ args }) => {
+    const count = mapStep(readUtf8File(args[0]), text => text.split('\n').length)
+    const printed = step(count, n => log(`${n} lines`))
+    return exitStep(printed)
+}
 ```
 
 `fjs run lines.f.mjs README.md` runs it. `exitStep` is the exit-code policy at

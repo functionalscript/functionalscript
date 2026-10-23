@@ -16,7 +16,7 @@ answer back. The same program runs on Node, in a browser page, in the
 SpiderMonkey shell, or against a mock in a proof, because only the runner
 changes.
 
-Every answer is a [`Result`](../types/result/README.md), so every effect has
+Every answer is a [`Result`](../types/result/types.ts), so every effect has
 an error channel, and the combinators below decide what happens to an error
 without a `try`.
 

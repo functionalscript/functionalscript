@@ -21,7 +21,7 @@
  *
  * @module
  *
- * @import { Effect } from './types.ts'
+ * @import { DemoAsk as Ask, Effect } from './types.ts'
  * @import { MemOperationMap } from './mock/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
@@ -32,13 +32,6 @@ import { textDemo, caption } from '../website/demo/module.f.mjs'
 import { do_, foldStep, mapStep, pureOk } from './module.f.mjs'
 import { run } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
-
-/**
- * The demo's one operation: ask about a word, and be answered a string or
- * refused with one.
- *
- * @typedef {readonly ['ask', (word: string) => Result<string, string>]} Ask
- */
 
 /** @type {(word: string) => Effect<Ask, string, string>} */
 export const ask = do_('ask')
