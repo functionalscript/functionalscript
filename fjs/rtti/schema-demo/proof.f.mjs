@@ -377,17 +377,42 @@ const demoProof = /** @type {const} */ ({
             assert(!html.includes('data-graph-value-kind="ref">tree<'), html)
         },
         // Multiple uses, including a direct self edge, return to the same
-        // root. A different named schema stays an inline reference.
+        // root. A different named schema is expanded under its own name.
         recursiveBranches: () => {
             /** @type {import('../types.ts').Type} */
             const other = () => ['array', string]
             /** @type {import('../types.ts').Type} */
             const tree = () => ['const', { left: tree, children: array(tree), other }]
             const g = _graphOf(tree)
-            assertEq(g.nodes.length, 2)
+            assertEq(g.nodes.length, 3)
             assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to, e.label]), [[0, 0, 'left'], [1, 0, '']])
             assertEq(_crossings(g), 0)
-            assert(htmlToString(graphSvg(g)).includes('data-graph-value-kind="ref">other<'), 'another named schema stays a reference')
+            assert(htmlToString(graphSvg(g)).includes('>other array<'), 'another named schema is expanded')
+        },
+        // A nested, mutually recursive pair is expanded once even when
+        // reached twice from an anonymous root. Names do not decide identity.
+        nestedRecursion: () => {
+            /** @type {import('../types.ts').Type} */
+            const lock = () => ['record', lockValue]
+            /** @type {import('../types.ts').Type} */
+            const lockValue = () => ['or', string, lock]
+            const g = _graphOf({ first: lock, second: lock })
+            assertStructurallySame(g.nodes.map(n => n.label), ['{}', 'lock record', 'lockValue or'])
+            assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to]), [[2, 1]])
+            assertStructurallySame(g.edges.filter(e => e.from === 0).map(e => [e.label, e.to]), [['first', 1], ['second', 1]])
+            assertEq(_crossings(g), 0)
+        },
+        distinctDefinitions: () => {
+            /** @type {() => import('../types.ts').Type} */
+            const make = () => {
+                /** @type {import('../types.ts').Type} */
+                const list = () => ['array', list]
+                return list
+            }
+            const g = _graphOf([make(), make()])
+            assertStructurallySame(g.nodes.map(n => n.label), ['[]', 'list array', 'list array'])
+            assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to]), [[1, 1], [2, 2]])
+            assertEq(_crossings(g), 0)
         },
         // A named thunk that is not a const is labelled with its name too.
         namedArray: () => {
