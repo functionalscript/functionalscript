@@ -189,6 +189,12 @@ const subtreeOf = rel => e => isSubtree(e) ? [{ id: e.oid, rel: join(rel, nameTe
  * subtree walked in turn, flat in the tree's size as `walkStep` keeps a walk.
  * Neither reads an object it need not: a listing reads trees and no blob.
  *
+ * A path the walk cannot take because the tree is malformed — a `40000`
+ * entry naming a blob, a root that is no tree — is `null` to `tryEntry` as
+ * a path the tree does not have is, and so reads as the miss here; telling
+ * the two apart is the primitive's to do, and
+ * [`todo/absent-or-malformed.md`](./todo/absent-or-malformed.md) tracks it.
+ *
  * Parameterized by the reader rather than a directory so that one reader
  * serves every read of a snapshot — `readIn` resolves a repository's
  * borrowings once — and so that the map is provable against any store.
@@ -252,7 +258,12 @@ export const casAt = (read, oidBytes) => {
  * naming what is no commit, or a commit with no tree to read, is
  * {@link snapshotHeadCode}. A branch whose name is no ref name is a question
  * nothing stores an answer to, and is refused as {@link snapshotHeadCode}
- * before any file is opened rather than read as an empty map.
+ * before any file is opened rather than read as an empty map. A ref that
+ * is there but malformed — a loose file holding no id, a dangling symbolic
+ * ref, a `packed-refs` Git refuses — is `null` to `tryResolve` as an absent
+ * ref is, and so opens the empty map here;
+ * [`todo/absent-or-malformed.md`](./todo/absent-or-malformed.md) tracks
+ * telling the two apart.
  *
  * @type {(branch: Branch) => Effect<SnapshotOperation, CasReader<SnapshotOperation>, IoChannel>}
  */
