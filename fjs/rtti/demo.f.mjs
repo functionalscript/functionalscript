@@ -32,8 +32,8 @@
  * combines, and a built-in or a constant draws inline in its parent's port.
  * One sub-schema used in two places is one node with two incoming edges.
  * **A named thunk is a definition**: it is expanded where it is the root and
- * drawn by its name wherever another schema uses it — which is what keeps a
- * recursive schema, whose thunk reaches itself, a graph the layout can rank.
+ * drawn by its name wherever another schema uses it. A use of the expanded
+ * root schema is an arrow back to its definition, routed around the graph.
  *
  * **One schema, many outputs.** Under the graph come the TypeScript type
  * `fjs/rtti/ts` prints, the JSON Schema `fjs/media/json/schema` converts it

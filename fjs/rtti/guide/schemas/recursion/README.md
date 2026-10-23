@@ -38,8 +38,8 @@ builds a fresh copy for each use.
 
 ## Examples
 
-The demo on this page runs the *Recursion* lesson, `tree` drawn by name
-where it uses itself, and the *Shared parts* lesson, where `address` is used
+The demo on this page runs the *Recursion* lesson, an arrow back to `tree`'s
+definition where it uses itself, and the *Shared parts* lesson, where `address` is used
 twice and drawn once; the drop-down switches between them. The lessons are
 defined in [`sample.f.mjs`](./sample.f.mjs), and the
 [module page's demo](../../../README.md) lists them among all the others.

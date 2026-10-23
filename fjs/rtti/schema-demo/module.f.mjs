@@ -112,7 +112,8 @@ const shapeOf = t => typeof t !== 'function' ? constShape(t)
 /**
  * `schema` as a graph. A named root is expanded — it is the definition being
  * shown — through the one `Info` it returns, which nothing else can reach,
- * so every use of the name below it stays a reference.
+ * so every use of that schema below it is a back edge to the definition.
+ * Other named schemas stay compact references, as in `shapeOf`.
  *
  * @type {(schema: Type) => Graph}
  */
@@ -120,7 +121,9 @@ export const _graphOf = schema => {
     if (typeof schema !== 'function' || schema.name === '') { return graphOf(shapeOf)(schema) }
     const info = schema()
     const root = infoShape(schema.name)(info)
-    return graphOf(/** @type {(t: Type) => Shape<Type>} */ (t => t === info ? root : shapeOf(t)))(info)
+    return graphOf(/** @type {(t: Type) => Shape<Type>} */ (t => t === info ? root
+        : t === schema ? { owner: value => value === info }
+            : shapeOf(t)))(info)
 }
 
 // ── readers ──────────────────────────────────────────────────────────────────
