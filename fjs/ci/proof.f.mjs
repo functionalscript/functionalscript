@@ -778,7 +778,8 @@ export const proof = {
             const made = at(step => step.run === `mkdir ${consumerDirectory}`)
             const packed = at(step => step.run === nixDevelop(`npm pack --pack-destination ${consumerDirectory}`))
             const drift = at(step => step.run === 'git add -A && git diff --cached --exit-code')
-            const setup = at(step => step.uses === `actions/setup-node@${actions['actions/setup-node']}`)
+            // Smart CI also installs a bootstrap Node before cache lookup.
+            const setup = job.steps.findLastIndex(step => step.uses === `actions/setup-node@${actions['actions/setup-node']}`)
             assert(made !== -1 && packed !== -1 && drift !== -1 && setup !== -1, 'expected the directory made, the tarball packed into it, the drift check and the consumer\'s Node')
             // The directory exists before `npm pack` writes into it, which it
             // refuses to do otherwise; and the drift check, the last word on
@@ -792,7 +793,8 @@ export const proof = {
             // on the repository it consumes.
             assertEq(job.steps[setup]?.with?.['node-version'], node)
             assertEq(job.steps[setup]?.with?.['package-manager-cache'], 'false')
-            const check = job.steps.slice(setup + 1)
+            const report = at(step => step.run === 'npm start ci report package')
+            const check = job.steps.slice(setup + 1, report === -1 ? undefined : report)
             assert(check.length !== 0, 'expected the check after its Node')
             for (const step of check) {
                 assert(step['working-directory'] !== undefined, `expected the consumer directory: ${step.run}`)

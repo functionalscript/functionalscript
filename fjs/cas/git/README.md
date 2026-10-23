@@ -6,7 +6,7 @@ from canonical CAS paths — `.cas/ab/cd/<rest>`, the layout
 commit of the branch *is* a CAS snapshot, and `fjs/cas/git` reads one and
 writes to one through the `Cas<O>` surface every other consumer of
 [`fjs/cas`](../README.md) already uses. The first consumer is the
-[build cache](../../ci/todo/097-smart-ca-ci.md), which remembers successful
+[build cache](../../ci/cache/README.md), which remembers successful
 builds in a `build-cache` branch of the repository it builds, while the
 source checkout stays on its own branch.
 
