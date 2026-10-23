@@ -142,7 +142,12 @@ is a follow-up, not a prerequisite for this CI implementation.
 3. On a miss, run the block. Only after all checks required by that block
    succeed, write the original complete manifest through CAS — one `add`,
    one commit on the local `build-cache` — and `git push origin
-   build-cache`. A failed, cancelled, or partial run adds no entry.
+   build-cache`. A failed, cancelled, or partial run adds no entry. The
+   checkout has no committer identity of its own, and `fjs cas git add`
+   reads one from the repository's `config` and refuses without it, so the
+   job sets the bot's first, as any job that commits does:
+   `git config user.name "github-actions[bot]"` and `git config user.email
+   "41898282+github-actions[bot]@users.noreply.github.com"`.
 4. Where the push is refused as a non-fast-forward because another job
    published first, `git fetch origin build-cache`, merge it into the local
    branch in a worktree (`git worktree add ../cache build-cache`, then

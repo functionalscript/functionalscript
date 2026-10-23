@@ -76,7 +76,8 @@ over-long name); below `.cas` an entry whose mode is not `100644` or
 object a `.cas` path names that is no tree, no blob, or not in the
 repository; and, for a write, a key's path already holding another blob — a
 collision or a corrupt store. A `config` Git does not open is
-`ERR_REPOSITORY_FORMAT`, a branch ref naming no commit `ERR_SNAPSHOT_HEAD`.
+`ERR_REPOSITORY_FORMAT`; a branch ref naming no commit, or a ref file this
+backend cannot read as one, `ERR_SNAPSHOT_HEAD`.
 A key the branch does not hold is the ordinary miss, `ENOENT` as `fileCas`
 reports one. Each is a proof in [`proof.f.mjs`](proof.f.mjs).
 
@@ -115,8 +116,8 @@ Each filed beside the module rather than built around:
 - [`todo/author-as-git-commit.md`](todo/author-as-git-commit.md) — the
   configuration `git commit` reads beyond the two files read here, and the
   whitespace it strips from an ident.
-- [`todo/absent-or-malformed.md`](todo/absent-or-malformed.md) — a ref that
-  is there but malformed reads as an absent one.
+- [`todo/absent-or-malformed.md`](todo/absent-or-malformed.md) — a
+  `packed-refs` Git refuses reads as an absent ref.
 - [`cli/todo/find-repository-upward.md`](cli/todo/find-repository-upward.md) —
   the commands do not search the parents of the current directory as `git`
   does.
