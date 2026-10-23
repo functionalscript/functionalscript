@@ -159,6 +159,27 @@ export const proof = {
         const fast = normalize({ ...resolved, body: { statements: [], exit: ['yield', ['block', resolved.body]] } }, [])
         assertStructurallySame(fromFast(fast.body), graph('const value=[1]; export default [value,value];'))
     },
+    // A block normalized as a value drops its environment, so a write in it to
+    // a binding established before it would be lost. The parser admits no such
+    // program; this module asserts it on one built by hand: the function's
+    // `let` lifted before a block holding its assignment.
+    escapedWrite: {
+        throw: () => {
+            const resolved = assertOk(parse('')('export default ()=>{let value=0; value=1; return value;};'))
+            const object = resolved.body.exit[0] === 'yield' ? resolved.body.exit[1] : null
+            assert(object instanceof Array && object[0] === 'object')
+            const member = object[1][0]
+            assert(member[0] === ':' && member[2] instanceof Array && member[2][0] === 'function')
+            const [initialize, write] = member[2][1].body.statements
+            assert(initialize[0] === 'initialize' && write[0] === 'write')
+            normalize({ ...resolved, body: { statements: [initialize], exit: ['yield', ['block', { statements: [write], exit: ['yield', ['ref', write[1]]] }]] } }, [])
+        },
+        // the same write at the block's own level is the block's business: a
+        // scalar loop's step and a rest parameter's assignment are such writes
+        kept: () => {
+            assertStructurallySame(result('export default (()=>{let value=0;const block=(()=>{let inner=value;inner=inner+1;return inner;})();return [value,block];})();'), { default: [0, 1] })
+        },
+    },
     importEvaluation: () => {
         const resolved = assertOk(parse('')('import {} from "./dependency"; export default 1;'))
         const fast = normalize(resolved, [2])
