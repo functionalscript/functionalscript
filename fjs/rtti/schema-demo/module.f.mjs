@@ -119,7 +119,7 @@ const shapeOf = t => {
  *
  * @type {(schema: Type) => Graph}
  */
-export const _graphOf = schema => ({ ...graphOf(shapeOf)(schema), backRouting: 'separate', trace: true, centerColumns: true })
+export const _graphOf = schema => ({ ...graphOf(shapeOf)(schema), trace: true, centerColumns: true })
 
 // ── readers ──────────────────────────────────────────────────────────────────
 

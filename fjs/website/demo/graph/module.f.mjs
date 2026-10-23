@@ -551,30 +551,16 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
  * nest the other way can still cross there, where no order of lanes
  * would keep them apart.
  *
- * With bundling, edges returning to the same node with the same kind share
- * a bottom lane and a return into that node. A source column also shares
- * its descent for those edges. Each complete route is kept for tracing.
- *
- * @type {(edges: readonly _BackEdge[], bundle: boolean) => ReadonlyMap<number, _BackLane>}
+ * @type {(edges: readonly _BackEdge[]) => ReadonlyMap<number, _BackLane>}
  */
-const backLanesOf = (edges, bundle) => {
-    const groups = edges.reduce(
-        /** @type {(groups: readonly (readonly _BackEdge[])[], edge: _BackEdge) => readonly (readonly _BackEdge[])[]} */
-        ((groups, edge) => {
-            const found = bundle ? groups.findIndex(g => sameReturn(g[0], edge)) : -1
-            return found === -1 ? [...groups, [edge]] : groups.map((g, i) => i === found ? [...g, edge] : g)
-        }), [])
-    const backs = groups.map(edges => ({ edges, from: maxOf(edges.map(e => e.from)), to: edges[0].to, y: maxOf(edges.map(e => e.y)) }))
-        .toSorted((a, b) => (a.from - a.to) - (b.from - b.to) || b.y - a.y)
-    return new Map(backs.flatMap(({ edges }, lane) => edges.map(({ index, from, to }) => [index, {
+const backLanesOf = edges => {
+    const backs = edges.toSorted((a, b) => (a.from - a.to) - (b.from - b.to) || b.y - a.y)
+    return new Map(backs.map(({ index, from, to }, lane) => [index, {
         lane,
-        out: backs.slice(0, lane).filter(b => b.edges.some(e => e.from === from)).length,
+        out: backs.slice(0, lane).filter(b => b.from === from).length,
         into: backs.slice(0, lane).filter(b => b.to === to).length,
-    }])))
+    }]))
 }
-
-/** @type {(a: Pick<_BackEdge, 'target' | 'kind'>, b: Pick<_BackEdge, 'target' | 'kind'>) => boolean} */
-const sameReturn = (a, b) => a.target === b.target && a.kind === b.kind
 
 /**
  * Fit preferred slot tops into a column without overlaps or reordering.
@@ -659,14 +645,14 @@ const offsetOf = ({ size }, offset) => [offset, offset + (size === null ? laneSi
  *
  * **A back edge has no lane in any column.** It goes down a gap, along the
  * bottom and up another gap ({@link routesOf}), so a gap is wider by a lane
- * for each back edge that goes down or up it. Bundled returns reserve
- * one such lane per destination and edge kind in each gap they use.
+ * for each back edge that goes down or up it. A gap with incoming returns
+ * also reserves clearance for the enlarged highlighted arrowheads.
  *
  * The first column starts at `left`.
  *
- * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[], bundle: boolean, center: boolean, separate: boolean) => _Placed}
+ * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[], center: boolean) => _Placed}
  */
-const layout = left => nodes => (edges, bundle, center, separate) => {
+const layout = left => nodes => (edges, center) => {
     // **An edge must name nodes the graph has, or the graph is refused.**
     // An edge is drawn from a port of its source, so one whose source is
     // missing would have nowhere to leave from and would simply vanish,
@@ -690,13 +676,12 @@ const layout = left => nodes => (edges, bundle, center, separate) => {
     const spans = edges.map(({ from, to, back }) =>
         ({ from: rankOf(from), to: typeof to === 'number' && back !== true ? rankOf(to) : rankOf(from), key: from + 0.5 }))
     // A back edge's ranks, from and to, which its route needs a gap at.
-    const backRanks = edges.flatMap(({ from, to, back, kind }, index) =>
-        back === true && typeof to === 'number' ? [{ index, from: rankOf(from), to: rankOf(to), target: to, kind }] : [])
+    const backRanks = edges.flatMap(({ from, to, back }, index) =>
+        back === true && typeof to === 'number' ? [{ index, from: rankOf(from), to: rankOf(to) }] : [])
     // the back edges going down the gap left of `rank`'s column, or up it
     /** @type {(rank: number) => number} */
-    const gapOf = rank => laneSize * backRanks.filter(({ from, to }) => from + 1 === rank || to === rank)
-        .filter((back, i, all) => !bundle || all.findIndex(b => sameReturn(b, back)) === i).length
-        + (separate && backRanks.some(({ to }) => to === rank) ? backEntryPadding : 0)
+    const gapOf = rank => laneSize * backRanks.filter(({ from, to }) => from + 1 === rank || to === rank).length
+        + (backRanks.some(({ to }) => to === rank) ? backEntryPadding : 0)
     const maxRank = nodes.reduce((m, n) => max(m, n.rank), 0)
     const sizes = new Map(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
@@ -756,7 +741,7 @@ const layout = left => nodes => (edges, bundle, center, separate) => {
         nodes: placedNodes,
         lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
         ends: placedColumns.map(column => column.end),
-        backs: backLanesOf(backRanks.map(back => ({ ...back, y: /** @type {number} */ (heights.get(back.index)) })), bundle),
+        backs: backLanesOf(backRanks.map(back => ({ ...back, y: /** @type {number} */ (heights.get(back.index)) }))),
     }
 }
 
@@ -776,26 +761,25 @@ const layout = left => nodes => (edges, bundle, center, separate) => {
  * **A back edge goes around the graph, not through it**: right from its
  * port into the gap after its column, down to its lane below every node
  * and lane, left along it to the gap before its target's column, and up
- * into the middle of its target's left side. It turns only in gaps and
- * below the graph, so it crosses no box either, and its lane keeps it off
- * every other return group ({@link backLanesOf}). Bundled edges meet at
- * the same bottom lane and share the run into their target. With separate
- * routing, return entry points spread down the target in gap order: the
- * outermost route enters highest, keeping these final segments distinct.
+ * into its target's left side. It turns only in gaps and below the graph,
+ * so it crosses no box either, and its lane keeps it off every other
+ * return ({@link backLanesOf}). Return entry points spread down the target
+ * in gap order: the outermost route enters highest, keeping these final
+ * segments distinct.
  *
- * @type {(placed: _Placed, separate?: boolean) => readonly _Route[]}
+ * @type {(placed: _Placed) => readonly _Route[]}
  */
-const routesOf = (placed, separate = false) => {
+const routesOf = placed => {
     const byId = new Map(placed.nodes.map(p => [p.id, p]))
     const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
     const bottom = maxOf([...placed.nodes.map(p => p.y + p.height), ...placed.lanes.map(lane => lane.y + laneSize / 2)])
     const targets = new Map(placed.nodes.flatMap(node => [...node.ports, ...node.exits].map(({ index, edge }) => [index, edge.to])))
-    const entries = new Map(separate ? placed.nodes.flatMap(({ id }) => {
+    const entries = new Map(placed.nodes.flatMap(({ id }) => {
         const returning = [...placed.backs].filter(([index]) => targets.get(index) === id)
             .toSorted((a, b) => b[1].into - a[1].into)
         return returning.map(([index], i) => /** @type {const} */ ([index, (i + 1) / (returning.length + 1)]))
-    }) : [])
+    }))
     /** @type {(from: _Positioned) => readonly (readonly [_Out, number])[]} */
     const leaving = from => [
         ...from.ports.map(port => /** @type {const} */ ([port, port.y + portHeight / 2])),
@@ -811,9 +795,9 @@ const routesOf = (placed, separate = false) => {
         /** @type {(back: _BackLane) => readonly _Point[]} */
         const around = ({ lane, out, into }) => {
             const down = placed.ends[from.rank] + laneSize * (out + 1)
-            const up = to.x - laneSize * (into + 1) - (separate ? backEntryPadding : 0)
+            const up = to.x - laneSize * (into + 1) - backEntryPadding
             const below = bottom + laneSize * (lane + 1)
-            const entry = separate ? to.y + to.height * assertNotNullish(entries.get(port.index)) : middle
+            const entry = to.y + to.height * assertNotNullish(entries.get(port.index))
             return [[right, y], [down, y], [down, below], [up, below], [up, entry], [to.x, entry]]
         }
         const back = placed.backs.get(port.index)
@@ -883,7 +867,7 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  *
  * @type {(g: Graph) => _Placed}
  */
-const placedOf = ({ nodes, edges, entries = [], backRouting, centerColumns = false }) => {
+const placedOf = ({ nodes, edges, entries = [], centerColumns = false }) => {
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
@@ -903,7 +887,7 @@ const placedOf = ({ nodes, edges, entries = [], backRouting, centerColumns = fal
         groups.some(([, rows]) => rows < 1)
         || groups.reduce((n, [, rows]) => n + rows, 0) !== edges.filter(e => e.from === id && e.corner === undefined).length))
     if (misgrouped !== undefined) { throw `graph: node ${misgrouped.id}'s groups do not take its rows, at least one each` }
-    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, backRouting === 'shared', centerColumns, backRouting === 'separate')
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, centerColumns)
 }
 
 /**
@@ -915,7 +899,7 @@ const placedOf = ({ nodes, edges, entries = [], backRouting, centerColumns = fal
  */
 export const _crossings = g => {
     const placed = placedOf(g)
-    return routesOf(placed, g.backRouting === 'separate').reduce((n, { points }) =>
+    return routesOf(placed).reduce((n, { points }) =>
         n + points.slice(1).reduce((m, b, i) =>
             m + placed.nodes.filter(box => _crossesBox(box)(points[i])(b)).length, 0), 0)
 }
@@ -1003,7 +987,7 @@ const titleTraceOf = p => attrs => p.title === 0 ? [] : [/** @type {Element} */ 
 export const graphSvg = g => {
     const placed = placedOf(g)
     const positioned = placed.nodes
-    const routes = routesOf(placed, g.backRouting === 'separate')
+    const routes = routesOf(placed)
     // A back edge's route is the one thing outside every node and lane.
     const corners = routes.flatMap(({ points }) => points)
     const width = margin + maxOf([
@@ -1033,13 +1017,9 @@ export const graphSvg = g => {
         const from = nodeOf(edge.from)
         const target = nodeOf(to)
         const d = `M${even(points).map(([x, y]) => `${x},${y}`).join(' L')}`
-        // Bundled paths overlap on their shared return. Only one draws the
-        // arrowhead, but every complete logical path remains traceable.
-        const arrow = g.backRouting !== 'shared' || edge.back !== true
-            || !routes.some(r => r.index < index && r.edge.back === true && r.to === to && r.edge.kind === edge.kind)
         const line = /** @type {Element} */ (['path', {
             d, 'data-graph-edge': '',
-            ...(arrow ? { 'marker-end': 'url(#graph-arrow)' } : {}),
+            'marker-end': 'url(#graph-arrow)',
             ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
             ...fade(edge.from, to),
             ...pathKeyOf('edge', from.key, String(slotOf(index, edge.from)), target.key),

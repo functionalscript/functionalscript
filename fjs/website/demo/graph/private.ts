@@ -113,20 +113,17 @@ export type _Lane = {
     readonly right: number
 }
 
-/** A back edge's source/target ranks, target identity, kind and source height. */
+/** A back edge's source/target ranks and source height. */
 export type _BackEdge = {
     readonly index: number
     readonly from: number
     readonly to: number
-    readonly target: number
-    readonly kind: string | undefined
     readonly y: number
 }
 
 /**
  * Where a back edge runs: `lane`, its place below the graph, nearest first,
- * and `out` and `into`, its place in its source and target gaps. Bundled
- * edges share the bottom lane and target gap, and a source gap per column.
+ * and `out` and `into`, its place in its source and target gaps.
  */
 export type _BackLane = {
     readonly lane: number

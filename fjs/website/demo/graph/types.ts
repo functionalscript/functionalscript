@@ -85,9 +85,9 @@ export type Ranked = Node & { readonly rank: number }
  * so it can point to its source's own rank or any rank left of it. It is drawn
  * around the outside of the graph: down from its port to below every node,
  * left along the bottom, and up into its target's left side, in a lane of
- * its own below the graph and in each gap it goes down or up. With
- * `Graph.backRouting: 'shared'`, edges of the same kind returning to the same node
- * share those lanes and one destination arrowhead.
+ * its own below the graph and in each gap it goes down or up. Returns
+ * enter at distinct points down the target's left side, with the outermost
+ * route entering highest. Each return keeps its own arrowhead.
  */
 export type Edge = {
     readonly from: number
@@ -162,12 +162,6 @@ export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
     readonly entries?: readonly Entry[] | undefined
-    /**
-     * 'separate' gives returns distinct lanes and destination entry points;
-     * 'shared' bundles returns to the same node of the same kind.
-     * Omitted: individual lanes with entries at the destination's midpoint.
-     */
-    readonly backRouting?: 'separate' | 'shared' | undefined
     /** Trace lines/output ports, incoming connections at node names, or native keyboard/click focus. */
     readonly trace?: boolean | undefined
     /**

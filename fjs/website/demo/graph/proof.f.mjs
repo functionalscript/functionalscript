@@ -208,12 +208,12 @@ export const proof = {
     graphSvg: {
         /**
          * **A back edge goes around the graph.** It leaves `g`'s port at
-         * x=160, goes down a lane right of its column, x=170, to a lane
+         * x=180, goes down a lane right of its column, x=190, to a lane
          * below the graph, y=40, left to a lane left of `f`'s column,
          * x=10, and up into `f`'s middle. Each of those two lanes widens
-         * its gap, so `f` starts at x=20 and the drawing ends a margin
-         * past them. With back edges left out the graph is a tree, and is
-         * drawn as one.
+         * its gap, plus 20px clearance before the arrowhead, so `f` starts
+         * at x=40 and the drawing ends a margin past them. With back edges
+         * left out the graph is a tree, and is drawn as one.
          */
         back: () => {
             /** @type {Graph} */
@@ -222,14 +222,14 @@ export const proof = {
                 edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 0, label: 'y', back: true }],
             }
             const html = htmlToString(graphSvg(g))
-            assertEq(JSON.stringify(routes(html)), '["M70,20 L110,20","M160,20 L170,20 L170,40 L10,40 L10,20 L20,20"]')
-            assert(html.includes('viewBox="0 0 180 50"'), html)
+            assertEq(JSON.stringify(routes(html)), '["M90,20 L130,20","M180,20 L190,20 L190,40 L10,40 L10,20 L40,20"]')
+            assert(html.includes('viewBox="0 0 200 50"'), html)
             assertEq(_crossings(g), 0)
         },
         /**
          * **Of two back edges spanning as many ranks, the lower is nearer
          * the graph**, so the higher one, `a`, goes down right of where
-         * `b` leaves, x=190 past x=180, and below it, y=70 past y=60.
+         * `b` leaves, x=210 past x=200, and below it, y=70 past y=60.
          */
         backLanes: () => {
             /** @type {Graph} */
@@ -238,16 +238,14 @@ export const proof = {
                 edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 0, label: 'a', back: true }, { from: 1, to: 0, label: 'b', back: true }],
             }
             assertEq(JSON.stringify(routes(htmlToString(graphSvg(g))).slice(1)),
-                '["M170,20 L190,20 L190,70 L10,70 L10,30 L30,30","M170,40 L180,40 L180,60 L20,60 L20,30 L30,30"]')
+                '["M190,20 L210,20 L210,70 L10,70 L10,26.666666666666664 L50,26.666666666666664","M190,40 L200,40 L200,60 L20,60 L20,33.33333333333333 L50,33.33333333333333"]')
             assertEq(_crossings(g), 0)
         },
-        // Separate routing also gives each return its own destination
-        // entry. The outer gap enters above the inner one, so their final
-        // horizontal segments cannot merge on the way into the same node.
+        // Every return has its own destination entry. The outer gap enters
+        // above the inner one, keeping their final horizontal segments distinct.
         separateReturnEntries: () => {
             /** @type {Graph} */
             const g = {
-                backRouting: 'separate',
                 nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
                 edges: [
                     { from: 0, to: 1, label: 'x' },
@@ -269,7 +267,7 @@ export const proof = {
         /**
          * **A narrower back edge is nearer the graph**: `g`'s edge to
          * itself, one rank, is inside `h`'s edge to `f`, two, in a lane
-         * above it at y=60 and a gap of its own left of `g`, x=110.
+         * above it at y=60 and a gap of its own left of `g`, x=130.
          */
         backNested: () => {
             /** @type {Graph} */
@@ -278,15 +276,14 @@ export const proof = {
                 edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 2, label: 'x' }, { from: 1, to: 1, label: 'b', back: true }, { from: 2, to: 0, label: 'a', back: true }],
             }
             assertEq(JSON.stringify(routes(htmlToString(graphSvg(g))).slice(2)),
-                '["M170,40 L180,40 L180,60 L110,60 L110,30 L120,30","M270,30 L280,30 L280,70 L10,70 L10,30 L20,30"]')
+                '["M210,40 L220,40 L220,60 L130,60 L130,30 L160,30","M310,30 L320,30 L320,70 L10,70 L10,30 L40,30"]')
             assertEq(_crossings(g), 0)
         },
-        // Shared returns use one lane and one arrowhead per destination and
-        // kind. Different destinations and dashed/solid edges remain separate.
-        bundledBacks: () => {
+        // Every return keeps its lane and arrowhead, including same-target
+        // returns from different columns and with different edge kinds.
+        independentReturns: () => {
             /** @type {Graph} */
             const g = {
-                backRouting: 'shared',
                 nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: `${id}`, rank: id })),
                 edges: [
                     { from: 0, to: 1, label: '' }, { from: 1, to: 2, label: '' }, { from: 2, to: 3, label: '' },
@@ -300,19 +297,17 @@ export const proof = {
             const html = htmlToString(graphSvg(g))
             const paths = routes(html)
             assertEq(paths.length, 8)
-            assertEq(paths[3].split(' L').slice(3).join(' L'), paths[5].split(' L').slice(3).join(' L'))
-            assert(paths[5].split(' L')[3] !== paths[6].split(' L')[3], 'different edge kinds have separate lanes')
-            assert(paths[4].split(' L')[3] !== paths[5].split(' L')[3], 'different targets have separate lanes')
-            assertEq(paths[5].split(' L').slice(2).join(' L'), paths[7].split(' L').slice(2).join(' L'))
-            assertEq(occurrences('marker-end="url(#graph-arrow)"')(html), 6)
+            const returns = paths.slice(3).map(path => path.split(' L'))
+            assertEq(new Set(returns.map(path => path[2].split(',')[1])).size, 5)
+            assertEq(new Set([3, 5, 6, 7].map(i => paths[i].split(' L')[5])).size, 4)
+            assertEq(occurrences('marker-end="url(#graph-arrow)"')(html), 8)
             assertEq(_crossings(g), 0)
         },
         // Two definitions in the same column remain separate destinations.
         // Rank alone must not merge their returns or their arrowheads.
-        bundledDistinctTargets: () => {
+        distinctReturnTargets: () => {
             /** @type {Graph} */
             const g = {
-                backRouting: 'shared',
                 nodes: [
                     { id: 0, kind: 'n', label: 'root', rank: 0 },
                     { id: 1, kind: 'n', label: 'left', rank: 1 },
@@ -336,7 +331,7 @@ export const proof = {
         // destination title blocks, including a self edge's distinct cells.
         tracing: () => {
             const html = htmlToString(graphSvg({
-                trace: true, backRouting: 'shared',
+                trace: true,
                 nodes: [{ id: 0, kind: 'n', label: 'root', rank: 0 }, { id: 1, kind: 'n', label: 'child', rank: 1 }],
                 edges: [
                     { from: 0, to: 1, label: 'item' }, { from: 1, to: 1, label: 'self', back: true },
