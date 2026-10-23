@@ -21,7 +21,11 @@ reads them as the ordinary absence:
 - a path component whose entry has subtree mode `40000` but whose id names
   a blob or bytes no tree reads as, or a commit whose root tree is not
   readable as one, is the ordinary miss `ENOENT` for the key, as a path the
-  tree does not take is.
+  tree does not take is;
+- a tree naming the key's component twice, which `git fsck` refuses as
+  `duplicateEntries`, is the same miss: the walk answers no entry for an
+  ambiguous name rather than the first of them. The listing refuses such a
+  tree; a read walks it one name at a time and sees no duplicate.
 
 `git rev-parse` on the ref and `git cat-file` on the tree refuse those
 inputs, and so should this, as `snapshotHeadCode` and `casEntryCode`

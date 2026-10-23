@@ -474,7 +474,7 @@ const epsilonKey = keyOf(latin1('epsilon\n'))
 /** The commands {@link gitRemote} runs for the fixture branch, as it spells them. */
 const git = {
     lsRemote: 'git --git-dir="repo" ls-remote -- "origin" "refs/heads/build-cache"',
-    fetch: 'git --git-dir="repo" fetch -- "origin" "+refs/heads/build-cache:refs/remotes/origin/build-cache"',
+    fetch: 'git --git-dir="repo" fetch --no-tags --no-write-fetch-head --no-auto-maintenance -- "origin" "+refs/heads/build-cache:refs/remotes/origin/build-cache"',
     push: /** @type {(hex: string) => string} */ (hex => `git --git-dir="repo" push -- "origin" "${hex}:refs/heads/build-cache"`),
     mergeBase: /** @type {(a: string, b: string) => string} */ ((a, b) => `git --git-dir="repo" merge-base ${a} ${b}`),
 }
@@ -599,18 +599,33 @@ export const proof = {
         assertEq(codeOf(listed(root)), casEntryCode)
         assert(isNotFound(assertError(readAll(root, alphaKey))))
     },
-    // An entry at a key's path whose mode is not `100644`: an executable, and
-    // a symbolic link whose blob holds its target's path. Either is refused
-    // rather than read as the key's content. The listing names the key all the
-    // same — it reads trees, not modes — which is what makes the read the
-    // place the refusal has to be.
+    // An entry at a key's path whose mode is not `100644`: an executable, a
+    // symbolic link whose blob holds its target's path, and `100644` spelled
+    // `0100644`, the same bits in a spelling Git refuses. Each is refused
+    // rather than read as the key's content, and the listing refuses the
+    // tree rather than naming a key the read would refuse.
     entryMode: () => {
-        for (const mode of ['100755', '120000']) {
+        for (const mode of ['100755', '120000', '0100644']) {
             const { root, objects } = casEntry(alphaKey, mode, sha1.idOf('blob', alpha))
             const r = over(root, [...objects, sha1.object('blob', alpha)])
             assertEq(codeOf(readAll(r, alphaKey)), casEntryCode, mode)
-            assertStructurallySame(spelled(assertOk(listed(r))), spelled([alphaKey]))
+            assertEq(codeOf(listed(r)), casEntryCode, mode)
         }
+    },
+    // A tree naming the key's file twice, which `git fsck` refuses as
+    // `duplicateEntries`: the listing refuses it rather than naming the key
+    // twice, and the walk answers no entry for the path, so the read is a
+    // miss — the walk's answer for an ambiguous name, recorded in
+    // `todo/absent-or-malformed.md`.
+    duplicateEntries: () => {
+        const [, ab, cd, rest] = pathOf(alphaKey)
+        const blob = sha1.idOf('blob', alpha)
+        const leaf = sha1.treeOf([entry('100644', rest, blob), entry('100644', rest, blob)])
+        const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
+        const top = sha1.treeOf([entry('40000', ab, mid.id)])
+        const root = over([entry('40000', '.cas', top.id)], [leaf.object, mid.object, top.object, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(root)), casEntryCode)
+        assert(isNotFound(assertError(readAll(root, alphaKey))))
     },
     // A `100644` entry whose object is a tree, and one whose object is bytes
     // that are no object: neither is the key's content.
@@ -757,6 +772,33 @@ export const proof = {
     // The same content twice is one object and one commit: the second write
     // answers the key and moves nothing, since the tree already holds the
     // blob under that key. A third, different write chains on the first.
+    // A tree the layout did not write, met by a write: a leaf naming the
+    // key's file twice is refused rather than the first of them taken as the
+    // key, and a `40000` entry naming a commit — whose tree the walk's
+    // `tryEntries` would peel to, and a read never does — is refused as no
+    // tree, as the listing refuses both. Nothing is written for either.
+    proposalWriteRefusesMalformed: () => {
+        const [, ab, cd, rest] = pathOf(alphaKey)
+        const blob = sha1.idOf('blob', alpha)
+        const twice = sha1.treeOf([entry('100644', rest, blob), entry('100644', rest, blob)])
+        const mid = sha1.treeOf([entry('40000', cd, twice.id)])
+        const top = sha1.treeOf([entry('40000', ab, mid.id)])
+        const [s0, cas] = proposed(over([entry('40000', '.cas', top.id)], [twice.object, mid.object, top.object, sha1.object('blob', alpha)]))
+        const [s1, w] = wrote(s0, cas, [alpha])
+        assertEq(codeOf(w), casEntryCode)
+        assertStructurallySame(s1.root, s0.root)
+        assertEq(codeOf(virtual(s0)(cas.list())[1]), casEntryCode)
+        const leaf = sha1.treeOf([entry('100644', rest, blob)])
+        const commit = sha1.commit(leaf.id)
+        const commitId = sha1.idOf('commit', commit)
+        const mid2 = sha1.treeOf([entry('40000', cd, commitId)])
+        const top2 = sha1.treeOf([entry('40000', ab, mid2.id)])
+        const [s2, cas2] = proposed(over([entry('40000', '.cas', top2.id)], [leaf.object, sha1.object('commit', commit), mid2.object, top2.object, sha1.object('blob', alpha)]))
+        const [s3, w2] = wrote(s2, cas2, [alpha])
+        assertEq(codeOf(w2), casEntryCode)
+        assertStructurallySame(s3.root, s2.root)
+        assertEq(codeOf(virtual(s2)(cas2.list())[1]), casEntryCode)
+    },
     proposalWritesOnce: () => {
         const [s0, cas] = proposed(ordinary(20, initConfig))
         const [s1, w1] = wrote(s0, cas, [gamma])
@@ -956,6 +998,26 @@ export const proof = {
         const [s5, r5] = virtual(s4)(cas4.remove(alphaKey))
         assertEq(assertOk(r5), false)
         assertStructurallySame(s5.root, s4.root)
+    },
+    // A tree the layout did not write, met by a removal: a leaf naming the
+    // key's file twice is refused rather than one of them taken, and `clear`
+    // over a `.cas` that is a file refuses it as the listing does, rather
+    // than answering nothing to clear with the file left standing. Nothing
+    // is written for either.
+    proposalRemoveRefusesMalformed: () => {
+        const [, ab, cd, rest] = pathOf(alphaKey)
+        const blob = sha1.idOf('blob', alpha)
+        const twice = sha1.treeOf([entry('100644', rest, blob), entry('100644', rest, blob)])
+        const mid = sha1.treeOf([entry('40000', cd, twice.id)])
+        const top = sha1.treeOf([entry('40000', ab, mid.id)])
+        const [s0, cas] = proposed(over([entry('40000', '.cas', top.id)], [twice.object, mid.object, top.object, sha1.object('blob', alpha)]))
+        const [s1, r] = virtual(s0)(cas.remove(alphaKey))
+        assertEq(codeOf(r), casEntryCode)
+        assertStructurallySame(s1.root, s0.root)
+        const [s2, cas2] = proposed(over([entry('100644', '.cas', blob)], [sha1.object('blob', alpha)]))
+        const [s3, c] = virtual(s2)(cas2.clear())
+        assertEq(codeOf(c), casEntryCode)
+        assertStructurallySame(s3.root, s2.root)
     },
     // The key's first directory holds another directory beside the key's
     // (a stray `zz/other.txt`, which is no key): the key's own directory
