@@ -12,7 +12,7 @@ characters `nul`, `ht`, `lf`, `cr`, `ff` and `backspace`. Ranges such as
 `digitRange` and `latinSmallLetterRange` are inclusive pairs.
 
 ```js
-import { one, codePoints, range, digit0 } from './module.f.mjs'
+import { one, codePoints, range, digit0 } from './module.f.js'
 
 one('A')          // 65
 codePoints('ab')  // [97, 98]
@@ -43,9 +43,9 @@ consumer rederives them.
 | `hexDigitCodePoint` | the lowercase digit for a value `0..15` |
 | `isDigits` | whether a string is one or more `0-9` and nothing else |
 | `isCanonicalDigits` | whether a run of code points is decimal with no leading zero, except `0` itself |
-| `digitsValue(radix)` | the `bigint` a run of digits spells, or `null` |
+| `digitsValue(radix)` | the `bigint` a run of digits spells, or `null`; `radix` is `2n` to `10n`, and anything else throws |
 | `decimalValue` | `digitsValue(10n)` |
-| `hexDigitsValue` | the same for hexadecimal digits |
+| `hexDigitsValue` | the same for hexadecimal digits, which `digitsValue` does not read |
 
 ```js
 decimalValue(codePoints('042'))        // 42n: a leading zero is read

@@ -1,6 +1,7 @@
 # UTF-8
 
-Bytes to code points and back, lazily, over `List<U8>`. The byte-format and
+Bytes to code points and back over `List<U8>`. The conversions that answer a
+list are lazy; the ones that answer a string read all of their input first. The byte-format and
 error tables are in the [text README](../README.md#utf-8); this page is about
 which function to call.
 

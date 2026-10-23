@@ -38,8 +38,10 @@ Unicode, such as the [UTF-8](../utf8/README.md) encoder.
 | `codePointToString` | one code point | string |
 | `codeUnitToString` | one code unit | string |
 
-All of the list functions are lazy, so a long string is read only as far as
-the caller walks.
+The functions that answer a list are lazy, so a long string is read only as
+far as the caller walks. The ones that answer a string, `listToString` and
+`codePointListToString`, read their whole input first, so they never return
+on an unbounded list.
 
 `floorCodePointBoundary(s)(i)` is the place to cut a string at a code-unit
 index without splitting a surrogate pair. It throws on an index that is not a
