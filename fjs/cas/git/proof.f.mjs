@@ -28,7 +28,7 @@ import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { tryDelete, tryWrite } from '../../git/refstore/write/module.f.mjs'
 import { objectPath, objectsDir, readIn, tryRead as readObject } from '../../git/store/module.f.mjs'
 import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.mjs'
-import { write as writeTree } from '../../git/tree/module.f.mjs'
+import { compare, write as writeTree } from '../../git/tree/module.f.mjs'
 import { length, maxLength, msb, u8ListToVecMsb, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
@@ -599,6 +599,19 @@ export const proof = {
         assertEq(codeOf(listed(root)), casEntryCode)
         assertEq(codeOf(readAll(root, alphaKey)), casEntryCode)
     },
+    // A tree whose entries are out of the order Git writes — which `git
+    // fsck` refuses as `treeNotSorted` — is refused by the listing and by a
+    // read through it: a writer rebuilding it would write one Git refuses.
+    unsortedTree: () => {
+        const [, ab, cd, rest] = pathOf(alphaKey)
+        const blob = sha1.idOf('blob', alpha)
+        const leaf = sha1.treeOf([entry('100644', 'zz', blob), entry('100644', rest, blob)])
+        const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
+        const top = sha1.treeOf([entry('40000', ab, mid.id)])
+        const root = over([entry('40000', '.cas', top.id)], [leaf.object, mid.object, top.object, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(root)), casEntryCode)
+        assertEq(codeOf(readAll(root, alphaKey)), casEntryCode)
+    },
     // The root tree, which the layout shares with the rest of the branch, is
     // checked as a tree and no more: a name it holds twice refuses a read
     // and the listing, where a `README.md` beside `.cas` is nobody's
@@ -681,7 +694,7 @@ export const proof = {
         const [, ab, cd, rest] = pathOf(alphaKey)
         const leaf = sha1.treeOf([entry('100644', rest, sha1.idOf('blob', alpha))])
         const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
-        const cas = sha1.treeOf([entry('100644', 'README.md', readmeId), entry('100644', '\xff', readmeId), entry('40000', ab, mid.id)])
+        const cas = sha1.treeOf([entry('100644', 'README.md', readmeId), entry('100644', '\xff', readmeId), entry('40000', ab, mid.id)].toSorted(compare))
         const root = over([entry('40000', '.cas', cas.id)], [leaf.object, mid.object, cas.object, sha1.object('blob', readme), sha1.object('blob', alpha)])
         assertStructurallySame(spelled(assertOk(listed(root))), spelled([alphaKey]))
     },
@@ -849,6 +862,21 @@ export const proof = {
         assertEq(codeOf(w4), casEntryCode)
         assertStructurallySame(s7.root, s6.root)
     },
+    // Content already under its key whose blob the repository holds only
+    // through a borrowed directory: the tree decides before the blob is
+    // stored, so the write stores no loose copy of it and the repository is
+    // as it was.
+    proposalWritesNothingBesideDonor: () => {
+        const gammaId = sha1.idOf('blob', gamma)
+        const { root, objects } = casEntry(gammaKey, '100644', gammaId)
+        const borrowing = setIn(over(root, objects), ['repo', 'objects', 'info', 'alternates'], [u8ListToVecMsb(latin1('../../donor/objects\n'))])
+        const good = [u8ListToVecMsb(storedBytes(toArray(writeEnvelope('blob', gamma))))]
+        const withDonor = setIn(setIn(borrowing, objectPath('donor')(gammaId).split('/'), good), ['donor', 'objects', 'pack'], {})
+        const [s0, cas] = proposed(withDonor)
+        const [s1, w] = wrote(s0, cas, [gamma])
+        assertEq(msb.cmp(assertOk(w))(gammaKey), 0)
+        assertStructurallySame(s1.root, s0.root)
+    },
     proposalWritesOnce: () => {
         const [s0, cas] = proposed(ordinary(20, initConfig))
         const [s1, w1] = wrote(s0, cas, [gamma])
@@ -950,6 +978,22 @@ export const proof = {
         const o = assertNotNullish(assertOk(virtual(s1)(readObject(dir, 20)(gammaId))[1]))
         assertEq(o.type, 'blob')
         assertEq(msb.cmp(assertOk(virtual(s1)(collectRead(cas.read(gammaKey)))[1]))(u8ListToVecMsb(gamma)), 0)
+    },
+    // A good loose object already at the path — gamma's blob, there before
+    // any key named it — is left as it is when the write needs it: the
+    // file's bytes are the same after as before.
+    writeObjectLeavesPresent: () => {
+        const gammaId = sha1.idOf('blob', gamma)
+        const [s0, cas] = proposed(over([], [sha1.object('blob', gamma)]))
+        const [s1, w] = wrote(s0, cas, [gamma])
+        assertEq(msb.cmp(assertOk(w))(gammaKey), 0)
+        const at = objectPath(dir)(gammaId).split('/')
+        /** @type {(d: Dir, path: readonly string[]) => unknown} */
+        const getIn = (d, [first, ...rest]) => {
+            const sub = d[first]
+            return rest.length === 0 || sub === undefined || sub instanceof Array ? sub : getIn(/** @type {Dir} */ (sub), rest)
+        }
+        assertStructurallySame(getIn(s1.root, at), getIn(s0.root, at))
     },
     // A valid loose object at the path that is another object — alpha's
     // bytes filed under gamma's id — is not the object either: the hash is

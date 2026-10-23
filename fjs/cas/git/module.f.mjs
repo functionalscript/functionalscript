@@ -292,9 +292,9 @@ const keyedOf = rel => e => {
 }
 
 /**
- * What is wrong with a tree as a tree, in a few words, or nothing: the two
- * shapes `git fsck` refuses in any tree, which a walk cannot take as the
- * tree means them, so every walk here refuses a tree holding either
+ * What is wrong with a tree as a tree, in a few words, or nothing: the
+ * three shapes `git fsck` refuses in any tree, which a walk cannot take as
+ * the tree means them, so every walk here refuses a tree holding any
  * wherever it meets one.
  *
  * - A name the tree holds twice, `duplicateEntries`: the tree answers no
@@ -302,6 +302,9 @@ const keyedOf = rel => e => {
  *   costs what sorting them does and not a scan per name.
  * - A name holding a `/`, `fullPathname`: it spells a path, and is no
  *   entry a walk reaches.
+ * - Entries out of the order Git writes, `treeNotSorted`: a writer
+ *   rebuilding the tree around one entry would keep the order and write a
+ *   tree Git refuses.
  *
  * @type {(es: readonly TreeEntry[]) => readonly string[]}
  */
@@ -310,7 +313,9 @@ const illFormed = es => {
     const twice = sorted.filter((n, i) => i !== 0 && sorted[i - 1] === n)
     if (twice.length !== 0) { return [`names ${twice[0]} twice`] }
     const slashed = sorted.filter(n => n.includes('/'))
-    return slashed.length === 0 ? [] : [`names ${slashed[0]}, which holds a /`]
+    if (slashed.length !== 0) { return [`names ${slashed[0]}, which holds a /`] }
+    const unsorted = es.filter((e, i) => i !== 0 && compare(es[i - 1], e) > 0)
+    return unsorted.length === 0 ? [] : [`is not in Git's order at ${nameText(unsorted[0].name)}`]
 }
 
 /**
@@ -914,6 +919,7 @@ export const proposal = (sha2, branch, author) => {
         const { oidBytes, dirs } = open
         const { write, commit, left, place, take, treeOf, at } = writers(branch, author, open)
         const resolve = tryResolve(dirs, oidBytes)
+        const idOf = of(oidBytes)
         const writeRef = tryWrite(dirs, oidBytes)(name)
         /**
          * The commit the proposal stands at: the proposal ref, or the
@@ -922,6 +928,8 @@ export const proposal = (sha2, branch, author) => {
         const head = step(resolve(name), c => c === null ? resolve(published) : pureOk(c))
         /** That commit's tree, or `null` for the empty one. */
         const tree = step(head, c => c === null ? pureOk(null) : treeOf(c))
+        /** The bytes of a blob, from the chunks gathered: what is hashed for its id and written. @type {(chunks: readonly Vec[]) => Bytes} */
+        const bytesOf = chunks => flat(map(u8ListMsb)(chunks))
         /**
          * One commit of `tree` on the proposal's head with `message`, and the
          * ref moved to it.
@@ -930,10 +938,14 @@ export const proposal = (sha2, branch, author) => {
          */
         const advanced = (tree, head, message) => step(commit(tree, head === null ? [] : [head], message), writeRef)
         /**
-         * Seven links, one per line and in the order they run: the payload
-         * gathered, its blob written, the proposal's head and tree read, the
-         * tree rebuilt around the blob, and the commit written and the ref
-         * moved to it — or neither, where the tree stood.
+         * Six links, one per line and in the order they run: the payload
+         * gathered, the proposal's head and tree read, the tree rebuilt
+         * around the blob's id, the blob written where the tree changed, and
+         * the commit written and the ref moved to it — or none of the last
+         * two, where the tree stood. The tree decides before the blob is
+         * stored, so content already under its key writes nothing, even
+         * where its blob sits in a pack or a borrowed directory and no loose
+         * file of it is there to find.
          *
          * @template {Operation} O1
          * @param {EffectList<O1, Vec, IoChannel>} payload
@@ -941,11 +953,11 @@ export const proposal = (sha2, branch, author) => {
          */
         const add = payload => {
             const got = history(gathered(sha2, payload))
-            const blob = historyStep(got, ({ chunks }) => write('blob', flat(map(u8ListMsb)(chunks))))
-            const base = historyStep(blob, () => head)
+            const base = historyStep(got, () => head)
             const baseTree = historyStep(base, c => c === null ? pureOk(null) : treeOf(c))
-            const root = historyStep(baseTree, (t, _c, b, { key }) => place(t, components(key), b))
-            return step(root, ([newTree, , c, , { key }]) => newTree === null
+            const root = historyStep(baseTree, (t, _c, { key, chunks }) => place(t, components(key), idOf('blob', bytesOf(chunks))))
+            const blob = historyStep(root, (newTree, _t, _c, { chunks }) => newTree === null ? pureOk(null) : write('blob', bytesOf(chunks)))
+            return step(blob, ([, newTree, , c, { key }]) => newTree === null
                 ? pureOk(key)
                 : mapStep(advanced(newTree, c, `cas: add ${vecToCBase32(key)}`), () => key))
         }
