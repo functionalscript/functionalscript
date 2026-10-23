@@ -406,10 +406,15 @@ export const proof = {
     },
     // A `100644` entry whose blob the repository does not hold — a partial
     // clone, a corrupt store — is a missing object, refused, and not a key
-    // that is not in the snapshot.
+    // that is not in the snapshot. So is one whose loose path runs through a
+    // file where its directory should be, which the host reports as
+    // `ENOTDIR` rather than `ENOENT` and the store reads as nothing there.
     entryMissing: () => {
-        const { root, objects } = casEntry(alphaKey, '100644', sha1.idOf('blob', alpha))
+        const blob = sha1.idOf('blob', alpha)
+        const { root, objects } = casEntry(alphaKey, '100644', blob)
         assertEq(codeOf(readAll(over(root, objects), alphaKey)), casEntryCode)
+        const through = setIn(over(root, objects), objectPath(dir)(blob).split('/').slice(0, -1), text('a file, not a directory\n'))
+        assertEq(codeOf(readAll(through, alphaKey)), casEntryCode)
     },
     // A file below `.cas` whose name is no cBase32 — a `README.md` someone
     // put there, a name with a byte above `0x7F` — spells no key and is

@@ -45,7 +45,7 @@ import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import { errorMessage, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, refuse, resultMapStep, step, walkStep } from '../../effects/module.f.mjs'
 import { fromList } from '../../effects/list/module.f.mjs'
-import { isNotFound } from '../../effects/node/module.f.mjs'
+import { namesNothing } from '../../effects/node/module.f.mjs'
 import { tryTreeAt } from '../../git/commit/module.f.mjs'
 import { oidBytes as widthOf } from '../../git/format/module.f.mjs'
 import { hexText } from '../../git/oid/module.f.mjs'
@@ -109,19 +109,21 @@ const refuseFormat = refuse(repositoryFormatCode)
 /**
  * An object read from the store, with a store that has no such object
  * refused as {@link casEntryCode} rather than passed on. The store reports
- * a missing object as the host's `ENOENT`, which is the code a key the
- * snapshot does not hold is reported with too, and the two must not read
- * alike: a repository missing an object its snapshot names — a partial
- * clone, a corrupt store — would otherwise answer "not in the snapshot" for
- * a key that is. The walk itself never answers `ENOENT`; a path the tree
- * does not take is `null`.
+ * a missing object as the host's word for nothing at the path — `ENOENT`,
+ * or the `ENOTDIR` and `ELOOP` of a path through a file or a cycle of
+ * links, which `namesNothing` gathers as the store itself does — and
+ * `ENOENT` is the code a key the snapshot does not hold is reported with
+ * too, so the two must not read alike: a repository missing an object its
+ * snapshot names — a partial clone, a corrupt store — would otherwise
+ * answer "not in the snapshot" for a key that is. The walk itself never
+ * answers `ENOENT`; a path the tree does not take is `null`.
  *
  * @template {Operation} O
  * @template T
  * @param {Effect<O, T, IoChannel>} e
  * @returns {Effect<O, T, IoChannel>}
  */
-const present = e => resultMapStep(e, r => r[0] === 'error' && isNotFound(r[1])
+const present = e => resultMapStep(e, r => r[0] === 'error' && namesNothing(r[1])
     ? error(ioError({ code: casEntryCode, message: `an object of the snapshot is missing from the repository: ${errorMessage(r[1])}` }))
     : r)
 
