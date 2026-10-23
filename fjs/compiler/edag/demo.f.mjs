@@ -74,6 +74,13 @@
  * the zero-operand operator `['undefined']`. This demo draws the two alike,
  * because a reader sees the same value either way.
  *
+ * **Recursion is an arrow back to the function.** `self` is the innermost
+ * function whose body holds it, so it draws as a back edge to the nearest
+ * `=>` the walk entered through its `body` port, routed around the
+ * graph. A `self` in a slot a nested function captures belongs to the
+ * enclosing function, and the `=>` it is entered through is skipped
+ * because its port is that slot, not `body`.
+ *
  * **An operand a node may never evaluate draws dashed.** Source logical
  * operators become conditional regions: `?:` establishes exactly one arm,
  * reusing the established left value where it decides the result. `=>` builds a
@@ -326,6 +333,7 @@ export const _shapeOf = e => {
             ],
         }
     }
+    if (tag === 'self') { return { owner: (v, port) => port === 'body' && v instanceof Array && v[0] === '=>' } }
     if (typeof tag === 'string' && op0.has(tag)) {
         // `Op0Id` groups by operand count, not by meaning — its own doc in
         // `fjs/edag` says so. `undefined` is a primitive, where `args` and

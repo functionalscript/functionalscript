@@ -114,14 +114,27 @@ export type _Lane = {
 }
 
 /**
- * The whole layout: every node and lane placed, and each rank's far edge
+ * Where a back edge runs: `lane`, its place below the graph, nearest first,
+ * and `out` and `into`, its place among the back edges going down the gap
+ * right of its source's column and up the gap left of its target's.
+ */
+export type _BackLane = {
+    readonly lane: number
+    readonly out: number
+    readonly into: number
+}
+
+/**
+ * The whole layout: every node and lane placed, each rank's far edge
  * along the flow — `ends[rank]` is the right of that rank's column, where
- * an edge from a narrower node runs to before it turns.
+ * an edge from a narrower node runs to before it turns — and each back
+ * edge's {@link _BackLane}, by the edge's index.
  */
 export type _Placed = {
     readonly nodes: readonly _Positioned[]
     readonly lanes: readonly _Lane[]
     readonly ends: readonly number[]
+    readonly backs: ReadonlyMap<number, _BackLane>
 }
 
 /** A point of an edge's route. */
@@ -152,13 +165,14 @@ export type _Walk = {
 }
 
 /**
- * A node `graphOf` is inside: its id, the ids of the nodes it is inside,
- * root first and its own last, its children and the next of them to walk,
- * and the label and kind of the edge that reached it — added from the
- * frame below once everything under this one is drawn. The root's are
+ * A node `graphOf` is inside: its value and id, the ids of the nodes it is
+ * inside, root first and its own last, its children and the next of them
+ * to walk, and the label and kind of the edge that reached it — added from
+ * the frame below once everything under this one is drawn. The root's are
  * never read.
  */
 export type _Frame<V> = {
+    readonly value: V
     readonly id: number
     readonly path: readonly number[]
     readonly children: readonly (readonly [label: string, value: V, kind?: string])[]

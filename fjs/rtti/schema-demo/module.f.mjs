@@ -79,7 +79,7 @@ const infoShape = name => info => {
     switch (info[0]) {
         case 'const': {
             const s = constShape(info[1])
-            return 'inline' in s ? s : { ...s, label: named(s.label) }
+            return 'label' in s ? { ...s, label: named(s.label) } : s
         }
         case 'array': { return { kind: 'array', label: named('array'), children: [['', info[1]]] } }
         case 'record': { return { kind: 'record', label: named('record'), children: [['', info[1]]] } }

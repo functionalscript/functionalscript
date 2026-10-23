@@ -8,7 +8,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
- * @import { Inline, Shape } from '../../website/demo/graph/types.ts'
+ * @import { NodeShape } from '../../website/demo/graph/types.ts'
  */
 
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
@@ -38,11 +38,11 @@ import { logicalValue } from '../../js/ast/sugar/logical/module.f.js'
 /**
  * `exp`'s shape, asserted to be a node rather than a value drawn inline.
  *
- * @type {(exp: unknown, msg: string) => Exclude<Shape<unknown>, Inline>}
+ * @type {(exp: unknown, msg: string) => NodeShape<unknown>}
  */
 const nodeShapeOf = (exp, msg) => {
     const shape = _shapeOf(exp)
-    assert(!('inline' in shape), msg)
+    assert('children' in shape, msg)
     return shape
 }
 
@@ -1738,6 +1738,26 @@ export const proof = {
         // passes through a box: each runs down a lane of its own.
         noEdgeCrossesABox: () => {
             assertEq(_crossings(unwrap(graphOfText(demo.init))), 0)
+        },
+        /**
+         * **Recursion is an arrow back to the function**, routed around the
+         * graph: `f(n)`'s callee is a back edge to the `=>` whose body holds
+         * it. A `self` in a slot the inner function captures is the outer
+         * one's, so the inner `=>`'s `frame 0` goes back to the outer, not
+         * to itself, and the inner's own `g` call goes back to the inner.
+         */
+        recursion: () => {
+            const backs = (/** @type {string} */ source) => {
+                const g = unwrap(graphOfText(source))
+                assertEq(_crossings(g), 0)
+                return g.edges.flatMap(e => e.back === true
+                    ? [`${g.nodes[e.from].label} ${e.label} -> ${g.nodes[/** @type {number} */ (e.to)].label} ${e.to}`]
+                    : [])
+            }
+            assertStructurallySame(backs('const f = n => n < 1 ? 0 : f(n - 1); export default f;'), ['() callee -> => 0'])
+            assertStructurallySame(
+                backs('const f = n => { const g = m => m < 1 ? f(m) : g(m - 1); return g(n) }; export default f;'),
+                ['=> frame 0 -> => 0', '() callee -> => 2'])
         },
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))
