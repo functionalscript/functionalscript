@@ -640,13 +640,12 @@ svg text { font: inherit }
 [data-graph-kind="new"] { fill: var(--graph-new-bg) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
-[data-graph-connection] { outline: none; cursor: pointer }
-[data-graph-hit] { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke }
+[data-graph-connection] { outline: none; pointer-events: none }
+[data-graph-hit] { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer }
 [data-graph-trace] { opacity: 0; fill: none; stroke: var(--value); stroke-width: 3; pointer-events: none }
 [data-graph-trace-arrow] { fill: var(--value) }
-[data-graph-connection]:is(:hover, :focus) [data-graph-trace] { opacity: 1 }
-[data-graph]:has([data-graph-connection]:is(:hover, :focus)) [data-graph-edge] { opacity: .25 }
-[data-graph]:has([data-graph-connection]:hover) [data-graph-connection]:focus:not(:hover) [data-graph-trace] { opacity: 0 }
+[data-graph-connection]:is(:has(> [data-graph-hit]:hover), :focus) [data-graph-trace] { opacity: 1 }
+[data-graph]:has([data-graph-hit]:hover) [data-graph-connection]:focus:not(:has(> [data-graph-hit]:hover)) [data-graph-trace] { opacity: 0 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port], [data-graph-group] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
