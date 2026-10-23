@@ -6,9 +6,11 @@ imported directory in the tree — the compiler, the effects layer, RTTI, the
 media formats and the website all reach for `result`, `list`, `nullable` and
 `function` before anything else.
 
-Every module here is plain FunctionalScript. A value is never mutated,
+Every `module.f.*` here is plain FunctionalScript. A value is never mutated,
 functions are curried with the configuration first and the data last, and
-nothing performs I/O. Most calls take one argument each, but not all:
+nothing performs I/O. The one exception is
+[`result/module.mjs`](./result/module.mjs), a host JavaScript companion whose
+`tryCatch` and `asyncTryCatch` run a callback that may throw. Most calls take one argument each, but not all:
 `fixpoint(step, same)(start)` takes two in its first call. Most
 directories hold a `module.f.mjs` (or `module.f.js`), its `types.ts`, and a
 `proof.f.mjs` whose exported `proof` is the module's test suite.
@@ -26,8 +28,10 @@ easier to read.
   kept for broken invariants, not for input a caller could get wrong.
 - **Sequences are lazy lists.** A [`List`](./list/README.md) may be an array, a
   `null`, a cons cell, a concatenation of two lists or a thunk, and every
-  combinator accepts all five. Work
-  happens only when something reads the result.
+  combinator accepts all five. A combinator that answers a list, such as
+  `map` or `filter`, does its work only when something reads the result. One
+  that answers a single value, such as `fold`, `length` or `reverse`, reads
+  the whole list when called, so it never returns on an infinite one.
 - **Functions take their configuration first.** `map(f)(list)`,
   `at(key)(object)`, `okThen(step)(result)`: the argument that varies least
   comes first, so a partially applied function is a reusable value.
