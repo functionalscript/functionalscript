@@ -14,7 +14,7 @@ This limit applies to all bigint-backed types, including `bit_vec` and `ReadFile
 
 ### Aligned Shift (2025/01/11)
 
-For big numbers, about $2^{1,000,000}$:
+For big numbers, about `2n ** 1_000_000n`:
 
 |Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|m1023log2|   log2|
 |---------|----------|----------|---------|-------|---------|---------|-------|
@@ -27,7 +27,7 @@ For big numbers, about $2^{1,000,000}$:
 |Node 18  |      4604|      1401|     1279|    770|      472|      360|**281**|
 |Node 16  |      4143|      1222|     1144|    735|      471|      313|**282**|
 
-For small numbers, about $2^{1,000}$:
+For small numbers, about `2n ** 1_000n`:
 
 |Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|m1023log2|    log2|
 |---------|----------|----------|---------|-------|---------|---------|--------|
@@ -42,7 +42,7 @@ For small numbers, about $2^{1,000}$:
 
 **Browser Test**
 
-For big numbers, about $2^{1,000,000}$:
+For big numbers, about `2n ** 1_000_000n`:
 
 |Browser|CPU|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|m1023log2|    log2|
 |-------|---|----------|----------|---------|-------|---------|---------|--------|
@@ -52,7 +52,7 @@ For big numbers, about $2^{1,000,000}$:
 |Firefox| M1|      1520|       399|  **339**|   1793|     1332|      825|     831|
 |Safari | M1|      1311|       364|      285|    318|      216|      208| **130**|
 
-For small numbers, about $2^{1,000}$:
+For small numbers, about `2n ** 1_000n`:
 
 |Browser|CPU|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|m1023log2|   log2|
 |-------|---|----------|----------|---------|-------|---------|---------|-------|
@@ -66,7 +66,7 @@ For small numbers, about $2^{1,000}$:
 
 See also https://medium.com/@sergeyshandar/improving-the-log2-algorithm-for-bigint-in-javascript-7e5692e7bf0b?sk=9ac18367f61b524704cc8d82707aed3d
 
-For big numbers, about $2^{1,000,000}$:
+For big numbers, about `2n ** 1_000_000n`:
 
 |Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|   log2|
 |---------|----------|----------|---------|-------|---------|-------|
@@ -79,7 +79,7 @@ For big numbers, about $2^{1,000,000}$:
 |Node 18  |      3832|      1179|     1058|    514|      280|**229**|
 |Node 16  |      3781|      1118|     1037|    672|      430|**281**|
 
-For small numbers, about $2^{1,000}$:
+For small numbers, about `2n ** 1_000n`:
 
 |Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|    log2|
 |---------|----------|----------|---------|-------|---------|--------|

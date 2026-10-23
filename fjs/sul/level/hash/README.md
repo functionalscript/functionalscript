@@ -6,7 +6,7 @@ Encodes a stream of level-3 SUL symbols into level-4 hash symbols using a
 ## Background
 
 The literal levels (0–3) use a bijective integer encoding whose alphabet grows
-via tetration. Level 4 would have $2^{136}+1$ symbols — far too large to store
+via tetration. Level 4 would have 2¹³⁶ + 1 symbols — far too large to store
 as an integer. This module replaces that bijection with content-addressed
 256-bit hashes, enabling unbounded nesting at a fixed identifier size.
 
@@ -43,8 +43,8 @@ over how merges are persisted:
 type Add<S> = (left: bigint, right: bigint, merged: bigint, storage: S) => S
 ```
 
-For a word with a $k$-element prefix, `add` is called $k$ times total:
-$k - 1$ times during Patricia trie collapse and once for the final
+For a word with a k-element prefix, `add` is called k times total:
+k − 1 times during Patricia trie collapse and once for the final
 `compress(root, t)`.
 
 ## Streaming usage
