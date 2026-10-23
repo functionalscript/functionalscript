@@ -24,13 +24,17 @@
  * is `error(['undefined'])` in both interpreters ([`README.md`](./README.md)),
  * shown as what the module throws.
  *
+ * **Both run under the package runtime**, `fjs/js/runtime`, as the compiler's
+ * own executors do, so a built-in the runtime defines, such as
+ * `'abc'.startsWith('a')`, answers here as it does there.
+ *
  * **It needs no operations.** Compiling and interpreting are pure functions of
  * the text, so `update` declares `never` and returns through `pureOk`.
  *
  * @module
  *
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
- * @import { EdagValue } from './value/types.ts'
+ * @import { EdagValue, Runtime } from './value/types.ts'
  * @import { Exp } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
@@ -44,10 +48,24 @@ import { toText } from '../text/marked/module.f.mjs'
 import { identityAnalysis } from './analysis/module.f.mjs'
 import { memo } from './memo/module.f.mjs'
 import { vm } from './amnesia/module.f.mjs'
+import { read } from './value/property/module.f.mjs'
+import { assertOk } from '../asserts/module.f.js'
+import runtimeEdag from '../js/runtime/gen.edag.data.js'
 import { toData } from './value/to_unknown/module.f.mjs'
 import { trySerialize } from '../media/datajs/serializer/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
+
+/**
+ * The package runtime as an executor takes it: `fjs/js/runtime`'s EDAG,
+ * which `npm run gen` writes beside its source, evaluated and read for its
+ * `runtime` export.
+ *
+ * @type {Runtime}
+ */
+const runtime = /** @type {Runtime} */ (assertOk(read(
+    vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))),
+    'runtime')))
 
 /**
  * An evaluated value as the page prints it: a DataJS document, which spells
@@ -84,7 +102,7 @@ export const run = text => {
     const graph = unresolved(ast[1]).edag
     const analyzed = identityAnalysis(graph)
     if (analyzed[0] === 'error') { return error(String(analyzed[1])) }
-    return ok([answer(memo(analyzed[1])({ args: [] })), answer(vm({ frame: [], args: [] })(graph))])
+    return ok([answer(memo(analyzed[1])({ args: [], runtime })), answer(vm({ frame: [], args: [], runtime })(graph))])
 }
 
 /** @type {Demo<string, DemoEvent>} */

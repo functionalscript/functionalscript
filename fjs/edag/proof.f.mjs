@@ -40,7 +40,7 @@
  */
 
 import { validate } from '../rtti/validate/module.f.mjs'
-import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
+import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
 import { demo, run as runDemo } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
@@ -1032,6 +1032,10 @@ export const proof = {
         // An operation's own failure is what the module throws, in both.
         throws: () => assertStructurallySame(assertOk(runDemo('export default 1n / 0n')),
             ['throws export default undefined;', 'throws export default undefined;']),
+        // A built-in the package runtime defines answers as it does in the
+        // compiler's executors, in both.
+        runtime: () => assertStructurallySame(assertOk(runDemo("export default 'abc'.startsWith('a')")),
+            ['export default {"default":true};', 'export default {"default":true};']),
         // A function has no data form, and the page says why.
         callable: () => assert(assertOk(runDemo('export default x => x'))[0].startsWith('(callable'), 'a function is not data'),
         // Source the parser refuses is refused before any graph exists.
@@ -1042,10 +1046,10 @@ export const proof = {
         },
         // Typing replaces the text; every other event leaves it alone.
         update: () => {
-            const typed = runPure(demo.update('')({ kind: 'input', name: 'module', value: 'x' }))
-            assertEq(typed.length === 1 ? assertOk(typed[0]) : null, 'x')
-            const kept = runPure(demo.update('kept')({ kind: 'start' }))
-            assertEq(kept.length === 1 ? assertOk(kept[0]) : null, 'kept')
+            const [typed] = runPure(demo.update('')({ kind: 'input', name: 'module', value: 'x' }))
+            assertEq(assertOk(assertNotNullish(typed)), 'x')
+            const [kept] = runPure(demo.update('kept')({ kind: 'start' }))
+            assertEq(assertOk(assertNotNullish(kept)), 'kept')
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))
