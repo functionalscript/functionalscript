@@ -15,10 +15,17 @@ coverage verdict is then a function of JavaScript files as well as
 FunctionalScript ones, and a change to a `proof.mjs` can move it.
 
 The [build cache](../../ci/todo/097-smart-ca-ci.md) keys coverage on the
-`fjs` group alone — `*.f.mjs`, `*.f.js`, `*.data.js` — and skips it when
-only JavaScript or TypeScript changed. That key is exact only if the
-coverage run reads nothing outside the group. `deno task cov` has the same
-shape: every test, `module.f.m?js` measured.
+`fjs` group — `*.f.mjs`, `*.f.js`, `*.data.js`, with `package.json` and
+the runner and reporter under `fjs/emergent_testing` listed beside them —
+and skips it when only JavaScript or TypeScript changed. The plain
+JavaScript proofs are the one input of the coverage verdict that key does
+not see and this task removes. What it does not remove: a plain
+JavaScript module a FunctionalScript proof imports — a host adapter such
+as `fjs/effects/node/module.mjs` — still executes under coverage and is
+`js`, so a change to one can move a line's coverage without moving the
+`fjs` key. That residual is the cache plan's, closed by its dependency
+graph step, and is named there. `deno task cov` has the same shape: every
+test, `module.f.m?js` measured.
 
 ### Proposal
 
