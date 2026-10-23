@@ -14,7 +14,7 @@ const concat = { identity: '', operation: a => b => a + b }
 
 | Function | Does |
 |---|---|
-| `repeat(monoid)(n)(a)` | applies the operation `n` times, by squaring, in `log2(n)` steps |
+| `repeat(monoid)(n)(a)` | applies the operation `n` times, by squaring, in `log2(n)` steps; `n` is a non-negative `bigint` |
 | `fold(monoid)(list)` | combines a list as a balanced tree, keeping order |
 | `foldAbsorbing({ monoid, absorbing })(list)` | `fold` that stops at the absorbing element |
 | `step` and `runs` | the balanced fold's stack, for a structure that keeps it |
