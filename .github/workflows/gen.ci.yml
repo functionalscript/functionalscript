@@ -119,8 +119,14 @@
           }
         },
         {
-          "run": "git push origin build-cache",
+          "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
           "continue-on-error": true
         }
       ],
@@ -339,8 +345,14 @@
           "continue-on-error": true
         },
         {
-          "run": "git push origin build-cache",
+          "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
           "continue-on-error": true
         }
       ],
@@ -432,8 +444,14 @@
           "continue-on-error": true
         },
         {
-          "run": "git push origin build-cache",
+          "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
           "continue-on-error": true
         }
       ],
@@ -522,8 +540,14 @@
           "continue-on-error": true
         },
         {
-          "run": "git push origin build-cache",
+          "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
           "continue-on-error": true
         }
       ],
@@ -628,8 +652,14 @@
           "continue-on-error": true
         },
         {
-          "run": "git push origin build-cache",
+          "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
           "continue-on-error": true
         }
       ],
@@ -717,8 +747,14 @@
           "continue-on-error": true
         },
         {
-          "run": "git push origin build-cache",
+          "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
           "continue-on-error": true
         }
       ],
@@ -782,8 +818,14 @@
           "continue-on-error": true
         },
         {
-          "run": "git push origin build-cache",
+          "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
           "continue-on-error": true
         }
       ],
@@ -847,8 +889,14 @@
           "continue-on-error": true
         },
         {
-          "run": "git push origin build-cache",
+          "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
           "continue-on-error": true
         }
       ],
@@ -1021,8 +1069,14 @@
           "continue-on-error": true
         },
         {
-          "run": "git push origin build-cache",
+          "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
           "continue-on-error": true
         }
       ],

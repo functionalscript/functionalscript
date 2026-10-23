@@ -14,6 +14,13 @@ validation. The native reader reparses pack indexes for every tree. A single
 `git ls-tree` call is the simpler alternative to adding pack-index caching;
 using it awaits the approval required by AGENTS.md §6.
 
+The [CI run 40016215099](https://github.com/functionalscript/functionalscript/actions/runs/40016215099)
+showed a concurrent push advancing `build-cache` before another job published,
+so that job's reports were lost. Publication now fetches and merges the remote
+tip in a temporary cache worktree and retries, with a limit of ten total push
+attempts. Network operations use the source checkout's configured credentials;
+the source tree stays untouched.
+
 ### Tasks
 
 - [ ] Enumerate every input read by the generators before caching the
@@ -22,8 +29,8 @@ using it awaits the approval required by AGENTS.md §6.
       actual host tool versions and working-tree bytes. Reuse CI entries only
       when the resulting contract and inputs agree.
 - [ ] Measure setup cost for macOS and Windows jobs whose checks all hit,
-      reports lost to refused pushes, and native CAS lookup/add cost at CI scale.
-      Add a gate job, push retry, or Git CLI backend only if those measurements
+      and native CAS lookup/add cost at CI scale.
+      Add a gate job or Git CLI backend only if those measurements
       justify the extra machinery. The Git CLI backend needs the approval
       described in [AGENTS.md](../../../AGENTS.md#6-external-tools).
 
