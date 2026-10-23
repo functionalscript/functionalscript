@@ -27,8 +27,7 @@ condition, and the publication below. Use CAS hashes for the JSON
 documents and reuse Git blob IDs for committed source files. The first
 target is GitHub CI, through the generated steps; a developer machine or
 another CI service runs the same steps later, through
-[`fjs run`](#fjs-run-later), which is what the smart-builds
-[investigation](../../dev/todo/smart-builds.md) was waiting for.
+[`fjs run`](#fjs-run-later).
 
 Two input manifests at first — one for Rust, one for JavaScript and
 FunctionalScript — and one entry per **check**: a check is a step group
@@ -168,9 +167,9 @@ by that contract from its declared inputs remain within its scope.
 
 A developer machine runs the same generated steps, through
 [`fjs run`](#fjs-run-later), later; what that leaves open about everyday
-developer workflows is
-[smart builds on developer machines](../../dev/todo/smart-builds.md), a
-follow-up and not a prerequisite for this CI implementation.
+developer workflows is a
+[potential improvement](#potential-improvements-after-measurement), not a
+prerequisite for this CI implementation.
 
 #### Build and publication
 
@@ -182,15 +181,17 @@ another, and nothing is added to the critical path of a run that misses.
 1. **`fjs ci init`, before the expensive setup.** The saving is the setup
    a job never does — the Nix shell, the toolchains, the Rust build — so
    the first generated steps run on the runner's stock tooling: a shallow
-   checkout, `setup-node`, the published `fjs` CLI at the pin in
-   `fjs/ci/config` (as the Windows jobs already install it), the bot's
-   identity (`git config user.name "github-actions[bot]"` and
+   checkout, `setup-node`, the bot's identity (`git config user.name "github-actions[bot]"` and
    `git config user.email
    "41898282+github-actions[bot]@users.noreply.github.com"`, since a
    checkout has none and `fjs cas git add` refuses without one), and
    `git fetch --depth 1 origin build-cache:build-cache` — a fast-forward of
    a local branch that is never checked out, of which only the tip is
-   read. Then `fjs ci init`, native over the fetched branch: it builds the
+   read. Then `fjs ci init`, run as `npm start ci init` — the checkout's
+   own code on the runner's stock Node, which needs no install, since
+   `fjs/module.mjs` has no runtime dependency, and which is debugged here
+   before it moves to the published `fjs ci init` — native over the
+   fetched branch: it builds the
    manifests from the commit's trees, computes one key per check of the
    job — the check's contract over its rung's manifest — looks each up,
    and writes two things: a flag per check to `$GITHUB_OUTPUT`,
@@ -222,7 +223,8 @@ another, and nothing is added to the critical path of a run that misses.
    all of whose checks hit still pays its setup, which is the measurement
    below.
 3. **`fjs ci report`, behind each check.** The last step of a check, on
-   its success and under its gate, runs `fjs ci report <check>`: one
+   its success and under its gate, runs `fjs ci report <check>` (as
+   `npm start ci report <check>`, likewise): one
    `fjs cas git add` of the manifest `fjs ci init` wrote, one commit on
    the local `build-cache` — or nothing, where the branch holds the key
    already. A report is added by its own check's success step and by
@@ -232,32 +234,32 @@ another, and nothing is added to the critical path of a run that misses.
    was looked up, by construction.
 4. **The push, last in every job.** The job's final step runs with
    `if: always()` and pushes the local `build-cache` where it moved, so a
-   check that passed before a later one failed is still recorded. Where
-   the push is refused as a non-fast-forward because another job or run
-   published first, `git fetch origin build-cache`, merge it into the
-   local branch in a worktree (`git worktree add ../cache build-cache`,
-   then `git merge origin/build-cache` there; `--allow-unrelated-histories`
-   where the two branches began apart) — different keys are different
-   paths, so independent additions never conflict — and push again, a few
-   times. Every job carries `contents: write` for it, and the race is
-   between the jobs of a run as between runs, which Git settles. A job
-   pushes one commit per new entry, since `add` commits per entry, and
-   none where every check hit. The step publishes only where it can: on a
+   check that passed before a later one failed is still recorded. It
+   pushes once. Where the push is refused as a non-fast-forward because
+   another job or run published first, the job's reports are lost with
+   it, which costs one rerun of those checks and nothing else: the next
+   run misses them and records them again. A retry that fetches and
+   merges is a [potential improvement](#potential-improvements-after-measurement)
+   and is not built until a measurement says what the losses cost. Every
+   job carries `contents: write` for the push, and the race is between
+   the jobs of a run as between runs, which Git refuses for all but the
+   first. A job pushes one commit per new entry, since `add` commits per
+   entry, and none where every check hit. The step publishes only where it can: on a
    `pull_request` event it runs only where the head repository is this
    one and the actor is not `dependabot[bot]`, whose tokens are read-only
    whatever the job asks for; a `merge_group` or `push` run has no pull
    request to test and publishes. Where a push is refused for want of
    permission all the same, the step ends green and unpublished, saying so
    in its log: an unwritten cache is a cost, never a wrong value, and a
-   red step on a green check would be the wrong value. Reports a job could
-   not push are lost with it, which costs one rerun and nothing else.
+   red step on a green check would be the wrong value.
 5. **Misses against hits.** On a miss, the common case for a fresh change,
    `fjs ci init` adds seconds to each job and nothing serial. On a hit of
    every check, nine runners still spin up and pay their setup — a minute
    or more each, in parallel — where a gate job ahead of them would have
    started none, at the price of its own duration ahead of every run that
    misses. Measure the setup cost on macOS and Windows; a gate job is a
-   later optimization if hits come to dominate, not a prerequisite.
+   [potential improvement](#potential-improvements-after-measurement) if
+   hits come to dominate, not a prerequisite.
 
 Two rules follow, and the plan holds them as rules. **An entry means these
 inputs passed this contract**, once, anywhere: a check is skipped when an
@@ -312,9 +314,10 @@ fork's `build-cache` is its own branch, merged into the main one with
 
 Three things decide whether entries from different systems mean the same
 thing. The contract is system-neutral, as above: commands and host facts,
-no runner labels. Every system runs the same published `fjs` at the same
-pin, so manifest and contract bytes agree, and a pin bump invalidates the
-cache for everyone at once, which is correct, since the tools changed too.
+no runner labels. Every system runs the checkout's own `fjs ci` code, so
+manifest and contract bytes agree at a commit, and a pin bump invalidates
+the cache for everyone at once, which is correct, since the tools changed
+too.
 And trust is per writer: an entry is a claim by whoever could push to the
 branch, and its commit says who. On GitHub a fork PR's token is read-only,
 so a fork PR reads the cache and cannot write it, which is the right
@@ -407,6 +410,30 @@ in order; a host that matches no job is told so. Tool versions never
 select a job: they are recorded, so a host with another Node runs its
 platform's jobs and writes entries nobody else reads, as above. A dirty
 tree is recorded too, from the files as they are.
+
+#### Potential improvements, after measurement
+
+Each of these is built only once a measurement shows it would improve CI
+significantly; until then it is a sentence here and not a task.
+
+- **A retry on a refused push.** Nine jobs push per run and Git refuses
+  all but the first as non-fast-forward, so some reports are lost to the
+  next run. Measure how many; if the loss is significant, the push step
+  fetches, merges in a worktree (`git worktree add ../cache build-cache`,
+  `git merge origin/build-cache` there, `--allow-unrelated-histories` where
+  the branches began apart — different keys are different paths, so
+  independent additions never conflict) and pushes again, a few times.
+- **A gate job ahead of the others.** Where hits come to dominate, a job
+  that runs `fjs ci init` once and skips the other jobs whole saves their
+  setup, at the price of its own duration ahead of every run that misses.
+  Measure the setup cost of a job all of whose checks hit first.
+- **Developer workflows beyond the CI jobs.** `fjs run` gives a developer
+  the CI jobs; whether everyday work is served by them — a subtree's tests,
+  one module's coverage, the compile of one file — and what each of CI's
+  broken assumptions costs on a developer machine, is open, and is
+  measured on developers' machines once `fjs run` exists.
+- **The `git` CLI behind the three commands**, below, if the native
+  backend is slow.
 
 #### If the native backend is slow
 
@@ -545,21 +572,23 @@ own complete input set and success condition.
 - [ ] Enforce the initial CI limitations: cache reuse and publication must
       be unavailable where relevant inputs or metadata are unrepresented,
       or checkout and execution semantics do not match the contract.
-- [ ] `fjs ci init`: the manifests from the commit's trees, one key per
-      check, the lookup over the fetched branch through the native backend,
-      the flags to `$GITHUB_OUTPUT` and the manifests to a directory outside
-      the tree. Proofs over the virtual filesystem for a hit, a miss, an
-      absent branch and a corrupt one.
+- [ ] `fjs ci init`, run as `npm start ci init`: the manifests from the
+      commit's trees, one key per check, the lookup over the fetched branch
+      through the native backend, the flags to `$GITHUB_OUTPUT` and the
+      manifests to a directory outside the tree. Proofs over the virtual
+      filesystem for a hit, a miss, an absent branch and a corrupt one.
 - [ ] `fjs ci report <check>`: one `add` of the written manifest, a no-op
       where the branch holds the key. Proofs for both.
 - [ ] The generator: `stepSchema` gains `id`, `if` and outputs; each check
       is one gated step group, the producer–consumer pairs named; the
       identity, the fetch and `fjs ci init` ahead, `fjs ci report` behind
-      each check, the push step with `if: always()` and the publish guard
+      each check, the single push with `if: always()` and the publish guard
       last. Prove that every step of a check shares the check's gate, that
       setup steps carry none, and that `gen.npm-publish.yml` carries none.
-- [ ] Measure the setup cost on macOS and Windows for a job all of whose
-      checks hit; decide on a gate job from the measurement, not before.
+- [ ] Measure, once the cache runs: the setup cost on macOS and Windows for
+      a job all of whose checks hit, and the reports lost to refused pushes
+      per run. Decide on the gate job and the push retry from the
+      measurements, not before.
 - [ ] Prove `snapshot` reads the tip of a `--depth 1` fetch of
       `build-cache` before the shallow fetch is relied on.
 - [ ] Document cleanup and how to add finer, overlapping blocks while
@@ -580,9 +609,6 @@ own complete input set and success condition.
 
 - [CAS in a Git branch](../../cas/git/README.md) — the backend and CLI; the
   branch moves with `git push` and `git fetch`.
-- [Smart builds on developer machines](../../dev/todo/smart-builds.md) —
-  the direction is decided here, a developer machine runs the same steps
-  through `fjs run`; that task records what the direction leaves open.
 - [096-ci-caching](./096-ci-caching.md) — caches the tools needed to run builds.
 - [CI generator](../README.md) — owns the generated GitHub workflows.
 - [JSON utilities](../../media/json/module.f.mjs) — reuse `stringifySorted`.
