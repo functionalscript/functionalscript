@@ -37,6 +37,10 @@
  * placeholder nodes Graphviz's `dot` inserts, and why an edge here is a run
  * of straight segments rather than a curve.
  *
+ * **A back edge goes around the graph.** An edge marked `back`, which
+ * closes a cycle, is left out of ranking and drawn down a gap, along a
+ * lane below every node and up another gap, so it crosses no box either.
+ *
  * **A primitive draws inside the node that holds it.** An edge whose `to`
  * is an {@link Inline} value leaves no line: its row grows a second cell,
  * right of the edge's label, holding the value. A number or a `null` has no
@@ -45,9 +49,9 @@
  *
  * @module
  *
- * @import { Corner, Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
+ * @import { Back, Corner, Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk } from './private.ts'
+ * @import { _BackLane, _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk } from './private.ts'
  * @import { StateScan } from '../../../types/function/operator/types.ts'
  */
 
@@ -59,6 +63,7 @@ import { assertNotNullish } from '../../../asserts/module.f.js'
 /**
  * Every node's rank: the longest path from the root, so every edge points
  * right by at least one rank and never straight up or down, or back. A
+ * `back` edge is not a path, so it ranks nothing. A
  * node's id is its index here — a demo's own walk is expected to assign
  * ids `0, 1, 2, …` in creation order with no gaps, root first — so
  * `current[edge.from]` reads a node by id directly.
@@ -77,7 +82,7 @@ import { assertNotNullish } from '../../../asserts/module.f.js'
  */
 export const ranked = (nodes, edges) => {
     /** @type {readonly (readonly Edge[])[]} */
-    const incomingOf = nodes.map(n => edges.filter(e => e.to === n.id))
+    const incomingOf = nodes.map(n => edges.filter(e => e.to === n.id && e.back !== true))
     let current = nodes.map(n => ({ ...n, rank: n.id === 0 ? 0 : -Infinity }))
     for (let round = 0; round < nodes.length; round++) {
         const prior = current
@@ -99,7 +104,7 @@ const { is } = Object
  * @template V
  * @param {_Walk} walk
  * @param {V} value
- * @param {Shape<V>} s
+ * @param {Exclude<Shape<V>, Back<V>>} s
  * @returns {{ readonly id: number, readonly walk: _Walk, readonly children: _Frame<V>['children'] }}
  */
 const draw = (walk, value, s) => {
@@ -122,6 +127,31 @@ const draw = (walk, value, s) => {
 /** `walk` with `edge` added. @type {(walk: _Walk, edge: Edge) => _Walk} */
 const withEdge = (walk, edge) => ({ ...walk, edges: [...walk.edges, edge] })
 
+const noOwner = 'graph: a back reference outside every node it could go back to'
+
+/**
+ * The id of the innermost node on `stack` that `owner` takes, each read
+ * with the label of the child the walk is in. Every frame on `stack` has
+ * moved past that child, so it is the one before `next`.
+ *
+ * **A back reference with no owner is refused**: an edge to no node would
+ * vanish and leave a picture that looks complete.
+ *
+ * @template V
+ * @param {_Stack<V>} stack
+ * @param {Back<V>['owner']} owner
+ * @returns {number}
+ */
+const ownerOf = (stack, owner) => {
+    let s = stack
+    while (s !== undefined) {
+        const [frame, rest] = s
+        if (owner(frame.value, frame.children[frame.next - 1][0])) { return frame.id }
+        s = rest
+    }
+    throw noOwner
+}
+
 /**
  * `root` as the graph it denotes, each value read by `shape`.
  *
@@ -138,6 +168,11 @@ const withEdge = (walk, edge) => ({ ...walk, edges: [...walk.edges, edge] })
  * {@link ranked}'s longest path cannot place: it would push the cycle's
  * ranks up for as many rounds as it runs and answer a plausible wrong
  * picture instead.
+ *
+ * **A cycle the demo means is a {@link Back} shape** instead: an edge,
+ * marked `back`, to the innermost node the walk is inside that the shape's
+ * `owner` takes. Ranking ignores it, so it has no rank to need. A root
+ * that is a back reference is inside no node, and is refused.
  *
  * Ranks nothing while it walks: which rank a node belongs to depends on
  * every edge that reaches it, including ones the walk has not taken yet
@@ -156,10 +191,12 @@ export const graphOf =
         // out of stack on a path of a couple of thousand nodes. A node's
         // edge from its parent is added once everything under it is
         // drawn, so ids and edges come out in the order recursion gave.
-        const start = draw({ refs: [], nodes: [], edges: [], next: 0 }, root, shape(root))
+        const rootShape = shape(root)
+        if ('owner' in rootShape) { throw noOwner }
+        const start = draw({ refs: [], nodes: [], edges: [], next: 0 }, root, rootShape)
         let walk = start.walk
         /** @type {_Stack<V>} */
-        let stack = [{ id: start.id, path: [start.id], children: start.children, next: 0, label: '', kind: undefined }, undefined]
+        let stack = [{ value: root, id: start.id, path: [start.id], children: start.children, next: 0, label: '', kind: undefined }, undefined]
         while (stack !== undefined) {
             /** @type {readonly [_Frame<V>, _Stack<V>]} */
             const [top, rest] = stack
@@ -172,7 +209,10 @@ export const graphOf =
                 /** @type {_Stack<V>} */
                 const advanced = [{ ...top, next: top.next + 1 }, rest]
                 const c = shape(child)
-                if ('inline' in c) {
+                if ('owner' in c) {
+                    walk = withEdge(walk, { from: top.id, to: ownerOf(advanced, c.owner), label, kind, back: true })
+                    stack = advanced
+                } else if ('inline' in c) {
                     walk = withEdge(walk, { from: top.id, to: c, label, kind })
                     stack = advanced
                 } else {
@@ -180,7 +220,7 @@ export const graphOf =
                     if (found === undefined) {
                         const drawn = draw(walk, child, c)
                         walk = drawn.walk
-                        stack = [{ id: drawn.id, path: [...top.path, drawn.id], children: drawn.children, next: 0, label, kind }, advanced]
+                        stack = [{ value: child, id: drawn.id, path: [...top.path, drawn.id], children: drawn.children, next: 0, label, kind }, advanced]
                     } else {
                         // a value already drawn is one node however many
                         // edges reach it, unless the walk is still inside it
@@ -482,6 +522,30 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
 }
 
 /**
+ * Each back edge's {@link _BackLane}, by its index, from the ranks it goes
+ * from and to and the height `y` it leaves its node at.
+ *
+ * **A narrower back edge takes a lane nearer the graph**, and nearer its
+ * columns in the gaps it goes down and up, so a back edge whose ranks lie
+ * strictly inside another's is drawn inside it and the two never cross.
+ * **Of two that span equally many ranks, the lower one is nearer**: going
+ * down one gap, the higher one then passes right of where the lower one
+ * leaves its node rather than across it. Back edges that share a gap and
+ * nest the other way can still cross there, where no order of lanes
+ * would keep them apart.
+ *
+ * @type {(edges: readonly { readonly index: number, readonly from: number, readonly to: number, readonly y: number }[]) => ReadonlyMap<number, _BackLane>}
+ */
+const backLanesOf = edges => {
+    const backs = edges.toSorted((a, b) => (a.from - a.to) - (b.from - b.to) || b.y - a.y)
+    return new Map(backs.map(({ index, from, to }, lane) => [index, {
+        lane,
+        out: backs.slice(0, lane).filter(b => b.from === from).length,
+        into: backs.slice(0, lane).filter(b => b.to === to).length,
+    }]))
+}
+
+/**
  * Every column, left to right: its nodes and lanes in `key` order, each
  * placed top to bottom, and the column as wide as its widest node. A lane
  * spans its column's whole width, so the next column starts right of it
@@ -514,7 +578,12 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
  * existed.
  *
  * **A tree's nodes take the tops {@link treeTopsOf} gives them** instead
- * of the running `y`; a tree has no lanes.
+ * of the running `y`; a tree has no lanes. Back edges do not count: a graph
+ * that is a tree but for them is drawn as one.
+ *
+ * **A back edge has no lane in any column.** It goes down a gap, along the
+ * bottom and up another gap ({@link routesOf}), so a gap is wider by a lane
+ * for each back edge that goes down or up it.
  *
  * The first column starts at `left`.
  *
@@ -541,8 +610,14 @@ const layout = left => nodes => edges => {
     const outgoingOf = /** @type {(id: number) => readonly _Out[]} */ (id => /** @type {readonly _Out[]} */ (outgoing.get(id)))
     const ranks = new Map(nodes.map(n => [n.id, n.rank]))
     const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (ranks.get(id)))
-    const spans = edges.map(({ from, to }) =>
-        ({ from: rankOf(from), to: typeof to === 'number' ? rankOf(to) : rankOf(from), key: from + 0.5 }))
+    const spans = edges.map(({ from, to, back }) =>
+        ({ from: rankOf(from), to: typeof to === 'number' && back !== true ? rankOf(to) : rankOf(from), key: from + 0.5 }))
+    // A back edge's ranks, from and to, which its route needs a gap at.
+    const backRanks = edges.flatMap(({ from, to, back }, index) =>
+        back === true && typeof to === 'number' ? [{ index, from: rankOf(from), to: rankOf(to) }] : [])
+    // the back edges going down the gap left of `rank`'s column, or up it
+    /** @type {(rank: number) => number} */
+    const gapOf = rank => laneSize * backRanks.filter(({ from, to }) => from + 1 === rank || to === rank).length
     const maxRank = nodes.reduce((m, n) => max(m, n.rank), 0)
     const sizes = new Map(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
@@ -551,8 +626,8 @@ const layout = left => nodes => edges => {
         ...nodes.filter(node => node.rank === rank).map(node => ({ node, rank, key: node.id })),
         ...spans.flatMap((span, lane) => span.from < rank && rank < span.to ? [{ lane, rank, key: span.key }] : []),
     ].toSorted((a, b) => a.key - b.key))
-    const treeTops = treeTopsOf(columns.map(column => column.flatMap(slot => slot.node === undefined ? [] : [slot.node.id])))(edges)(rankOf)(sizeOf)(
-        id => outgoingOf(id).flatMap(({ edge }) => typeof edge.to === 'number' ? [edge.to] : []))
+    const treeTops = treeTopsOf(columns.map(column => column.flatMap(slot => slot.node === undefined ? [] : [slot.node.id])))(edges.filter(e => e.back !== true))(rankOf)(sizeOf)(
+        id => outgoingOf(id).flatMap(({ edge }) => typeof edge.to === 'number' && edge.back !== true ? [edge.to] : []))
     /** @type {(left: number) => (widest: number) => StateScan<_Sized, number, _PlacedSlot>} */
     const placeSlot = left => widest => ({ slot, size }, top) => {
         if (size === null) {
@@ -565,19 +640,27 @@ const layout = left => nodes => edges => {
         const node = { .../** @type {Ranked} */ (slot.node), x: left, y: treeTops === null ? top : /** @type {number} */ (treeTops.get(id)), ...size }
         return [{ node }, top + size.height + nodeGap]
     }
-    /** @type {StateScan<readonly _Slot[], number, _Column>} */
-    const placeColumn = (column, left) => {
+    /** @type {StateScan<readonly [number, readonly _Slot[]], number, _Column>} */
+    const placeColumn = ([rank, column], prior) => {
+        const left = prior + gapOf(rank)
         const sized = column.map(slot => ({ slot, size: slot.node === undefined ? null : sizeOf(slot.node.id) }))
         const widest = sized.reduce((m, { size }) => max(m, size === null ? laneSize : size.width), 0)
         const slots = toArray(stateScan(placeSlot(left)(widest))(margin)(sized))
         return [{ end: left + widest, slots }, left + widest + rankGap]
     }
-    const placedColumns = toArray(stateScan(placeColumn)(left)(columns))
+    const placedColumns = toArray(stateScan(placeColumn)(left)(columns.map((column, rank) => /** @type {const} */ ([rank, column]))))
     const placed = placedColumns.flatMap(column => column.slots)
+    const placedNodes = placed.flatMap(p => p.node === undefined ? [] : [p.node])
+    // where each edge leaves its node, from the top of the graph
+    const heights = new Map(placedNodes.flatMap(node => [
+        ...node.ports.map(port => /** @type {const} */ ([port.index, node.y + port.y + portHeight / 2])),
+        ...node.exits.map(exit => /** @type {const} */ ([exit.index, node.y + exit.y])),
+    ]))
     return {
-        nodes: placed.flatMap(p => p.node === undefined ? [] : [p.node]),
+        nodes: placedNodes,
         lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
         ends: placedColumns.map(column => column.end),
+        backs: backLanesOf(backRanks.map(back => ({ ...back, y: /** @type {number} */ (heights.get(back.index)) }))),
     }
 }
 
@@ -594,12 +677,20 @@ const layout = left => nodes => edges => {
  * running right first, it turns only in the gap between columns, where
  * there are no boxes.
  *
+ * **A back edge goes around the graph, not through it**: right from its
+ * port into the gap after its column, down to its lane below every node
+ * and lane, left along it to the gap before its target's column, and up
+ * into the middle of its target's left side. It turns only in gaps and
+ * below the graph, so it crosses no box either, and its lane keeps it off
+ * every other back edge ({@link backLanesOf}).
+ *
  * @type {(placed: _Placed) => readonly _Route[]}
  */
 const routesOf = placed => {
     const byId = new Map(placed.nodes.map(p => [p.id, p]))
     const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
+    const bottom = maxOf([...placed.nodes.map(p => p.y + p.height), ...placed.lanes.map(lane => lane.y + laneSize / 2)])
     /** @type {(from: _Positioned) => readonly (readonly [_Out, number])[]} */
     const leaving = from => [
         ...from.ports.map(port => /** @type {const} */ ([port, port.y + portHeight / 2])),
@@ -611,15 +702,24 @@ const routesOf = placed => {
         const to = at(target)
         const y = from.y + offset
         const right = from.x + from.width
+        const middle = to.y + to.height / 2
+        /** @type {(back: _BackLane) => readonly _Point[]} */
+        const around = ({ lane, out, into }) => {
+            const down = placed.ends[from.rank] + laneSize * (out + 1)
+            const up = to.x - laneSize * (into + 1)
+            const below = bottom + laneSize * (lane + 1)
+            return [[right, y], [down, y], [down, below], [up, below], [up, middle], [to.x, middle]]
+        }
+        const back = placed.backs.get(port.index)
         /** @type {readonly _Point[]} */
-        const points = [
+        const points = back !== undefined ? around(back) : [
             [right, y],
             ...(right < placed.ends[from.rank] ? [/** @type {_Point} */ ([placed.ends[from.rank], y])] : []),
             ...Array.from({ length: to.rank - from.rank - 1 }, (_, i) => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
             }).flat(),
-            [to.x, to.y + to.height / 2],
+            [to.x, middle],
         ]
         return [{ edge: port.edge, index: port.index, to: target, points }]
     }))
@@ -778,13 +878,18 @@ const groupCellsOf = ({ groups = [] }) => toArray(stateScan(
 export const graphSvg = g => {
     const placed = placedOf(g)
     const positioned = placed.nodes
+    const routes = routesOf(placed)
+    // A back edge's route is the one thing outside every node and lane.
+    const corners = routes.flatMap(({ points }) => points)
     const width = margin + maxOf([
         ...positioned.map(p => p.x + p.width),
         ...placed.lanes.map(lane => lane.right),
+        ...corners.map(([x]) => x),
     ])
     const height = margin + maxOf([
         ...positioned.map(p => p.y + p.height),
         ...placed.lanes.map(lane => lane.y + laneSize / 2),
+        ...corners.map(([, y]) => y),
     ])
     /** @type {(id: number) => _Positioned} */
     const nodeOf = id => assertNotNullish(positioned.find(n => n.id === id))
@@ -799,7 +904,7 @@ export const graphSvg = g => {
     /** @type {(index: number, from: number) => number} */
     const slotOf = (index, from) => g.edges.slice(0, index).filter(e => e.from === from).length
     /** @type {readonly Element[]} */
-    const edgeEls = routesOf(placed).map(({ edge, index, to, points }) => ['path', {
+    const edgeEls = routes.map(({ edge, index, to, points }) => ['path', {
         d: `M${even(points).map(([x, y]) => `${x},${y}`).join(' L')}`,
         'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
         ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),

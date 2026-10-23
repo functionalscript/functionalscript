@@ -97,6 +97,31 @@ export const proof = {
             // `0`'s child is `1`, whose child is `0` again.
             throughAnother: () => graphOf(/** @type {(v: number) => Shape<number>} */ (
                 v => ({ kind: 'n', label: `${v}`, children: [['next', 1 - v]] })))(0),
+            // **A back reference with no node to go back to is refused**:
+            // the root is inside no node,
+            backRoot: () => graphOf(/** @type {(v: unknown) => Shape<unknown>} */ (() => ({ owner: () => true })))(0),
+            // and no node takes this one.
+            backWithoutOwner: () => graphOf(/** @type {(v: unknown) => Shape<unknown>} */ (
+                v => v === 'self' ? { owner: () => false } : arrayShape(v)))(['self']),
+        },
+        // A back reference is an edge, marked `back`, to the innermost node
+        // the walk is inside that `owner` takes, read with the port the walk
+        // left it by: the inner array was left by `1`, so it is skipped,
+        // and the root, left by `0`, is the owner. It ranks nothing.
+        back: () => {
+            /** @type {(v: unknown) => Shape<unknown>} */
+            const shape = v => v === 'self' ? { owner: (a, port) => a instanceof Array && port === '0' } : arrayShape(v)
+            assertStructurallySame(graphOf(shape)([[1, 'self']]), {
+                nodes: [
+                    { id: 0, kind: 'array', label: '[ ]', rank: 0 },
+                    { id: 1, kind: 'array', label: '[ ]', rank: 1 },
+                ],
+                edges: [
+                    { from: 1, to: { inline: '1' }, label: '0', kind: 'first' },
+                    { from: 1, to: 0, label: '1', kind: undefined, back: true },
+                    { from: 0, to: 1, label: '0', kind: 'first' },
+                ],
+            })
         },
         // A value reached again from outside the node it is under is shared,
         // not a cycle: `0` reaches `1` directly and through `2`.
@@ -156,8 +181,64 @@ export const proof = {
             ]
             assertEq(ranked(nodes, edges).find(n => n.id === 2)?.rank, 2)
         },
+        // A back edge is not a path, so it ranks nothing.
+        back: () => {
+            const nodes = [{ id: 0, kind: 'a', label: 'f' }, { id: 1, kind: 'a', label: 'g' }]
+            const edges = [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 0, label: 'y', back: true }]
+            assertStructurallySame(ranked(nodes, edges).map(n => n.rank), [0, 1])
+        },
     },
     graphSvg: {
+        /**
+         * **A back edge goes around the graph.** It leaves `g`'s port at
+         * x=160, goes down a lane right of its column, x=170, to a lane
+         * below the graph, y=40, left to a lane left of `f`'s column,
+         * x=10, and up into `f`'s middle. Each of those two lanes widens
+         * its gap, so `f` starts at x=20 and the drawing ends a margin
+         * past them. With back edges left out the graph is a tree, and is
+         * drawn as one.
+         */
+        back: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 0, label: 'y', back: true }],
+            }
+            const html = htmlToString(graphSvg(g))
+            assertEq(JSON.stringify(routes(html)), '["M70,20 L110,20","M160,20 L170,20 L170,40 L10,40 L10,20 L20,20"]')
+            assert(html.includes('viewBox="0 0 180 50"'), html)
+            assertEq(_crossings(g), 0)
+        },
+        /**
+         * **Of two back edges spanning as many ranks, the lower is nearer
+         * the graph**, so the higher one, `a`, goes down right of where
+         * `b` leaves, x=190 past x=180, and below it, y=70 past y=60.
+         */
+        backLanes: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 0, label: 'a', back: true }, { from: 1, to: 0, label: 'b', back: true }],
+            }
+            assertEq(JSON.stringify(routes(htmlToString(graphSvg(g))).slice(1)),
+                '["M170,20 L190,20 L190,70 L10,70 L10,30 L30,30","M170,40 L180,40 L180,60 L20,60 L20,30 L30,30"]')
+            assertEq(_crossings(g), 0)
+        },
+        /**
+         * **A narrower back edge is nearer the graph**: `g`'s edge to
+         * itself, one rank, is inside `h`'s edge to `f`, two, in a lane
+         * above it at y=60 and a gap of its own left of `g`, x=110.
+         */
+        backNested: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }, { id: 2, kind: 'a', label: 'h', rank: 2 }],
+                edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 2, label: 'x' }, { from: 1, to: 1, label: 'b', back: true }, { from: 2, to: 0, label: 'a', back: true }],
+            }
+            assertEq(JSON.stringify(routes(htmlToString(graphSvg(g))).slice(2)),
+                '["M170,40 L180,40 L180,60 L110,60 L110,30 L120,30","M270,30 L280,30 L280,70 L10,70 L10,30 L20,30"]')
+            assertEq(_crossings(g), 0)
+        },
         // A node's rect and label render, and so does an edge's path and label.
         rendersNodesAndEdges: () => {
             const html = htmlToString(graphSvg({

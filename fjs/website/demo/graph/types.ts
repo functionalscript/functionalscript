@@ -79,6 +79,13 @@ export type Ranked = Node & { readonly rank: number }
  * EDAG demo marks an operand a node may never evaluate — `&&`'s right, an
  * arm of `?:` — and the same node reached from an eager position elsewhere
  * is still evaluated there, so the distinction cannot live on the node.
+ *
+ * **A `back` edge closes a cycle**, such as a recursive call to the
+ * function whose body holds it. It ends at a node, and ranking ignores it,
+ * so it can point to its source's own rank or any rank left of it. It is drawn
+ * around the outside of the graph: down from its port to below every node,
+ * left along the bottom, and up into its target's left side, in a lane of
+ * its own below the graph and in each gap it goes down or up.
  */
 export type Edge = {
     readonly from: number
@@ -86,6 +93,7 @@ export type Edge = {
     readonly label: string
     readonly kind?: string | undefined
     readonly corner?: Corner | undefined
+    readonly back?: boolean | undefined
 }
 
 /**
@@ -156,17 +164,30 @@ export type Graph = {
 
 /**
  * How `graphOf` (`./module.f.mjs`) reads one value: a node, with the
- * values its edges lead to, or a spelling drawn inline in its parent's port.
+ * values its edges lead to, a spelling drawn inline in its parent's port,
+ * or a {@link Back} reference to a node the walk is inside.
  *
  * A node shape's `kind`, `label` and `groups` become its {@link Node}'s,
  * and each child's label and optional kind become an {@link Edge}'s. The
  * inline shape is an {@link Inline} as it stands.
  */
-export type Shape<V> =
-    | {
-        readonly kind: string
-        readonly label: string
-        readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
-        readonly groups?: readonly Group[] | undefined
-    }
-    | Inline
+export type Shape<V> = NodeShape<V> | Inline | Back<V>
+
+/** A {@link Shape} that is a node, with the values its edges lead to. */
+export type NodeShape<V> = {
+    readonly kind: string
+    readonly label: string
+    readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
+    readonly groups?: readonly Group[] | undefined
+}
+
+/**
+ * A value that stands for a node the walk is inside, such as an EDAG's
+ * `self` for the function whose body holds it: drawn as a `back`
+ * {@link Edge} to the nearest such node for which `owner` holds. `port` is
+ * the label of the edge the walk left that node by, so that a function's
+ * body can be told from a slot its parent fills.
+ */
+export type Back<V> = {
+    readonly owner: (value: V, port: string) => boolean
+}

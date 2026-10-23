@@ -74,6 +74,13 @@
  * the zero-operand operator `['undefined']`. This demo draws the two alike,
  * because a reader sees the same value either way.
  *
+ * **Recursion is an arrow back to the function.** `self` is the innermost
+ * function whose body holds it, so it draws as a back edge to the nearest
+ * `=>` the walk entered through its `body` port, routed around the
+ * graph. A `self` in a slot a nested function captures belongs to the
+ * enclosing function, and the `=>` it is entered through is skipped
+ * because its port is that slot, not `body`.
+ *
  * **An operand a node may never evaluate draws dashed.** Source logical
  * operators become conditional regions: `?:` establishes exactly one arm,
  * reusing the established left value where it decides the result. `=>` builds a
@@ -326,6 +333,7 @@ export const _shapeOf = e => {
             ],
         }
     }
+    if (tag === 'self') { return { owner: (v, port) => port === 'body' && v instanceof Array && v[0] === '=>' } }
     if (typeof tag === 'string' && op0.has(tag)) {
         // `Op0Id` groups by operand count, not by meaning — its own doc in
         // `fjs/edag` says so. `undefined` is a primitive, where `args` and
@@ -430,6 +438,12 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  *   condition eager; a function's body is a lazy edge of its own.
  * - **Closure** is a function that captures its enclosing parameter and a
  *   module `const`, each read inside the body through a frame slot.
+ * - **Recursion** draws the recursive call's `callee` as an arrow back to
+ *   the `=>`, routed around the graph rather than through it.
+ *   **Recursion: Ackermann** has three such arrows, one lane each below the
+ *   graph. The inner `ack(m, n - 1)` is the outer call's argument, so its
+ *   arrow spans more ranks and runs outside the other two rather than
+ *   across them.
  * - **Methods and properties** draws a method call as one node of two
  *   links: `.` beside the receiver in `obj` and `"at"` in `key`, and `()`
  *   beside its arguments, a `[]` node.

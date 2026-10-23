@@ -8,7 +8,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
- * @import { Inline, Shape } from '../../website/demo/graph/types.ts'
+ * @import { NodeShape } from '../../website/demo/graph/types.ts'
  */
 
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
@@ -38,11 +38,11 @@ import { logicalValue } from '../../js/ast/sugar/logical/module.f.js'
 /**
  * `exp`'s shape, asserted to be a node rather than a value drawn inline.
  *
- * @type {(exp: unknown, msg: string) => Exclude<Shape<unknown>, Inline>}
+ * @type {(exp: unknown, msg: string) => NodeShape<unknown>}
  */
 const nodeShapeOf = (exp, msg) => {
     const shape = _shapeOf(exp)
-    assert(!('inline' in shape), msg)
+    assert('children' in shape, msg)
     return shape
 }
 
