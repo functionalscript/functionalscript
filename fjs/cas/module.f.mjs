@@ -112,6 +112,20 @@ export const collectRead = stream => {
 
 
 /**
+ * `sha2` folded over the rest of a stream from `state`: the fold
+ * {@link contentKey} runs, one link per chunk.
+ *
+ * @template {Operation} O
+ * @param {Sha2} sha2
+ * @param {Sha2State} state
+ * @param {EffectList<O, Vec, IoChannel>} s
+ * @returns {Effect<O, Vec, IoChannel>}
+ */
+const digested = (sha2, state, s) => ioStep(s, node => node === undefined
+    ? pureOk(sha2.end(state))
+    : digested(sha2, sha2.append(node.first)(state), node.tail))
+
+/**
  * The content key of a payload, computed without storing it: `sha2` folded
  * over the stream's chunks, which is the fold `write` runs beside its
  * `writeBytes`, so for the same bytes the key this answers and the key
@@ -126,18 +140,14 @@ export const collectRead = stream => {
  * fails fails this with its own failure, as `write` fails, and no key is
  * answered for the bytes that arrived before it.
  *
- * @template {Operation} O
+ * The operation set is the payload's: `contentKey(sha2)` fixes nothing,
+ * and the stream handed to what it answers decides `O`, so a caller holding
+ * the effect before running it holds one its runner's operation map types.
+ *
  * @param {Sha2} sha2
- * @returns {(payload: EffectList<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>}
+ * @returns {<O extends Operation>(payload: EffectList<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>}
  */
-export const contentKey = sha2 => {
-    /** @type {(state: Sha2State) => (s: EffectList<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>} */
-    const loop = state => s =>
-        ioStep(s, node => node === undefined
-            ? pureOk(sha2.end(state))
-            : loop(sha2.append(node.first)(state))(node.tail))
-    return loop(sha2.init)
-}
+export const contentKey = sha2 => payload => digested(sha2, sha2.init, payload)
 
 /** Staging directory under the store root; GC and every uploader share it. */
 const stageRel = '_stage'

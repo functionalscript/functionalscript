@@ -456,7 +456,7 @@ export const proof = {
         const payload = cs => cs.reduceRight(
             (tail, chunk) => nonEmpty(chunk, tail),
             /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty()))
-        const o = runPure(contentKey(sha256)(payload(chunks)))
+        const o = runPure(/** @satisfies {Effect<FileCasOperation, Vec, IoChannel>} */ (contentKey(sha256)(payload(chunks))))
         assert(o.length === 1, 'expected contentKey to finish without issuing a command')
         const key = unwrapResult(o[0])
         const [, written] = virtual(emptyState)(fileCas(sha256)('.').write(payload(chunks)))
@@ -471,7 +471,11 @@ export const proof = {
     },
     contentKeyEmpty: () => {
         // No chunks at all is a payload too, with the hash of nothing as its key.
-        const o = runPure(contentKey(sha256)(empty()))
+        // The operation set is the payload's, not fixed when `sha2` is given:
+        // the same `keyOf` answers an effect of no operation here and one of
+        // the store's in `contentKeyAgreesWithWrite`.
+        const keyOf = contentKey(sha256)
+        const o = runPure(/** @satisfies {Effect<never, Vec, IoChannel>} */ (keyOf(empty())))
         assert(o.length === 1)
         assertEq(msb.cmp(unwrapResult(o[0]))(computeSync(sha256)([])), 0)
     },
