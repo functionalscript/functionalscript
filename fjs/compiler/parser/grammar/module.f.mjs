@@ -34,16 +34,16 @@
  * template ::= noSubstitutionTemplate
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' statement* terminator '}'
- * statement ::= const | 'if' '(' value ')' block
- *             | 'let' bindingTarget '=' value end
+ * statement ::= const | 'if' '(' value ')' block | let
  *             | 'while' '(' value ')' loopBlock | bodyNameStatement
+ * let    ::= 'let' bindingTarget '=' value end
  * terminator ::= 'return' value end | 'throw' value end
  *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
  * caseTail ::= 'case' value ':' caseTail | block afterCase
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
  *            | '}' statement* terminator
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | 'let' bindingTarget '=' value end | bodyNameStatement
+ * loopStatement ::= const | let | bodyNameStatement
  * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
@@ -1200,7 +1200,9 @@ export const statement = () => ['const', {
  * A `let` statement: `let`, what it binds, {@link bindingTarget}, `=`, the
  * value, and its {@link end} — the {@link constStatement} under the other
  * keyword, which declares a variable: a name an assignment,
- * {@link bodyNameStatement}, may rebind
+ * {@link bodyNameStatement}, may rebind. The initializer is required, as a
+ * `const`'s is: JavaScript's `let x;` is refused at the `;`, by design — a
+ * variable names its value where it is declared
  * ([spec: variables](../../../../spec/bindings/variables/README.md)).
  *
  * @type {LetStatement}
@@ -1219,29 +1221,20 @@ export const letStatement = [sym('let'), bindingTarget, sym('='), value, end]
 export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from'), as: sym('as') })
 
 /**
- * A module's call statement, `assert(a);`: a name, the rest of the value
- * it begins, as a value's name branch reads it, {@link arrowOrRest}, and
- * its {@link end} ([spec: call statements](../../../../spec/functions/call-statements/README.md)).
- * The grammar reads any value a name begins, and the fold admits a call
- * alone, refusing any other at the name, as the grammar refused it before.
- * A module binds no variable, so no assignment stands in it: the `=` is
- * refused where it is read, as it is after any other value.
- *
- * A statement opening with anything but a name is not read: `(` and `[`
- * continue the statement before it as a call and an index where no `;`
- * ends it — JavaScript reads `f` on one line and `(g)(x)` on the next as
- * `f(g)(x)` — so one symbol could not tell them from a new statement's;
- * and a prefix or a literal opens no call worth a statement.
- */
-export const nameStatement = /** @type {const} */ ([assignable, arrowOrRest, end])
-
-/**
  * A body's statement that begins with a name: the assignment, `name =
  * value` — the one statement that rebinds a name, a variable a `let` or
  * a parameter declared
  * ([spec: variables](../../../../spec/bindings/variables/README.md)) — or a
- * call statement, {@link nameStatement}, the rest of the value the name
- * begins. `=` decides the assignment in one symbol, an assignment being no
+ * call statement, `assert(a);`, the rest of the value the name begins, as a
+ * value's name branch reads it, {@link arrowOrRest}
+ * ([spec: call statements](../../../../spec/functions/call-statements/README.md)):
+ * the grammar reads any value a name begins, and the fold admits a call
+ * alone, refusing any other at the name, as the grammar refused it before.
+ * A statement opening with anything but a name is not read: `(` and `[`
+ * continue the statement before it as a call and an index where no `;`
+ * ends it — JavaScript reads `f` on one line and `(g)(x)` on the next as
+ * `f(g)(x)` — so one symbol could not tell them from a new statement's;
+ * and a prefix or a literal opens no call worth a statement. `=` decides the assignment in one symbol, an assignment being no
  * value of the language; and the {@link end} of either. Which names an
  * assignment may rebind is the fold's to say.
  */
@@ -1350,10 +1343,12 @@ export const importStatement = /** @type {const} */ ([
 ])
 
 /**
- * A module's statement before its exports: a `const`, or a call statement,
- * {@link nameStatement}. `const` and a name decide the two in one symbol.
+ * A module's statement before its exports: a `const`, a `let`, or what
+ * begins with a name, an assignment or a call statement,
+ * {@link bodyNameStatement}, as a body's. `const`, `let` and a name decide
+ * the three in one symbol.
  */
-export const moduleStatement = /** @type {const} */ ({ const: constStatement, name: nameStatement })
+export const moduleStatement = /** @type {const} */ ({ const: constStatement, let: letStatement, name: bodyNameStatement })
 
 /**
  * What a module ends with, after its imports and constants: its exports —
@@ -1376,8 +1371,9 @@ export const lastStatement = () => ['const', {
 }]
 
 /**
- * The whole module: imports first, ordinary and exported constants and call
- * statements in order, {@link moduleStatement}, and {@link lastStatement} —
+ * The whole module: imports first, ordinary and exported constants,
+ * variables, assignments and call statements in order,
+ * {@link moduleStatement}, and {@link lastStatement} —
  * at least one export, or a `throw`. Ending on `eof` is what makes a
  * trailing stray token a failure.
  */

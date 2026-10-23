@@ -143,7 +143,7 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` [Variables](../bindings/variables/README.md): `let` and assignment
      ([`let`](./3220-let.md), "General bindings")
    - `◌` [Shadowing](./3150-shadowing.md),
-     [forward references](./3140-forward-references.md), a module's `let`,
+     [forward references](./3140-forward-references.md),
      [compound assignments](./3430-assignments.md)
 6. **Operators**
    - `●` Grouping and precedence

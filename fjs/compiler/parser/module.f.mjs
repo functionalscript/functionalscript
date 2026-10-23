@@ -1816,13 +1816,16 @@ const resolvedModule = (source, scope) => {
 }
 
 /**
- * Resolve imports and declarations in order, preserving one initialization
- * plan per statement and each original declaration identity. Named exports
- * select those identities; a terminal throw replaces the export result.
+ * Resolve imports, declarations and assignments in order, preserving one
+ * initialization plan per declaration, one write per assignment and each
+ * original declaration identity. Named exports select those identities; a
+ * terminal throw replaces the export result. A module's `let` is a variable
+ * as a body's is ([spec: variables](../../../spec/bindings/variables/README.md)),
+ * and the module being a function, the capture rule is the same.
  *
  * @type {(module: Module) => Result<ResolvedModule, ParseError>}
  */
-const foldModule = ({ imports, consts, exported, thrown: failing }) => {
+const foldModule = ({ imports, statements, exported, thrown: failing }) => {
     let scope = moduleScope()
     /** @type {readonly SourceImport[]} */
     let modules = []
@@ -1859,7 +1862,20 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
                 : statement.bindings.map(({ name }, i) => ({ ...record, name, binding: importIds[i] }))),
         ]
     }
-    for (const { declaration, exported: named } of consts) {
+    for (const statement of statements) {
+        if (statement[0] === 'assign') {
+            const assignment = statement[1]
+            if (unterminated(previous, assignment)) { return error(unexpectedToken(assignment.start)) }
+            previous = assignment
+            const [tag, target] = assigned(scope, assignment.name)
+            if (tag === 'error') { return error(target) }
+            const [resolved, evaluated] = evaluate(target[0], null)(assignment.value)
+            if (resolved === 'error') { return error(evaluated) }
+            scope = traced(evaluated.scope, [['write', target[1]]])
+            body = [...body, ['write', target[1], evaluated.value]]
+            continue
+        }
+        const [kind, { declaration, exported: named }] = statement
         const { target, value: node } = declaration
         // the statement's beginning first, then the names, then the value: a
         // statement wrong in more than one answers for what a reader meets
@@ -1871,14 +1887,14 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         if (tag === 'error') { return error(plan) }
         const then = named ? plan.names.find(([name]) => nameOf(name) === 'then') : undefined
         if (then !== undefined) { return error({ message: 'reserved export name then', metadata: then[0].metadata }) }
-        // a function that is the whole value of a `const` of one name is
-        // entered under that name, its `self`; a pattern names no function,
-        // and a pattern over the `Object` namespace enters nothing,
-        // {@link constValue}
-        scope = declared(scope, plan, 'const')
-        const [resolved, evaluated] = namespace !== null ? ok({ value: undefined, scope }) : evaluate(scope, target[0] === 'name' ? [nameOf(target[1]), plan.ids[0], false] : null)(node)
+        // a function that is the whole value of a declaration of one name is
+        // entered under that name, its `self`, a `let`'s a capture; a pattern
+        // names no function, and a pattern over the `Object` namespace
+        // enters nothing, {@link declaredValue}
+        scope = declared(scope, plan, kind)
+        const [resolved, evaluated] = namespace !== null ? ok({ value: undefined, scope }) : evaluate(scope, target[0] === 'name' ? [nameOf(target[1]), plan.ids[0], isVariable(kind)] : null)(node)
         if (resolved === 'error') { return error(evaluated) }
-        scope = boundPlan(evaluated.scope, plan, false)
+        scope = boundPlan(evaluated.scope, plan, isVariable(kind))
         if (named) { exports = [...exports, ...plan.names.map(([token, i]) => /** @type {const} */ ([nameOf(token), ['ref', plan.ids[i]]]))] }
         body = [...body, ['initialize', expansion(plan), evaluated.value]]
     }
@@ -1901,8 +1917,9 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
     // an exported pattern binding no name exports nothing, and the grammar
     // saw only the `export`: the module is refused where a name was owed
     if (exports.length === 0) {
-        const last = assertNotNullish(consts.findLast(c => c.exported), ['a module with no export and no throw', consts])
-        return error(noExport(last.declaration.start))
+        const last = assertNotNullish(statements.findLast(s => s[0] !== 'assign' && s[1].exported), ['a module with no export and no throw', statements])
+        assert(last[0] !== 'assign')
+        return error(noExport(last[1].declaration.start))
     }
     /** @type {SourceModule} */
     const sourceModule = { imports: modules, body: { statements: body, exit: ['yield', ['object', toArray(sort(exports)).map(exportMember)]] } }

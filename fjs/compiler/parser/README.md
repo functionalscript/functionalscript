@@ -1,7 +1,8 @@
 # Module Parser
 
 Reads the compiler's token stream as a FunctionalScript module: `import` statements, then
-ordinary and exported `const` statements, with an optional final `export default`.
+ordinary and exported `const` statements, `let` statements and assignments,
+with an optional final `export default`.
 Every statement ends with `;`, or where JavaScript inserts one, and at least
 one export is required.
 
@@ -67,12 +68,14 @@ concern and adds no synthetic source reads.
 [`./grammar`](./grammar/module.f.mjs) holds it:
 
 ```
-module ::= import* const* last eof
+module ::= import* moduleStatement* last eof
+moduleStatement ::= const | let | bodyNameStatement
 import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
 clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
 binding ::= id [ 'as' id ]
 const  ::= 'const' target '=' value end
+let    ::= 'let' target '=' value end
 target ::= id | array | object
 last   ::= 'export' ( 'default' value end | const const* [ last ] )
          | 'throw' value end
@@ -98,8 +101,7 @@ unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
 template ::= noSubstitutionTemplate
            | templateHead value { templateMiddle value } templateTail
 block  ::= '{' statement* terminator '}'
-statement ::= const | 'if' '(' value ')' block
-            | 'let' bindingTarget '=' value end
+statement ::= const | 'if' '(' value ')' block | let
             | 'while' '(' value ')' loopBlock | bodyNameStatement
 terminator ::= 'return' value end | 'throw' value end
            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
@@ -107,7 +109,7 @@ caseTail ::= 'case' value ':' caseTail | block afterCase
 afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
            | '}' statement* terminator
 loopBlock ::= '{' loopStatement* '}'
-loopStatement ::= const | 'let' bindingTarget '=' value end | bodyNameStatement
+loopStatement ::= const | let | bodyNameStatement
 bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
 func   ::= [ '...' id ] ')' '=>' body
 afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest

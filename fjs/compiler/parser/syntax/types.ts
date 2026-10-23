@@ -401,14 +401,17 @@ export type ModuleConst = {
     readonly exported: boolean
 }
 
+/** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, or an assignment. */
+export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment]
+
 /**
- * A whole module as matched: declarations in order, and what ends it — an
+ * A whole module as matched: its statements in order, and what ends it — an
  * optional final `export default`, or the `throw` that stands in its place,
  * never both. A module with neither exports its named `const`s alone.
  */
 export type Module = {
     readonly imports: readonly Import[]
-    readonly consts: readonly ModuleConst[]
+    readonly statements: readonly ModuleStatement[]
     readonly exported: ValueStatement | null
     readonly thrown: ValueStatement | null
 }
@@ -493,5 +496,6 @@ export type Out =
     | { readonly id: 'caseTail', readonly labels: List<Node>, readonly block: Block, readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'afterCase', readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }
-    | { readonly id: 'last', readonly consts: List<ModuleConst>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
+    | { readonly id: 'moduleStatement', readonly statement: ModuleStatement }
+    | { readonly id: 'last', readonly statements: List<ModuleStatement>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }

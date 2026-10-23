@@ -15,12 +15,24 @@ export default (...a) => {
 ```
 
 A `let` declares a **variable**: a name an assignment, `x = value;`, may
-rebind. Otherwise it is a `const` under the other keyword — a statement of a
-function body, standing where a `const` stands, in a guard's or a case's
-block and in a loop's block, that binds a name or a pattern
+rebind. Otherwise it is a `const` under the other keyword — a statement
+standing where a `const` stands, in a module, a function body, a guard's or
+a case's block and a loop's block, that binds a name or a pattern
 ([destructuring](../destructuring/README.md)) to the value of its
 initializer, evaluated as its own statement whether or not anything reads
-it ([constants](../constants/README.md)). The name is a name of the body as
+it ([constants](../constants/README.md)). The initializer is required, as
+a `const`'s is: JavaScript's `let x;`, the variable `undefined` until its
+first assignment, is refused by design. A variable names its value where it
+is declared, as a body names what it returns in an explicit `return`
+([bodies and guards](../../control-flow/guards/README.md)); a declaration
+that names none asks the reader to find the first assignment on every path,
+and this compiler tracks no such thing, so it admits no program that needs
+it ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+Write the value the variable starts from, `let x = undefined;` where that is
+what is meant. A later proposal may admit the declaration where every path
+assigns the variable before a read, `let x; if (c) { x = 2; } else { x = 3;
+}` as `const x = c ? 2 : 3`
+([definite assignment](../../todo/3225-definite-assignment.md)). The name is a name of the body as
 a `const`'s is: it takes the words a `const` takes, bound twice is
 `duplicate id`, read in its own initializer or before its declaration
 `const not found`, and from outside a nested function it is a capture. A
@@ -69,10 +81,13 @@ parameter is a variable too, fixed or rest.
   itself, `let f = n => n ? f(n - 1) : 0;`, as a `const`'s does, the name
   a capture the rule refuses the moment the variable is assigned anywhere.
 - **The scope is the block.** `let` is not hoisted and has no `var`:
-  `var` is refused ([`var`](../var/README.md)). A `let` with no
-  initializer, `let x;`, and a `let` at module level are not admitted yet
-  ([let](../../todo/3220-let.md), "General bindings"), and a loop steps
-  one variable ([loops](../../control-flow/loops/README.md)).
+  `var` is refused ([`var`](../var/README.md)). A module's `let` is a
+  variable of the module, which is a function
+  ([module structure](../../modules/README.md)), under every rule above;
+  an export is a `const`, so `export let` is refused
+  ([`export let`](../../modules/export-let/README.md)). A loop steps one
+  variable, and none stands at module level yet
+  ([loops](../../control-flow/loops/README.md)).
 
 ## Examples
 

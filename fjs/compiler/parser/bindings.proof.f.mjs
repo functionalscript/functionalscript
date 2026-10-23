@@ -155,6 +155,21 @@ export const proof = {
         assertEq(named(snapshot, 'snapshot').binding.isMutable, false)
         assertEq(named(snapshot, 'snapshot').binding.capturedBy.length, 1)
     },
+    // an assignment's write follows the reads of its value, the order the
+    // statement runs in — in a body, in a loop's block and in a module
+    assignmentOrder: () => {
+        /** @type {readonly (readonly [string, readonly string[]])[]} */
+        const cases = [
+            ['export default ()=>{let x=0; x=x+1; return x;};', ['initialize', 'read', 'write', 'read']],
+            ['export default n=>{let x=0; while(x<n){x=x+1;} return x;};', ['initialize', 'read', 'read', 'write', 'read']],
+            ['let x=0; x=x+1; export default x;', ['initialize', 'read', 'write', 'read']],
+        ]
+        for (const [source, expected] of cases) {
+            const module = parsed(source)
+            const x = named(module, 'x', 'let')
+            assertStructurallySame(allEvents(module.scope.events).filter(event => event[1] === x.origin.id).map(event => event[0]), expected, source)
+        }
+    },
     completeSourceScan: () => {
         const unreachable = parsed('export default ()=>{let value=0; while(false){value=1;} return value;};')
         assertEq(named(unreachable, 'value').binding.isMutable, true)

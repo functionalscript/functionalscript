@@ -486,16 +486,14 @@ export type Statement = () => readonly ['const', {
     readonly name: BodyNameStatement
 }]
 
-/** A module's call statement: a name, the rest of the value it begins, and {@link End}. */
-export type NameStatement = readonly [typeof assignable, ArrowOrRest, End]
-
 /** A body's statement that begins with a name: the name, then `=` and the assigned value or the rest of the value the name begins, and {@link End}. */
 export type BodyNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [number, Value] }, End]
 
-/** A module's statement before its exports: a `const`, or a call statement. */
+/** A module's statement before its exports: a `const`, a `let`, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {
     readonly const: ConstStatement
-    readonly name: NameStatement
+    readonly let: LetStatement
+    readonly name: BodyNameStatement
 }
 
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
@@ -527,7 +525,7 @@ export type BindingTarget = {
 /** A `const` statement: `const`, what it binds, `=`, the value, and {@link End}. */
 export type ConstStatement = readonly [number, BindingTarget, number, Value, End]
 
-/** A `let` statement: `let`, what it binds, `=`, the value, and {@link End} — the {@link ConstStatement} under the other keyword. */
+/** A `let` statement: `let`, what it binds, `=`, the value, and {@link End} — the {@link ConstStatement} under the other keyword, its initializer required as a `const`'s is. */
 export type LetStatement = readonly [number, BindingTarget, number, Value, End]
 
 /**

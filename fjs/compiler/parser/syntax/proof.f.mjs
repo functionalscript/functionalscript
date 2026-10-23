@@ -201,9 +201,9 @@ export const proof = {
         assert(source.thrown.value[0] === 'ref')
         assertEq(source.thrown.semicolon, false)
         assertEq(source.thrown.start.metadata.line, 2)
-        assertStructurallySame(source.consts.map(c => c.exported), [true])
+        assertStructurallySame(source.statements.map(s => s[0] === 'assign' ? null : s[1].exported), [true])
         const plain = unwrap(parseSyntax(tokenizeString('throw 1;')))
-        assertStructurallySame([plain.exported, plain.consts], [null, []])
+        assertStructurallySame([plain.exported, plain.statements], [null, []])
         assert(plain.thrown !== null)
         const exported = unwrap(parseSyntax(tokenizeString('export default 1;')))
         assertEq(exported.thrown, null)
@@ -214,9 +214,12 @@ export const proof = {
     // at the token a value that is no target begins with — a group among
     // them, by its `paren` id, which the node itself no longer shows.
     targets: () => {
-        const { consts } = unwrap(parseSyntax(tokenizeString(
+        const { statements } = unwrap(parseSyntax(tokenizeString(
             'const { a, "b": [c, (d), ...e], [k]: f, ...g } = v; const [h] = v; const i = v; export default 1;')))
-        const [pattern, array, name] = consts.map(c => c.declaration.target)
+        const [pattern, array, name] = statements.map(s => {
+            assert(s[0] === 'const')
+            return s[1].declaration.target
+        })
         assert(pattern[0] === 'object' && array[0] === 'array' && name[0] === 'name')
         assertEq(pattern[1].token.kind, '{')
         const [a, b, k, g] = pattern[2]
@@ -302,11 +305,11 @@ export const proof = {
     },
     namedExports: {
         syntax: () => {
-            const source = unwrap(parseSyntax(tokenizeString('const x=1; export const a=x; const y=a; export const b=y;')))
+            const source = unwrap(parseSyntax(tokenizeString('const x=1; export const a=x; let y=a; y=x; export const b=y;')))
             assertEq(source.exported, null)
-            assertStructurallySame(source.consts.map(c => c.exported), [false, true, false, true])
-            assertStructurallySame(source.consts.map(c => c.declaration.target[1].token), [
-                { kind: 'id', value: 'x' }, { kind: 'id', value: 'a' }, { kind: 'id', value: 'y' }, { kind: 'id', value: 'b' },
+            assertStructurallySame(source.statements.map(s => s[0]), ['const', 'const', 'let', 'assign', 'const'])
+            assertStructurallySame(source.statements.map(s => s[0] === 'assign' ? s[1].name.token : [s[1].exported, s[1].declaration.target[1].token]), [
+                [false, { kind: 'id', value: 'x' }], [true, { kind: 'id', value: 'a' }], [false, { kind: 'id', value: 'y' }], { kind: 'id', value: 'y' }, [true, { kind: 'id', value: 'b' }],
             ])
         },
     },

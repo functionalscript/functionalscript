@@ -216,6 +216,14 @@ information — see [serialization](../design/serialization.md) and
    name an enclosing scope binds; a warning or an error, undecided.
 2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
 
+### 3.6. Priority 5
+
+1. [ ] [definite assignment](./3225-definite-assignment.md) — `let x;`
+   admitted where every path assigns `x` before it is read,
+   `let x; if (c) { x = 2; } else { x = 3; }` denoting what
+   `const x = c ? 2 : 3` denotes; refused by design until then
+   ([variables](../bindings/variables/README.md)).
+
 ## 4. ECMAScript Proposals
 
 1. [ ] [Type Annotations](https://github.com/tc39/proposal-type-annotations)
