@@ -68,9 +68,11 @@ test data. Select by dependency, not filename extension.
 work and of the host that did it: the commands in order, their working
 directory and relevant execution options and environment settings; and the
 facts of the host — operating system and its version, architecture, and
-the version of every tool `fjs/ci/config` pins, each read from the host
-that ran, never from the pin file
-([below](#record-the-facts-do-not-validate-the-host)). A runner label such
+the version of every tool `fjs/ci/config` pins. The facts are what ran:
+a run outside CI reads them from the host; a CI job states them ahead
+from its definition — its platform, the pins — and verifies them once the
+tools are installed, failing the job rather than publishing where they
+differ ([below](#record-the-facts-do-not-validate-the-host)). A runner label such
 as `windows-2025` is not a fact about the work and is not in it: the same
 Windows build with the same pins on another CI system must hash the same.
 Include the actual selection, even when the same script implements several
@@ -155,7 +157,15 @@ critical path of a run that misses.
    build-cache:build-cache` — a fast-forward of a local branch that is never
    checked out, and only its tip is ever read — then the job's contract,
    its manifest and its key, computed without publishing, and the lookup
-   (`fjs cas git get`, or `snapshot` of the local `build-cache`). A hit
+   (`fjs cas git get`, or `snapshot` of the local `build-cache`). The
+   contract's host facts are not read from the path here, since the Nix
+   shell that puts Deno, Bun, Rust and the WASM runtimes on it is the
+   setup the check runs ahead of: a CI job states its facts from its
+   definition — the platform of its runner, the versions `fjs/ci/config`
+   pins — and its pin checks, the first steps after setup, fail the job
+   where the installed tools say otherwise, so a job that passed ran the
+   facts it stated. Detection is the home run's way of getting the same
+   facts, verification CI's; the contract is one. A hit
    ends the job green with every later step skipped, which the generator
    writes as `if: steps.cache.outputs.hit != 'true'` on each; a miss runs
    the job as now. Where `origin` has no `build-cache` yet — the first
@@ -184,12 +194,19 @@ critical path of a run that misses.
    job's manifest and writes it through one `add` — a no-op where the
    branch already holds the key, so a job that hit and a job that ran are
    published alike — and, where every job of a rung is green, the rung's
-   entry; one commit, `git push origin build-cache`. There is nothing to
-   collect from the runners: a manifest is a function of the commit and
-   the job's contract, so every runner would have computed the same bytes,
-   and the finalizer checks that its key agrees with the one the job
-   looked up. Only this job has `contents: write`; the test jobs run with a
-   read-only token, and no `git push` runs from a Windows or macOS runner.
+   entry; then `git push origin build-cache`. Each new entry is a commit
+   of its own, since `add` commits per entry, so a fresh run pushes a few
+   commits and a run of hits pushes none; a batch `add` is not worth
+   building for a history nobody reads. There is nothing to collect from
+   the runners: a manifest is a function of the commit and the job's
+   definition — its commands, its platform, the pins — which the finalizer
+   holds as the jobs did, so every job would have computed the same bytes.
+   Only this job has `contents: write`; the test jobs run with a read-only
+   token, and no `git push` runs from a Windows or macOS runner. It
+   publishes only where it can: on a pull request from a fork the token is
+   read-only whatever the job asks for, so the finalizer's condition is
+   `always()` and the head repository being this one, and a fork's run
+   ends green with nothing published rather than red at the push.
 4. **The push loop, here alone.** Where the push is refused as a
    non-fast-forward because another run published first, `git fetch origin
    build-cache`, merge it into the local branch in a worktree
@@ -260,7 +277,8 @@ cache for everyone at once, which is correct, since the tools changed too.
 And trust is per writer: an entry is a claim by whoever could push to the
 branch, and its commit says who. On GitHub a fork PR's token is read-only,
 so a fork PR reads the cache and cannot write it, which is the right
-default and costs nothing. Where one system's word should not count for
+default and costs nothing, and the finalizer declines to publish there
+rather than fail (step 3 above). Where one system's word should not count for
 another, give each writer its own branch — `build-cache/github`,
 `build-cache/circleci` — and let each reader merge the branches it trusts
 into the one it reads. One branch everyone merges into is the trusting
@@ -288,6 +306,14 @@ hash the same. The set of facts to read is the pin list: every tool
 reads each from the path, with the operating system, its version and the
 architecture. A fact left out is the one way two different toolsets could
 share a key, so the closure of that set matters more than any entry.
+
+In CI the facts are stated, not read, because the check runs before the
+tools are installed: the job's definition names its platform and the pins
+name its tools, and the pin checks after setup verify the statement, so a
+job that passed ran what it stated and the finalizer rebuilds the same
+contract from the same definition. The two ways meet in one contract — a
+home machine that happens to carry the pinned toolset hashes the same
+facts as the CI job for its platform, and reads its entries.
 
 Two things stay outside the rule, because they are not about the cache.
 CI's first step still fails a runner whose Node is not the pin: a CI job's
