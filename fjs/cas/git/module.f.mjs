@@ -50,7 +50,7 @@ import { hexText } from '../../git/oid/module.f.mjs'
 import { isWholeName } from '../../git/refname/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { objectsDirs, readIn } from '../../git/store/module.f.mjs'
-import { isSubtree, mode } from '../../git/tree/module.f.mjs'
+import { isSubtree } from '../../git/tree/module.f.mjs'
 import { tryEntries, tryEntry } from '../../git/walk/module.f.mjs'
 import { join } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
@@ -123,9 +123,14 @@ const present = e => resultMapStep(e, r => r[0] === 'error' && isNotFound(r[1])
  * The one mode a CAS entry has, as Git spells it: `100644`, a regular file
  * that is not executable. `100755` is refused along with a link and a
  * submodule, since identical concurrent additions agree on this mode and a
- * writer never writes another.
+ * writer never writes another. The spelling is the mode: `0100644` names
+ * the same bits and is a tree Git refuses, so the bytes are compared and
+ * not the number they parse to.
  */
-const regularFile = 0o100644
+const regularFile = '100644'
+
+/** Whether an entry's mode is {@link regularFile}, spelled as it is. @type {(e: TreeEntry) => boolean} */
+const isRegularFile = e => nameText(e.mode) === regularFile
 
 /**
  * A key the snapshot does not hold, reported as `fileCas` reports a missing
@@ -172,25 +177,38 @@ const nameText = name => codePointListToString(toArray(name))
 const keyOf = rel => e => isSubtree(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
 
 /**
- * The path of an entry below `.cas` that is no path of the layout, or
- * none: a file that spells a key `toPath` files elsewhere — `.cas/a/b/<rest>`,
- * or `.cas/<whole>`, for a key filed at `.cas/ab/cd/<rest>` — and an entry
- * of either kind whose name holds a `/`, which `git fsck` refuses as
- * `fullPathname` and which would spell a path the walk never takes.
- * `unshard` reads the key off any split of its digits, and a read of that
- * key walks the one path `toPath` spells, so a listing that named it would
- * name content the same snapshot cannot read; it refuses the layout
- * instead.
+ * What is wrong with one tree below `.cas`, in the listing's words, or
+ * nothing: every way a tree this backend did not write can name a key the
+ * same snapshot cannot read, so that the listing refuses the layout rather
+ * than naming the key.
  *
- * @type {(rel: string) => (e: TreeEntry) => readonly string[]}
+ * - A name the tree holds twice, which `git fsck` refuses as
+ *   `duplicateEntries`; a read of the path answers no entry for it.
+ * - A name holding a `/`, which `git fsck` refuses as `fullPathname`: it
+ *   spells a path, and is no entry the walk reaches.
+ * - A file whose mode is not {@link regularFile} as spelled: a read refuses
+ *   its blob, and `0100644` is a tree Git refuses.
+ * - A file that spells a key `toPath` files elsewhere — `.cas/a/b/<rest>`,
+ *   or `.cas/<whole>`, for a key filed at `.cas/ab/cd/<rest>`: `unshard`
+ *   reads the key off any split of its digits, and a read walks the one
+ *   path `toPath` spells.
+ *
+ * @type {(rel: string) => (es: readonly TreeEntry[]) => readonly string[]}
  */
-const misfiled = rel => e => {
-    const name = nameText(e.name)
-    const path = `${prefix}${join(rel, name)}`
-    if (name.includes('/')) { return [path] }
-    if (isSubtree(e)) { return [] }
-    const key = unshard(join(rel, name))
-    return key === null || toPath(key) === path ? [] : [path]
+const malformed = rel => es => {
+    const dir = `${prefix}${rel}`
+    const names = es.map(e => nameText(e.name))
+    const twice = names.filter((n, i) => names.indexOf(n) !== i)
+    if (twice.length !== 0) { return [`${dir} names ${twice[0]} twice`] }
+    return es.flatMap(e => {
+        const name = nameText(e.name)
+        const path = `${prefix}${join(rel, name)}`
+        if (name.includes('/')) { return [`${path} is no path of the layout`] }
+        if (isSubtree(e)) { return [] }
+        if (!isRegularFile(e)) { return [`${path} has mode ${nameText(e.mode)}`] }
+        const key = unshard(join(rel, name))
+        return key === null || toPath(key) === path ? [] : [`${path} is no path of the layout`]
+    })
 }
 
 /**
@@ -238,7 +256,7 @@ export const casAt = (read, oidBytes) => {
      * @type {(e: TreeEntry) => EffectList<O, Vec, IoChannel>}
      */
     const blobOf = e => {
-        if (mode(e) !== regularFile) {
+        if (!isRegularFile(e)) {
             return refuseEntry(`${nameText(e.name)} has mode ${nameText(e.mode)}`)
         }
         return step(present(read(e.oid)), o => o === null || o.type !== 'blob'
@@ -248,8 +266,8 @@ export const casAt = (read, oidBytes) => {
     /**
      * One subtree of the listing's walk: its files' keys added, its subtrees
      * walked next. An object below `.cas` that is no tree refuses the listing
-     * rather than shortening it, and so does a key filed where `toPath` does
-     * not file it ({@link misfiled}). The keys gather as a list whose
+     * rather than shortening it, and so does a tree that is {@link malformed}
+     * for the layout. The keys gather as a list whose
      * `concat` is one node per tree, flattened once at the end, so a walk
      * over many trees copies nothing it gathered before.
      *
@@ -257,9 +275,9 @@ export const casAt = (read, oidBytes) => {
      */
     const listStep = ({ id, rel }) => keys => step(present(entriesAt(id)), es => {
         if (es === null) { return refuseEntry(`${hexText(id)} is no tree`) }
-        const stray = es.flatMap(misfiled(rel))
-        return stray.length !== 0
-            ? refuseEntry(`${stray[0]} is no path of the layout`)
+        const wrong = malformed(rel)(es)
+        return wrong.length !== 0
+            ? refuseEntry(wrong[0])
             : pureOk([concat(keys)(es.flatMap(keyOf(rel))), es.flatMap(subtreeOf(rel))])
     })
     return tree => ({
