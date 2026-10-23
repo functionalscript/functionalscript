@@ -40,6 +40,7 @@ import { maxLengthBytes, u8ListToVecChunksMsb } from '../../types/bit_vec/module
 import * as pins from '../config/module.f.js'
 import { checksSchema, platformSchema } from '../smart/module.f.mjs'
 import { select } from './inputs/module.f.js'
+import { main as publish } from './publish/module.f.mjs'
 
 const digest = computeSync(sha256)
 const chunks = u8ListToVecChunksMsb(Number(maxLengthBytes))
@@ -186,5 +187,11 @@ export const commands = [
         usage: 'fjs ci report <check>', examples: ['npm start ci report tsc'],
         note: 'Run after the check succeeds; publish the local branch with git push.', docs: 'fjs/ci/cache/README.md',
         handler: exactArgs('ci report', 1)(report),
+    },
+    {
+        names: ['publish'], description: 'Publish cache entries, merging concurrent additions',
+        usage: 'fjs ci publish', examples: ['npm start ci publish'],
+        note: 'Attempts at most ten pushes, merging in a temporary worktree after rejection.', docs: 'fjs/ci/cache/README.md',
+        handler: exactArgs('ci publish', 0)(publish),
     },
 ]

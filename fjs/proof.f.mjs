@@ -36,6 +36,9 @@ export const proof = {
         const [reportState, reportCode] = run({})(['ci', 'report'])
         assertEq(exitCode(reportCode), 1)
         assert(reportState.stderr.includes("'ci report' expects one parameter"), reportState.stderr)
+        const [publishState, publishCode] = run({})(['ci', 'publish', 'extra'])
+        assertEq(exitCode(publishCode), 1)
+        assert(publishState.stderr.includes("'ci publish' expects no parameters"), publishState.stderr)
     },
     compileAloneChecks: () => {
         // `fjs compile` with no arguments is the `.f.js` check, and an empty

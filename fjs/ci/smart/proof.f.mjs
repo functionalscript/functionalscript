@@ -80,12 +80,19 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, suite.run).if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, 'npm start ci report suite').if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, 'git fetch --depth 1 origin build-cache:build-cache')['continue-on-error'], true)
-        const push = stepWith(source, 'git push origin build-cache')
-        assertEq(push['continue-on-error'], true)
-        assert(push.if?.includes('always()') === true)
-        assert(push.if?.includes("github.actor != 'dependabot[bot]'") === true)
-        assert(push.if?.includes('github.event.pull_request.head.repo.full_name == github.repository') === true)
-        assertEq(source.steps.at(-1), push)
+        const publish = stepWith(source, 'npm start ci publish')
+        assertEq(publish['continue-on-error'], true)
+        assert(publish.if?.includes('always()') === true)
+        assert(publish.if?.includes("steps.init.outcome == 'success'") === true)
+        assert(publish.if?.includes("github.actor != 'dependabot[bot]'") === true)
+        assert(publish.if?.includes('github.event.pull_request.head.repo.full_name == github.repository') === true)
+        assertStructurallySame(publish.env, {
+            GIT_AUTHOR_NAME: 'github-actions[bot]',
+            GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+            GIT_COMMITTER_NAME: 'github-actions[bot]',
+            GIT_COMMITTER_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+        })
+        assertEq(source.steps.at(-1), publish)
     },
     /** A cache failure leaves the remaining checks strict and able to run. */
     cacheFailuresDoNotStopChecks: () => {
