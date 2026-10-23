@@ -153,7 +153,10 @@ const cachedJob = (jobId, source) => {
         steps: [
             uses('actions/checkout', { 'fetch-depth': '1' }),
             installNode({ 'package-manager-cache': 'false' }),
-            { run: 'git fetch --depth 1 origin build-cache:build-cache', 'continue-on-error': true },
+            {
+                run: 'git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache',
+                'continue-on-error': true,
+            },
             {
                 id: 'init',
                 run: 'npm start ci init',
