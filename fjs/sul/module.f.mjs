@@ -27,6 +27,9 @@ import { toArray } from '../types/list/module.f.mjs'
 const withLevel = ([l1, l2, l3], i, state) =>
     i === 0 ? [state, l2, l3] : i === 1 ? [l1, state, l3] : [l1, l2, state]
 
+/** @type {(tail: List<number>, first: number) => List<number>} */
+const prepend = (tail, first) => ({ first, tail })
+
 /** @type {<S>(storage: S) => EncodeState<S>} */
 export const emptyEncodeState = storage =>
     [emptyPipelineState, storage, []]
@@ -100,28 +103,35 @@ export const encode =
 
         /**
          * Pads with a `1`, then `0`s, until an `Id` opens a new top level:
-         * that `Id` is the root.
+         * that `Id` is the root. Each padding bit's height is folded into
+         * `acc` with `f`: `endWithHeights` keeps them, and `end`, which keeps
+         * none, holds nothing per bit however long the padding runs.
          *
-         * @type {Encode<S>['endWithHeights']}
+         * @type {<A>(state: EncodeState<S>, f: (acc: A, height: number) => A, acc: A) => readonly [A, Id]}
          */
-        const endWithHeights = state => {
+        const pad = (state, f, acc0) => {
             // A loop, not a recursion: the padding can run to thousands of
-            // bits, and a frame per bit overflows the stack. The heights are
-            // kept newest first as a list, so each bit adds one node rather
-            // than copying every height before it.
+            // bits, and a frame per bit overflows the stack.
             let [height, id, s] = bitStep(1n, state)
-            /** @type {List<number>} */
-            let reversed = { first: height, tail: null }
+            let acc = f(acc0, height)
             while (id === undefined) {
                 [height, id, s] = bitStep(0n, s)
-                reversed = { first: height, tail: reversed }
+                acc = f(acc, height)
             }
-            return [toArray(reversed).toReversed(), id]
+            return [acc, id]
+        }
+
+        /** @type {Encode<S>['endWithHeights']} */
+        const endWithHeights = state => {
+            // Kept newest first as a list, so each bit adds one node rather
+            // than copying every height before it.
+            const [reversed, root] = pad(state, prepend, null)
+            return [toArray(reversed).toReversed(), root]
         }
 
         return {
             push: (bit, state) => pushWithHeight(bit, state)[1],
-            end: state => endWithHeights(state)[1],
+            end: state => pad(state, () => null, null)[1],
             pushWithHeight,
             endWithHeights,
         }
