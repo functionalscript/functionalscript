@@ -232,15 +232,34 @@ const nameText = name => codePointListToString(toArray(name))
 const keyOf = rel => e => isSubtree(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
 
 /**
+ * What is wrong with a tree as a tree, in a few words, or nothing: the two
+ * shapes `git fsck` refuses in any tree, which a walk cannot take as the
+ * tree means them, so the listing and the writers refuse a tree holding
+ * either wherever they meet it.
+ *
+ * - A name the tree holds twice, `duplicateEntries`: a read of the path
+ *   answers no entry for it, and a writer taking the first would report
+ *   stored what a read cannot find.
+ * - A name holding a `/`, `fullPathname`: it spells a path, and is no
+ *   entry the walk reaches.
+ *
+ * @type {(es: readonly TreeEntry[]) => readonly string[]}
+ */
+const illFormed = es => {
+    const names = es.map(e => nameText(e.name))
+    const twice = names.filter((n, i) => names.indexOf(n) !== i)
+    if (twice.length !== 0) { return [`names ${twice[0]} twice`] }
+    const slashed = names.filter(n => n.includes('/'))
+    return slashed.length === 0 ? [] : [`names ${slashed[0]}, which holds a /`]
+}
+
+/**
  * What is wrong with one tree below `.cas`, in the listing's words, or
  * nothing: every way a tree this backend did not write can name a key the
  * same snapshot cannot read, so that the listing refuses the layout rather
  * than naming the key.
  *
- * - A name the tree holds twice, which `git fsck` refuses as
- *   `duplicateEntries`; a read of the path answers no entry for it.
- * - A name holding a `/`, which `git fsck` refuses as `fullPathname`: it
- *   spells a path, and is no entry the walk reaches.
+ * - A tree that is {@link illFormed}.
  * - A file whose mode is not {@link regularFile} as spelled: a read refuses
  *   its blob, and `0100644` is a tree Git refuses.
  * - A file that spells a key `toPath` files elsewhere — `.cas/a/b/<rest>`,
@@ -252,13 +271,11 @@ const keyOf = rel => e => isSubtree(e) ? [] : toOption(unshard(join(rel, nameTex
  */
 const malformed = rel => es => {
     const dir = `${prefix}${rel}`
-    const names = es.map(e => nameText(e.name))
-    const twice = names.filter((n, i) => names.indexOf(n) !== i)
-    if (twice.length !== 0) { return [`${dir} names ${twice[0]} twice`] }
+    const wrong = illFormed(es)
+    if (wrong.length !== 0) { return [`${dir} ${wrong[0]}`] }
     return es.flatMap(e => {
         const name = nameText(e.name)
         const path = `${prefix}${join(rel, name)}`
-        if (name.includes('/')) { return [`${path} is no path of the layout`] }
         if (isSubtree(e)) { return [] }
         if (!isRegularFile(e)) { return [`${path} has mode ${nameText(e.mode)}`] }
         const key = unshard(join(rel, name))
@@ -298,17 +315,18 @@ const treeEntries = (read, oidBytes) => {
 
 /**
  * The entry of `name` among a tree's entries, or `null`, beside the
- * entries: refused where the tree names it twice, which `git fsck` refuses
- * as `duplicateEntries` and the walk answers no entry for, so a write that
- * took the first of them would report stored what a read cannot find.
+ * entries: refused where the tree is {@link illFormed} — a name it holds
+ * twice, `name` or another, or a name holding a `/` — since a writer
+ * rebuilding such a tree would carry the fault into a commit of its own,
+ * and the listing then refuses what the write reported stored.
  *
  * @type {(name: readonly number[]) => (es: readonly TreeEntry[]) => Effect<never, { readonly es: readonly TreeEntry[], readonly found: Nullable<TreeEntry> }, IoChannel>}
  */
 const onlyNamed = name => es => {
-    const found = es.filter(x => sameItems(x.name)(name))
-    return found.length > 1
-        ? refuseEntry(`a tree names ${nameText(name)} twice`)
-        : pureOk({ es, found: found.length === 0 ? null : found[0] })
+    const wrong = illFormed(es)
+    if (wrong.length !== 0) { return refuseEntry(`a tree on the path ${wrong[0]}`) }
+    const found = es.find(x => sameItems(x.name)(name))
+    return pureOk({ es, found: found === undefined ? null : found })
 }
 
 /**
