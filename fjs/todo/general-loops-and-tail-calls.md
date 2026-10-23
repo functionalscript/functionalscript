@@ -46,8 +46,9 @@ common prepared FAST.
 
 Work in the order below. The dependencies include deliberate delivery gates:
 finish the shared foundation before extending behavior, and finish the loop
-conversion machinery before admitting the broader source forms. Independent
-research does not justify landing a feature in a temporary owner.
+conversion machinery before admitting the broader source loop forms —
+general bindings, which keep the loop as it is, need the foundation alone.
+Independent research does not justify landing a feature in a temporary owner.
 
 A milestone may take several small PRs. Move existing implementations into
 their final owners, update consumers with each move, and retire each replaced
@@ -63,8 +64,8 @@ tokenizer/directory cleanup.
 | D | Desugar short-circuit operators and remove their EDAG tags; short-circuit owner | C | Lowering lives in AST-to-FAST; canonical producers/consumers and the explicit old-graph policy agree. |
 | E | Generalize explicit FAST loops to EDAG; loop-construction owner | D | Arbitrary structured placement, explicit state/results, enclosing-function returns and root-loop rules work on normalized FAST fixtures. |
 | F | Generalize tail-call analysis and common loop emission; tail-call owner | E | Eligible evaluations become simultaneous loop transitions with complete invocation/capture lifetimes; generated loop helpers remain stack-safe. |
-| G | Admit general local rebinding and write-based capture rules; language owner | F; formal language-design approval | Source policy uses A/B's shared analysis; value/branch-result lowering uses the established FAST path, with explicit compatibility migration. |
-| H | Admit general source loops and exits; language owner | G | Sequential, conditional and nested loops, break/continue/return/throw work through the complete shared pipeline. |
+| G | Admit general local rebinding and write-based capture rules; language owner | D; formal language-design approval | Source policy uses A/B's shared analysis; value/branch-result lowering uses the established FAST path, with explicit compatibility migration; loops stay the admitted single-variable form. |
+| H | Admit general source loops and exits; language owner | F, G | Sequential, conditional and nested loops, break/continue/return/throw work through the complete shared pipeline. |
 | I | Finish integration and close the epic | H | Public contracts and examples describe shipped behavior; all replaced paths and completed TODOs are reconciled. |
 
 A-C are the foundation gate. Preserve current behavior while changing its
@@ -73,6 +74,19 @@ D-H implement new behavior only through that foundation.
 
 E-F develop the general internal conversions using explicit FAST/EDAG fixtures;
 they do not prematurely enable source spellings the parser cannot read.
+G does not wait for them: its loops stay the single-variable form the scalar
+construction already handles, and an assignment outside a loop lowers to a
+fresh value or a branch result through the path D established, so G's only
+technical dependency is the foundation. It was ordered after F so that no
+feature landed in a temporary owner; with A-D in their final owners that
+reason is spent, and the first refusal of three of the five remaining
+authored `.f.mjs` leaves is a binding or loop form G or H admits — a
+pattern after `let`, a `return` inside a loop, an assignment inside a loop's
+branch
+([the leaf table](../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point));
+the other two wait on `new Map` and `for`, outside this epic, and
+`types/list` holds generators behind its loops. G is H's dependency. H keeps
+both dependencies: its loops need E's general helpers and F's emission.
 EDAG -> normalized FAST -> EDAG can be checked directly. Broader source
 loop output is connected when H admits its grammar, using the same conversion
 and serializers rather than a temporary output path. Existing public output
@@ -103,9 +117,10 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.
 - [ ] **G — General bindings.** Implement the language owner's admission and
-      AST-to-FAST rules after approval using the existing analysis; migrate the
-      post-loop and immediate-call capture exceptions for reassigned bindings
-      to explicit snapshots.
+      AST-to-FAST rules after approval using the existing analysis, a pattern
+      after `let` included; migrate the post-loop and immediate-call capture
+      exceptions for reassigned bindings to explicit snapshots. May start once
+      D is complete, before E/F.
 - [ ] **H — General source loops.** Connect source state/result selection and
       transfer resolution to E/F. Admit and emit each new source form only with
       its complete conversion path and evidence.
