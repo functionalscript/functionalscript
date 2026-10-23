@@ -929,6 +929,12 @@ const groupCellsOf = ({ groups = [] }) => toArray(stateScan(
     /** @type {StateScan<readonly [string, number], number, { readonly label: string, readonly y: number, readonly height: number }>} */
     (([label, rows], row) => [{ label, y: row * portHeight, height: rows * portHeight }, row + rows]))(0)(groups))
 
+/** @type {(p: _Positioned) => (attrs: Readonly<Record<string, string>>) => readonly Element[]} */
+const titleTraceOf = p => attrs => p.title === 0 ? [] : [/** @type {Element} */ (['rect', {
+    x: String(p.x), y: String(p.y), width: String(p.title), height: String(p.height), rx: String(radius),
+    'data-graph-trace': '', ...attrs,
+}])]
+
 /**
  * A graph, drawn: a node per {@link Ranked}, an edge per {@link Edge},
  * ranked by longest path from the root, left to right.
@@ -959,12 +965,13 @@ const groupCellsOf = ({ groups = [] }) => toArray(stateScan(
  *
  * **Tracing is opt-in.** `Graph.trace` makes each complete connection a
  * native focus target with a wider transparent hit area. Hover or focus
- * highlights its route and both endpoints; clicking gives it persistent
+ * highlights its route, source port and destination title; clicking gives it persistent
  * focus, and Tab moves to the next connection. Bundled returns keep every
  * logical route so one source can still be followed through a shared run.
  * Hovering an output port traces that route and outlines its source row;
  * hovering a node name traces only its incoming connections and their
- * source nodes. The SVG's own CSS relationships use numeric identities,
+ * source ports. Nodes without visible port cells use their title block.
+ * The SVG's own CSS relationships use numeric identities,
  * not display names.
  *
  * @type {(g: Graph) => Element}
@@ -1014,6 +1021,7 @@ export const graphSvg = g => {
             ...pathKeyOf('edge', from.key, String(slotOf(index, edge.from)), target.key),
         }])
         if (g.trace !== true) { return line }
+        const sourcePorts = from.ports.filter(port => port.index === index && from.title < from.width)
         const description = `${from.label} [${edge.label}] → ${target.label}${edge.back === true ? ' (recursive)' : ''}`
         return /** @type {Element} */ (['g', {
             'data-graph-connection': String(index), tabindex: '0', role: 'group', 'aria-label': description,
@@ -1024,11 +1032,9 @@ export const graphSvg = g => {
             line,
             ['path', { d, 'data-graph-hit': '' }],
             ['path', { d, 'data-graph-trace': '', 'marker-end': 'url(#graph-trace-arrow)' }],
-            ...(edge.from === to ? [from] : [from, target]).map(p => /** @type {Element} */ (['rect', {
-                x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
-                'data-graph-trace': '',
-            }])),
-            ...from.ports.filter(port => port.index === index && from.title < from.width).map(port => /** @type {Element} */ (['rect', {
+            ...titleTraceOf(target)({ 'data-graph-title-outline': String(to) }),
+            ...(sourcePorts.length === 0 && edge.from !== to ? titleTraceOf(from)({ 'data-graph-title-outline': String(edge.from) }) : []),
+            ...sourcePorts.map(port => /** @type {Element} */ (['rect', {
                 x: String(from.x + from.title), y: String(from.y + port.y),
                 width: String(from.width - from.title), height: String(portHeight),
                 'data-graph-trace': '', 'data-graph-port-outline': String(index),
@@ -1122,6 +1128,7 @@ export const graphSvg = g => {
             x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-outline': '',
         }])]),
+        ...(g.trace === true ? titleTraceOf(p)({ 'data-graph-title-hover': String(p.id) }) : []),
         ])
     })
     /** @type {readonly Element[]} */
@@ -1172,6 +1179,7 @@ export const graphSvg = g => {
             // Each :has is scoped to its SVG, so equal ids in another graph
             // on the same page do not share a hover state.
             ...positioned.map(p => `svg:has([data-graph-node-name="${p.id}"]:hover) [data-graph-to="${p.id}"] [data-graph-trace] { opacity: 1 }\n`),
+            ...positioned.map(p => `svg:has([data-graph-node-name="${p.id}"]:hover) [data-graph-title-hover="${p.id}"] { opacity: 1 }\n`),
             ...routes.map(r => `svg:has([data-graph-port-edge="${r.index}"]:hover) [data-graph-connection="${r.index}"] [data-graph-trace] { opacity: 1 }\n`),
         ])] : []),
         ['defs',

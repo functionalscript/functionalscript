@@ -307,7 +307,8 @@ export const proof = {
             assertEq(_crossings(g), 0)
         },
         // Native focus makes click and keyboard selection trace the same
-        // complete route as hover. A self edge outlines its one endpoint once.
+        // complete route as hover. Outlines cover only source ports and
+        // destination title blocks, including a self edge's distinct cells.
         tracing: () => {
             const html = htmlToString(graphSvg({
                 trace: true, bundleBacks: true,
@@ -320,7 +321,10 @@ export const proof = {
             assertEq(occurrences(' data-graph-connection=')(html), 2)
             assertEq(occurrences('tabindex="0"')(html), 2)
             assertEq(occurrences('data-graph-hit=')(html), 2)
-            assertEq(occurrences('data-graph-trace=""')(html), 7)
+            assertEq(occurrences('data-graph-trace=""')(html), 8)
+            assertEq(occurrences('data-graph-title-outline=')(html), 2)
+            assertEq(occurrences(' data-graph-title-hover=')(html), 2)
+            assert(html.includes('width="47" height="20" rx="4" data-graph-trace="" data-graph-title-outline="1"'), html)
             assertEq(occurrences('data-graph-port-outline=')(html), 2)
             assertEq(occurrences(' data-graph-port-edge=')(html), 6)
             assertEq(occurrences(' data-graph-node-name=')(html), 2)
@@ -331,6 +335,29 @@ export const proof = {
             assert(html.includes('aria-label="root [item] → child"'), html)
             assert(html.includes('aria-label="child [self] → child (recursive)"'), html)
             assert(html.includes('id="graph-trace-arrow"'), html)
+        },
+        // A corner or a compact node has no separate source port cell.
+        // Use its title; an empty title gets no invented block, and a
+        // compact self-return outlines its title only once.
+        tracingWithoutVisiblePorts: () => {
+            const html = htmlToString(graphSvg({
+                trace: true,
+                nodes: [
+                    { id: 0, kind: 'n', label: 'root', rank: 0 },
+                    { id: 1, kind: 'n', label: '', rank: 1 },
+                    { id: 2, kind: 'n', label: 'leaf', rank: 2 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: '', corner: 'middle' },
+                    { from: 1, to: 2, label: 'x' },
+                    { from: 2, to: 2, label: '', corner: 'middle', back: true },
+                ],
+            }))
+            assertEq(occurrences('data-graph-title-outline=')(html), 3)
+            assertEq(occurrences('data-graph-port-outline=')(html), 1)
+            assertEq(occurrences(' data-graph-title-hover=')(html), 2)
+            assert(!html.includes('data-graph-title-outline="1"'), html)
+            assert(!html.includes(' data-graph-title-hover="1"'), html)
         },
         // A node's rect and label render, and so does an edge's path and label.
         rendersNodesAndEdges: () => {
