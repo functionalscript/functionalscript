@@ -17,7 +17,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { packIdxCode } from '../packstore/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
-import { commitPayload, latin1, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
+import { commitPayload, latin1, noFile, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
 import { maxBorrowDepth, objectIdCode, objectPath, objectsDirs, readIn, tryRead } from './module.f.mjs'
 
 /** @type {(hex: string) => Oid} */
@@ -234,9 +234,6 @@ const files = {
  * @type {(fs: StringMap<readonly number[]>, path: string) => readonly number[] | undefined}
  */
 const at = (fs, path) => fs[normalize(path)]
-
-/** @type {(path: string) => ReturnType<typeof ioError>} */
-const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
 
 /** @type {(parentPath: string, n: string) => Dirent} */
 const dirent = (parentPath, n) => ({ name: n, parentPath, isFile: true, isDirectory: false })
