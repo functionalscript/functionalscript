@@ -101,7 +101,7 @@ export const proof = {
         const bracketed = { ...bare, '.git': { ...bare['.git'], config: text(`${initConfig}\n[user]\n\tname = A <B>\n\temail = cas@example.com\n`) } }
         const refusedName = ran(bracketed, ['git', 'add', 'build-cache', 'file.txt'])
         assertEq(refusedName.code, 1)
-        assertEq(refusedName.stderr, 'user.name holds "<", ">", a line break or a NUL; set it without them in ./.git/config or ./.gitconfig\n')
+        assertEq(refusedName.stderr, 'user.name is empty or holds "<", ">", a line break or a NUL; set it in ./.git/config or ./.gitconfig\n')
         assertEq(headAt(refusedName.state), null)
     },
     // A current directory that is neither a worktree nor a repository — no

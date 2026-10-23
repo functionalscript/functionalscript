@@ -32,7 +32,7 @@ Everything else is Git's own, and the backend does none of it:
 | to | run |
 | --- | --- |
 | share the branch | `git push origin build-cache` |
-| take another repository's additions | `git fetch origin build-cache:build-cache`, a fast-forward of the local branch where it has nothing of its own; where it has, check it out in a worktree (`git worktree add ../cache build-cache`) and `git merge origin/build-cache` there — different keys are different paths and the same key is the same bytes, so independent additions never conflict, and two branches that began apart take `--allow-unrelated-histories`, safe here since their trees are disjoint maps |
+| take another repository's additions | `git fetch origin build-cache:build-cache`, a fast-forward of the local branch where it has nothing of its own — and where `origin` has no `build-cache` yet, the fetch fails with `couldn't find remote ref`, which is the empty cache: `git ls-remote --exit-code --heads origin build-cache` tells that apart (exit 2) from a fetch that failed, and the local branch, absent, is the empty map until the first push creates the remote one; where the local branch has additions of its own, check it out in a worktree (`git worktree add ../cache build-cache`) and `git merge origin/build-cache` there — different keys are different paths and the same key is the same bytes, so independent additions never conflict, and two branches that began apart take `--allow-unrelated-histories`, safe here since their trees are disjoint maps |
 | take content out | a deletion commit — `git rm` on a checkout of the branch, say |
 | reclaim the bytes | Git's own maintenance, once nothing names them |
 
@@ -86,7 +86,13 @@ holds under its key is nothing to write, by the same word. An object the
 tree names that the repository does not hold is the repository's
 corruption, and the read of that key refuses it. Vouching would cost an
 object read per key listed and per write of content already there, which
-is the one cost both are built not to pay.
+is the one cost both are built not to pay. For the same reason a write
+reads the trees on the key's path, as deep as the layout, and no tree
+beside them: it checks each one it rebuilds and carries every other entry
+as it found it, so a sibling tree the listing refuses — one naming no
+object, or no tree — is refused before the write as after it, by the
+listing, and the write neither hides it nor adds to it. Reading the
+siblings would make a write cost what a listing does.
 
 Everything is native over [`fjs/git`](../../git/README.md): the id width
 from `config`, the refs through the ref store and its writer, the objects

@@ -130,7 +130,13 @@ is a follow-up, not a prerequisite for this CI implementation.
 2. `git fetch origin build-cache:build-cache` — a fast-forward of the
    local branch, which is never checked out — then read that key through
    CAS in it (`snapshot` of the local `build-cache`, or `fjs cas git get`).
-   Its presence there allows the corresponding work to be skipped.
+   Its presence there allows the corresponding work to be skipped. Where
+   `origin` has no `build-cache` yet — the first build of a repository —
+   the fetch fails with `couldn't find remote ref`, and that is the empty
+   cache, not a failure: `git ls-remote --exit-code --heads origin
+   build-cache` exits 2 for it, the lookup goes on against the absent
+   local branch, which `snapshot` opens as the empty map, and step 3's
+   push creates the remote branch. Any other fetch failure fails the job.
    Historical objects, objects in another CAS store, and local writes not
    yet pushed do not establish a successful build.
 3. On a miss, run the block. Only after all checks required by that block
