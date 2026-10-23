@@ -712,6 +712,19 @@ const listMarker = line => {
 }
 
 /**
+ * A task item's checkbox, `[ ]` or `[x]` and the space after it, opening a
+ * list item's text: whether it is checked, or `null` where the text opens
+ * with something else. GitHub reads `[X]` as checked too.
+ *
+ * @type {(text: string) => boolean | null}
+ */
+const taskMarker = text =>
+    text[0] !== '[' || text[2] !== ']' || text[3] !== ' ' ? null
+    : text[1] === ' ' ? false
+    : text[1] === 'x' || text[1] === 'X' ? true
+    : null
+
+/**
  * A run of lines as its blocks, each with the indexes of its first and last
  * line, or the first line GitHub reads as something these blocks cannot
  * hold. `base` is the source line the run starts after, so that a refusal
@@ -770,12 +783,17 @@ const readBlocks = (base, inItem) => lines => {
                 const start = j
                 const width = /** @type {ListMarker} */ (sameList(lines[j])).width
                 const indent = ' '.repeat(width)
-                const first = lines[j].slice(width)
+                const marked = lines[j].slice(width)
                 // A marker with nothing after it, or with more than one
                 // space, sets the item's text at a column its other lines
                 // would have to match; every item here is written `- text`.
-                if (first.trim() === '' || first.startsWith(' ')) {
+                if (marked.trim() === '' || marked.startsWith(' ')) {
                     return refuseAt(j, 'a list item whose text does not follow its marker')
+                }
+                const checked = taskMarker(marked)
+                const first = checked === null ? marked : marked.slice(4)
+                if (checked !== null && (first.trim() === '' || first.startsWith(' '))) {
+                    return refuseAt(j, 'a task item whose text does not follow its checkbox')
                 }
                 /** @type {readonly string[]} */
                 let body = [first]
@@ -802,9 +820,16 @@ const readBlocks = (base, inItem) => lines => {
                 const read = readBlocks(base + start, true)(body)
                 if (read[0] === 'error') { return read }
                 const placed = read[1]
+                // The checkbox sits in the item's first paragraph on GitHub;
+                // a fence or a table after it would be text there.
+                if (checked !== null && placed[0][0][0] !== 'paragraph') {
+                    return refuseAt(start, 'a task item whose text is not a paragraph')
+                }
                 // A blank line between two blocks of one item loosens it.
                 loose = loose || placed.some((p, k) => k !== 0 && p[1] > placed[k - 1][2] + 1)
-                items = [...items, placed.map(p => p[0])]
+                /** @type {Blocks} */
+                const task = checked === null ? [] : [['task', checked]]
+                items = [...items, [...task, ...placed.map(p => p[0])]]
                 let k = j
                 while (k < lines.length && lines[k].trim() === '') { k++ }
                 more = k < lines.length && sameList(lines[k]) !== null
@@ -872,8 +897,8 @@ const readBlocks = (base, inItem) => lines => {
  *
  * The blocks are the ones a README is written in: an ATX heading, a
  * paragraph, a code fence opened by three backticks, a list of `- ` items,
- * each holding blocks of its own indented by two spaces, and a table whose
- * rows open with a pipe.
+ * each holding blocks of its own indented by two spaces and opening with a
+ * GitHub task checkbox or not, and a table whose rows open with a pipe.
  *
  * **What GitHub reads differently is refused, not approximated.** A line
  * after a list item with no blank before it and no indentation continues

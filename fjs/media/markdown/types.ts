@@ -88,6 +88,9 @@ export type Align = 'left' | 'center' | 'right' | null
  * carries, which GitHub starts the list at; the numbers after it are not
  * read, as GitHub does not read them. Its items are as a list's.
  *
+ * **A task item opens with a `task` block**, `true` when its checkbox is
+ * checked: GitHub reads `- [ ] text` and `- [x] text` as a list item with
+ * a checkbox before its first paragraph, which always follows the `task`.
  * **A table is GitHub's**: a header row, a delimiter row giving each
  * column's alignment, and body rows, every row's cells being inline spans.
  *
@@ -102,6 +105,7 @@ export type Block =
     | readonly ['list', boolean, readonly Blocks[]]
     | readonly ['olist', number, boolean, readonly Blocks[]]
     | readonly ['table', readonly Align[], readonly Entry[], readonly (readonly Entry[])[]]
+    | readonly ['task', boolean]
 
 /** A README as its blocks, in order. */
 export type Blocks = readonly Block[]

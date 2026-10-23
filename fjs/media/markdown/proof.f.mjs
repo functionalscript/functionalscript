@@ -402,6 +402,20 @@ export const proof = {
         itemBlocks: () => assertStructurallySame(blocks('- a\n  ```js\n  x\n\n  y\n  ```\n  - b\n\n  - c\n'),
             [['list', false, [[['paragraph', [['text', 'a']]], ['code', 'js', 'x\n\ny\n'],
                 ['list', true, [[['paragraph', [['text', 'b']]]], [['paragraph', [['text', 'c']]]]]]]]]]),
+        // A checkbox opens a task item, in a numbered list too, and `[X]` is
+        // checked; a link opening an item is the item's text.
+        task: () => assertStructurallySame(blocks('- [ ] a\n- [x] b\n  c\n- [X] d\n'),
+            [['list', false, [[['task', false], ['paragraph', [['text', 'a']]]], [['task', true], ['paragraph', [['text', 'b c']]]],
+                [['task', true], ['paragraph', [['text', 'd']]]]]]]),
+        olistTask: () => assertStructurallySame(blocks('1. [ ] a\n2. b\n'),
+            [['olist', 1, false, [[['task', false], ['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]]]]]]),
+        notTask: () => assertStructurallySame(blocks('- [x](u) a\n'), [['list', false, [[['paragraph', [['link', [['text', 'x']], 'u'], ['text', ' a']]]]]]]),
+        notTaskLabel: () => assertStructurallySame(blocks('- [ab](u)\n'), [['list', false, [[['paragraph', [['link', [['text', 'ab']], 'u']]]]]]]),
+        // Another letter in the box is not a checkbox, and its brackets are refused as text.
+        notTaskBox: () => assertEq(refusal('- [y] a\n'), 'line 1: entry: unexpected symbol at 3'),
+        emptyTask: () => assertEq(refusal('- [ ] \n'), 'line 1: a task item whose text does not follow its checkbox'),
+        paddedTask: () => assertEq(refusal('- [x]  a\n'), 'line 1: a task item whose text does not follow its checkbox'),
+        fenceTask: () => assertEq(refusal('- [x] ```\n  a\n  ```\n'), 'line 1: a task item whose text is not a paragraph'),
         // A blank line the list does not continue after ends it.
         listEnds: () => assertStructurallySame(blocks('- a\n\nb\n'),
             [['list', false, [[['paragraph', [['text', 'a']]]]]], ['paragraph', [['text', 'b']]]]),

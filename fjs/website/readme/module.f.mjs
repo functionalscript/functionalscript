@@ -195,7 +195,9 @@ const labelNode = label => label[0] === 'code' ? ['code', label[1]] : label[1]
  * **A list item is its blocks**, in a `ul`, or an `ol` for a numbered
  * list, and in a tight list a paragraph is its bare
  * text, as GitHub writes it: `<li>text</li>` where a loose list has
- * `<li><p>text</p></li>`. A table column's alignment is its cells' `align`.
+ * `<li><p>text</p></li>`. A task item's checkbox is a disabled `input`
+ * opening its first paragraph, and its `li` is a `task-list-item`, as
+ * GitHub writes both. A table column's alignment is its cells' `align`.
  *
  * @type {(href: (href: string) => Result<string, string>) => (blocks: Blocks) => Result<readonly Element[], string>}
  */
@@ -246,9 +248,17 @@ export const readmeNodes = href => blocks => {
         /** @type {readonly Node[]} */
         let out = []
         let heading = 0
+        /** @type {readonly Node[]} */
+        let checkbox = []
         for (const block of blocks) {
             /** @type {Block} */
             const b = block
+            if (b[0] === 'task') {
+                checkbox = [b[1]
+                    ? ['input', { type: 'checkbox', disabled: '', checked: '' }]
+                    : ['input', { type: 'checkbox', disabled: '' }], ' ']
+                continue
+            }
             if (b[0] === 'code') {
                 /** @type {Element} */
                 const code = b[1] === '' ? ['code', b[2]] : ['code', { class: `language-${b[1]}` }, b[2]]
@@ -262,7 +272,7 @@ export const readmeNodes = href => blocks => {
                 for (const item of list) {
                     const n = blockNodes(!loose)(item)
                     if (n[0] === 'error') { return n }
-                    items = [...items, ['li', ...n[1]]]
+                    items = [...items, item.length !== 0 && item[0][0] === 'task' ? ['li', { class: 'task-list-item' }, ...n[1]] : ['li', ...n[1]]]
                 }
                 // An ordered list starts at its first item's number, which
                 // `ol` takes as `start` where it is not the 1 it defaults to.
@@ -290,7 +300,9 @@ export const readmeNodes = href => blocks => {
                 heading++
                 continue
             }
-            out = tight ? [...out, ...n[1]] : [...out, ['p', ...n[1]]]
+            const text = [...checkbox, ...n[1]]
+            checkbox = []
+            out = tight ? [...out, ...text] : [...out, ['p', ...text]]
         }
         return ok(out)
     }

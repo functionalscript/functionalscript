@@ -84,6 +84,8 @@ export const proof = {
                 ['table', ['left'], [[['text', 'h']]], []],
                 ['olist', 1, false, [[['paragraph', [['text', 'm']]]]]],
                 ['olist', 3, true, [[['paragraph', [['text', 'n']]]]]],
+                ['list', false, [[['task', true], ['paragraph', [['text', 'o']]]], [['task', false], ['paragraph', [['text', 'p']]]]]],
+                ['list', true, [[['task', false], ['paragraph', [['text', 'q']]], ['paragraph', [['text', 'r']]]]]],
             ]
             assertStructurallySame(readmeNodes(href)(blocks), ok([
                 ['h2', { id: 't' }, 'T'],
@@ -96,6 +98,9 @@ export const proof = {
                 ['table', ['thead', ['tr', ['th', { align: 'left' }, 'h']]]],
                 ['ol', ['li', 'm']],
                 ['ol', { start: '3' }, ['li', ['p', 'n']]],
+                ['ul', ['li', { class: 'task-list-item' }, ['input', { type: 'checkbox', disabled: '', checked: '' }], ' ', 'o'],
+                    ['li', { class: 'task-list-item' }, ['input', { type: 'checkbox', disabled: '' }], ' ', 'p']],
+                ['ul', ['li', { class: 'task-list-item' }, ['p', ['input', { type: 'checkbox', disabled: '' }], ' ', 'q'], ['p', 'r']]],
             ]))
         },
         // A link it cannot place refuses the README, wherever it stands.
