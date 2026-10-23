@@ -166,6 +166,11 @@ export type Graph = {
     readonly bundleBacks?: boolean | undefined
     /** Trace connections and their endpoints on hover or native keyboard/click focus. */
     readonly trace?: boolean | undefined
+    /**
+     * Center columns vertically, keeping their nodes and routing lanes
+     * together. Trees retain their parent/child centering.
+     */
+    readonly centerColumns?: boolean | undefined
 }
 
 /**
