@@ -90,6 +90,6 @@ into fixed-width bit vectors for inline storage.
 ## References
 
 - [levels.md](levels.md) — full encoding tables for levels 1–3 with cumulative counts
-- [avg.md](avg.md) — derivation of average word length ($E → e$ as $n → ∞$)
+- [avg.md](avg.md) — derivation of average word length (E → e as n → ∞)
 - [decode.md](decode.md) — decode lookup tables illustrating the `n-2` offset
 - [SUL overview](../../README.md)
