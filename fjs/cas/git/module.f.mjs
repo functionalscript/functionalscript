@@ -309,6 +309,9 @@ const subtreeOf = rel => e => isSubtree(e) ? [{ id: e.oid, rel: join(rel, nameTe
 /** Whether an entry has `name`. @type {(name: Bytes) => (e: TreeEntry) => boolean} */
 const named = name => e => sameItems(e.name)(name)
 
+/** Whether an entry is a file of any mode rather than a subtree: what a key's path ends at. @type {(e: TreeEntry) => boolean} */
+const isFile = e => !isSubtree(e)
+
 /**
  * The entries of the tree an id names, read through `read`, or refused where
  * the id names no tree or an object the repository does not hold. One
@@ -621,14 +624,17 @@ const gone = /** @type {_Removal} */ (['gone'])
  * the tree above it rather than written empty, so a cleared `.cas/ab/cd`
  * leaves no empty subtree behind, as `git rm` leaves none. `same` where
  * the tree does not hold the path — a path through a file is a path it does
- * not hold — `gone` where the root itself is empty without it, which the
+ * not hold, and so is one ending at an entry `wanted` does not take: a
+ * key's path ends at a file, and a subtree there is other keys' to keep,
+ * where `.cas` itself, cleared, is the subtree — `gone` where the root
+ * itself is empty without it, which the
  * caller writes as the empty tree, and the rebuilt root otherwise.
  *
  * @template {Operation} O
  * @param {Read<O>} read
  * @param {(type: ObjectType, payload: Bytes) => Effect<ProposalOperation, Oid, IoChannel>} write
  * @param {OidBytes} oidBytes
- * @returns {(tree: Oid, path: readonly (readonly number[])[]) => Effect<O | ProposalOperation, _Removal, IoChannel>}
+ * @returns {(tree: Oid, path: readonly (readonly number[])[], wanted: (e: TreeEntry) => boolean) => Effect<O | ProposalOperation, _Removal, IoChannel>}
  */
 const removed = (read, write, oidBytes) => {
     const entriesOf = treeEntries(read, oidBytes)
@@ -637,14 +643,16 @@ const removed = (read, write, oidBytes) => {
     const rebuilt = entries => entries.length === 0
         ? pureOk(gone)
         : mapStep(write('tree', bytesOf(entries)), id => /** @type {_Removal} */ (['tree', id]))
-    /** @type {(tree: Oid, path: readonly (readonly number[])[]) => Effect<O | ProposalOperation, _Removal, IoChannel>} */
-    const go = (tree, [name, ...rest]) => {
+    /** @type {(tree: Oid, path: readonly (readonly number[])[], wanted: (e: TreeEntry) => boolean) => Effect<O | ProposalOperation, _Removal, IoChannel>} */
+    const go = (tree, [name, ...rest], wanted) => {
         const looked = mapStep(entriesOf(tree), es => ({ es, found: es.find(named(name)) ?? null }))
         if (rest.length === 0) {
-            return step(looked, ({ es, found }) => found === null ? pureOk(same) : rebuilt(es.filter(x => !named(name)(x))))
+            return step(looked, ({ es, found }) => found === null || !wanted(found)
+                ? pureOk(same)
+                : rebuilt(es.filter(x => !named(name)(x))))
         }
         const below = historyStep(history(looked), ({ found }) =>
-            found === null || !isSubtree(found) ? pureOk(same) : go(found.oid, rest))
+            found === null || !isSubtree(found) ? pureOk(same) : go(found.oid, rest, wanted))
         return step(below, ([r, { es }]) => {
             if (r[0] === 'same') { return pureOk(r) }
             return r[0] === 'gone'
@@ -816,14 +824,15 @@ export const proposal = (sha2, branch, author) => {
         }
         /**
          * A path taken out of the proposal's tree as one deletion commit:
-         * `true` where there was something to take out.
+         * `true` where there was something to take out — the entry `wanted`
+         * takes, a file for a key and the subtree for `.cas`.
          *
-         * @type {(path: readonly (readonly number[])[], message: string) => Effect<ProposalOperation, boolean, IoChannel>}
+         * @type {(path: readonly (readonly number[])[], wanted: (e: TreeEntry) => boolean, message: string) => Effect<ProposalOperation, boolean, IoChannel>}
          */
-        const taken = (path, message) => {
+        const taken = (path, wanted, message) => {
             const base = history(head)
             const baseTree = historyStep(base, c => c === null ? pureOk(null) : treeOf(c))
-            const root = historyStep(baseTree, t => t === null ? pureOk(same) : take(t, path))
+            const root = historyStep(baseTree, t => t === null ? pureOk(same) : take(t, path, wanted))
             const kept = historyStep(root, left)
             return step(kept, ([newTree, , , c]) => newTree === null
                 ? pureOk(false)
@@ -833,8 +842,8 @@ export const proposal = (sha2, branch, author) => {
             read: key => step(tree, t => at(t).read(key)),
             list: () => step(tree, t => at(t).list()),
             write: add,
-            remove: key => taken(components(key), `cas: remove ${vecToCBase32(key)}`),
-            clear: () => taken(casDir, 'cas: clear'),
+            remove: key => taken(components(key), isFile, `cas: remove ${vecToCBase32(key)}`),
+            clear: () => taken(casDir, isSubtree, 'cas: clear'),
         }
     })
 }
@@ -905,7 +914,7 @@ const attempted = (remote, branch, author, open, name, published) => {
             /** @type {Oid} */ (tc),
             change => tree => change[0] === 'add'
                 ? mapStep(place(tree, components(change[1].key), change[1].oid), t => t ?? tree)
-                : step(take(tree, components(change[1])), r => mapStep(left(r), t => t ?? tree))))
+                : step(take(tree, components(change[1]), isFile), r => mapStep(left(r), t => t ?? tree))))
         return step(applied, ([tree, cs, , , , , tc]) => tree === tc
             ? pureOk(null)
             : commit(tree, [c, p], `cas: reconcile ${cs.length} changes`))

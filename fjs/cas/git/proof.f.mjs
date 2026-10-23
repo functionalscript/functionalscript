@@ -926,8 +926,10 @@ export const proof = {
         // The published snapshot has seen none of it.
         assertStructurallySame(spelled(assertOk(listed(s4.root))), spelled([alphaKey, betaKey]))
     },
-    // Nothing to take out of a branch with no snapshot and no proposal, and
-    // nothing where the key's path runs into a file.
+    // Nothing to take out of a branch with no snapshot and no proposal,
+    // nothing where the key's path runs into a file, and nothing where it
+    // ends at a subtree: a key is a file, and what is below the subtree is
+    // other keys', which stay.
     proposalRemovesNothing: () => {
         const [s0, cas] = proposed(repository(initConfig, null, []))
         assertEq(assertOk(virtual(s0)(cas.remove(alphaKey))[1]), false)
@@ -945,6 +947,15 @@ export const proof = {
         const [s3, r] = virtual(s2)(cas2.remove(alphaKey))
         assertEq(assertOk(r), false)
         assertStructurallySame(s3.root, s2.root)
+        const [, , , rest] = pathOf(alphaKey)
+        const below = sha1.treeOf([entry('100644', 'x.txt', sha1.idOf('blob', alpha))])
+        const atKey = sha1.treeOf([entry('40000', rest, below.id)])
+        const mid2 = sha1.treeOf([entry('40000', cd, atKey.id)])
+        const top2 = sha1.treeOf([entry('40000', ab, mid2.id)])
+        const [s4, cas4] = proposed(over([entry('40000', '.cas', top2.id)], [below.object, atKey.object, mid2.object, top2.object, sha1.object('blob', alpha)]))
+        const [s5, r5] = virtual(s4)(cas4.remove(alphaKey))
+        assertEq(assertOk(r5), false)
+        assertStructurallySame(s5.root, s4.root)
     },
     // The key's first directory holds another directory beside the key's
     // (a stray `zz/other.txt`, which is no key): the key's own directory
