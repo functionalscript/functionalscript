@@ -26,7 +26,7 @@ This repository is a [monorepo](https://en.wikipedia.org/wiki/Monorepo) and dist
 
 ## Getting Started
 
-Install FunctionalScript via npm:
+Install the FunctionalScript CLI with npm:
 
 ```bash
 npm install -g functionalscript
