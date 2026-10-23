@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { analysis, checked, identityAnalysis, itemOperand, operandsOf, scopeHolds } from './module.f.mjs'
+import { analysis, checked, identityAnalysis, itemOperand, operandsOf, ownOperandsOf, scopeHolds } from './module.f.mjs'
 import { sharedNodesOf } from '../sharing/module.f.mjs'
 
 /**
@@ -108,6 +108,17 @@ export const proof = {
             assertEq(actual.length, expected.length)
             expected.forEach((operand, i) => assertEq(actual[i], operand))
         }
+    },
+    // A function's own operands are its captures, without its body; every
+    // other node's are all of them.
+    ownOperandsOf: () => {
+        /** @type {Ref} */
+        const a = ['#', 0]
+        /** @type {Ref} */
+        const b = ['#', 1]
+        assertStructurallySame(ownOperandsOf(['=>', 2, [a, 42], b]), [a, 42])
+        assertStructurallySame(ownOperandsOf(['=>', 0, [], 7]), [])
+        assertStructurallySame(ownOperandsOf(['+', a, b]), [a, b])
     },
     checked: () => {
         const a = an(first)

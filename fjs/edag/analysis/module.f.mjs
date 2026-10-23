@@ -384,8 +384,8 @@ const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
  * Every operand in written order, including primitives and lazy positions.
  * Repeated occurrences remain repeated, and references retain their identity.
  * Spreads, properties and chain steps expose their operands; tags and metadata
- * are excluded. A function lists its captures followed by its body, so callers
- * that walk only the enclosing scope must handle that boundary themselves.
+ * are excluded. A function lists its captures followed by its body; a caller
+ * that walks only the enclosing scope asks {@link ownOperandsOf}.
  *
  * @type {(node: Node) => readonly Operand[]}
  */
@@ -417,6 +417,15 @@ export const operandsOf = node => {
         }
     }
 }
+
+/**
+ * The operands a node establishes in its own scope: {@link operandsOf}, but a
+ * function's body, which is that function's scope and not this one's. A
+ * function lists its captures alone.
+ *
+ * @type {(node: Node) => readonly Operand[]}
+ */
+export const ownOperandsOf = node => node[0] === '=>' ? node[2] : operandsOf(node)
 
 /** One referenced entry per edge; primitive operands name no entry. @type {(node: Node) => readonly number[]} */
 const refs = node => operandsOf(node).flatMap(named)

@@ -14,15 +14,12 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { checked, identityAnalysis, itemOperand, mergeable, operandsOf, scopeHolds, stepOperands } from '../analysis/module.f.mjs'
+import { checked, identityAnalysis, itemOperand, mergeable, ownOperandsOf, scopeHolds, stepOperands } from '../analysis/module.f.mjs'
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { mapOk, okThen } from '../../types/result/module.f.js'
 import { next, toArray } from '../../types/list/module.f.mjs'
 import { add, empty, has } from '../../types/set/module.f.mjs'
-
-/** An operation's operands in its invocation, excluding nested bodies. @type {(node: Node) => readonly Operand[]} */
-const ownOperands = node => node[0] === '=>' ? node[2] : operandsOf(node)
 
 /** Conditionally evaluated operands, including optional-chain regions. @type {(node: Node) => readonly Operand[]} */
 const lazyOperands = node => {
@@ -40,7 +37,7 @@ const eagerOperands = node => {
     switch (node[0]) {
         case '?:': case '?.': case '?.()': { return [node[1]] }
         case '.': { return [node[1], node[2], ...node.length === 4 && node[3][0] === '|()' ? node[3][1].map(itemOperand) : []] }
-        default: { return ownOperands(node) }
+        default: { return ownOperandsOf(node) }
     }
 }
 
@@ -186,11 +183,11 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         const only = roots.length === 1 ? roots[0] : undefined
         const node = only instanceof Array && !bound.includes(only[1]) ? a.nodes[only[1]] : null
         if (node !== null && node[0] === ',') { return region(context, bound, node[1], done) }
-        const all = reachable(a, ownOperands, bound)(roots)
+        const all = reachable(a, ownOperandsOf, bound)(roots)
         const eager = reachable(a, eagerOperands, bound)(roots)
         const lazyRoots = eager.flatMap(i => lazyOperands(a.nodes[i]))
-        const children = lazyRoots.map(root => reachable(a, ownOperands, bound)([root]))
-        const places = [...roots, ...all.flatMap(i => ownOperands(a.nodes[i]))].flatMap(value => value instanceof Array ? [value[1]] : [])
+        const children = lazyRoots.map(root => reachable(a, ownOperandsOf, bound)([root]))
+        const places = [...roots, ...all.flatMap(i => ownOperandsOf(a.nodes[i]))].flatMap(value => value instanceof Array ? [value[1]] : [])
         /** @type {PersistentSet<number>} */
         let once = empty
         /** @type {PersistentSet<number>} */
@@ -201,10 +198,10 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         }
         const sharedHere = all.filter(i => has(i)(repeated) && !isRead(a.nodes[i]))
         const crosses = sharedHere.filter(i => !eager.includes(i) && children.filter(child => child.includes(i)).length !== 1)
-        const splits = crosses.filter(i => reachable(a, ownOperands, [...bound, ...eager])([['#', i]]).every(j => mergeable(a.nodes[j]) && a.nodes[j][0] !== ','))
+        const splits = crosses.filter(i => reachable(a, ownOperandsOf, [...bound, ...eager])([['#', i]]).every(j => mergeable(a.nodes[j]) && a.nodes[j][0] !== ','))
         const shared = sharedHere.filter(i => !splits.includes(i))
         const cross = crosses.filter(i => !splits.includes(i))
-        const promoted = reachable(a, ownOperands, bound)(cross.map(i => /** @type {const} */ (['#', i])))
+        const promoted = reachable(a, ownOperandsOf, bound)(cross.map(i => /** @type {const} */ (['#', i])))
         // Captured values and recursive functions require names even where
         // unshared. This preserves explicit value captures and source arity.
         const captured = eager.flatMap(i => a.nodes[i][0] === '=>'
