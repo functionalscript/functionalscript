@@ -36,6 +36,7 @@
  * @import { TreeEntry } from '../../git/tree/types.ts'
  * @import { Read } from '../../git/walk/types.ts'
  * @import { Branch, CasReader, SnapshotOperation } from './types.ts'
+ * @import { List } from '../../types/list/types.ts'
  */
 
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
@@ -55,7 +56,7 @@ import { join } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
 import { maxLengthBytes, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { concat, toArray } from '../../types/list/module.f.mjs'
 import { toOption } from '../../types/nullable/module.f.js'
 import { error } from '../../types/result/module.f.js'
 import { prefix, toPath, unshard } from '../module.f.mjs'
@@ -171,6 +172,23 @@ const nameText = name => codePointListToString(toArray(name))
 const keyOf = rel => e => isSubtree(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
 
 /**
+ * The path of a file below `.cas` that spells a key `toPath` files
+ * elsewhere — `.cas/a/b/<rest>`, or `.cas/<whole>`, for a key filed at
+ * `.cas/ab/cd/<rest>` — or none. `unshard` reads the key off any split of
+ * its digits, and a read of that key walks the one path `toPath` spells,
+ * so a listing that named it would name content the same snapshot cannot
+ * read; it refuses the layout instead.
+ *
+ * @type {(rel: string) => (e: TreeEntry) => readonly string[]}
+ */
+const misfiled = rel => e => {
+    if (isSubtree(e)) { return [] }
+    const path = join(rel, nameText(e.name))
+    const key = unshard(path)
+    return key === null || toPath(key) === `${prefix}${path}` ? [] : [`${prefix}${path}`]
+}
+
+/**
  * The subtree an entry names, as the next item of the listing's walk, or
  * none where the entry is a file.
  *
@@ -225,13 +243,20 @@ export const casAt = (read, oidBytes) => {
     /**
      * One subtree of the listing's walk: its files' keys added, its subtrees
      * walked next. An object below `.cas` that is no tree refuses the listing
-     * rather than shortening it.
+     * rather than shortening it, and so does a key filed where `toPath` does
+     * not file it ({@link misfiled}). The keys gather as a list whose
+     * `concat` is one node per tree, flattened once at the end, so a walk
+     * over many trees copies nothing it gathered before.
      *
-     * @type {(item: { readonly id: Oid, readonly rel: string }) => (keys: readonly Vec[]) => Effect<O, readonly [readonly Vec[], readonly { readonly id: Oid, readonly rel: string }[]], IoChannel>}
+     * @type {(item: { readonly id: Oid, readonly rel: string }) => (keys: List<Vec>) => Effect<O, readonly [List<Vec>, readonly { readonly id: Oid, readonly rel: string }[]], IoChannel>}
      */
-    const listStep = ({ id, rel }) => keys => step(present(entriesAt(id)), es => es === null
-        ? refuseEntry(`${hexText(id)} is no tree`)
-        : pureOk([[...keys, ...es.flatMap(keyOf(rel))], es.flatMap(subtreeOf(rel))]))
+    const listStep = ({ id, rel }) => keys => step(present(entriesAt(id)), es => {
+        if (es === null) { return refuseEntry(`${hexText(id)} is no tree`) }
+        const stray = es.flatMap(misfiled(rel))
+        return stray.length !== 0
+            ? refuseEntry(`${stray[0]} is not where its key is filed`)
+            : pureOk([concat(keys)(es.flatMap(keyOf(rel))), es.flatMap(subtreeOf(rel))])
+    })
     return tree => ({
         read: key => tree === null
             ? notFound(key)
@@ -241,7 +266,8 @@ export const casAt = (read, oidBytes) => {
             : step(present(entryAt(tree, casDir)), e => {
                 if (e === null) { return pureOk([]) }
                 if (!isSubtree(e)) { return refuseEntry(`${prefix} has mode ${nameText(e.mode)}`) }
-                return walkStep(pureOk([{ id: e.oid, rel: '' }]), /** @type {readonly Vec[]} */ ([]), listStep)
+                const keys = walkStep(pureOk([{ id: e.oid, rel: '' }]), /** @type {List<Vec>} */ (null), listStep)
+                return step(keys, ks => pureOk(toArray(ks)))
             }),
     })
 }
@@ -277,16 +303,15 @@ export const snapshot = branch => {
         ? refuse(repositoryFormatCode)(`${dir} is not a repository Git opens`)
         : pureOk(w))
     const dirs = historyStep(history(width), () => objectsDirs(dir))
-    const head = historyStep(dirs, (_ods, w) => tryResolve({ gitdir: dir, common: dir }, w)(name))
-    return step(head, ([commit, ods, w]) => {
-        const read = readIn(ods, w)
+    const reader = historyStep(dirs, (ods, w) => pureOk(readIn(ods, w)))
+    const head = historyStep(reader, (_read, _ods, w) => tryResolve({ gitdir: dir, common: dir }, w)(name))
+    const object = historyStep(head, (commit, read) => commit === null ? pureOk(null) : present(read(commit)))
+    return step(object, ([o, commit, read, , w]) => {
         const at = casAt(read, w)
         if (commit === null) { return pureOk(at(null)) }
-        return step(present(read(commit)), o => {
-            const tree = o === null || o.type !== 'commit' ? null : tryTreeAt(w)(o.payload)
-            return tree === null
-                ? refuse(snapshotHeadCode)(`${snapshotRef(branch)} names ${hexText(commit)}, which is no commit`)
-                : pureOk(at(tree))
-        })
+        const tree = o === null || o.type !== 'commit' ? null : tryTreeAt(w)(o.payload)
+        return tree === null
+            ? refuse(snapshotHeadCode)(`${snapshotRef(branch)} names ${hexText(commit)}, which is no commit`)
+            : pureOk(at(tree))
     })
 }
