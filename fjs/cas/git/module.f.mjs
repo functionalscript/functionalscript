@@ -896,16 +896,17 @@ const attempted = (remote, branch, author, open, name, published) => {
     const reconciled = (c, p, base) => {
         const trees = history(treeOf(c))
         const ours = historyStep(trees, () => treeOf(p))
-        const baseKeyed = historyStep(ours, () => base === null ? pureOk([]) : step(treeOf(base), keyed))
-        const ourKeyed = historyStep(baseKeyed, (_b, tp) => keyed(tp))
+        const theirs = historyStep(ours, () => base === null ? pureOk(null) : treeOf(base))
+        const baseKeyed = historyStep(theirs, tb => tb === null ? pureOk([]) : keyed(tb))
+        const ourKeyed = historyStep(baseKeyed, (_b, _tb, tp) => keyed(tp))
         const changes = historyStep(ourKeyed, (o, b) => pure(changesOf(b, o)))
-        const applied = historyStep(changes, (cs, _o, _b, _tp, tc) => foldStep(
+        const applied = historyStep(changes, (cs, _o, _b, _tb, _tp, tc) => foldStep(
             pureOk(cs),
             /** @type {Oid} */ (tc),
             change => tree => change[0] === 'add'
                 ? mapStep(place(tree, components(change[1].key), change[1].oid), t => t ?? tree)
                 : step(take(tree, components(change[1])), r => mapStep(left(r), t => t ?? tree))))
-        return step(applied, ([tree, cs, , , , tc]) => tree === tc
+        return step(applied, ([tree, cs, , , , , tc]) => tree === tc
             ? pureOk(null)
             : commit(tree, [c, p], `cas: reconcile ${cs.length} changes`))
     }
@@ -1030,9 +1031,13 @@ const stderrOf = (command, e) => {
  * `git` runs, and `exec` hands the command to a shell, so every argument
  * goes through {@link quoted} and the remote refuses, as
  * {@link shellArgumentCode}, a directory, remote or branch name no quoting
- * makes safe.
+ * makes safe. Quoting is for the shell; `git` reads its own arguments
+ * after that, and a remote named `-origin` or `--upload-pack=…`, which
+ * `git remote add -- …` accepts, would read as an option. So the remote
+ * follows a `--` in every command that names it, and is a remote whatever
+ * it starts with.
  *
- * - `fetch` asks `git ls-remote <remote> refs/heads/<branch>` whether the
+ * - `fetch` asks `git ls-remote -- <remote> refs/heads/<branch>` whether the
  *   branch is there — nothing printed means it is not, and the snapshot ref
  *   is deleted so a stale one does not stand for a branch that is gone —
  *   and fetches it with the one refspec that updates the snapshot ref
@@ -1040,7 +1045,14 @@ const stderrOf = (command, e) => {
  * - `push` offers the commit as `<id>:refs/heads/<branch>`, with no force
  *   of any kind; a refusal `git` reports as `[rejected]` with
  *   `non-fast-forward` or `fetch first` is `false`, and any other failure
- *   is the error it is.
+ *   is the error it is. Those words are the status `git push` prints the
+ *   same under `--porcelain`, its machine-readable form, and `git` does
+ *   not translate them on either stream — its catalogs carry `fetch
+ *   first` in no language, where the `error:` and `hint:` lines around
+ *   them are translated — so the match holds under any locale. `stderr`
+ *   is read rather than `--porcelain`'s `stdout` because a failed `exec`
+ *   carries its command's `stderr` in the message and nothing of its
+ *   `stdout`.
  * - `mergeBase` is `git merge-base`, whose exit 1 with nothing said is no
  *   base at all.
  *
@@ -1083,14 +1095,14 @@ export const gitRemote = branch => {
     const never = () => []
     return {
         fetch: () => {
-            const listed = ran(command(a => ['ls-remote', a.remote, a.ref]), stdout => ok(stdout.trim() === '' ? null : stdout), never)
+            const listed = ran(command(a => ['ls-remote', '--', a.remote, a.ref]), stdout => ok(stdout.trim() === '' ? null : stdout), never)
             const o = historyStep(history(listed), () => opened(dir))
             return step(o, ([{ oidBytes, dirs }, line]) => {
                 const name = stringToU8List(snapshotRef(branch))
                 if (line === null) {
                     return mapStep(tryDelete(dirs, oidBytes)(name), () => null)
                 }
-                const fetched = ran(command(a => ['fetch', a.remote, a.refspec]), () => ok(undefined), never)
+                const fetched = ran(command(a => ['fetch', '--', a.remote, a.refspec]), () => ok(undefined), never)
                 return step(fetched, () => tryResolve(dirs, oidBytes)(name))
             })
         },
@@ -1100,7 +1112,7 @@ export const gitRemote = branch => {
         // did — where `check-ref-format` accepts a branch named `x;id`, the
         // shell is never shown the `;`.
         push: commit => ran(
-            command(a => ['push', a.remote, `"${hexText(commit)}:refs/heads/${b}"`]),
+            command(a => ['push', '--', a.remote, `"${hexText(commit)}:refs/heads/${b}"`]),
             () => ok(true),
             stderr => stderr !== null && stderr.includes('[rejected]') && (stderr.includes('non-fast-forward') || stderr.includes('fetch first'))
                 ? [false]

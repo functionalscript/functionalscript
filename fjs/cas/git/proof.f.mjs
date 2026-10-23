@@ -473,9 +473,9 @@ const epsilonKey = keyOf(latin1('epsilon\n'))
 
 /** The commands {@link gitRemote} runs for the fixture branch, as it spells them. */
 const git = {
-    lsRemote: 'git --git-dir="repo" ls-remote "origin" "refs/heads/build-cache"',
-    fetch: 'git --git-dir="repo" fetch "origin" "+refs/heads/build-cache:refs/remotes/origin/build-cache"',
-    push: /** @type {(hex: string) => string} */ (hex => `git --git-dir="repo" push "origin" "${hex}:refs/heads/build-cache"`),
+    lsRemote: 'git --git-dir="repo" ls-remote -- "origin" "refs/heads/build-cache"',
+    fetch: 'git --git-dir="repo" fetch -- "origin" "+refs/heads/build-cache:refs/remotes/origin/build-cache"',
+    push: /** @type {(hex: string) => string} */ (hex => `git --git-dir="repo" push -- "origin" "${hex}:refs/heads/build-cache"`),
     mergeBase: /** @type {(a: string, b: string) => string} */ ((a, b) => `git --git-dir="repo" merge-base ${a} ${b}`),
 }
 
@@ -1264,7 +1264,13 @@ export const proof = {
         // character and not the shell's. The script knows only the quoted
         // spelling, and the push lands through it.
         const odd = gitRemote({ dir, remote: 'origin', branch: 'x;id' })
-        const quotedPush = `git --git-dir="repo" push "origin" "${hexText(alphaKey)}:refs/heads/x;id"`
+        const quotedPush = `git --git-dir="repo" push -- "origin" "${hexText(alphaKey)}:refs/heads/x;id"`
         assertEq(assertOk(scripted(ordinary(20, initConfig), new Map([[quotedPush, printed('')]]))(odd.push(alphaKey))[1]), true)
+        // A remote name `git remote add -- …` accepts and `git` would read as
+        // an option: it follows the `--` in the command, so `ls-remote` is
+        // asked about the remote `--upload-pack=x` rather than run with it.
+        const dashed = gitRemote({ dir, remote: '--upload-pack=x', branch: 'build-cache' })
+        const dashedList = 'git --git-dir="repo" ls-remote -- "--upload-pack=x" "refs/heads/build-cache"'
+        assertEq(assertOk(scripted(ordinary(20, initConfig), new Map([[dashedList, printed('')]]))(dashed.fetch())[1]), null)
     },
 }
