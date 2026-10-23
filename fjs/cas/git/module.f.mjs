@@ -41,7 +41,7 @@
 
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
-import { errorMessage, history, historyStep, ioError, pureError, pureOk, refuse, resultMapStep, step, walkStep } from '../../effects/module.f.mjs'
+import { errorMessage, history, historyStep, ioError, mapStep, pureError, pureOk, refuse, resultMapStep, step, walkStep } from '../../effects/module.f.mjs'
 import { fromList } from '../../effects/list/module.f.mjs'
 import { isNotFound } from '../../effects/node/module.f.mjs'
 import { tryTreeAt } from '../../git/commit/module.f.mjs'
@@ -172,20 +172,25 @@ const nameText = name => codePointListToString(toArray(name))
 const keyOf = rel => e => isSubtree(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
 
 /**
- * The path of a file below `.cas` that spells a key `toPath` files
- * elsewhere — `.cas/a/b/<rest>`, or `.cas/<whole>`, for a key filed at
- * `.cas/ab/cd/<rest>` — or none. `unshard` reads the key off any split of
- * its digits, and a read of that key walks the one path `toPath` spells,
- * so a listing that named it would name content the same snapshot cannot
- * read; it refuses the layout instead.
+ * The path of an entry below `.cas` that is no path of the layout, or
+ * none: a file that spells a key `toPath` files elsewhere — `.cas/a/b/<rest>`,
+ * or `.cas/<whole>`, for a key filed at `.cas/ab/cd/<rest>` — and an entry
+ * of either kind whose name holds a `/`, which `git fsck` refuses as
+ * `fullPathname` and which would spell a path the walk never takes.
+ * `unshard` reads the key off any split of its digits, and a read of that
+ * key walks the one path `toPath` spells, so a listing that named it would
+ * name content the same snapshot cannot read; it refuses the layout
+ * instead.
  *
  * @type {(rel: string) => (e: TreeEntry) => readonly string[]}
  */
 const misfiled = rel => e => {
+    const name = nameText(e.name)
+    const path = `${prefix}${join(rel, name)}`
+    if (name.includes('/')) { return [path] }
     if (isSubtree(e)) { return [] }
-    const path = join(rel, nameText(e.name))
-    const key = unshard(path)
-    return key === null || toPath(key) === `${prefix}${path}` ? [] : [`${prefix}${path}`]
+    const key = unshard(join(rel, name))
+    return key === null || toPath(key) === path ? [] : [path]
 }
 
 /**
@@ -254,21 +259,27 @@ export const casAt = (read, oidBytes) => {
         if (es === null) { return refuseEntry(`${hexText(id)} is no tree`) }
         const stray = es.flatMap(misfiled(rel))
         return stray.length !== 0
-            ? refuseEntry(`${stray[0]} is not where its key is filed`)
+            ? refuseEntry(`${stray[0]} is no path of the layout`)
             : pureOk([concat(keys)(es.flatMap(keyOf(rel))), es.flatMap(subtreeOf(rel))])
     })
     return tree => ({
         read: key => tree === null
             ? notFound(key)
             : step(present(entryAt(tree, components(key))), e => e === null ? notFound(key) : blobOf(e)),
-        list: () => tree === null
-            ? pureOk([])
-            : step(present(entryAt(tree, casDir)), e => {
-                if (e === null) { return pureOk([]) }
-                if (!isSubtree(e)) { return refuseEntry(`${prefix} has mode ${nameText(e.mode)}`) }
-                const keys = walkStep(pureOk([{ id: e.oid, rel: '' }]), /** @type {List<Vec>} */ (null), listStep)
-                return step(keys, ks => pureOk(toArray(ks)))
-            }),
+        list: () => {
+            if (tree === null) { return pureOk([]) }
+            // Three links: the `.cas` entry, the walk below it, the list
+            // flattened. No `.cas` is the empty map; one that is no subtree
+            // is refused; and `toArray` of the empty list is `[]`.
+            const cas = step(present(entryAt(tree, casDir)), e => {
+                if (e === null) { return pureOk(null) }
+                return isSubtree(e) ? pureOk(e.oid) : refuseEntry(`${prefix} has mode ${nameText(e.mode)}`)
+            })
+            const keys = step(cas, id => id === null
+                ? pureOk(/** @type {List<Vec>} */ (null))
+                : walkStep(pureOk([{ id, rel: '' }]), /** @type {List<Vec>} */ (null), listStep))
+            return mapStep(keys, toArray)
+        },
     })
 }
 

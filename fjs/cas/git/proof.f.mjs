@@ -381,6 +381,18 @@ export const proof = {
         const whole = sha1.treeOf([entry('100644', s, blob)])
         const wholeRoot = over([entry('40000', '.cas', whole.id)], [whole.object, sha1.object('blob', alpha)])
         assertEq(codeOf(listed(wholeRoot)), casEntryCode)
+        // An entry whose name holds a `/` — the canonical path as one tree
+        // entry's name, which `git fsck` refuses — spells the canonical path
+        // and is still no entry the walk reaches; refused, as a file and as a
+        // subtree.
+        const slashed = sha1.treeOf([entry('100644', toPath(alphaKey).slice('.cas/'.length), blob)])
+        const slashedRoot = over([entry('40000', '.cas', slashed.id)], [slashed.object, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(slashedRoot)), casEntryCode)
+        const [, ab, cd, rest] = pathOf(alphaKey)
+        const deep = sha1.treeOf([entry('100644', rest, blob)])
+        const slashedDir = sha1.treeOf([entry('40000', `${ab}/${cd}`, deep.id)])
+        const slashedDirRoot = over([entry('40000', '.cas', slashedDir.id)], [deep.object, slashedDir.object, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(slashedDirRoot)), casEntryCode)
     },
     // A subtree below `.cas` whose object is bytes that are no tree, and one
     // the repository does not hold: the listing is refused rather than cut
