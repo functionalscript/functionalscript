@@ -7,6 +7,7 @@
  * @import { DocumentedCommands } from '../../cli/types.ts'
  * @import { MemOp } from '../../effects/memory/types.ts'
  * @import { FileCasOperation } from '../types.ts'
+ * @import { WriteOperation } from '../git/types.ts'
  */
 
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
@@ -16,8 +17,9 @@ import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/mo
 import { forEachStep, step as ioStep } from '../../effects/module.f.mjs'
 import { casAddFile, fileCas } from '../module.f.mjs'
 import { exactArgs } from '../../cli/module.f.mjs'
+import { commands as gitCommands } from '../git/cli/module.f.mjs'
 
-/** @type {DocumentedCommands<FileCasOperation | WriteFile | Write | All | MemOp | Read>} */
+/** @type {DocumentedCommands<FileCasOperation | WriteOperation | WriteFile | Write | All | MemOp | Read>} */
 export const commands = [
     {
         names: ['add'],
@@ -67,6 +69,15 @@ export const commands = [
             // again.
             return exitStep(forEachStep(c.list(), j => log(vecToCBase32(j))))
         },
+    },
+    {
+        names: ['git'],
+        description: 'Use a Git branch as the store: add, get and list',
+        usage: 'fjs cas git <command> <branch> [args]',
+        examples: ['fjs cas git help'],
+        note: 'The same three commands over a branch of the repository the current directory is in. Nothing moves between repositories: git push, git fetch and git merge do.',
+        docs: 'fjs/cas/git/README.md',
+        handler: gitCommands,
     },
 ]
 

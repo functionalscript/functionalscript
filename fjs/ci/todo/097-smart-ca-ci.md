@@ -2,7 +2,6 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [CAS in a Git branch](../../cas/todo/git-branch-storage.md)
 
 ### Problem
 
@@ -15,8 +14,8 @@ result.
 
 Implement this in two stages:
 
-1. Add [CAS support for a non-current Git branch](../../cas/todo/git-branch-storage.md),
-   including CLI access.
+1. Add [CAS support for a non-current Git branch](../../cas/git/README.md),
+   including CLI access — done, as `fjs/cas/git` and `fjs cas git`.
 2. Use that CAS backend to create and read the `build-cache` branch in the
    same repository and publish complete JSON manifests after build success.
 
@@ -165,7 +164,7 @@ own complete input set and success condition.
 
 ### Tasks
 
-- [ ] Complete [branch CAS and its CLI](../../cas/todo/git-branch-storage.md)
+- [x] Complete [branch CAS and its CLI](../../cas/git/README.md)
       before implementing build-cache integration.
 - [ ] Define the canonical contract-descriptor schema and the two initial
       Rust and JS contracts, including the selected invocation and execution
@@ -192,8 +191,8 @@ own complete input set and success condition.
 
 ### Related
 
-- [CAS in a Git branch](../../cas/todo/git-branch-storage.md) — prerequisite
-  backend and CLI, including publication and cleanup.
+- [CAS in a Git branch](../../cas/git/README.md) — the backend and CLI; the
+  branch moves with `git push` and `git fetch`.
 - [Smart builds on developer machines](../../dev/todo/smart-builds.md) —
   separate investigation; no developer-machine design is part of this task.
 - [change-aware-ci](./change-aware-ci.md) — classifies changed paths to select

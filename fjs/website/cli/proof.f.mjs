@@ -60,6 +60,9 @@ export const proof = {
             assertStructurallySame(entries.map(({ path, aliases }) => [path.join(' '), aliases]), [
                 ['test', ['t']], ['compile', ['c']], ['cas', ['s']],
                 ['cas add', ['s add']], ['cas get', ['s get']], ['cas list', ['s list']],
+                ['cas git', ['s git']],
+                ['cas git add', ['s git add']], ['cas git get', ['s git get']], ['cas git list', ['s git list']],
+                ['cas git help', ['cas git h', 'cas git ?', 's git help', 's git h', 's git ?']],
                 ['cas help', ['cas h', 'cas ?', 's help', 's h', 's ?']], ['mcp', ['m']], ['ci', ['i']],
                 ['web', ['w']], ['run', ['r']], ['help', ['h', '?']],
             ])
