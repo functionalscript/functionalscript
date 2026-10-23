@@ -325,6 +325,21 @@ const walkTo = entriesOf => {
 }
 
 /**
+ * The blob a key's entry names, streamed, given its object as read: refused
+ * where the object is no blob, which holds something that is not the key's
+ * content. The entry's mode was the walk's to check, in the tree it came
+ * from.
+ *
+ * @template {Operation} O
+ * @param {TreeEntry} e
+ * @param {Nullable<Envelope>} o
+ * @returns {EffectList<O, Vec, IoChannel>}
+ */
+const blobOf = (e, o) => o === null || o.type !== 'blob'
+    ? refuseEntry(`${hexText(e.oid)} is no blob`)
+    : fromList(chunksOf(o.payload))
+
+/**
  * The CAS map the tree `tree` holds, read through `read`, a store's reader
  * at the repository's id width; `null` is the empty map, which is what a
  * branch nobody has written to has.
@@ -354,17 +369,6 @@ const walkTo = entriesOf => {
 export const casAt = (read, oidBytes) => {
     const entriesOf = treeEntries(read, oidBytes)
     const entryAt = walkTo(entriesOf)
-    /**
-     * The blob a key's entry names, streamed, given its object as read:
-     * refused where the object is no blob, which holds something that is
-     * not the key's content. The entry's mode was the walk's to check, in
-     * the tree it came from.
-     *
-     * @type {(e: TreeEntry, o: Nullable<Envelope>) => EffectList<O, Vec, IoChannel>}
-     */
-    const blobOf = (e, o) => o === null || o.type !== 'blob'
-        ? refuseEntry(`${hexText(e.oid)} is no blob`)
-        : fromList(chunksOf(o.payload))
     /**
      * One subtree of the listing's walk: its files' keys added, its subtrees
      * walked next. An object below `.cas` that is no tree refuses the listing
