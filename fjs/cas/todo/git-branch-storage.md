@@ -1,7 +1,7 @@
 ## Store CAS content in a Git branch
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -122,9 +122,10 @@ rename detection disabled for the CAS map.
 - [ ] Define the backend configuration and publication API around
       `Cas<O>`, including explicit branch snapshots, repository/remote/ref
       selection, and creation of a missing branch.
-- [ ] Provide content-key computation without storage or publication,
+- [x] Provide content-key computation without storage or publication,
       sharing CAS's configured hash implementation. Prove agreement with
-      the key returned by `write` for the same bytes.
+      the key returned by `write` for the same bytes — `contentKey` in
+      [`fjs/cas`](../module.f.mjs).
 - [ ] Implement branch storage and byte-preserving CAS reads, writes, and
       listing, reusing the existing encoding, paths, and Git primitives.
       Prove that the source checkout's HEAD, working tree, and index stay

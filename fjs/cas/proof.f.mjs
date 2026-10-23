@@ -11,7 +11,7 @@
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
-import { fileCas, casAddFile, collectRead } from './module.f.mjs'
+import { fileCas, casAddFile, collectRead, contentKey } from './module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { run } from '../effects/mock/module.f.mjs'
 import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effects/module.f.mjs'
@@ -443,6 +443,66 @@ export const proof = {
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
         assertEq(o[0][0], 'error')
+    },
+    // `contentKey` agrees with `write` on the same bytes, chunked the same way
+    // and chunked differently: the key is a function of the bytes alone, which
+    // is what makes a key computed without a store the key a store would file
+    // the content under. It is asked through `runPure` rather than a runner,
+    // and finishing there is the proof that computing a key stores nothing:
+    // a stream of pure cells gives it no command to issue.
+    contentKeyAgreesWithWrite: () => {
+        const chunks = /** @type {const} */ ([vec8(0x11n), vec8(0x22n), vec8(0x33n)])
+        /** @type {(cs: readonly Vec[]) => EffectList<FileCasOperation, Vec, IoChannel>} */
+        const payload = cs => cs.reduceRight(
+            (tail, chunk) => nonEmpty(chunk, tail),
+            /** @satisfies {EffectList<never, Vec, IoChannel>} */ (empty()))
+        const o = runPure(/** @satisfies {Effect<FileCasOperation, Vec, IoChannel>} */ (contentKey(sha256)(payload(chunks))))
+        assert(o.length === 1, 'expected contentKey to finish without issuing a command')
+        const key = unwrapResult(o[0])
+        const [, written] = virtual(emptyState)(fileCas(sha256)('.').write(payload(chunks)))
+        assertEq(msb.cmp(key)(unwrapResult(written)), 0, 'contentKey and write disagree')
+        assertEq(msb.cmp(key)(computeSync(sha256)(chunks)), 0, 'contentKey is not the SHA-256 of the bytes')
+        // The same bytes in one chunk: the chunking is the stream's business and
+        // not the key's.
+        const whole = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
+        const o1 = runPure(contentKey(sha256)(payload([whole])))
+        assert(o1.length === 1)
+        assertEq(msb.cmp(key)(unwrapResult(o1[0])), 0, 'rechunked contentKey disagrees')
+    },
+    contentKeyEmpty: () => {
+        // No chunks at all is a payload too, with the hash of nothing as its key.
+        // The operation set is the payload's, not fixed when `sha2` is given:
+        // the same `keyOf` answers an effect of no operation here and one of
+        // the store's in `contentKeyAgreesWithWrite`.
+        const keyOf = contentKey(sha256)
+        const o = runPure(/** @satisfies {Effect<never, Vec, IoChannel>} */ (keyOf(empty())))
+        assert(o.length === 1)
+        assertEq(msb.cmp(unwrapResult(o[0]))(computeSync(sha256)([])), 0)
+    },
+    contentKeyRefusesPartialByte: () => {
+        // A chunk that is not whole bytes: `write` refuses it through
+        // `writeBytes` (see `casWriteNotWholeBytesAborts`), so the key is
+        // refused in the same words rather than computed for content no
+        // store can hold.
+        /** @type {EffectList<never, Vec, IoChannel>} */
+        const stream = nonEmpty(vec8(0x11n), nonEmpty(vec(5n)(0b10101n), empty()))
+        const o = runPure(contentKey(sha256)(stream))
+        assert(o.length === 1)
+        assert(o[0][0] === 'error', o[0])
+        assertIoMessage(o[0][1], 'invalid buffer size')
+        const [, written] = virtual(emptyState)(fileCas(sha256)('.').write(stream))
+        assert(written[0] === 'error', written)
+        assertIoMessage(written[1], 'invalid buffer size')
+    },
+    contentKeyPropagatesStreamFailure: () => {
+        // A stream that fails fails the key with its own failure, as `write`
+        // fails closed on one: the bytes before the failure name no content.
+        /** @type {EffectList<never, Vec, IoChannel>} */
+        const stream = nonEmpty(vec8(0x11n), pureError(ioError({ message: 'boom' })))
+        const o = runPure(contentKey(sha256)(stream))
+        assert(o.length === 1)
+        const [r] = o
+        assert(r[0] === 'error' && r[1][0] === 'ioError' && r[1][1].message === 'boom', r)
     },
     casListPropagatesNonNotFoundAccessError: () => {
         // A non-ENOENT `access` failure (permissions, corruption) is a genuine storage

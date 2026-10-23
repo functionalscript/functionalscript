@@ -37,10 +37,11 @@ the strict list type, so the move below has to take `walkStep` too, or say why
 it stays.
 
 **The stream fold is being hand-written separately.** The *EOF → finalize;
-chunk → fold and recurse* skeleton appears in four places — `detectStream`
-(`fjs/media/type/module.f.mjs`), `collectRead` (`fjs/cas/module.f.mjs`),
-`writeLoop` (`fjs/effects/node/module.f.mjs`) and `fileCas.write`'s inner loop
-(`fjs/cas/module.f.mjs`). That is `foldStep` over a stream. The *error item →
+chunk → fold and recurse* skeleton appears in five places — `detectStream`
+(`fjs/media/type/module.f.mjs`), `collectRead` and `contentKey`
+(`fjs/cas/module.f.mjs`), `writeLoop` (`fjs/effects/node/module.f.mjs`) and
+`fileCas.write`'s inner loop (`fjs/cas/module.f.mjs`). That is `foldStep` over
+a stream. The *error item →
 propagate* case it once also had is gone: an `EffectList` cell carries its own failure,
 and `step` propagates it. The two pure folds fit the plain shape; `writeLoop`
 threads its offset as the accumulator; `fileCas.write` threads
@@ -132,7 +133,12 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
   eager on a `Pure` head, so a fully pure stream (anything from `fromList`)
   folds at composition time and recurses O(n) deep. The current `fold`-based
   implementation has the same property, so this is not a regression — but
-  confirm it with a large-`n` proof before relying on it. If it bites, the
+  confirm it with a large-`n` proof before relying on it. The hand-written
+  folds above have it too, and it has been measured once: `contentKey` over a
+  stream of about two thousand one-byte pure cells exhausts the stack before
+  it answers an effect, where the same bytes in one cell, or in cells a runner
+  produces, do not. A real payload arrives as `Vec` chunks from a reader, so
+  no caller has met it; this is where to look when one does. If it bites, the
   answer is for producers to yield `Do` nodes, not to change the combinator.
 - **`S` inference.** `init` sitting before `f` already forces one annotation, at
   `fjs/cas/evo/module.f.mjs:282` (`acc: Result<readonly Revision[], string>`);
@@ -159,9 +165,9 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
       `fjs/effects/module.f.mjs`.
 - [ ] Migrate the six call sites; the four strict ones go through `fromList`.
 - [ ] Create `fjs/effects/list/proof.f.mjs` with full coverage.
-- [ ] Convert the four stream folds — `detectStream`, `collectRead`,
-      `writeLoop`, `fileCas.write` — to `foldStep`, or record here why one
-      does not fit.
+- [ ] Convert the five stream folds — `detectStream`, `collectRead`,
+      `contentKey`, `writeLoop`, `fileCas.write` — to `foldStep`, or record
+      here why one does not fit.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related

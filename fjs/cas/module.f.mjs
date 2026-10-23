@@ -13,7 +13,7 @@
  */
 
 import { join, normalize } from '../path/module.f.mjs'
-import { byteLength, empty, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
+import { byteLength, empty, isWholeBytes, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import {
     catchStep,
@@ -110,6 +110,52 @@ export const collectRead = stream => {
     return loop(empty)(stream)
 }
 
+
+/** What a chunk that is not whole bytes is refused as: `writeBytes`'s words, since `write` fails the same chunk through it. */
+const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
+
+/**
+ * `sha2` folded over the rest of a stream from `state`: the fold
+ * {@link contentKey} runs, one link per chunk. A chunk that is not whole
+ * bytes is refused as `write` refuses it, rather than hashed into a key no
+ * store can hold content under.
+ *
+ * @template {Operation} O
+ * @param {Sha2} sha2
+ * @param {Sha2State} state
+ * @param {EffectList<O, Vec, IoChannel>} s
+ * @returns {Effect<O, Vec, IoChannel>}
+ */
+const digested = (sha2, state, s) => ioStep(s, node => {
+    if (node === undefined) { return pureOk(sha2.end(state)) }
+    return isWholeBytes(node.first) ? digested(sha2, sha2.append(node.first)(state), node.tail) : partialByte
+})
+
+/**
+ * The content key of a payload, computed without storing it: `sha2` folded
+ * over the stream's chunks, which is the fold `write` runs beside its
+ * `writeBytes`, so for the same bytes the key this answers and the key
+ * `write` returns are one key. That is what lets a caller ask a store whether
+ * content is there before, or instead of, adding it — the build cache in
+ * [`fjs/ci/todo/097-smart-ca-ci.md`](../ci/todo/097-smart-ca-ci.md) hashes a
+ * candidate manifest to look it up, and adding it to find out would record a
+ * success that never happened.
+ *
+ * Pure in the payload: a stream of pure cells issues no command at all, and
+ * one that pulls through effects issues only the stream's own. A stream that
+ * fails fails this with its own failure, as `write` fails, and no key is
+ * answered for the bytes that arrived before it; a chunk that is not whole
+ * bytes fails it as `write` fails on one, since a key for content no store
+ * can hold is a lookup that can only miss.
+ *
+ * The operation set is the payload's: `contentKey(sha2)` fixes nothing,
+ * and the stream handed to what it answers decides `O`, so a caller holding
+ * the effect before running it holds one its runner's operation map types.
+ *
+ * @param {Sha2} sha2
+ * @returns {<O extends Operation>(payload: EffectList<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>}
+ */
+export const contentKey = sha2 => payload => digested(sha2, sha2.init, payload)
 
 /** Staging directory under the store root; GC and every uploader share it. */
 const stageRel = '_stage'
