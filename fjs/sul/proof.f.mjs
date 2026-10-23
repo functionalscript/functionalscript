@@ -8,7 +8,7 @@
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.js'
 import { compress, level3Id } from './id/module.f.mjs'
 import { encode, emptyEncodeState } from './module.f.mjs'
-import { demo, maxBits, rowWords, stripes, units } from './demo.f.mjs'
+import { demo, examples, maxBits, rowWords, stripes, units } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
@@ -183,12 +183,18 @@ export const proof = {
             const bits = next(demo.init)({ kind: 'input', name: 'input', value: 'bits' })
             assertEq(JSON.stringify(bits), JSON.stringify({ ...demo.init, input: 'bits' }))
             assertEq(next(bits)({ kind: 'input', name: 'bits', value: '1' }).bits, '1')
+            // A pick fills the text field and shows it, even over typed bits.
+            const picked = next(bits)({ kind: 'input', name: 'example', value: 'Two bytes' })
+            assertEq(JSON.stringify(picked), JSON.stringify({ ...bits, input: 'text', text: 'Hi' }))
         },
         view: {
             // The initial text: its characters over their bits, a row of
             // pixels per level, the padding as a unit of its own, and the count.
-            init: () => {
-                const h = htmlToString(demo.view(demo.init))
+            // `Hello`: its characters over their bits, a row of pixels per
+            // level, the padding as units of its own, and the count — all
+            // raw, so nothing is hatched.
+            word: () => {
+                const h = htmlToString(demo.view({ ...demo.init, text: 'Hello' }))
                 assert(h.includes('<input type="radio" id="input-text" name="input" value="text" checked="">'), h)
                 assert(h.includes('<input type="text" id="text" name="text" value="Hello">'), h)
                 assert(h.includes('<span data-sul-label="">H</span>'), h)
@@ -237,6 +243,25 @@ export const proof = {
                 assert(h.includes(unit('b', 'a', 'a')), h)
                 assert(h.includes(['bits', 'L1', 'L2', 'L3'].map(name => `<div data-sul-row="">${name}</div>`).join('')), h)
             },
+            // The demo opens on the overview, selected in the drop-down: hashing
+            // starts inside a row, so both raw and hashed stripes show.
+            init: () => {
+                const h = htmlToString(demo.view(demo.init))
+                assert(h.includes('<option value="Overview" selected="">Overview</option>'), h)
+                assert(h.includes('data-sul-hash'), h)
+                assert(h.includes('<p data-caption="">Root, a hash:</p>'), h)
+            },
+            // Every example is drawn, none refused, and selected when shown.
+            examples: () => {
+                for (const [name, text] of examples) {
+                    const h = htmlToString(demo.view({ ...demo.init, text }))
+                    assert(h.includes(`<option value="${name}" selected="">${name}</option>`), h)
+                    assert(h.includes('data-sul-units'), h)
+                    assert(!h.includes('data-result="error"'), h)
+                }
+            },
+            // Over typed bits there is no drop-down: its examples are texts.
+            noExamplesOverBits: () => assert(!htmlToString(demo.view({ ...demo.init, input: 'bits' })).includes('id="example"')),
             refused: () => {
                 const h = htmlToString(demo.view({ ...demo.init, input: 'bits', bits: '2' }))
                 assert(h.includes('<pre data-result="error">bits are 0 and 1 only</pre>'), h)
