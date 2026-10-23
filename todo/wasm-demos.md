@@ -60,14 +60,12 @@ output:
   [`fjs/nanvm/demos`](../fjs/nanvm/demos/module.f.mjs), builds them with the
   pinned Rust, which the build is reproducible with; CI runs it on Intel
   Linux and fails on any difference. Until 2026-10-23 the deployment build
-  made them, and committed nothing.
-  Neither file is committed: they are gitignored output, like the site's
-  `index.html` files, so nothing can go stale and no reproducible build is
-  needed. Committing them was the other option. It would need byte-identical
-  rebuilds, because `npm run gen` deletes and rebuilds every `gen.*` file, and
-  a `*.wasm binary` line in `.gitattributes`.
-- **The page fetches** the `.wasm` and the WAT by the paths the deployment
-  build writes them to, as module pages already load files from the served
+  made them, and committed nothing; the site needed Rust for them, which it
+  had avoided. The directory is not a `gen.` name, since `npm run gen` does
+  not write it and `gen:clean` must not delete it, and `.gitattributes` keeps
+  `*.wasm` binary.
+- **The page fetches** the `.wasm` and the WAT by the paths the build script
+  writes them to, as module pages already load files from the served
   tree ([website/README.md](../fjs/website/README.md)).
 
 ### Status
