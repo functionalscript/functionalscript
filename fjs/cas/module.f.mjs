@@ -13,7 +13,7 @@
  */
 
 import { join, normalize } from '../path/module.f.mjs'
-import { byteLength, empty, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
+import { byteLength, empty, isWholeBytes, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import {
     catchStep,
@@ -111,9 +111,14 @@ export const collectRead = stream => {
 }
 
 
+/** What a chunk that is not whole bytes is refused as: `writeBytes`'s words, since `write` fails the same chunk through it. */
+const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
+
 /**
  * `sha2` folded over the rest of a stream from `state`: the fold
- * {@link contentKey} runs, one link per chunk.
+ * {@link contentKey} runs, one link per chunk. A chunk that is not whole
+ * bytes is refused as `write` refuses it, rather than hashed into a key no
+ * store can hold content under.
  *
  * @template {Operation} O
  * @param {Sha2} sha2
@@ -121,9 +126,10 @@ export const collectRead = stream => {
  * @param {EffectList<O, Vec, IoChannel>} s
  * @returns {Effect<O, Vec, IoChannel>}
  */
-const digested = (sha2, state, s) => ioStep(s, node => node === undefined
-    ? pureOk(sha2.end(state))
-    : digested(sha2, sha2.append(node.first)(state), node.tail))
+const digested = (sha2, state, s) => ioStep(s, node => {
+    if (node === undefined) { return pureOk(sha2.end(state)) }
+    return isWholeBytes(node.first) ? digested(sha2, sha2.append(node.first)(state), node.tail) : partialByte
+})
 
 /**
  * The content key of a payload, computed without storing it: `sha2` folded
@@ -138,7 +144,9 @@ const digested = (sha2, state, s) => ioStep(s, node => node === undefined
  * Pure in the payload: a stream of pure cells issues no command at all, and
  * one that pulls through effects issues only the stream's own. A stream that
  * fails fails this with its own failure, as `write` fails, and no key is
- * answered for the bytes that arrived before it.
+ * answered for the bytes that arrived before it; a chunk that is not whole
+ * bytes fails it as `write` fails on one, since a key for content no store
+ * can hold is a lookup that can only miss.
  *
  * The operation set is the payload's: `contentKey(sha2)` fixes nothing,
  * and the stream handed to what it answers decides `O`, so a caller holding

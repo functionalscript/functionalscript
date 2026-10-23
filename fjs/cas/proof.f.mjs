@@ -479,6 +479,21 @@ export const proof = {
         assert(o.length === 1)
         assertEq(msb.cmp(unwrapResult(o[0]))(computeSync(sha256)([])), 0)
     },
+    contentKeyRefusesPartialByte: () => {
+        // A chunk that is not whole bytes: `write` refuses it through
+        // `writeBytes` (see `casWriteNotWholeBytesAborts`), so the key is
+        // refused in the same words rather than computed for content no
+        // store can hold.
+        /** @type {EffectList<never, Vec, IoChannel>} */
+        const stream = nonEmpty(vec8(0x11n), nonEmpty(vec(5n)(0b10101n), empty()))
+        const o = runPure(contentKey(sha256)(stream))
+        assert(o.length === 1)
+        assert(o[0][0] === 'error', o[0])
+        assertIoMessage(o[0][1], 'invalid buffer size')
+        const [, written] = virtual(emptyState)(fileCas(sha256)('.').write(stream))
+        assert(written[0] === 'error', written)
+        assertIoMessage(written[1], 'invalid buffer size')
+    },
     contentKeyPropagatesStreamFailure: () => {
         // A stream that fails fails the key with its own failure, as `write`
         // fails closed on one: the bytes before the failure name no content.
