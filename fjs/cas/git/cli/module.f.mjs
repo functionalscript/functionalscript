@@ -109,7 +109,8 @@ export const commands = [
             const a = historyStep(b, x => authorOf(x, home))
             const cas = step(a, ([author, x]) => branchCas(sha256, x, author))
             const added = step(cas, c => casAddFile(c)(path))
-            return exitStep(step(added, key => log(vecToCBase32(key))))
+            const logged = step(added, key => log(vecToCBase32(key)))
+            return exitStep(logged)
         }),
     },
     {
@@ -123,7 +124,8 @@ export const commands = [
             const k = history(keyOf(keyText))
             const b = historyStep(k, () => branchOf(branch))
             const s = historyStep(b, snapshot)
-            return exitStep(step(s, ([cas, , key]) => writeFromStream(path, cas.read(key))))
+            const written = step(s, ([cas, , key]) => writeFromStream(path, cas.read(key)))
+            return exitStep(written)
         }),
     },
     {
