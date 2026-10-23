@@ -27,14 +27,16 @@ import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { caption, textDemo } from '../../website/demo/module.f.mjs'
 import { tokenize } from './module.f.mjs'
+import { stringLiteral } from '../string_escape/module.f.mjs'
 
 /**
- * A value as JSON, with U+2028 and U+2029 escaped too: `JSON.stringify` leaves
- * them as they are, and either would break a token's line in two.
+ * A value as the repository's string literal, with U+2028 and U+2029 escaped
+ * too: `stringLiteral` writes them as they are, and either would break a
+ * token's line in two.
  *
- * @type {(value: unknown) => string}
+ * @type {(value: string) => string}
  */
-const show = value => JSON.stringify(value).replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029')
+const show = value => stringLiteral(value).replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029')
 
 /**
  * One token as a line: `line:column  kind  value`, with an error's message in

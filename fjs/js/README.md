@@ -21,13 +21,14 @@ subset of.
 JavaScript text
   --tokenizer-->            JsToken stream                 (js/tokenizer)
   --compiler/tokenizer-->   the compiler's tokens          (compiler)
-  --compiler/parser-->      Foundation AST                 (js/ast)
-  --compiler/edag-->        the expression graph           (edag)
+  --compiler/parser-->      a resolved source module       (compiler)
+  --js/ast/sugar-->         Foundation AST                 (js/ast)
+  --edag/from_fast-->       the expression graph           (edag)
 ```
 
-The first and third stages are here. The token stream is shared: the
-compiler folds it once more into its own tokens, and the website's demos read
-it as it is to colour source text.
+The first and fourth stages are here, and `compiler/edag` runs the last two.
+The token stream is shared: the compiler folds it once more into its own
+tokens, and the website's demos read it as it is to colour source text.
 
 ## The modules
 
