@@ -256,6 +256,72 @@ export const proof = {
                 '["M170,40 L180,40 L180,60 L110,60 L110,30 L120,30","M270,30 L280,30 L280,70 L10,70 L10,30 L20,30"]')
             assertEq(_crossings(g), 0)
         },
+        // Shared returns use one lane and one arrowhead per destination and
+        // kind. Different destinations and dashed/solid edges remain separate.
+        bundledBacks: () => {
+            /** @type {Graph} */
+            const g = {
+                bundleBacks: true,
+                nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: `${id}`, rank: id })),
+                edges: [
+                    { from: 0, to: 1, label: '' }, { from: 1, to: 2, label: '' }, { from: 2, to: 3, label: '' },
+                    { from: 2, to: 0, label: 'a', back: true },
+                    { from: 3, to: 1, label: 'b', back: true },
+                    { from: 3, to: 0, label: 'c', back: true },
+                    { from: 3, to: 0, label: 'd', kind: 'lazy', back: true },
+                    { from: 3, to: 0, label: 'e', back: true },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            const paths = routes(html)
+            assertEq(paths.length, 8)
+            assertEq(paths[3].split(' L').slice(3).join(' L'), paths[5].split(' L').slice(3).join(' L'))
+            assert(paths[5].split(' L')[3] !== paths[6].split(' L')[3], 'different edge kinds have separate lanes')
+            assert(paths[4].split(' L')[3] !== paths[5].split(' L')[3], 'different targets have separate lanes')
+            assertEq(paths[5].split(' L').slice(2).join(' L'), paths[7].split(' L').slice(2).join(' L'))
+            assertEq(occurrences('marker-end="url(#graph-arrow)"')(html), 6)
+            assertEq(_crossings(g), 0)
+        },
+        // Two definitions in the same column remain separate destinations.
+        // Rank alone must not merge their returns or their arrowheads.
+        bundledDistinctTargets: () => {
+            /** @type {Graph} */
+            const g = {
+                bundleBacks: true,
+                nodes: [
+                    { id: 0, kind: 'n', label: 'root', rank: 0 },
+                    { id: 1, kind: 'n', label: 'left', rank: 1 },
+                    { id: 2, kind: 'n', label: 'right', rank: 1 },
+                    { id: 3, kind: 'n', label: 'use', rank: 2 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: '' }, { from: 0, to: 2, label: '' },
+                    { from: 1, to: 3, label: '' }, { from: 2, to: 3, label: '' },
+                    { from: 3, to: 1, label: 'left', back: true }, { from: 3, to: 2, label: 'right', back: true },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            const paths = routes(html)
+            assert(paths[4].split(' L')[2] !== paths[5].split(' L')[2], 'separate bottom lanes')
+            assertEq(occurrences('marker-end="url(#graph-arrow)"')(html), 6)
+            assertEq(_crossings(g), 0)
+        },
+        // Native focus makes click and keyboard selection trace the same
+        // complete route as hover. A self edge outlines its one endpoint once.
+        tracing: () => {
+            const html = htmlToString(graphSvg({
+                trace: true, bundleBacks: true,
+                nodes: [{ id: 0, kind: 'n', label: 'root', rank: 0 }, { id: 1, kind: 'n', label: 'child', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: 'item' }, { from: 1, to: 1, label: 'self', back: true }],
+            }))
+            assertEq(occurrences('data-graph-connection=')(html), 2)
+            assertEq(occurrences('tabindex="0"')(html), 2)
+            assertEq(occurrences('data-graph-hit=')(html), 2)
+            assertEq(occurrences('data-graph-trace=""')(html), 5)
+            assert(html.includes('aria-label="root [item] → child"'), html)
+            assert(html.includes('aria-label="child [self] → child (recursive)"'), html)
+            assert(html.includes('id="graph-trace-arrow"'), html)
+        },
         // A node's rect and label render, and so does an edge's path and label.
         rendersNodesAndEdges: () => {
             const html = htmlToString(graphSvg({
