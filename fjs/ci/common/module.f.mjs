@@ -36,9 +36,13 @@ export const _workflowsDirectory = /** @type {const} */ ('.github/workflows')
 // boolean: `false` is the field's own default, so emitting it would say
 // nothing, and a schema that accepts both invites a step that spells its
 // default out. A step carrying it is a step whose failure is an expected
-// outcome — the npm publish, whose "already published" answer is the usual one
-// — and there is exactly one.
+// outcome: npm publish may find the version already published, and cache
+// fetches and pushes may find no branch or lose a concurrent push.
 export const stepSchema = /** @type {const} */ ({
+    // The cache bootstrap exposes hit flags through $GITHUB_OUTPUT; its id
+    // and each dependent step's condition name those flags.
+    id: or(option, string),
+    if: or(option, string),
     run: or(option, string),
     uses: or(option, string),
     with: or(option, record(string)),
@@ -71,6 +75,9 @@ export const stepSchema = /** @type {const} */ ({
 // takes `jobTimeout` from `../config/module.f.js`.
 export const jobSchema = /** @type {const} */ ({
     'runs-on': string,
+    // Only jobs using the build cache need to publish commits. The workflow
+    // stays read-only for the generic generator and publishing workflow.
+    permissions: or(option, record(string)),
     if: or(option, string),
     needs: or(option, array(string)),
     'timeout-minutes': number,

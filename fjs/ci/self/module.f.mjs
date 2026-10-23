@@ -64,4 +64,5 @@ export const nodeExtra = (o, a) => o === 'ubuntu' && a === 'intel'
 export const main = () => ci({
     nodeExtra,
     packageConsumer,
+    smart: true,
 })

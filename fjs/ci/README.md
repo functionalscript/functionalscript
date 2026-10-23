@@ -97,6 +97,10 @@ for, and whether that answer should change, is
 
 ## Usage
 
+This repository's generated CI uses a [success cache](./cache/README.md) to
+skip checks whose inputs and execution contracts have already passed. The
+ordinary `fjs ci` generator leaves this repository-specific cache disabled.
+
 1. Enter `./dev.sh` and ensure dependencies are installed with `npm ci`.
 2. Regenerate the workflow definitions and the Nix environments with the
    project's `gen` script:

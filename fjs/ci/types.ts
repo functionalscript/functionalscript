@@ -24,6 +24,8 @@ export type PackageConsumer = {
 
 export type Setup = {
     readonly nodeExtra: (os: Os, architecture: Architecture) => readonly MetaStep[],
+    /** Cache this repository's successful check groups by their committed inputs. */
+    readonly smart?: boolean,
     /**
      * The consumer half of the packed-package check, when the project has a
      * module to offer it; without one the check reads the shipped
