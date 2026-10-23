@@ -26,6 +26,7 @@ import { codeMarker } from '../../website/style/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { caption, textDemo } from '../../website/demo/module.f.mjs'
+import { highlight } from '../../website/demo/highlight/module.f.mjs'
 import { tokenize } from './module.f.mjs'
 import { stringLiteral } from '../string_escape/module.f.mjs'
 
@@ -59,13 +60,30 @@ export const line = ({ token, metadata }) => {
  */
 export const tokensOf = text => toArray(tokenize(toArray(stringToCodePointList(text)))('')).map(line).join('\n')
 
-/** @type {Demo<string, DemoEvent>} */
+/**
+ * The text the page opens on: a bigint, a comment and a template with a
+ * substitution, each a token kind of its own.
+ */
+const overview = 'const answer = 42n // a bigint\nconst text = `x is ${answer}`\n'
+
+/**
+ * Opens on {@link overview}. A lexical error replaces the whole stream, so
+ * no one text shows both outcomes; the second example is one the tokenizer
+ * refuses.
+ *
+ * @type {Demo<string, DemoEvent>}
+ */
 export const demo = textDemo({
     intro: 'Reads JavaScript text as tokens, one per line, with whitespace, newlines and comments kept. Each line shows the starting line and column, the token kind, and its value or error.',
     name: 'source',
     label: 'JavaScript',
     rows: 4,
-    init: 'const answer = 42n // a bigint\nconst text = `x is ${answer}`\n',
+    init: overview,
+    examples: [
+        ['Overview', overview],
+        ['A number run into a name', 'const n = 123abc\n'],
+    ],
+    highlight,
 })(text => [
     caption('Tokens, line:column, kind and value:'),
     ['pre', { [codeMarker]: '' }, tokensOf(text)],

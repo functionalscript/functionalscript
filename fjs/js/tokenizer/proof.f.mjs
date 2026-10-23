@@ -1441,6 +1441,7 @@ export const proof = {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('name="source"'), html)
             assert(html.includes('templateHead'), html)
+            assert(html.includes('A number run into a name'), html)
         },
     },
 }
