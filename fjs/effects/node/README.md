@@ -11,9 +11,9 @@ import { exitStep, readUtf8File } from './module.f.mjs'
 import { log } from '../common/module.f.mjs'
 import { mapStep, step } from '../module.f.mjs'
 
-/** Prints how many lines a file has. @type {import('./types.ts').NodeProgram} */
+/** Prints how many lines a file has, counting line breaks as `wc -l` does. @type {import('./types.ts').NodeProgram} */
 export const main = ({ args }) => {
-    const count = mapStep(readUtf8File(args[0]), text => text.split('\n').length)
+    const count = mapStep(readUtf8File(args[0]), text => text.split('\n').length - 1)
     const printed = step(count, n => log(`${n} lines`))
     return exitStep(printed)
 }
