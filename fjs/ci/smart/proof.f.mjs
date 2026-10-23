@@ -79,7 +79,7 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, install.run).if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, suite.run).if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, 'npm start ci report suite').if, "steps.init.outputs.hit-suite != 'true'")
-        assertEq(stepWith(source, 'git fetch --depth 1 origin build-cache:build-cache')['continue-on-error'], true)
+        assertEq(stepWith(source, 'git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache')['continue-on-error'], true)
         const publish = stepWith(source, 'npm start ci publish')
         assertEq(publish['continue-on-error'], true)
         assert(publish.if?.includes('always()') === true)

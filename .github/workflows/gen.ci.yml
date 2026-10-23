@@ -30,7 +30,7 @@
           }
         },
         {
-          "run": "git fetch --depth 1 origin build-cache:build-cache",
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
           "continue-on-error": true
         },
         {
@@ -152,7 +152,7 @@
           }
         },
         {
-          "run": "git fetch --depth 1 origin build-cache:build-cache",
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
           "continue-on-error": true
         },
         {
@@ -378,7 +378,7 @@
           }
         },
         {
-          "run": "git fetch --depth 1 origin build-cache:build-cache",
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
           "continue-on-error": true
         },
         {
@@ -477,7 +477,7 @@
           }
         },
         {
-          "run": "git fetch --depth 1 origin build-cache:build-cache",
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
           "continue-on-error": true
         },
         {
@@ -573,7 +573,7 @@
           }
         },
         {
-          "run": "git fetch --depth 1 origin build-cache:build-cache",
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
           "continue-on-error": true
         },
         {
@@ -685,7 +685,7 @@
           }
         },
         {
-          "run": "git fetch --depth 1 origin build-cache:build-cache",
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
           "continue-on-error": true
         },
         {
@@ -780,7 +780,7 @@
           }
         },
         {
-          "run": "git fetch --depth 1 origin build-cache:build-cache",
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
           "continue-on-error": true
         },
         {
@@ -851,7 +851,7 @@
           }
         },
         {
-          "run": "git fetch --depth 1 origin build-cache:build-cache",
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
           "continue-on-error": true
         },
         {
@@ -922,7 +922,7 @@
           }
         },
         {
-          "run": "git fetch --depth 1 origin build-cache:build-cache",
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
           "continue-on-error": true
         },
         {
