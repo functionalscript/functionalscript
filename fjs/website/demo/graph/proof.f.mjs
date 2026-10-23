@@ -805,6 +805,7 @@ export const proof = {
         // The shared leaf centers on the arriving lane (15) and source
         // port (44), rather than on the column as a whole.
         centeredColumns: () => {
+            /** @type {Graph} */
             const g = { ...skipLevel, centerColumns: true }
             const html = htmlToString(graphSvg(g))
             assert(html.includes('<rect x="10" y="12" width="57" height="40"'), html)
@@ -847,6 +848,7 @@ export const proof = {
             assertStructurallySame(routes(html).slice(-2).map(route => route.slice(route.lastIndexOf('L'))), ['L212,40', 'L212,40'])
             assertEq(_crossings(g), 0)
             // Returns must not pull the node toward their outside lanes.
+            /** @type {Graph} */
             const returning = { ...g, edges: [...g.edges, { from: 3, to: 0, label: '', back: true, corner: /** @type {const} */ ('top') }] }
             assertEq(_crossings(returning), 0)
             assertStructurallySame(routes(htmlToString(graphSvg(returning))).slice(0, 4).map(route => route.slice(route.lastIndexOf(','))), routes(html).map(route => route.slice(route.lastIndexOf(','))))
@@ -874,8 +876,9 @@ export const proof = {
             assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
             // Moving the last target's source port up pools all three
             // slots; the earlier two-slot pool keeps its full weight.
+            /** @type {Graph} */
             const compact = { ...g, edges: g.edges.filter((_, i) => i !== 4) }
-            const expected = [200 / 3, 200 / 3, 80 / 3, 80 / 3, 320 / 3]
+            const expected = /** @type {const} */ ([200 / 3, 200 / 3, 80 / 3, 80 / 3, 320 / 3])
             const actual = routes(htmlToString(graphSvg(compact))).map(route => Number(route.slice(route.lastIndexOf(',') + 1)))
             assert(actual.every((y, i) => expected[i] - 1e-9 < y && y < expected[i] + 1e-9), String(actual))
             assertEq(_crossings(compact), 0)

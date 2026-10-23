@@ -53,6 +53,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  * @import { _BackEdge, _BackLane, _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk } from './private.ts'
  * @import { StateScan } from '../../../types/function/operator/types.ts'
+ * @import { StringMap } from '../../../types/object/types.ts'
  */
 
 import { stateScan, toArray } from '../../../types/list/module.f.mjs'
@@ -935,7 +936,7 @@ const groupCellsOf = ({ groups = [] }) => toArray(stateScan(
     /** @type {StateScan<readonly [string, number], number, { readonly label: string, readonly y: number, readonly height: number }>} */
     (([label, rows], row) => [{ label, y: row * portHeight, height: rows * portHeight }, row + rows]))(0)(groups))
 
-/** @type {(p: _Positioned) => (attrs: Readonly<Record<string, string>>) => readonly Element[]} */
+/** @type {(p: _Positioned) => (attrs: StringMap<string>) => readonly Element[]} */
 const titleTraceOf = p => attrs => p.title === 0 ? [] : [/** @type {Element} */ (['rect', {
     x: String(p.x), y: String(p.y), width: String(p.title), height: String(p.height), rx: String(radius),
     'data-graph-trace': '', ...attrs,
