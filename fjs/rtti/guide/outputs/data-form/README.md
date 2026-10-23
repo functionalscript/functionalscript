@@ -19,11 +19,15 @@ and what is left is ordered canonically. So `equal` answers whether two
 schemas admit the same values, `subset` whether every value of one is a value
 of the other, and `cmp` orders schemas for sorting.
 
-`equal` has known limits. Two recursive schemas that differ only in their rule
-names ([canonical form](../../../data/README.md#canonical-form)) can be one set
-that is a mutual `subset` without being `equal`. So can schemas that differ in
-a referenced `rest` or trailing position
-([tuple length](../../../data/README.md#tuple-length)).
+`equal` compares structure, and the form is fully canonical only for schemas
+without recursion. A recursive schema is kept as named rules, and the form does
+not normalize a reference to the set it stands for. So two schemas that use
+references can be one set without being `equal`. Examples include rule names
+that differ, a referenced `rest`, and a reference whose set is all of
+`unknown`. For such a pair, `subset` holds both ways. The data form's
+[canonical form](../../../data/README.md#canonical-form) and
+[tuple length](../../../data/README.md#tuple-length) sections list these
+cases.
 
 `subset` is **sound and deliberately incomplete**: when it says `true`, it is
 true; it may say `false` for a pair whose inclusion it cannot establish.
