@@ -13,6 +13,7 @@ import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'
+import { occurrences } from '../../types/string/module.f.mjs'
 
 const pull = /** @type {(n: string) => string} */(n => `${repository}/pull/${n}`)
 
@@ -252,7 +253,7 @@ const render = {
             assert(html.includes(`Preview: <a href="${repository}/tree/x">x</a>`), html)
         },
         linksEvery: () => assertEq(
-            indexPage(local)(['0.1.0', '0.2.0', '0.3.0']).split('changelog/_').length - 1, 3),
+            occurrences('changelog/_')(indexPage(local)(['0.1.0', '0.2.0', '0.3.0'])), 3),
         // One link per line, so the stylesheet's tap-target rule reaches it.
         linkList: () => {
             const html = indexPage(local)(['0.1.0'])

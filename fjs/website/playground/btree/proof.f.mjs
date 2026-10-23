@@ -15,6 +15,7 @@ import { partialRun, run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
+import { occurrences } from '../../../types/string/module.f.mjs'
 
 /**
  * A host whose `randomInt` answers 0, 1, 2, … in turn.
@@ -371,7 +372,7 @@ export const proof = {
             const g = html(game)
             assert(g.includes('0 moves. Depth '), g)
             // Every key is a control that moves it.
-            assertEq(g.split('data-demo-click="move:').length - 1, 8)
+            assertEq(occurrences('data-demo-click="move:')(g), 8)
         },
         // New tree starts the level again; picking a level starts that one.
         levels: () => {

@@ -5,6 +5,7 @@
 import { examplePicker, name } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
+import { occurrences } from '../../../types/string/module.f.mjs'
 
 /** @type {Examples} */
 const examples = [['One', 'export default 1;'], ['Two', 'export default 2;']]
@@ -22,7 +23,7 @@ export const proof = {
         // selected there is no `Custom` entry.
         selected: () => {
             const h = html('export default 2;')
-            assertEq(h.split(' selected=""').length - 1, 1)
+            assertEq(occurrences(' selected=""')(h), 1)
             assert(h.includes('<option value="Two" selected="">Two</option>'), h)
             assert(!h.includes('>Custom<'), h)
         },
@@ -30,7 +31,7 @@ export const proof = {
         // disabled, so it can be shown but never picked.
         custom: () => {
             const h = html('export default 3;')
-            assertEq(h.split(' selected=""').length - 1, 1)
+            assertEq(occurrences(' selected=""')(h), 1)
             assert(h.includes(`name="${name}"><option selected="" disabled="">Custom</option>`), h)
         },
     },

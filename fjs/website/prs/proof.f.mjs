@@ -6,7 +6,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { parse } from '../../rtti/parse/module.f.mjs'
-import { concat } from '../../types/string/module.f.mjs'
+import { concat, occurrences } from '../../types/string/module.f.mjs'
 import { checkSummary, checksSchema, prsPage, pullsSchema, row, statusesSchema } from './module.f.mjs'
 
 /** The values are literal so the proof pins the provider's vocabulary. */
@@ -108,7 +108,7 @@ export const proof = {
         deletedAuthor: () => {
             const html = concat(element(row({ ...pull, user: null }, 'Passing')))
             assert(html.includes('<td>Unknown author</td>'), html)
-            assertEq(html.split('<a href=').length - 1, 1)
+            assertEq(occurrences('<a href=')(html), 1)
         },
         draft: () => {
             const html = concat(element(row({ ...pull, draft: true }, 'Pending')))
@@ -141,7 +141,7 @@ export const proof = {
         assert(html.includes('<noscript>'), html)
         assert(html.includes('<caption>Open pull requests</caption>'), html)
         assert(html.includes('<th scope="col">PR</th><th scope="col">Author</th><th scope="col">Status</th>'), html)
-        assertEq(html.split('<th scope="col">').length - 1, 3)
+        assertEq(occurrences('<th scope="col">')(html), 3)
         assert(html.includes('<tbody data-pr-rows=""></tbody>'), html)
         assert(html.includes("import { startPrs } from '/fjs/website/prs-runtime.mjs'"), html)
         assert(html.includes('data-github-account="">Not logged in to GitHub.</strong>'), html)

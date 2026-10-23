@@ -11,6 +11,7 @@ import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { node, nixpkgs, rustOverlay, typescript } from '../config/module.f.js'
 import { devNixJob, devSystems } from '../dev/module.f.mjs'
 import { major } from '../node/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.mjs'
 import {
     flakePath,
     flakeText,
@@ -653,7 +654,7 @@ nix flake lock --extra-experimental-features 'nix-command flakes' ./gen.nix
         runText: () => assertEq(runText(), `#!/bin/sh
 exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-lock-file --quiet ./gen.nix --command "$@"
 `),
-        oneQuiet: () => assertEq(runText().split(' --quiet').length - 1, 1),
+        oneQuiet: () => assertEq(occurrences(' --quiet')(runText()), 1),
         runNamesItsFlake: () => {
             const [shebang, command, ...rest] = runText().split('\n')
             assertEq(shebang, '#!/bin/sh')

@@ -1,4 +1,4 @@
-import { join, concat, repeat, cmp, splitAt } from './module.f.mjs'
+import { join, concat, repeat, cmp, splitAt, occurrences } from './module.f.mjs'
 import { repeat as repeatList } from '../list/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
@@ -9,6 +9,7 @@ export const proof = {
         assertEq(concat(words), 'helloworld', 1)
         assertEq(repeat('abc')(3), 'abcabcabc', 2)
         assertEq(cmp('apple')('banana'), -1, 3)
+        assertEq(occurrences('a')('banana'), 3, 4)
     },
     join: {
         0: () => {
@@ -37,6 +38,17 @@ export const proof = {
             const s = join('.')(repeatList('x')(5))
             assert(s == 'x.x.x.x.x', s)
         }
+    },
+    occurrences: {
+        counts: () => {
+            assertEq(occurrences('a')('banana'), 3)
+            assertEq(occurrences('an')('banana'), 2)
+            assertEq(occurrences('x')('banana'), 0)
+            assertEq(occurrences('a')(''), 0)
+            // without overlap, from the left
+            assertEq(occurrences('aa')('aaa'), 1)
+        },
+        emptyNeedle: { throw: () => occurrences('') },
     },
     repeat: () => {
         const s = repeat('x')(5)

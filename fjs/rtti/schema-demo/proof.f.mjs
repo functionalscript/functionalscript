@@ -17,9 +17,7 @@ import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { _crossings, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { toText } from '../../text/marked/module.f.mjs'
-
-/** How many times `needle` appears in `text`. @type {(text: string, needle: string) => number} */
-const occurrences = (text, needle) => text.split(needle).length - 1
+import { occurrences } from '../../types/string/module.f.mjs'
 
 /** The demo's state after `event`. @type {(event: DemoEvent) => (state: DemoState) => DemoState} */
 const step = event => state => unwrap(assertNotNullish(
@@ -362,8 +360,8 @@ const demoProof = /** @type {const} */ ({
         // A sub-schema used twice is one node with two edges into it.
         shared: () => {
             const html = svg(exampleNamed('Shared parts').schemas[0].schema)
-            assertEq(occurrences(html, 'data-graph-kind="struct"'), 3)
-            assertEq(occurrences(html, 'data-graph-edge=""'), 5)
+            assertEq(occurrences('data-graph-kind="struct"')(html), 3)
+            assertEq(occurrences('data-graph-edge=""')(html), 5)
             // Beside `id`'s value, each edge's row names its target.
             assert(html.includes('data-graph-value-label="" data-graph-value-ref="">{}<'), html)
         },

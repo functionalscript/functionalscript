@@ -5,6 +5,7 @@
 import { _crossesBox, _crossings, graphOf, ranked, graphSvg } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { occurrences } from '../../../types/string/module.f.mjs'
 
 /**
  * Every drawn edge's `d`, in document order. Each piece of the SVG before
@@ -174,8 +175,8 @@ export const proof = {
             // A node is drawn in two groups, its box and its text, each
             // carrying its kind under a name of its own, so a rule can reach
             // the whole node.
-            assertEq(html.split('<g data-graph-in-kind="container">').length - 1, 2)
-            assertEq(html.split('<g data-graph-in-kind="leaf">').length - 1, 2)
+            assertEq(occurrences('<g data-graph-in-kind="container">')(html), 2)
+            assertEq(occurrences('<g data-graph-in-kind="leaf">')(html), 2)
             assert(html.includes('<g data-graph-in-kind="container"><text'), html)
         },
         // An entry is an arrow from nowhere into a node, level with where
@@ -191,7 +192,7 @@ export const proof = {
             }))
             assert(html.includes('<rect x="34" y="10" width="50" height="26" rx="4" data-graph-node=""'), html)
             assert(html.includes('<path d="M10,23 L34,23" data-graph-edge="" data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="old">'), html)
-            assertEq(html.split('data-graph-entry=""').length - 1, 1)
+            assertEq(occurrences('data-graph-entry=""')(html), 1)
         },
         // An edge with a corner takes no row: the node is its title beside
         // one 20px value row, 20px tall, and its three edges leave its
@@ -215,7 +216,7 @@ export const proof = {
                 ],
             }))
             assert(html.includes('<rect x="10" y="53" width="50" height="20" rx="4" data-graph-node=""'), html)
-            assertEq(html.split('data-graph-port=""').length - 1, 0)
+            assertEq(occurrences('data-graph-port=""')(html), 0)
             const starts = routes(html).map(d => d.split(' ')[0])
             assertEq(JSON.stringify(starts), '["M60,53","M60,63","M60,73"]')
             assert(routes(html)[1].endsWith('L100,63'), html)
@@ -251,8 +252,8 @@ export const proof = {
                 edges: [{ from: 0, to: 1, label: '' }, { from: 0, to: 2, label: '' }, { from: 1, to: 3, label: '' }],
                 entries: [{ to: 0 }],
             }))
-            assertEq(html.split('<g data-graph-in-kind="new" data-graph-order="0"').length - 1, 2)
-            assertEq(html.split('<g data-graph-in-kind="new" data-graph-order="1"').length - 1, 2)
+            assertEq(occurrences('<g data-graph-in-kind="new" data-graph-order="0"')(html), 2)
+            assertEq(occurrences('<g data-graph-in-kind="new" data-graph-order="1"')(html), 2)
             /** @type {(s: string) => readonly string[]} */
             const paths = s => s.split('<path ').slice(1).flatMap(p => p.includes('data-graph-edge=""') ? [p.slice(0, p.indexOf('>'))] : [])
             const fades = paths(html).map(p => p.includes('data-graph-order="0"') ? 0 : p.includes('data-graph-order="1"') ? 1 : null)
@@ -313,7 +314,7 @@ export const proof = {
             assert(html.includes('data-demo-click="move:5" tabindex="0" role="button" aria-label="Move 5" pointer-events="all" cursor="pointer"'), html)
             assert(html.includes('pointer-events="none">5</text>'), html)
             assert(html.includes('data-graph-value-label="">7</text>'), html)
-            assertEq(html.split('data-demo-click').length - 1, 1)
+            assertEq(occurrences('data-demo-click')(html), 1)
         },
         // An empty label is no column when a node has ports: each node is
         // its rows alone, and the edge runs from the middle of the first row
@@ -374,7 +375,7 @@ export const proof = {
             }))
             assert(html.includes('<rect x="10" y="10" width="50" height="20" data-graph-value="" data-graph-value-alone="">'), html)
             assert(html.includes('<text x="35" y="20" text-anchor="middle" data-graph-value-label="">5<'), html)
-            assertEq(html.split('data-graph-port=""').length - 1, 1)
+            assertEq(occurrences('data-graph-port=""')(html), 1)
             assert(html.includes('<rect x="34" y="30" width="26" height="20" data-graph-value="">'), html)
         },
         // An edge beside a value draws its target's label
@@ -391,8 +392,8 @@ export const proof = {
             assert(html.includes('<rect x="36" y="63" width="24" height="20" data-graph-port="">'), html)
             assert(html.includes('data-graph-edge-label="">k<'), html)
             assert(html.includes('data-graph-value-label="" data-graph-value-ref="">x<'), html)
-            assertEq(html.split('data-graph-value-ref=""').length - 1, 4)
-            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 1)
+            assertEq(occurrences('data-graph-value-ref=""')(html), 4)
+            assertEq(occurrences('data-graph-edge-kind="lazy"')(html), 1)
         },
         // Rows that are all edges with empty keys draw nothing: the node is
         // its 50px label alone, two rows tall, and each edge leaves from the
@@ -479,8 +480,8 @@ export const proof = {
                     { from: 0, to: 1, label: 'b' },
                 ],
             }))
-            assertEq(html.split('data-graph-port=""').length - 1, 2)
-            assertEq(html.split('data-graph-edge=""').length - 1, 2)
+            assertEq(occurrences('data-graph-port=""')(html), 2)
+            assertEq(occurrences('data-graph-edge=""')(html), 2)
             assert(html.includes('data-graph-edge-label="">a<'), html)
             assert(html.includes('data-graph-edge-label="">b<'), html)
             assert(!html.includes('>a, b<'), html)
@@ -606,7 +607,7 @@ export const proof = {
                 nodes: Array.from({ length: n }, (_, id) => ({ id, kind: 'a', label: 'x', rank: id })),
                 edges: Array.from({ length: n - 1 }, (_, from) => ({ from, to: from + 1, label: '', corner: /** @type {const} */ ('top') })),
             }))
-            assertEq(html.split('y="10" width="50" height="26" rx="4" data-graph-node=""').length - 1, n)
+            assertEq(occurrences('y="10" width="50" height="26" rx="4" data-graph-node=""')(html), n)
         },
         /**
          * **Roots stack in id order**, whatever order the graph lists them
@@ -714,8 +715,8 @@ export const proof = {
                     { from: 0, to: 1, label: 'right', kind: 'lazy' },
                 ],
             }))
-            assertEq(html.split('data-graph-edge=""').length - 1, 2)
-            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 1)
+            assertEq(occurrences('data-graph-edge=""')(html), 2)
+            assertEq(occurrences('data-graph-edge-kind="lazy"')(html), 1)
             assert(!html.includes('>left, right<'), html)
             // Each from a port of its own: two different lines, not one
             // line drawn twice.
@@ -841,8 +842,8 @@ export const proof = {
             assert(html.includes('<clipPath id="graph-clip-10-13-64-20"><rect x="10" y="13" width="64" height="20" rx="4">'), html)
             assert(html.includes('<g clip-path="url(#graph-clip-10-13-64-20)"><rect x="50" y="13" width="24" height="20" data-graph-port="">'), html)
             assert(html.includes('</g><rect x="10" y="13" width="64" height="20" rx="4" data-graph-outline="">'), html)
-            assertEq(html.split('<clipPath').length - 1, 1)
-            assertEq(html.split('data-graph-outline').length - 1, 1)
+            assertEq(occurrences('<clipPath')(html), 1)
+            assertEq(occurrences('data-graph-outline')(html), 1)
         },
         /**
          * **An inline value's kind reaches its cell and its text**, as an
@@ -861,7 +862,7 @@ export const proof = {
             assert(html.includes('data-graph-value="" data-graph-value-kind="terminal">'), html)
             assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">args<'), html)
             assert(html.includes('data-graph-value-label="">1<'), html)
-            assertEq(html.split('data-graph-value-kind').length - 1, 2)
+            assertEq(occurrences('data-graph-value-kind')(html), 2)
         },
         // A marked edge to an inline value marks its value cell.
         marksAnInlineValue: () => {

@@ -9,7 +9,7 @@
  */
 
 import { values } from './module.f.mjs'
-import { cmp } from '../string/module.f.mjs'
+import { cmp, occurrences } from '../string/module.f.mjs'
 import { next, toArray } from '../list/module.f.mjs'
 import { value, find as findFind } from './find/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
@@ -82,9 +82,6 @@ const test = () => {
 /** @type {(state: State<Tree<number>>) => string} */
 const html = state => htmlToString(demo.view(state))
 
-/** @type {(s: string) => (part: string) => number} */
-const count = s => part => s.split(part).length - 1
-
 /** @type {(state: State<Tree<number>>) => string} */
 const censusOf = state => JSON.stringify(_census(state.versions))
 
@@ -155,17 +152,17 @@ const demoProof = {
         assertEq(demo.init.versions.before, demo.init.versions.after)
         // One graph, with no node above the tree and no titles, and one
         // arrow, into its root.
-        assertEq(count(h)('<svg'), 1)
-        assertEq(count(h)('data-graph-label='), 0)
-        assertEq(count(h)('data-graph-entry=""'), 1)
+        assertEq(occurrences('<svg')(h), 1)
+        assertEq(occurrences('data-graph-label=')(h), 0)
+        assertEq(occurrences('data-graph-entry=""')(h), 1)
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
         assert(h.includes('value="80"'), h)
         assert(h.includes('<option value="Insert into a leaf" selected="">'), h)
         assert(h.includes('Press Insert to add 80'), h)
-        assertEq(count(h)('data-graph-kind="new"'), 0)
+        assertEq(occurrences('data-graph-kind="new"')(h), 0)
         // Every key is a control that moves it.
-        assertEq(count(h)('data-demo-click="move:'), 7)
+        assertEq(occurrences('data-demo-click="move:')(h), 7)
         assert(h.includes('data-demo-click="move:40"'), h)
         assert(!h.includes('Custom'), h)
         assert(!h.includes('Error'), h)
@@ -179,9 +176,9 @@ const demoProof = {
             const s = follow('Insert into a leaf')
             assertEq(censusOf(s), '{"built":3,"shared":4,"replaced":3}')
             const h = html(s)
-            assertEq(count(h)('data-graph-kind="new"'), 3)
-            assertEq(count(h)('data-graph-kind="shared"'), 4)
-            assertEq(count(h)('data-graph-kind="replaced"'), 0)
+            assertEq(occurrences('data-graph-kind="new"')(h), 3)
+            assertEq(occurrences('data-graph-kind="shared"')(h), 4)
+            assertEq(occurrences('data-graph-kind="replaced"')(h), 0)
             // The new leaf holds 7 and 8, each a row of its own with no
             // name beside it.
             assert(!h.includes('>Value'), h)
@@ -198,20 +195,20 @@ const demoProof = {
         // first key is a leaf.
         emptyTree: () => {
             const loaded = html(_load('Empty tree'))
-            assertEq(count(loaded)('<svg'), 0)
+            assertEq(occurrences('<svg')(loaded), 0)
             assert(loaded.includes('The tree is empty.'), loaded)
             const s = follow('Empty tree')
             assertEq(censusOf(s), '{"built":1,"shared":0,"replaced":0}')
             const h = html(s)
             assert(h.includes('Last step, insert 10:'), h)
             assert(!h.includes('The tree is empty.'), h)
-            assertEq(count(h)('data-graph-entry=""'), 1)
+            assertEq(occurrences('data-graph-entry=""')(h), 1)
             // Removing the last key leaves the tree empty: nothing is drawn,
             // and the leaf it held is counted.
             const gone = press('remove')('10')(s)
             const g = html(gone)
             assert(g.includes('The tree is empty.'), g)
-            assertEq(count(g)('<svg'), 0)
+            assertEq(occurrences('<svg')(g), 0)
             assertEq(censusOf(gone), '{"built":0,"shared":0,"replaced":1}')
         },
         // A full leaf splits, and its middle key moves up into a branch of

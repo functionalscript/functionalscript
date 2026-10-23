@@ -14,6 +14,7 @@ import { ok } from '../../../types/result/module.f.js'
 import { partialRun, run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.js'
+import { occurrences } from '../../../types/string/module.f.mjs'
 
 // The smallest persistent structure that shares: a sorted list whose
 // insert and remove copy the cells before the change and share the rest. A
@@ -113,9 +114,6 @@ const html = state => htmlToString(demo.view(state))
 
 /** @type {(event: DemoEvent) => (state: State<_List>) => State<_List>} */
 const update = event => state => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
-
-/** @type {(s: string) => (part: string) => number} */
-const count = s => part => s.split(part).length - 1
 
 export const proof = {
     // The default keys: any safe integer, spelled as `String` spells it.
@@ -260,7 +258,7 @@ export const proof = {
         assertEq(JSON.stringify(g.edges.flatMap(e => typeof e.to === 'number' ? [] : [e.to.click])),
             '[{"name":"move:1","label":"Remove 1 and insert it again"},{"name":"move:2","label":"Remove 2 and insert it again"},{"name":"move:3","label":"Remove 3 and insert it again"}]')
         const h = htmlToString(graphSvg(g))
-        assertEq(count(h)('data-demo-click="move:'), 3)
+        assertEq(occurrences('data-demo-click="move:')(h), 3)
     },
     stepLine: {
         counts: () => assertEq(stepLine('list')(String)({ op: 'insert', key: 4 })({ built: 1, shared: 3, replaced: 0 }),
@@ -288,8 +286,8 @@ export const proof = {
             assert(h.includes('id="chain-key" name="key" value="0100"'), h)
             assert(h.includes('Press Insert to add 0100.'), h)
             assert(h.includes('<option value="Three" selected="">'), h)
-            assertEq(count(h)('<svg'), 1)
-            assertEq(count(h)('data-graph-kind="new"'), 0)
+            assertEq(occurrences('<svg')(h), 1)
+            assertEq(occurrences('data-graph-kind="new"')(h), 0)
             assert(!h.includes('Error'), h)
         },
         // A press makes the new version the old one, and the drop-down
@@ -344,14 +342,14 @@ export const proof = {
         // empty is not said.
         empty: () => {
             const loaded = html(load('Empty'))
-            assertEq(count(loaded)('<svg'), 0)
+            assertEq(occurrences('<svg')(loaded), 0)
             assert(loaded.includes('The list is empty.'), loaded)
             const one = press('insert')(load('Empty'))
             const h = html(one)
-            assertEq(count(h)('<svg'), 1)
+            assertEq(occurrences('<svg')(h), 1)
             assert(!h.includes('empty'), h)
             const gone = html(press('remove')(one))
-            assertEq(count(gone)('<svg'), 0)
+            assertEq(occurrences('<svg')(gone), 0)
             assert(gone.includes('The list is empty.'), gone)
         },
         // Typing changes the field only; a button applies it; picking a
