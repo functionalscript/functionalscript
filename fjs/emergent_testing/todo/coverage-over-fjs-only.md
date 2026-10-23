@@ -8,7 +8,7 @@
 `npm run cov` runs every proof `shouldLoad` in
 [`fjs/dev`](../../dev/module.f.mjs) accepts and then measures
 `module.f.mjs` and `module.f.js`. The proofs include the plain JavaScript
-ones — nineteen `proof.mjs` files, `fjs/effects/node/proof.mjs` and
+ones — nineteen `proof.mjs` files at `c58b36e`, `fjs/effects/node/proof.mjs` and
 `fjs/compiler/transpiler/proof.mjs` among them — so a line of a
 FunctionalScript module may be covered by a JavaScript proof alone. The
 coverage verdict is then a function of JavaScript files as well as
