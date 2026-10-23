@@ -23,6 +23,7 @@ const parameters = [
 const captures = [
     ['Closure', 'const k = 5;\nexport default x => y => x + y + k;'],
     ['Recursion', 'const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);'],
+    ['Recursion: two calls', 'const fib = n => n < 2 ? n : fib(n - 1) + fib(n - 2);\nexport default fib(10);'],
 ]
 
 /** @type {Examples} */

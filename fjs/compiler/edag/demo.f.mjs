@@ -438,6 +438,11 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  *   condition eager; a function's body is a lazy edge of its own.
  * - **Closure** is a function that captures its enclosing parameter and a
  *   module `const`, each read inside the body through a frame slot.
+ * - **Recursion** draws the recursive call's `callee` as an arrow back to
+ *   the `=>`, routed around the graph rather than through it. **Recursion:
+ *   two calls** has two such arrows, one lane each below the graph: the
+ *   higher call's arrow passes beside where the lower one leaves, so the
+ *   two never cross.
  * - **Methods and properties** draws a method call as one node of two
  *   links: `.` beside the receiver in `obj` and `"at"` in `key`, and `()`
  *   beside its arguments, a `[]` node.

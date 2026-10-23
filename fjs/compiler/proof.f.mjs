@@ -1313,6 +1313,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Closure': 'xxooo',
                 'Call statements': 'ooooo',
                 'Recursion': 'ooooo',
+                'Recursion: two calls': 'ooooo',
                 'Loop': 'xxooo',
                 'Throw': 'xxooo',
                 'Early return': 'xxooo',
