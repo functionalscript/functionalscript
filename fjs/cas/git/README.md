@@ -32,7 +32,7 @@ Everything else is Git's own, and the backend does none of it:
 | to | run |
 | --- | --- |
 | share the branch | `git push origin build-cache` |
-| take another repository's additions | `git fetch origin build-cache` and `git merge origin/build-cache`: different keys are different paths and the same key is the same bytes, so independent additions never conflict |
+| take another repository's additions | `git fetch origin build-cache:build-cache`, a fast-forward of the local branch where it has nothing of its own; where it has, check it out in a worktree (`git worktree add ../cache build-cache`) and `git merge origin/build-cache` there — different keys are different paths and the same key is the same bytes, so independent additions never conflict, and two branches that began apart take `--allow-unrelated-histories`, safe here since their trees are disjoint maps |
 | take content out | a deletion commit — `git rm` on a checkout of the branch, say |
 | reclaim the bytes | Git's own maintenance, once nothing names them |
 

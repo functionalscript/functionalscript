@@ -127,21 +127,24 @@ is a follow-up, not a prerequisite for this CI implementation.
 
 1. Compute the selected contract, complete input tree, canonical manifest,
    and its CAS key without publishing it.
-2. `git fetch origin build-cache`, then read that key through CAS in the
-   fetched branch (`snapshot` of `refs/remotes/origin/build-cache`, or
-   `fjs cas git get` on a local branch reset to it). Its presence there
-   allows the corresponding work to be skipped. Historical objects, objects
-   in another CAS store, and local writes not yet pushed do not establish
-   a successful build.
+2. `git fetch origin build-cache:build-cache` — a fast-forward of the
+   local branch, which is never checked out — then read that key through
+   CAS in it (`snapshot` of the local `build-cache`, or `fjs cas git get`).
+   Its presence there allows the corresponding work to be skipped.
+   Historical objects, objects in another CAS store, and local writes not
+   yet pushed do not establish a successful build.
 3. On a miss, run the block. Only after all checks required by that block
    succeed, write the original complete manifest through CAS — one `add`,
    one commit on the local `build-cache` — and `git push origin
    build-cache`. A failed, cancelled, or partial run adds no entry.
 4. Where the push is refused as a non-fast-forward because another job
-   published first, `git fetch` and `git merge origin/build-cache` — different
-   keys are different paths, so independent additions never conflict — and
-   push again, a few times. The loop is the job's, in its script; a retry
-   does not repeat the successful build.
+   published first, `git fetch origin build-cache`, merge it into the local
+   branch in a worktree (`git worktree add ../cache build-cache`, then
+   `git merge origin/build-cache` there; `--allow-unrelated-histories` where
+   the two branches began apart) — different keys are different paths, so
+   independent additions never conflict — and push again, a few times. The
+   loop is the job's, in its script; a retry does not repeat the successful
+   build.
 
 Keep the source checkout unchanged during cache access and publication:
 the backend writes only objects and the branch ref, and the fetch, merge
