@@ -167,8 +167,9 @@ export type Graph = {
     /** Trace connections from lines, output ports and node names, or native keyboard/click focus. */
     readonly trace?: boolean | undefined
     /**
-     * Center columns vertically, keeping their nodes and routing lanes
-     * together. Trees retain their parent/child centering.
+     * Center non-tree nodes on incoming forward connections, fitting nodes
+     * and routing lanes within the tallest packed column without overlaps.
+     * Trees retain their parent/child centering.
      */
     readonly centerColumns?: boolean | undefined
 }

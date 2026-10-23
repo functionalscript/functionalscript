@@ -725,16 +725,16 @@ export const proof = {
             // The lane is part of the drawing's height, not just the nodes.
             assert(html.includes('viewBox="0 0 264 64"'), html)
         },
-        // The middle column is 44px tall including its routing lane and
-        // gap. Centering moves the 40px root down 2px and the 26px leaf
-        // down 9px, while keeping the tallest column and its lane in place.
+        // The middle column is full, so its lane and node cannot move.
+        // The shared leaf centers on the arriving lane (15) and source
+        // port (44), rather than on the column as a whole.
         centeredColumns: () => {
             const g = { ...skipLevel, centerColumns: true }
             const html = htmlToString(graphSvg(g))
             assert(html.includes('<rect x="10" y="12" width="57" height="40"'), html)
             assert(html.includes('<rect x="107" y="34" width="57" height="20"'), html)
-            assert(html.includes('<rect x="204" y="19" width="50" height="26"'), html)
-            assert(html.includes('d="M67,42 L107,15 L164,15 L204,32"'), html)
+            assert(html.includes('<rect x="204" y="16.5" width="50" height="26"'), html)
+            assert(html.includes('d="M67,42 L107,15 L164,15 L204,29.5"'), html)
             assert(html.includes('viewBox="0 0 264 64"'), html)
             assertEq(_crossings(g), 0)
             assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
@@ -751,6 +751,58 @@ export const proof = {
             const html = htmlToString(graphSvg(g))
             assertEq(routes(html)[0], 'M74,23 L114,23 L124,23 L164,23')
             assertEq(_crossings(g), 0)
+        },
+        // A shared target averages the actual port origins. Its two
+        // sources are constrained by the top/bottom of a 60px column.
+        centersOnIncomingPorts: () => {
+            /** @type {Graph} */
+            const g = {
+                centerColumns: true,
+                nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: 'n', rank: id === 0 ? 0 : id === 3 ? 2 : 1 })),
+                edges: [
+                    { from: 0, to: 1, label: 'a' },
+                    { from: 0, to: { inline: '0' }, label: 'b' },
+                    { from: 0, to: 2, label: 'c' },
+                    { from: 1, to: 3, label: 'x' },
+                    { from: 2, to: 3, label: 'x' },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            assertStructurallySame(routes(html).slice(-2).map(route => route.slice(route.lastIndexOf('L'))), ['L212,40', 'L212,40'])
+            assertEq(_crossings(g), 0)
+            // Returns must not pull the node toward their outside lanes.
+            const returning = { ...g, edges: [...g.edges, { from: 3, to: 0, label: '', back: true, corner: /** @type {const} */ ('top') }] }
+            assertEq(_crossings(returning), 0)
+            assertStructurallySame(routes(htmlToString(graphSvg(returning))).slice(0, 4).map(route => route.slice(route.lastIndexOf(','))), routes(html).map(route => route.slice(route.lastIndexOf(','))))
+        },
+        // Crossed preferences are pooled symmetrically, keeping 14px
+        // clearance. A third slot remains independent once order permits it.
+        fitsCrowdedIncomingCenters: () => {
+            /** @type {Graph} */
+            const g = {
+                centerColumns: true,
+                nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: 'n', rank: id === 0 ? 0 : 1 })),
+                edges: [
+                    { from: 0, to: 2, label: 'a' },
+                    { from: 0, to: 2, label: 'b' },
+                    { from: 0, to: 1, label: 'c' },
+                    { from: 0, to: 1, label: 'd' },
+                    { from: 0, to: { inline: '0' }, label: 'e' },
+                    { from: 0, to: 3, label: 'f' },
+                    { from: 0, to: { inline: '0' }, label: 'g' },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            assertStructurallySame(routes(html).map(route => route.slice(route.lastIndexOf('L'))), ['L122,70', 'L122,70', 'L122,30', 'L122,30', 'L122,120'])
+            assertEq(_crossings(g), 0)
+            assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
+            // Moving the last target's source port up pools all three
+            // slots; the earlier two-slot pool keeps its full weight.
+            const compact = { ...g, edges: g.edges.filter((_, i) => i !== 4) }
+            const expected = [200 / 3, 200 / 3, 80 / 3, 80 / 3, 320 / 3]
+            const actual = routes(htmlToString(graphSvg(compact))).map(route => Number(route.slice(route.lastIndexOf(',') + 1)))
+            assert(actual.every((y, i) => expected[i] - 1e-9 < y && y < expected[i] + 1e-9), String(actual))
+            assertEq(_crossings(compact), 0)
         },
         /**
          * **No edge crosses a box** — the claim the lanes exist for,

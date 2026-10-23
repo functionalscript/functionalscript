@@ -472,9 +472,9 @@ const missingEnds = ids => (edge, index) => [
  * every edge goes to the next rank, so no edge needs a lane. Any other
  * graph — a node shared by two parents, or an edge that skips a rank —
  * normally keeps its columns packed from the top: a shared node has no one
- * parent to sit beside. `Graph.centerColumns` can center those columns as
- * blocks instead. **Every node gets a top**: with one incoming edge at
- * most, and each edge one rank right, no edge can close a cycle, so every
+ * parent to sit beside. `Graph.centerColumns` can align their nodes with
+ * incoming connections instead. **Every node gets a top**: with one incoming
+ * edge at most, and each edge one rank right, no edge can close a cycle, so every
  * node is reached from exactly one root.
  *
  * **Two passes over the ranks, not a walk down each subtree**, so a deep
@@ -565,6 +565,43 @@ const backLanesOf = (edges, bundle) => {
 const sameReturn = (a, b) => a.target === b.target && a.kind === b.kind
 
 /**
+ * Fit preferred slot tops into a column without overlaps or reordering.
+ * Subtracting the packed offsets turns the spacing constraints into a
+ * nondecreasing sequence. Pool adjacent violations by averaging them,
+ * then clamp to the column's available slack. This minimizes squared
+ * displacement from the preferred tops, including routing lanes.
+ *
+ * @type {(desired: readonly number[], offsets: readonly number[], slack: number) => readonly number[]}
+ */
+const fittedTops = (desired, offsets, slack) => {
+    /** @typedef {{ readonly sum: number, readonly count: number }} Pool */
+    const pools = desired.reduce(
+        /** @type {(pools: readonly Pool[], top: number, index: number) => readonly Pool[]} */
+        ((pools, top, index) => {
+            let rest = pools
+            let pool = { sum: top - offsets[index], count: 1 }
+            while (rest.length !== 0) {
+                const last = rest[rest.length - 1]
+                if (last.sum / last.count <= pool.sum / pool.count) { break }
+                pool = { sum: pool.sum + last.sum, count: pool.count + last.count }
+                rest = rest.slice(0, -1)
+            }
+            return [...rest, pool]
+        }), [])
+    return pools.flatMap(({ sum, count }) => Array.from({ length: count }, () => max(margin, min(margin + slack, sum / count))))
+        .map((top, i) => top + offsets[i])
+}
+
+/** @type {(node: _Positioned) => readonly (readonly [number, number])[]} */
+const edgeHeightsOf = node => [
+    ...node.ports.map(port => /** @type {const} */ ([port.index, node.y + port.y + portHeight / 2])),
+    ...node.exits.map(exit => /** @type {const} */ ([exit.index, node.y + exit.y])),
+]
+
+/** @type {StateScan<_Sized, number, number>} */
+const offsetOf = ({ size }, offset) => [offset, offset + (size === null ? laneSize : size.height) + nodeGap]
+
+/**
  * Every column, left to right: its nodes and lanes in `key` order, each
  * placed top to bottom, and the column as wide as its widest node. A lane
  * spans its column's whole width, so the next column starts right of it
@@ -601,9 +638,12 @@ const sameReturn = (a, b) => a.target === b.target && a.kind === b.kind
  * that is a tree but for them is drawn as one.
  *
  * **Column centering is opt-in.** For a non-tree, `Graph.centerColumns`
- * centers each column within the tallest one. Nodes and intermediate edge
- * lanes move as one block, preserving their order and clearance. A tree
- * keeps its parent/child centering instead.
+ * starts roots at the column midpoint, then places each node near the mean
+ * height of its incoming forward connections. Skip-rank lanes follow the
+ * preceding segment. Each column is fitted into the tallest packed column,
+ * preserving slot order and clearance; crowded slots compromise on their
+ * preferred positions. Back edges do not influence placement. A tree keeps
+ * its parent/child centering instead.
  *
  * **A back edge has no lane in any column.** It goes down a gap, along the
  * bottom and up another gap ({@link routesOf}), so a gap is wider by a lane
@@ -654,40 +694,51 @@ const layout = left => nodes => (edges, bundle, center) => {
     ].toSorted((a, b) => a.key - b.key))
     const treeTops = treeTopsOf(columns.map(column => column.flatMap(slot => slot.node === undefined ? [] : [slot.node.id])))(edges.filter(e => e.back !== true))(rankOf)(sizeOf)(
         id => outgoingOf(id).flatMap(({ edge }) => typeof edge.to === 'number' && edge.back !== true ? [edge.to] : []))
+    const align = center && treeTops === null
     // Include the lanes between nodes: centering boxes alone would leave
     // their skip-rank routes in positions that can pass through a box.
     const columnHeights = columns.map(column => max(0, column.reduce((height, slot) =>
         height + (slot.node === undefined ? laneSize : sizeOf(slot.node.id).height) + nodeGap, 0) - nodeGap))
     const tallest = maxOf(columnHeights)
-    /** @type {(left: number) => (widest: number) => StateScan<_Sized, number, _PlacedSlot>} */
+    /** @type {(left: number) => (widest: number) => (sized: _Sized, top: number) => _PlacedSlot} */
     const placeSlot = left => widest => ({ slot, size }, top) => {
         if (size === null) {
             /** @type {_Lane} */
             const lane = { index: /** @type {number} */ (slot.lane), rank: slot.rank, y: top + laneSize / 2, left, right: left + widest }
-            return [{ lane }, top + laneSize + nodeGap]
+            return { lane }
         }
         const id = /** @type {Ranked} */ (slot.node).id
         /** @type {_Positioned} */
         const node = { .../** @type {Ranked} */ (slot.node), x: left, y: treeTops === null ? top : /** @type {number} */ (treeTops.get(id)), ...size }
-        return [{ node }, top + size.height + nodeGap]
+        return { node }
     }
-    /** @type {StateScan<readonly [number, readonly _Slot[]], number, _Column>} */
+    /** @typedef {{ readonly left: number, readonly heights: ReadonlyMap<number, number> }} ColumnState */
+    /** @type {StateScan<readonly [number, readonly _Slot[]], ColumnState, _Column>} */
     const placeColumn = ([rank, column], prior) => {
-        const left = prior + gapOf(rank)
+        const left = prior.left + gapOf(rank)
         const sized = column.map(slot => ({ slot, size: slot.node === undefined ? null : sizeOf(slot.node.id) }))
         const widest = sized.reduce((m, { size }) => max(m, size === null ? laneSize : size.width), 0)
-        const top = margin + (center && treeTops === null ? (tallest - columnHeights[rank]) / 2 : 0)
-        const slots = toArray(stateScan(placeSlot(left)(widest))(top)(sized))
-        return [{ end: left + widest, slots }, left + widest + rankGap]
+        const top = margin + (align ? (tallest - columnHeights[rank]) / 2 : 0)
+        const offsets = toArray(stateScan(offsetOf)(0)(sized))
+        const tops = align ? fittedTops(sized.map(({ slot, size }, i) => {
+            const incoming = size === null ? [prior.heights.get(/** @type {number} */ (slot.lane))]
+                : edges.flatMap(({ to, back }, index) => to === /** @type {Ranked} */ (slot.node).id && back !== true ? [prior.heights.get(index)] : [])
+            const heights = incoming.filter(h => h !== undefined)
+            return heights.length === 0 ? top + offsets[i]
+                : heights.reduce((sum, y) => sum + y, 0) / heights.length - (size === null ? laneSize : size.height) / 2
+        }), offsets, tallest - columnHeights[rank]) : offsets.map(offset => top + offset)
+        const place = placeSlot(left)(widest)
+        const slots = sized.map((sized, i) => place(sized, tops[i]))
+        const heights = align ? slots.flatMap(({ node, lane }) => node === undefined
+            ? [/** @type {const} */ ([/** @type {_Lane} */ (lane).index, /** @type {_Lane} */ (lane).y])]
+            : edgeHeightsOf(node)) : []
+        return [{ end: left + widest, slots }, { left: left + widest + rankGap, heights: new Map([...prior.heights, ...heights]) }]
     }
-    const placedColumns = toArray(stateScan(placeColumn)(left)(columns.map((column, rank) => /** @type {const} */ ([rank, column]))))
+    const placedColumns = toArray(stateScan(placeColumn)({ left, heights: new Map() })(columns.map((column, rank) => /** @type {const} */ ([rank, column]))))
     const placed = placedColumns.flatMap(column => column.slots)
     const placedNodes = placed.flatMap(p => p.node === undefined ? [] : [p.node])
     // where each edge leaves its node, from the top of the graph
-    const heights = new Map(placedNodes.flatMap(node => [
-        ...node.ports.map(port => /** @type {const} */ ([port.index, node.y + port.y + portHeight / 2])),
-        ...node.exits.map(exit => /** @type {const} */ ([exit.index, node.y + exit.y])),
-    ]))
+    const heights = new Map(placedNodes.flatMap(edgeHeightsOf))
     return {
         nodes: placedNodes,
         lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
