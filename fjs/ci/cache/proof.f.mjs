@@ -113,19 +113,27 @@ export const proof = /** @type {const} */ ({
         assert(changedFjs.js !== inputs.js)
         assert(changedFjs.ts !== inputs.ts)
     },
-    spiderMonkeyCompileInputs: () => {
-        const before = treesOf([...files, ['fjs/spidermonkey.mjs', 'before']])
-        const after = treesOf([...files, ['fjs/spidermonkey.mjs', 'after']])
-        const beforeInputs = inputKeys(before)
-        const afterInputs = inputKeys(after)
-        /** @type {Check} */
-        const compile = { id: 'spidermonkey-compile', rung: 'fjs', steps: [{ run: 'npm run sm c' }] }
-        assert(beforeInputs.fjs !== afterInputs.fjs)
-        assert(beforeInputs.js !== afterInputs.js)
-        assert(beforeInputs.ts !== afterInputs.ts)
-        assertEq(beforeInputs.rust, afterInputs.rust)
-        assert(keyOf(checkManifest(compile, platform, beforeInputs, before))
-            !== keyOf(checkManifest(compile, platform, afterInputs, after)))
+    compileHostInputs: () => {
+        /** @type {readonly Check[]} */
+        const compiles = [
+            { id: 'compile', rung: 'fjs', steps: [{ run: 'npm start compile' }] },
+            { id: 'spidermonkey-compile', rung: 'fjs', steps: [{ run: 'npm run sm c' }] },
+        ]
+        // Both hosts execute the Result exception boundary through their effects.
+        for (const path of ['fjs/module.mjs', 'fjs/spidermonkey.mjs', 'fjs/types/result/module.mjs']) {
+            const before = treesOf([...files, [path, 'before']])
+            const after = treesOf([...files, [path, 'after']])
+            const beforeInputs = inputKeys(before)
+            const afterInputs = inputKeys(after)
+            assert(beforeInputs.fjs !== afterInputs.fjs)
+            assert(beforeInputs.js !== afterInputs.js)
+            assert(beforeInputs.ts !== afterInputs.ts)
+            assertEq(beforeInputs.rust, afterInputs.rust)
+            for (const compile of compiles) {
+                assert(keyOf(checkManifest(compile, platform, beforeInputs, before))
+                    !== keyOf(checkManifest(compile, platform, afterInputs, after)))
+            }
+        }
     },
     contracts: () => {
         const manifest = checkManifest(check, platform, inputs, trees)

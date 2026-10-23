@@ -35,6 +35,7 @@ const excludedFiles = [
 const javascript = (/** @type {string} */ path) => {
     if (sharedFiles.includes(path) || path === 'package.json' || path === 'deno.json'
         || path === 'fjs/module.mjs' || path === 'fjs/spidermonkey.mjs'
+        || path === 'fjs/types/result/module.mjs'
         || path.split('/').some(p => p.startsWith('gen.'))
         || path.endsWith('.f.mjs') || path.endsWith('.f.js') || path.endsWith('.data.js')) { return 'fjs' }
     if (path.endsWith('.mjs') || path.endsWith('.js') || path.endsWith('.cjs')) {
