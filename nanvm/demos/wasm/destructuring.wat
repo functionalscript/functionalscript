@@ -1,4 +1,4 @@
-  (func $nanvm_demos::samples::destructuring::module::<nanvm_lib::naive::Naive> (;183;) (type 1) (param i32 i32)
+  (func $nanvm_demos::samples::destructuring::module::<nanvm_lib::naive::Naive> (;329;) (type 1) (param i32 i32)
     (local i32 i32 i32 i32 i32)
     global.get $__stack_pointer
     i32.const 128
@@ -51,11 +51,11 @@
       i32.eqz
       br_if 0 (;@1;)
       local.get 2
-      i32.const 6
+      i32.const 73
       i32.const 1
       local.get 4
       local.get 3
-      i32.const 1054919
+      i32.const 1057270
       i32.const 62
       call $<nanvm_lib::naive::function::Function>::new
       local.tee 4
@@ -67,10 +67,10 @@
       i32.const 0
       i32.store16 offset=60
       local.get 2
-      i32.const 1054903
+      i32.const 1057339
       i32.store offset=56
       local.get 2
-      i32.const 1054896
+      i32.const 1057332
       i32.store offset=52
       local.get 2
       i32.const 80
@@ -166,11 +166,11 @@
               local.get 4
               i32.eqz
               br_if 3 (;@2;)
-              i32.const 7
+              i32.const 74
               i32.const 0
               local.get 4
               local.get 3
-              i32.const 1054981
+              i32.const 1057339
               i32.const 92
               call $<nanvm_lib::naive::function::Function>::new
               local.set 4
@@ -253,9 +253,9 @@
               local.get 2
               i32.const 32
               i32.add
-              call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+              call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
               local.get 1
-              call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+              call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
               local.get 2
               i32.const 128
               i32.add
@@ -281,48 +281,48 @@
             local.get 2
             local.get 3
             i32.store8 offset=64
-            i32.const 1063112
+            i32.const 1055372
             i32.const 43
             local.get 2
             i32.const 64
             i32.add
-            i32.const 1063096
-            i32.const 1063156
+            i32.const 1055356
+            i32.const 1055416
             call $core::result::unwrap_failed
           end
           unreachable
         end
-        i32.const 1059464
+        i32.const 1053928
         i32.const 43
         local.get 2
         i32.const 127
         i32.add
-        i32.const 1059448
-        i32.const 1059508
+        i32.const 1053912
+        i32.const 1053972
         call $core::result::unwrap_failed
         unreachable
       end
-      i32.const 1059464
+      i32.const 1053928
       i32.const 43
       local.get 2
       i32.const 127
       i32.add
-      i32.const 1059448
-      i32.const 1059508
+      i32.const 1053912
+      i32.const 1053972
       call $core::result::unwrap_failed
       unreachable
     end
-    i32.const 1059464
+    i32.const 1053928
     i32.const 43
     local.get 2
     i32.const 127
     i32.add
-    i32.const 1059448
-    i32.const 1059508
+    i32.const 1053912
+    i32.const 1053972
     call $core::result::unwrap_failed
     unreachable
   )
-  (func $"<nanvm_demos::samples::destructuring::module<nanvm_lib::naive::Naive>::{closure#0} as core::ops::function::FnOnce<(&nanvm_lib::naive::function::Function, nanvm_lib::vm::array::Array<nanvm_lib::naive::Naive>)>>::call_once" (;184;) (type 3) (param i32 i32 i32 i32)
+  (func $"<nanvm_demos::samples::destructuring::module<nanvm_lib::naive::Naive>::{closure#0} as core::ops::function::FnOnce<(&nanvm_lib::naive::function::Function, nanvm_lib::vm::array::Array<nanvm_lib::naive::Naive>)>>::call_once" (;330;) (type 3) (param i32 i32 i32 i32)
     (local i32 i64 i32 i32 i32)
     global.get $__stack_pointer
     i32.const 288
@@ -671,11 +671,11 @@
                 local.get 4
                 i32.const 216
                 i32.add
-                call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                 local.get 4
                 i32.const 232
                 i32.add
-                call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                 block ;; label = @7
                   block ;; label = @8
                     block ;; label = @9
@@ -874,19 +874,19 @@
                   local.get 4
                   i32.const 216
                   i32.add
-                  call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                  call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                   local.get 4
                   i32.const 232
                   i32.add
-                  call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                  call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                   local.get 4
                   i32.const 0
                   i32.store16 offset=96
                   local.get 4
-                  i32.const 1056374
+                  i32.const 1058668
                   i32.store offset=92
                   local.get 4
-                  i32.const 1056368
+                  i32.const 1058662
                   i32.store offset=88
                   local.get 4
                   i32.const 216
@@ -987,11 +987,11 @@
                         local.get 4
                         i32.const 216
                         i32.add
-                        call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                        call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                         local.get 4
                         i32.const 232
                         i32.add
-                        call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                        call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                         block ;; label = @11
                           block ;; label = @12
                             block ;; label = @13
@@ -1113,13 +1113,13 @@
                       local.get 4
                       local.get 3
                       i32.store8 offset=200
-                      i32.const 1063112
+                      i32.const 1055372
                       i32.const 43
                       local.get 4
                       i32.const 200
                       i32.add
-                      i32.const 1063096
-                      i32.const 1063156
+                      i32.const 1055356
+                      i32.const 1055416
                       call $core::result::unwrap_failed
                       unreachable
                     end
@@ -1227,11 +1227,11 @@
                     local.get 4
                     i32.const 40
                     i32.add
-                    call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                    call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
                     local.get 4
                     i32.const 24
                     i32.add
-                    call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                    call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
                     local.get 4
                     i32.load offset=16
                     local.tee 0
@@ -1245,13 +1245,13 @@
                     br_if 5 (;@3;)
                     br 4 (;@4;)
                   end
-                  i32.const 1059464
+                  i32.const 1053928
                   i32.const 43
                   local.get 4
                   i32.const 287
                   i32.add
-                  i32.const 1059448
-                  i32.const 1059508
+                  i32.const 1053912
+                  i32.const 1053972
                   call $core::result::unwrap_failed
                   unreachable
                 end
@@ -1269,17 +1269,17 @@
                 local.get 4
                 i32.const 56
                 i32.add
-                call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
               end
               local.get 4
               i32.const 40
               i32.add
-              call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+              call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
             end
             local.get 4
             i32.const 24
             i32.add
-            call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+            call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
             local.get 4
             i32.load offset=16
             local.tee 0
@@ -1305,17 +1305,17 @@
       end
       unreachable
     end
-    i32.const 1059464
+    i32.const 1053928
     i32.const 43
     local.get 4
     i32.const 287
     i32.add
-    i32.const 1059448
-    i32.const 1059508
+    i32.const 1053912
+    i32.const 1053972
     call $core::result::unwrap_failed
     unreachable
   )
-  (func $"<nanvm_demos::samples::destructuring::module<nanvm_lib::naive::Naive>::{closure#1} as core::ops::function::FnOnce<(&nanvm_lib::naive::function::Function, nanvm_lib::vm::array::Array<nanvm_lib::naive::Naive>)>>::call_once" (;185;) (type 3) (param i32 i32 i32 i32)
+  (func $"<nanvm_demos::samples::destructuring::module<nanvm_lib::naive::Naive>::{closure#1} as core::ops::function::FnOnce<(&nanvm_lib::naive::function::Function, nanvm_lib::vm::array::Array<nanvm_lib::naive::Naive>)>>::call_once" (;331;) (type 3) (param i32 i32 i32 i32)
     (local i32 i32 i32 i32 i64 i32)
     global.get $__stack_pointer
     i32.const 480
@@ -1355,10 +1355,10 @@
       i32.const 0
       i32.store16 offset=288
       local.get 4
-      i32.const 1056375
+      i32.const 1058669
       i32.store offset=284
       local.get 4
-      i32.const 1056374
+      i32.const 1058668
       i32.store offset=280
       local.get 4
       i32.const 408
@@ -1505,13 +1505,13 @@
           local.get 4
           local.get 3
           i32.store8 offset=344
-          i32.const 1063112
+          i32.const 1055372
           i32.const 43
           local.get 4
           i32.const 344
           i32.add
-          i32.const 1063096
-          i32.const 1063156
+          i32.const 1055356
+          i32.const 1055416
           call $core::result::unwrap_failed
           unreachable
         end
@@ -1633,11 +1633,11 @@
             local.get 4
             i32.const 408
             i32.add
-            call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+            call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
             local.get 4
             i32.const 424
             i32.add
-            call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+            call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
             local.get 4
             local.get 6
             i32.store offset=316
@@ -1648,10 +1648,10 @@
             i32.const 0
             i32.store16 offset=288
             local.get 4
-            i32.const 1056376
+            i32.const 1058670
             i32.store offset=284
             local.get 4
-            i32.const 1056375
+            i32.const 1058669
             i32.store offset=280
             local.get 4
             i32.const 408
@@ -1794,13 +1794,13 @@
                 local.get 4
                 local.get 1
                 i32.store8 offset=344
-                i32.const 1063112
+                i32.const 1055372
                 i32.const 43
                 local.get 4
                 i32.const 344
                 i32.add
-                i32.const 1063096
-                i32.const 1063156
+                i32.const 1055356
+                i32.const 1055416
                 call $core::result::unwrap_failed
                 unreachable
               end
@@ -1934,11 +1934,11 @@
                   local.get 4
                   i32.const 408
                   i32.add
-                  call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                  call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                   local.get 4
                   i32.const 424
                   i32.add
-                  call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                  call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                   local.get 4
                   i64.const 4611686018427387904
                   i64.store offset=416
@@ -2013,7 +2013,7 @@
                 i32.add
                 call $"<alloc::rc::Rc<[u16]>>::drop_slow"
                 local.get 3
-                call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
                 br 2 (;@4;)
               end
               local.get 4
@@ -2279,7 +2279,7 @@
                       end
                       i32.const 0
                       i32.const 0
-                      i32.const 1065308
+                      i32.const 1062708
                       call $core::panicking::panic_bounds_check
                       unreachable
                     end
@@ -2423,10 +2423,10 @@
                   i32.const 0
                   i32.store16 offset=288
                   local.get 4
-                  i32.const 1056375
+                  i32.const 1058669
                   i32.store offset=284
                   local.get 4
-                  i32.const 1056374
+                  i32.const 1058668
                   i32.store offset=280
                   local.get 4
                   i32.const 408
@@ -2529,19 +2529,19 @@
                             local.get 4
                             i32.const 408
                             i32.add
-                            call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                            call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                             local.get 4
                             i32.const 424
                             i32.add
-                            call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                            call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                             local.get 4
                             i32.const 0
                             i32.store16 offset=320
                             local.get 4
-                            i32.const 1056374
+                            i32.const 1058668
                             i32.store offset=316
                             local.get 4
-                            i32.const 1056368
+                            i32.const 1058662
                             i32.store offset=312
                             local.get 4
                             i32.const 408
@@ -2687,13 +2687,13 @@
                           local.get 4
                           local.get 3
                           i32.store8 offset=344
-                          i32.const 1063112
+                          i32.const 1055372
                           i32.const 43
                           local.get 4
                           i32.const 344
                           i32.add
-                          i32.const 1063096
-                          i32.const 1063156
+                          i32.const 1055356
+                          i32.const 1055416
                           call $core::result::unwrap_failed
                           unreachable
                         end
@@ -2716,13 +2716,13 @@
                         local.get 4
                         local.get 3
                         i32.store8 offset=344
-                        i32.const 1063112
+                        i32.const 1055372
                         i32.const 43
                         local.get 4
                         i32.const 344
                         i32.add
-                        i32.const 1063096
-                        i32.const 1063156
+                        i32.const 1055356
+                        i32.const 1055416
                         call $core::result::unwrap_failed
                         unreachable
                       end
@@ -2746,10 +2746,10 @@
                     i32.const 0
                     i32.store16 offset=388
                     local.get 4
-                    i32.const 1056376
+                    i32.const 1058670
                     i32.store offset=384
                     local.get 4
-                    i32.const 1056375
+                    i32.const 1058669
                     i32.store offset=380
                     local.get 4
                     i32.const 408
@@ -2870,11 +2870,11 @@
                                   local.get 4
                                   i32.const 408
                                   i32.add
-                                  call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                                  call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                                   local.get 4
                                   i32.const 424
                                   i32.add
-                                  call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                                  call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                                   local.get 4
                                   i64.const 1
                                   i64.store offset=344
@@ -3021,11 +3021,11 @@
                               local.get 4
                               i32.const 408
                               i32.add
-                              call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                              call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                               local.get 4
                               i32.const 424
                               i32.add
-                              call $"#func537 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                              call $"#func363 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
                               local.get 4
                               i32.const 0
                               i32.store8 offset=380
@@ -3260,11 +3260,11 @@
                               local.get 4
                               i32.const 72
                               i32.add
-                              call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                              call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
                               local.get 4
                               i32.const 56
                               i32.add
-                              call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                              call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
                               local.get 2
                               local.get 2
                               i32.load
@@ -3295,88 +3295,88 @@
                             local.get 4
                             local.get 1
                             i32.store8 offset=312
-                            i32.const 1063112
+                            i32.const 1055372
                             i32.const 43
                             local.get 4
                             i32.const 312
                             i32.add
-                            i32.const 1063096
-                            i32.const 1063156
+                            i32.const 1055356
+                            i32.const 1055416
                             call $core::result::unwrap_failed
                             unreachable
                           end
-                          i32.const 1059464
+                          i32.const 1053928
                           i32.const 43
                           local.get 4
                           i32.const 479
                           i32.add
-                          i32.const 1059448
-                          i32.const 1059508
+                          i32.const 1053912
+                          i32.const 1053972
                           call $core::result::unwrap_failed
                           unreachable
                         end
-                        i32.const 1059464
+                        i32.const 1053928
                         i32.const 43
                         local.get 4
                         i32.const 479
                         i32.add
-                        i32.const 1059448
-                        i32.const 1059508
+                        i32.const 1053912
+                        i32.const 1053972
                         call $core::result::unwrap_failed
                         unreachable
                       end
-                      i32.const 1059464
+                      i32.const 1053928
                       i32.const 43
                       local.get 4
                       i32.const 479
                       i32.add
-                      i32.const 1059448
-                      i32.const 1059508
+                      i32.const 1053912
+                      i32.const 1053972
                       call $core::result::unwrap_failed
                       unreachable
                     end
                     local.get 4
                     i32.const 136
                     i32.add
-                    call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                    call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
                   end
                   local.get 4
                   i32.const 104
                   i32.add
-                  call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                  call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
                   local.get 4
                   i32.const 72
                   i32.add
-                  call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+                  call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
                   br 3 (;@4;)
                 end
-                i32.const 1059464
+                i32.const 1053928
                 i32.const 43
                 local.get 4
                 i32.const 479
                 i32.add
-                i32.const 1059448
-                i32.const 1059508
+                i32.const 1053912
+                i32.const 1053972
                 call $core::result::unwrap_failed
                 unreachable
               end
-              i32.const 1059464
+              i32.const 1053928
               i32.const 43
               local.get 4
               i32.const 479
               i32.add
-              i32.const 1059448
-              i32.const 1059508
+              i32.const 1053912
+              i32.const 1053972
               call $core::result::unwrap_failed
               unreachable
             end
             local.get 3
-            call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+            call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
           end
           local.get 4
           i32.const 56
           i32.add
-          call $"#func178 core::ptr::drop_glue::<nanvm_lib::vm::unpacked::Unpacked<nanvm_lib::naive::Naive>>"
+          call $"#func328 core::ptr::drop_glue::<nanvm_lib::vm::any::Any<nanvm_lib::naive::Naive>>"
           local.get 2
           local.get 2
           i32.load

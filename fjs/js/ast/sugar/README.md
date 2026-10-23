@@ -26,7 +26,14 @@ selection; both the test
 and the alternative name that binding. The fixed prefix preserves `length`.
 
 Terminal guards and switches become yielding value regions. They introduce no
-invocation or capture boundary. A scalar loop gets an explicit input binding,
+invocation or capture boundary. A block normalized as a value — a source block
+or a function called where it is written, which the scope around it goes on
+after — keeps its writes to itself: the parser admits none that reaches a
+binding established before the block, and normalization asserts it, until
+general loops give a block's writes results
+([let](../../../spec/todo/3220-let.md), "General loops"). A terminal arm, a
+guard's or a case's block, needs no such check: nothing in the enclosing scope
+runs after it, so a write in it is read by the arm alone, as JavaScript reads it. A scalar loop gets an explicit input binding,
 entry value, iteration body and separate result binding. Its assignments choose
 immutable iteration versions; the normal iteration transfer continues with the
 latest version. Graph construction consumes this signature directly.

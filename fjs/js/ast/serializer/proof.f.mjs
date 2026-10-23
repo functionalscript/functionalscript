@@ -158,6 +158,9 @@ export const proof = {
         const whileResult = id(5)
         const target = { kind: /** @type {const} */ ('loop'), index: 0 }
         const scalar = { kind: /** @type {const} */ ('loop'), index: 1 }
+        const unchangedSlot = id(6)
+        const unchangedResult = id(7)
+        const unchanged = { kind: /** @type {const} */ ('loop'), index: 2 }
         /** @type {Block} */
         const block = {
             statements: [
@@ -169,13 +172,17 @@ export const proof = {
                     exit: ['continue', target],
                 }],
                 ['while', { target: scalar, slot: whileSlot, initial: 0, condition: ['<', ['ref', whileSlot], 2], body: { statements: [['write', whileSlot, ['+', ['ref', whileSlot], 1]]], exit: ['yield', []] }, result: whileResult, mutable: true }],
+                // a loop writing its variable nowhere writes it back
+                // unchanged, so that the source reads back as a loop
+                ['while', { target: unchanged, slot: unchangedSlot, initial: 1, condition: false, body: { statements: [], exit: ['yield', []] }, result: unchangedResult, mutable: false }],
             ],
-            exit: ['yield', [['array', [['ref', slot], ['demand', memo], ['ref', whileResult]]]]],
+            exit: ['yield', [['array', [['ref', slot], ['demand', memo], ['ref', whileResult], ['ref', unchangedResult]]]]],
         }
         const text = stringify(block, 'expression')
         assert(text.includes('continue L0;'))
         assert(text.includes('break L0;'))
         assert(text.includes('while('))
+        assert(text.includes('while(false){$5=$5;}'), text)
         assertEq(untagged(render(block, 'expression')), text)
     },
 }

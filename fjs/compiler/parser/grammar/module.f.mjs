@@ -34,15 +34,17 @@
  * template ::= noSubstitutionTemplate
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' statement* terminator '}'
- * statement ::= const | 'if' '(' value ')' block
- *             | 'let' id '=' value end | 'while' '(' value ')' loopBlock
+ * statement ::= const | 'if' '(' value ')' block | let
+ *             | 'while' '(' value ')' loopBlock | bodyNameStatement
+ * let    ::= 'let' bindingTarget '=' value end
  * terminator ::= 'return' value end | 'throw' value end
  *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
  * caseTail ::= 'case' value ':' caseTail | block afterCase
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
  *            | '}' statement* terminator
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | id '=' value end
+ * loopStatement ::= const | let | bodyNameStatement
+ * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
  *              | '=' value [ ',' [ names ] ] ')' '=>' body
@@ -137,7 +139,7 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
@@ -1172,33 +1174,46 @@ export const terminator = /** @type {const} */ ({
  * guard admits one form, and the others are follow-ups
  * ([spec: functions](../../../../spec/functions/README.md)).
  *
- * A loop is two statements, `let name = value;` and `while (condition)
- * loopBlock`, the second right after the first — one form, read by the
- * fold as one ([spec: loops](../../../../spec/control-flow/loops/README.md)); the
- * grammar reads each as a statement of its own, since one symbol decides
- * each, and leaves their adjacency to the fold, as it leaves the guard's
- * block's ending to it. No {@link end} follows the loop's `}`, as none
- * follows the guard's.
+ * A `let` is a declaration as a `const` is, {@link letStatement}, and a
+ * loop is `while (condition) loopBlock`: two statements the grammar reads
+ * where a `const` may stand, each on its own, since one symbol decides
+ * each; which variable a loop steps is the fold's to find, from the
+ * assignments in its block
+ * ([spec: loops](../../../../spec/control-flow/loops/README.md)). No
+ * {@link end} follows the loop's `}`, as none follows the guard's.
  *
- * A statement that begins with a name is a call statement,
- * {@link nameStatement}: the keywords above each open a statement of
- * their own, and a name is none of them.
+ * A statement that begins with a name is an assignment or a call
+ * statement, {@link bodyNameStatement}: the keywords above each open a
+ * statement of their own, and a name is none of them.
  *
  * @type {Statement}
  */
 export const statement = () => ['const', {
     const: constStatement,
     if: [sym('if'), sym('('), value, sym(')'), block],
-    let: [sym('let'), identifierName, sym('='), value, end],
+    let: letStatement,
     while: [sym('while'), sym('('), value, sym(')'), loopBlock],
-    name: nameStatement,
+    name: bodyNameStatement,
 }]
+
+/**
+ * A `let` statement: `let`, what it binds, {@link bindingTarget}, `=`, the
+ * value, and its {@link end} — the {@link constStatement} under the other
+ * keyword, which declares a variable: a name an assignment,
+ * {@link bodyNameStatement}, may rebind. The initializer is required, as a
+ * `const`'s is: JavaScript's `let x;` is refused at the `;`, by design — a
+ * variable names its value where it is declared
+ * ([spec: variables](../../../../spec/bindings/variables/README.md)).
+ *
+ * @type {LetStatement}
+ */
+export const letStatement = [sym('let'), bindingTarget, sym('='), value, end]
 
 /**
  * The words a statement may begin with where it is no keyword's: `id`, and
  * the two framing keywords JavaScript leaves ordinary, `from` and `as` —
- * the words a `let` may bind, and the words that may begin a reference
- * where a statement starts. Not {@link identifier}: every other word with
+ * the words an assignment may rebind, and the words that may begin a
+ * reference where a statement starts. Not {@link identifier}: every other word with
  * a symbol of its own opens a statement of its own, `const` or `if`, or is
  * reserved, and the reserved words among these three are refused by the
  * fold wherever they are bound.
@@ -1206,42 +1221,37 @@ export const statement = () => ['const', {
 export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from'), as: sym('as') })
 
 /**
- * A call statement, `assert(a);`: a name, the rest of the value it begins,
- * as a value's name branch reads it, {@link arrowOrRest}, and its
- * {@link end} ([spec: call statements](../../../../spec/functions/call-statements/README.md)).
- * The grammar reads any value a name begins, and the fold admits a call
+ * A body's statement that begins with a name: the assignment, `name =
+ * value` — the one statement that rebinds a name, a variable a `let` or
+ * a parameter declared
+ * ([spec: variables](../../../../spec/bindings/variables/README.md)) — or a
+ * call statement, `assert(a);`, the rest of the value the name begins, as a
+ * value's name branch reads it, {@link arrowOrRest}
+ * ([spec: call statements](../../../../spec/functions/call-statements/README.md)):
+ * the grammar reads any value a name begins, and the fold admits a call
  * alone, refusing any other at the name, as the grammar refused it before.
- *
  * A statement opening with anything but a name is not read: `(` and `[`
  * continue the statement before it as a call and an index where no `;`
  * ends it — JavaScript reads `f` on one line and `(g)(x)` on the next as
  * `f(g)(x)` — so one symbol could not tell them from a new statement's;
- * and a prefix or a literal opens no call worth a statement.
+ * and a prefix or a literal opens no call worth a statement. `=` decides the assignment in one symbol, an assignment being no
+ * value of the language; and the {@link end} of either. Which names an
+ * assignment may rebind is the fold's to say.
  */
-export const nameStatement = /** @type {const} */ ([assignable, arrowOrRest, end])
+export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [sym('='), value], ...arrowOrRest }, end])
 
 /**
- * A loop block's statement that begins with a name: the assignment to the
- * loop's variable, `name = value` — the one statement that rebinds a name,
- * and it stands in a loop's block alone
- * ([spec: loops](../../../../spec/control-flow/loops/README.md)) — or a call
- * statement, {@link nameStatement}, the rest of the value the name begins.
- * `=` decides the assignment in one symbol, an assignment being no value
- * of the language; and the {@link end} of either.
- */
-export const loopNameStatement = /** @type {const} */ ([assignable, { assign: [sym('='), value], ...arrowOrRest }, end])
-
-/**
- * A statement of a loop's block: a `const`, or what begins with a name,
- * {@link loopNameStatement}. `const` and a name decide the two in one
- * symbol. A thunk, as {@link statement} is, since the block holds this
- * rule and this rule holds a value.
+ * A statement of a loop's block: a `const`, a `let`, or what begins with
+ * a name, {@link bodyNameStatement}. `const`, `let` and a name decide the
+ * three in one symbol. A thunk, as {@link statement} is, since the block
+ * holds this rule and this rule holds a value.
  *
  * @type {LoopStatement}
  */
 export const loopStatement = () => ['const', {
     const: constStatement,
-    name: loopNameStatement,
+    let: letStatement,
+    name: bodyNameStatement,
 }]
 
 /**
@@ -1333,10 +1343,12 @@ export const importStatement = /** @type {const} */ ([
 ])
 
 /**
- * A module's statement before its exports: a `const`, or a call statement,
- * {@link nameStatement}. `const` and a name decide the two in one symbol.
+ * A module's statement before its exports: a `const`, a `let`, or what
+ * begins with a name, an assignment or a call statement,
+ * {@link bodyNameStatement}, as a body's. `const`, `let` and a name decide
+ * the three in one symbol.
  */
-export const moduleStatement = /** @type {const} */ ({ const: constStatement, name: nameStatement })
+export const moduleStatement = /** @type {const} */ ({ const: constStatement, let: letStatement, name: bodyNameStatement })
 
 /**
  * What a module ends with, after its imports and constants: its exports —
@@ -1359,8 +1371,9 @@ export const lastStatement = () => ['const', {
 }]
 
 /**
- * The whole module: imports first, ordinary and exported constants and call
- * statements in order, {@link moduleStatement}, and {@link lastStatement} —
+ * The whole module: imports first, ordinary and exported constants,
+ * variables, assignments and call statements in order,
+ * {@link moduleStatement}, and {@link lastStatement} —
  * at least one export, or a `throw`. Ending on `eof` is what makes a
  * trailing stray token a failure.
  */

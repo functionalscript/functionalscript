@@ -34,6 +34,10 @@ export const samples = [
         [0, ['returned', '[true,8080,"localhost"]']],
         [1, ['returned', '[true,8081,"localhost"]']],
     ] },
+    { name: 'variables', directory: 'spec/bindings/variables', calls: [
+        [3, ['returned', '[3,1,6]']],
+        [-2, ['returned', '[2,1]']],
+    ] },
     { name: 'destructuring', directory: 'spec/bindings/destructuring', calls: [
         [1, ['returned', '[1,2,[3,4]]']],
         [5, ['returned', '[5,10,[3,4]]']],
