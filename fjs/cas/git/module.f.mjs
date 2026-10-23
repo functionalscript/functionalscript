@@ -84,8 +84,8 @@ import { tryRead as readLoose } from '../../git/loose/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { tryWrite } from '../../git/refstore/write/module.f.mjs'
 import { objectPath, objectsDir, objectsDirs, readIn } from '../../git/store/module.f.mjs'
-import { compare, isSubtree, mode, write as writeTree } from '../../git/tree/module.f.mjs'
-import { tryEntries, tryEntry } from '../../git/walk/module.f.mjs'
+import { compare, isSubtree, tryRead as readTree, write as writeTree } from '../../git/tree/module.f.mjs'
+import { tryEntry } from '../../git/walk/module.f.mjs'
 import { join, parent } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
@@ -173,9 +173,14 @@ const present = e => resultMapStep(e, r => r[0] === 'error' && isNotFound(r[1])
  * The one mode a CAS entry has, as Git spells it: `100644`, a regular file
  * that is not executable. `100755` is refused along with a link and a
  * submodule, since identical concurrent additions agree on this mode and a
- * writer never writes another.
+ * writer never writes another. The spelling is the mode: `0100644` names
+ * the same bits and is a tree Git refuses, so the bytes are compared and
+ * not the number they parse to.
  */
-const regularFile = 0o100644
+const regularFile = '100644'
+
+/** Whether an entry's mode is {@link regularFile}, spelled as it is. @type {(e: TreeEntry) => boolean} */
+const isRegularFile = e => nameText(e.mode) === regularFile
 
 /** The two modes a writer spells, as the digits a tree entry holds. */
 const fileMode = ascii('100644')
@@ -227,25 +232,38 @@ const nameText = name => codePointListToString(toArray(name))
 const keyOf = rel => e => isSubtree(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
 
 /**
- * The path of an entry below `.cas` that is no path of the layout, or
- * none: a file that spells a key `toPath` files elsewhere — `.cas/a/b/<rest>`,
- * or `.cas/<whole>`, for a key filed at `.cas/ab/cd/<rest>` — and an entry
- * of either kind whose name holds a `/`, which `git fsck` refuses as
- * `fullPathname` and which would spell a path the walk never takes.
- * `unshard` reads the key off any split of its digits, and a read of that
- * key walks the one path `toPath` spells, so a listing that named it would
- * name content the same snapshot cannot read; it refuses the layout
- * instead.
+ * What is wrong with one tree below `.cas`, in the listing's words, or
+ * nothing: every way a tree this backend did not write can name a key the
+ * same snapshot cannot read, so that the listing refuses the layout rather
+ * than naming the key.
  *
- * @type {(rel: string) => (e: TreeEntry) => readonly string[]}
+ * - A name the tree holds twice, which `git fsck` refuses as
+ *   `duplicateEntries`; a read of the path answers no entry for it.
+ * - A name holding a `/`, which `git fsck` refuses as `fullPathname`: it
+ *   spells a path, and is no entry the walk reaches.
+ * - A file whose mode is not {@link regularFile} as spelled: a read refuses
+ *   its blob, and `0100644` is a tree Git refuses.
+ * - A file that spells a key `toPath` files elsewhere — `.cas/a/b/<rest>`,
+ *   or `.cas/<whole>`, for a key filed at `.cas/ab/cd/<rest>`: `unshard`
+ *   reads the key off any split of its digits, and a read walks the one
+ *   path `toPath` spells.
+ *
+ * @type {(rel: string) => (es: readonly TreeEntry[]) => readonly string[]}
  */
-const misfiled = rel => e => {
-    const name = nameText(e.name)
-    const path = `${prefix}${join(rel, name)}`
-    if (name.includes('/')) { return [path] }
-    if (isSubtree(e)) { return [] }
-    const key = unshard(join(rel, name))
-    return key === null || toPath(key) === path ? [] : [path]
+const malformed = rel => es => {
+    const dir = `${prefix}${rel}`
+    const names = es.map(e => nameText(e.name))
+    const twice = names.filter((n, i) => names.indexOf(n) !== i)
+    if (twice.length !== 0) { return [`${dir} names ${twice[0]} twice`] }
+    return es.flatMap(e => {
+        const name = nameText(e.name)
+        const path = `${prefix}${join(rel, name)}`
+        if (name.includes('/')) { return [`${path} is no path of the layout`] }
+        if (isSubtree(e)) { return [] }
+        if (!isRegularFile(e)) { return [`${path} has mode ${nameText(e.mode)}`] }
+        const key = unshard(join(rel, name))
+        return key === null || toPath(key) === path ? [] : [`${path} is no path of the layout`]
+    })
 }
 
 /**
@@ -258,7 +276,10 @@ const subtreeOf = rel => e => isSubtree(e) ? [{ id: e.oid, rel: join(rel, nameTe
 
 /**
  * The entries of the tree an id names, read through `read`, or refused where
- * the id names no tree or an object the repository does not hold. One
+ * the id names no tree or an object the repository does not hold. The id
+ * must name a tree itself: a commit or a tag, which the walk's `tryEntries`
+ * peels to a tree, is refused here, since a read of a key does not peel
+ * below the root and would miss what a write through it had placed. One
  * answer for the listing and the writer, so that both read a tree the same
  * way.
  *
@@ -268,8 +289,26 @@ const subtreeOf = rel => e => isSubtree(e) ? [{ id: e.oid, rel: join(rel, nameTe
  * @returns {(id: Oid) => Effect<O, readonly TreeEntry[], IoChannel>}
  */
 const treeEntries = (read, oidBytes) => {
-    const entriesAt = tryEntries(read, oidBytes)
-    return id => step(present(entriesAt(id)), es => es === null ? refuseEntry(`${hexText(id)} is no tree`) : pureOk(es))
+    const parse = readTree(oidBytes)
+    return id => step(present(read(id)), o => {
+        const es = o === null || o.type !== 'tree' ? null : parse(o.payload)
+        return es === null ? refuseEntry(`${hexText(id)} is no tree`) : pureOk(es)
+    })
+}
+
+/**
+ * The entry of `name` among a tree's entries, or `null`, beside the
+ * entries: refused where the tree names it twice, which `git fsck` refuses
+ * as `duplicateEntries` and the walk answers no entry for, so a write that
+ * took the first of them would report stored what a read cannot find.
+ *
+ * @type {(name: readonly number[]) => (es: readonly TreeEntry[]) => Effect<never, { readonly es: readonly TreeEntry[], readonly found: Nullable<TreeEntry> }, IoChannel>}
+ */
+const onlyNamed = name => es => {
+    const found = es.filter(x => sameItems(x.name)(name))
+    return found.length > 1
+        ? refuseEntry(`a tree names ${nameText(name)} twice`)
+        : pureOk({ es, found: found.length === 0 ? null : found[0] })
 }
 
 /**
@@ -331,7 +370,7 @@ export const casAt = (read, oidBytes) => {
      * @type {(e: TreeEntry) => EffectList<O, Vec, IoChannel>}
      */
     const blobOf = e => {
-        if (mode(e) !== regularFile) {
+        if (!isRegularFile(e)) {
             return refuseEntry(`${nameText(e.name)} has mode ${nameText(e.mode)}`)
         }
         return step(present(read(e.oid)), o => o === null || o.type !== 'blob'
@@ -341,17 +380,17 @@ export const casAt = (read, oidBytes) => {
     /**
      * One subtree of the listing's walk: its files' keys added, its subtrees
      * walked next. An object below `.cas` that is no tree refuses the listing
-     * rather than shortening it, and so does a key filed where `toPath` does
-     * not file it ({@link misfiled}). The keys gather as a list whose
+     * rather than shortening it, and so does a tree that is {@link malformed}
+     * for the layout. The keys gather as a list whose
      * `concat` is one node per tree, flattened once at the end, so a walk
      * over many trees copies nothing it gathered before.
      *
      * @type {(item: { readonly id: Oid, readonly rel: string }) => (keys: List<Vec>) => Effect<O, readonly [List<Vec>, readonly { readonly id: Oid, readonly rel: string }[]], IoChannel>}
      */
     const listStep = ({ id, rel }) => keys => step(entriesOf(id), es => {
-        const stray = es.flatMap(misfiled(rel))
-        return stray.length !== 0
-            ? refuseEntry(`${stray[0]} is no path of the layout`)
+        const wrong = malformed(rel)(es)
+        return wrong.length !== 0
+            ? refuseEntry(wrong[0])
             : pureOk([concat(keys)(es.flatMap(keyOf(rel))), es.flatMap(subtreeOf(rel))])
     })
     return tree => ({
@@ -519,11 +558,11 @@ const placed = (read, write, oidBytes) => {
     /** @type {(tree: Nullable<Oid>, path: readonly (readonly number[])[], blob: Oid) => Effect<O | ProposalOperation, Nullable<Oid>, IoChannel>} */
     const go = (tree, [name, ...rest], blob) => {
         const entries = tree === null ? pureOk(/** @type {readonly TreeEntry[]} */ ([])) : entriesOf(tree)
-        const looked = mapStep(entries, es => ({ es, found: es.find(x => sameItems(x.name)(name)) ?? null }))
+        const looked = step(entries, onlyNamed(name))
         if (rest.length === 0) {
             return step(looked, ({ es, found }) => {
                 if (found === null) { return rebuilt(es, { mode: fileMode, name, oid: blob }) }
-                return mode(found) === regularFile && found.oid === blob
+                return isRegularFile(found) && found.oid === blob
                     ? pureOk(null)
                     : refuseEntry(`${nameText(name)} already holds ${hexText(found.oid)}`)
             })
