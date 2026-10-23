@@ -798,6 +798,18 @@ export const proof = {
         assertEq(codeOf(w2), casEntryCode)
         assertStructurallySame(s3.root, s2.root)
         assertEq(codeOf(virtual(s2)(cas2.list())[1]), casEntryCode)
+        // A tree on the path naming a *sibling* twice — `zz`, beside the
+        // key's directory — is refused too: rebuilt, it would carry the
+        // duplicate into the proposal's own commit, which the listing then
+        // refuses.
+        const other = sha1.treeOf([entry('100644', 'other.txt', blob)])
+        const shared = sha1.treeOf([entry('40000', cd, sha1.idOf('tree', [])), entry('40000', 'zz', other.id), entry('40000', 'zz', other.id)])
+        const top3 = sha1.treeOf([entry('40000', ab, shared.id)])
+        const emptyTree = sha1.treeOf([])
+        const [s4, cas4] = proposed(over([entry('40000', '.cas', top3.id)], [other.object, emptyTree.object, shared.object, top3.object, sha1.object('blob', alpha)]))
+        const [s5, w3] = wrote(s4, cas4, [alpha])
+        assertEq(codeOf(w3), casEntryCode)
+        assertStructurallySame(s5.root, s4.root)
     },
     proposalWritesOnce: () => {
         const [s0, cas] = proposed(ordinary(20, initConfig))
