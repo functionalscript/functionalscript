@@ -20,7 +20,7 @@ import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { hexText, of } from '../../git/oid/module.f.mjs'
 import { objectPath } from '../../git/store/module.f.mjs'
 import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.mjs'
-import { write as writeTree } from '../../git/tree/module.f.mjs'
+import { compare, write as writeTree } from '../../git/tree/module.f.mjs'
 import { length, maxLength, msb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
@@ -411,7 +411,7 @@ export const proof = {
         const [, ab, cd, rest] = pathOf(alphaKey)
         const leaf = sha1.treeOf([entry('100644', rest, sha1.idOf('blob', alpha))])
         const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
-        const cas = sha1.treeOf([entry('100644', 'README.md', readmeId), entry('100644', '\xff', readmeId), entry('40000', ab, mid.id)].toSorted((a, b) => nameOf(a.name) < nameOf(b.name) ? -1 : 1))
+        const cas = sha1.treeOf([entry('100644', 'README.md', readmeId), entry('100644', '\xff', readmeId), entry('40000', ab, mid.id)].toSorted(compare))
         const root = over([entry('40000', '.cas', cas.id)], [leaf.object, mid.object, cas.object, sha1.object('blob', readme), sha1.object('blob', alpha)])
         assertStructurallySame(spelled(assertOk(listed(root))), spelled([alphaKey]))
     },
