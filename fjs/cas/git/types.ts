@@ -1,12 +1,13 @@
 /**
  * Type-level API of CAS content in a Git branch: where a branch lives, what
- * a snapshot of it offers, and the effects reading one performs.
+ * a snapshot of it offers, who writes to it, and the effects reading and
+ * writing one perform.
  *
  * @module
  */
 
 import type { Operation } from '../../effects/types.ts'
-import type { ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+import type { Mkdir, Now, RandomInt, ReadBytes, ReadFile, ReadWhole, Readdir, Rename, Rm, Stat, WriteExclusive } from '../../effects/node/types.ts'
 import type { Cas } from '../types.ts'
 
 /**
@@ -39,3 +40,23 @@ export type CasReader<O extends Operation> = Pick<Cas<O>, 'read' | 'list'>
  * objects — loose files and packs — through those and `ReadBytes`.
  */
 export type SnapshotOperation = ReadFile | ReadWhole | ReadBytes | Readdir | Stat
+
+/**
+ * Who a branch's commits are by: the `author` and `committer` of each, as
+ * text. Configuration rather than the `GIT_*` environment, so that what a
+ * commit says is what the caller said
+ * ([DESIGN.md §7](../../../doc/DESIGN.md#7-cli-parameters-over-environment-variables));
+ * the time is the `now` effect's and the zone is `+0000`.
+ */
+export type Author = {
+    readonly name: string
+    readonly email: string
+}
+
+/**
+ * The effects a write performs: a snapshot's reads, and for the write
+ * itself the loose object files (`Mkdir`, `WriteExclusive`, `Rename`, `Rm`,
+ * their temporary names from `RandomInt`), the commit's time (`Now`) and
+ * the branch ref through the ref store's writer.
+ */
+export type WriteOperation = SnapshotOperation | Mkdir | WriteExclusive | Rename | Rm | RandomInt | Now
