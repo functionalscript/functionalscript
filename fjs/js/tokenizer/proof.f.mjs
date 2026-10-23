@@ -70,6 +70,18 @@ const covers = assertRecognizes(recognizer(
     parseToken,
     s => toArray(stringToCodePointList(s)).map(symbol => ({ symbol, meta: null }))))
 
+/**
+ * The demo's state after `event`, which must settle without asking for an
+ * operation.
+ *
+ * @type {(event: DemoEvent) => (state: string) => string}
+ */
+const step = event => state => {
+    const [result] = runPure(demo.update(state)(event))
+    return unwrap(assertNotNullish(result,
+        'expected the demo to reach a value without asking for an operation'))
+}
+
 export const proof = {
     templates: {
         chunks: () => {
@@ -1417,14 +1429,11 @@ export const proof = {
         ].join('\n')),
         // An error is the whole stream.
         error: () => assertEq(tokensOf('123abc'), '1:4  error  invalid number'),
+        // A line or paragraph separator in a value stays escaped, so a token
+        // keeps one line.
+        separators: () => assertEq(tokensOf('"\\u2028\\u2029"'), '1:1  string  "\\u2028\\u2029"\n1:15  eof'),
         // Typing replaces the text; every other event leaves it alone.
         update: () => {
-            /** @type {(event: DemoEvent) => (state: string) => string} */
-            const step = event => state => {
-                const [result] = runPure(demo.update(state)(event))
-                return unwrap(assertNotNullish(result,
-                    'expected the demo to reach a value without asking for an operation'))
-            }
             assertEq(step({ kind: 'input', name: 'source', value: 'x' })(''), 'x')
             assertEq(step({ kind: 'start' })('kept'), 'kept')
         },

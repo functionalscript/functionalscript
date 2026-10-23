@@ -29,6 +29,14 @@ import { caption, textDemo } from '../../website/demo/module.f.mjs'
 import { tokenize } from './module.f.mjs'
 
 /**
+ * A value as JSON, with U+2028 and U+2029 escaped too: `JSON.stringify` leaves
+ * them as they are, and either would break a token's line in two.
+ *
+ * @type {(value: unknown) => string}
+ */
+const show = value => JSON.stringify(value).replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029')
+
+/**
  * One token as a line: `line:column  kind  value`, with an error's message in
  * place of a value. A comment shows its text; a run of whitespace is one
  * `ws` or `nl` line, however long it is.
@@ -37,7 +45,7 @@ import { tokenize } from './module.f.mjs'
  */
 export const line = ({ token, metadata }) => {
     const detail = token.kind === 'error' ? token.message
-        : 'value' in token ? (typeof token.value === 'bigint' ? `${token.value}n` : JSON.stringify(token.value))
+        : 'value' in token ? (typeof token.value === 'bigint' ? `${token.value}n` : show(token.value))
         : ''
     return `${metadata.line}:${metadata.column}  ${token.kind}${detail === '' ? '' : `  ${detail}`}`
 }
