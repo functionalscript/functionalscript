@@ -67,14 +67,20 @@ test data. Select by dependency, not filename extension.
 `contract` is the CAS hash of a canonical JSON descriptor of the selected
 work and of the host that did it: the commands in order, their working
 directory and relevant execution options and environment settings; and the
-facts of the host — operating system and its version, architecture, and
+facts of the host — the platform, which is the operating system, the
+major version of it the runner label states, and the architecture; and
 the version of every tool `fjs/ci/config` pins. The facts are what ran:
 a run outside CI reads them from the host; a CI job states them ahead
 from its definition — its platform, the pins — and verifies them once the
 tools are installed, failing the job rather than publishing where they
-differ ([below](#record-the-facts-do-not-validate-the-host)). A runner label such
-as `windows-2025` is not a fact about the work and is not in it: the same
-Windows build with the same pins on another CI system must hash the same.
+differ ([below](#record-the-facts-do-not-validate-the-host)). What the
+runner image supplies beyond that — its patch level, the MSVC or Xcode
+toolchain Cargo links with on Windows and Intel macOS — is outside the
+key by choice, as it is outside the pins
+([below](#record-the-facts-do-not-validate-the-host)). A runner label such
+as `windows-2025` is a GitHub spelling and is not in the key as such — the
+platform it names is: the same Windows build with the same pins on
+another CI system must hash the same.
 Include the actual selection, even when the same script implements several
 operations. A script hash or block label alone does not identify which
 operation ran. Define the descriptor schema shared by all publishers before
@@ -139,8 +145,10 @@ semantics are not represented by the selected contract and input identity.
 The limitation concerns additional inputs to the contract; outputs generated
 by that contract from its declared inputs remain within its scope.
 
-Investigation of [smart builds on developer machines](../../dev/todo/smart-builds.md)
-is a follow-up, not a prerequisite for this CI implementation.
+A developer machine is one more job, [`fjs ci run`](#fjs-ci-run-later),
+later; what that leaves open about everyday developer workflows is
+[smart builds on developer machines](../../dev/todo/smart-builds.md), a
+follow-up and not a prerequisite for this CI implementation.
 
 #### Build and publication
 
@@ -203,10 +211,15 @@ critical path of a run that misses.
    holds as the jobs did, so every job would have computed the same bytes.
    Only this job has `contents: write`; the test jobs run with a read-only
    token, and no `git push` runs from a Windows or macOS runner. It
-   publishes only where it can: on a pull request from a fork the token is
-   read-only whatever the job asks for, so the finalizer's condition is
-   `always()` and the head repository being this one, and a fork's run
-   ends green with nothing published rather than red at the push.
+   publishes only where it can. On a pull request from a fork, and on one
+   Dependabot opened, the token is read-only whatever the job asks for,
+   so the finalizer's condition is `always()` and, on a `pull_request`
+   event alone, the head repository being this one and the actor not
+   `dependabot[bot]`; a `merge_group` or `push` run has no pull request
+   to test and publishes. Where a push is refused for want of permission
+   all the same, the finalizer ends green and unpublished, saying so in
+   its log: an unwritten cache is a cost, never a wrong value, and a red
+   finalizer on a green run would be the wrong value.
 4. **The push loop, here alone.** Where the push is refused as a
    non-fast-forward because another run published first, `git fetch origin
    build-cache`, merge it into the local branch in a worktree
@@ -298,14 +311,28 @@ need. A machine with the wrong Node is not a failure: its Node version is
 in its contract, so its entries are ones nobody else reads, and when the
 pin moves, CI reruns everything, with no cleanup, because the facts
 changed. A dirty working tree is not a failure either: the manifest is
-built from the files that were built, hashed as Git would hash them, so it
-matches no commit and no CI reads it; CI keeps reading blob IDs from the
-commit's trees, where they are free, and the two spellings of a clean tree
-hash the same. The set of facts to read is the pin list: every tool
-`fjs/ci/config` pins is one whose version changes results, so the detector
-reads each from the path, with the operating system, its version and the
-architecture. A fact left out is the one way two different toolsets could
-share a key, so the closure of that set matters more than any entry.
+built from the files that were built, each hashed as the blob of the
+bytes it holds, so it matches no commit and no CI reads it. CI keeps
+reading blob IDs from the commit's trees, where they are free, and a clean
+checkout hashes the same as its commit exactly where no filter transforms
+the files on the way out — `core.autocrlf`, a smudge filter — which the
+CI checkout guarantees, as the scope above requires. A checkout whose
+filters transform a file built other bytes, hashes them as such, and
+shares no key with the commit, which is right. The set of facts to read is
+the pin list: every tool `fjs/ci/config` pins is one whose version changes
+results, so the detector reads each from the path, with the platform —
+operating system, its major version, architecture. A pinned fact left out
+is the one way two different toolsets could share a key, so the closure
+of that set matters more than any entry.
+
+The key stops at the pins, on purpose. A runner image carries more than
+the pins name — its patch level, the MSVC toolchain Cargo links with on
+Windows, the Xcode SDK on Intel macOS — and an image update can change a
+result under the same key. Pinning those is not ours to do on a hosted
+runner, and reading and carrying them would bring back the job outputs
+the design does without; the drift is accepted, and a cached result an
+image update broke is taken back with a deletion commit, as any wrong
+entry is. The platform fact is as coarse as the label for the same reason.
 
 In CI the facts are stated, not read, because the check runs before the
 tools are installed: the job's definition names its platform and the pins
@@ -325,9 +352,11 @@ branch says who claims it; the facts do not vouch for the hand that pushed
 them.
 
 The property this rests on, to state and keep: the key covers every fact
-that can change the result, so two runs that share a key did the same work
-with the same tools on the same kind of host, and the only cost of a fact
-nobody else shares is an entry nobody else reads.
+we pin and the inputs the manifest lists, so two runs that share a key did
+the same work on the same inputs with the same pinned tools on the same
+platform, and the only cost of a fact nobody else shares is an entry
+nobody else reads. What the key leaves out is written down above, not
+assumed away.
 
 #### `fjs ci run`, later
 
@@ -515,7 +544,8 @@ own complete input set and success condition.
 - [CAS in a Git branch](../../cas/git/README.md) — the backend and CLI; the
   branch moves with `git push` and `git fetch`.
 - [Smart builds on developer machines](../../dev/todo/smart-builds.md) —
-  separate investigation; no developer-machine design is part of this task.
+  the direction is decided here, a developer machine as one more job
+  through `fjs ci run`; that task records what the direction leaves open.
 - [change-aware-ci](./change-aware-ci.md) — classifies changed paths to select
   work; this task reuses success for an exact input set across commits.
 - [096-ci-caching](./096-ci-caching.md) — caches the tools needed to run builds.
