@@ -80,6 +80,7 @@ import { write as writeIdent } from '../../git/ident/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { hexText, of, toHex } from '../../git/oid/module.f.mjs'
 import { isWholeName } from '../../git/refname/module.f.mjs'
+import { tryRead as readLoose } from '../../git/loose/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { tryWrite } from '../../git/refstore/write/module.f.mjs'
 import { objectPath, objectsDir, objectsDirs, readIn } from '../../git/store/module.f.mjs'
@@ -88,7 +89,7 @@ import { tryEntries, tryEntry } from '../../git/walk/module.f.mjs'
 import { join, parent } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
-import { maxLengthBytes, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
+import { isWholeBytes, maxLengthBytes, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, flat, map, sameItems, toArray } from '../../types/list/module.f.mjs'
 import { toOption } from '../../types/nullable/module.f.js'
 import { error } from '../../types/result/module.f.js'
@@ -435,12 +436,15 @@ export const snapshot = branch => {
  * Writes an object into the repository's own `objects/`, as the loose file
  * Git stores one in — `<type> SP <size> NUL <payload>`, one zlib stream, at
  * `objects/ab/<rest>` of its id — and answers the id. An object already
- * there is read through `read`, the store's checked reader, and left as it
- * is where it is the object: the id names its bytes, so nothing is to be
- * written. A file at the path that is not the object — truncated, no zlib
- * stream, another object's bytes — is replaced, since a `stat` alone would
- * have taken it for the object and a later read would refuse what this
- * write had reported stored. Otherwise the stream goes to a temporary name
+ * there is read as the loose file it is and left as it is where it is the
+ * object: the id names its bytes, so nothing is to be written. A file at
+ * the path that is not the object — truncated, no zlib stream, another
+ * object's bytes — is replaced, since a `stat` alone would have taken it
+ * for the object and a later read would refuse what this write had
+ * reported stored. The file itself is read, not the store: the store's
+ * reader answers from a pack or a borrowed directory too, and the object
+ * being there would leave a corrupt loose file in place for Git to refuse
+ * later. Otherwise the stream goes to a temporary name
  * below `objects/`, as Git's own `tmp_obj_*` does, and is renamed into place
  * once whole, so no reader meets a loose file that is not an object; a
  * rename that fails takes the temporary file with it.
@@ -451,22 +455,19 @@ export const snapshot = branch => {
  *
  * @throws If an item of `payload` is not a byte, as the envelope's writer throws.
  *
- * @template {Operation} O
- * @param {string} dir
- * @param {OidBytes} oidBytes
- * @param {Read<O>} read
- * @returns {(type: ObjectType, payload: Bytes) => Effect<O | ProposalOperation, Oid, IoChannel>}
+ * @type {(dir: string, oidBytes: OidBytes) => (type: ObjectType, payload: Bytes) => Effect<ProposalOperation, Oid, IoChannel>}
  */
-export const writeObject = (dir, oidBytes, read) => {
+export const writeObject = (dir, oidBytes) => {
     const idOf = of(oidBytes)
     const at = objectPath(dir)
     const od = objectsDir(dir)
     return (type, payload) => {
         const id = idOf(type, payload)
         const path = at(id)
-        // Any failure to read the object — no file, a stream that is no zlib
-        // stream, bytes hashing to another id — is an object to write.
-        const there = catchStep(mapStep(read(id), o => o !== null), () => pureOk(false))
+        // Anything but the object at the path — no file, a stream that is no
+        // zlib stream, no object, bytes hashing to another id — is an object
+        // to write.
+        const there = catchStep(mapStep(readLoose(path), o => o !== null && idOf(o.type, o.payload) === id), () => pureOk(false))
         return step(there, found => {
             if (found) { return pureOk(id) }
             const named = history(mapStep(random256, rnd => join(od, `tmp_obj_${vecToCBase32(rnd)}`)))
@@ -536,10 +537,15 @@ const placed = (read, write, oidBytes) => {
     return go
 }
 
+/** What a chunk that is not whole bytes is refused as: `writeBytes`'s words, which `fileCas.write` and `contentKey` refuse it with. */
+const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
+
 /**
  * A payload gathered: its chunks, held, and its CAS key, the hash `fileCas`
  * folds over the same chunks — one pass over the stream for both. A stream
- * that fails fails this, as `write` fails closed.
+ * that fails fails this, as `write` fails closed, and so does a chunk that
+ * is not whole bytes: the blob's bytes would pad it where the key hashed
+ * its bits, and a key is the hash of the bytes a read answers.
  *
  * @template {Operation} O
  * @param {Sha2} sha2
@@ -549,9 +555,10 @@ const placed = (read, write, oidBytes) => {
 const gathered = (sha2, payload) => {
     /** @type {(state: Sha2State, chunks: readonly Vec[]) => (s: EffectList<O, Vec, IoChannel>) => Effect<O, { readonly key: Vec, readonly chunks: readonly Vec[] }, IoChannel>} */
     const loop = (state, chunks) => s =>
-        step(s, node => node === undefined
-            ? pureOk({ key: sha2.end(state), chunks })
-            : loop(sha2.append(node.first)(state), [...chunks, node.first])(node.tail))
+        step(s, node => {
+            if (node === undefined) { return pureOk({ key: sha2.end(state), chunks }) }
+            return isWholeBytes(node.first) ? loop(sha2.append(node.first)(state), [...chunks, node.first])(node.tail) : partialByte
+        })
     return loop(sha2.init, [])(payload)
 }
 
@@ -615,7 +622,7 @@ export const proposal = (sha2, branch, author) => {
         const resolve = tryResolve(dirs, oidBytes)
         const at = casAt(read, oidBytes)
         const treeOf = treeOfCommit(read, oidBytes, ref)
-        const write = writeObject(branch.dir, oidBytes, read)
+        const write = writeObject(branch.dir, oidBytes)
         const place = placed(read, write, oidBytes)
         const writeRef = tryWrite(dirs, oidBytes)(name)
         /**

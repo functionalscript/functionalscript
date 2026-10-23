@@ -26,7 +26,7 @@ import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { objectPath, objectsDir, readIn, tryRead as readObject } from '../../git/store/module.f.mjs'
 import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.mjs'
 import { write as writeTree } from '../../git/tree/module.f.mjs'
-import { length, maxLength, msb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLength, msb, u8ListToVecMsb, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
@@ -65,10 +65,11 @@ const pathOf = key => toPath(key).split('/')
 const entry = (mode, name, oid) => ({ mode: latin1(mode), name: latin1(name), oid })
 
 /**
- * A nested directory with `content` at `path`, built over `d`: the shape the
- * virtual filesystem is given, from the flat paths the fixtures spell.
+ * A nested directory with `content` at `path` — a file's chunks, or a
+ * directory — built over `d`: the shape the virtual filesystem is given,
+ * from the flat paths the fixtures spell.
  *
- * @type {(d: Dir, path: readonly string[], content: readonly Vec[]) => Dir}
+ * @type {(d: Dir, path: readonly string[], content: readonly Vec[] | Dir) => Dir}
  */
 const setIn = (d, [first, ...rest], content) => {
     if (rest.length === 0) { return { ...d, [first]: content } }
@@ -657,6 +658,36 @@ export const proof = {
         assertEq(o.type, 'blob')
         assertEq(msb.cmp(assertOk(virtual(s1)(collectRead(cas.read(gammaKey)))[1]))(u8ListToVecMsb(gamma)), 0)
     },
+    // The decision reads the loose file itself and not the store: the same
+    // object held by a borrowed directory would otherwise stand for the
+    // corrupt file at the repository's own path, which Git refuses later. A
+    // repository whose `alternates` names a donor holding the good object,
+    // with junk at its own path: the write replaces the junk, and the
+    // repository's own `objects/`, read alone, holds the object.
+    writeObjectReplacesCorruptBesideDonor: () => {
+        const gammaId = sha1.idOf('blob', gamma)
+        const good = [u8ListToVecMsb(storedBytes(toArray(writeEnvelope('blob', gamma))))]
+        const borrowing = setIn(ordinary(20, initConfig), ['repo', 'objects', 'info', 'alternates'], [u8ListToVecMsb(latin1('../../donor/objects\n'))])
+        const withDonor = setIn(setIn(borrowing, objectPath('donor')(gammaId).split('/'), good), ['donor', 'objects', 'pack'], {})
+        const corrupt = setIn(withDonor, objectPath(dir)(gammaId).split('/'), [u8ListToVecMsb(storedBytes(latin1('junk')))])
+        const [s0, cas] = proposed(corrupt)
+        const [s1, w] = wrote(s0, cas, [gamma])
+        assertOk(w)
+        const own = assertNotNullish(assertOk(virtual(s1)(readIn([objectsDir(dir)], 20)(gammaId))[1]))
+        assertEq(own.type, 'blob')
+    },
+    // A chunk that is not whole bytes is refused as `fileCas.write` and
+    // `contentKey` refuse it, before any object is written: the blob's bytes
+    // would pad the chunk where the key hashed its bits.
+    proposalWriteRefusesPartialByte: () => {
+        const [s0, cas] = proposed(repository(initConfig, null, []))
+        /** @type {EffectList<never, Vec, IoChannel>} */
+        const stream = nonEmpty(vec8(0x11n), nonEmpty(vec(5n)(0b10101n), empty()))
+        const [s1, r] = virtual(s0)(cas.write(stream))
+        const e = assertError(r)
+        assert(e[0] === 'ioError' && e[1].message === 'invalid buffer size', e)
+        assertStructurallySame(s1.root, s0.root)
+    },
     // The loose file is renamed into place once whole, and a rename that
     // fails takes the temporary file with it: driven with the virtual
     // filesystem's commands answered by hand, since no filesystem fails a
@@ -670,7 +701,7 @@ export const proof = {
         const boom = ioError({ message: 'boom' })
         const [r, log] = drive({
             rename: [error(boom)],
-        })(writeObject(dir, 20, readIn([objectsDir(dir)], 20))('blob', alpha))
+        })(writeObject(dir, 20)('blob', alpha))
         assertEq(assertError(r), boom)
         assertStructurallySame(log.slice(log.indexOf('rename')), ['rename', 'rm'])
     },
