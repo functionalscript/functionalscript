@@ -114,12 +114,12 @@ const shapeOf = t => {
 /**
  * `schema` as a graph, including the definitions of every reachable named
  * schema. Each definition is drawn once; shared uses point to that node,
- * and recursive uses go back to it around the graph. Returns to the same
- * definition share a lane; hover or focus traces one complete connection.
+ * and recursive uses go back to it around the graph. Each return has its
+ * own lane and entry point; hover or focus traces one complete connection.
  *
  * @type {(schema: Type) => Graph}
  */
-export const _graphOf = schema => ({ ...graphOf(shapeOf)(schema), bundleBacks: true, trace: true, centerColumns: true })
+export const _graphOf = schema => ({ ...graphOf(shapeOf)(schema), backRouting: 'separate', trace: true, centerColumns: true })
 
 // ── readers ──────────────────────────────────────────────────────────────────
 

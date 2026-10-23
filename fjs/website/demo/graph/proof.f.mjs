@@ -241,6 +241,29 @@ export const proof = {
                 '["M170,20 L190,20 L190,70 L10,70 L10,30 L30,30","M170,40 L180,40 L180,60 L20,60 L20,30 L30,30"]')
             assertEq(_crossings(g), 0)
         },
+        // Separate routing also gives each return its own destination
+        // entry. The outer gap enters above the inner one, so their final
+        // horizontal segments cannot merge on the way into the same node.
+        separateReturnEntries: () => {
+            /** @type {Graph} */
+            const g = {
+                backRouting: 'separate',
+                nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
+                edges: [
+                    { from: 0, to: 1, label: 'x' },
+                    { from: 0, to: { inline: '0' }, label: 'v' },
+                    { from: 1, to: 0, label: 'a', back: true },
+                    { from: 1, to: 0, label: 'b', back: true },
+                ],
+            }
+            const paths = routes(htmlToString(graphSvg(g))).slice(1).map(path => path.split(' L'))
+            assert(paths[0][2] !== paths[1][2], 'distinct bottom lanes')
+            assert(paths[0][3] !== paths[1][3], 'distinct ascent lanes')
+            assert(paths[0][5] !== paths[1][5], 'distinct destination entries')
+            assert(Number(paths[0][5].split(',')[1]) < Number(paths[1][5].split(',')[1]), 'outer route enters above inner')
+            assertEq(_crossings(g), 0)
+            assertEq(occurrences('marker-end="url(#graph-arrow)"')(htmlToString(graphSvg(g))), 3)
+        },
         /**
          * **A narrower back edge is nearer the graph**: `g`'s edge to
          * itself, one rank, is inside `h`'s edge to `f`, two, in a lane
@@ -261,7 +284,7 @@ export const proof = {
         bundledBacks: () => {
             /** @type {Graph} */
             const g = {
-                bundleBacks: true,
+                backRouting: 'shared',
                 nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: `${id}`, rank: id })),
                 edges: [
                     { from: 0, to: 1, label: '' }, { from: 1, to: 2, label: '' }, { from: 2, to: 3, label: '' },
@@ -287,7 +310,7 @@ export const proof = {
         bundledDistinctTargets: () => {
             /** @type {Graph} */
             const g = {
-                bundleBacks: true,
+                backRouting: 'shared',
                 nodes: [
                     { id: 0, kind: 'n', label: 'root', rank: 0 },
                     { id: 1, kind: 'n', label: 'left', rank: 1 },
@@ -311,7 +334,7 @@ export const proof = {
         // destination title blocks, including a self edge's distinct cells.
         tracing: () => {
             const html = htmlToString(graphSvg({
-                trace: true, bundleBacks: true,
+                trace: true, backRouting: 'shared',
                 nodes: [{ id: 0, kind: 'n', label: 'root', rank: 0 }, { id: 1, kind: 'n', label: 'child', rank: 1 }],
                 edges: [
                     { from: 0, to: 1, label: 'item' }, { from: 1, to: 1, label: 'self', back: true },

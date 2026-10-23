@@ -766,15 +766,23 @@ const layout = left => nodes => (edges, bundle, center) => {
  * into the middle of its target's left side. It turns only in gaps and
  * below the graph, so it crosses no box either, and its lane keeps it off
  * every other return group ({@link backLanesOf}). Bundled edges meet at
- * the same bottom lane and share the run into their target.
+ * the same bottom lane and share the run into their target. With separate
+ * routing, return entry points spread down the target in gap order: the
+ * outermost route enters highest, keeping these final segments distinct.
  *
- * @type {(placed: _Placed) => readonly _Route[]}
+ * @type {(placed: _Placed, separate?: boolean) => readonly _Route[]}
  */
-const routesOf = placed => {
+const routesOf = (placed, separate = false) => {
     const byId = new Map(placed.nodes.map(p => [p.id, p]))
     const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
     const bottom = maxOf([...placed.nodes.map(p => p.y + p.height), ...placed.lanes.map(lane => lane.y + laneSize / 2)])
+    const targets = new Map(placed.nodes.flatMap(node => [...node.ports, ...node.exits].map(({ index, edge }) => [index, edge.to])))
+    const entries = new Map(separate ? placed.nodes.flatMap(({ id }) => {
+        const returning = [...placed.backs].filter(([index]) => targets.get(index) === id)
+            .toSorted((a, b) => b[1].into - a[1].into)
+        return returning.map(([index], i) => /** @type {const} */ ([index, (i + 1) / (returning.length + 1)]))
+    }) : [])
     /** @type {(from: _Positioned) => readonly (readonly [_Out, number])[]} */
     const leaving = from => [
         ...from.ports.map(port => /** @type {const} */ ([port, port.y + portHeight / 2])),
@@ -792,7 +800,8 @@ const routesOf = placed => {
             const down = placed.ends[from.rank] + laneSize * (out + 1)
             const up = to.x - laneSize * (into + 1)
             const below = bottom + laneSize * (lane + 1)
-            return [[right, y], [down, y], [down, below], [up, below], [up, middle], [to.x, middle]]
+            const entry = separate ? to.y + to.height * assertNotNullish(entries.get(port.index)) : middle
+            return [[right, y], [down, y], [down, below], [up, below], [up, entry], [to.x, entry]]
         }
         const back = placed.backs.get(port.index)
         /** @type {readonly _Point[]} */
@@ -861,7 +870,7 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  *
  * @type {(g: Graph) => _Placed}
  */
-const placedOf = ({ nodes, edges, entries = [], bundleBacks = false, centerColumns = false }) => {
+const placedOf = ({ nodes, edges, entries = [], backRouting, centerColumns = false }) => {
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
@@ -881,7 +890,7 @@ const placedOf = ({ nodes, edges, entries = [], bundleBacks = false, centerColum
         groups.some(([, rows]) => rows < 1)
         || groups.reduce((n, [, rows]) => n + rows, 0) !== edges.filter(e => e.from === id && e.corner === undefined).length))
     if (misgrouped !== undefined) { throw `graph: node ${misgrouped.id}'s groups do not take its rows, at least one each` }
-    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, bundleBacks, centerColumns)
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, backRouting === 'shared', centerColumns)
 }
 
 /**
@@ -893,7 +902,7 @@ const placedOf = ({ nodes, edges, entries = [], bundleBacks = false, centerColum
  */
 export const _crossings = g => {
     const placed = placedOf(g)
-    return routesOf(placed).reduce((n, { points }) =>
+    return routesOf(placed, g.backRouting === 'separate').reduce((n, { points }) =>
         n + points.slice(1).reduce((m, b, i) =>
             m + placed.nodes.filter(box => _crossesBox(box)(points[i])(b)).length, 0), 0)
 }
@@ -979,7 +988,7 @@ const titleTraceOf = p => attrs => p.title === 0 ? [] : [/** @type {Element} */ 
 export const graphSvg = g => {
     const placed = placedOf(g)
     const positioned = placed.nodes
-    const routes = routesOf(placed)
+    const routes = routesOf(placed, g.backRouting === 'separate')
     // A back edge's route is the one thing outside every node and lane.
     const corners = routes.flatMap(({ points }) => points)
     const width = margin + maxOf([
@@ -1011,7 +1020,7 @@ export const graphSvg = g => {
         const d = `M${even(points).map(([x, y]) => `${x},${y}`).join(' L')}`
         // Bundled paths overlap on their shared return. Only one draws the
         // arrowhead, but every complete logical path remains traceable.
-        const arrow = g.bundleBacks !== true || edge.back !== true
+        const arrow = g.backRouting !== 'shared' || edge.back !== true
             || !routes.some(r => r.index < index && r.edge.back === true && r.to === to && r.edge.kind === edge.kind)
         const line = /** @type {Element} */ (['path', {
             d, 'data-graph-edge': '',
