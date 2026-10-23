@@ -208,12 +208,12 @@ export const proof = {
     graphSvg: {
         /**
          * **A back edge goes around the graph.** It leaves `g`'s port at
-         * x=160, goes down a lane right of its column, x=170, to a lane
+         * x=180, goes down a lane right of its column, x=190, to a lane
          * below the graph, y=40, left to a lane left of `f`'s column,
          * x=10, and up into `f`'s middle. Each of those two lanes widens
-         * its gap, so `f` starts at x=20 and the drawing ends a margin
-         * past them. With back edges left out the graph is a tree, and is
-         * drawn as one.
+         * its gap, plus 20px clearance before the arrowhead, so `f` starts
+         * at x=40 and the drawing ends a margin past them. With back edges
+         * left out the graph is a tree, and is drawn as one.
          */
         back: () => {
             /** @type {Graph} */
@@ -222,14 +222,14 @@ export const proof = {
                 edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 0, label: 'y', back: true }],
             }
             const html = htmlToString(graphSvg(g))
-            assertEq(JSON.stringify(routes(html)), '["M70,20 L110,20","M160,20 L170,20 L170,40 L10,40 L10,20 L20,20"]')
-            assert(html.includes('viewBox="0 0 180 50"'), html)
+            assertEq(JSON.stringify(routes(html)), '["M90,20 L130,20","M180,20 L190,20 L190,40 L10,40 L10,20 L40,20"]')
+            assert(html.includes('viewBox="0 0 200 50"'), html)
             assertEq(_crossings(g), 0)
         },
         /**
          * **Of two back edges spanning as many ranks, the lower is nearer
          * the graph**, so the higher one, `a`, goes down right of where
-         * `b` leaves, x=190 past x=180, and below it, y=70 past y=60.
+         * `b` leaves, x=210 past x=200, and below it, y=70 past y=60.
          */
         backLanes: () => {
             /** @type {Graph} */
@@ -238,13 +238,36 @@ export const proof = {
                 edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 0, label: 'a', back: true }, { from: 1, to: 0, label: 'b', back: true }],
             }
             assertEq(JSON.stringify(routes(htmlToString(graphSvg(g))).slice(1)),
-                '["M170,20 L190,20 L190,70 L10,70 L10,30 L30,30","M170,40 L180,40 L180,60 L20,60 L20,30 L30,30"]')
+                '["M190,20 L210,20 L210,70 L10,70 L10,26.666666666666664 L50,26.666666666666664","M190,40 L200,40 L200,60 L20,60 L20,33.33333333333333 L50,33.33333333333333"]')
             assertEq(_crossings(g), 0)
+        },
+        // Every return has its own destination entry. The outer gap enters
+        // above the inner one, keeping their final horizontal segments distinct.
+        separateReturnEntries: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
+                edges: [
+                    { from: 0, to: 1, label: 'x' },
+                    { from: 0, to: { inline: '0' }, label: 'v' },
+                    { from: 1, to: 0, label: 'a', back: true },
+                    { from: 1, to: 0, label: 'b', back: true },
+                ],
+            }
+            const paths = routes(htmlToString(graphSvg(g))).slice(1).map(path => path.split(' L'))
+            assert(paths[0][2] !== paths[1][2], 'distinct bottom lanes')
+            assert(paths[0][3] !== paths[1][3], 'distinct ascent lanes')
+            assert(paths[0][5] !== paths[1][5], 'distinct destination entries')
+            const entryLengths = paths.map(path => Number(path[5].split(',')[0]) - Number(path[4].split(',')[0]))
+            assertStructurallySame(entryLengths.toSorted((a, b) => a - b), [30, 40])
+            assert(Number(paths[0][5].split(',')[1]) < Number(paths[1][5].split(',')[1]), 'outer route enters above inner')
+            assertEq(_crossings(g), 0)
+            assertEq(occurrences('marker-end="url(#graph-arrow)"')(htmlToString(graphSvg(g))), 3)
         },
         /**
          * **A narrower back edge is nearer the graph**: `g`'s edge to
          * itself, one rank, is inside `h`'s edge to `f`, two, in a lane
-         * above it at y=60 and a gap of its own left of `g`, x=110.
+         * above it at y=60 and a gap of its own left of `g`, x=130.
          */
         backNested: () => {
             /** @type {Graph} */
@@ -253,8 +276,136 @@ export const proof = {
                 edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 2, label: 'x' }, { from: 1, to: 1, label: 'b', back: true }, { from: 2, to: 0, label: 'a', back: true }],
             }
             assertEq(JSON.stringify(routes(htmlToString(graphSvg(g))).slice(2)),
-                '["M170,40 L180,40 L180,60 L110,60 L110,30 L120,30","M270,30 L280,30 L280,70 L10,70 L10,30 L20,30"]')
+                '["M210,40 L220,40 L220,60 L130,60 L130,30 L160,30","M310,30 L320,30 L320,70 L10,70 L10,30 L40,30"]')
             assertEq(_crossings(g), 0)
+        },
+        // Every return keeps its lane and arrowhead, including same-target
+        // returns from different columns and with different edge kinds.
+        independentReturns: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: `${id}`, rank: id })),
+                edges: [
+                    { from: 0, to: 1, label: '' }, { from: 1, to: 2, label: '' }, { from: 2, to: 3, label: '' },
+                    { from: 2, to: 0, label: 'a', back: true },
+                    { from: 3, to: 1, label: 'b', back: true },
+                    { from: 3, to: 0, label: 'c', back: true },
+                    { from: 3, to: 0, label: 'd', kind: 'lazy', back: true },
+                    { from: 3, to: 0, label: 'e', back: true },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            const paths = routes(html)
+            assertEq(paths.length, 8)
+            const returns = paths.slice(3).map(path => path.split(' L'))
+            assertEq(new Set(returns.map(path => path[2].split(',')[1])).size, 5)
+            assertEq(new Set([3, 5, 6, 7].map(i => paths[i].split(' L')[5])).size, 4)
+            assertEq(occurrences('marker-end="url(#graph-arrow)"')(html), 8)
+            assertEq(_crossings(g), 0)
+        },
+        // Two definitions in the same column remain separate destinations.
+        // Rank alone must not merge their returns or their arrowheads.
+        distinctReturnTargets: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [
+                    { id: 0, kind: 'n', label: 'root', rank: 0 },
+                    { id: 1, kind: 'n', label: 'left', rank: 1 },
+                    { id: 2, kind: 'n', label: 'right', rank: 1 },
+                    { id: 3, kind: 'n', label: 'use', rank: 2 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: '' }, { from: 0, to: 2, label: '' },
+                    { from: 1, to: 3, label: '' }, { from: 2, to: 3, label: '' },
+                    { from: 3, to: 1, label: 'left', back: true }, { from: 3, to: 2, label: 'right', back: true },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            const paths = routes(html)
+            assert(paths[4].split(' L')[2] !== paths[5].split(' L')[2], 'separate bottom lanes')
+            assertEq(occurrences('marker-end="url(#graph-arrow)"')(html), 6)
+            assertEq(_crossings(g), 0)
+        },
+        // Native focus makes click and keyboard selection trace the same
+        // complete route as hover. Outlines cover only source ports and
+        // destination title blocks, including a self edge's distinct cells.
+        tracing: () => {
+            const html = htmlToString(graphSvg({
+                trace: true,
+                nodes: [{ id: 0, kind: 'n', label: 'root', rank: 0 }, { id: 1, kind: 'n', label: 'child', rank: 1 }],
+                edges: [
+                    { from: 0, to: 1, label: 'item' }, { from: 1, to: 1, label: 'self', back: true },
+                    { from: 0, to: { inline: '42' }, label: 'constant' },
+                ],
+            }))
+            assertEq(occurrences(' data-graph-connection=')(html), 2)
+            assertEq(occurrences('tabindex="0"')(html), 2)
+            assertEq(occurrences('data-graph-hit=')(html), 2)
+            assertEq(occurrences('data-graph-trace=""')(html), 8)
+            assertEq(occurrences('data-graph-title-outline=')(html), 2)
+            assertEq(occurrences(' data-graph-title-hover=')(html), 2)
+            assert(html.includes('width="47" height="20" rx="4" data-graph-trace="" data-graph-title-outline="1"'), html)
+            assertEq(occurrences('data-graph-port-outline=')(html), 2)
+            assertEq(occurrences(' data-graph-port-edge=')(html), 4)
+            // The key and reference are separate cells. Only the reference
+            // carries hover metadata and receives the connection outline.
+            assert(html.includes('<rect x="50" y="10" width="68" height="20" data-graph-port="">'), html)
+            assert(html.includes('<text x="84" y="20" text-anchor="middle" data-graph-edge-label="">item<'), html)
+            assert(html.includes('<rect x="118" y="10" width="47" height="20" rx="4" data-graph-trace="" data-graph-port-outline="0">'), html)
+            assertEq(occurrences(' data-graph-node-name=')(html), 2)
+            assert(html.includes('data-graph-from="0" data-graph-to="1"'), html)
+            assert(html.includes('svg:has([data-graph-port-edge="0"]:hover) [data-graph-connection="0"]'), html)
+            assert(html.includes('svg:has([data-graph-node-name="1"]:hover) [data-graph-to="1"]'), html)
+            assert(!html.includes(':is([data-graph-from='), html)
+            assert(html.includes('aria-label="root [item] → child"'), html)
+            assert(html.includes('aria-label="child [self] → child (recursive)"'), html)
+            assert(html.includes('id="graph-trace-arrow"'), html)
+            // Later ordinary routes must never paint over an earlier
+            // selected route. Keep all overlays after every base arrow.
+            const overlays = html.indexOf('<g data-graph-trace-layer="">')
+            assert(overlays > html.lastIndexOf('data-graph-edge=""'), html)
+            assert(html.indexOf('<g data-graph-connection="0"') > overlays, html)
+        },
+        // A corner or a compact node has no separate source port cell.
+        // Use its title; an empty title gets no invented block, and a
+        // compact self-return outlines its title only once.
+        tracingWithoutVisiblePorts: () => {
+            const html = htmlToString(graphSvg({
+                trace: true,
+                nodes: [
+                    { id: 0, kind: 'n', label: 'root', rank: 0 },
+                    { id: 1, kind: 'n', label: '', rank: 1 },
+                    { id: 2, kind: 'n', label: 'leaf', rank: 2 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: '', corner: 'middle' },
+                    { from: 1, to: 2, label: 'x' },
+                    { from: 2, to: 2, label: '', corner: 'middle', back: true },
+                ],
+            }))
+            assertEq(occurrences('data-graph-title-outline=')(html), 3)
+            assertEq(occurrences('data-graph-port-outline=')(html), 1)
+            assertEq(occurrences(' data-graph-title-hover=')(html), 2)
+            assert(!html.includes('data-graph-title-outline="1"'), html)
+            assert(!html.includes(' data-graph-title-hover="1"'), html)
+        },
+        // A compact node still has a row in the layout, but its title
+        // fills the entire width. Trace its title rather than drawing a
+        // phantom zero-width port outline beside it.
+        tracingCompactPort: () => {
+            const html = htmlToString(graphSvg({
+                trace: true,
+                nodes: [
+                    { id: 0, kind: 'n', label: 'or', rank: 0 },
+                    { id: 1, kind: 'n', label: 'leaf', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: '' }],
+            }))
+            assertEq(occurrences('data-graph-port-outline=')(html), 0)
+            assertEq(occurrences('data-graph-title-outline=')(html), 2)
+            assert(html.includes('data-graph-title-outline="0"'), html)
+            assert(html.includes('data-graph-title-outline="1"'), html)
+            assertEq(occurrences(' data-graph-connection=')(html), 1)
         },
         // A node's rect and label render, and so does an edge's path and label.
         rendersNodesAndEdges: () => {
@@ -650,6 +801,88 @@ export const proof = {
             // The lane is part of the drawing's height, not just the nodes.
             assert(html.includes('viewBox="0 0 264 64"'), html)
         },
+        // The middle column is full, so its lane and node cannot move.
+        // The shared leaf centers on the arriving lane (15) and source
+        // port (44), rather than on the column as a whole.
+        centeredColumns: () => {
+            /** @type {Graph} */
+            const g = { ...skipLevel, centerColumns: true }
+            const html = htmlToString(graphSvg(g))
+            assert(html.includes('<rect x="10" y="12" width="57" height="40"'), html)
+            assert(html.includes('<rect x="107" y="34" width="57" height="20"'), html)
+            assert(html.includes('<rect x="204" y="16.5" width="50" height="26"'), html)
+            assert(html.includes('d="M67,42 L107,15 L164,15 L204,29.5"'), html)
+            assert(html.includes('viewBox="0 0 264 64"'), html)
+            assertEq(_crossings(g), 0)
+            assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
+        },
+        // A short column containing only a lane moves with that lane, so
+        // its skip-rank edge stays centered between the source and target.
+        centeredLaneOnlyColumn: () => {
+            /** @type {Graph} */
+            const g = {
+                centerColumns: true,
+                nodes: [{ id: 0, kind: 'n', label: 'root', rank: 0 }, { id: 1, kind: 'n', label: 'leaf', rank: 2 }],
+                edges: [{ from: 0, to: 1, label: 'x' }],
+            }
+            const html = htmlToString(graphSvg(g))
+            assertEq(routes(html)[0], 'M74,23 L114,23 L124,23 L164,23')
+            assertEq(_crossings(g), 0)
+        },
+        // A shared target averages the actual port origins. Its two
+        // sources are constrained by the top/bottom of a 60px column.
+        centersOnIncomingPorts: () => {
+            /** @type {Graph} */
+            const g = {
+                centerColumns: true,
+                nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: 'n', rank: id === 0 ? 0 : id === 3 ? 2 : 1 })),
+                edges: [
+                    { from: 0, to: 1, label: 'a' },
+                    { from: 0, to: { inline: '0' }, label: 'b' },
+                    { from: 0, to: 2, label: 'c' },
+                    { from: 1, to: 3, label: 'x' },
+                    { from: 2, to: 3, label: 'x' },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            assertStructurallySame(routes(html).slice(-2).map(route => route.slice(route.lastIndexOf('L'))), ['L212,40', 'L212,40'])
+            assertEq(_crossings(g), 0)
+            // Returns must not pull the node toward their outside lanes.
+            /** @type {Graph} */
+            const returning = { ...g, edges: [...g.edges, { from: 3, to: 0, label: '', back: true, corner: /** @type {const} */ ('top') }] }
+            assertEq(_crossings(returning), 0)
+            assertStructurallySame(routes(htmlToString(graphSvg(returning))).slice(0, 4).map(route => route.slice(route.lastIndexOf(','))), routes(html).map(route => route.slice(route.lastIndexOf(','))))
+        },
+        // Crossed preferences are pooled symmetrically, keeping 14px
+        // clearance. A third slot remains independent once order permits it.
+        fitsCrowdedIncomingCenters: () => {
+            /** @type {Graph} */
+            const g = {
+                centerColumns: true,
+                nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: 'n', rank: id === 0 ? 0 : 1 })),
+                edges: [
+                    { from: 0, to: 2, label: 'a' },
+                    { from: 0, to: 2, label: 'b' },
+                    { from: 0, to: 1, label: 'c' },
+                    { from: 0, to: 1, label: 'd' },
+                    { from: 0, to: { inline: '0' }, label: 'e' },
+                    { from: 0, to: 3, label: 'f' },
+                    { from: 0, to: { inline: '0' }, label: 'g' },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            assertStructurallySame(routes(html).map(route => route.slice(route.lastIndexOf('L'))), ['L122,70', 'L122,70', 'L122,30', 'L122,30', 'L122,120'])
+            assertEq(_crossings(g), 0)
+            assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
+            // Moving the last target's source port up pools all three
+            // slots; the earlier two-slot pool keeps its full weight.
+            /** @type {Graph} */
+            const compact = { ...g, edges: g.edges.filter((_, i) => i !== 4) }
+            const expected = /** @type {const} */ ([200 / 3, 200 / 3, 80 / 3, 80 / 3, 320 / 3])
+            const actual = routes(htmlToString(graphSvg(compact))).map(route => Number(route.slice(route.lastIndexOf(',') + 1)))
+            assert(actual.every((y, i) => expected[i] - 1e-9 < y && y < expected[i] + 1e-9), String(actual))
+            assertEq(_crossings(compact), 0)
+        },
         /**
          * **No edge crosses a box** — the claim the lanes exist for,
          * counted rather than eyeballed. A lane-less layout drew `r` from
@@ -693,6 +926,7 @@ export const proof = {
             // The root centred on the parents: (30 + 136 - 26) / 2.
             assert(box(10, 70), html)
             assertEq(_crossings(tree), 0)
+            assertEq(htmlToString(graphSvg({ ...tree, centerColumns: true })), html)
         },
         /**
          * **A deep tree needs no deep stack.** A chain of 5000 nodes, far
