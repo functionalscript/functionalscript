@@ -17,6 +17,7 @@
  *
  * @module
  *
+ * @import { Sign } from '../../types/function/compare/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Bytes, OidBytes } from '../types.ts'
@@ -174,6 +175,17 @@ export const tryRead = oidBytes => {
 const sortKey = e => mode(e) === subtree ? [...byteArray(e.name), slash] : byteArray(e.name)
 
 /**
+ * The order of two entries in a tree Git writes: by name, a subtree as if
+ * its name ended in `/`, so a writer building a tree puts an entry where
+ * {@link validate} will find it in order.
+ *
+ * @throws As {@link mode} does, on an entry whose mode is not octal digits.
+ *
+ * @type {(a: TreeEntry, b: TreeEntry) => Sign}
+ */
+export const compare = (a, b) => cmp(sortKey(a), sortKey(b))
+
+/**
  * What is wrong with one entry, or `null`: the checks `git fsck` makes on
  * an entry alone. The id is not looked up, only an id of all zero bytes
  * is refused, the one Git never writes and `fsck` refuses as `nullSha1`.
@@ -205,7 +217,7 @@ const problem = e => {
  */
 const pairProblem = (a, b) =>
     cmp(byteArray(a.name), byteArray(b.name)) === 0 ? 'duplicate name'
-        : cmp(sortKey(a), sortKey(b)) >= 0 ? 'not sorted'
+        : compare(a, b) >= 0 ? 'not sorted'
         : null
 
 /**

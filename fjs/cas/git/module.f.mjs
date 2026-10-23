@@ -50,7 +50,7 @@ import { hexText } from '../../git/oid/module.f.mjs'
 import { isWholeName } from '../../git/refname/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { objectsDirs, readIn } from '../../git/store/module.f.mjs'
-import { tryRead as readTree } from '../../git/tree/module.f.mjs'
+import { compare, tryRead as readTree } from '../../git/tree/module.f.mjs'
 import { join } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
@@ -187,9 +187,9 @@ const nameText = name => codePointListToString(toArray(name))
 const keyOf = rel => e => isDirectory(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
 
 /**
- * What is wrong with a tree as a tree, in a few words, or nothing: the two
- * shapes `git fsck` refuses in any tree, which a walk cannot take as the
- * tree means them, so every walk here refuses a tree holding either
+ * What is wrong with a tree as a tree, in a few words, or nothing: the
+ * three shapes `git fsck` refuses in any tree, which a walk cannot take as
+ * the tree means them, so every walk here refuses a tree holding any
  * wherever it meets one.
  *
  * - A name the tree holds twice, `duplicateEntries`: the tree answers no
@@ -197,6 +197,9 @@ const keyOf = rel => e => isDirectory(e) ? [] : toOption(unshard(join(rel, nameT
  *   costs what sorting them does and not a scan per name.
  * - A name holding a `/`, `fullPathname`: it spells a path, and is no
  *   entry a walk reaches.
+ * - Entries out of the order Git writes, `treeNotSorted`: a writer
+ *   rebuilding the tree around one entry would keep the order and write a
+ *   tree Git refuses.
  *
  * @type {(es: readonly TreeEntry[]) => readonly string[]}
  */
@@ -205,7 +208,9 @@ const illFormed = es => {
     const twice = sorted.filter((n, i) => i !== 0 && sorted[i - 1] === n)
     if (twice.length !== 0) { return [`names ${twice[0]} twice`] }
     const slashed = sorted.filter(n => n.includes('/'))
-    return slashed.length === 0 ? [] : [`names ${slashed[0]}, which holds a /`]
+    if (slashed.length !== 0) { return [`names ${slashed[0]}, which holds a /`] }
+    const unsorted = es.filter((e, i) => i !== 0 && compare(es[i - 1], e) > 0)
+    return unsorted.length === 0 ? [] : [`is not in Git's order at ${nameText(unsorted[0].name)}`]
 }
 
 /**
