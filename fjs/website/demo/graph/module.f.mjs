@@ -963,8 +963,9 @@ const groupCellsOf = ({ groups = [] }) => toArray(stateScan(
  * focus, and Tab moves to the next connection. Bundled returns keep every
  * logical route so one source can still be followed through a shared run.
  * Hovering an output port traces that route and outlines its source row;
- * hovering a node name traces all incoming and outgoing connections. The
- * SVG's own CSS relationships use numeric identities, not display names.
+ * hovering a node name traces only its incoming connections and their
+ * source nodes. The SVG's own CSS relationships use numeric identities,
+ * not display names.
  *
  * @type {(g: Graph) => Element}
  */
@@ -1170,7 +1171,7 @@ export const graphSvg = g => {
             // Numeric identities keep the selectors independent of labels.
             // Each :has is scoped to its SVG, so equal ids in another graph
             // on the same page do not share a hover state.
-            ...positioned.map(p => `svg:has([data-graph-node-name="${p.id}"]:hover) :is([data-graph-from="${p.id}"], [data-graph-to="${p.id}"]) [data-graph-trace] { opacity: 1 }\n`),
+            ...positioned.map(p => `svg:has([data-graph-node-name="${p.id}"]:hover) [data-graph-to="${p.id}"] [data-graph-trace] { opacity: 1 }\n`),
             ...routes.map(r => `svg:has([data-graph-port-edge="${r.index}"]:hover) [data-graph-connection="${r.index}"] [data-graph-trace] { opacity: 1 }\n`),
         ])] : []),
         ['defs',
