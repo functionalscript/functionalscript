@@ -1,16 +1,17 @@
 /**
- * CAS content in a Git branch: the published snapshot of a branch, read as
- * the CAS map its tree holds.
+ * CAS content in a Git branch: the commit a branch is at, read as the CAS
+ * map its tree holds.
  *
  * A branch's tree is a map from canonical CAS paths to immutable content —
  * `.cas/ab/cd/<rest>` for a key, the layout [`fjs/cas`](../module.f.mjs)'s
  * `toPath` spells and `unshard` reads back — so a commit of the branch *is*
  * a CAS snapshot, and {@link snapshot} is one read through the existing
  * `Cas<O>` surface: `read` streams the blob a key's path names and `list`
- * walks the `.cas` tree for every key. Both read the commit the snapshot ref
- * is at and nothing else: content in another branch, in Git history, in the
- * local object database or in an unpublished proposal is not in the
- * snapshot, which is what lets a consumer take a hit as a published fact
+ * walks the `.cas` tree for every key. Both read the commit the branch is
+ * at when the snapshot is opened and nothing else: content in another
+ * branch, in Git history or in the local object database is not in the
+ * snapshot. Moving a branch between repositories is `git push` and
+ * `git fetch`, as for any branch; this backend reads one where it is
  * ([`todo/git-branch-storage.md`](../todo/git-branch-storage.md)).
  *
  * Everything here is native over [`fjs/git`](../../git/README.md): the
@@ -19,12 +20,12 @@
  * read.
  *
  * What a snapshot refuses rather than answers, each a repository that is not
- * what this backend writes: a `config` Git does not open, a snapshot ref
+ * what this backend writes: a `config` Git does not open, a branch ref
  * naming anything but a commit, and at a CAS path an entry that is no
  * regular file or an object that is no blob, and an object the snapshot names
  * that the repository does not hold — {@link casEntryCode}. A key the
  * snapshot does not hold is the ordinary miss, `ENOENT` as `fileCas` reports
- * one, and a branch no snapshot has been fetched of is the empty map.
+ * one, and a branch that is not there is the empty map.
  *
  * @module
  *
@@ -61,14 +62,13 @@ import { error } from '../../types/result/module.f.js'
 import { prefix, toPath, unshard } from '../module.f.mjs'
 
 /**
- * The ref the published snapshot of a branch is read at: the remote-tracking
- * ref `git fetch <remote> +refs/heads/<branch>:refs/remotes/<remote>/<branch>`
- * updates, whatever refspec the repository was cloned with. A checkout of
- * the branch is never consulted, and need not exist.
+ * The ref a branch is read at: `refs/heads/<branch>`, the local branch
+ * itself, as `git log <branch>` reads it. Whether the branch is checked
+ * out anywhere is beside the point: the ref is read, never a worktree.
  *
  * @type {(branch: Branch) => string}
  */
-export const snapshotRef = ({ remote, branch }) => `refs/remotes/${remote}/${branch}`
+export const branchRef = ({ branch }) => `refs/heads/${branch}`
 
 /**
  * The code a snapshot is refused with when its repository's `config` is one
@@ -318,7 +318,7 @@ const walkTo = entriesOf => {
 /**
  * The CAS map the tree `tree` holds, read through `read`, a store's reader
  * at the repository's id width; `null` is the empty map, which is what a
- * branch nobody has published has.
+ * branch nobody has written to has.
  *
  * `read` of a key walks `.cas/ab/cd/<rest>` to the entry ({@link walkTo})
  * and streams the blob it names; a path the tree does not take it down is
@@ -393,9 +393,9 @@ export const casAt = (read, oidBytes) => {
 }
 
 /**
- * The published snapshot of `branch`: the CAS map at the commit its
- * {@link snapshotRef} names, or the empty map where the ref is not there —
- * a branch never fetched, or one the remote does not have yet.
+ * The snapshot of `branch`: the CAS map at the commit its {@link branchRef}
+ * names, or the empty map where the ref is not there — a branch nobody has
+ * created yet.
  *
  * Four reads before any key is asked for, each once per snapshot rather than
  * once per key: the repository's id width from its `config`, its object
@@ -415,9 +415,9 @@ export const casAt = (read, oidBytes) => {
  */
 export const snapshot = branch => {
     const { dir } = branch
-    const name = stringToU8List(snapshotRef(branch))
+    const name = stringToU8List(branchRef(branch))
     if (!isWholeName(name)) {
-        return refuse(snapshotHeadCode)(`${snapshotRef(branch)} is not a ref name`)
+        return refuse(snapshotHeadCode)(`${branchRef(branch)} is not a ref name`)
     }
     const width = step(widthOf(dir), w => w === null
         ? refuse(repositoryFormatCode)(`${dir} is not a repository Git opens`)
@@ -431,7 +431,7 @@ export const snapshot = branch => {
         if (commit === null) { return pureOk(at(null)) }
         const tree = o === null || o.type !== 'commit' ? null : tryTreeAt(w)(o.payload)
         return tree === null
-            ? refuse(snapshotHeadCode)(`${snapshotRef(branch)} names ${hexText(commit)}, which is no commit`)
+            ? refuse(snapshotHeadCode)(`${branchRef(branch)} names ${hexText(commit)}, which is no commit`)
             : pureOk(at(tree))
     })
 }

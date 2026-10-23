@@ -1,6 +1,6 @@
 /**
  * Type-level API of CAS content in a Git branch: where a branch lives, what
- * a published snapshot of it offers, and the effects reading one performs.
+ * a snapshot of it offers, and the effects reading one performs.
  *
  * @module
  */
@@ -11,8 +11,7 @@ import type { Cas } from '../types.ts'
 
 /**
  * Where a branch CAS lives: the repository that holds its objects and refs,
- * the remote the branch is published through, and the branch's name on that
- * remote — `build-cache` for `refs/heads/build-cache` there.
+ * and the branch's name — `build-cache` for `refs/heads/build-cache`.
  *
  * `dir` is the repository directory, the one that holds `objects/`,
  * `refs/` and `config`: what [`fjs/git/repo`](../../git/repo/module.f.mjs)'s
@@ -23,12 +22,11 @@ import type { Cas } from '../types.ts'
  */
 export type Branch = {
     readonly dir: string
-    readonly remote: string
     readonly branch: string
 }
 
 /**
- * The read half of `Cas<O>`: what a published snapshot offers. A snapshot
+ * The read half of `Cas<O>`: what a snapshot offers. A snapshot
  * is a commit, and a commit does not change, so there is no `write` to
  * offer; a consumer that only reads — a cache lookup — asks for this and
  * takes a whole `Cas<O>` just as well.
