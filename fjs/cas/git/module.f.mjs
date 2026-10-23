@@ -50,7 +50,7 @@ import { hexText } from '../../git/oid/module.f.mjs'
 import { isWholeName } from '../../git/refname/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { objectsDirs, readIn } from '../../git/store/module.f.mjs'
-import { compare, tryRead as readTree } from '../../git/tree/module.f.mjs'
+import { tryRead as readTree, validate } from '../../git/tree/module.f.mjs'
 import { join } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
@@ -187,30 +187,22 @@ const nameText = name => codePointListToString(toArray(name))
 const keyOf = rel => e => isDirectory(e) ? [] : toOption(unshard(join(rel, nameText(e.name))))
 
 /**
- * What is wrong with a tree as a tree, in a few words, or nothing: the
- * three shapes `git fsck` refuses in any tree, which a walk cannot take as
- * the tree means them, so every walk here refuses a tree holding any
- * wherever it meets one.
- *
- * - A name the tree holds twice, `duplicateEntries`: the tree answers no
- *   one entry for it. Found by sorting the names, so a tree of many names
- *   costs what sorting them does and not a scan per name.
- * - A name holding a `/`, `fullPathname`: it spells a path, and is no
- *   entry a walk reaches.
- * - Entries out of the order Git writes, `treeNotSorted`: a writer
- *   rebuilding the tree around one entry would keep the order and write a
- *   tree Git refuses.
+ * What is wrong with a tree as a tree, in a few words, or nothing: what
+ * `git fsck` refuses in any tree, as [`fjs/git/tree`](../../git/tree/module.f.mjs)'s
+ * `validate` vouches for it — a name held twice, which a walk answers no
+ * one entry for; a name holding `/`, which spells a path no walk reaches;
+ * entries out of the order Git writes, which a writer rebuilding the tree
+ * would keep; an id of all zero bytes; a mode zero-padded or none of Git's
+ * five; an empty, `.`, `..`, `.git` or over-long name. Every walk here
+ * refuses a tree holding any wherever it meets one, so no tree Git
+ * refuses is read as a map, and none is rebuilt into a commit of this
+ * backend's.
  *
  * @type {(es: readonly TreeEntry[]) => readonly string[]}
  */
 const illFormed = es => {
-    const sorted = es.map(e => nameText(e.name)).toSorted()
-    const twice = sorted.filter((n, i) => i !== 0 && sorted[i - 1] === n)
-    if (twice.length !== 0) { return [`names ${twice[0]} twice`] }
-    const slashed = sorted.filter(n => n.includes('/'))
-    if (slashed.length !== 0) { return [`names ${slashed[0]}, which holds a /`] }
-    const unsorted = es.filter((e, i) => i !== 0 && compare(es[i - 1], e) > 0)
-    return unsorted.length === 0 ? [] : [`is not in Git's order at ${nameText(unsorted[0].name)}`]
+    const r = validate(es)
+    return r[0] === 'ok' ? [] : [`is no tree Git writes: ${r[1]}`]
 }
 
 /**
@@ -333,10 +325,13 @@ const walkTo = entriesOf => {
  * the ordinary miss. `list` walks the `.cas` subtree, every file below it a
  * key and every subtree walked in turn, flat in the tree's size as
  * `walkStep` keeps a walk. Neither reads an object it need not: a listing
- * reads trees and no blob. Both check every tree they read for the layout
- * before taking it, so what one answers the other would answer too, and a
- * tree this backend did not write is refused rather than read as a map it
- * is not.
+ * reads trees and no blob, so it names a key by the tree's word and the
+ * read of that key is where the blob is asked for — an object the
+ * repository does not hold, or one that is no blob, is refused then, as
+ * `fileCas` lists a shard without opening it. Both check every tree they
+ * read for the layout before taking it, so what one lists the other walks
+ * to, and a tree this backend did not write is refused rather than read as
+ * a map it is not.
  *
  * Parameterized by the reader rather than a directory so that one reader
  * serves every read of a snapshot — `readIn` resolves a repository's
