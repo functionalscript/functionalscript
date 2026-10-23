@@ -316,18 +316,33 @@ export const proof = {
         assertEq(codeOf(listed(root)), casEntryCode)
         assert(isNotFound(assertError(readAll(root, alphaKey))))
     },
-    // An entry at a key's path whose mode is not `100644`: an executable, and
-    // a symbolic link whose blob holds its target's path. Either is refused
-    // rather than read as the key's content. The listing names the key all the
-    // same — it reads trees, not modes — which is what makes the read the
-    // place the refusal has to be.
+    // An entry at a key's path whose mode is not `100644`: an executable, a
+    // symbolic link whose blob holds its target's path, and `100644` spelled
+    // `0100644`, the same bits in a spelling Git refuses. Each is refused
+    // rather than read as the key's content, and the listing refuses the
+    // tree rather than naming a key the read would refuse.
     entryMode: () => {
-        for (const mode of ['100755', '120000']) {
+        for (const mode of ['100755', '120000', '0100644']) {
             const { root, objects } = casEntry(alphaKey, mode, sha1.idOf('blob', alpha))
             const r = over(root, [...objects, sha1.object('blob', alpha)])
             assertEq(codeOf(readAll(r, alphaKey)), casEntryCode, mode)
-            assertStructurallySame(spelled(assertOk(listed(r))), spelled([alphaKey]))
+            assertEq(codeOf(listed(r)), casEntryCode, mode)
         }
+    },
+    // A tree naming the key's file twice, which `git fsck` refuses as
+    // `duplicateEntries`: the listing refuses it rather than naming the key
+    // twice, and the walk answers no entry for the path, so the read is a
+    // miss — the walk's answer for an ambiguous name, recorded in
+    // `todo/absent-or-malformed.md`.
+    duplicateEntries: () => {
+        const [, ab, cd, rest] = pathOf(alphaKey)
+        const blob = sha1.idOf('blob', alpha)
+        const leaf = sha1.treeOf([entry('100644', rest, blob), entry('100644', rest, blob)])
+        const mid = sha1.treeOf([entry('40000', cd, leaf.id)])
+        const top = sha1.treeOf([entry('40000', ab, mid.id)])
+        const root = over([entry('40000', '.cas', top.id)], [leaf.object, mid.object, top.object, sha1.object('blob', alpha)])
+        assertEq(codeOf(listed(root)), casEntryCode)
+        assert(isNotFound(assertError(readAll(root, alphaKey))))
     },
     // A `100644` entry whose object is a tree, and one whose object is bytes
     // that are no object: neither is the key's content.
