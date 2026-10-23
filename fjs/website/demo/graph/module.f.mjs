@@ -471,8 +471,9 @@ const missingEnds = ids => (edge, index) => [
  * A graph is a tree here when no node is the target of two edges and
  * every edge goes to the next rank, so no edge needs a lane. Any other
  * graph — a node shared by two parents, or an edge that skips a rank —
- * keeps its columns packed from the top: a shared node has no one parent
- * to sit beside. **Every node gets a top**: with one incoming edge at
+ * normally keeps its columns packed from the top: a shared node has no one
+ * parent to sit beside. `Graph.centerColumns` can center those columns as
+ * blocks instead. **Every node gets a top**: with one incoming edge at
  * most, and each edge one rank right, no edge can close a cycle, so every
  * node is reached from exactly one root.
  *
@@ -599,6 +600,11 @@ const sameReturn = (a, b) => a.target === b.target && a.kind === b.kind
  * of the running `y`; a tree has no lanes. Back edges do not count: a graph
  * that is a tree but for them is drawn as one.
  *
+ * **Column centering is opt-in.** For a non-tree, `Graph.centerColumns`
+ * centers each column within the tallest one. Nodes and intermediate edge
+ * lanes move as one block, preserving their order and clearance. A tree
+ * keeps its parent/child centering instead.
+ *
  * **A back edge has no lane in any column.** It goes down a gap, along the
  * bottom and up another gap ({@link routesOf}), so a gap is wider by a lane
  * for each back edge that goes down or up it. Bundled returns reserve
@@ -606,9 +612,9 @@ const sameReturn = (a, b) => a.target === b.target && a.kind === b.kind
  *
  * The first column starts at `left`.
  *
- * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[], bundle: boolean) => _Placed}
+ * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[], bundle: boolean, center: boolean) => _Placed}
  */
-const layout = left => nodes => (edges, bundle) => {
+const layout = left => nodes => (edges, bundle, center) => {
     // **An edge must name nodes the graph has, or the graph is refused.**
     // An edge is drawn from a port of its source, so one whose source is
     // missing would have nowhere to leave from and would simply vanish,
@@ -648,6 +654,11 @@ const layout = left => nodes => (edges, bundle) => {
     ].toSorted((a, b) => a.key - b.key))
     const treeTops = treeTopsOf(columns.map(column => column.flatMap(slot => slot.node === undefined ? [] : [slot.node.id])))(edges.filter(e => e.back !== true))(rankOf)(sizeOf)(
         id => outgoingOf(id).flatMap(({ edge }) => typeof edge.to === 'number' && edge.back !== true ? [edge.to] : []))
+    // Include the lanes between nodes: centering boxes alone would leave
+    // their skip-rank routes in positions that can pass through a box.
+    const columnHeights = columns.map(column => max(0, column.reduce((height, slot) =>
+        height + (slot.node === undefined ? laneSize : sizeOf(slot.node.id).height) + nodeGap, 0) - nodeGap))
+    const tallest = maxOf(columnHeights)
     /** @type {(left: number) => (widest: number) => StateScan<_Sized, number, _PlacedSlot>} */
     const placeSlot = left => widest => ({ slot, size }, top) => {
         if (size === null) {
@@ -665,7 +676,8 @@ const layout = left => nodes => (edges, bundle) => {
         const left = prior + gapOf(rank)
         const sized = column.map(slot => ({ slot, size: slot.node === undefined ? null : sizeOf(slot.node.id) }))
         const widest = sized.reduce((m, { size }) => max(m, size === null ? laneSize : size.width), 0)
-        const slots = toArray(stateScan(placeSlot(left)(widest))(margin)(sized))
+        const top = margin + (center && treeTops === null ? (tallest - columnHeights[rank]) / 2 : 0)
+        const slots = toArray(stateScan(placeSlot(left)(widest))(top)(sized))
         return [{ end: left + widest, slots }, left + widest + rankGap]
     }
     const placedColumns = toArray(stateScan(placeColumn)(left)(columns.map((column, rank) => /** @type {const} */ ([rank, column]))))
@@ -798,7 +810,7 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  *
  * @type {(g: Graph) => _Placed}
  */
-const placedOf = ({ nodes, edges, entries = [], bundleBacks = false }) => {
+const placedOf = ({ nodes, edges, entries = [], bundleBacks = false, centerColumns = false }) => {
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
@@ -818,7 +830,7 @@ const placedOf = ({ nodes, edges, entries = [], bundleBacks = false }) => {
         groups.some(([, rows]) => rows < 1)
         || groups.reduce((n, [, rows]) => n + rows, 0) !== edges.filter(e => e.from === id && e.corner === undefined).length))
     if (misgrouped !== undefined) { throw `graph: node ${misgrouped.id}'s groups do not take its rows, at least one each` }
-    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, bundleBacks)
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, bundleBacks, centerColumns)
 }
 
 /**

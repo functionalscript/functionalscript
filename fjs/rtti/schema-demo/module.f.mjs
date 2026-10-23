@@ -119,7 +119,7 @@ const shapeOf = t => {
  *
  * @type {(schema: Type) => Graph}
  */
-export const _graphOf = schema => ({ ...graphOf(shapeOf)(schema), bundleBacks: true, trace: true })
+export const _graphOf = schema => ({ ...graphOf(shapeOf)(schema), bundleBacks: true, trace: true, centerColumns: true })
 
 // ── readers ──────────────────────────────────────────────────────────────────
 

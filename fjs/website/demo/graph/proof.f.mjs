@@ -716,6 +716,33 @@ export const proof = {
             // The lane is part of the drawing's height, not just the nodes.
             assert(html.includes('viewBox="0 0 264 64"'), html)
         },
+        // The middle column is 44px tall including its routing lane and
+        // gap. Centering moves the 40px root down 2px and the 26px leaf
+        // down 9px, while keeping the tallest column and its lane in place.
+        centeredColumns: () => {
+            const g = { ...skipLevel, centerColumns: true }
+            const html = htmlToString(graphSvg(g))
+            assert(html.includes('<rect x="10" y="12" width="57" height="40"'), html)
+            assert(html.includes('<rect x="107" y="34" width="57" height="20"'), html)
+            assert(html.includes('<rect x="204" y="19" width="50" height="26"'), html)
+            assert(html.includes('d="M67,42 L107,15 L164,15 L204,32"'), html)
+            assert(html.includes('viewBox="0 0 264 64"'), html)
+            assertEq(_crossings(g), 0)
+            assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
+        },
+        // A short column containing only a lane moves with that lane, so
+        // its skip-rank edge stays centered between the source and target.
+        centeredLaneOnlyColumn: () => {
+            /** @type {Graph} */
+            const g = {
+                centerColumns: true,
+                nodes: [{ id: 0, kind: 'n', label: 'root', rank: 0 }, { id: 1, kind: 'n', label: 'leaf', rank: 2 }],
+                edges: [{ from: 0, to: 1, label: 'x' }],
+            }
+            const html = htmlToString(graphSvg(g))
+            assertEq(routes(html)[0], 'M74,23 L114,23 L124,23 L164,23')
+            assertEq(_crossings(g), 0)
+        },
         /**
          * **No edge crosses a box** — the claim the lanes exist for,
          * counted rather than eyeballed. A lane-less layout drew `r` from
@@ -759,6 +786,7 @@ export const proof = {
             // The root centred on the parents: (30 + 136 - 26) / 2.
             assert(box(10, 70), html)
             assertEq(_crossings(tree), 0)
+            assertEq(htmlToString(graphSvg({ ...tree, centerColumns: true })), html)
         },
         /**
          * **A deep tree needs no deep stack.** A chain of 5000 nodes, far
