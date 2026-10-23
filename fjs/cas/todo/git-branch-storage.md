@@ -7,144 +7,63 @@
 
 CAS currently stores content in the filesystem. Its CLI constructs
 `fileCas(sha256)(home)` for `add`, `get`, and `list`. A consumer such as
-the [build cache](../../ci/todo/097-smart-ca-ci.md) needs to read and publish
-CAS content in a separate Git branch while the source checkout stays on its
-current branch.
+the [build cache](../../ci/todo/097-smart-ca-ci.md) needs to keep CAS
+content in a separate Git branch while the source checkout stays on its
+current branch, so that the content travels with the repository: `git push`
+and `git fetch` carry it, and `git merge` joins what two writers added.
 
 ### Proposal
 
-Implement a reusable Git branch backend for CAS, including CLI access.
-Expose content through the existing [CAS interface](../types.ts); the
-backend owns branch configuration, commits, and publication. Keep build
-contracts and success conditions in the build-cache consumer.
+A Git branch backend for CAS with the three commands the filesystem CAS
+has, against a local branch, and nothing else:
 
-This is the first stage of the build-cache plan. The second stage uses this
-backend for the `build-cache` branch.
+```sh
+fjs cas git add <branch> <file>
+fjs cas git get <branch> <key> <path>
+fjs cas git list <branch>
+```
 
-#### Content identities and storage
+The repository is the one the current directory is in, found as `git`
+finds it. The branch's tree is a map from canonical CAS paths —
+`.cas/ab/cd/<rest>`, the layout [`toPath`](../module.f.mjs) spells — to the
+content, each entry a regular, non-executable file (`100644`). `get` and
+`list` read the commit the branch is at. `add` writes the blob and the
+trees above it into the repository's own objects and moves the branch to
+one new commit whose parent is the commit it was at — and writes no object
+and no commit where the branch already holds the content under its key.
+The source checkout's `HEAD`, index and working tree are never touched:
+the writes are below `objects/` and at `refs/heads/<branch>`.
 
-Use the existing CAS content hashes, initially SHA-256 over the payload
-bytes, as the current CLI does. Reuse the existing
-[CBase32 codec](../../basen/cbase32/module.f.mjs) and
-[`toPath`](../module.f.mjs) for the `.cas/ab/cd/<rest>` layout. Store the
-complete payload unchanged at its CAS path, with regular, non-executable
-Git file mode `100644`.
+Content keys stay CAS's hashes, SHA-256 over the payload as the CLI keys
+content today; Git object ids are internal to the backend. `contentKey`
+computes a key without storing anything, with the hash `write` uses, and
+agrees with the key `write` returns for the same bytes.
 
-CAS content addresses remain its existing hashes. The Git backend uses
-Git object IDs internally, separately from the keys accepted by CAS.
-A stored document may contain other identifiers, such as the Git blob IDs
-that the build cache uses for source files. Using Git hashes as CAS
-content addresses is deferred.
-
-Provide content-key computation without storing or publishing the payload,
-using the same hash implementation as CAS `write`. For identical bytes,
-the computed key and the key returned by `write` must agree. The current
-`Cas` exposes `read`, `write`, and `list`; hash-only computation and
-branch publication are capabilities to design, not existing methods.
-
-#### Branch access and CLI
-
-Select the repository, remote, and branch explicitly through the backend
-configuration and CLI. Read the selected branch at a known commit; `read`
-and `list` use that snapshot's CAS paths. Content in another branch, Git
-history, the local object database, or an unpublished staging area does not
-establish membership in the selected published snapshot.
-
-Create trees and commits and push to the named ref without switching the
-source checkout's `HEAD` or modifying its working tree or index. Initialize
-a missing branch and handle concurrent initial publishers.
-
-Extend the CAS CLI so its `add`, `get`, and `list` operations can use this
-backend, and expose the branch publication operations it requires. The CLI
-and programmatic callers must share the backend's behavior. Define the
-public configuration and command syntax before implementation; do not
-duplicate hashing, publication, or retry logic in a CLI handler.
-
-#### Publication and concurrent writers
-
-A writer retains the branch snapshot `A` it started from. Its proposed
-commit `B` adds complete CAS objects to that tree, with `A` as parent.
-An incomplete write publishes no partial object.
-
-Existing entries are never edited, overwritten, renamed, or given another
-mode. Different hashes add different paths; the same hash denotes the same
-bytes, assuming no collision. The branch tree is a map from canonical CAS
-paths to immutable content, and identical concurrent additions also agree
-on file mode.
-
-Push normally to the selected ref. If another writer advances it, fetch the
-new head and reconcile it with the proposal through their actual merge
-base, then retry. Preserve the proposal's ancestry across retries.
-Identical additions need only one stored object. During initial branch
-creation, concurrent roots reconcile against the empty initial map.
-
-Reconcile by exact path, preserving cleanup deletions. Do not union complete
-parent trees or blindly re-add every local object. Disable rename inference:
-similar content at different hash paths represents distinct entries. With
-the Git CLI, the corresponding merge option is `-Xno-renames`; a native
-merge must have the same path semantics. Independent additions then avoid
-content merge conflicts, while concurrent ref updates still require
-normal-push retries. Ordinary publication never force-pushes.
-
-#### Cleanup
-
-Cleanup may remove some or all entries through an ordinary deletion commit.
-An entry absent from the selected published tree is absent from that CAS
-snapshot, even while its bytes remain in Git history. Removing membership
-and reclaiming Git object storage are independent operations.
-
-Three-way reconciliation preserves a deletion when the other side left
-that base entry unchanged. For example:
-
-| Snapshot | Entries |
-| --- | --- |
-| Common base `A` | `A0, A1` |
-| Local proposal `B` | `A0, A1, B0, B1` |
-| Remote head `C` | `A1, C0` |
-| Merge result | `A1, B0, B1, C0` |
-
-This merges without conflict and does not restore `A0`. If the remote
-independently added and then deleted `B0` and `B1` after `A`, its net change
-to those paths is still empty: the local additions return without conflict.
-If a record already existed in the actual merge base and only cleanup
-changed it, deletion wins. Merging an old commit already included in the
-cleanup branch's ancestry does not restore its deleted entries.
-
-Clearing the branch removes its current entries but allows independent,
-in-flight additions to appear afterward. Ordinary deletion commits can
-coexist with active writers. History compaction is separate maintenance
-and is not required to clear the store. These rules follow
-[Git's three-way merge behavior](https://git-scm.com/docs/git-merge), with
-rename detection disabled for the CAS map.
+Everything between repositories is Git's own and needs nothing here:
+`git push` and `git fetch` move the branch; `git merge` joins two writers'
+branches, and since different keys are different paths and the same key is
+the same bytes, independent additions never conflict; a deletion commit, or
+`git rm` on a checkout of the branch, takes content out. The backend syncs
+nothing, publishes nothing and retries nothing.
 
 ### Tasks
 
-- [x] Define the backend configuration and the snapshot: `Branch` selects
-      the repository, remote and branch, `snapshotRef` is where the
-      published snapshot is read, and `snapshot` is it as a `CasReader`, the
-      read half of `Cas<O>` — [`fjs/cas/git`](../git/module.f.mjs).
-- [ ] Define the publication API around `Cas<O>`: the proposal a writer
-      adds to, its publication, and creation of a missing branch.
-- [x] Provide content-key computation without storage or publication,
-      sharing CAS's configured hash implementation. Prove agreement with
-      the key returned by `write` for the same bytes — `contentKey` in
+- [x] Provide content-key computation without storage, sharing CAS's
+      configured hash implementation. Prove agreement with the key returned
+      by `write` for the same bytes — `contentKey` in
       [`fjs/cas`](../module.f.mjs).
-- [x] Implement byte-preserving CAS reads and listing of a snapshot,
-      reusing the existing encoding, paths, and Git primitives — `casAt` in
-      [`fjs/cas/git`](../git/module.f.mjs), over the object store's reader,
-      the walk and the ref store, in SHA-1 and SHA-256 repositories.
-- [ ] Implement branch storage: byte-preserving CAS writes into the
-      repository's own objects and a proposal ref, reusing the same
-      primitives. Prove that the source checkout's HEAD, working tree, and
-      index stay unchanged.
-- [ ] Implement commit/push publication and cleanup. Cover incomplete
-      writes, identical concurrent additions, concurrent initialization,
-      normal-push retries, and the three-way deletion cases above. Include
-      similar objects at different hash paths so rename inference cannot
-      relocate them.
-- [ ] Add CLI access to the same backend and document branch selection,
-      reads, writes, listing, publication, and cleanup. Prove CLI and API
-      behavior agree without a second implementation of the protocol.
+- [x] Read a branch as a CAS: `Branch` names the repository and the branch,
+      `branchRef` is the ref read, and `snapshot` is the commit it names as
+      a `CasReader`, the read half of `Cas<O>`, byte-preserving over the
+      existing encoding, paths and Git primitives, in SHA-1 and SHA-256
+      repositories — [`fjs/cas/git`](../git/module.f.mjs).
+- [ ] Write to a branch: a whole `Cas<O>` whose `write` stores the blob and
+      the rebuilt trees as loose objects and moves the branch to one new
+      commit, or to nothing where the key is already there. Prove that the
+      source checkout's `HEAD`, working tree and index stay unchanged.
+- [ ] Add the three CLI commands over the same backend, the repository found
+      from the current directory, and document them. Prove CLI and API
+      behavior agree without a second implementation.
 
 ### Related
 

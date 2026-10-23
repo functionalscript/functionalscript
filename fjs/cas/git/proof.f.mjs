@@ -25,16 +25,16 @@ import { length, maxLength, msb, u8ListToVecMsb } from '../../types/bit_vec/modu
 import { toArray } from '../../types/list/module.f.mjs'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { collectRead, toPath } from '../module.f.mjs'
-import { casAt, casEntryCode, repositoryFormatCode, snapshot, snapshotHeadCode, snapshotRef } from './module.f.mjs'
+import { branchRef, casAt, casEntryCode, repositoryFormatCode, snapshot, snapshotHeadCode } from './module.f.mjs'
 
 /** The repository every case reads, and the branch the snapshot is of. */
 const dir = /** @type {const} */ ('repo')
 
 /** @type {Branch} */
-const branch = { dir, remote: 'origin', branch: 'build-cache' }
+const branch = { dir, branch: 'build-cache' }
 
-/** Where the snapshot ref is, as a path in the virtual filesystem. */
-const refPath = `${dir}/refs/remotes/origin/build-cache`
+/** Where the branch ref is, as a path in the virtual filesystem. */
+const refPath = `${dir}/refs/heads/build-cache`
 
 /** @type {(s: string) => readonly Vec[]} */
 const text = s => [u8ListToVecMsb(latin1(s))]
@@ -125,7 +125,7 @@ const writers = oidBytes => {
 }
 
 /**
- * A repository as files: its `config`, the snapshot ref at `head`, and the
+ * A repository as files: its `config`, the branch ref at `head`, and the
  * objects given. No ref where `head` is `null`.
  *
  * @type {(config: string, head: Oid | null, objects: readonly (readonly [string, readonly Vec[]])[]) => Dir}
@@ -234,10 +234,10 @@ const assertOrdinary = root => {
 }
 
 export const proof = {
-    // ## The snapshot ref
-    snapshotRef: () => {
-        assertEq(snapshotRef(branch), 'refs/remotes/origin/build-cache')
-        assertEq(snapshotRef({ dir, remote: 'up', branch: 'feature/x' }), 'refs/remotes/up/feature/x')
+    // ## The branch ref
+    branchRef: () => {
+        assertEq(branchRef(branch), 'refs/heads/build-cache')
+        assertEq(branchRef({ dir, branch: 'feature/x' }), 'refs/heads/feature/x')
     },
     // ## Reading a snapshot
     //
@@ -256,8 +256,8 @@ export const proof = {
         const r = readAll(ordinary(20, initConfig), keyOf(latin1('gamma\n')))
         assert(isNotFound(assertError(r)), r)
     },
-    // No snapshot ref at all — a branch never fetched, or one the remote does
-    // not have — is the empty map: every key a miss, and no key listed.
+    // No branch at all — one nobody has created yet — is the empty map:
+    // every key a miss, and no key listed.
     noRef: () => {
         const root = repository(initConfig, null, [])
         assert(isNotFound(assertError(readAll(root, alphaKey))))
@@ -277,7 +277,7 @@ export const proof = {
     // which `runPure` finishing is the proof of: the effect never reached a
     // command.
     badBranchName: () => {
-        const o = runPure(snapshot({ dir, remote: 'origin', branch: 'a..b' }))
+        const o = runPure(snapshot({ dir, branch: 'a..b' }))
         assert(o.length === 1, o)
         assertEq(codeOf(o[0]), snapshotHeadCode)
     },
@@ -287,7 +287,7 @@ export const proof = {
         const root = repository('[core]\n\trepositoryformatversion = 99\n', null, [])
         assertEq(codeOf(opened(root)[1]), repositoryFormatCode)
     },
-    // The snapshot ref names what is no commit: a blob, bytes that are no
+    // The branch ref names what is no commit: a blob, bytes that are no
     // object at all, or a commit whose `tree` header is no id. A branch ref Git
     // wrote names a commit, so each is a repository this backend did not write.
     refNamesNoCommit: () => {
