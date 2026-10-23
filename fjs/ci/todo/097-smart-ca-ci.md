@@ -21,15 +21,19 @@ Implement this in two stages:
 
 The CAS backend owns branch access and the commit each `add` makes; it
 does not sync, publish, retry or delete — `git push`, `git fetch`,
-`git merge` and a deletion commit are Git's own, and the job runs them.
+`git merge` and a deletion commit are Git's own, and the jobs run them.
 This consumer owns input selection, build identity, the success
-condition, and the publication loop below. Use CAS hashes for the JSON documents and reuse Git blob IDs for
-committed source files. The first target is CI; smart builds on developer
-machines are a separate [investigation](../../dev/todo/smart-builds.md).
+condition, and the publication below. Use CAS hashes for the JSON
+documents and reuse Git blob IDs for committed source files. The first
+target is CI; a developer machine is one more job
+([`fjs ci run`](#fjs-ci-run-later), later), which is what the smart-builds
+[investigation](../../dev/todo/smart-builds.md) was waiting for.
 
-Initially define two blocks: one for Rust and one for JavaScript and
-FunctionalScript. Later add more granular, possibly overlapping blocks using
-the same format and publication mechanism.
+Two input manifests at first — one for Rust, one for JavaScript and
+FunctionalScript — and one entry per CI job: an entry is a manifest whose
+contract is one job's, so a job that passed is recorded whether or not a
+sibling failed. Finer, possibly overlapping blocks come later, in the same
+format and through the same publication.
 
 #### Manifest format
 
@@ -61,12 +65,18 @@ configuration, dependency lockfiles, toolchain pins, generator inputs, and
 test data. Select by dependency, not filename extension.
 
 `contract` is the CAS hash of a canonical JSON descriptor of the selected
-work: its entrypoint and ordered arguments, working directory, relevant
-execution options and environment settings, and required checks and
-target/platform matrix. Include the actual selection, even when the same
-script implements several operations. A script hash or block label alone
-does not identify which operation ran. Define the descriptor schema shared
-by all publishers before cache lookup or publication is enabled.
+work and of the host that did it: the commands in order, their working
+directory and relevant execution options and environment settings; and the
+facts of the host — operating system and its version, architecture, and
+the version of every tool `fjs/ci/config` pins, each read from the host
+that ran, never from the pin file
+([below](#record-the-facts-do-not-validate-the-host)). A runner label such
+as `windows-2025` is not a fact about the work and is not in it: the same
+Windows build with the same pins on another CI system must hash the same.
+Include the actual selection, even when the same script implements several
+operations. A script hash or block label alone does not identify which
+operation ran. Define the descriptor schema shared by all publishers before
+cache lookup or publication is enabled.
 
 For example, invoking the same `build.mjs` with `lint` or `test` must produce
 different contract hashes even if both blocks read exactly the same files.
@@ -104,9 +114,12 @@ limited by the following boundaries:
 
 - **Commit, index, and working tree are different snapshots.** File IDs
   taken from a commit describe that commit's tree. They do not cover staged
-  changes, modified tracked files, or additional untracked inputs. Pin input
-  enumeration to the exact commit being built. Developer-machine workflows
-  with mutable local inputs belong to the separate investigation.
+  changes, modified tracked files, or additional untracked inputs. CI pins
+  input enumeration to the exact commit being built, where the IDs are free.
+  A run over a working tree hashes the files it builds instead, as Git
+  would, so what it records is what it built: a dirty tree yields a
+  manifest that matches no commit, and no CI reads it
+  ([below](#record-the-facts-do-not-validate-the-host)).
 - **Blob IDs omit relevant metadata.** Git stores a file's mode separately
   from its blob ID. The current `Tree` leaves do not capture executable
   modes or distinguish a regular file from a symlink containing the same
@@ -129,45 +142,93 @@ is a follow-up, not a prerequisite for this CI implementation.
 
 #### Build and publication
 
-1. Compute the selected contract, complete input tree, canonical manifest,
-   and its CAS key without publishing it.
-2. `git fetch origin build-cache:build-cache` — a fast-forward of the
-   local branch, which is never checked out — then read that key through
-   CAS in it (`snapshot` of the local `build-cache`, or `fjs cas git get`).
-   Its presence there allows the corresponding work to be skipped. Where
-   `origin` has no `build-cache` yet — the first build of a repository —
-   the fetch fails with `couldn't find remote ref`, and that is the empty
-   cache, not a failure: `git ls-remote --exit-code --heads origin
-   build-cache` exits 2 for it, the lookup goes on against the absent
-   local branch, which `snapshot` opens as the empty map, and step 3's
-   push creates the remote branch. Any other fetch failure fails the job.
-   Historical objects, objects in another CAS store, and local writes not
-   yet pushed do not establish a successful build.
-3. On a miss, run the block. Only after all checks required by that block
-   succeed, write the original complete manifest through CAS — one `add`,
-   one commit on the local `build-cache` — and `git push origin
-   build-cache`. A failed, cancelled, or partial run adds no entry. The
-   checkout has no committer identity of its own, and `fjs cas git add`
-   reads one from the repository's `config` and refuses without it, so the
-   job sets the bot's first, as any job that commits does:
-   `git config user.name "github-actions[bot]"` and `git config user.email
-   "41898282+github-actions[bot]@users.noreply.github.com"`.
-4. Where the push is refused as a non-fast-forward because another job
-   published first, `git fetch origin build-cache`, merge it into the local
-   branch in a worktree (`git worktree add ../cache build-cache`, then
-   `git merge origin/build-cache` there; `--allow-unrelated-histories` where
-   the two branches began apart) — different keys are different paths, so
-   independent additions never conflict — and push again, a few times. The
-   loop is the job's, in its script; a retry does not repeat the successful
+Every job checks the cache for itself, first thing, and one job at the end
+publishes for all of them. No job decides for another, so there is no gate
+job ahead of the others, no job outputs to wire, and nothing on the
+critical path of a run that misses.
+
+1. **The check, before the expensive setup.** The saving is the setup the
+   job never does — the Nix shell, the toolchains, the Rust build — so the
+   check runs on the runner's stock tooling: a shallow checkout,
+   `setup-node`, the published `fjs` CLI at the pin in `fjs/ci/config` (as
+   the Windows jobs already install it), `git fetch --depth 1 origin
+   build-cache:build-cache` — a fast-forward of a local branch that is never
+   checked out, and only its tip is ever read — then the job's contract,
+   its manifest and its key, computed without publishing, and the lookup
+   (`fjs cas git get`, or `snapshot` of the local `build-cache`). A hit
+   ends the job green with every later step skipped, which the generator
+   writes as `if: steps.cache.outputs.hit != 'true'` on each; a miss runs
+   the job as now. Where `origin` has no `build-cache` yet — the first
+   build of a repository — the fetch fails with `couldn't find remote
+   ref`, and that is the empty cache, not a failure: `git ls-remote
+   --exit-code --heads origin build-cache` exits 2 for it, the lookup goes
+   on against the absent local branch, which `snapshot` opens as the empty
+   map, and the first publication creates the remote branch. Any other
+   fetch failure fails the job. Historical objects, objects in another CAS
+   store, and local writes not yet pushed do not establish a successful
    build.
+2. **Misses against hits.** On a miss, the common case for a fresh change,
+   the check adds seconds to each job and nothing serial, where a gate job
+   would have added its whole duration ahead of everything. On a hit, nine
+   runners spin up for about a minute each where a gate would have started
+   none, in parallel, so latency is the same and only minutes are spent.
+   Measure the pre-check cost on macOS and Windows; a gate is a later
+   optimization if hits come to dominate, not a prerequisite.
+3. **The finalizer publishes.** One job `needs` every other and runs with
+   `if: always()`. It sets the bot's identity, since a checkout has none
+   and `fjs cas git add` reads one from the repository's `config` and
+   refuses without it (`git config user.name "github-actions[bot]"` and
+   `git config user.email
+   "41898282+github-actions[bot]@users.noreply.github.com"`); then, for
+   every job whose `needs.<job>.result` is `success`, it rebuilds that
+   job's manifest and writes it through one `add` — a no-op where the
+   branch already holds the key, so a job that hit and a job that ran are
+   published alike — and, where every job of a rung is green, the rung's
+   entry; one commit, `git push origin build-cache`. There is nothing to
+   collect from the runners: a manifest is a function of the commit and
+   the job's contract, so every runner would have computed the same bytes,
+   and the finalizer checks that its key agrees with the one the job
+   looked up. Only this job has `contents: write`; the test jobs run with a
+   read-only token, and no `git push` runs from a Windows or macOS runner.
+4. **The push loop, here alone.** Where the push is refused as a
+   non-fast-forward because another run published first, `git fetch origin
+   build-cache`, merge it into the local branch in a worktree
+   (`git worktree add ../cache build-cache`, then `git merge
+   origin/build-cache` there; `--allow-unrelated-histories` where the two
+   branches began apart) — different keys are different paths, so
+   independent additions never conflict — and push again, a few times. The
+   race is between concurrent runs only, never between the jobs of one.
+
+Two rules follow, and the plan holds them as rules. **An entry means these
+inputs passed this contract**, once, anywhere: a job is skipped when an
+entry exists for its contract over the current manifest, and for no other
+reason. **A failure writes nothing**: a failed, cancelled or partial job
+has no entry, so it runs again on the same inputs, and no red job hides
+behind a green sibling. Together they give the per-job skip. When CI fails
+on Windows alone, a PR stacked on that one reruns Windows and hits on every
+other job — provided its own changes touch nothing those jobs read, since
+the skip is by inputs and not by job history: a stacked PR that edits any
+`.mjs` file changes the `js` manifest and reruns every job of that rung,
+Windows among them. The same holds for the fix itself: a fix in a
+JavaScript file reruns the suite everywhere, and only a fix outside the
+other jobs' inputs, or a flaky failure rerun on the same commit, reruns
+Windows alone. Both are real and worth having; they are narrower than "only
+the failing job reruns".
 
 Keep the source checkout unchanged during cache access and publication:
 the backend writes only objects and the branch ref, and the fetch, merge
-and push name the branch rather than checking it out. Publish an initial Rust or
-JS entry only after its entire hashed contract succeeds; one platform or a
-narrower check cannot certify the full block. Another build system may
-reuse the entry when its canonical contract and complete inputs describe
-equivalent work.
+and push name the branch rather than checking it out. A rung entry — the
+`js` one says the suite passed on every engine and platform — is written
+only when every job of the rung is green, which only the finalizer can
+see; one platform or a narrower check cannot certify it. Another build
+system may reuse an entry when its canonical contract and complete inputs
+describe equivalent work.
+
+Per-task entries are the step below per-job: a contract per step from the
+same manifests, so the expensive steps — coverage, the Rust build — are
+skipped inside a job that must run anyway. Setup steps are not skippable,
+since the runner is up either way. Worth doing once the per-job cache has
+shown where the minutes go.
 
 Clear some or all cache entries with an ordinary deletion commit on the
 branch — `git rm` on a checkout of it, or a commit built the same way —
@@ -177,6 +238,87 @@ merged in as any addition is.
 
 These records establish successful work. Restoring build outputs is a
 separate requirement.
+
+#### Any system may read and write the branch
+
+Jobs are self-managed and independent: a job's whole relation to the cache
+is fetch the tip, build the manifest from what it builds, look up, and
+publish on success. Nothing in an entry says GitHub Actions, so the same
+four steps run anywhere — another CI system such as CircleCI, a pipeline
+on another Git provider such as GitLab, a developer's machine — against the
+same branch, wherever it is hosted. The branch itself can live on another
+provider than the code, or on several: a repository with two remotes
+fetches from either and merges, and different keys never conflict. A
+fork's `build-cache` is its own branch, merged into the main one with
+`git merge` when wanted.
+
+Three things decide whether entries from different systems mean the same
+thing. The contract is system-neutral, as above: commands and host facts,
+no runner labels. Every system runs the same published `fjs` at the same
+pin, so manifest and contract bytes agree, and a pin bump invalidates the
+cache for everyone at once, which is correct, since the tools changed too.
+And trust is per writer: an entry is a claim by whoever could push to the
+branch, and its commit says who. On GitHub a fork PR's token is read-only,
+so a fork PR reads the cache and cannot write it, which is the right
+default and costs nothing. Where one system's word should not count for
+another, give each writer its own branch — `build-cache/github`,
+`build-cache/circleci` — and let each reader merge the branches it trusts
+into the one it reads. One branch everyone merges into is the trusting
+default, and the deletion commit is the way back from a writer that turned
+out wrong.
+
+#### Record the facts, do not validate the host
+
+An entry is a record of what was built, by which tools, on which kind of
+host, and that it passed. A reader never checks a machine against a rule;
+it reads the same facts about itself, computes the key, and asks the
+branch. Agreement is a hit, disagreement a miss, and no entry is ever
+wrong, only unread.
+
+That one rule replaces the validation a run outside CI would otherwise
+need. A machine with the wrong Node is not a failure: its Node version is
+in its contract, so its entries are ones nobody else reads, and when the
+pin moves, CI reruns everything, with no cleanup, because the facts
+changed. A dirty working tree is not a failure either: the manifest is
+built from the files that were built, hashed as Git would hash them, so it
+matches no commit and no CI reads it; CI keeps reading blob IDs from the
+commit's trees, where they are free, and the two spellings of a clean tree
+hash the same. The set of facts to read is the pin list: every tool
+`fjs/ci/config` pins is one whose version changes results, so the detector
+reads each from the path, with the operating system, its version and the
+architecture. A fact left out is the one way two different toolsets could
+share a key, so the closure of that set matters more than any entry.
+
+Two things stay outside the rule, because they are not about the cache.
+CI's first step still fails a runner whose Node is not the pin: a CI job's
+purpose is to test the pinned toolset, and a runner with another Node is a
+broken job whatever the cache says. The same detector serves both callers,
+one comparing the facts with the pins and refusing, the other hashing them.
+And trust stays per writer, since the record says what was built and the
+branch says who claims it; the facts do not vouch for the hand that pushed
+them.
+
+The property this rests on, to state and keep: the key covers every fact
+that can change the result, so two runs that share a key did the same work
+with the same tools on the same kind of host, and the only cost of a fact
+nobody else shares is an entry nobody else reads.
+
+#### `fjs ci run`, later
+
+Not for now, and the shape is decided. `fjs ci run` runs a CI job on the
+machine it is invoked on, as the workflow would: the generator in
+[`fjs/ci`](../module.f.mjs) knows every job's commands, so the command runs
+them in order, with the check first and the publication on success, and
+the workflow and the home run execute the same job definition — the only
+way their entries can share a contract. It detects rather than configures:
+the operating system and architecture from the host, the tools and their
+versions from the path, and picks the job whose contract those facts
+satisfy; where a host could run several — the ARM Linux runner carries
+four — it runs them in sequence, or takes a job name to narrow. A machine
+that matches no job is told which fact failed, not refused on the pin: a
+wrong Node is recorded, as above. A dirty tree is recorded too, from the
+files as they are, so no clean-tree check is needed before a run, and only
+the facts decide whether anyone else ever reads the result.
 
 #### If the native backend is slow
 
@@ -287,6 +429,7 @@ is most of the win at a fraction of per-file granularity, since
 `npm start test` from a directory already scopes the suite and coverage to
 that subtree. What no graph sees — a file a proof reads at run time, a
 module only a generator reaches — needs a declared input or the coarse rung.
+
 Individual crates, packages, generators, or proof groups can later have their
 own manifests without changing the JSON format, hashing, or CAS layout.
 
@@ -300,9 +443,9 @@ own complete input set and success condition.
 
 - [x] Complete [branch CAS and its CLI](../../cas/git/README.md)
       before implementing build-cache integration.
-- [ ] Define the canonical contract-descriptor schema and the two initial
-      Rust and JS contracts, including the selected invocation and execution
-      parameters. Define complete input selectors and the representation
+- [ ] Define the canonical contract-descriptor schema — the commands and
+      the host facts read from the host, one contract per CI job — and the
+      two initial input selectors, Rust and JS. Define the representation
       of build-relevant metadata before enabling reuse.
 - [ ] Read selected source-file IDs from the exact CI commit and construct
       canonical manifests with the existing Git, JSON, and CAS components.
@@ -314,11 +457,17 @@ own complete input set and success condition.
 - [ ] Enforce the initial CI limitations: cache reuse and publication must
       be unavailable where relevant inputs or metadata are unrepresented,
       or checkout and execution semantics do not match the contract.
-- [ ] Integrate CAS lookup and success-only publication through the CI
-      generator. Cover failed or incomplete builds producing no entry,
-      candidate hashing producing no success record, and hits applying only
-      to the matching contract. Keep the consumer usable by other build
-      systems.
+- [ ] Integrate the in-job check and the finalizer through the CI
+      generator: the check on stock tooling before the setup, every later
+      step conditional on the miss, the finalizer with `if: always()` as
+      the one writer. Cover failed or incomplete builds producing no entry,
+      candidate hashing producing no success record, hits applying only to
+      the matching contract, and a hit and a run published alike. Keep the
+      consumer usable by other build systems.
+- [ ] Measure the pre-check cost on macOS and Windows; decide on a gate job
+      from the measurement, not before.
+- [ ] Prove `snapshot` reads the tip of a `--depth 1` fetch of
+      `build-cache` before the shallow fetch is relied on.
 - [ ] Document cleanup and how to add finer, overlapping blocks while
       retaining complete inputs and distinct hashed contracts for different
       work.
@@ -330,6 +479,10 @@ own complete input set and success condition.
 - [ ] Measure the native backend's lookup and add on a cache branch of
       CI's size; where it is slow, ask approval for the `git` CLI fallback
       and put it behind the same three commands.
+- [ ] Per-task entries: a contract per step from the same manifests, once
+      the per-job cache has shown where the minutes go.
+- [ ] `fjs ci run`: detect the host, pick the job, run it as the workflow
+      would, publish on success.
 
 ### Related
 
