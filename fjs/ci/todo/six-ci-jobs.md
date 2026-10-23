@@ -210,8 +210,8 @@ prediction for the current four-job alternative.
 - [096-ci-caching](./096-ci-caching.md) — one runner realizes the shells per
   pull-request commit instead of five; the merge queue still realizes them
   per job.
-- [change-aware-ci](./change-aware-ci.md) — runs only the primary's steps a
-  change affects, which is what brings its serial time back down.
+- [097-smart-ca-ci](./097-smart-ca-ci.md) — skips a job whose inputs
+  passed before, which is what brings the serial time back down.
 - [`../spidermonkey/module.f.mjs`](../spidermonkey/module.f.mjs) — already
   puts SpiderMonkey's steps in `ubuntu-arm` rather than a job of its own, for
   the reason this issue gives.

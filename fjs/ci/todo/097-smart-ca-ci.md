@@ -35,6 +35,22 @@ contract is one job's, so a job that passed is recorded whether or not a
 sibling failed. Finer, possibly overlapping blocks come later, in the same
 format and through the same publication.
 
+The Rust manifest lists whole crate directories — `nanvm/lib/`,
+`nanvm/harness/`, `nanvm/effects-node/` — with the root `Cargo.toml`,
+`Cargo.lock` and `.cargo/`, not `*.rs`: `nanvm-lib`'s `vm/unstable` module
+compiles its `README.md` in with `include_str!` and its code blocks run as
+doctests, so a crate reads a little markdown and no JavaScript.
+FunctionalScript reaches Rust only through committed generated files —
+`nanvm-lib`'s `gen.methods.rs` and `tests/test/gen.corpus/`,
+`nanvm-harness`'s `gen.fixtures` and `gen.values`, `nanvm-effects-node`'s
+`gen.commands.rs` — so a JavaScript change that alters Rust commits the
+regenerated files, which are themselves Rust inputs, and one that forgets
+is caught by the `gen` check. Where the minutes go, measured over the CI
+runs of 2026-10-08 on the Linux and WASM jobs alone: the seven JavaScript
+suite runs of a pull-request commit took about 20 runner-minutes and its
+`cargo` steps about 3.5, so most of a commit's work is a mismatch for most
+changes, and the JavaScript rungs below are where the cache pays first.
+
 #### Manifest format
 
 ```ts
@@ -205,11 +221,17 @@ critical path of a run that misses.
    entry; then `git push origin build-cache`. An entry certifies the
    job's whole contract, so a job runs whole or hits whole, and the
    per-job check is the one gate a job has: a gate inside the job that
-   skipped a check on a pull request, as
-   [change-aware-ci](./change-aware-ci.md) proposes, would let a green
-   job publish an entry for work that never ran. The rungs decide by
-   inputs what those areas decided by diff, on the merge queue too, and
-   supersede them. Each new entry is a commit
+   skipped a check on a pull request would let a green job publish an
+   entry for work that never ran. A diff-based classification of changed
+   paths into areas was the earlier plan for the same saving; the rungs
+   decide by inputs what it decided by diff, on the merge queue too,
+   and replaced it. Two of its findings hold here as well: a hit skips
+   steps and never the workflow, since a workflow-level `paths:` filter
+   leaves a required check unreported and blocks the pull request, while
+   a job that ends green with its steps skipped reports; and each job
+   checks for itself, since a job behind a `needs` edge is created only
+   when the job it waits for finishes, and behind a full queue waits
+   twice. Each new entry is a commit
    of its own, since `add` commits per entry, so a fresh run pushes a few
    commits and a run of hits pushes none; a batch `add` is not worth
    building for a history nobody reads. There is nothing to collect from
@@ -553,10 +575,6 @@ own complete input set and success condition.
 - [Smart builds on developer machines](../../dev/todo/smart-builds.md) —
   the direction is decided here, a developer machine as one more job
   through `fjs ci run`; that task records what the direction leaves open.
-- [change-aware-ci](./change-aware-ci.md) — superseded by the rungs, which
-  decide by inputs what its areas decided by diff, and on the merge queue
-  too; a job runs whole or hits whole. Its reading of what each check reads
-  carries over into the input lists.
 - [096-ci-caching](./096-ci-caching.md) — caches the tools needed to run builds.
 - [CI generator](../README.md) — owns the generated GitHub workflows.
 - [JSON utilities](../../media/json/module.f.mjs) — reuse `stringifySorted`.
