@@ -1,7 +1,7 @@
 ## `sign` demo: an OpenSSL check and nonce reuse
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
