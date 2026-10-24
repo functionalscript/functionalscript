@@ -111,8 +111,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       schema/identity decision and producer/consumer migration.
 - [ ] **E — General graph construction.** Complete the loop-construction owner
       using explicit FAST inputs/results; no source-mutability analysis here.
-      Fixed-input invocation roots are implemented; general helpers, operand
-      completions and shared memo transport remain open.
+      Fixed-input invocation roots and normal-exit aggregate helpers are
+      implemented; nested helpers, operand completions and shared memo transport
+      remain open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

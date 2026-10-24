@@ -26,6 +26,27 @@ source pipeline. Entry values and captures are established at the original
 loop statement, including inside conditional regions. Unused loop results do
 not discard the loop's required evaluation.
 
+Other normal-exit loops use one recursive helper with an ordered state array.
+The array slots follow the explicit loop parameter order, so state signatures
+are not limited by the function fixed-parameter limit. Each continue packages
+all next values before the recursive call. Each break returns an ordered result
+array, including zero or one result; the caller projects the declared results
+and resumes after the loop. Input and result signatures are independent.
+Sequential loops and loops in either conditional region retain their original
+entry point. A skipped region establishes neither entry values nor captures.
+Only already-established free values may cross the helper boundary; a lazy
+free binding is refused until shared demand-state transport is implemented.
+
+[`loop`](./loop/module.f.mjs) builds these helpers as normalized single-input
+invocation loops, then the existing root resolver and ordinary function
+constructor produce their graphs. A helper's graph uses one array argument,
+direct self calls with the next state array, and direct result arrays, without
+completion tags. The loop call is shared by all result projections and remains
+required even when no result is used. A general helper's first EDAG -> FAST ->
+EDAG conversion may split a non-minting state-slot property read across
+conditional arms; subsequent conversions stabilize. Existing scalar exact-graph
+cases retain their shape.
+
 A canonical scalar invocation loop reuses its enclosing function. Its body
 contains only aliases of established arguments, captures or self before the
 loop, then a direct return of the loop's single result. Capture and self aliases
@@ -83,11 +104,12 @@ contract. Existing source round trips retain
 their analysis-normalized comparison, including the documented lazy-region
 splits and redundant-anchor normalization.
 
-This fixed-invocation increment does not complete epic E. General nonroot
-helpers, nested loop construction, nonlocal exits inside value operands,
+These increments do not complete epic E. Nested helper construction,
+enclosing-function completions, nonlocal exits inside value operands,
 rest invocation reconstruction and lazy demand state crossing a generated
 helper boundary remain explicit E/F work. Unsupported forms are refused
-explicitly. A true lazy free
-binding is not eagerly captured by the scalar constructor. The
+explicitly. Nested statement loops and transfers escaping a normal-exit helper
+remain refused, as do loop-body normal yields. A true lazy free
+binding is not eagerly captured by either helper constructor. The
 [loop construction proposal](../todo/fast-loop-construction.md) records the
 completion and memo-state contracts for that extension.
