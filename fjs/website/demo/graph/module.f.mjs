@@ -977,8 +977,9 @@ const titleTraceOf = p => attrs => p.title === 0 ? [] : [/** @type {Element} */ 
  * Hovering either a reference cell or its adjacent key traces that route
  * and outlines both cells as one source block. A port without a separate
  * reference cell keeps its single-cell interaction.
- * Hovering a node name traces only its incoming connections and their
- * source ports. Nodes without visible port cells use their title block.
+ * Hovering anywhere in a node's visible title cell traces only its incoming
+ * connections and their source ports. Nodes without visible port cells use
+ * their title block.
  * The SVG's own CSS relationships use numeric identities,
  * not display names.
  *
@@ -1134,6 +1135,12 @@ export const graphSvg = g => {
     const labelEls = drawn.map(at => {
         const { local: p, group } = placeOf(at)
         return /** @type {Element} */ (['g', { ...inKindOf(p), ...group('text') },
+        // Cover the blank title area above arrow hit strokes at the border,
+        // but below its text. Adjacent port cells keep their own targets.
+        ...(g.trace === true && p.title > 0 ? [/** @type {Element} */ (['rect', {
+            x: String(p.x), y: String(p.y), width: String(p.title), height: String(p.height), rx: String(radius),
+            fill: 'transparent', stroke: 'none', 'data-graph-title-hit': '', ...nameAttrOf(p.id),
+        }])] : []),
         ...(p.groups !== undefined
             ? groupCellsOf(p).map(cell => /** @type {Element} */ (['text', {
                 x: String(p.x + p.title / 2), y: String(p.y + cell.y + cell.height / 2),

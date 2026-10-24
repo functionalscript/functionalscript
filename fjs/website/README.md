@@ -713,6 +713,10 @@ activates the connection and highlights both cells as one rounded source
 block. A port with no separate reference cell keeps its single-cell
 interaction. Inline-only values do not activate a connection.
 
+The whole visible title cell, including blank space above and below its
+text, activates incoming-connection highlighting. Its hover area stays
+within the title column and does not cover adjacent port cells.
+
 These tokens are independent of `--value`: selecting a connection must not
 recolour the schema values. Both schemes live in the shared stylesheet,
 alongside the rest of the site's palette.
