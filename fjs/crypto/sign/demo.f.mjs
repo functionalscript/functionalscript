@@ -424,13 +424,13 @@ const parseSharedNonce = parseHexField('the shared nonce', 64)
 /** Validate the independent nonce experiment before signing.
  * @type {(draft: DemoNonceReuse) => ReturnType<typeof reuseP256>}
  */
-export const nonceReuse = draft => {
-    const [keyTag, key] = parseDemoKey(draft.key)
+export const nonceReuse = ({ key: keyText, nonce: nonceText, message1, message2 }) => {
+    const [keyTag, key] = parseDemoKey(keyText)
     if (keyTag === 'error') { return error(key) }
-    const [nonceTag, nonce] = parseSharedNonce(draft.nonce)
+    const [nonceTag, nonce] = parseSharedNonce(nonceText)
     if (nonceTag === 'error') { return error(nonce) }
-    const first = tryUtf8(draft.message1)
-    const second = tryUtf8(draft.message2)
+    const first = tryUtf8(message1)
+    const second = tryUtf8(message2)
     if (first === null || second === null) { return error(`Each message must be at most ${maxLengthBytes} UTF-8 bytes.`) }
     return reuseP256(key, nonce, [first, second])
 }
@@ -460,19 +460,22 @@ const nonceReuseOutput = result => {
 /** An interactive, deliberately broken signer, separate from Alice's exchange.
  * @type {(draft: DemoNonceReuse) => Element}
  */
-const nonceReuseView = draft => ['section',
-    ['h3', 'Why nonce reuse reveals the private key'],
-    paragraph('Experiment with two messages signed using one shared nonce. P-256 / SHA-256 stays fixed in this section. Change any input to recalculate both signatures and recover the private key from their public scalars.'),
-    inputField({ name: 'reuse-key', label: 'Demo-only private key x, hex' }, draft.key),
-    inputField({ name: 'reuse-nonce', label: 'Shared nonce k for both messages, hex' }, draft.nonce),
-    textField({ name: 'reuse-message1', label: 'Message 1 (UTF-8)', rows: 2 }, draft.message1),
-    textField({ name: 'reuse-message2', label: 'Message 2 (UTF-8)', rows: 2 }, draft.message2),
-    paragraph('The same k gives the same r. From s₁k = h₁ + rx and s₂k = h₂ + rx, eliminate k to recover x using only the two signatures and message hashes. All scalar arithmetic is modulo q.'),
-    codeBlock('x = (s1·h2 − s2·h1) / (r·(s2 − s1)) mod q', 'Copy key recovery formula'),
-    ...nonceReuseOutput(nonceReuse(draft)),
-    paragraph('Recovery needs distinct hashes modulo q and a nonzero denominator. Try making both messages identical to see why repeating one signature does not provide two independent equations.'),
-    paragraph('Keep k secret and never reuse it across different message hashes. Alice’s signer above uses RFC 6979 to derive k from the private key and message; signing the same message again deterministically is safe.'),
-]
+const nonceReuseView = draft => {
+    const { key, nonce, message1, message2 } = draft
+    return ['section',
+        ['h3', 'Why nonce reuse reveals the private key'],
+        paragraph('Experiment with two messages signed using one shared nonce. P-256 / SHA-256 stays fixed in this section. Change any input to recalculate both signatures and recover the private key from their public scalars.'),
+        inputField({ name: 'reuse-key', label: 'Demo-only private key x, hex' }, key),
+        inputField({ name: 'reuse-nonce', label: 'Shared nonce k for both messages, hex' }, nonce),
+        textField({ name: 'reuse-message1', label: 'Message 1 (UTF-8)', rows: 2 }, message1),
+        textField({ name: 'reuse-message2', label: 'Message 2 (UTF-8)', rows: 2 }, message2),
+        paragraph('The same k gives the same r. From s₁k = h₁ + rx and s₂k = h₂ + rx, eliminate k to recover x using only the two signatures and message hashes. All scalar arithmetic is modulo q.'),
+        codeBlock('x = (s1·h2 − s2·h1) / (r·(s2 − s1)) mod q', 'Copy key recovery formula'),
+        ...nonceReuseOutput(nonceReuse(draft)),
+        paragraph('Recovery needs distinct hashes modulo q and a nonzero denominator. Try making both messages identical to see why repeating one signature does not provide two independent equations.'),
+        paragraph('Keep k secret and never reuse it across different message hashes. Alice’s signer above uses RFC 6979 to derive k from the private key and message; signing the same message again deterministically is safe.'),
+    ]
+}
 
 /** @type {Demo<DemoState, DemoEvent>} */
 export const demo = {

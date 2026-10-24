@@ -9,12 +9,14 @@ import { utf8 } from '../../../text/module.f.mjs'
 
 const reuseP256 = reuse(secp256r1)(sha256)
 const verifyP256 = verify(secp256r1)(sha256)
+const nonceP256 = computeK(all(secp256r1.nf.p))(sha256)
 /** @type {readonly [Vec, Vec]} */
 const messages = [utf8('sample'), utf8('test')]
 
 export const proof = /** @type {const} */ ({
     recovery: () => {
         for (const key of [1n, 0x1234_5678n, secp256r1.nf.p - 1n]) {
+            const nonce = nonceP256(key)
             for (const k of [1n, 7n, secp256r1.nf.p - 1n]) {
                 const { q, signatures, recovered } = assertOk(reuseP256(key, k, messages))
                 const recoveredKey = assertOk(recovered)
@@ -30,9 +32,8 @@ export const proof = /** @type {const} */ ({
                     assertEq(secp256r1.nf.mul(s)(k), (h + r * key) % q)
                     assert(verifyPublicKey(messages[i])([r, s]))
                 }
-                const nonce = computeK(all(q))(sha256)(key)
-                assert(nonce(messages[0]) !== nonce(messages[1]))
             }
+            assert(nonce(messages[0]) !== nonce(messages[1]))
         }
     },
     equalMessages: () => {
