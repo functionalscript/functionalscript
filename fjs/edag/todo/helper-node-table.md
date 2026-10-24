@@ -37,16 +37,25 @@ ladder over `_entryText`, `_hasEntryText` and `_intrinsicText`.
 
 Widen `intrinsics` into a helper table, `helpers = [['entry', 2],
 ['hasEntry', 2], ['slice', 3], ['charCodeAt', 2]]`, with `isHelper` and
-`helperLength`, and add `isFunctionNode` (a lambda or a helper) beside
-`isStatic`. In `js/ast/serializer/intrinsic`, one `_helperChunks(id)` does the
-three-way text dispatch. The call binder, the property reader and the Rust
-emitter then read one arity; the four predicates become one call; the Rust
-emitter keeps only its native body per helper.
+`helperLength`, and add `isFunctionNode` (an EDAG lambda, `'=>'`, or a
+helper) beside `isStatic`. In `js/ast/serializer/intrinsic`, one
+`_helperChunks(id)` does the three-way text dispatch. The call binder, the
+property reader and the Rust emitter then read one arity; the Rust emitter
+keeps only its native body per helper.
+
+The shared predicate replaces the helper *list* at each site, not the site's
+own case. `value/semantics`'s `isFunction` also admits a static function —
+`Object.is` is a function to `typeOf` — so it stays `isFunctionNode(value) ||
+isStatic(value)`; and the FAST writer names a lambda `'function'`, not
+`'=>'`, so `js/ast/serializer`'s `precedence` keeps that case and asks
+`isHelper` for the rest. What the four sites stop doing is spelling `entry`,
+`hasEntry` and `isIntrinsic` out for themselves.
 
 ### Tasks
 
 - [ ] `helpers`, `isHelper`, `helperLength`, `isFunctionNode`; types pinned.
-- [ ] The arity sites, the predicates and the text dispatches over them.
+- [ ] The arity sites, the predicates and the text dispatches over them,
+      each keeping the case above that is its own.
 
 ### Related
 
