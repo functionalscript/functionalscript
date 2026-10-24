@@ -133,14 +133,14 @@ enclosing helper. Normal-only loops and canonical invocation roots retain their
 previous paths. A root's inner returning helpers can introduce dispatch, while
 its terminal public result and direct self calls remain unwrapped.
 
-Graph-level normal/control joins handle noncanonical function bodies, replacing
-the former `loop/root.terminalFunction` expansion. Each normal join binds selected
-region results and constructs one shared following graph; terminal return/self
-call computations stay direct. Prefix/condition expression identities are shared
-between control and normal-result selection. No extra invocation or eager
-terminal completion product is introduced. The owning function target is retained
+Graph-level normal/control joins handle function bodies and reconstructed
+canonical invocation roots, replacing the former continuation expansion. Each
+normal join binds selected region results and constructs one shared following
+graph; terminal return/self call computations stay direct. Prefix/condition
+expression identities are shared between control and normal-result selection.
+No extra invocation or eager terminal completion product is introduced. The owning function target is retained
 for statement regions and reset at operand boundaries. Canonical invocation-root
-reconstruction retains its existing statement resolver for this increment.
+reconstruction preserves those regions while rewriting its owning transfers.
 Ordinary nested function bodies and value operands are not traversed by this
 normalization. Payload computations remain ordinary evaluations; their broader
 tail-call eligibility belongs to F. Value-operand completions remain open.
@@ -177,10 +177,9 @@ keeping the established scalar shape first. Its contract lives in
 normal-exit general helpers, including nested helpers, are also implemented.
 Operand control and rest transitions remain open below.
 
-The current fixed-input root constructor shares the suffix of wholly normal
-result regions. A region with nonlocal exits can still reconstruct the suffix
-independently for more than one normal exit. For example, both arms below can
-return or yield, so repeating this statement grows the following suffix
+The former fixed-input root constructor copied the following suffix into each
+normal exit of a region with nonlocal exits. For example, both arms below can
+return or yield, so repeating this statement previously grew the suffix
 exponentially:
 
 ```text
@@ -195,19 +194,26 @@ followingStatements
 ```
 
 A bounded reproduction grew the normalized function from 4,949 bytes for four
-such statements to 79,349 for eight and 1,269,749 for twelve. This performance
-case remains open: implement a shared normal/control join in the graph owner,
-preserving the existing partially abrupt result-region behavior. Reusing a
-task or AST object alone still reconstructs the suffix in each branch. A
-continuation function would add an invocation and can create recursive call
-cycles; wrapping returned self calls in eager completion payloads would remove
-their direct tail position. Keep terminal public results and self calls direct.
+such statements to 79,349 for eight and 1,269,749 for twelve. The root resolver
+now preserves statement regions for the graph owner's shared normal/control
+joins. The following graph is constructed once and shared across normal exits,
+as it is for noncanonical helper callers. Terminal public results and self calls
+remain direct, without a continuation function or eager completion payload.
 
-Noncanonical helper callers now use such graph-level joins rather than expanding
-normal continuations in FAST. Their following graph is constructed once even
-when several normal exits reach it. The canonical-root reproduction above is
-still open; migrate its specialized reconstruction without changing the named
-exact-graph domain in a following increment.
+The canonical-root proof includes fixed invocation inputs, a captured value,
+simultaneous next-state updates and a required suffix call/allocation. Its
+normalized FAST and unique graph nodes grow linearly:
+
+| Mixed regions | Unique graph nodes | Normalized FAST bytes |
+| ---: | ---: | ---: |
+| 4 | 32 | 2,817 |
+| 8 | 44 | 4,329 |
+| 12 | 56 | 5,841 |
+
+Every size has one suffix call and allocation, one direct self call and one
+function. Existing exact graph fixtures remain unchanged; mixed result regions
+bind selected normal values through the graph join rather than per-arm suffix
+definitions.
 
 Normalized loop bodies already have explicit transfers and no implicit
 fallthrough. A reached loop-body `yield` violates that precondition and is
@@ -322,7 +328,7 @@ their documented normalization. Repeated conversions must stabilize.
       one-time setup, changed invocation layouts and following result processing.
 - [x] Share normal continuations in noncanonical helper callers at graph
       construction, retaining direct terminal values and selected required work.
-- [ ] Extend the graph join to canonical invocation-root reconstruction and
+- [x] Extend the graph join to canonical invocation-root reconstruction and
       close the measured mixed-region suffix-growth case above.
 - [ ] Keep the existing scalar shape; pin deterministic general state/capture
       ordering and stable repeated conversions.
