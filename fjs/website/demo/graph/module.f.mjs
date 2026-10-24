@@ -973,11 +973,10 @@ const titleTraceOf = p => attrs => p.title === 0 ? [] : [/** @type {Element} */ 
  * **Tracing is opt-in.** `Graph.trace` makes each complete connection a
  * native focus target with a wider transparent hit area. Hover or focus
  * highlights its route, source port and destination title; clicking gives it persistent
- * focus, and Tab moves to the next connection. Bundled returns keep every
- * logical route so one source can still be followed through a shared run.
- * Hovering a reference cell traces that route and outlines only that cell;
- * its adjacent key is inactive. A port without a separate reference cell
- * keeps its single-cell interaction.
+ * focus, and Tab moves to the next connection.
+ * Hovering either a reference cell or its adjacent key traces that route
+ * and outlines both cells as one source block. A port without a separate
+ * reference cell keeps its single-cell interaction.
  * Hovering a node name traces only its incoming connections and their
  * source ports. Nodes without visible port cells use their title block.
  * The SVG's own CSS relationships use numeric identities,
@@ -1038,14 +1037,11 @@ export const graphSvg = g => {
             ['path', { d, 'data-graph-trace': '', 'marker-end': 'url(#graph-trace-arrow)' }],
             ...titleTraceOf(target)({ 'data-graph-title-outline': String(to) }),
             ...(sourcePorts.length === 0 && edge.from !== to ? titleTraceOf(from)({ 'data-graph-title-outline': String(edge.from) }) : []),
-            ...sourcePorts.map(port => {
-                const key = port.ref === null ? 0 : keyWidthOf(from)(port)
-                return /** @type {Element} */ (['rect', {
-                    x: String(from.x + from.title + key), y: String(from.y + port.y),
-                    width: String(from.width - from.title - key), height: String(portHeight), rx: String(radius),
-                    'data-graph-trace': '', 'data-graph-port-outline': String(index),
-                }])
-            }),
+            ...sourcePorts.map(port => /** @type {Element} */ (['rect', {
+                x: String(from.x + from.title), y: String(from.y + port.y),
+                width: String(from.width - from.title), height: String(portHeight), rx: String(radius),
+                'data-graph-trace': '', 'data-graph-port-outline': String(index),
+            }])),
         ])] }
     })
     const entries = g.entries ?? []
@@ -1065,8 +1061,6 @@ export const graphSvg = g => {
     /** @type {(port: _Port) => { readonly 'data-graph-port-edge'?: string }} */
     const portAttrOf = port => g.trace === true && typeof port.edge.to === 'number'
         ? { 'data-graph-port-edge': String(port.index) } : {}
-    /** @type {(port: _Port) => { readonly 'data-graph-port-edge'?: string }} */
-    const keyPortAttrOf = port => port.ref === null ? portAttrOf(port) : {}
     /** @type {(id: number) => { readonly 'data-graph-node-name'?: string }} */
     const nameAttrOf = id => g.trace === true ? { 'data-graph-node-name': String(id) } : {}
     // A keyed graph draws its keyed groups in an order of their own, by
@@ -1100,7 +1094,7 @@ export const graphSvg = g => {
                 x: String(p.x + p.title), y: String(p.y + port.y),
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-port': '',
-                ...keyPortAttrOf(port),
+                ...portAttrOf(port),
             }])]),
             ...p.ports.flatMap(port => valueOf(port) === null ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x + p.title + keyWidthOf(p)(port)), y: String(p.y + port.y),
@@ -1152,7 +1146,7 @@ export const graphSvg = g => {
         ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.title + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',
-            ...keyPortAttrOf(port),
+            ...portAttrOf(port),
         }, port.edge.label])]),
         ...p.ports.flatMap(port => {
             const { to } = port.edge
