@@ -3,6 +3,8 @@
 **Priority:** P2
 **Status:** wip — scalar construction and fixed-input root reconstruction
 are implemented; general helpers and completions remain in E
+**Current increment:** general nonroot helpers with aggregate state/results and
+normal exits; sequential and conditional placement, preserving scalar graphs.
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
