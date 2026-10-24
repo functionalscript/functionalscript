@@ -14,7 +14,7 @@ import { sqrt } from '../../types/prime_field/module.f.mjs'
 import { curve, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { demo, nonceReuse, outgoing, parseHexField, received, signed } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -734,15 +734,13 @@ export const proof = {
                 ['nonce', 'xyz', 'shared nonce'],
                 ['nonce', 'f'.repeat(65), 'at most 64'],
             ]) {
-                const result = nonceReuse({ ...demo.init.reuse, [field]: value })
-                assertEq(result[0], 'error')
-                assert(String(result[1]).includes(expected))
+                const message = assertError(nonceReuse({ ...demo.init.reuse, [field]: value }))
+                assert(message.includes(expected))
             }
             const long = 'a'.repeat(Number(maxLengthBytes) + 1)
             for (const field of ['message1', 'message2']) {
-                const result = nonceReuse({ ...demo.init.reuse, [field]: long })
-                assertEq(result[0], 'error')
-                assert(String(result[1]).includes('Each message must be at most'))
+                const message = assertError(nonceReuse({ ...demo.init.reuse, [field]: long }))
+                assert(message.includes('Each message must be at most'))
             }
             assertEq(unwrap(nonceReuse({ ...demo.init.reuse, message1: '' })).recovered[0], 'ok')
         },
