@@ -8,6 +8,7 @@ import { sha256 } from '../../sha2/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 
 const reuseP256 = reuse(secp256r1)(sha256)
+const verifyP256 = verify(secp256r1)(sha256)
 /** @type {readonly [Vec, Vec]} */
 const messages = [utf8('sample'), utf8('test')]
 
@@ -18,15 +19,16 @@ export const proof = /** @type {const} */ ({
                 const { q, signatures, recovered } = assertOk(reuseP256(key, k, messages))
                 const recoveredKey = assertOk(recovered)
                 assertEq(recoveredKey, key)
-                const [first, second] = signatures
-                assertEq(first.r, second.r)
-                assert(first.h !== second.h)
-                assert(first.s !== second.s)
+                const [{ r: r1, h: h1, s: s1 }, { r: r2, h: h2, s: s2 }] = signatures
+                assertEq(r1, r2)
+                assert(h1 !== h2)
+                assert(s1 !== s2)
                 const publicKey = assertNotNullish(secp256r1.mul(recoveredKey)(secp256r1.g))
+                const verifyPublicKey = verifyP256(publicKey)
                 for (const [i, { h, r, s }] of signatures.entries()) {
                     assert(r > 0n && r < q && s > 0n && s < q)
                     assertEq(secp256r1.nf.mul(s)(k), (h + r * key) % q)
-                    assert(verify(secp256r1)(sha256)(publicKey)(messages[i])([r, s]))
+                    assert(verifyPublicKey(messages[i])([r, s]))
                 }
                 const nonce = computeK(all(q))(sha256)(key)
                 assert(nonce(messages[0]) !== nonce(messages[1]))
