@@ -47,6 +47,21 @@ proposes is what would make it one.
 
 ### Problem
 
+The shared-control-join constructor proof now builds a function body with
+20,000 nested `['?:', false, 9, next]` nodes using an explicit worklist.
+Construction succeeds, but passing that graph to `identityAnalysis` still
+overflows in `walk` and `o3` under the pinned Node 26 toolchain. The constructor
+proof inspects the graph iteratively so it tests construction rather than this
+downstream limit. This issue owns the analysis walk's remaining recursion.
+
+```js
+let body = 7;
+for (let depth = 0; depth < 20_000; ++depth) {
+    body = ['?:', false, 9, body];
+}
+identityAnalysis(['=>', 0, [], body]);
+```
+
 The analysis walk — `walk` and its handlers in
 [`../analysis/module.f.mjs`](../analysis/module.f.mjs) — recurses once per
 operand, so a sufficiently deep EDAG — a long left-associative operator

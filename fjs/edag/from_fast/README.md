@@ -79,14 +79,41 @@ outer dispatch, with additional cases in zero-result statement regions.
 helper construction. `completeBlockTransfers` handles standalone blocks without
 inventing a source-function owner. Operand blocks normalize their own local
 loops on entry; transfers to targets outside that operand remain refused.
-Already-normalized statement regions skip a repeated pass. Changed
-nonroot function bodies use the shared terminal statement resolver to turn
-early-return dispatch into ordinary conditional results. Normal-only helpers
+Already-normalized statement regions skip a repeated pass. Noncanonical
+function bodies use graph-level normal/control joins for mixed statement
+regions. A join binds one selected normal result and constructs its following
+graph once, sharing that exact expression across normal exits. Prefix and
+condition expression identities are retained in both result selection and
+control selection. Terminal returns and self calls stay direct; no continuation
+function or eager terminal-payload envelope is introduced. Zero-result joins
+need no result selector, and nonzero joins retain required result evaluation
+even when a result is unused. Normal-only helpers
 retain their previous graph path. Canonical invocation roots are exempt from
 completion wrapping, so terminal public results and self calls stay direct;
 their inner helpers can still return to the owning source function. Return
 payload computations remain ordinary evaluations; broader tail-call eligibility
 belongs to milestone F. Throws and failures use the existing failure channel.
+
+The graph join replaces the former `loop/root.terminalFunction` expansion for
+helper callers. Canonical invocation-root reconstruction still uses its existing
+statement resolver and retains the separately tracked continuation-growth case.
+Joins operate only in an owning function's statement regions. Operand regions
+reset that owner and continue to refuse nonlocal exits; standalone blocks do not
+invent a source function. Normal-only regions keep their established lowering.
+
+Statement summaries track whether a normal path reaches the next statement.
+Dependencies from an unreachable suffix or final exit do not justify dropping
+required prefix work. Within graph control, required definitions and loop calls
+retain an anchor at their original entry even when a later normal path reads
+their results: an earlier return must not skip that evaluation. References keep
+the same expression identity, so the anchor and later reads share one result.
+Dependencies reached by the eager entry prefix, including the first condition,
+need no separate anchor. This retains established guard-read sharing across
+graph conversions. Values read only by a branch or a later normal continuation
+remain anchored. This conservative rule can retain redundant anchors compared
+with ordinary result-only lowering.
+Regions whose paths all throw also end graph control immediately, without
+lowering their unreachable continuation.
 
 A canonical scalar invocation loop reuses its enclosing function. Its body
 contains only aliases of established arguments, captures or self before the
