@@ -708,9 +708,14 @@ also distinguish the selection; labels keep their normal text colours.
 The tint is opaque, so several incoming connections cannot darken the same
 title by stacking translucent fills.
 
-When a row has both a key and a schema reference, only the reference cell
-activates hover and receives the source highlight. A port with no separate
-reference cell keeps its single-cell interaction.
+When a row has both a key and a schema reference, hovering either cell
+activates the connection and highlights both cells as one rounded source
+block. A port with no separate reference cell keeps its single-cell
+interaction. Inline-only values do not activate a connection.
+
+The whole visible title cell, including blank space above and below its
+text, activates incoming-connection highlighting. Its hover area stays
+within the title column and does not cover adjacent port cells.
 
 These tokens are independent of `--value`: selecting a connection must not
 recolour the schema values. Both schemes live in the shared stylesheet,
