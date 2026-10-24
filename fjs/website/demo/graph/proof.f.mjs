@@ -353,7 +353,9 @@ export const proof = {
             assert(html.includes('<text x="84" y="20" text-anchor="middle" data-graph-edge-label="" data-graph-port-edge="0">item<'), html)
             assert(html.includes('<rect x="50" y="10" width="115" height="20" rx="4" data-graph-trace="" data-graph-port-outline="0">'), html)
             assert(html.includes('<text x="84" y="40" text-anchor="middle" data-graph-edge-label="">constant<'), html)
-            assertEq(occurrences(' data-graph-node-name=')(html), 2)
+            assertEq(occurrences(' data-graph-node-name=')(html), 4)
+            assertEq(occurrences(' data-graph-title-hit=')(html), 2)
+            assert(html.includes('<rect x="10" y="10" width="40" height="40" rx="4" fill="transparent" stroke="none" data-graph-title-hit="" data-graph-node-name="0">'), html)
             assert(html.includes('data-graph-from="0" data-graph-to="1"'), html)
             assert(html.includes('svg:has([data-graph-port-edge="0"]:hover) [data-graph-connection="0"]'), html)
             assert(html.includes('svg:has([data-graph-node-name="1"]:hover) [data-graph-to="1"]'), html)
@@ -366,6 +368,17 @@ export const proof = {
             const overlays = html.indexOf('<g data-graph-trace-layer="">')
             assert(overlays > html.lastIndexOf('data-graph-edge=""'), html)
             assert(html.indexOf('<g data-graph-connection="0"') > overlays, html)
+            // A route's broad hit stroke must not steal the title's border.
+            assert(html.indexOf('data-graph-title-hit=""') > overlays, html)
+        },
+        tracingIsOptIn: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'n', label: 'root', rank: 0 }],
+                edges: [],
+            }))
+            assert(!html.includes('data-graph-title-hit'), html)
+            assert(!html.includes('data-graph-node-name'), html)
+            assert(!html.includes('data-graph-trace-layer'), html)
         },
         // A corner or a compact node has no separate source port cell.
         // Use its title; an empty title gets no invented block, and a
@@ -389,6 +402,8 @@ export const proof = {
             assertEq(occurrences(' data-graph-title-hover=')(html), 2)
             assert(!html.includes('data-graph-title-outline="1"'), html)
             assert(!html.includes(' data-graph-title-hover="1"'), html)
+            assertEq(occurrences(' data-graph-title-hit=')(html), 2)
+            assert(!html.includes('data-graph-title-hit="" data-graph-node-name="1"'), html)
         },
         // A compact node still has a row in the layout, but its title
         // fills the entire width. Trace its title rather than drawing a
