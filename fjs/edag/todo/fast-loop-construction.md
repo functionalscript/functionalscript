@@ -110,6 +110,15 @@ required projections preserve the original loop binding identities. Original
 source loop signatures and public function metadata stay unchanged, and blocks
 without a crossing deferred binding keep their existing graph path.
 
+Each selected declaration has a private recipe function that captures its
+established prerequisites there and accepts/returns the current memo vector.
+Cell aliases activate at their exact declaration and follow lexical shadowing;
+an earlier Environment read cannot become a read of a later local cell. Required
+definitions and region/loop binders establish their own values. This adds one
+private recipe function per cell to the memo-bearing normalization while
+retaining the no-memo exact graph domain. External lazy provenance follows
+aliases and is refused before a recipe helper could capture it eagerly.
+
 The admitted recipes depend only on established values. Conditional demands,
 normal continues/breaks, sequential helpers and following caller reads carry
 the selected memo state. Dependent lazy recipes, iteration-local cells,

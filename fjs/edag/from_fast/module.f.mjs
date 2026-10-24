@@ -90,13 +90,18 @@ const mergeIndex = earlier => later => new Map([...earlier, ...later])
 const appendIndex = step(mergeIndex)
 
 /** @type {Scope} */
-const emptyScope = { index: null, entries: null }
+const emptyScope = { index: null, entries: null, lazy: null }
 
 /** A new chunk overrides older chunks; its first duplicate remains its value. @type {(environment: Environment, parent?: Scope) => Scope} */
-const scopeOf = (environment, parent = emptyScope) => ({
-    index: appendIndex(new Map(environment.toReversed().map(entry => /** @type {const} */ ([entry[0], entry]))))(parent.index),
-    entries: { head: parent.entries, tail: environment },
-})
+const scopeOf = (environment, parent = emptyScope) => {
+    /** @type {readonly BindingId[]} */
+    const lazy = environment.flatMap(([id, , mode]) => mode === 'lazy' ? [id] : [])
+    return {
+        index: appendIndex(new Map(environment.toReversed().map(entry => /** @type {const} */ ([entry[0], entry]))))(parent.index),
+        entries: { head: parent.entries, tail: environment },
+        lazy: lazy.length === 0 ? parent.lazy : { head: parent.lazy, tail: lazy },
+    }
+}
 
 /** @type {(scope: Scope, binding: BindingId) => Exp} */
 const lookup = (scope, binding) => assertNotNullish(bindingOf(scope, binding), 'unbound FAST value')[1]
@@ -106,6 +111,9 @@ const environmentOf = scope => toArray(scope.entries)
 
 /** @type {(scope: Scope, binding: BindingId) => boolean} */
 const lazyBinding = (scope, binding) => bindingOf(scope, binding)?.[2] === 'lazy'
+
+/** Deferred values whose initializer recipes belong to an enclosing owner. @type {(scope: Scope) => readonly BindingId[]} */
+const lazyBindings = scope => [...new Set(toArray(scope.lazy).filter(id => lazyBinding(scope, id)))]
 
 /** @type {(m: ExpOp, n: ExpOp) => boolean} */
 const sameCapture = (m, n) => m === n || (['arg', 'rest', 'frame', 'self'].includes(m[0]) && m.length === n.length && m.every((x, i) => x === n[i]))
@@ -328,11 +336,9 @@ const scalarRoot = (fn, loop, context) => call(() => {
     return aliases(0, context.scope)
 })
 
-/** Helpers capture established values; lazy demand transport remains separate. @type {(loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment }>} */
+/** Memo admission leaves only established values to capture. @type {(loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment }>} */
 const loopTask = (loop, context) => call(() => {
     const scalar = scalarLoopOf(loop) !== null
-    const free = freeLoopBindings(loop)
-    if (free.some(binding => lazyBinding(context.scope, binding))) { throw 'lazy free loop bindings require shared demand-state lowering' }
     return bind(functionValue(scalar ? scalarHelper(loop) : aggregateHelper(loop), context), fn =>
         bind(valueTask(scalar ? loop.initial[0] : ['array', loop.initial], context), initial => {
             /** @type {Lowered} */
@@ -386,7 +392,7 @@ const conditional = (condition, then, otherwise, context, normalize = false) => 
 /** Operand regions normalize local memo state and loops; statement regions are already complete. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
 const regionTask = (block, context, normalize = false) => call(() => {
     if (block.exit[0] !== 'yield' && block.exit[0] !== 'throw') { throw 'nonlocal transfers in value regions require structured completion lowering' }
-    const memoized = normalize ? normalizeMemo(block) : block
+    const memoized = normalize ? normalizeMemo(block, lazyBindings(context.scope)) : block
     if (memoized !== block && context.transfer.kind !== 'default') { throw 'memo normalization requires the default transfer owner' }
     const normalized = normalize ? completeBlockTransfers(memoized) : block
     const local = normalize ? { ...context,
@@ -568,7 +574,7 @@ export const lowerValue = (root, environment, transfer) => run(valueTask(root, c
  * @type {(block: Block, environment?: Environment, transfer?: Transfer) => Lowered}
  */
 export const lowerBlock = (block, environment = [], transfer) => {
-    const memoized = normalizeMemo(block)
+    const memoized = normalizeMemo(block, lazyBindings(scopeOf(environment)))
     if (memoized !== block && transfer !== undefined) { throw 'memo normalization requires the default transfer owner' }
     const normalized = completeBlockTransfers(memoized)
     return run(blockTask(normalized, contextFor(['block', normalized], environment, transfer)))

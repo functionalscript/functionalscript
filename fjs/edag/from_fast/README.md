@@ -69,6 +69,23 @@ another owning invocation starts with fresh cells. A skipped demand does not
 evaluate the recipe, including when the loop takes zero iterations. Failure
 uses the existing failure channel and produces no ready cell.
 
+Each selected lazy declaration defines one private recipe function. It captures
+established prerequisites at that declaration, accepts the current memo vector,
+and returns the payload with its ready cell. This keeps the initializer's
+lexical values when a later declaration reuses a binding identity. Only the
+exact selected declaration activates a cell alias; earlier Environment reads
+keep their original value. Required definitions, loop parameters/results and
+statement results establish their own bindings, and child aliases do not leak
+into the parent scope. Private plans use declaration identity rather than a
+global binding-to-cell map.
+
+This extends the memo-bearing graph normalization with one recipe function per
+cell. Public arity, source values and graphs without memo crossings retain their
+contracts. The constructor supplies effective external lazy identities before
+recipe captures are built; unavailable recipes and their lazy aliases remain
+refused. Required aliases establish their values normally. A separate list of
+lazy scope entries avoids scanning established bindings at each value region.
+
 The pass replaces a selected loop with a fresh private loop whose inputs are
 the user-state array and memo vector and whose results are the user-result
 array and updated memo vector. Required projections establish the original

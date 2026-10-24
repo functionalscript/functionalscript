@@ -6,7 +6,7 @@
  *
  * @module
  *
- * @import { BindingId, Block, Loop, Value } from '../../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Loop, Value } from '../../../../../js/ast/types.ts'
  * @import { Link } from '../../../private.ts'
  * @import { MemoPlan } from './types.ts'
  * @import { _LoopInfo, _Root, _Scope, _TransferVisit, _Visit } from './private.ts'
@@ -49,16 +49,20 @@ const normalTransfers = loop => {
 /**
  * Plan only definitions whose deferred identity crosses a statement helper.
  * Primitives and reads of established values retain the existing no-memo
- * classification. Unsupported lifetimes are refused before any recipe moves.
- * @type {(block: Block) => MemoPlan | null}
+ * classification. External lazy entries retain unavailable provenance through
+ * aliases. Declaration rows keep lexical shadows distinct from earlier reads.
+ * Unsupported lifetimes are refused before any recipe moves.
+ * @type {(block: Block, externalLazyIds?: readonly BindingId[]) => MemoPlan | null}
  */
-export const memoCells = block => {
-    /** @type {Link<_Visit> | null} */
-    let pending = { first: { block, index: 0, scope: new Map(), ancestors: null }, tail: null }
+export const memoCells = (block, externalLazyIds = []) => {
     /** @type {readonly _Root[]} */
-    let roots = []
-    /** @type {readonly (readonly [BindingId, _Root])[]} */
-    let aliases = []
+    const external = externalLazyIds.map(binding => ({ binding, source: null, dependencies: [] }))
+    /** @type {Link<_Visit> | null} */
+    let pending = { first: { block, index: 0, scope: new Map(external.map(root => [root.binding, root])), ancestors: null }, tail: null }
+    /** @type {readonly _Root[]} */
+    let roots = external
+    /** @type {readonly (readonly [Definition, _Root])[]} */
+    let definitions = []
     /** @type {readonly _LoopInfo[]} */
     let inventory = []
     while (pending !== null) {
@@ -76,11 +80,13 @@ export const memoCells = block => {
             if (mode === 'lazy' && initializer !== null && typeof initializer === 'object') {
                 if (initializer[0] === 'ref') { root = scope.get(initializer[1]) ?? null }
                 else {
-                    root = { binding, initializer, insideLoop: ancestors !== null, dependencies: dependencies(initializer, scope) }
+                    root = { binding, source: { definition: statement, insideLoop: ancestors !== null }, dependencies: dependencies(initializer, scope) }
                     roots = [...roots, root]
                 }
             }
-            if (root !== null) { aliases = [...aliases, [binding, root]] }
+            if (root !== null) {
+                definitions = [...definitions, [statement, root]]
+            }
             pending = { first: { ...next, scope: new Map([...scope, [binding, root]]) }, tail }
             continue
         }
@@ -104,10 +110,12 @@ export const memoCells = block => {
     }
     if (inventory.length === 0) { return null }
     const cells = roots.filter(root => inventory.some(info => info.roots.includes(root)))
-    for (const cell of cells) {
-        if (cell.insideLoop) { throw 'iteration-local memo cells require nested demand-state lowering' }
-        if (cell.dependencies.length !== 0) { throw 'memo initializer dependencies require shared recipe lowering' }
-    }
+    const recipes = cells.map(({ binding, source, dependencies }) => {
+        if (source === null) { throw 'external lazy memo prerequisites require an owned initializer recipe' }
+        if (source.insideLoop) { throw 'iteration-local memo cells require nested demand-state lowering' }
+        if (dependencies.length !== 0) { throw 'memo initializer dependencies require shared recipe lowering' }
+        return { binding, initializer: source.definition[2], definition: source.definition }
+    })
     if (roots.some(root => root.dependencies.some(dependency => cells.includes(dependency)))) {
         throw 'lazy computed memo dependents require shared recipe lowering'
     }
@@ -116,10 +124,10 @@ export const memoCells = block => {
         normalTransfers(info.loop)
     }
     return {
-        cells: cells.map(({ binding, initializer }) => ({ binding, initializer })),
-        aliases: new Map(aliases.flatMap(([binding, root]) => {
+        cells: recipes,
+        definitions: new Map(definitions.flatMap(([definition, root]) => {
             const index = cells.indexOf(root)
-            return index === -1 ? [] : [/** @type {const} */ ([binding, index])]
+            return index === -1 ? [] : [/** @type {const} */ ([definition, index])]
         })),
         loops: new Set(inventory.map(info => info.loop)),
     }

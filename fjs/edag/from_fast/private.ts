@@ -19,6 +19,7 @@ export type Task<T> =
 export type Scope = {
     readonly index: Stack<ReadonlyMap<BindingId, Binding>>
     readonly entries: List<Binding>
+    readonly lazy: List<BindingId>
 }
 
 export type ExitOwner =

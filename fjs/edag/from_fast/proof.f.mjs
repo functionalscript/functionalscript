@@ -1805,6 +1805,117 @@ export const proof = {
             }
         }
     },
+    loopMemoExternalBeforeLocalDeclaration: () => {
+        const external = id(0), before = id(0)
+        const loop = collectingMemo(ref(external), 1)
+        const block = result(7, [
+            ['define', before, ref(external), 'required'],
+            ['define', external, ['array', [4]], 'lazy'], ['loop', loop],
+        ])
+        const graph = fromFast(block, [[external, ['.', null, 'x']]])
+        assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] }))
+    },
+    loopMemoScopedDeclaration: () => {
+        const external = id(0), before = id(0), inside = id(0)
+        const supplied = /** @type {Exp} */ (['[]', [1]])
+        const loop = collectingMemo(ref(external), 1)
+        const region = result(['array', [collectedMemo(ref(loop.results[0])), ref(external)]], [
+            ['define', external, ['array', [4]], 'lazy'], ['loop', loop],
+        ])
+        const value = evaluate(fromFast(result(['array', [ref(before), ref(external), ref(inside)]], [
+            ['define', before, ref(external), 'required'], ['block', [inside], region],
+        ]), [[external, supplied]]))
+        assert(value instanceof Array && value[2] instanceof Array)
+        assertStructurallySame(value, [[1], [1], [[4], [4]]])
+        assertEq(value[0], value[1])
+        assertEq(value[2][0], value[2][1])
+        assert(value[0] !== value[2][0])
+    },
+    loopMemoRecipeCapturesDeclarationScope: () => {
+        const prerequisite = id(0), lazy = id(0), inside = id(0)
+        const supplied = /** @type {Exp} */ (['[]', [1]])
+        const loop = collectingMemo(ref(lazy), 1)
+        const region = result(['array', [collectedMemo(ref(loop.results[0])), ref(lazy), ref(prerequisite)]], [
+            ['define', prerequisite, ['array', [9]], 'required'], ['loop', loop],
+        ])
+        const value = evaluate(fromFast(result(['array', [ref(inside), ref(prerequisite)]], [
+            ['define', lazy, ['array', [ref(prerequisite)]], 'lazy'], ['block', [inside], region],
+        ]), [[prerequisite, supplied]]))
+        assert(value instanceof Array && value[0] instanceof Array && value[0][0] instanceof Array)
+        assertStructurallySame(value, [[[[1]], [[1]], [9]], [1]])
+        assertEq(value[0][0], value[0][1])
+        assertEq(value[0][0][0], value[1])
+        assert(value[0][2] !== value[1])
+    },
+    loopMemoDefinitionShadowsVirtualAlias: () => {
+        const lazy = id(0)
+        const witness = collectingMemo(ref(lazy), 1)
+        for (const mode of /** @type {const} */ (['required', 'lazy'])) {
+            const value = evaluate(fromFast(result(['array', [collectedMemo(ref(witness.results[0])), ref(lazy)]], [
+                ['define', lazy, ['array', [4]], 'lazy'], ['loop', witness], ['define', lazy, 7, mode],
+            ])))
+            assertStructurallySame(value, [[4], 7])
+        }
+        const value = evaluate(fromFast(result(['array', [collectedMemo(ref(witness.results[0])), ref(lazy)]], [
+            ['define', lazy, ['array', [4]], 'lazy'], ['loop', witness], ['define', lazy, ['array', [9]], 'lazy'],
+        ])))
+        assertStructurallySame(value, [[4], [9]])
+    },
+    loopMemoDistinctDeclarationsSameBinding: () => {
+        const lazy = id(0)
+        const first = collectingMemo(ref(lazy), 1)
+        const second = collectingMemo(ref(lazy), 1)
+        const value = evaluate(fromFast(result(['array', [collectedMemo(ref(first.results[0])), collectedMemo(ref(second.results[0])), ref(lazy)]], [
+            ['define', lazy, ['array', [4]], 'lazy'], ['loop', first],
+            ['define', lazy, ['array', [9]], 'lazy'], ['loop', second],
+        ])))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[4], [9], [9]])
+        assertEq(value[1], value[2])
+        assert(value[0] !== value[1])
+    },
+    loopMemoLoopParameterShadowsVirtualAlias: () => {
+        const lazy = id(0), output = id(0)
+        const witness = collectingMemo(ref(lazy), 1)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loop = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [lazy], initial: [0], results: [output],
+            body: body(['continue', loopTarget, [ref(lazy)]], [
+                ['if', [], ['<', ref(lazy), 3], body(['continue', loopTarget, [['+', ref(lazy), 1]]]), body(['break', loopTarget, [ref(lazy)]])],
+            ]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(output), collectedMemo(ref(witness.results[0])), ref(lazy)]], [
+            ['define', lazy, ['array', [4]], 'lazy'], ['loop', witness], ['loop', loop],
+        ])))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [3, [4], [4]])
+        assertEq(value[1], value[2])
+    },
+    loopMemoLoopResultShadowsVirtualAlias: () => {
+        const lazy = id(0), state = id(0)
+        const witness = collectingMemo(ref(lazy), 1)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loop = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state], initial: [0], results: [lazy], body: body(['break', loopTarget, [7]]),
+        })
+        assertStructurallySame(evaluate(fromFast(result(['array', [collectedMemo(ref(witness.results[0])), ref(lazy)]], [
+            ['define', lazy, ['array', [4]], 'lazy'], ['loop', witness], ['loop', loop],
+        ]))), [[4], 7])
+    },
+    loopMemoStatementResultsShadowVirtualAlias: () => {
+        const lazy = id(0)
+        const witness = collectingMemo(ref(lazy), 1)
+        for (const statement of /** @type {readonly Statement[]} */ ([
+            ['block', [lazy], body(['yield', [7]])],
+            ['if', [lazy], true, body(['yield', [8]]), body(['yield', [9]])],
+            ['if', [lazy], false, body(['yield', [8]]), body(['yield', [9]])],
+        ])) {
+            const value = evaluate(fromFast(result(['array', [collectedMemo(ref(witness.results[0])), ref(lazy)]], [
+                ['define', lazy, ['array', [4]], 'lazy'], ['loop', witness], statement,
+            ])))
+            assertStructurallySame(value, [[4], statement[0] === 'block' ? 7 : statement[2] ? 8 : 9])
+        }
+    },
     directRootResult: () => {
         const parameter = id(0)
         const loop = counting(ref(parameter))
