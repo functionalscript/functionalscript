@@ -4,6 +4,8 @@
 **Status:** wip — scalar construction, fixed-input roots and normal-exit
 aggregate helpers are implemented; nested helpers, completions and shared
 lazy demand-state transport remain in E
+**Current increment:** normal-exit nested helpers, with inner entry and captures
+at their reached execution point and a return to their caller before it resumes.
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
