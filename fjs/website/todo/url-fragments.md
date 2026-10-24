@@ -27,8 +27,12 @@ Emergent Testing starts collapsed, so scrolling alone does not reveal it.
 - Resolve IDs across the whole page, including collisions between README
   headings and reserved section IDs. Preserve existing documentation links
   wherever possible; specify the collision rule before implementation.
+- Reserve `#demo:` for encoded demo inputs, such as
+  `/fjs/compiler/#demo:example=hex-escape`, which selects Hex escape in the
+  example dropdown before scrolling to Demo. Distinguish this namespace from
+  README heading IDs; heading text and normal heading fragments remain intact.
 - Keep this shared across generated module pages. Coordinate `#demo` with
-  [demo query links](../demo/todo/shareable-demo-queries.md), including
+  [demo state fragments](../demo/todo/shareable-demo-fragments.md), including
   scrolling after restored input changes the layout.
 
 ### Tasks
@@ -46,7 +50,7 @@ Emergent Testing starts collapsed, so scrolling alone does not reveal it.
 
 ### Related
 
-- [Share demo inputs through URL queries](../demo/todo/shareable-demo-queries.md)
+- [Share demo inputs through URL fragments](../demo/todo/shareable-demo-fragments.md)
   — restores inputs and links to the Demo section.
 - [Unicode anchors](../readme/todo/unicode-anchors.md) — existing limits on
   GitHub-compatible documentation heading IDs.

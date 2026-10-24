@@ -1,4 +1,4 @@
-## Share demo inputs through URL queries
+## Share demo inputs through URL fragments
 
 **Priority:** P3
 **Status:** open
@@ -11,18 +11,28 @@ button, including demos with several inputs.
 
 ### Proposal
 
-Use the page path to identify the demo, query parameters to describe its
-inputs, and `#demo` to open and scroll to it:
+Use the page path to identify the demo and a namespaced fragment to describe
+its inputs, open the Demo section, and scroll to it:
 
 ```text
-/fjs/compiler/?example=Overview#demo
-/fjs/compiler/?state=BASE64URL_JSON#demo
+https://functionalscript.com/fjs/compiler/#demo:example=hex-escape
+/fjs/compiler/#demo:state=BASE64URL_JSON
 ```
 
-`example` identifies a predefined example by a stable name, never its dropdown
-index. The existing picker uses names; define whether these remain the link
-identifiers or need separate IDs before allowing display-name changes.
-Each predefined example restores the complete input set it represents.
+`example` identifies a predefined example by a stable ID, separate from its
+display label and never its dropdown index. For example, `hex-escape` selects
+**Hex escape**, loads its source into the compiler editor, and recalculates
+the ordinary live outputs. Reordering examples or changing a display label
+must not break a saved link. Shared compiler-stage examples use the same IDs
+on each stage's page. Define how retired IDs are handled.
+Each predefined example restores the complete input set it represents,
+including selecting the corresponding entry in the example dropdown.
+
+Recognize only the `#demo:` namespace as encoded demo inputs. Existing README
+heading fragments, such as `/fjs/compiler/#ast`, keep their normal meaning;
+README heading text does not need to change. Plain `#demo` still opens the
+demo with its default inputs. Handle initial load, `hashchange`, and browser
+back/forward navigation through the same restoration path.
 
 `state` is JSON encoded as UTF-8 and then unpadded Base64url. Use the same
 format for single-input and multiple-input demos. A proposed payload is:
@@ -48,7 +58,7 @@ and the demo's supported fields before restoring all values together, so
 intermediate calculations never see a partially restored form. Missing fields
 use documented defaults. Report unknown examples, malformed encoding,
 unsupported versions, unknown fields, or invalid values clearly without
-crashing or applying a partial state. Specify handling for repeated query
+crashing or applying a partial state. Specify handling for repeated fragment
 parameters and edits made while the runtime is loading.
 
 Every new demo must support restoring its shareable inputs and expose a
@@ -57,8 +67,8 @@ example link only when the entire input set matches that example; otherwise
 it encodes custom state. The dropdown continues to derive its selection from
 the input where it does today. Use the existing clipboard helper and report
 copy success or failure. Copying does not change the address bar while typing.
-Keep the page origin and path and set the fragment to `#demo`; include only
-the demo query parameters in the generated link.
+Keep the page origin and path and write the selected example ID or encoded
+state inside `#demo:`. Do not duplicate demo inputs in query parameters.
 
 Loading a link restores inputs and computes ordinary live outputs. It must
 not press Run, start expensive work normally gated behind a button, or replay
@@ -71,7 +81,9 @@ outside this proposal.
 
 ### Tasks
 
-- [ ] Specify and document example identifiers, the versioned state schema,
+- [ ] Add stable example IDs separate from labels, including `hex-escape` for
+      Hex escape; document ID stability and retired-ID handling.
+- [ ] Specify and document the `#demo:` grammar, the versioned state schema,
       control value encodings, validation, defaults, precedence, repeated
       parameters, startup edits, and the sharing size limit.
 - [ ] Add shared encoding/decoding and a demo API for exporting and restoring
@@ -85,13 +97,15 @@ outside this proposal.
       controls; retain explicit Run actions where required.
 - [ ] Update [`../README.md`](../README.md) and the demo authoring contract in
       [`../../README.md`](../../README.md) and [`../types.ts`](../types.ts):
-      require every new demo to support query restoration and the shared
+      require every new demo to support fragment restoration and the shared
       "Copy demo link" button; explain how to declare stable input names,
       defaults and examples, with single-input and multiple-input examples.
 - [ ] Cover round trips, Unicode, empty and unchecked values, multiple
       controls, example matching, validation failures and size limits with
       focused proofs. Browser-check copy/open, correct dropdown selection,
-      atomic restoration, and preservation of explicit Run behavior.
+      atomic restoration, and preservation of explicit Run behavior. Verify the
+      Hex escape link, reordered/renamed examples, shared compiler-stage IDs,
+      hash changes, history navigation, and unaffected README heading links.
 
 ### Related
 
