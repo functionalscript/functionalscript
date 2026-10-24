@@ -159,9 +159,9 @@ export const scalarHelper = loop => {
  */
 export const aggregateHelper = loop => {
     const target = /** @type {const} */ ({ kind: 'function', index: loop.target.index })
-    const argument = { index: loop.target.index }
-    const state = { index: loop.target.index }
-    const result = { index: loop.target.index }
+    const argument = /** @type {const} */ ({ index: loop.target.index })
+    const state = /** @type {const} */ ({ index: loop.target.index })
+    const result = /** @type {const} */ ({ index: loop.target.index })
     const body = aggregateBody(loop)
     return {
         target,

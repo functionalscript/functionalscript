@@ -300,7 +300,8 @@ const loopTask = (loop, context) => call(() => {
     if (free.some(binding => lazyBinding(context.scope, binding))) { throw 'lazy free loop bindings require shared demand-state lowering' }
     return bind(functionValue(scalar ? scalarHelper(loop) : aggregateHelper(loop), context), fn =>
         bind(valueTask(scalar ? loop.initial[0] : ['array', loop.initial], context), initial => {
-            const value = { exp: /** @type {Exp} */ (['()', fn.exp, [initial.exp]]), anchors: [...fn.anchors, ...initial.anchors] }
+            /** @type {Lowered} */
+            const value = { exp: ['()', fn.exp, [initial.exp]], anchors: [...fn.anchors, ...initial.anchors] }
             return done({ value, bindings: loop.results.map((binding, i) => [binding, scalar ? value.exp : ['.', value.exp, i]]) })
         }))
 })
