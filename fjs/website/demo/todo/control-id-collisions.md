@@ -1,7 +1,7 @@
 ## Separate demo control IDs from documentation heading IDs
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -18,6 +18,14 @@ control. Section-fragment navigation reserves its own IDs, but cannot predict
 all field IDs a demo may render after an interaction.
 
 ### Proposal
+
+Scope IDs at the shared build/runtime rendering boundary using a namespace
+containing `:`, which README heading slugs never produce. The default scope is
+the demo module path; repeated instances of the same module declare distinct
+`data-demo-scope` values. The scope remains fixed across input updates and views.
+Rewrite local label, datalist, accessibility, fragment, and SVG references with
+the IDs they name. Keep native radio groups separate between instances, while
+the runtime delivers their original event names.
 
 Give shared demo controls a distinct, stable ID namespace, keeping event
 `name` values separate from DOM IDs. Account for multiple instances and controls
