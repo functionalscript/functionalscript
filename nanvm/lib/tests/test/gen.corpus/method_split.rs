@@ -2,27 +2,25 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("separator", Any::dot(string_any("a,b,,c"), string_any("split")).end_call(|| Ok([string_any(",")].to_array().to_any())), [string_any("a"), string_any("b"), string_any(""), string_any("c")].to_array().to_any());
-    check::<A>("noArgument", Any::dot(string_any("a,b"), string_any("split")).end_call(|| Ok(Array::default().to_any())), [string_any("a,b")].to_array().to_any());
-    check::<A>("undefinedSeparator", Any::dot(string_any("a,b"), string_any("split")).end_call(|| Ok([Nullish::Undefined.to_any()].to_array().to_any())), [string_any("a,b")].to_array().to_any());
-    check::<A>("emptySeparator", Any::dot(string_any("abc"), string_any("split")).end_call(|| Ok([string_any("")].to_array().to_any())), [string_any("a"), string_any("b"), string_any("c")].to_array().to_any());
-    check::<A>("limit", Any::dot(string_any("a,b,c"), string_any("split")).end_call(|| Ok([string_any(","), f64_any(0x4000000000000000)].to_array().to_any())), [string_any("a"), string_any("b")].to_array().to_any());
-    check::<A>("limitZero", Any::dot(string_any("a,b"), string_any("split")).end_call(|| Ok([string_any(","), f64_any(0x0000000000000000)].to_array().to_any())), Array::default().to_any());
-    check::<A>("limitZeroFunctionSeparator", Any::dot(string_any("a"), string_any("split")).end_call(|| Ok([function_any(), f64_any(0x0000000000000000)].to_array().to_any())), Array::default().to_any());
-    check::<A>("limitZeroFunctionInSeparator", Any::dot(string_any("a"), string_any("split")).end_call(|| {
-        let c0: Any<A> = [function_any()].to_array().to_any();
-        Ok([c0, f64_any(0x0000000000000000)].to_array().to_any())
-    }), Array::default().to_any());
-    check::<A>("limitNegativeIsHuge", Any::dot(string_any("a,b"), string_any("split")).end_call(|| Ok([string_any(","), f64_any(0xbff0000000000000)].to_array().to_any())), [string_any("a"), string_any("b")].to_array().to_any());
-    check::<A>("emptyLimit", Any::dot(string_any("abc"), string_any("split")).end_call(|| Ok([string_any(""), f64_any(0x4000000000000000)].to_array().to_any())), [string_any("a"), string_any("b")].to_array().to_any());
-    check::<A>("undefinedLimitZero", Any::dot(string_any("a"), string_any("split")).end_call(|| Ok([Nullish::Undefined.to_any(), f64_any(0x0000000000000000)].to_array().to_any())), Array::default().to_any());
-    check::<A>("emptyString", Any::dot(string_any(""), string_any("split")).end_call(|| Ok([string_any(",")].to_array().to_any())), [string_any("")].to_array().to_any());
-    check::<A>("emptyStringEmptySeparator", Any::dot(string_any(""), string_any("split")).end_call(|| Ok([string_any("")].to_array().to_any())), Array::default().to_any());
-    check::<A>("trailing", Any::dot(string_any("a,"), string_any("split")).end_call(|| Ok([string_any(",")].to_array().to_any())), [string_any("a"), string_any("")].to_array().to_any());
-    check::<A>("longSeparator", Any::dot(string_any("a::b::"), string_any("split")).end_call(|| Ok([string_any("::")].to_array().to_any())), [string_any("a"), string_any("b"), string_any("")].to_array().to_any());
-    check::<A>("nullSeparator", Any::dot(string_any("anullb"), string_any("split")).end_call(|| Ok([Nullish::Null.to_any()].to_array().to_any())), [string_any("a"), string_any("b")].to_array().to_any());
-    check::<A>("pair", Any::dot(string_any("😀"), string_any("split")).end_call(|| Ok([string_any("")].to_array().to_any())), [string_any_utf16(&[0xd83d]), string_any_utf16(&[0xde00])].to_array().to_any());
-    check_throws::<A>("bigintLimit", Any::dot(string_any("a"), string_any("split")).end_call(|| Ok([string_any(","), bigint_any(1)].to_array().to_any())));
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("separator", scope(|| { Any::dot(string_any("a,b,,c"), string_any("split")).end_call(&rt, || Ok([string_any(",")].to_array().to_any())) }), [string_any("a"), string_any("b"), string_any(""), string_any("c")].to_array().to_any());
+    check::<A>("noArgument", scope(|| { Any::dot(string_any("a,b"), string_any("split")).end_call(&rt, || Ok(Array::default().to_any())) }), [string_any("a,b")].to_array().to_any());
+    check::<A>("undefinedSeparator", scope(|| { Any::dot(string_any("a,b"), string_any("split")).end_call(&rt, || Ok([Nullish::Undefined.to_any()].to_array().to_any())) }), [string_any("a,b")].to_array().to_any());
+    check::<A>("emptySeparator", scope(|| { Any::dot(string_any("abc"), string_any("split")).end_call(&rt, || Ok([string_any("")].to_array().to_any())) }), [string_any("a"), string_any("b"), string_any("c")].to_array().to_any());
+    check::<A>("limit", scope(|| { Any::dot(string_any("a,b,c"), string_any("split")).end_call(&rt, || Ok([string_any(","), f64_any(0x4000000000000000)].to_array().to_any())) }), [string_any("a"), string_any("b")].to_array().to_any());
+    check::<A>("limitZero", scope(|| { Any::dot(string_any("a,b"), string_any("split")).end_call(&rt, || Ok([string_any(","), f64_any(0x0000000000000000)].to_array().to_any())) }), Array::default().to_any());
+    check::<A>("limitZeroFunctionSeparator", scope(|| { Any::dot(string_any("a"), string_any("split")).end_call(&rt, || Ok([A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any(), f64_any(0x0000000000000000)].to_array().to_any())) }), Array::default().to_any());
+    check::<A>("limitZeroFunctionInSeparator", scope(|| { Any::dot(string_any("a"), string_any("split")).end_call(&rt, || Ok([[A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any()].to_array().to_any(), f64_any(0x0000000000000000)].to_array().to_any())) }), Array::default().to_any());
+    check::<A>("limitNegativeIsHuge", scope(|| { Any::dot(string_any("a,b"), string_any("split")).end_call(&rt, || Ok([string_any(","), f64_any(0xbff0000000000000)].to_array().to_any())) }), [string_any("a"), string_any("b")].to_array().to_any());
+    check::<A>("emptyLimit", scope(|| { Any::dot(string_any("abc"), string_any("split")).end_call(&rt, || Ok([string_any(""), f64_any(0x4000000000000000)].to_array().to_any())) }), [string_any("a"), string_any("b")].to_array().to_any());
+    check::<A>("undefinedLimitZero", scope(|| { Any::dot(string_any("a"), string_any("split")).end_call(&rt, || Ok([Nullish::Undefined.to_any(), f64_any(0x0000000000000000)].to_array().to_any())) }), Array::default().to_any());
+    check::<A>("emptyString", scope(|| { Any::dot(string_any(""), string_any("split")).end_call(&rt, || Ok([string_any(",")].to_array().to_any())) }), [string_any("")].to_array().to_any());
+    check::<A>("emptyStringEmptySeparator", scope(|| { Any::dot(string_any(""), string_any("split")).end_call(&rt, || Ok([string_any("")].to_array().to_any())) }), Array::default().to_any());
+    check::<A>("trailing", scope(|| { Any::dot(string_any("a,"), string_any("split")).end_call(&rt, || Ok([string_any(",")].to_array().to_any())) }), [string_any("a"), string_any("")].to_array().to_any());
+    check::<A>("longSeparator", scope(|| { Any::dot(string_any("a::b::"), string_any("split")).end_call(&rt, || Ok([string_any("::")].to_array().to_any())) }), [string_any("a"), string_any("b"), string_any("")].to_array().to_any());
+    check::<A>("nullSeparator", scope(|| { Any::dot(string_any("anullb"), string_any("split")).end_call(&rt, || Ok([Nullish::Null.to_any()].to_array().to_any())) }), [string_any("a"), string_any("b")].to_array().to_any());
+    check::<A>("pair", scope(|| { Any::dot(string_any("😀"), string_any("split")).end_call(&rt, || Ok([string_any("")].to_array().to_any())) }), [string_any_utf16(&[0xd83d]), string_any_utf16(&[0xde00])].to_array().to_any());
+    check_throws::<A>("bigintLimit", scope(|| { Any::dot(string_any("a"), string_any("split")).end_call(&rt, || Ok([string_any(","), bigint_any(1)].to_array().to_any())) }));
 }

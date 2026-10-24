@@ -5,16 +5,19 @@
  * Inputs here are immutable EDAG values, including real interpreter output.
  *
  * @import { EdagValue, Function as FunctionValue } from '../../../edag/value/types.ts'
+ * @import { Exp } from '../../../edag/types.ts'
  */
 
+import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
 
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { interpret, noRuntime } from '../../transpiler/module.f.mjs'
 import { virtualAt } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { factoryStringify, stringify } from './module.f.mjs'
+import { tryStringify } from '../module.f.mjs'
 
 /** Load actual module syntax. @type {(source: string) => Promise<any>} */
 const load = async source => {
@@ -148,6 +151,49 @@ export const proof = {
         assertEq(identity(object), object)
         assertEq('edag' in identity, false)
     },
+    continuedCallArguments: async () => {
+        const array = /** @type {const} */ (['[]', []])
+        const pair = /** @type {const} */ (['[]', [array, array]])
+        const receiver = {
+            /** @param {readonly unknown[]} values */
+            y(values) { assertEq(this, receiver); return values },
+        }
+        /** @type {readonly (readonly [Exp, unknown])[]} */
+        const cases = [
+            [['.', ['.', ['arg', 0], 'x'], 'y', ['|()', [pair]]], { x: receiver }],
+            [['?.', ['arg', 0], 'x', ['|.', 'y', ['|()', [pair]]]], { x: receiver }],
+            [['.', ['arg', 0], 'x', ['|?.()', [], ['|.', 'y', ['|()', [pair]]]]], { x: () => receiver }],
+            [['?.', ['arg', 0], 'x', ['|.', ['Number', 0], ['|?.()', [pair]]]], { x: [/** @param {unknown} values */ values => values] }],
+        ]
+        for (const [body, input] of cases) {
+            const graph = /** @type {FunctionValue} */ (['=>', 1, [], body])
+            // Exercise both public source output and callable runtime output.
+            for (const text of [assertOk(tryStringify(graph)), stringify(graph)]) {
+                const fn = await load(text)
+                const first = fn(input)
+                const second = fn(input)
+                assertEq(first[0], first[1])
+                assertEq(second[0], second[1])
+                assert(first[0] !== second[0])
+                assertStructurallySame(first, [[], []])
+            }
+        }
+        const failure = /** @type {const} */ (['.', null, 'x'])
+        /** @type {readonly (readonly [Exp, unknown, unknown])[]} */
+        const guarded = [
+            [['?.', ['arg', 0], 'x', ['|.', 'y', ['|()', [failure]]]], null, { x: receiver }],
+            [['.', ['arg', 0], 'x', ['|?.()', [], ['|.', 'y', ['|()', [failure]]]]], { x: null }, { x: () => receiver }],
+            [['?.', ['arg', 0], 'x', ['|.', ['Number', 0], ['|?.()', [failure]]]], { x: [null] }, { x: [/** @param {unknown} values */ values => values] }],
+        ]
+        for (const [body, skipped, demanded] of guarded) {
+            const graph = /** @type {FunctionValue} */ (['=>', 1, [], body])
+            for (const text of [assertOk(tryStringify(graph)), stringify(graph)]) {
+                const fn = await load(text)
+                assertEq(fn(skipped), undefined)
+                throws(() => fn(demanded), TypeError)
+            }
+        }
+    },
     thrownCaptureIdentity: async () => {
         const payload = /** @type {const} */ (['{}', [[':', 'message', 'failure']]])
         const fail = /** @type {const} */ (['=>', 0, [payload], ['throw', ['frame', 0]]])
@@ -158,7 +204,7 @@ export const proof = {
     lazySharedBody: async () => {
         const shared = /** @type {const} */ (['[]', []])
         const fn = await compile(['=>', 2, [], ['[]', [
-            ['&&', ['arg', 0], shared], ['||', ['arg', 1], shared],
+            conditional('&&', ['arg', 0], shared), conditional('||', ['arg', 1], shared),
         ]]])
         const first = fn(true, false)
         const second = fn(true, false)

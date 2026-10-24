@@ -2,91 +2,95 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let empty_array: Any<A> = Array::default().to_any();
     let string_array: Any<A> = [string_any("0")].to_array().to_any();
     let object: Any<A> = [(string_key("0"), string_any("0"))].to_object().to_any();
-    let first: Any<A> = A::static_function(|_self, args| {
-    let rest = args.rest(0);
-    Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-}, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
-    check::<A>("wideBigintByItself", strict_eq(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])), true.to_any());
-    check::<A>("wideBigintByItselfSwapped", strict_eq(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])), true.to_any());
-    check::<A>("wideBigintByNext", strict_eq(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000001, 0x0000000000000001])), false.to_any());
-    check::<A>("wideBigintByNextSwapped", strict_eq(bigint_any_words(false, &[0x0000000000000001, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])), false.to_any());
-    check::<A>("nullByNull", strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()), true.to_any());
-    check::<A>("nullByNullSwapped", strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()), true.to_any());
-    check::<A>("undefinedByUndefined", strict_eq(Nullish::Undefined.to_any(), Nullish::Undefined.to_any()), true.to_any());
-    check::<A>("undefinedByUndefinedSwapped", strict_eq(Nullish::Undefined.to_any(), Nullish::Undefined.to_any()), true.to_any());
-    check::<A>("nullByUndefined", strict_eq(Nullish::Null.to_any(), Nullish::Undefined.to_any()), false.to_any());
-    check::<A>("nullByUndefinedSwapped", strict_eq(Nullish::Undefined.to_any(), Nullish::Null.to_any()), false.to_any());
-    check::<A>("trueByTrue", strict_eq(true.to_any(), true.to_any()), true.to_any());
-    check::<A>("trueByTrueSwapped", strict_eq(true.to_any(), true.to_any()), true.to_any());
-    check::<A>("falseByFalse", strict_eq(false.to_any(), false.to_any()), true.to_any());
-    check::<A>("falseByFalseSwapped", strict_eq(false.to_any(), false.to_any()), true.to_any());
-    check::<A>("trueByFalse", strict_eq(true.to_any(), false.to_any()), false.to_any());
-    check::<A>("trueByFalseSwapped", strict_eq(false.to_any(), true.to_any()), false.to_any());
-    check::<A>("falseByUndefined", strict_eq(false.to_any(), Nullish::Undefined.to_any()), false.to_any());
-    check::<A>("falseByUndefinedSwapped", strict_eq(Nullish::Undefined.to_any(), false.to_any()), false.to_any());
-    check::<A>("falseByNull", strict_eq(false.to_any(), Nullish::Null.to_any()), false.to_any());
-    check::<A>("falseByNullSwapped", strict_eq(Nullish::Null.to_any(), false.to_any()), false.to_any());
-    check::<A>("numberBySameNumber", strict_eq(f64_any(0x4002666666666666), f64_any(0x4002666666666666)), true.to_any());
-    check::<A>("numberBySameNumberSwapped", strict_eq(f64_any(0x4002666666666666), f64_any(0x4002666666666666)), true.to_any());
-    check::<A>("numberByOtherNumber", strict_eq(f64_any(0x4002666666666666), f64_any(0xc01599999999999a)), false.to_any());
-    check::<A>("numberByOtherNumberSwapped", strict_eq(f64_any(0xc01599999999999a), f64_any(0x4002666666666666)), false.to_any());
-    check::<A>("nanByNan", strict_eq(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)), false.to_any());
-    check::<A>("nanByNanSwapped", strict_eq(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)), false.to_any());
-    check::<A>("zeroByNegativeZero", strict_eq(f64_any(0x0000000000000000), f64_any(0x8000000000000000)), true.to_any());
-    check::<A>("zeroByNegativeZeroSwapped", strict_eq(f64_any(0x8000000000000000), f64_any(0x0000000000000000)), true.to_any());
-    check::<A>("infinityByInfinity", strict_eq(f64_any(0x7ff0000000000000), f64_any(0x7ff0000000000000)), true.to_any());
-    check::<A>("infinityByInfinitySwapped", strict_eq(f64_any(0x7ff0000000000000), f64_any(0x7ff0000000000000)), true.to_any());
-    check::<A>("negativeInfinityByNegativeInfinity", strict_eq(f64_any(0xfff0000000000000), f64_any(0xfff0000000000000)), true.to_any());
-    check::<A>("negativeInfinityByNegativeInfinitySwapped", strict_eq(f64_any(0xfff0000000000000), f64_any(0xfff0000000000000)), true.to_any());
-    check::<A>("infinityByNegativeInfinity", strict_eq(f64_any(0x7ff0000000000000), f64_any(0xfff0000000000000)), false.to_any());
-    check::<A>("infinityByNegativeInfinitySwapped", strict_eq(f64_any(0xfff0000000000000), f64_any(0x7ff0000000000000)), false.to_any());
-    check::<A>("undefinedByNan", strict_eq(Nullish::Undefined.to_any(), f64_any(0x7ff8000000000000)), false.to_any());
-    check::<A>("undefinedByNanSwapped", strict_eq(f64_any(0x7ff8000000000000), Nullish::Undefined.to_any()), false.to_any());
-    check::<A>("undefinedByZero", strict_eq(Nullish::Undefined.to_any(), f64_any(0x0000000000000000)), false.to_any());
-    check::<A>("undefinedByZeroSwapped", strict_eq(f64_any(0x0000000000000000), Nullish::Undefined.to_any()), false.to_any());
-    check::<A>("stringBySameString", strict_eq(string_any("hello"), string_any("hello")), true.to_any());
-    check::<A>("stringBySameStringSwapped", strict_eq(string_any("hello"), string_any("hello")), true.to_any());
-    check::<A>("stringByOtherString", strict_eq(string_any("hello"), string_any("world")), false.to_any());
-    check::<A>("stringByOtherStringSwapped", strict_eq(string_any("world"), string_any("hello")), false.to_any());
-    check::<A>("zeroByStringZero", strict_eq(f64_any(0x0000000000000000), string_any("0")), false.to_any());
-    check::<A>("zeroByStringZeroSwapped", strict_eq(string_any("0"), f64_any(0x0000000000000000)), false.to_any());
-    check::<A>("bigintBySameBigint", strict_eq(bigint_any(12), bigint_any(12)), true.to_any());
-    check::<A>("bigintBySameBigintSwapped", strict_eq(bigint_any(12), bigint_any(12)), true.to_any());
-    check::<A>("bigintByNegatedBigint", strict_eq(bigint_any(12), bigint_any(-12)), false.to_any());
-    check::<A>("bigintByNegatedBigintSwapped", strict_eq(bigint_any(-12), bigint_any(12)), false.to_any());
-    check::<A>("bigintByOtherBigint", strict_eq(bigint_any(12), bigint_any(13)), false.to_any());
-    check::<A>("bigintByOtherBigintSwapped", strict_eq(bigint_any(13), bigint_any(12)), false.to_any());
-    check::<A>("twelveByStringTwelve", strict_eq(bigint_any(12), string_any("12")), false.to_any());
-    check::<A>("twelveByStringTwelveSwapped", strict_eq(string_any("12"), bigint_any(12)), false.to_any());
-    check::<A>("arrayByItself", strict_eq(empty_array.clone(), empty_array.clone()), true.to_any());
-    check::<A>("arrayByItselfSwapped", strict_eq(empty_array.clone(), empty_array.clone()), true.to_any());
-    check::<A>("arrayByEqualArray", strict_eq(Array::default().to_any(), Array::default().to_any()), false.to_any());
-    check::<A>("arrayByEqualArraySwapped", strict_eq(Array::default().to_any(), Array::default().to_any()), false.to_any());
-    check::<A>("stringArrayByItself", strict_eq(string_array.clone(), string_array.clone()), true.to_any());
-    check::<A>("stringArrayByItselfSwapped", strict_eq(string_array.clone(), string_array.clone()), true.to_any());
-    check::<A>("objectByItself", strict_eq(object.clone(), object.clone()), true.to_any());
-    check::<A>("objectByItselfSwapped", strict_eq(object.clone(), object.clone()), true.to_any());
-    check::<A>("objectByEqualObject", strict_eq(object.clone(), [(string_key("0"), string_any("0"))].to_object().to_any()), false.to_any());
-    check::<A>("objectByEqualObjectSwapped", strict_eq([(string_key("0"), string_any("0"))].to_object().to_any(), object.clone()), false.to_any());
-    check::<A>("functionByItself", strict_eq(first.clone(), first.clone()), true.to_any());
-    check::<A>("functionByItselfSwapped", strict_eq(first.clone(), first.clone()), true.to_any());
-    check::<A>("functionBySameText", strict_eq(A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()), false.to_any());
-    check::<A>("functionBySameTextSwapped", strict_eq(A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()), false.to_any());
+    let first: Any<A> = A::static_function(|_self, _args| {
+        let _b89: Any<A> = _args.rest(0).to_any();
+        Any::dot(_b89.clone(), f64_any(0x0000000000000000)).end()
+    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
+    check::<A>("wideBigintByItself", scope(|| { strict_eq(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])) }), true.to_any());
+    check::<A>("wideBigintByItselfSwapped", scope(|| { strict_eq(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])) }), true.to_any());
+    check::<A>("wideBigintByNext", scope(|| { strict_eq(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000001, 0x0000000000000001])) }), false.to_any());
+    check::<A>("wideBigintByNextSwapped", scope(|| { strict_eq(bigint_any_words(false, &[0x0000000000000001, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])) }), false.to_any());
+    check::<A>("nullByNull", scope(|| { strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()) }), true.to_any());
+    check::<A>("nullByNullSwapped", scope(|| { strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()) }), true.to_any());
+    check::<A>("undefinedByUndefined", scope(|| { strict_eq(Nullish::Undefined.to_any(), Nullish::Undefined.to_any()) }), true.to_any());
+    check::<A>("undefinedByUndefinedSwapped", scope(|| { strict_eq(Nullish::Undefined.to_any(), Nullish::Undefined.to_any()) }), true.to_any());
+    check::<A>("nullByUndefined", scope(|| { strict_eq(Nullish::Null.to_any(), Nullish::Undefined.to_any()) }), false.to_any());
+    check::<A>("nullByUndefinedSwapped", scope(|| { strict_eq(Nullish::Undefined.to_any(), Nullish::Null.to_any()) }), false.to_any());
+    check::<A>("trueByTrue", scope(|| { strict_eq(true.to_any(), true.to_any()) }), true.to_any());
+    check::<A>("trueByTrueSwapped", scope(|| { strict_eq(true.to_any(), true.to_any()) }), true.to_any());
+    check::<A>("falseByFalse", scope(|| { strict_eq(false.to_any(), false.to_any()) }), true.to_any());
+    check::<A>("falseByFalseSwapped", scope(|| { strict_eq(false.to_any(), false.to_any()) }), true.to_any());
+    check::<A>("trueByFalse", scope(|| { strict_eq(true.to_any(), false.to_any()) }), false.to_any());
+    check::<A>("trueByFalseSwapped", scope(|| { strict_eq(false.to_any(), true.to_any()) }), false.to_any());
+    check::<A>("falseByUndefined", scope(|| { strict_eq(false.to_any(), Nullish::Undefined.to_any()) }), false.to_any());
+    check::<A>("falseByUndefinedSwapped", scope(|| { strict_eq(Nullish::Undefined.to_any(), false.to_any()) }), false.to_any());
+    check::<A>("falseByNull", scope(|| { strict_eq(false.to_any(), Nullish::Null.to_any()) }), false.to_any());
+    check::<A>("falseByNullSwapped", scope(|| { strict_eq(Nullish::Null.to_any(), false.to_any()) }), false.to_any());
+    check::<A>("numberBySameNumber", scope(|| { strict_eq(f64_any(0x4002666666666666), f64_any(0x4002666666666666)) }), true.to_any());
+    check::<A>("numberBySameNumberSwapped", scope(|| { strict_eq(f64_any(0x4002666666666666), f64_any(0x4002666666666666)) }), true.to_any());
+    check::<A>("numberByOtherNumber", scope(|| { strict_eq(f64_any(0x4002666666666666), f64_any(0xc01599999999999a)) }), false.to_any());
+    check::<A>("numberByOtherNumberSwapped", scope(|| { strict_eq(f64_any(0xc01599999999999a), f64_any(0x4002666666666666)) }), false.to_any());
+    check::<A>("nanByNan", scope(|| { strict_eq(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)) }), false.to_any());
+    check::<A>("nanByNanSwapped", scope(|| { strict_eq(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)) }), false.to_any());
+    check::<A>("zeroByNegativeZero", scope(|| { strict_eq(f64_any(0x0000000000000000), f64_any(0x8000000000000000)) }), true.to_any());
+    check::<A>("zeroByNegativeZeroSwapped", scope(|| { strict_eq(f64_any(0x8000000000000000), f64_any(0x0000000000000000)) }), true.to_any());
+    check::<A>("infinityByInfinity", scope(|| { strict_eq(f64_any(0x7ff0000000000000), f64_any(0x7ff0000000000000)) }), true.to_any());
+    check::<A>("infinityByInfinitySwapped", scope(|| { strict_eq(f64_any(0x7ff0000000000000), f64_any(0x7ff0000000000000)) }), true.to_any());
+    check::<A>("negativeInfinityByNegativeInfinity", scope(|| { strict_eq(f64_any(0xfff0000000000000), f64_any(0xfff0000000000000)) }), true.to_any());
+    check::<A>("negativeInfinityByNegativeInfinitySwapped", scope(|| { strict_eq(f64_any(0xfff0000000000000), f64_any(0xfff0000000000000)) }), true.to_any());
+    check::<A>("infinityByNegativeInfinity", scope(|| { strict_eq(f64_any(0x7ff0000000000000), f64_any(0xfff0000000000000)) }), false.to_any());
+    check::<A>("infinityByNegativeInfinitySwapped", scope(|| { strict_eq(f64_any(0xfff0000000000000), f64_any(0x7ff0000000000000)) }), false.to_any());
+    check::<A>("undefinedByNan", scope(|| { strict_eq(Nullish::Undefined.to_any(), f64_any(0x7ff8000000000000)) }), false.to_any());
+    check::<A>("undefinedByNanSwapped", scope(|| { strict_eq(f64_any(0x7ff8000000000000), Nullish::Undefined.to_any()) }), false.to_any());
+    check::<A>("undefinedByZero", scope(|| { strict_eq(Nullish::Undefined.to_any(), f64_any(0x0000000000000000)) }), false.to_any());
+    check::<A>("undefinedByZeroSwapped", scope(|| { strict_eq(f64_any(0x0000000000000000), Nullish::Undefined.to_any()) }), false.to_any());
+    check::<A>("stringBySameString", scope(|| { strict_eq(string_any("hello"), string_any("hello")) }), true.to_any());
+    check::<A>("stringBySameStringSwapped", scope(|| { strict_eq(string_any("hello"), string_any("hello")) }), true.to_any());
+    check::<A>("stringByOtherString", scope(|| { strict_eq(string_any("hello"), string_any("world")) }), false.to_any());
+    check::<A>("stringByOtherStringSwapped", scope(|| { strict_eq(string_any("world"), string_any("hello")) }), false.to_any());
+    check::<A>("zeroByStringZero", scope(|| { strict_eq(f64_any(0x0000000000000000), string_any("0")) }), false.to_any());
+    check::<A>("zeroByStringZeroSwapped", scope(|| { strict_eq(string_any("0"), f64_any(0x0000000000000000)) }), false.to_any());
+    check::<A>("bigintBySameBigint", scope(|| { strict_eq(bigint_any(12), bigint_any(12)) }), true.to_any());
+    check::<A>("bigintBySameBigintSwapped", scope(|| { strict_eq(bigint_any(12), bigint_any(12)) }), true.to_any());
+    check::<A>("bigintByNegatedBigint", scope(|| { strict_eq(bigint_any(12), bigint_any(-12)) }), false.to_any());
+    check::<A>("bigintByNegatedBigintSwapped", scope(|| { strict_eq(bigint_any(-12), bigint_any(12)) }), false.to_any());
+    check::<A>("bigintByOtherBigint", scope(|| { strict_eq(bigint_any(12), bigint_any(13)) }), false.to_any());
+    check::<A>("bigintByOtherBigintSwapped", scope(|| { strict_eq(bigint_any(13), bigint_any(12)) }), false.to_any());
+    check::<A>("twelveByStringTwelve", scope(|| { strict_eq(bigint_any(12), string_any("12")) }), false.to_any());
+    check::<A>("twelveByStringTwelveSwapped", scope(|| { strict_eq(string_any("12"), bigint_any(12)) }), false.to_any());
+    check::<A>("arrayByItself", scope(|| { strict_eq(empty_array.clone(), empty_array.clone()) }), true.to_any());
+    check::<A>("arrayByItselfSwapped", scope(|| { strict_eq(empty_array.clone(), empty_array.clone()) }), true.to_any());
+    check::<A>("arrayByEqualArray", scope(|| { strict_eq(Array::default().to_any(), Array::default().to_any()) }), false.to_any());
+    check::<A>("arrayByEqualArraySwapped", scope(|| { strict_eq(Array::default().to_any(), Array::default().to_any()) }), false.to_any());
+    check::<A>("stringArrayByItself", scope(|| { strict_eq(string_array.clone(), string_array.clone()) }), true.to_any());
+    check::<A>("stringArrayByItselfSwapped", scope(|| { strict_eq(string_array.clone(), string_array.clone()) }), true.to_any());
+    check::<A>("objectByItself", scope(|| { strict_eq(object.clone(), object.clone()) }), true.to_any());
+    check::<A>("objectByItselfSwapped", scope(|| { strict_eq(object.clone(), object.clone()) }), true.to_any());
+    check::<A>("objectByEqualObject", scope(|| { strict_eq(object.clone(), [(string_key("0"), string_any("0"))].to_object().to_any()) }), false.to_any());
+    check::<A>("objectByEqualObjectSwapped", scope(|| { strict_eq([(string_key("0"), string_any("0"))].to_object().to_any(), object.clone()) }), false.to_any());
+    check::<A>("functionByItself", scope(|| { strict_eq(first.clone(), first.clone()) }), true.to_any());
+    check::<A>("functionByItselfSwapped", scope(|| { strict_eq(first.clone(), first.clone()) }), true.to_any());
+    check::<A>("functionBySameText", scope(|| {
+        strict_eq(A::static_function(|_self, _args| {
+            let _b101: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b101.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), A::static_function(|_self, _args| {
+            let _b218: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b218.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any())
+    }), false.to_any());
+    check::<A>("functionBySameTextSwapped", scope(|| {
+        strict_eq(A::static_function(|_self, _args| {
+            let _b101: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b101.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), A::static_function(|_self, _args| {
+            let _b218: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b218.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any())
+    }), false.to_any());
 }

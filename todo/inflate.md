@@ -1,7 +1,7 @@
 ## A FunctionalScript inflater
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -80,8 +80,86 @@ The inverse, a deflater, is not needed to read a repository and is not
 part of this issue: a writer that must produce a stream can emit stored
 blocks, which is a framing and not a compression.
 
+### Design (proposed; the representation is the question for review)
+
+**The bytes are `Vec` chunks, in and out.** A `Vec` is a bigint, about a byte
+per byte, where a list of numbers is eight (the measurement above). One `Vec`
+is the bound this issue lifts, but a *list* of them has none, and it is already
+the shape the repository's byte consumers take: a hash is a `Fold<Vec, S>`
+(`computeSync(hash)(list)` in [`fjs/crypto/sha2`](../fjs/crypto/sha2/module.f.mjs)),
+the object reader parses `u8ListMsb(v)`, and `readBytes` hands back a `Vec` a
+window at a time. Rejected: a `List<number>` per byte, for its cost; one `Vec`,
+for its bound.
+
+**A decoder is a machine fed chunks, as a hash is.** `init`, `append` of an
+input chunk and `end`, in the shape of `sha2`, and not a function from a whole
+input to a whole output:
+
+- a lazy list of output chunks cannot report a stream that goes bad *after* it
+  has yielded some, and a `null` for the whole answer would force the whole
+  output to be held before any of it is read, which is the heap this avoids.
+  `append` answers the output chunks it can now give and the next state, or
+  `null` for a stream that is malformed, so the refusal comes where the bad
+  byte is;
+- the input is pushed a window at a time, as the host's `readBytes` gives it, so
+  nothing asks for the whole compressed stream at once;
+- `end` answers what is left of the last chunk once the stream has closed, and
+  that is what removes the exact-window rule of
+  [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs): the decoder knows
+  where a stream ends, so a generous window is read to its end and the rest
+  handed back, where `inflate` refuses the bytes after it.
+
+**The 32 KiB window is a short reversed list and a few frozen arrays.** A
+back-reference reads up to 32 KiB behind the output, and a persistent structure
+cannot append to an array. The recent output is a reversed cons list, whose
+append is constant, frozen into an array of 256 bytes when it fills, and the
+last 128 such blocks are kept. A reference of a block or more reaches into the
+blocks by index; a nearer one takes the bytes once and repeats them
+([`fjs/zlib/window`](../fjs/zlib/window/module.f.mjs)). Measured at the end of
+step 3, on this machine: 0.3 to 0.7 MB of output a second, a 168 KB blob in
+about a third of a second. The profile is flat, with the garbage collector and
+the list-based `Vec` conversions at the boundary ahead of the window; there is
+no one hot spot to fix, and a faster `Vec` ↔ bytes conversion in `bit_vec` is
+where it would come from. The native decoder of `nanvm-effects-node` stays the
+fast path.
+
+**Where it lives.** `fjs/zlib/`: `adler32/` (this step), then `inflate/`.
+
+### Tasks
+
+- [x] The design above, for review; the representation is the decision.
+- [x] [`fjs/zlib/adler32`](../fjs/zlib/adler32/module.f.mjs): the checksum that
+      closes a stream, in the shape of a hash, with its proof against the
+      trailer of Node's `zlib.deflateSync`.
+- [x] [`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs): the zlib framing
+      and the stored blocks, fed chunks (`init`, `append`, `end`); a malformed
+      stream is `null`.
+- [x] Fixed and dynamic Huffman blocks with the 32 KiB window
+      ([`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs), over
+      [`bits`](../fjs/zlib/bits/module.f.mjs),
+      [`huffman`](../fjs/zlib/huffman/module.f.mjs) and
+      [`window`](../fjs/zlib/window/module.f.mjs)): proven against Node's `zlib`
+      streams and by hand, and checked on some 21,000 streams of every level,
+      strategy and window size, corrupted and cut into pieces, for the same
+      answer as Node's on each. The Adler-32 is a loop over the bytes now.
+- [x] [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) and
+      [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) read through it
+      together, over [`fjs/git/inflater`](../fjs/git/inflater/module.f.mjs): a
+      loose file by one `readWhole` and a pack entry in windows of a `Vec`, so no
+      object read whole is refused for its length. A stream that has made more
+      than its header declares is not read on. Checked on this repository's own
+      history through the real Node host: the 53 objects over 128 KiB, 8.2 MB, and
+      256 of every other kind, each byte for byte what `git cat-file` prints.
+- [ ] The delta ceiling: a delta chain is held to `maxDeltaBytes` (8 MiB, from
+      128 KiB) because a delta and its base are dense arrays; lifting it is
+      [`fjs/git/pack/todo/dense-delta.md`](../fjs/git/pack/todo/dense-delta.md).
+
 ### Related
 
+- The native runner, `nanvm-effects-node`, answers `inflate` itself, with a
+  decoder of its own and no dependency
+  ([`inflate.rs`](../nanvm/effects-node/src/inflate.rs)). It is the operation
+  this issue keeps "for a host that would rather spend the native decoder".
 - [`fjs/git/README.md`](../fjs/git/README.md), the design this serves,
   and its note on what a grammar does not do.
 - `fjs/git/loose` and `fjs/git/packstore`, the two modules that would

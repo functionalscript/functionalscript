@@ -16,6 +16,8 @@
  * `true ? a : a`, both arms — are no `const` the compiler could anchor:
  * the body binds the parameter once and every thunk clones it, which is
  * what the two calls at the end run.
+ * Conditional results also remain operands of arithmetic, conversion and
+ * another condition; the Rust serializer must preserve their grouping.
  */
 const t = [1].length;
 const f = [].length;
@@ -35,4 +37,6 @@ export default [
     t ? 7 : 1n / 0n, f ? 1n / 0n : 8,
     t && 2 || 3, n ?? f ? 9 : 10, f ? 1 : t ? 11 : 12,
     either(13), both(14, 15),
+    (t ? 16 : 17) + 18, String(f ? 19 : 20), -(t ? 21 : 22),
+    (t ? false : true) ? 23 : 24,
 ];

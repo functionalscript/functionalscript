@@ -30,17 +30,13 @@
 import { breadcrumb, changelogDir, pageTitle, repository, shell } from '../page/module.f.mjs'
 import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
 import { intersperse, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
-
-const zero = 0x30
-const nine = 0x39
-const a = 0x61
-const f = 0x66
+import { charIs, isDigit as isDigitCodePoint, lowerHexDigitValue } from '../../text/ascii/module.f.js'
 
 /** @type {(c: string) => boolean} */
-const isDigit = c => { const u = c.charCodeAt(0); return u >= zero && u <= nine }
+const isDigit = charIs(isDigitCodePoint)
 
 /** A short commit SHA is lower-case hex, as `git log --format=%h` prints it. @type {(c: string) => boolean} */
-const isHex = c => { const u = c.charCodeAt(0); return isDigit(c) || (u >= a && u <= f) }
+const isHex = charIs(u => lowerHexDigitValue(u) !== null)
 
 /**
  * The shortest SHA the repository's own entries carry. Shorter than this and
@@ -68,7 +64,7 @@ export const _reference = word => {
     if (word[0] === '#') {
         const digits = word.slice(1)
         return digits.length !== 0 && [...digits].every(isDigit)
-            ? ['link', word, `${repository}/pull/${digits}`]
+            ? ['link', [['text', word]], `${repository}/pull/${digits}`]
             : null
     }
     // **A run of hex is a SHA only if it is neither a number nor a word.**
@@ -81,7 +77,7 @@ export const _reference = word => {
     const chars = [...word]
     return word.length >= shaMin && chars.every(isHex)
         && chars.some(isDigit) && chars.some(c => !isDigit(c))
-        ? ['link', word, `${repository}/commit/${word}`]
+        ? ['link', [['text', word]], `${repository}/commit/${word}`]
         : null
 }
 
@@ -213,9 +209,9 @@ export const releases = versions => descending(versions).map((version, i, all) =
 export const spanNode = span => {
     const kind = span[0]
     if (kind === 'code') { return ['code', span[1]] }
-    if (kind === 'strong') { return ['strong', span[1]] }
-    if (kind === 'em') { return ['em', span[1]] }
-    if (kind === 'link') { return ['a', { href: span[2] }, span[1]] }
+    if (kind === 'strong') { return ['strong', ...span[1].map(spanNode)] }
+    if (kind === 'em') { return ['em', ...span[1].map(spanNode)] }
+    if (kind === 'link') { return ['a', { href: span[2] }, ...span[1].map(spanNode)] }
     return span[1]
 }
 

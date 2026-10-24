@@ -10,7 +10,7 @@
  * @import { Unknown } from '../../media/datajs/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { errorExit, exitCode, exitStep, log, nodeCommands } from '../../effects/node/module.f.mjs'
@@ -21,6 +21,7 @@ import { main as ci } from '../../ci/self/module.f.mjs'
 import { main as rustTests } from '../../nanvm/update/module.f.mjs'
 import { corpus, main as matrix, modules as corpusModules } from '../../media/datajs/vectors/matrix/module.f.mjs'
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.mjs'
+import { main as demos, samples } from '../../nanvm/demos/module.f.mjs'
 import { main as cloudflare } from '../../website/cloudflare/module.f.mjs'
 import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
@@ -58,6 +59,25 @@ const withSubprocess = (started, ended) => {
 }
 
 /**
+ * A stand-in `sample.f.js` for every spec page's demo sample, nested by its
+ * directory under `spec/`, so the samples generator finds each one it lists.
+ *
+ * @type {Dir}
+ */
+const specSamples = samples
+    .filter(({ directory }) => directory.startsWith('spec/'))
+    .reduce((/** @type {Dir} */ tree, { directory }) => {
+        /** @type {(dir: Dir, path: readonly string[]) => Dir} */
+        const put = (dir, [head, ...rest]) => ({
+            ...dir,
+            [head]: rest.length === 0
+                ? { .../** @type {Dir} */ (dir[head] ?? {}), 'sample.f.js': [utf8('export default () => 4;')] }
+                : put(/** @type {Dir} */ (dir[head] ?? {}), rest),
+        })
+        return put(tree, directory.split('/').slice(1))
+    }, {})
+
+/**
  * The corpus sources as the matrix generator reads them, written as its own
  * writer spells them, so that generator succeeds in memory — the matrix proof
  * does the same — an empty fixture directory for the harness generator, and
@@ -68,13 +88,21 @@ const withSubprocess = (started, ended) => {
  */
 const root = {
     'spec': {
+        ...specSamples,
         'datajs': {
             'vectors': Object.fromEntries(corpusModules(corpus).map(([name, imported]) =>
                 [name, { 'data.f.js': [utf8(unwrap(tryStringify(/** @type {Unknown} */ (imported))))] }])),
         },
     },
     'nanvm': { 'harness': { 'fixtures': {} } },
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8('export const runtime = {};')] } } },
+    'fjs': {
+        'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } },
+        'nanvm': { 'demos': {
+            'hello': { 'sample.f.js': [utf8('export default () => 1;')] },
+            'sort': { 'sample.f.js': [utf8('export default () => 2;')] },
+            'collatz': { 'sample.f.js': [utf8('export default () => 3;')] },
+        } },
+    },
 }
 
 /** A program that logs `s` and exits `0`. @type {(s: string) => NodeProgram} */
@@ -84,13 +112,14 @@ export const proof = {
     // The order is the design's: cleanup, then the generators, the one that
     // writes the flakes before the lock step that reads them.
     generators: () => {
-        assertEq(generators.length, 6)
+        assertEq(generators.length, 7)
         assert(generators[0] === clean)
         assert(generators[1] === ci)
         assert(generators[2] === rustTests)
         assert(generators[3] === matrix)
         assert(generators[4] === fixtures)
-        assert(generators[5] === cloudflare)
+        assert(generators[5] === demos)
+        assert(generators[6] === cloudflare)
     },
     sequence: {
         allSucceed: () => {

@@ -36,6 +36,20 @@ with string literals, a failing initializer with evaluation. The register of
 refused constructs ([refused-constructs](./refused-constructs.md)) stays the
 cross-cutting index and links the pages.
 
+**A page with a demo is a directory.** A page is a file of its area's
+directory until it shows its example running; then it becomes a directory of
+its own, `<area>/<page>/README.md`, beside the `demo.f.mjs` the site draws on
+that directory's page and the sample the demo runs.
+[Comma](../operators/comma/README.md) was the first: its demo shows the
+example's EDAG, Rust and WebAssembly and calls it both ways. Every page of a
+feature the language admits now has one, its example rewritten as a function
+of one number so the demo can call it; an area's own README that describes a
+feature (functions, operators, property access, values) carries its demo in
+the area's directory. A refused construct's page has none yet, and neither
+have the import pages, whose example needs a second module. The site renders
+the README above the demo where it can
+([render-readme](../../fjs/website/todo/render-readme.md)).
+
 **A feature the compiler lacks has a page too**, marked *planned*, with its
 `todo/` and the example that will show it. The tree is then the roadmap as
 well: the gaps are visible as empty pages.
@@ -126,9 +140,11 @@ which is refused as a read but accepted as a call) is an included page with a
 5. **Bindings**
    - `●` `const`; `●` sharing (a `const` used twice, a repeated expression)
    - `●` [Destructuring](./2450-destructuring.md)
+   - `●` [Variables](../bindings/variables/README.md): `let` and assignment
+     ([`let`](./3220-let.md), "General bindings")
    - `◌` [Shadowing](./3150-shadowing.md),
-     [forward references](./3140-forward-references.md), [`let`](./3220-let.md)
-     beyond the loop, [assignments](./3430-assignments.md)
+     [forward references](./3140-forward-references.md),
+     [compound assignments](./3430-assignments.md)
 6. **Operators**
    - `●` Grouping and precedence
    - `●` Arithmetic, comparison, bitwise
@@ -137,7 +153,7 @@ which is refused as a read but accepted as a call) is an included page with a
    - `◌` `==` `!=` (refused by design); `◌` [`in`](./2346-in-operator.md)
      (refused); `◌` unary `+`, comma
 7. **Conversions**
-   - `●` `Number(...)`; `○` `String(...)`; `◌` [number spread](./2363-number-spread.md)
+   - `●` `Number(...)`; `○` `String(...)`; `◌` other call shapes ([refused by design](../principles/README.md#operators-and-functions))
 8. **Property access**
    - `●` Own-property read; `●` [optional chaining](./2335-optional-chaining.md)
    - `●` Reading an entry at run time (the `entry` helper, presence included)
@@ -147,8 +163,8 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` Captures, closures, self recursion
    - `●` Calls; `○` function identity and text
 10. **Control flow**
-    - `●` Guards and early `return`; `●` `throw`; `●` the `let`/`while` loop
-    - `◌` other loops and statements
+    - `●` Guards and early `return`; `●` `throw`; `●` the one-variable `while` loop
+    - `●` [call statements](../functions/call-statements/README.md); `◌` other loops and statements
 11. **Built-ins**
     - `●` Member functions (`at`, `toString`, …); `●` static functions
       (`Object.is`, `Number.isInteger`, …); `◌` [global names](./2365-global-names.md)
@@ -173,12 +189,12 @@ of pages with a status line, an Examples section and a Reference
 | `lexical/` | whitespace, comments, identifiers, string escapes |
 | `values/` | numbers, bigints, strings, template literals, arrays, objects |
 | `modules/` | structure, exports, imports |
-| `bindings/` | constants, destructuring |
+| `bindings/` | constants, variables, destructuring |
 | `operators/` | operators, grouping, `instanceof`, `in` |
 | `conversions/` | `Number`, `String` |
 | `property-access/` | access, optional chaining, entries |
 | `functions/` | functions, parameters, captures, calls, names and identity, outputs |
-| `control-flow/` | guards, loops |
+| `control-flow/` | guards, loops, switch |
 | `built-ins/` | member functions, static functions |
 | `command-line/` | command line, checking, source text, file types, JSON input, output |
 

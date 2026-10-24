@@ -4,7 +4,8 @@ use nanvm_lib::vm::unstable::{string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+#[allow(clippy::if_same_then_else)]
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), string_any("hello"))].to_object().to_any())
 }
 

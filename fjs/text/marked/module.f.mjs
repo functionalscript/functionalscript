@@ -30,8 +30,10 @@
  */
 
 import { map, scan, toArray } from '../../types/list/module.f.mjs'
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
+import { charIs } from '../ascii/module.f.js'
+import { isIdentifierPart, isIdentifierStart } from '../../js/identifier/module.f.mjs'
 
 /**
  * The text the runs spell.
@@ -56,11 +58,11 @@ export const literal = word => [word, 'literal']
 
 // -- names ----------------------------------------------------------------------
 
-/** @type {(c: string) => boolean} */
-const isNameStart = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_' || c === '$'
+/** Whether a character may open a JavaScript name. @type {(c: string) => boolean} */
+const isNameStart = charIs(isIdentifierStart)
 
-/** @type {(c: string) => boolean} */
-const isNamePart = c => isNameStart(c) || (c >= '0' && c <= '9')
+/** Whether a character may continue a JavaScript name. @type {(c: string) => boolean} */
+const isNamePart = charIs(isIdentifierPart)
 
 /**
  * Whether each character is part of a name, one character at a time. `word`

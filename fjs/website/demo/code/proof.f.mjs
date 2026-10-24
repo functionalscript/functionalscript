@@ -1,6 +1,6 @@
 import { codeBlock } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert } from '../../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.js'
 
 export const proof = {
     codeBlock: () => {

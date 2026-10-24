@@ -4,39 +4,10 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_any_utf16, string_key}
 use nanvm_lib::vm::{Any, Array, IVm, Nullish, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [string_any("2"), f64_any(0x4008000000000000)].to_array().to_any();
-    let c1: Any<A> = [string_any("10"), f64_any(0x4000000000000000)].to_array().to_any();
-    let c2: Any<A> = [string_any("b"), f64_any(0x4010000000000000)].to_array().to_any();
-    let c3: Any<A> = Nullish::Undefined.to_any();
-    let c4: Any<A> = [string_any("u"), c3.clone()].to_array().to_any();
-    let c5: Any<A> = [c0, c1, c2, c4].to_array().to_any();
-    let c6: Any<A> = [string_any("0"), f64_any(0x401c000000000000)].to_array().to_any();
-    let c7: Any<A> = [f64_any(0x4020000000000000)].to_array().to_any();
-    let c8: Any<A> = [string_any("1"), c7.clone()].to_array().to_any();
-    let c9: Any<A> = [c6, c8].to_array().to_any();
-    let c10: Any<A> = [string_any("0"), string_any("a")].to_array().to_any();
-    let c11: Any<A> = [string_any("1"), string_any_utf16(&[0xd83d])].to_array().to_any();
-    let c12: Any<A> = [string_any("2"), string_any_utf16(&[0xde00])].to_array().to_any();
-    let c13: Any<A> = [c10, c11, c12].to_array().to_any();
-    let c14: Any<A> = [c5, c9, c13, Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any()].to_array().to_any();
-    let c15: Any<A> = [string_any("2"), f64_any(0x4008000000000000)].to_array().to_any();
-    let c16: Any<A> = [string_any("10"), f64_any(0x4000000000000000)].to_array().to_any();
-    let c17: Any<A> = [string_any("b"), f64_any(0x4010000000000000)].to_array().to_any();
-    let c18: Any<A> = [string_any("u"), c3.clone()].to_array().to_any();
-    let c19: Any<A> = [c15, c16, c17, c18].to_array().to_any();
-    let c20: Any<A> = [string_any("0"), f64_any(0x401c000000000000)].to_array().to_any();
-    let c21: Any<A> = [string_any("1"), c7.clone()].to_array().to_any();
-    let c22: Any<A> = [c20, c21].to_array().to_any();
-    let c23: Any<A> = [string_any("0"), string_any("a")].to_array().to_any();
-    let c24: Any<A> = [string_any("1"), string_any_utf16(&[0xd83d])].to_array().to_any();
-    let c25: Any<A> = [string_any("2"), string_any_utf16(&[0xde00])].to_array().to_any();
-    let c26: Any<A> = [c23, c24, c25].to_array().to_any();
-    let c27: Any<A> = [c19, c22, c26, Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any()].to_array().to_any();
-    let c28: Any<A> = [true.to_any(), true.to_any(), true.to_any(), string_any("function"), f64_any(0x3ff0000000000000), string_any("function entries() { [native code] }")].to_array().to_any();
-    let c29: Any<A> = [false.to_any(), false.to_any()].to_array().to_any();
-    let c30: Any<A> = [c14, c27, c28, c29].to_array().to_any();
-    Ok([(string_key("default"), c30)].to_object().to_any())
+#[allow(clippy::if_same_then_else)]
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+    let _b7: Any<A> = [f64_any(0x4020000000000000)].to_array().to_any();
+    Ok([(string_key("default"), [[[[string_any("2"), f64_any(0x4008000000000000)].to_array().to_any(), [string_any("10"), f64_any(0x4000000000000000)].to_array().to_any(), [string_any("b"), f64_any(0x4010000000000000)].to_array().to_any(), [string_any("u"), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any(), [[string_any("0"), f64_any(0x401c000000000000)].to_array().to_any(), [string_any("1"), _b7.clone()].to_array().to_any()].to_array().to_any(), [[string_any("0"), string_any("a")].to_array().to_any(), [string_any("1"), string_any_utf16(&[0xd83d])].to_array().to_any(), [string_any("2"), string_any_utf16(&[0xde00])].to_array().to_any()].to_array().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any()].to_array().to_any(), [[[string_any("2"), f64_any(0x4008000000000000)].to_array().to_any(), [string_any("10"), f64_any(0x4000000000000000)].to_array().to_any(), [string_any("b"), f64_any(0x4010000000000000)].to_array().to_any(), [string_any("u"), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any(), [[string_any("0"), f64_any(0x401c000000000000)].to_array().to_any(), [string_any("1"), _b7.clone()].to_array().to_any()].to_array().to_any(), [[string_any("0"), string_any("a")].to_array().to_any(), [string_any("1"), string_any_utf16(&[0xd83d])].to_array().to_any(), [string_any("2"), string_any_utf16(&[0xde00])].to_array().to_any()].to_array().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any(), Array::default().to_any()].to_array().to_any(), [true.to_any(), true.to_any(), true.to_any(), string_any("function"), f64_any(0x3ff0000000000000), string_any("function entries() { [native code] }")].to_array().to_any(), [false.to_any(), false.to_any()].to_array().to_any()].to_array().to_any())].to_object().to_any())
 }
 
 #[rustfmt::skip]

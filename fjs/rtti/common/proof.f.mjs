@@ -14,15 +14,17 @@ import {
     isObject,
     noAccumulate,
     noDeclared,
+    readerOf,
     restContainerRead,
     structSchemaEntries,
     tupleSchemaEntries,
     undeclaredMembers,
     verror,
 } from './module.f.mjs'
-import { option, or } from '../module.f.mjs'
+import { array, number, option, or, record, rest } from '../module.f.mjs'
+import { emptyRest } from '../data/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 /** @type {(k: string, v: number) => Result<number, ValidationError>} */
 const item = (k, v) =>
@@ -251,5 +253,29 @@ export const proof = {
             assertOk(read(anyLength)([1]))
             assertErrorPath([])(read(noLength)([1]))
         },
+    },
+    // One reader, whole: the containers it reads, and what it builds of
+    // each kind through `finish`.
+    readerOf: () => {
+        /** @type {(name: string) => (acc: undefined, value: Unknown) => Unknown} */
+        const tagged = name => (_, value) => [name, value]
+        const read = readerOf(
+            { empty: undefined, cons: noAccumulate },
+            { array: tagged('array'), record: tagged('record'), tuple: tagged('tuple'), struct: tagged('struct') },
+            emptyRest)
+        assertStructurallySame(assertOk(read(array(number))([1])), ['array', [1]])
+        assertStructurallySame(assertOk(read(record(number))({ a: 1 })), ['record', { a: 1 }])
+        assertStructurallySame(assertOk(read([number])([1])), ['tuple', [1]])
+        assertStructurallySame(assertOk(read({ a: number })({ a: 1 })), ['struct', { a: 1 }])
+        assertStructurallySame(assertOk(read(rest([number], number))([1, 2])), ['tuple', [1, 2]])
+        assertStructurallySame(assertOk(read(rest({ a: number }, number))({ a: 1, b: 2 })), ['struct', { a: 1, b: 2 }])
+        assertStructurallySame(assertOk(read(or(number, [number]))([1])), ['tuple', [1]])
+        // `array(or())` is the empty array, not any number of holes: the
+        // length bound `emptyRest` decides.
+        assertStructurallySame(assertOk(read(array(or()))([])), ['array', []])
+        assertErrorPath([])(read(array(or()))(new Array(1)))
+        // So is an empty rest past a tuple's prefix.
+        assertStructurallySame(assertOk(read(rest([], or()))([])), ['tuple', []])
+        assertErrorPath([])(read(rest([], or()))(new Array(1)))
     },
 }

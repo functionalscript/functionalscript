@@ -11,7 +11,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { assertOk } from '../../../asserts/module.f.mjs'
+import { assertOk } from '../../../asserts/module.f.js'
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.mjs'
@@ -51,3 +51,6 @@ export const toNumber = (value, invoke) => {
     const [kind, primitive] = result
     return kind === 'error' ? result : primitiveToNumber(primitive)
 }
+
+/** ToIntegerOrInfinity of a number ToNumber has answered: truncated, with `NaN` and `-0` as `0`. @type {(value: number) => number} */
+export const toIntegerOrInfinity = value => Math.trunc(value) || 0

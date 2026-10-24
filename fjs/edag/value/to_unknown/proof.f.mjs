@@ -8,22 +8,24 @@
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { notImplemented, runPure } from '../../../effects/module.f.mjs'
 import { partialRun, run } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'
 import { compileCommands, toData, toUnknown } from './module.f.mjs'
+import { isObject } from '../../../types/object/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.mjs'
 
 /** @type {(value: unknown) => readonly unknown[]} */
 const elements = value => {
-    assert(value instanceof Array)
+    assert(isArray(value))
     return value
 }
 
 /** Reads a proved own data field, without accepting an inherited property. @type {(value: unknown, key: string) => unknown} */
 const field = (value, key) => {
-    assert(typeof value === 'object' && value !== null && !(value instanceof Array))
+    assert(isObject(value))
     return assertNotNullish(Object.entries(value).find(([name]) => name === key))[1]
 }
 

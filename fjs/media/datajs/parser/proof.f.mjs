@@ -9,12 +9,14 @@
  * @import { Out } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
+import { decode } from '../../../basen/base16/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
 import { value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { _valueSymbol as valueSymbol, mappings, tryParse, tryParseBytes } from './module.f.mjs'
+import { isObject } from '../../../types/object/module.f.mjs'
 
 const { is, keys, hasOwn, getPrototypeOf } = Object
 
@@ -32,13 +34,13 @@ const refused = (text, message) => assertStructurallySame(tryParse(text), ['erro
 
 /**
  * A byte document, written the way the corpus writes one: lowercase hex
- * pairs separated by single spaces, so a case reads as the bytes it is. The
- * empty string is no pairs rather than one empty pair, which is how a case
- * spells the empty input.
+ * pairs separated by single spaces, so a case reads as the bytes it is. Each
+ * pair is read by `fjs/basen/base16`; the empty string splits into one empty
+ * pair, which is no bytes, so it spells the empty input.
  *
  * @type {(hex: string) => readonly number[]}
  */
-const bytesOf = hex => hex === '' ? [] : hex.split(' ').map(pair => parseInt(pair, 16))
+const bytesOf = hex => hex.split(' ').flatMap(pair => assertNotNullish(decode(pair)))
 
 /** The value bytes spell, where they spell one. @type {(hex: string) => Unknown} */
 const parsedBytes = hex => unwrap(tryParseBytes(bytesOf(hex)))
@@ -55,7 +57,7 @@ const asArray = value => {
 
 /** @type {(value: Unknown) => object} */
 const asObject = value => {
-    assert(typeof value === 'object' && value !== null && !(value instanceof Array))
+    assert(isObject(value))
     return value
 }
 
@@ -186,7 +188,7 @@ export const proof = {
         const distinct = asArray(parsed('export default [[],[]];'))
         assert(!is(distinct[0], distinct[1]))
         const nested = parsed('const $0={};const $1=[$0];export default {"a":$1,"b":$0,"c":$1};')
-        assert(typeof nested === 'object' && nested !== null && !(nested instanceof Array))
+        assert(isObject(nested))
         assert(is(asArray(nested.a)[0], nested.b))
         assert(is(nested.a, nested.c))
         assertStructurallySame(nested, { a: [{}], b: {}, c: [{}] })

@@ -18,15 +18,13 @@
  * @import { Envelope } from './types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { ascii, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { range, repeatFrom1, set } from '../../ebnf/module.f.mjs'
-import { digitsValue, isCanonicalDigits } from '../../text/ascii/module.f.mjs'
+import { decimalValue, isCanonicalDigits } from '../../text/ascii/module.f.js'
 import { concat, drop, sameItems, take } from '../../types/list/module.f.mjs'
 
 const maxSize = BigInt(Number.MAX_SAFE_INTEGER)
-
-const decimalValue = digitsValue(10n)
 
 /** The four types, as the envelope spells them. */
 export const objectTypes = /** @type {const} */ (['blob', 'tree', 'commit', 'tag'])
@@ -105,6 +103,36 @@ const decimal = digits => {
 }
 
 /**
+ * An envelope read from the start of `input`: its type, the size it claims, and
+ * where the payload begins; `null` where the prefix holds none that is valid.
+ *
+ * @type {(input: Bytes) => Nullable<{ readonly type: ObjectType, readonly size: number, readonly end: number }>}
+ */
+const tryEnvelope = input => {
+    const r = parse(symbols(take(prefixLength)(input)))
+    if (r[0] === 'error') { return null }
+    const [[w, , digits], end] = r[1]
+    const type = tryType(symbolsOf(w))
+    const size = decimal(symbolsOf(digits))
+    return type !== null && size !== null ? { type, size, end } : null
+}
+
+/**
+ * How many bytes an object is, envelope and payload, by what its envelope
+ * claims, or `null` where there is no valid envelope. Whoever inflates an object
+ * reads this from its first bytes, and stops at that length: a stream that goes
+ * on is no object, and need not be inflated to be known so.
+ *
+ * @throws If an item of the prefix is not a byte.
+ *
+ * @type {(input: Bytes) => Nullable<number>}
+ */
+export const tryLength = input => {
+    const e = tryEnvelope(input)
+    return e === null ? null : e.end + e.size
+}
+
+/**
  * Reads an object past its envelope, or refuses it: an envelope the prefix
  * does not hold, a type that is not one of the four, a size that is not
  * canonical decimal or not a safe integer, or a payload that is not as
@@ -120,15 +148,10 @@ const decimal = digits => {
  * @type {(input: Bytes) => Nullable<Envelope>}
  */
 export const tryRead = input => {
-    const r = parse(symbols(take(prefixLength)(input)))
-    if (r[0] === 'error') { return null }
-    const [[w, , digits], end] = r[1]
-    const type = tryType(symbolsOf(w))
-    const size = decimal(symbolsOf(digits))
-    const payload = drop(end)(input)
-    return type !== null && size !== null && length(payload) === size
-        ? { type, payload }
-        : null
+    const e = tryEnvelope(input)
+    if (e === null) { return null }
+    const payload = drop(e.end)(input)
+    return length(payload) === e.size ? { type: e.type, payload } : null
 }
 
 /**

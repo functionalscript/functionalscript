@@ -1,4 +1,4 @@
-import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve, _arg as arg, _rest as rest, _parameters as parameters } from './module.f.mjs'
 

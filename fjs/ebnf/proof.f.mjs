@@ -7,8 +7,9 @@
  * @import { Set } from './types.ts'
  */
 
-import { assertStructurallySame } from '../asserts/module.f.mjs'
+import { assertStructurallySame } from '../asserts/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
+import { one as c } from '../text/ascii/module.f.js'
 import { parser } from './ll1/module.f.mjs'
 import { units, utf16 } from './utf16/module.f.mjs'
 import {
@@ -29,10 +30,7 @@ import {
     unicodeMax,
     union,
 } from './module.f.mjs'
-import { force } from './testlib.f.mjs'
-
-/** @type {(a: string) => number} */
-const c = a => a.codePointAt(0) ?? 0
+import { assertRecognizes, force, recognizer } from './testlib.f.mjs'
 
 /**
  * The boundaries a `SetInfo` carries. Every constructor returns a thunk, so
@@ -213,6 +211,17 @@ export const proof = {
             assertStructurallySame(force(literals(['abc'])), { a: ['a', { b: ['b', { c: 'c' }] }] })
             assertStructurallySame(force(literals([unicodeMax])), { [unicodeMax]: unicodeMax })
         },
+    },
+    // The proofs' recognizer accepts a text only with every symbol consumed:
+    // a match that ends short is resumed where it ended, and refused where
+    // it consumed nothing; a refusal carries the parser's answer.
+    recognizer: () => {
+        const one = recognizer(parser('a'), units)
+        const any = recognizer(parser(repeatFrom0('a')), units)
+        assertRecognizes(one)([['a', true], ['aa', true], ['', false], ['ab', false]])
+        assertRecognizes(any)([['', true], ['aa', true], ['b', false]])
+        assertStructurallySame(one('ab').diagnostic, ['error', 1])
+        assertStructurallySame(any('b').diagnostic, ['ok', [[], 0]])
     },
     throw: {
         // A word list holds at least one word, no empty word — a rule that

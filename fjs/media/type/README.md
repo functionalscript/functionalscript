@@ -71,9 +71,9 @@ detectVec(bytes)                // { length, mime_type, type }
 | magic   | signature elimination — the same `magicStep` `detect` folds with     | matched / dead (≤12 B)   |
 | utf8    | UTF-8 validity-and-text DFA over `fjs/text/utf8`'s decoder            | invalid / non-text       |
 
-`finish` reads the same three-way verdict as the pure path: magic hit → `base64`
-+ detected mime; else whole-blob-valid UTF-8 **that is also all-text** → `text` +
-`text/plain`; else `base64` + `application/octet-stream`. UTF-8 classification
+`finish` reads the same three-way verdict as the pure path: magic hit →
+`base64` + detected mime; else whole-blob-valid UTF-8 **that is also all-text** →
+`text` + `text/plain`; else `base64` + `application/octet-stream`. UTF-8 classification
 must see **every** byte (a blob can be valid until its last byte), so a
 leading-bytes buffer would be incorrect — only the streaming validator is.
 

@@ -72,15 +72,17 @@
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Primitive, Unknown } from '../types.ts'
  * @import { _Graph, _Leaf, _Member, _Node, _Read, _Value } from './types.ts'
- * @import { _Frame, _Stack, _State, _Step, _Todo, _Walk } from './private.ts'
+ * @import { _Frame, _Step, _Visit, _Walk } from './private.ts'
+ * @import { WalkFold } from '../../../types/stack_walk/types.ts'
  */
 
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 import { serialize as bigintSerialize } from '../../../types/bigint/module.f.mjs'
 import { empty, flat, toArray } from '../../../types/list/module.f.mjs'
 import { cmp } from '../../../types/number/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.js'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
+import { pushOk, walkFold } from '../../../types/stack_walk/module.f.mjs'
 import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 
@@ -196,8 +198,6 @@ const leaf = kept => ['leaf', kept]
 /** @type {<L>(member: _Member<object, L>) => _Value<object, L>} */
 const memberOf = ([, value]) => value
 
-/** A value of the caller's, still to be read. @type {(value: unknown) => _Todo<never>} */
-const toEnter = value => ['enter', value]
 
 /**
  * A container met for the first time, opened as a frame. Its kind is
@@ -248,16 +248,15 @@ const close = ({ kind, done }) => {
  * none is left, the frame closed: its node appended after every node it
  * refers to, and the reference standing in its place handed down.
  *
- * @type {<L>(stack: _Stack<L>, walk: _Walk<L>, frame: _Frame<L>) => _State<L>}
+ * @type {<L>(walk: _Walk<L>, frame: _Frame<L>) => _Visit<L>}
  */
-const round = (stack, walk, frame) => {
+const round = (walk, frame) => {
     const { value, properties, index } = frame
     if (index < properties.length) {
         const [key, descriptor] = properties[index]
-        return [{ top: frame, rest: stack }, walk, mapOk(toEnter)(_memberValue(key, descriptor))]
+        return [walk, pushOk(frame)(_memberValue(key, descriptor))]
     }
     return [
-        stack,
         { started: walk.started, finished: { head: walk.finished, tail: [[value, close(frame)]] } },
         ok(['ref', value]),
     ]
@@ -273,26 +272,37 @@ const round = (stack, walk, frame) => {
  *
  * @template L
  * @param {_Leaf<L>} leafRule
- * @returns {(stack: _Stack<L>, walk: _Walk<L>, value: unknown) => _State<L>}
+ * @returns {(walk: _Walk<L>, value: unknown) => _Visit<L>}
  */
-const enter = leafRule => (stack, walk, value) => {
+const enter = leafRule => (walk, value) => {
     switch (typeof value) {
         case 'bigint':
         case 'boolean':
         case 'number':
         case 'string':
-        case 'undefined': { return [stack, walk, mapOk(leaf)(leafRule(value))] }
+        case 'undefined': { return [walk, mapOk(leaf)(leafRule(value))] }
         case 'object': {
-            if (value === null) { return [stack, walk, mapOk(leaf)(leafRule(null))] }
-            if (has(value)(walk.started)) { return [stack, walk, ok(['ref', value])] }
+            if (value === null) { return [walk, mapOk(leaf)(leafRule(null))] }
+            if (has(value)(walk.started)) { return [walk, ok(['ref', value])] }
             /** @type {Result<_Frame<L>, string>} */
             const frame = open(value)
             return frame[0] === 'error'
-                ? [stack, walk, frame]
-                : round(stack, { started: add(value)(walk.started), finished: walk.finished }, frame[1])
+                ? [walk, frame]
+                : round({ started: add(value)(walk.started), finished: walk.finished }, frame[1])
         }
-        default: { return [stack, walk, error(`a ${typeof value} is not a DataJS value`)] }
+        default: { return [walk, error(`a ${typeof value} is not a DataJS value`)] }
     }
+}
+
+/**
+ * A frame taken back with the value its member was read as: the member
+ * appended, and the next one read.
+ *
+ * @type {<L>(walk: _Walk<L>, top: _Frame<L>, value: _Value<object, L>) => _Visit<L>}
+ */
+const resume = (walk, top, value) => {
+    const [key] = top.properties[top.index]
+    return round(walk, { ...top, index: top.index + 1, done: { head: top.done, tail: [[key, value]] } })
 }
 
 /**
@@ -307,24 +317,10 @@ const enter = leafRule => (stack, walk, value) => {
  * @param {_Leaf<L>} leafRule
  * @returns {(value: unknown) => Result<_Step<L>, string>}
  */
-const read = leafRule => value => {
-    const enterWith = enter(leafRule)
-    /** @type {_State<L>} */
-    let state = [null, start, ok(toEnter(value))]
-    while (true) {
-        const [stack, walk, next] = state
-        if (next[0] === 'error') { return next }
-        const todo = next[1]
-        if (todo[0] === 'enter') {
-            state = enterWith(stack, walk, todo[1])
-        } else if (stack === null) {
-            return ok([walk, todo])
-        } else {
-            const { top, rest } = stack
-            const [key] = top.properties[top.index]
-            state = round(rest, walk, { ...top, index: top.index + 1, done: { head: top.done, tail: [[key, todo]] } })
-        }
-    }
+const read = leafRule => {
+    /** @type {WalkFold<_Walk<L>, unknown, _Frame<L>, _Value<object, L>, string>} */
+    const w = { enter: enter(leafRule), resume }
+    return walkFold(w)(start)
 }
 
 // ── linking, sharing and writing ──────────────────────────────────────────────

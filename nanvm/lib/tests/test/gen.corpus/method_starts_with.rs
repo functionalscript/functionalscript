@@ -2,17 +2,18 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("prefix", Any::dot(string_any("abc"), string_any("startsWith")).end_call(|| Ok([string_any("ab")].to_array().to_any())), true.to_any());
-    check::<A>("notPrefix", Any::dot(string_any("abc"), string_any("startsWith")).end_call(|| Ok([string_any("bc")].to_array().to_any())), false.to_any());
-    check::<A>("at", Any::dot(string_any("abc"), string_any("startsWith")).end_call(|| Ok([string_any("bc"), f64_any(0x3ff0000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("empty", Any::dot(string_any("abc"), string_any("startsWith")).end_call(|| Ok([string_any("")].to_array().to_any())), true.to_any());
-    check::<A>("longer", Any::dot(string_any("ab"), string_any("startsWith")).end_call(|| Ok([string_any("abc")].to_array().to_any())), false.to_any());
-    check::<A>("negative", Any::dot(string_any("abc"), string_any("startsWith")).end_call(|| Ok([string_any("a"), f64_any(0xbff0000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("pastTheEnd", Any::dot(string_any("abc"), string_any("startsWith")).end_call(|| Ok([string_any(""), f64_any(0x4022000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("noArgument", Any::dot(string_any("undefinedx"), string_any("startsWith")).end_call(|| Ok(Array::default().to_any())), true.to_any());
-    check::<A>("number", Any::dot(string_any("12"), string_any("startsWith")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), true.to_any());
-    check_throws::<A>("bigintPosition", Any::dot(string_any("abc"), string_any("startsWith")).end_call(|| Ok([string_any("a"), bigint_any(0)].to_array().to_any())));
-    check::<A>("function", Any::dot(string_any("()=>undefined!"), string_any("startsWith")).end_call(|| Ok([function_any()].to_array().to_any())), true.to_any());
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("prefix", scope(|| { Any::dot(string_any("abc"), string_any("startsWith")).end_call(&rt, || Ok([string_any("ab")].to_array().to_any())) }), true.to_any());
+    check::<A>("notPrefix", scope(|| { Any::dot(string_any("abc"), string_any("startsWith")).end_call(&rt, || Ok([string_any("bc")].to_array().to_any())) }), false.to_any());
+    check::<A>("at", scope(|| { Any::dot(string_any("abc"), string_any("startsWith")).end_call(&rt, || Ok([string_any("bc"), f64_any(0x3ff0000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("empty", scope(|| { Any::dot(string_any("abc"), string_any("startsWith")).end_call(&rt, || Ok([string_any("")].to_array().to_any())) }), true.to_any());
+    check::<A>("longer", scope(|| { Any::dot(string_any("ab"), string_any("startsWith")).end_call(&rt, || Ok([string_any("abc")].to_array().to_any())) }), false.to_any());
+    check::<A>("negative", scope(|| { Any::dot(string_any("abc"), string_any("startsWith")).end_call(&rt, || Ok([string_any("a"), f64_any(0xbff0000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("pastTheEnd", scope(|| { Any::dot(string_any("abc"), string_any("startsWith")).end_call(&rt, || Ok([string_any(""), f64_any(0x4022000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("noArgument", scope(|| { Any::dot(string_any("undefinedx"), string_any("startsWith")).end_call(&rt, || Ok(Array::default().to_any())) }), true.to_any());
+    check::<A>("number", scope(|| { Any::dot(string_any("12"), string_any("startsWith")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), true.to_any());
+    check_throws::<A>("bigintPosition", scope(|| { Any::dot(string_any("abc"), string_any("startsWith")).end_call(&rt, || Ok([string_any("a"), bigint_any(0)].to_array().to_any())) }));
+    check::<A>("function", scope(|| { Any::dot(string_any("()=>undefined!"), string_any("startsWith")).end_call(&rt, || Ok([A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any()].to_array().to_any())) }), true.to_any());
 }

@@ -17,10 +17,18 @@
 
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
-import { isStatic } from '../../module.f.mjs'
+import { isIntrinsic, isStatic } from '../../module.f.mjs'
 
 /** Untags undefined for primitive operations, retaining every other value. @param {EdagValue} value */
 export const untagUndefined = value => isArray(value) && value[0] === 'undefined' ? undefined : value
+
+/**
+ * Tags a slot JavaScript reads as `undefined` — a missing argument, element
+ * or property — as EDAG's undefined: the inverse of {@link untagUndefined}.
+ *
+ * @type {<T>(value: T) => (T & ({} | null)) | readonly ['undefined']}
+ */
+export const tagUndefined = value => value === undefined ? ['undefined'] : value
 
 /** JavaScript truthiness of the represented value. @type {(value: EdagValue) => boolean} */
 export const truthy = value => Boolean(untagUndefined(value))
@@ -31,10 +39,16 @@ export const truthy = value => Boolean(untagUndefined(value))
  *
  * @type {(value: EdagValue) => value is ValueFunction}
  */
-export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'entry' || isStatic(value))
+export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'entry' || value[0] === 'hasEntry' || isIntrinsic(value) || isStatic(value))
 
 /** JavaScript typeof of the represented value. @type {(value: EdagValue) => string} */
 export const typeOf = value => isFunction(value) ? 'function' : typeof untagUndefined(value)
+
+/** Whether a value is `undefined`, tagged or absent: an argument not given reads as one. @type {(value: EdagValue) => boolean} */
+export const isUndefined = value => typeOf(value) === 'undefined'
+
+/** Whether a value is `null` or `undefined`: what `??` and `?.` step past. @type {(value: EdagValue) => boolean} */
+export const isNullish = value => value === null || isUndefined(value)
 
 /**
  * Whether two values are one static function: a built-in is identified by

@@ -22,7 +22,7 @@ followed by `(7)` on the next line is the call `f(7)`, and `[1]` followed by
 `[0]` is an index — a `;` is inserted only where the parser cannot continue
 the statement, never at a newline as such — except at the two boundaries of
 this language where JavaScript forbids one, before `=>` and after `return`
-or `throw` ([line terminators](../lexical/whitespace.md)).
+or `throw` ([line terminators](../lexical/whitespace/README.md)).
 
 [DataJS](../datajs/README.md) *requires* the `;` after every statement, and
 every DataJS document must be a valid FunctionalScript module —
@@ -55,6 +55,9 @@ so every DataJS document parses here.
 |combined imports|`import value, { name } from "./path";`|
 |JSON import|`import name from "./path.json" with { type: "json" };`|
 |constant|`const name = expression;`|
+|variable|`let name = expression;`|
+|assignment|`name = expression;`|
+|call statement|`name(expression);`|
 |named export|`export const name = expression;`|
 |default export|`export default expression;`|
 |throw|`throw expression;`|
@@ -68,7 +71,10 @@ export default [base, extra];      // optional, at most one, last
 ```
 
 These are the module-level statement forms. A statement begins with `import`,
-`const`, `export`, or `throw`, and never with a value; more forms land as the
+`const`, `let`, `export`, or `throw`, or with the name of an assignment or
+a call statement, each of which stands wherever a `const` does
+([variables](../bindings/variables/README.md),
+[call statements](../functions/call-statements/README.md)); more forms land as the
 language grows ([`spec/todo/`](../todo/README.md)).
 
 JavaScript accepts `throw` at the top level of a module, and
@@ -89,7 +95,7 @@ and the value outputs, which evaluate, refuse it as they refuse that module
 A module is one function, and the compiler reads it that way. Its imports are
 its parameters, in source order; its constants are the constants of its body;
 and what it returns is the object of its exports
-([exporting a value](exports.md)), `export default` being that
+([exporting a value](exports/README.md)), `export default` being that
 object's `default` member — or, where the module ends in `throw`, it
 returns nothing and fails, as a function whose body ends in `throw` does. So a module's imports and constants are one scope,
 as a function's parameters and body constants are: one namespace, each name
@@ -108,8 +114,19 @@ identity are one application, shared, as
 
 ## Pages
 
-- [Exporting a Value](./exports.md)
+- [Exporting a Value](./exports/README.md)
 - [Importing Other Modules](./imports.md)
+
+Refused by design, each page showing what `fjs compile` prints and what to write instead:
+
+- [An Export That Binds Nothing Is Refused](./empty-pattern-export/README.md)
+- [An Empty Statement Is Refused](./empty-statements/README.md)
+- [An Export After `export default` Is Refused](./export-after-default/README.md)
+- [`export let` Is Refused](./export-let/README.md)
+- [Exporting `then` Is Refused](./exports/then/README.md)
+- [An Import After an Export Is Refused](./import-after-export/README.md)
+- [A Module With No Export Is Refused](./no-export/README.md)
+- [A `throw` Beside an Export Is Refused](./throw-position/README.md)
 
 ## Examples
 

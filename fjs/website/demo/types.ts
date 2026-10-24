@@ -26,7 +26,8 @@ import type { Examples } from './examples/types.ts'
  * operation before it can show anything has somewhere to ask for it without
  * `init` becoming an effect. `input` carries the `name` attribute of the
  * element that changed, which is how a demo tells its fields apart without
- * ever holding a DOM node.
+ * ever holding a DOM node, and its value — empty for a checkbox that is not
+ * checked, as a form leaves one out.
  *
  * `click` is what a demo uses to ask for work rather than to react to typing:
  * a benchmark should start when a reader says so, not when a page loads. A
@@ -41,6 +42,24 @@ export type DemoEvent =
     | { readonly kind: 'start' }
     | { readonly kind: 'input', readonly name: string, readonly value: string }
     | { readonly kind: 'click', readonly name: string }
+
+/**
+ * How a graph maps a drag onto a slider's value: the values `min` to `max`
+ * are drawn from the x `left` to the x `right`, in the graph's own
+ * coordinates.
+ */
+export type DragAxis = {
+    readonly min: number
+    readonly max: number
+    readonly left: number
+    readonly right: number
+}
+
+/** The values a slider admits, `min` to `max`. */
+export type DragBounds = {
+    readonly min: number
+    readonly max: number
+}
 
 /**
  * A demo: an initial state, how an event changes it, and what it looks like.
@@ -64,8 +83,10 @@ export type DemoEvent =
  * not recoverable: it is a defect, and the runtime reports it as one.
  *
  * **What a demo may name is what the runtime implements**, which is today
- * `sandbox` and `catch` from [`effects/common`](../../effects/common/types.ts)
- * — host-neutral operations a browser has as surely as Node does. A demo that
+ * `sandbox`, `catch` and `randomInt` from
+ * [`effects/common`](../../effects/common/types.ts) — host-neutral operations a browser has as surely as Node does —
+ * and `fetchText` and `instantiate` from
+ * [`effects/browser`](../../effects/browser/types.ts). A demo that
  * needs nothing declares `never` and returns `pureOk`, which is the same shape
  * with an empty vocabulary rather than a second kind of demo. An operation the
  * runtime does not implement answers `notImplemented` through the demo's own
@@ -97,6 +118,14 @@ export type Demo<State, Event, O extends Operation = never> = {
      * on these turns. Queued reader input cancels a scheduled turn.
      */
     readonly nextEvent?: ((state: State) => Event | null) | undefined
+    /**
+     * How many milliseconds to wait before running the event `nextEvent`
+     * asks for, so a demo can hold a state on screen — a step of an
+     * animation — before the next. None, or `0`, runs it on the next turn,
+     * and so does a reader who has asked for less motion. A reader's event
+     * still cancels the wait.
+     */
+    readonly nextDelay?: ((state: State) => number) | undefined
 }
 
 /**
@@ -127,3 +156,9 @@ export type TextFieldOptions = Pick<TextDemoOptions, 'name' | 'label' | 'rows' |
 
 /** Options for a labelled single-line input. */
 export type InputFieldOptions = Pick<TextDemoOptions, 'name' | 'label'>
+
+/** One radio button of a group: the value it sends and the text beside it. */
+export type RadioOption = {
+    readonly value: string
+    readonly label: string
+}

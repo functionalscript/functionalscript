@@ -30,7 +30,7 @@ import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 /**
  * The package's runtime at its path beside a root's files: `fjs compile` interprets a data output under it, and the virtual root is the package.
@@ -39,7 +39,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
  */
 const withRuntime = root => ({
     ...root,
-    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("export const runtime = { member: { startsWith: self => s => self.slice(0, s.length) === s } };")] } } },
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("const startsWith = self => s => self.slice(0, s.length) === s; export const runtime = { member: { startsWith }, dot: (self, key) => key === 'startsWith' ? startsWith(self) : undefined };")] } } },
 })
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
@@ -86,7 +86,7 @@ export const proof = {
     // call fails the dependency's initialization.
     interpret: () => {
         /** @type {Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
+        const runtime = ['{}', [[':', 'dot', ['=>', 2, [], ['?:', ['===', ['arg', 1], 'startsWith'], ['()', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]], [['arg', 0]]], ['undefined']]]]]]
         const root = {
             'main.f.js': [utf8("import d from './dep.f.js'; export default [d, 'xy'.startsWith('x')];")],
             'dep.f.js': [utf8("export default 'abc'.startsWith('b');")],
@@ -131,19 +131,19 @@ export const proof = {
         },
         // A static function exported is the host's own built-in in the
         // emitted module, whichever static it is, under a runtime whose
-        // `static` section binds the ones with a body; a function value, so
+        // `static` answers the ones with a body; a function value, so
         // the module is what reaches the compile boundary.
         staticExports: () => {
             const root = {
                 main: [utf8('export default [Object.entries, Object.is, Number.isNaN];')],
-                'r.f.js': [utf8('export const runtime = { static: { Object: { is: (a, b) => a === b }, Number: { isNaN: x => x !== x } } };')],
+                'r.f.js': [utf8('const entry = (o, p) => { const d = Object.getOwnPropertyDescriptor(o, p); return d?.enumerable ? d.value : undefined }; const statics = { "Object.is": (a, b) => a === b, "Number.isNaN": x => x !== x }; export const runtime = { static: id => entry(statics, id) };')],
             }
             const loaded = { value: 3 }
             /** @type {PartialMemOperationMap<NodeOp | CompileValue, typeof emptyState>} */
             const operations = {
                 ...virtualOperationMap,
                 compileValue: source => state => {
-                    assertEq(source, 'export default()=>{const $0=Object.entries;const $1=Object.is;const $2=Number.isNaN;const $3=[$0,$1,$2];const $4={["default"]:$3};return $4;};')
+                    assertEq(source, 'export default()=>{return {"default":[Object.entries,Object.is,Number.isNaN]};};')
                     return [state, ok(loaded)]
                 },
             }

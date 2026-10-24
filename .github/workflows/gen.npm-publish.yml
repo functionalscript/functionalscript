@@ -14,13 +14,13 @@
   "jobs": {
     "publish-npm": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
             "registry-url": "https://registry.npmjs.org/",
-            "node-version": "26.12.0"
+            "node-version": "26.12.1"
           }
         },
         {

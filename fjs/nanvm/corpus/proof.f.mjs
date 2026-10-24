@@ -3,8 +3,8 @@
  * why not.
  */
 
-import { assert, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { structurallySame } from '../../types/object/structurally_same/module.f.mjs'
+import { assert, assertStructurallySame } from '../../asserts/module.f.js'
+import { structurallySame } from '../../types/object/structurally_same/module.f.js'
 import { corpus, exceptions, undefinedDefault, withAliasing, withoutNegativeZero } from './module.f.mjs'
 
 export const proof = {

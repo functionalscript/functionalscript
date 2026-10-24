@@ -22,7 +22,7 @@
  */
 
 import { encode } from './module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { bitGroupDemo, bitGroups } from '../../website/demo/bits/module.f.mjs'
 
 /**

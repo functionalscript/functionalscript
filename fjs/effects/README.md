@@ -6,6 +6,97 @@ wrapper around it. One type, one module —
 [`./module.f.mjs`](./module.f.mjs) holds the representation, its interpreters
 and the combinators alike.
 
+## Start here
+
+An effect is a **description** of a program that talks to the outside world,
+not the act of doing it. `readFile(path)` reads nothing: it is a value naming
+the command `readFile`, its payload, and what to do with the answer. A
+**runner** walks that value, performs each command it meets, and feeds the
+answer back. The same program runs on Node, in a browser page, in the
+SpiderMonkey shell, or against a mock in a proof, because only the runner
+changes, provided that runner answers every operation the program uses: the
+`ask` below has a handler only in its mock, and a host operation such as
+`fetchText` only on the browser page (the runners table below names each
+runner's operations).
+
+Every answer is a [`Result`](../types/result/types.ts), so every effect has
+an error channel, and the combinators below decide what happens to an error
+without a `try`.
+
+```js
+/**
+ * @import { DemoAsk as Ask, Effect } from './types.ts'
+ * @import { MemOperationMap } from './mock/types.ts'
+ */
+import { catchStep, do_, pureOk, step } from './module.f.mjs'
+import { run } from './mock/module.f.mjs'
+import { error, ok } from '../types/result/module.f.js'
+
+// An operation: a command name, called like a function, returning an Effect.
+// Its type says what the command takes and answers; the name alone cannot.
+/** @type {(question: string) => Effect<Ask, string, string>} */
+const ask = do_('ask')
+
+// A program: ask, then build a greeting from the answer.
+const greet = step(ask('name?'), name => pureOk(`hello, ${name}`))
+
+// A runner: here a mock whose state is a string and whose `ask` answers it.
+/** @type {MemOperationMap<Ask, string>} */
+const answers = { ask: () => state => [state, ok(state)] }
+run(answers)('Ada')(greet)
+// ['Ada', ['ok', 'hello, Ada']]
+
+// The same program when `ask` fails: `step` skips its continuation.
+/** @type {MemOperationMap<Ask, string>} */
+const refuses = { ask: () => state => [state, error('no one')] }
+run(refuses)('Ada')(greet)
+// ['Ada', ['error', 'no one']]
+
+// `catchStep` is the error path, as `step` is the success path.
+run(refuses)('Ada')(catchStep(greet, e => pureOk(`hello, ${e}?`)))
+// ['Ada', ['ok', 'hello, no one?']]
+```
+
+The demo on this directory's page runs a program like this one and prints
+every operation the runner performed, so a failure that stops the program can
+be watched happening.
+
+### The combinators at a glance
+
+|Combinator                       |Runs its continuation on        |Use it to                                          |
+|---------------------------------|--------------------------------|---------------------------------------------------|
+|`step(e, f)`                     |`ok`                            |sequence: the normal path                          |
+|`mapStep(e, f)`                  |`ok`, with a plain function     |transform a value                                  |
+|`catchStep(e, f)`                |`error`                         |recover, or replace an error                       |
+|`orElse(forgiven, fallback)`     |a `catchStep` continuation      |forgive one class of error with a fallback value   |
+|`resultStep(e, f)`               |either, with the whole `Result` |handle both branches explicitly                    |
+|`attemptStep(e)`                 |none; answers the `Result`      |carry an outcome on as a value                     |
+|`finallyStep(e, f)`              |either, keeping `e`'s answer    |clean up whatever happened                         |
+|`foldStep`, `forEachStep`, `walkStep`|each item, stopping at an error|loop over a list without growing the stack       |
+|`pureOk(v)`, `pureError(e)`      |                                |lift a value or an error into an effect            |
+|`do_(command)`                   |                                |declare an operation                               |
+
+### The modules
+
+|Module                                  |Holds                                                                       |
+|----------------------------------------|----------------------------------------------------------------------------|
+|[`.`](./module.f.mjs)                   |the `Effect` type, the combinators above, and the matchers runners use      |
+|[`common`](./common/README.md)          |operations any host can have: the console, `sandbox`, `catch`, `import`, `all`|
+|[`node`](./node/README.md)              |Node operations (files, network, processes) and the `NodeProgram` type       |
+|[`browser`](./browser/README.md)        |the browser page's operations: `fetchText`, `instantiate`, `jsHeapSize`      |
+|[`mock`](./mock/README.md)              |synchronous runners for proofs: `run` and `partialRun`                      |
+|[`memory`](./memory/README.md)          |typed key-value memory that persists across steps                           |
+|[`list`](./list/README.md)              |`EffectList`, a list whose cells are produced by effects                    |
+|[`schema`](./schema/README.md)          |RTTI schemas for the data-shaped operations                                 |
+|[`spidermonkey`](./spidermonkey/module.mjs)|a partial Node host for the SpiderMonkey shell                            |
+
+A program `fjs run` can start exports `main`, a `NodeProgram`
+([`fjs/README.md`](../README.md#fjs-run--running-a-module-as-a-program)).
+
+## Design record
+
+The rest of this file is why the layer looks the way it does.
+
 **It was two of each.** A payload-generic `RawEffect<O, T>` sat underneath, with
 `Effect` an alias for `RawEffect<O, Result<T, E>>`, and the division was called
 *composition* against *representation*. But an operation must return a `Result`,
@@ -58,6 +149,10 @@ Three branch-aware operations, in [`./module.f.mjs`](./module.f.mjs):
 - `step` — continue on `ok`, propagate the error. The normal path.
 - `catchStep` — continue on `error`, preserve the success value. The error path.
 - `resultStep` — continue with the complete `Result`. Both paths, explicitly.
+
+and one form of the last that takes no continuation: `attemptStep(e)` answers
+`e`'s complete `Result` as its value and never fails, so the chain goes on
+either way and a later step decides. Both paths, as a value.
 
 The union rules follow `okThen` in
 [`../types/result/module.f.js`](../types/result/module.f.js): error

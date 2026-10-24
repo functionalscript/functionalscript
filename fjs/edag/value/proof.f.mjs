@@ -5,7 +5,7 @@
  * @import { Unknown } from '../../rtti/ts/types.ts'
  */
 
-import { assertEq, assertError, assertOk } from '../../asserts/module.f.mjs'
+import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { validate } from '../../rtti/validate/module.f.mjs'
 import { exp } from '../module.f.mjs'
 import { _value, value, values, array, property, object, func } from './module.f.mjs'

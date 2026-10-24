@@ -142,7 +142,7 @@ import { fromVec } from '../../text/utf8/module.f.mjs'
 import { identity } from '../../types/function/module.f.js'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { syncRevision } from '../../cas/evo/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 //

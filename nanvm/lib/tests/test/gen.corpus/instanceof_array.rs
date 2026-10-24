@@ -2,19 +2,19 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("emptyArray", Any::instanceof_(Array::default().to_any(), Constructor::Array), true.to_any());
-    check::<A>("array", Any::instanceof_([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), Constructor::Array), true.to_any());
-    check::<A>("nestedArray", Any::instanceof_([Array::default().to_any()].to_array().to_any(), Constructor::Array), true.to_any());
-    check::<A>("undefined", Any::instanceof_(Nullish::Undefined.to_any(), Constructor::Array), false.to_any());
-    check::<A>("null", Any::instanceof_(Nullish::Null.to_any(), Constructor::Array), false.to_any());
-    check::<A>("booleanTrue", Any::instanceof_(true.to_any(), Constructor::Array), false.to_any());
-    check::<A>("number", Any::instanceof_(f64_any(0x4002666666666666), Constructor::Array), false.to_any());
-    check::<A>("string", Any::instanceof_(string_any("a"), Constructor::Array), false.to_any());
-    check::<A>("bigint", Any::instanceof_(bigint_any(5), Constructor::Array), false.to_any());
-    check::<A>("emptyObject", Any::instanceof_(Object::default().to_any(), Constructor::Array), false.to_any());
-    check::<A>("object", Any::instanceof_([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), Constructor::Array), false.to_any());
-    check::<A>("arrayLikeObject", Any::instanceof_([(string_key("length"), f64_any(0x0000000000000000))].to_object().to_any(), Constructor::Array), false.to_any());
-    check::<A>("function", Any::instanceof_(function_any(), Constructor::Array), false.to_any());
+    check::<A>("emptyArray", scope(|| { Any::instanceof_(Array::default().to_any(), Constructor::Array) }), true.to_any());
+    check::<A>("array", scope(|| { Any::instanceof_([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), Constructor::Array) }), true.to_any());
+    check::<A>("nestedArray", scope(|| { Any::instanceof_([Array::default().to_any()].to_array().to_any(), Constructor::Array) }), true.to_any());
+    check::<A>("undefined", scope(|| { Any::instanceof_(Nullish::Undefined.to_any(), Constructor::Array) }), false.to_any());
+    check::<A>("null", scope(|| { Any::instanceof_(Nullish::Null.to_any(), Constructor::Array) }), false.to_any());
+    check::<A>("booleanTrue", scope(|| { Any::instanceof_(true.to_any(), Constructor::Array) }), false.to_any());
+    check::<A>("number", scope(|| { Any::instanceof_(f64_any(0x4002666666666666), Constructor::Array) }), false.to_any());
+    check::<A>("string", scope(|| { Any::instanceof_(string_any("a"), Constructor::Array) }), false.to_any());
+    check::<A>("bigint", scope(|| { Any::instanceof_(bigint_any(5), Constructor::Array) }), false.to_any());
+    check::<A>("emptyObject", scope(|| { Any::instanceof_(Object::default().to_any(), Constructor::Array) }), false.to_any());
+    check::<A>("object", scope(|| { Any::instanceof_([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), Constructor::Array) }), false.to_any());
+    check::<A>("arrayLikeObject", scope(|| { Any::instanceof_([(string_key("length"), f64_any(0x0000000000000000))].to_object().to_any(), Constructor::Array) }), false.to_any());
+    check::<A>("function", scope(|| { Any::instanceof_(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any(), Constructor::Array) }), false.to_any());
 }

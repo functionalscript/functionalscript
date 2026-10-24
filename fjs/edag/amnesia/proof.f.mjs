@@ -8,7 +8,8 @@
  * @import { EdagValue, Values, Array as ValueArray } from '../value/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { conditional } from '../testlib.f.js'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../asserts/module.f.js'
 import { vm, invoke } from './module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
@@ -101,12 +102,14 @@ const constMethods = ['=>', 0, [], methods]
 
 export const proof = {
     // A context's runtime reaches a member call in the expression and in
-    // every function it calls: the body under `member.String.startsWith`, which
-    // answers its receiver, is what `'abc'.startsWith('b')` calls at both
-    // depths; without a runtime the same call throws.
+    // every function it calls: the callee its `dot` answers for the
+    // receiver under `startsWith`, a function answering the receiver, is
+    // what `'abc'.startsWith('b')` calls at both depths; without a runtime
+    // the same call throws.
     runtime: () => {
-        /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
+        /** @type {(body: Exp) => import('../value/types.ts').Runtime} */
+        const dispatching = body => ['{}', [[':', 'dot', ['=>', 2, [], ['?:', ['===', ['arg', 1], 'startsWith'], ['()', body, [['arg', 0]]], ['undefined']]]]]]
+        const runtime = dispatching(['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]])
         /** @type {Exp} */
         const direct = ['.', 'abc', 'startsWith', ['|()', ['b']]]
         /** @type {Exp} */
@@ -122,18 +125,27 @@ export const proof = {
         const optional = ['.', 'abc', 'startsWith', ['|?.()', [['throw', 'evaluated']]]]
         assertStructurallySame(assertOk(vm({ frame: [], args: [] })(optional)), ['undefined'])
         assertStructurallySame(assertError(vm({ frame: [], args: [], runtime })(optional)), 'evaluated')
-        /** @type {import('../value/types.ts').Runtime} */
-        const none = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['undefined']]]]]]]]
+        const none = dispatching(['=>', 1, [], ['undefined']])
         assertStructurallySame(assertOk(vm({ frame: [], args: [], runtime: none })(optional)), ['undefined'])
         assertStructurallySame(assertError(vm({ frame: [], args: [], runtime: none })(direct)), ['undefined'])
+        // a plain call reads its callee before its arguments, as `a.f(x)`
+        // reads `a.f` before `x`: a `dot` that throws is the failure, not
+        // an argument that would throw after it — and a native name alike
+        /** @type {import('../value/types.ts').Runtime} */
+        const throwing = ['{}', [[':', 'dot', ['=>', 2, [], ['throw', 'resolving']]]]]
+        assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'startsWith', ['|()', [['throw', 'evaluated']]]])), 'resolving')
+        assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'slice', ['|()', [['throw', 'evaluated']]]])), 'resolving')
+        assertEq(assertError(vm({ frame: [], args: [], runtime: throwing })(['.', 'abc', 'slice', ['|?.()', [['throw', 'evaluated']]]])), 'resolving')
+        assertEq(assertError(vm({ frame: [], args: [], runtime })(['.', 'abc', 'startsWith', ['|()', [['throw', 'evaluated']]]])), 'evaluated')
     },
-    // `Object.is` answers from the runtime's `static` section, in the
+    // `Object.is` answers from the runtime's `static`, a function of the
+    // id over a table, in the
     // expression and in a function it calls, and as a value passed and
     // compared: the same function on every read, in one invocation or two.
     // With no runtime, or one without the path, it fails naming it.
     objectIs: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         /** @type {Exp} */
         const direct = ['()', ['Object.is'], ['a', 'a']]
         /** @type {Exp} */
@@ -149,11 +161,16 @@ export const proof = {
         assertEq(assertOk(ev(['String', ['Object.is']])), 'function is() { [native code] }')
         assertEq(assertOk(ev(['.', ['Object.is'], 'length'])), 2)
         /** @type {import('../value/types.ts').Runtime} */
-        const selfRuntime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 0, [], ['===', ['self'], ['Object.is']]]]]]]]]]]]
+        const selfRuntime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 0, [], ['===', ['self'], ['Object.is']]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         assertEq(assertOk(vm({ frame: [], args: [], runtime: selfRuntime })(['()', ['Object.is'], []])), true)
         const missing = 'no binding for the static Object.is'
         assertEq(assertError(vm({ frame: [], args: [] })(direct)), missing)
-        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['{}', []]]]] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [['{}', []]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]] })(['Object.is'])), missing)
+        // a runtime without `static`, and a `static` that is no function,
+        // answer no body; a `static` that throws is the read's throw
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', []] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [], 1]]]] })(['Object.is'])), missing)
+        assertEq(assertError(vm({ frame: [], args: [], runtime: ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]] })(['Object.is'])), 'boom')
     },
     // `self` is the invoked function itself, by identity, in every reading
     // of the body; at the module's scope there is none to read
@@ -208,7 +225,7 @@ export const proof = {
         // `throw` in a lazy position is not established, as nothing there
         // is; where it is, it fails — `failures.thrown` below.
         eq(['?:', true, 1, ['throw', 2]], 1)
-        eq(['&&', false, ['throw', 2]], false)
+        eq(conditional("&&", false, ['throw', 2]), false)
     },
     // `o12` — the node's length picks the operation. The unary arms coerce
     // with `ToNumber`, so a string operand pins that they are not the binary
@@ -279,21 +296,40 @@ export const proof = {
         // and nothing else — not a stock method, which no object here owns;
         // not a `length`, which an array owns without enumerating it.
         const entry = /** @type {(a: Exp, b: Exp) => Exp} */ ((a, b) => ['()', ['entry'], [a, b]])
-        same(entry(['{}', [[':', 'a', 7]]], 'a'), [7])
-        // An entry holding `undefined` is one; absent is none: no
-        // descriptor, so `?.enumerable` is `undefined` rather than a read
-        // of `undefined.enumerable`.
-        same(entry(['{}', [[':', 'a', ['undefined']]]], 'a'), [undefined])
-        same(entry(['{}', []], 'a'), [])
-        same(entry(['{}', []], 'toString'), [])
+        eq(entry(['{}', [[':', 'a', 7]]], 'a'), 7)
+        // An entry holding `undefined` reads as none; `hasEntry` tells it
+        // from none: no descriptor, so `?.enumerable` is `undefined` rather
+        // than a read of `undefined.enumerable`.
+        eq(entry(['{}', [[':', 'a', ['undefined']]]], 'a'), undefined)
+        eq(entry(['{}', []], 'a'), undefined)
+        eq(entry(['{}', []], 'toString'), undefined)
         // The key converts as a property key does: `1` reads `'1'`.
-        same(entry(['{}', [[':', '1', 42]]], 1), [42])
-        same(entry(['[]', [5, 6]], 1), [6])
-        same(entry(['[]', [5, 6]], 'length'), [])
-        same(entry('ab', 1), ['b'])
-        same(entry(['entry'], 'length'), [])
+        eq(entry(['{}', [[':', '1', 42]]], 1), 42)
+        eq(entry(['[]', [5, 6]], 1), 6)
+        eq(entry(['[]', [5, 6]], 'length'), undefined)
+        eq(entry('ab', 1), 'b')
+        eq(entry(['entry'], 'length'), undefined)
         eq(['.', ['entry'], 'length'], 2)
         eq(['typeof', ['entry']], 'function')
+        // `hasEntry`, the presence the option tells, through its own node
+        const has = /** @type {(a: Exp, b: Exp) => Exp} */ ((a, b) => ['()', ['hasEntry'], [a, b]])
+        eq(has(['{}', [[':', 'a', ['undefined']]]], 'a'), true)
+        eq(has(['{}', []], 'toString'), false)
+        eq(has(['[]', [5, 6]], 'length'), false)
+        eq(has('ab', 1), true)
+        eq(has(['{}', [[':', '1', 42]]], 1), true)
+        eq(['.', ['hasEntry'], 'length'], 2)
+        eq(['typeof', ['hasEntry']], 'function')
+        // an intrinsic, `slice`, the member call on its first argument with
+        // the rest, answered natively or by an own property
+        eq(['()', ['slice'], ['abcdef', 1, 3]], 'bc')
+        same(['()', ['slice'], [['[]', [7, 8, 9]], 1, 2]], [8])
+        eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 'own']]]], 0, 1]], 'own')
+        eq(['.', ['slice'], 'length'], 3)
+        eq(['typeof', ['slice']], 'function')
+        // the second, `charCodeAt`: the code unit at the position
+        eq(['()', ['charCodeAt'], ['abc', 1]], 0x62)
+        eq(['.', ['charCodeAt'], 'length'], 2)
         // and nullish receivers fail before the key is read at all
         fails(entry(null, 'a'))
         fails(entry(['undefined'], boom))
@@ -314,12 +350,12 @@ export const proof = {
     // case that claims "not evaluated" uses `boom`, which throws if it is;
     // `failures.forced` calls the same nodes with the other left operand.
     lazy: () => {
-        eq(['&&', false, boom], false)
-        eq(['&&', true, 7], 7)
-        eq(['||', true, boom], true)
-        eq(['||', false, 7], 7)
-        eq(['??', 0, boom], 0)
-        eq(['??', null, 7], 7)
+        eq(conditional("&&", false, boom), false)
+        eq(conditional("&&", true, 7), 7)
+        eq(conditional("||", true, boom), true)
+        eq(conditional("||", false, 7), 7)
+        eq(conditional("??", 0, boom), 0)
+        eq(conditional("??", null, 7), 7)
         eq(['?:', true, 7, boom], 7)
         eq(['?:', false, boom, 7], 7)
         // `ToBoolean` on the condition, as `&&`/`||` coerce: `0` is the
@@ -708,7 +744,7 @@ export const proof = {
         eq(['.', o, 'step', ['|()', [0, o]]], 1_000)
         eq(['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000], ['?.()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [0]], 1_000)
         eq(['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000], [',', [['arg', 0], ['()', ['self'], [['+', ['arg', 0], 1]]]]], ['arg', 0]]], [0]], 1_000)
-        eq(['()', ['=>', 1, [], ['&&', ['<', ['arg', 0], 1_000], ['||', false, ['??', null, ['()', ['self'], [['+', ['arg', 0], 1]]]]]]], [0]], false)
+        eq(['()', ['=>', 1, [], conditional("&&", ['<', ['arg', 0], 1_000], conditional("||", false, conditional("??", null, ['()', ['self'], [['+', ['arg', 0], 1]]])))], [0]], false)
         // the step after a call step continues from the call's value
         eq(['?.', ['{}', [[':', 'f', ['=>', 0, [], ['{}', [[':', 'x', 7]]]]]]], 'f', ['|()', [], ['|.', 'x']]], 7)
         // a tail call's failures are the call's: a callee that is not a
@@ -781,15 +817,21 @@ export const proof = {
         // throws whatever the key is, and a key whose conversion throws
         // does so under a receiver that is not nullish.
         entryNullReceiver: () => fails(['()', ['entry'], [null, 'a']]),
+        hasEntryNullReceiver: () => fails(['()', ['hasEntry'], [null, 'a']]),
+        // an intrinsic on a nullish receiver, or on one without the member,
+        // is the member call's throw
+        sliceNullReceiver: () => fails(['()', ['slice'], [null, 0, 1]]),
+        sliceNoMember: () => fails(['()', ['slice'], [5, 0, 1]]),
+        hasEntryKeyConversion: () => fails(['()', ['hasEntry'], [['{}', []], ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]]]], 'key'),
         entryKeyConversion: () => fails(['()', ['entry'], [['{}', []], ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]]]], 'key'),
         // A non-function returns an implicit represented failure.
         callNonFunction: () => fails(['()', 1, noArgs]),
         // The other side of `lazy`: with the left operand that does not
         // short-circuit, the thunk *is* forced and `boom` throws. Without
         // these, `o2lazy` returning `a` unconditionally would still pass.
-        forcedAnd: () => fails(['&&', true, boom]),
-        forcedOr: () => fails(['||', false, boom]),
-        forcedCoalesce: () => fails(['??', null, boom]),
+        forcedAnd: () => fails(conditional("&&", true, boom)),
+        forcedOr: () => fails(conditional("||", false, boom)),
+        forcedCoalesce: () => fails(conditional("??", null, boom)),
         forcedConsequent: () => fails(['?:', true, boom, 7]),
         forcedAlternate: () => fails(['?:', false, 7, boom]),
         // ... and `o2` forces it with no short-circuit to begin with.

@@ -30,11 +30,11 @@ use nanvm_lib::{
 pub struct Case {
     /// The fixture's Rust module name.
     pub name: &'static str,
-    /// The compiled fixture's `module`.
-    pub fixture: fn() -> Result<Any<Naive>, Any<Naive>>,
+    /// The compiled fixture's `module`, of the runtime value it is given.
+    pub fixture: crate::Module<Naive>,
     /// The expectation's `module`: the interpreter's value as a graph, or the
-    /// throw it ended in.
-    pub expected: fn() -> Result<Any<Naive>, Any<Naive>>,
+    /// throw it ended in, of the runtime value it is given and never reads.
+    pub expected: crate::Module<Naive>,
     /// The UTF-8 bytes of the default's JSON text, where it has a JSON form.
     pub json: Option<&'static [u8]>,
     /// Whether the fixture is expected to throw while it initializes.
@@ -147,12 +147,14 @@ fn default_of<A: IVm>(exports: Any<A>) -> Result<Any<A>, String> {
 /// share could make both throw. The thrown value, which is engine-specific,
 /// is not compared.
 pub fn check(case: &Case) -> Result<(), String> {
-    match ((case.fixture)(), case.throws) {
+    let runtime = crate::runtime::<Naive>();
+    match ((case.fixture)(runtime.clone()), case.throws) {
         (Err(_), true) => Ok(()),
         (Err(thrown), false) => Err(format!("threw {thrown:?}, expected a value")),
         (Ok(value), true) => Err(format!("expected a throw, got {value:?}")),
         (Ok(actual), false) => {
-            let expected = (case.expected)().map_err(|e| format!("the expectation threw {e:?}"))?;
+            let expected =
+                (case.expected)(runtime).map_err(|e| format!("the expectation threw {e:?}"))?;
             let (actual, expected) = (default_of(actual)?, default_of(expected)?);
             check_json(case.json, &actual)?;
             same_graph(&actual, &expected)
@@ -200,10 +202,10 @@ mod tests {
 
     #[test]
     fn outcomes_follow_the_independent_throw_marker() {
-        fn throws() -> Result<V, V> {
+        fn throws(_runtime: V) -> Result<V, V> {
             Err(Any::undefined())
         }
-        fn value() -> Result<V, V> {
+        fn value(_runtime: V) -> Result<V, V> {
             Ok(object([("default", Any::undefined())]))
         }
         for json in [Some(&b"1"[..]), None] {

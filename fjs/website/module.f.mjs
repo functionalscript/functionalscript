@@ -51,12 +51,15 @@
  * @import { Build, Dir, PageDemo, Proof } from './page/types.ts'
  * @import { Element } from '../media/html/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
+ * @import { FetchText, Instantiate } from '../effects/browser/types.ts'
+ * @import { MemOperationMap } from '../effects/mock/types.ts'
  * @import { Funding } from './funding/types.ts'
  */
 
 import { utf8 } from '../text/module.f.mjs'
+import { codePoints } from '../text/ascii/module.f.js'
 import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
-import { errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { basename, concat as pathConcat, parent } from '../path/module.f.mjs'
 import { resolve } from '../path/import/module.f.mjs'
@@ -64,18 +67,20 @@ import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { catch_, import_, log } from '../effects/common/module.f.mjs'
+import { run as runInMemory } from '../effects/mock/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
-import { tryParse } from '../media/markdown/module.f.mjs'
+import { tryParse, tryParseBlocks } from '../media/markdown/module.f.mjs'
+import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/module.f.mjs'
 import { pageRefusal } from '../media/html/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
-import { changelogDir, cliDir, demoSection, directoryLayout, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, cliDir, demoSection, directoryLayout, fileHref, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isAuthored, isThirdParty } from '../dev/module.f.mjs'
-import { header, isIssue } from './issue/module.f.mjs'
+import { header, isIssue } from './issue/module.f.js'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
 
 /**
@@ -101,6 +106,7 @@ import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir
  */
 const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(dir)(testsMain(
     ['h1', 'FunctionalScript'],
+    ...dir.readme,
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
     ...testSection(dir)([
         ['p',
@@ -228,7 +234,7 @@ const importsOf = path => source => {
  * @type {(path: string) => (acc: readonly [_Graph, readonly string[]]) => Effect<ReadFile, readonly [_Graph, readonly string[]], IoChannel>}
  */
 const readModule = path => ([graph, reached]) => step(
-    resultStep(readUtf8File(path), read => pureOk(read)),
+    attemptStep(readUtf8File(path)),
     read => {
         if (read[0] === 'error') {
             return isNotFound(read[1])
@@ -471,19 +477,81 @@ const resolveDemos = demos => {
 }
 
 /**
- * A demo module's first view, `view(init)`, as a thunk for `catch_`: a module
- * that exports no `demo`, or a `view` that throws, is a throw here.
- *
- * @type {(module: Module) => () => unknown}
+ * How many times the build performs a demo's `start` at most: each time
+ * with the files the times before asked for. A page's start fetches what it
+ * shows, and a fetch that waits on an earlier one's answer asks one round
+ * later.
  */
-const firstView = module => () => {
-    const demo = /** @type {Demo<unknown, DemoEvent>} */ (module.demo)
-    return demo.view(demo.init)
+export const startRounds = 3
+
+/**
+ * A demo's state after its `start`, performed in memory with `files`, the
+ * site's files read so far by root-relative path, as a thunk for `catch_`:
+ * the paths it asked for that `files` does not hold, and the state, or why
+ * there is none. A WebAssembly module is not instantiated, the page does
+ * that; any other operation, which a start may perform only in the browser,
+ * is a throw here, as is a module that exports no `demo`.
+ *
+ * @type {(module: Module, files: OrderedMap<IoResult<string>>) => () => readonly [readonly string[], Result<unknown, string>]}
+ */
+const startedWith = (module, files) => () => {
+    const demo = /** @type {Demo<unknown, DemoEvent, FetchText | Instantiate>} */ (module.demo)
+    // A demo with no `update` answers nothing, and starts as it is.
+    if (typeof demo.update !== 'function') { return [[], ok(demo.init)] }
+    /** @type {MemOperationMap<FetchText | Instantiate, readonly string[]>} */
+    const map = {
+        fetchText: path => asked => {
+            const file = at(path)(files)
+            return file === null ? [[...asked, path], error(ioError({ message: `${path}: not read yet` }))] : [asked, file]
+        },
+        instantiate: () => asked => [asked, error(ioError({ message: 'the module is instantiated in the browser' }))],
+    }
+    const [asked, state] = runInMemory(map)([])(demo.update(demo.init)({ kind: 'start' }))
+    return [asked, state[0] === 'error' ? error(String(state[1])) : state]
 }
 
 /**
- * A demo with the first view the build rendered for it — `view(init)`, which
- * the page shows until the runtime has loaded the demo and takes it over.
+ * A demo's state after its `start`, which the build renders: a reader with
+ * JavaScript sees it once the page has loaded what it shows. The build
+ * performs the start ({@link startedWith}), reading each file it asks for
+ * from the checkout, which is the site; so a page that fetches its source,
+ * its Rust and its disassembly, or compiles a sample, carries them in its
+ * markup, for a reader without JavaScript and a search engine as for the
+ * runtime that takes the section over. Or why there is none: a start that
+ * asks for anything but files, fails, or throws.
+ *
+ * @type {(module: Module) => Effect<Catch | ReadFile, Result<unknown, string>, IoChannel>}
+ */
+const startedState = module => {
+    /** @type {(files: OrderedMap<IoResult<string>>, rounds: number) => Effect<Catch | ReadFile, Result<unknown, string>, IoChannel>} */
+    const round = (files, rounds) => step(catch_(startedWith(module, files)), started => {
+        if (started[0] === 'error') { return pureOk(error(String(started[1]))) }
+        const [asked, state] = /** @type {readonly [readonly string[], Result<unknown, string>]} */ (started[1])
+        if (asked.length === 0 || rounds <= 1) { return pureOk(state) }
+        const read = foldStep(pureOk(asked), files, path => known => resultStep(readUtf8File(path.slice(1)),
+            file => pureOk(setReplace(path)(/** @type {IoResult<string>} */ (file))(known))))
+        return step(read, known => round(known, rounds - 1))
+    })
+    return round(emptyMap, startRounds)
+}
+
+/**
+ * A demo module's view of `started`, its state after `start`, or of its
+ * `init` where there is none, as a thunk for `catch_`: a module that exports
+ * no `demo`, or a `view` that throws, is a throw here.
+ *
+ * @type {(module: Module, started: Result<unknown, string>) => () => unknown}
+ */
+const firstView = (module, started) => () => {
+    const demo = /** @type {Demo<unknown, DemoEvent>} */ (module.demo)
+    return demo.view(started[0] === 'ok' ? started[1] : demo.init)
+}
+
+/**
+ * A demo with the first view the build rendered for it — the view of its
+ * state after `start` ({@link startedState}), or `view(init)` where that
+ * cannot be had — which the page shows until the runtime has loaded the
+ * demo and takes it over.
  *
  * **The demo is imported, not read.** Rendering it means running it, and
  * `import` is the operation that loads a module's exports; the page's own
@@ -496,7 +564,7 @@ const firstView = module => () => {
  * rendered: the runtime fills it, or shows why it cannot. The build does not
  * stop for one demo, and the reason is not lost.
  *
- * @type {(path: string) => Effect<Import | Catch | Write, PageDemo, IoChannel>}
+ * @type {(path: string) => Effect<Import | Catch | ReadFile | Write, PageDemo, IoChannel>}
  */
 const prerender = path => {
     /** @type {(reason: string) => Effect<Write, PageDemo, IoChannel>} */
@@ -508,14 +576,14 @@ const prerender = path => {
     /** @type {Effect<Import, Result<Module, string>, IoChannel>} */
     const loaded = resultStep(import_(path.slice(1)), imported =>
         pureOk(imported[0] === 'error' ? error(errorMessage(imported[1])) : imported))
-    /** @type {Effect<Import | Catch, Result<Element, string>, IoChannel>} */
+    /** @type {Effect<Import | Catch | ReadFile, Result<Element, string>, IoChannel>} */
     const viewed = step(loaded, imported => imported[0] === 'error'
         ? pureOk(imported)
-        : mapStep(catch_(firstView(imported[1])), thrown => thrown[0] === 'error'
+        : step(startedState(imported[1]), started => mapStep(catch_(firstView(imported[1], started)), thrown => thrown[0] === 'error'
             ? error(String(thrown[1]))
             // `catch_` is generic, and the generic is lost on the way through
             // `do_`, so what `view` answers comes back as `unknown`.
-            : ok(/** @type {Element} */ (thrown[1]))))
+            : ok(/** @type {Element} */ (thrown[1])))))
     return step(viewed, view => {
         if (view[0] === 'error') { return skip(view[1]) }
         // The runtime's builders refuse what a page would read otherwise, or
@@ -528,7 +596,7 @@ const prerender = path => {
 /**
  * Every demo, with its first view: {@link prerender}, one directory at a time.
  *
- * @type {(paths: _DemoPaths) => Effect<Import | Catch | Write, _Demos, IoChannel>}
+ * @type {(paths: _DemoPaths) => Effect<Import | Catch | ReadFile | Write, _Demos, IoChannel>}
  */
 const prerenderDemos = paths => foldStep(
     pureOk(entries(paths)),
@@ -554,7 +622,7 @@ const prerenderDemos = paths => foldStep(
  *
  * @type {(path: string) => boolean}
  */
-const isTodoDir = path => path.split('/').includes('todo')
+export const isTodoDir = path => path.split('/').includes('todo')
 
 /**
  * Whether a demo lives at `path` or anywhere under it — what marks a
@@ -632,6 +700,7 @@ const toDir = issues => crates => proofs => demos => walked => {
         todo: issues.flatMap(({ path, header }) =>
             path.startsWith(todo) ? [{ name: path.slice(todo.length), ...header }] : []),
         proofs: subtree(walked.path)(proofs),
+        readme: [],
         demo: at(walked.path)(demos),
         api: crates.includes(walked.path) ? crateHref(crateOf(walked.path)) : null,
         apiIndex: dirs.some(name => crates.includes(pathConcat(walked.path)(name))) ? cargoDocHref : null,
@@ -710,7 +779,7 @@ const writeChangelog = build => tree => {
  *
  * @type {(path: string) => Effect<Access, IoResult<void>, IoChannel>}
  */
-const foundAt = path => resultStep(access(path), found => pureOk(found))
+const foundAt = path => attemptStep(access(path))
 
 /**
  * One directory of rustdoc's output, copied to the same place under
@@ -803,6 +872,26 @@ const writeCargoDocIndex = build => crates => {
 }
 
 /**
+ * A directory's `README.md` as the top of its page, or nothing where it has
+ * none ([`./readme`](./readme/module.f.mjs)).
+ *
+ * **A README the reader refuses is a note on its page, not a failed build.**
+ * A release file's author can rewrite an entry the reader refuses; a README
+ * is written for GitHub first, and its directory's page is still worth
+ * having without it.
+ *
+ * @type {(commit: string | null) => (isPage: (path: string) => boolean) => (dir: Dir) => Effect<ReadFile, readonly Element[], IoChannel>}
+ */
+const readReadme = commit => isPage => dir => {
+    if (!dir.files.includes(readmeName)) { return pureOk([]) }
+    return step(readUtf8File(pathConcat(dir.path)(readmeName)), text => {
+        const blocks = tryParseBlocks(text)
+        return pureOk(readmeSection(fileHref(commit)(dir.path)(readmeName))(
+            blocks[0] === 'error' ? blocks : readmeNodes(resolveHref(commit)(isPage)(dir.path))(blocks[1])))
+    })
+}
+
+/**
  * One `index.html` per directory, so the tree is walkable from the root.
  *
  * The root's page is the site's own — it carries the heading and the test
@@ -815,10 +904,16 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
     const dirs = tree
         .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
         .map(toDir(issues)(crateDirs(tree)(crates))(proofs)(demos))
+    const pages = [...dirs.map(dir => dir.path), changelogDir, prsDir, cliDir, ...(crates.length === 0 ? [] : [cargoDocDir])]
+        .reduce(/** @type {(set: StringSet, path: string) => StringSet} */((set, path) => addPath(path)(set)), noPaths)
+    /** @type {(path: string) => boolean} */
+    const isPage = path => contains(path)(pages)
     return step(
-        forEachStep(pureOk(dirs), dir => writeUtf8File(
-            pagePath(dir.path),
-            dir.path === '.' ? rootPage(build)(dir) : page(build)(dir))),
+        forEachStep(pureOk(dirs), dir => step(
+            readReadme(build.commit)(isPage)(dir),
+            readme => writeUtf8File(
+                pagePath(dir.path),
+                dir.path === '.' ? rootPage(build)({ ...dir, readme }) : page(build)({ ...dir, readme })))),
         () => log(`directory pages: ${dirs.length}, issues: ${issues.length}`))
 })
 
@@ -841,12 +936,12 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
 const commitOf = env => {
     const value = env.WORKERS_CI_COMMIT_SHA
     if (value === undefined) { return null }
-    const units = value.split('').map(c => c.charCodeAt(0))
+    const points = codePoints(value)
     // `tryFromHex` reads bytes and throws on anything wider; an environment
-    // variable can hold any text, so a wider unit is refused before it gets
-    // there.
-    if (units.some(u => u > 0x7f)) { return null }
-    const id = tryFromHexOf(20)(units)
+    // variable can hold any text, so a wider code point is refused before it
+    // gets there.
+    if (points.some(c => c > 0x7f)) { return null }
+    const id = tryFromHexOf(20)(points)
     return id === null ? null : hexText(id)
 }
 

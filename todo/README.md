@@ -107,7 +107,7 @@ directory as `issues/NNN-{slug}.md`. Four searches, in order of yield:
 3. **The citation's own words.** `i168` is described by its citations as "the
    streaming decoder factory both codecs already share", which is `decoder` in
    `fjs/text/code_point/` almost verbatim.
-4. **A zero-padded filename in the *current* tree.** `i37` is
+4. **A zero-padded filename in the current tree.** `i37` is
    `037-language-design-map.md`, headed `## 37.`; matching the identifier's
    digits against the filename's exactly will miss it.
 
@@ -238,7 +238,7 @@ carries this header** — the title, a priority and a status, at any depth:
 directory, and a document that is not open work — a design, a plan, notes —
 lives outside `todo/` (`spec/design/`, `doc/plan/`); files that are not
 Markdown are not issues. Each header field is one value from its table,
-optionally followed by ` — ` and a note, which may run on to the following
+optionally followed by a spaced em dash and a note, which may run on to the following
 lines: `**Status:** open — needs a decision` is `open`.
 
 Done issues: delete the file immediately in the same PR that fixes the issue.
@@ -259,7 +259,7 @@ into a `README.md` or JSDoc, move it and delete the file.
 
 ## Priority scale
 
-The values are the ones [`fjs/website/issue`](../fjs/website/issue/module.f.mjs)'s
+The values are the ones [`fjs/website/issue`](../fjs/website/issue/module.f.js)'s
 `priorities` and `statuses` hold, in the order the website lists issues by; a
 new value is added there and here in one pull request, or the site build
 refuses the issue that uses it.

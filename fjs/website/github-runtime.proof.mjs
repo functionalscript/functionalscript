@@ -5,7 +5,7 @@
  * session or complete asynchronous HTTP and DOM operations.
  */
 
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startGitHubLogin } from './github-runtime.mjs'
 
 const origin = /** @type {const} */ ('https://functionalscript.test')

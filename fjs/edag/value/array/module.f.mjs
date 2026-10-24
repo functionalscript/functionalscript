@@ -23,7 +23,7 @@
 
 import { isArray } from '../../../types/array/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
-import { typeOf } from '../semantics/module.f.mjs'
+import { isNullish } from '../semantics/module.f.mjs'
 
 /** The evaluated elements of an iterable value, or null. @param {EdagValue} value */
 const spreadValues = value => {
@@ -52,7 +52,7 @@ export const join = (value, separator, toString) => {
     let text = ''
     let prefix = ''
     for (const element of value[1]) {
-        const result = element === null || typeOf(element) === 'undefined' ? ok('') : toString(element)
+        const result = isNullish(element) ? ok('') : toString(element)
         const [kind, part] = result
         if (kind === 'error') { return result }
         text += prefix + part

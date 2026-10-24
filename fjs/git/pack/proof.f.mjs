@@ -4,14 +4,13 @@
  * @import { Entry } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { u8ListMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
 import {
     latin1, packDelta, packDeltaBase, packEntryObject, packEntryOfsDelta, packHeader,
 } from '../testlib.f.mjs'
-import { tryApplyDelta, tryEntry, tryHeader } from './module.f.mjs'
+import { maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from './module.f.mjs'
 
 const entry = tryEntry(20)
 
@@ -23,9 +22,6 @@ const id = hex => {
     assert(i !== null)
     return i
 }
-
-/** @type {(oid: Oid) => readonly number[]} */
-const idBytes = oid => toArray(u8ListMsb(oid))
 
 /** The commit the delta's base is, as `git verify-pack -v` names it. */
 const baseId = /** @type {const} */ ('bba8d20c99a645a8a98620700c15ff9262574c94')
@@ -159,7 +155,7 @@ export const proof = {
     // bytes are built. The id is the same base the captured delta has.
     entryRefDelta: () => {
         const base = id(baseId)
-        const e = entry([...header(7, 152), ...idBytes(base), 0x78, 0x01])
+        const e = entry([...header(7, 152), ...u8ArrayMsb(base), 0x78, 0x01])
         // The narrowing comes before the pattern and not in it: `baseId` is on
         // the `refDelta` member alone, so destructuring it out of an `Entry` is
         // `TS2339` until the guard has run. `kind` is read once, which is the
@@ -326,29 +322,26 @@ export const proof = {
     // builds anything. The instruction bound stops a delta building more than it
     // declared; this is the one that declares the amplification honestly — a
     // hundred bare copies against a 64 KiB base name 6.5 MB and are telling the
-    // truth. Measured on node 22, that read cost 168 MiB of RSS and a byte of
-    // object costs about eight of heap, so the ceiling is the one `inflate` and
-    // `readFile` already put on every other object here: 128 KiB.
+    // truth, which is within the ceiling now and is built; one that names a byte
+    // more than 8 MiB is not.
     applyDeltaTooLarge: () => {
         const base = Array.from({ length: 65_536 }, (_, i) => i % 251)
-        // source 65536, target 6553600, then the hundred bare copies that fill
-        // it exactly: the delta is telling the truth about its size
-        const huge = /** @type {readonly number[]} */ ([
-            ...sizeVarint(65_536), ...sizeVarint(6_553_600),
-            ...Array.from({ length: 100 }, () => 0x80),
-        ])
-        assertEq(tryApplyDelta(base, huge), null)
-        // and the largest target it does build, one byte over the bound and one
-        // byte under it, with the instructions that would fill it
-        const at = /** @type {(n: number) => readonly number[]} */ (n => [
+        /** @type {(n: number) => readonly number[]} */
+        const at = n => [
             ...sizeVarint(65_536),
             ...sizeVarint(n),
             ...Array.from({ length: Math.ceil(n / 65_536) }, () => 0x80),
-        ])
-        assertEq(tryApplyDelta(base, at(131_073)), null)
-        const ok = tryApplyDelta(base, at(131_072))
-        assert(ok !== null)
-        assertEq(ok.length, 131_072)
+        ]
+        // one byte over the ceiling is refused; its instructions would fill it
+        assertEq(tryApplyDelta(base, at(maxDeltaBytes + 1)), null)
+        // the ceiling itself is built, and so is what the old one, 128 KiB, refused
+        const built = tryApplyDelta(base, at(maxDeltaBytes))
+        assert(built !== null)
+        assertEq(built.length, maxDeltaBytes)
+        assertEq(built[maxDeltaBytes - 1], base[65_535])
+        const mib = tryApplyDelta(base, at(0x10_0000))
+        assert(mib !== null)
+        assertEq(mib.length, 0x10_0000)
     },
     // A copy of size zero means 65536, the one number the format spells by
     // leaving every size byte out. Built, because a real delta only copies

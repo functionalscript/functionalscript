@@ -4,7 +4,7 @@
  * The shared helper is also exercised by the existing demo runtime proofs.
  */
 
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startCli } from './cli-runtime.mjs'
 
 /** @type {(writeText?: (text: string) => Promise<void>) => any} */

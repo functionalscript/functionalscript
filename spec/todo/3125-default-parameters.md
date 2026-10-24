@@ -38,11 +38,14 @@ the module around them, `extraValidate = always` and
 of [`fjs/website/demo/code`](../../fjs/website/demo/code/module.f.js)'s
 `codeBlock`, a leaf of the
 [migration](../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point)
-converted once parameter defaults landed, and `msg = 'assertion failed'` in
-[`fjs/asserts`](../../fjs/asserts/module.f.mjs)'s `assert` is one of the
-two constructs that keep every proof `proof.f.mjs`
-([`fjs/compiler`](../../fjs/compiler/README.md)), the bare `if` being the
-other.
+converted once parameter defaults landed. `msg = 'assertion failed'` in
+[`fjs/asserts`](../../fjs/asserts/module.f.js)'s `assert` compiles too, and
+the module is an `.f.js` since its bare `if` was braced and its call
+statements rewritten through the comma
+([CONVERTING.md rule 10](../../doc/CONVERTING.md#10-a-call-made-for-its-failure)),
+a rewrite [call statements](../functions/call-statements/README.md) have since made
+unnecessary; what keeps a proof `proof.f.mjs` now is its functions ending
+without a `return`, and its `for` loops ([`fjs/compiler`](../../fjs/compiler/README.md)).
 
 ### Proposal
 
@@ -56,7 +59,7 @@ other.
 - A **pattern default**: a name or a nested pattern inside a binding
   pattern may be followed by `= value`, `{ a = 1 }`, `{ k: a = 1 }`,
   `[a = 1]` and `{ a: { b } = {} }`, in a `const` and in a parameter, as
-  [destructuring](../bindings/destructuring.md) takes patterns.
+  [destructuring](../bindings/destructuring/README.md) takes patterns.
 
 `value` is any value the language reads where a `const` takes its
 initializer. Everything else about a target is unchanged: a defaulted name
@@ -239,7 +242,7 @@ default reads — each a refusal rather than another value.
       shadowed` refusals are the ones a later parameter, the parameter
       itself and a shadowing body `const` meet.
 - [ ] Pattern defaults, in `const` and parameter patterns, over the same
-      test: the specification's [destructuring](../bindings/destructuring.md)
+      test: the specification's [destructuring](../bindings/destructuring/README.md)
       section, and the `decl.pattern-default` row deleted.
 - [x] Convert `fjs/website/demo/code` to `.f.js`, and rerun the
       [leaf migration](../../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).

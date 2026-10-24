@@ -4,12 +4,14 @@
  * demand so evaluation order and failure propagation remain observable.
  *
  * @import { Exp, ExpOp } from '../types.ts'
- * @import { EdagValue } from '../value/types.ts'
+ * @import { Closure, EdagValue } from '../value/types.ts'
+ * @import { Outcome } from '../value/call/types.ts'
  * @import { Context, Evaluator } from './types.ts'
  */
 
-import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { operation } from './module.f.mjs'
+import { conditional } from '../testlib.f.js'
+import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { invokerWith, operation, staticCall } from './module.f.mjs'
 import { noStatic, staticIds, staticPath } from '../module.f.mjs'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
@@ -91,12 +93,12 @@ export const proof = {
         eq(['<<', 1, 3], 8)
         eq(['>>', -8, 1], -4)
         eq(['>>>', -1, 31], 1)
-        eq(['&&', 0, 1], 0)
-        eq(['&&', 2, 1], 1)
-        eq(['||', 0, 1], 1)
-        eq(['||', 2, 1], 2)
-        eq(['??', null, 1], 1)
-        eq(['??', 0, 1], 0)
+        eq(conditional("&&", 0, 1), 0)
+        eq(conditional("&&", 2, 1), 1)
+        eq(conditional("||", 0, 1), 1)
+        eq(conditional("||", 2, 1), 2)
+        eq(conditional("??", null, 1), 1)
+        eq(conditional("??", 0, 1), 0)
         eq(['?:', true, 1, 2], 1)
         eq(['?:', false, 1, 2], 2)
         eq([',', [1, 2]], 2)
@@ -121,28 +123,46 @@ export const proof = {
     reads: () => {
         const object = /** @type {const} */ (['{}', [[':', 'a', 7]]])
         eq(['.', object, 'a'], 7)
-        eq(['()', ['entry'], [object, 'a']], ['[]', [7]])
+        eq(['()', ['entry'], [object, 'a']], 7)
         eq(['?.', null, 'a'], ['undefined'])
         eq(['?.', object, 'a'], 7)
         eq(['?.', ['{}', [[':', 'a', object]]], 'a', ['|.', 'a']], 7)
-        eq(['()', ['entry'], [object, 1]], ['[]', []])
+        eq(['()', ['entry'], [object, 1]], ['undefined'])
         failure(['()', ['entry'], [null, 'a']])
+        eq(['()', ['hasEntry'], [object, 'a']], true)
+        eq(['()', ['hasEntry'], [object, 1]], false)
+        eq(['()', ['hasEntry'], [['{}', [[':', 'u', ['undefined']]]], 'u']], true)
+        failure(['()', ['hasEntry'], [null, 'a']])
+        eq(['()', ['slice'], ['abc', 1]], 'bc')
+        eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 7]]]], 1]], 7)
+        failure(['()', ['slice'], [null, 1]])
+        failure(['()', ['slice'], [['{}', []], 1]])
+        eq(['()', ['charCodeAt'], ['abc', 2]], 0x63)
+        failure(['()', ['charCodeAt'], [null, 0]])
         failure(['.', null, 'a', ['|()', []]])
     },
     // A static function is a value whether called or not, the node, one
-    // function by its name; the body the runtime's `static` section holds
-    // at its path answers its call, with the static as the body's `self`,
+    // function by its name; the body the runtime's `static` answers for its id
+    // answers its call, with the static as the body's `self`,
     // and its `length`, and its text is its name's. With no runtime, or
     // none at the path, the dispatcher fails naming it at the read — every
     // static with a body alike — and the invoker at the call.
     objectIs: () => {
         failure(['()', ['Object.is'], [1, 1]], noStatic('Object.is'))
         failure(['Object.is'], 'no binding for the static Object.is')
+        // a `static` that throws is the call's throw, asked for the body
+        // directly, as the executors ask after the read
+        /** @type {EdagValue} */
+        const throwing = ['{}', [[':', 'static', ['=>', 1, [], ['throw', 'boom']]]]]
+        const asked = invokeWith(throwing)
+        assertEq(assertError(settle(asked)(staticCall(throwing, ['Object.is'], ['[]', []], () => { throw 'unreached' }, asked))), 'boom')
+        const throwingRead = operation({ ...evaluator, context: { ...context, runtime: throwing }, invoke: asked })
+        assertStructurallySame(throwingRead(['Object.is'], []), [[], ['error', 'boom']])
         for (const id of staticIds.filter(id => !isNative(staticPath(id)))) { failure([id], noStatic(id)) }
         /** @type {Context} */
         const withRuntime = {
             ...context,
-            runtime: ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['[]', [['===', ['arg', 0], ['arg', 1]], ['self'], ['rest']]]]]]]]]]]]],
+            runtime: ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['[]', [['===', ['arg', 0], ['arg', 1]], ['self'], ['rest']]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]],
         }
         const invokeBound = invokeWith(withRuntime.runtime)
         const bound = operation({ ...evaluator, context: withRuntime, invoke: invokeBound, operand: (e, state) => [[...state, e], vm(withRuntime)(e)] })
@@ -209,11 +229,35 @@ export const proof = {
         failure(['!', ['throw', 1]], 1)
         failure([',', [1, ['throw', 2], 3]], 2)
     },
+    // `invokerWith` is an executor given only its `run`: a closure is run
+    // under its invocation's context — its frame, its bindings, itself as
+    // `self` and the runtime; a static's body found in the runtime is run
+    // with the static as `self`; the helpers and an intrinsic are answered
+    // in place; and a call a body leaves is made in its place.
+    invokerWith: () => {
+        /** The context echoed for `'echo'`, a call left for `'tail'`, every other body walked by Amnesia. @type {(fn: Closure, context: Context) => Outcome} */
+        const echo = (fn, context) =>
+            fn[3] === 'echo' ? ['ok', ['[]', [['[]', context.frame], ['[]', context.args], ['[]', context.fixed ?? []], context.rest ?? ['[]', []], context.self ?? null, context.runtime ?? null]]]
+            : fn[3] === 'tail' ? ['call', ['=>', 1, ['g'], 'echo'], [7], ['[]', [8]]]
+            : vm(context)(fn[3])
+        /** @type {Closure} */
+        const f = ['=>', 1, ['captured'], 'echo']
+        const bare = invokerWith(echo)(undefined)
+        assertStructurallySame(bare(f, [1], ['[]', [2]]), ['ok', ['[]', [['[]', ['captured']], ['[]', []], ['[]', [1]], ['[]', [2]], f, null]]])
+        assertStructurallySame(bare(['=>', 0, [], 'tail'], [], ['[]', []]), ['ok', ['[]', [['[]', ['g']], ['[]', []], ['[]', [7]], ['[]', [8]], ['=>', 1, ['g'], 'echo'], null]]])
+        assertStructurallySame(bare(['entry'], [['{}', [[':', 'a', 1]]], 'a'], ['[]', []]), ['ok', 1])
+        assertStructurallySame(bare(['hasEntry'], [['{}', [[':', 'a', 1]]], 'b'], ['[]', []]), ['ok', false])
+        assertStructurallySame(bare(['slice'], ['abcd', 1, 3], ['[]', []]), ['ok', 'bc'])
+        assertStructurallySame(bare(['Object.is'], [], ['[]', []]), ['error', noStatic('Object.is')])
+        /** @type {EdagValue} */
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [], ['=>', 2, [], 'echo']]]]]
+        assertStructurallySame(invokerWith(echo)(runtime)(['Object.is'], [], ['[]', [1, 2, 3]]), ['ok', ['[]', [['[]', []], ['[]', []], ['[]', [1, 2]], ['[]', [3]], ['Object.is'], runtime]]])
+    },
     evaluationOrder: () => {
         const [state, result] = run(['+', 1, 2], ['already'])
         assertStructurallySame(state, ['already', 1, 2])
         assertStructurallySame(result, ['ok', 3])
-        assertStructurallySame(run(['&&', 0, ['throw', 1]], [])[0], [0])
+        assertStructurallySame(run(conditional("&&", 0, ['throw', 1]), [])[0], [0, 0])
         assertStructurallySame(run(['?:', true, 1, ['throw', 2]], [])[0], [true, 1])
         const stop = /** @type {const} */ (['throw', 1])
         assertEq(run(['+', stop, 2], [])[0].length, 1)

@@ -1,87 +1,54 @@
-## 190. `fjs/text`: own the single code-unit/code-point ↔ string boundary
+## 190. `fjs/text`: own the string-reader half of the code ↔ string boundary
 
 **Priority:** P3
 **Status:** open
 
-Converting between a single character-code number and a one-character JS `string`
-is a `fjs/text` concern. Half of it has an owner: `codePointToString` in
-[`fjs/text/utf16`](../utf16/module.f.mjs), the scalar counterpart of
-`codePointListToString`, which `fjs/media/json/serializer` and
-`fjs/compiler/serializer` already use. The code-unit half has none, so modules
-reach into the `String` built-in directly:
+Converting between a single character-code number and a one-character JS
+`string` is a `fjs/text` concern. The *writer* half has one owner now:
+[`fjs/text/utf16`](../utf16/module.f.mjs) exports `codeUnitToString` next to
+`codePointToString`, `listToString` is built on it, and `media/json/parser`,
+`media/html`, `js/string_escape`, `text/percent`, `git/alternates`,
+`ebnf/railroad` and the `ebnf/ll1` proof import those instead of calling
+`String.fromCharCode` / `String.fromCodePoint` themselves.
+
+What remains is the inverse — index a string for a code unit / code point —
+which is still split between two modules, each reaching into the `String`
+built-in directly:
 
 ```ts
-// fjs/media/json/parser, fjs/media/json/serializer and fjs/media/html,
-// each at module scope
-const { fromCharCode } = String
-
-// fjs/text/utf16/module.f.mjs, listToString — used inline
-export const listToString = compose(map(String.fromCharCode))(concat)
-
-// fjs/ebnf/ll1/proof.f.mjs — used inline, where `codePointToString` would do
-String.fromCodePoint(node.symbol)
-```
-
-`fjs/git/alternates` and `fjs/website` call `String.fromCharCode` inline too.
-
-And the inverse — index a string for a code unit / code point — is likewise
-split:
-
-```ts
-// fjs/text/ascii/module.f.mjs, at
+// fjs/text/ascii/module.f.js, at
 const r = s.codePointAt(i)
-if (r === void 0) { throw s }
+if (r === undefined) { throw s }
 
-// fjs/text/utf16/module.f.mjs, stringToList
+// fjs/text/utf16/module.f.mjs, stringToList (and floorCodePointBoundary)
 const first = s.charCodeAt(i)
 ```
 
-`fjs/text/utf16` already owns the *list*-level boundary (`stringToList`,
-`stringToCodePointList`, `listToString`, `codePointListToString`) and the
-single code point (`codePointToString`). What is missing is the single *code
-unit*, so each serializer re-binds `String.fromCharCode` itself. `AGENTS.md`
-explicitly discourages reaching into built-ins from `.f.mjs` modules and asks
-that conceptually-distinct logic live in its natural module.
+### Proposed change
 
-### Proposed abstraction
-
-Expose the code-unit converter from `fjs/text/utf16`, next to
-`codePointToString`, e.g.:
-
-```ts
-export const charFromCode: (code: U16) => string   // String.fromCharCode
-```
-
-Then `media/json/parser`, `media/json/serializer` and `media/html` import it
-instead of re-binding `String.*`, `utf16.listToString` builds on
-`charFromCode`, and `ebnf/ll1`'s proof calls `codePointToString`. The two string
-*readers* (`ascii`'s throwing `codePointAt` and `utf16`'s lazy `charCodeAt`
-stream) can likewise be named in `fjs/text` so the JS-string boundary lives in one
-namespace.
-
-### Why this qualifies
-
-- The plain `fromCharCode` re-binding has three consumers (`media/json/parser`,
-  `media/json/serializer`, `media/html`) plus the inline uses — the same
-  "re-bound under a local
-  name in module after module" smell that [i167](../../types/bit_vec/module.f.mjs) flags for
-  `bit_vec.listToVec(msb)`.
-- Separation of concerns: code ↔ string conversion is the defining job of
-  `fjs/text`; scanners and serializers should consume it, not re-import `String`.
+Name the two string *readers* in `fjs/text` so the JS-string boundary lives in
+one namespace, as the writers now do. `ascii`'s throwing `at` is the candidate
+to move or re-export beside `utf16`'s readers.
 
 ### Caveats
 
-- These are thin wrappers over a built-in, so the value is *centralizing the
-  boundary and removing scattered `String` references*, not algorithmic reuse —
-  weigh that against the project's "don't add a layer no one needs" rule. The
-  several consumers and the existing `fjs/text` boundary make the case.
-- The two *readers* genuinely differ (one indexes by code point and throws for a
+- The two readers genuinely differ (one indexes by code point and throws for a
   constant-string lookup; the other streams code units lazily and ends on
-  `NaN`). They share a concept, not an algorithm, so frame the reader half as
+  `NaN`). They share a concept, not an algorithm, so frame this as
   separation-of-concerns, not a single parameterized factory.
-- Keep `fjs/text` free of cyclic deps: `ascii`, `ebnf`, `compiler`, `js/tokenizer`,
-  `media/json` and `html` already sit above the text layer, so importing
-  downward is clean.
+- These are thin wrappers over a built-in; the value is centralizing the
+  boundary, not algorithmic reuse — weigh that against the project's "don't
+  add a layer no one needs" rule.
+- Keep `fjs/text` free of cyclic deps: `ascii`, `ebnf`, `compiler`,
+  `js/tokenizer`, `media/json` and `html` already sit above the text layer, so
+  importing downward is clean.
+
+### Out of scope
+
+`String.fromCharCode(...bytes)` in `fjs/website/github-runtime.mjs` (and its
+proof) spreads a whole byte array into `btoa` in host runtime code, not a
+single code unit in a `.f.mjs` module; proofs that build fixtures with
+`String.fromCharCode` / `String.fromCodePoint` are test scaffolding.
 
 ### Related
 

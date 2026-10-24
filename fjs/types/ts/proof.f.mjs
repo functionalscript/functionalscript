@@ -1,5 +1,7 @@
-import { printer, primitive, union } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { printer, primitive, union, _taggedPrimitive, _taggedUnion, _taggedPrinter } from './module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
+import { fromTagged } from '../../text/marked/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 const ro = printer()
 const mut = printer(true)
@@ -99,4 +101,28 @@ export const printerMutableRecord = () => {
     assertEq(r, '{[k in string]?:number}')
 }
 
-export const proof = { primitiveNull,primitiveBigint,primitiveString,primitiveNumberFinite,primitiveNumberInfinite,primitiveUndefined,primitiveBoolean,unionEmpty,unionSingle,unionMulti,printerReadonlyTuple,printerReadonlyStruct,printerOptionalField,printerReadonlyArray,printerReadonlyRecord,printerMutableTuple,printerMutableStruct,printerMutableArray,printerMutableRecord }
+/** @type {(text: string, expected: unknown) => void} */
+const eqMarked = (text, expected) => {
+    const r = JSON.stringify(unwrap(fromTagged(text)))
+    const e = JSON.stringify(expected)
+    assertEq(r, e, [r, e])
+}
+
+const marked = {
+    null: () => eqMarked(_taggedPrimitive(null), [['null', 'literal']]),
+    bigint: () => eqMarked(_taggedPrimitive(42n), [['42n', 'number']]),
+    string: () => eqMarked(_taggedPrimitive('a'), [['"a"', 'string']]),
+    number: () => eqMarked(_taggedPrimitive(3.5), [['3.5', 'number']]),
+    infinite: () => eqMarked(_taggedPrimitive(Infinity), [['number', 'keyword']]),
+    undefined: () => eqMarked(_taggedPrimitive(undefined), [['undefined', 'keyword']]),
+    boolean: () => eqMarked(_taggedPrimitive(false), [['false', 'literal']]),
+    never: () => eqMarked(_taggedUnion([]), [['never', 'keyword']]),
+    union: () => eqMarked(_taggedUnion(['a', 'b']), [['a|b']]),
+    tuple: () => eqMarked(_taggedPrinter().tuple(['x']), [['readonly', 'keyword'], ['[x]']]),
+    mutableTuple: () => eqMarked(_taggedPrinter(true).tuple(['x']), [['[x]']]),
+    struct: () => eqMarked(_taggedPrinter().struct([['k', 'x', true]]), [['{'], ['readonly', 'keyword'], ['"k"', 'string'], ['?:x}']]),
+    array: () => eqMarked(_taggedPrinter().array('x'), [['readonly', 'keyword'], ['(x)[]']]),
+    record: () => eqMarked(_taggedPrinter().record('x'), [['{'], ['readonly', 'keyword'], ['['], ['k', 'identifier'], [' '], ['in', 'keyword'], [' '], ['string', 'keyword'], [']?:x}']]),
+}
+
+export const proof = { marked, primitiveNull,primitiveBigint,primitiveString,primitiveNumberFinite,primitiveNumberInfinite,primitiveUndefined,primitiveBoolean,unionEmpty,unionSingle,unionMulti,printerReadonlyTuple,printerReadonlyStruct,printerOptionalField,printerReadonlyArray,printerReadonlyRecord,printerMutableTuple,printerMutableStruct,printerMutableArray,printerMutableRecord }

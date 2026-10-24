@@ -37,7 +37,7 @@ import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse, toArray } from '../../types/list/module.f.mjs'
-import { priorities, statuses } from '../issue/module.f.mjs'
+import { priorities, statuses } from '../issue/module.f.js'
 
 /**
  * The repository the site is built from, which is where a file is read when
@@ -368,6 +368,14 @@ export const prsDir = 'prs'
 export const cliDir = 'cli'
 
 /**
+ * The playground: a directory whose subdirectories are games, each a demo,
+ * so its ordinary directory page lists them, each with its play mark.
+ *
+ * @type {string}
+ */
+export const playgroundDir = 'fjs/website/playground'
+
+/**
  * A file in a directory, as a reader opens it: on GitHub at `commit`, or
  * root-relative on this site when there is no commit to link.
  *
@@ -581,7 +589,8 @@ const buildLine = ({ branch, commit }) => branch === null || branch === producti
 
 /**
  * The header every page opens with: the logo and the site's name, linking
- * home, then the CLI reference, pull requests, releases and repository.
+ * home, then the CLI reference, pull requests, releases, the playground and
+ * repository.
  *
  * **One element for every page**, as {@link stylesheetLink} is one link: the
  * root page, a directory's page and a release's page each used to carry their
@@ -606,6 +615,7 @@ export const header = build => ['header',
             ['a', { href: `/${cliDir}/` }, 'CLI'],
             ['a', { href: pageHref(prsDir) }, 'PRs'],
             ['a', { href: pageHref(changelogDir) }, 'Releases'],
+            ['a', { href: pageHref(playgroundDir) }, 'Playground'],
             ['a', { href: repository }, 'GitHub', ['span', { 'aria-hidden': 'true' }, ' ↗']]]],
     ...buildLine(build)]
 
@@ -683,6 +693,7 @@ export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryL
     breadcrumb(dir.path)(basename(dir.path)),
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
+    ...dir.readme,
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
     ...testSection(dir)([]),
 )))

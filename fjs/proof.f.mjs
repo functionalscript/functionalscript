@@ -5,7 +5,7 @@
  */
 
 import { exitCode } from './effects/node/module.f.mjs'
-import { assert, assertEq } from './asserts/module.f.mjs'
+import { assert, assertEq } from './asserts/module.f.js'
 import { pureError, pureOk } from './effects/module.f.mjs'
 import { nodeProgramOptions, virtualAt } from './effects/node/virtual/module.f.mjs'
 import { main } from './module.f.mjs'
@@ -24,6 +24,21 @@ export const proof = {
         const [state, code] = run({})(['help'])
         assertEq(exitCode(code), 0)
         assert(state.stdout.includes('compile'), 'expected command list in stdout')
+    },
+    ciGenerator: () => {
+        const [, code] = run({})(['ci'])
+        assertEq(exitCode(code), 0)
+    },
+    ciCacheArguments: () => {
+        const [initState, initCode] = run({})(['ci', 'init', 'extra'])
+        assertEq(exitCode(initCode), 1)
+        assert(initState.stderr.includes("'ci init' expects no parameters"), initState.stderr)
+        const [reportState, reportCode] = run({})(['ci', 'report'])
+        assertEq(exitCode(reportCode), 1)
+        assert(reportState.stderr.includes("'ci report' expects one parameter"), reportState.stderr)
+        const [publishState, publishCode] = run({})(['ci', 'publish', 'extra'])
+        assertEq(exitCode(publishCode), 1)
+        assert(publishState.stderr.includes("'ci publish' expects no parameters"), publishState.stderr)
     },
     compileAloneChecks: () => {
         // `fjs compile` with no arguments is the `.f.js` check, and an empty

@@ -15,7 +15,7 @@
 import { resultMarker, powResultMarker } from '../../website/style/module.f.js'
 import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.mjs'
+import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
@@ -23,7 +23,6 @@ import { hexOf } from '../../website/demo/hash/module.f.mjs'
 import { sha256 } from '../sha2/module.f.mjs'
 import { vec } from '../../types/bit_vec/module.f.mjs'
 
-const decimalValue = digitsValue(10n)
 const formatHex = hexOf(sha256)
 const hashBits = vec(sha256.hashLength)
 
@@ -33,14 +32,14 @@ const hexUint = value => formatHex(hashBits(value))
 /** A non-negative decimal nonce, or null while its field is invalid.
  * @type {(text: string) => bigint | null}
  */
-export const parseNonce = text => decimalValue([...text].map(c => c.charCodeAt(0)))
+export const parseNonce = text => decimalValue(codePoints(text))
 
 /** A compact unsigned 32-bit nBits value written in hexadecimal.
  * @type {(text: string) => bigint | null}
  */
 export const parseNBits = text => {
     if (!text.startsWith('0x') && !text.startsWith('0X')) { return null }
-    const value = hexDigitsValue([...text.slice(2)].map(c => c.charCodeAt(0)))
+    const value = hexDigitsValue(codePoints(text.slice(2)))
     return value !== null && value <= 0xffff_ffffn ? value : null
 }
 

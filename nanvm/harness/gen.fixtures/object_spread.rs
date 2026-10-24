@@ -6,15 +6,8 @@ use nanvm_lib::vm::unstable::{
 use nanvm_lib::vm::{Any, IVm, Nullish, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = [(string_key("a"), f64_any(0x3ff0000000000000)), (string_key("b"), f64_any(0x4000000000000000))].to_object().to_any();
-    let c1: Any<A> = spread_object([spread_entries(c0.clone()), property_item(string_key("c"), f64_any(0x4008000000000000))]);
-    let c2: Any<A> = spread_object([property_item(string_key("b"), f64_any(0x0000000000000000)), spread_entries(c0.clone())]);
-    let c3: Any<A> = spread_object([spread_entries(c0.clone()), property_item(string_key("a"), f64_any(0x0000000000000000))]);
-    let c4: Any<A> = [string_any("p")].to_array().to_any();
-    let c5: Any<A> = spread_object([spread_entries(c4), property_item(string_key("z"), f64_any(0x0000000000000000))]);
-    let c6: Any<A> = spread_object([spread_entries(string_any("a😀"))]);
-    let c7: Any<A> = spread_object([spread_entries(Nullish::Null.to_any())]);
-    let c8: Any<A> = [c1, c2, c3, c5, c6, c7].to_array().to_any();
-    Ok([(string_key("default"), c8)].to_object().to_any())
+#[allow(clippy::if_same_then_else)]
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+    let _b0: Any<A> = [(string_key("a"), f64_any(0x3ff0000000000000)), (string_key("b"), f64_any(0x4000000000000000))].to_object().to_any();
+    Ok([(string_key("default"), [spread_object([spread_entries(_b0.clone()), property_item(string_key("c"), f64_any(0x4008000000000000))]), spread_object([property_item(string_key("b"), f64_any(0x0000000000000000)), spread_entries(_b0.clone())]), spread_object([spread_entries(_b0.clone()), property_item(string_key("a"), f64_any(0x0000000000000000))]), spread_object([spread_entries([string_any("p")].to_array().to_any()), property_item(string_key("z"), f64_any(0x0000000000000000))]), spread_object([spread_entries(string_any("a😀"))]), spread_object([spread_entries(Nullish::Null.to_any())])].to_array().to_any())].to_object().to_any())
 }

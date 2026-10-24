@@ -3,11 +3,11 @@
  */
 
 import { codeMarker, resultMarker, stylesheet } from '../style/module.f.js'
-import { textDemo, textField, inputField, fieldUpdate, caption, refusal } from './module.f.mjs'
+import { textDemo, textField, inputField, fieldUpdate, caption, refusal, radios, dragAxis, dragAxisAttributes, dragValue } from './module.f.mjs'
 import { name as exampleName } from './examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */
@@ -29,6 +29,31 @@ export const proof = {
     },
     refusal: () => assertEq(htmlToString(refusal('Unexpected <token> & input\nnext line')),
         '<!DOCTYPE html><div role="status"><p data-caption="">Refused:</p><pre data-result="error">Unexpected &lt;token&gt; &amp; input\nnext line</pre></div>'),
+    // Each option's id is the group's name and its value; only the chosen one
+    // is checked.
+    radios: () => assertEq(htmlToString(radios('side', 'Side', [{ value: 'L', label: 'Left' }, { value: 'R', label: 'Right' }], 'R')),
+        '<!DOCTYPE html><fieldset data-radios=""><legend>Side</legend><div><label for="side-L"><input type="radio" id="side-L" name="side" value="L">Left</label><label for="side-R"><input type="radio" id="side-R" name="side" value="R" checked="">Right</label></div></fieldset>'),
+    dragAxis: () => {
+        const attributes = dragAxis({ min: -1.5, max: 3.5, left: 40, right: 480 })
+        assertEq(attributes[dragAxisAttributes.min], '-1.5')
+        assertEq(attributes[dragAxisAttributes.max], '3.5')
+        assertEq(attributes[dragAxisAttributes.left], '40')
+        assertEq(attributes[dragAxisAttributes.right], '480')
+    },
+    dragValue: {
+        // The pointer's x mapped through the axis: the middle of `0..600`
+        // is the middle of `-2..4`.
+        mapped: () => assertEq(dragValue({ min: -2, max: 4, left: 0, right: 600 }, { min: -2, max: 4 }, 300), '1.000'),
+        rounded: () => assertEq(dragValue({ min: 0, max: 1, left: 0, right: 3 }, { min: 0, max: 1 }, 1), '0.333'),
+        // Past either end, the slider's own bounds hold, which can be
+        // narrower than the axis.
+        clampedHigh: () => assertEq(dragValue({ min: -2, max: 4, left: 0, right: 600 }, { min: -1, max: 3 }, 800), '3.000'),
+        clampedLow: () => assertEq(dragValue({ min: -2, max: 4, left: 0, right: 600 }, { min: -1, max: 3 }, -50), '-1.000'),
+        noAxis: () => {
+            assertEq(dragValue({ min: -2, max: 4, left: 10, right: 10 }, { min: -2, max: 4 }, 10), null)
+            assertEq(dragValue({ min: -2, max: 4, left: 10, right: 0 }, { min: -2, max: 4 }, 10), null)
+        },
+    },
     caption: () => assertEq(htmlToString(caption('Hash, hex:')),
         '<!DOCTYPE html><p data-caption="">Hash, hex:</p>'),
     inputField: () => {

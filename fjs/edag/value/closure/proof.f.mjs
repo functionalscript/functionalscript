@@ -5,7 +5,8 @@
  * @import { EdagValue } from '../types.ts'
  */
 
-import { assertEq, assertError, assertOk } from '../../../asserts/module.f.mjs'
+import { conditional } from '../../testlib.f.js'
+import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { validateClosure } from './module.f.mjs'
 
 /** @type {(value: EdagValue) => void} */
@@ -80,7 +81,7 @@ export const proof = {
         reject(['=>', 0, [], ['=>', 0, [], ['args']]], 'module args in a function')
         reject(['=>', 0, [], ['=>', 0, [['args']], 0]], 'module args in a function')
         reject(['=>', 0, [['=>', 0, [], ['args']]], 0], 'module args in a function')
-        reject(['=>', 0, [], ['&&', false, ['args']]], 'module args in a function')
+        reject(['=>', 0, [], conditional("&&", false, ['args'])], 'module args in a function')
     },
     objectExpressions: () => {
         // Body expressions have JavaScript construction semantics rather

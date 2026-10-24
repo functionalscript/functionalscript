@@ -7,14 +7,16 @@
 ### Problem
 
 Each project schema in the demo is declared with its export's name as a
-string, beside the schema value itself, in `inProject` in
-[`../demo.f.mjs`](../demo.f.mjs):
+string, beside the schema value itself, through `projectSchema` in
+[`../schema-demo/module.f.mjs`](../schema-demo/module.f.mjs), in each
+`sample.f.mjs` of the guide's
+[`in-the-project`](../guide/in-the-project/README.md) pages:
 
 ```js
-inProject('op1Id', 'edag', op1Id)
+projectSchema('op1Id', 'edag', op1Id)
 ```
 
-Nothing ties the string to the value. Writing `inProject('op3Id', 'edag',
+Nothing ties the string to the value. Writing `projectSchema('op3Id', 'edag',
 op1Id)` makes the page print `import { op3Id } …` while every reader runs
 against `op1Id`, and no gate notices: `tsc`, the coverage run and the
 website build all pass. A review of
@@ -31,7 +33,7 @@ demo looks the schema up:
 
 ```js
 import * as edag from '../edag/module.f.mjs'
-inProject('op1Id', 'edag', edag)  // the schema is edag['op1Id']
+projectSchema('op1Id', 'edag', edag)  // the schema is edag['op1Id']
 ```
 
 The printed name and the schema run are then one thing. A misspelled name
@@ -47,8 +49,9 @@ the same slip, so it is no fallback.
 
 ### Related
 
-- [`../demo.f.mjs`](../demo.f.mjs) — `inProject` and the `projectSchemas`
-  list.
+- [`../schema-demo/module.f.mjs`](../schema-demo/module.f.mjs) —
+  `projectSchema`; the [`in-the-project`](../guide/in-the-project/README.md)
+  pages — the lists.
 - [Link a demo schema to its export](demo-link-to-schema-export.md) — the
   other open question about how a project example names its export.
 - [Namespace import](../../../spec/todo/2220-namespace-import.md) — the

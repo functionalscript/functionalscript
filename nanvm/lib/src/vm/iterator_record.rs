@@ -1,7 +1,7 @@
 use core::iter::FusedIterator;
 
 use crate::{
-    common::sized_index::SizedIndex,
+    common::{index_iter::IndexIter, sized_index::SizedIndex},
     vm::{
         Any, Array, IVm, String, ToAny, ToString,
         string::code_unit::{is_high_surrogate, is_low_surrogate},
@@ -35,7 +35,7 @@ use crate::{
 /// ```
 pub enum IteratorRecord<A: IVm> {
     /// An array's elements, in index order.
-    Array { array: Array<A>, next: u32 },
+    Array(IndexIter<u32, Array<A>>),
     /// A string's code points, each a string of its own; `next` is a code
     /// unit index.
     String { string: String<A>, next: u32 },
@@ -46,14 +46,7 @@ impl<A: IVm> Iterator for IteratorRecord<A> {
 
     fn next(&mut self) -> Option<Any<A>> {
         match self {
-            IteratorRecord::Array { array, next } => {
-                if *next >= array.length() {
-                    return None;
-                }
-                let value = array[*next].clone();
-                *next += 1;
-                Some(value)
-            }
+            IteratorRecord::Array(elements) => elements.next(),
             IteratorRecord::String { string, next } => {
                 let length = string.length();
                 if *next >= length {
@@ -81,10 +74,7 @@ impl<A: IVm> Iterator for IteratorRecord<A> {
     /// early only on the lower bound.
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self {
-            IteratorRecord::Array { array, next } => {
-                let left = array.length().saturating_sub(*next) as usize;
-                (left, Some(left))
-            }
+            IteratorRecord::Array(elements) => elements.size_hint(),
             IteratorRecord::String { string, next } => {
                 let left = string.length().saturating_sub(*next) as usize;
                 (left.div_ceil(2), Some(left))

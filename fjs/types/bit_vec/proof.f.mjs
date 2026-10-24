@@ -4,10 +4,10 @@
  * @import { List } from '../list/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListToVecChunksMsb, u8ArrayMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */
@@ -470,9 +470,9 @@ export const proof = {
         const v = u8ListToVecMsb(bytes)
         assertEq(v, u8ListToVec(msb)(bytes))
         assertEq(v, vec(24n)(0x12_3456n))
-        assertStructurallySame(toArray(u8ListMsb(v)), bytes)
+        assertStructurallySame(u8ArrayMsb(v), bytes)
         // not an inverse off whole bytes: the partial byte is zero-padded
-        const ragged = toArray(u8ListMsb(vec(9n)(0x83n)))
+        const ragged = u8ArrayMsb(vec(9n)(0x83n))
         assertStructurallySame(ragged, [0x41, 0x80])
         assertEq(u8ListToVecMsb(ragged), vec(16n)(0x4180n))
     },
@@ -554,6 +554,36 @@ export const proof = {
             u8ListToVecMsb: () => {
                 u8ListToVecMsb(listRepeat(0x12)(131_073))
             },
+        },
+    },
+    u8ListToVecChunksMsb: {
+        cut: () => {
+            const chunks = toArray(u8ListToVecChunksMsb(3)([1, 2, 3, 4, 5, 6, 7]))
+            assertEq(chunks.length, 3)
+            assertEq(chunks[0], vec(24n)(0x01_0203n))
+            assertEq(chunks[1], vec(24n)(0x04_0506n))
+            assertEq(chunks[2], vec8(0x07n))
+        },
+        whole: () => {
+            const chunks = toArray(u8ListToVecChunksMsb(2)(listRepeat(0xab)(4)))
+            assertEq(chunks.length, 2)
+            assertEq(chunks[0], vec(16n)(0xababn))
+            assertEq(chunks[1], vec(16n)(0xababn))
+        },
+        empty: () => {
+            assertEq(toArray(u8ListToVecChunksMsb(3)([])).length, 0)
+        },
+        max: () => {
+            const chunks = toArray(u8ListToVecChunksMsb(Number(maxLengthBytes))(listRepeat(0x12)(131_073)))
+            assertEq(chunks.length, 2)
+            assertEq(length(chunks[0]), maxLength)
+            assertEq(chunks[1], vec8(0x12n))
+        },
+        throw: {
+            zero: () => { u8ListToVecChunksMsb(0) },
+            fraction: () => { u8ListToVecChunksMsb(1.5) },
+            overMax: () => { u8ListToVecChunksMsb(Number(maxLengthBytes) + 1) },
+            notByte: () => { toArray(u8ListToVecChunksMsb(2)([1, 256])) },
         },
     },
     u8ListUnaligned: () => {

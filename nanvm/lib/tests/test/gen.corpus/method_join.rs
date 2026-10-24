@@ -2,43 +2,32 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("noArgument", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok(Array::default().to_any())), string_any("1,2,3"));
-    check::<A>("undefinedSeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([Nullish::Undefined.to_any()].to_array().to_any())), string_any("1,2"));
-    check::<A>("separator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("-")].to_array().to_any())), string_any("1-2"));
-    check::<A>("emptySeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("")].to_array().to_any())), string_any("12"));
-    check::<A>("functionSeparatorEmpty", Any::dot(Array::default().to_any(), string_any("join")).end_call(|| Ok([function_any()].to_array().to_any())), string_any(""));
-    check::<A>("functionSeparatorSingle", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([function_any()].to_array().to_any())), string_any("1"));
-    check::<A>("functionInSeparatorEmpty", Any::dot(Array::default().to_any(), string_any("join")).end_call(|| {
-        let c0: Any<A> = [function_any()].to_array().to_any();
-        Ok([c0].to_array().to_any())
-    }), string_any(""));
-    check::<A>("nullSeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([Nullish::Null.to_any()].to_array().to_any())), string_any("1null2"));
-    check::<A>("numberSeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("102"));
-    check::<A>("arraySeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| {
-        let c0: Any<A> = [f64_any(0x4008000000000000), f64_any(0x4010000000000000)].to_array().to_any();
-        Ok([c0].to_array().to_any())
-    }), string_any("13,42"));
-    check::<A>("nullish", Any::dot([Nullish::Null.to_any(), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any(";")].to_array().to_any())), string_any(";;1"));
-    check::<A>("nested", Any::dot([f64_any(0x3ff0000000000000), [f64_any(0x4000000000000000), [f64_any(0x4008000000000000), Nullish::Null.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any(";")].to_array().to_any())), string_any("1;2,3,"));
-    check::<A>("values", Any::dot([true.to_any(), bigint_any(5), string_any("a"), Object::default().to_any(), f64_any(0x8000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok(Array::default().to_any())), string_any("true,5,a,[object Object],0"));
-    check::<A>("empty", Any::dot(Array::default().to_any(), string_any("join")).end_call(|| Ok([string_any("-")].to_array().to_any())), string_any(""));
-    check::<A>("one", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("-")].to_array().to_any())), string_any("1"));
-    check::<A>("bigintSeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([bigint_any(0)].to_array().to_any())), string_any("102"));
-    check::<A>("ownToStringSeparator", Any::dot([f64_any(0x0000000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { Ok(string_any("-")) }, 0, Array::default(), Some("()=>\"-\"")).to_any();
-        let c1: Any<A> = [(string_key("toString"), c0)].to_object().to_any();
-        Ok([c1].to_array().to_any())
-    }), string_any("0-2"));
-    check::<A>("ownToStringElement", Any::dot([[(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("x")) }, 0, Array::default(), Some("()=>\"x\"")).to_any())].to_object().to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any(";")].to_array().to_any())), string_any("x;1"));
-    check_throws::<A>("emptyThrowingSeparator", Any::dot(Array::default().to_any(), string_any("join")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default(), Some("()=>1n/0n")).to_any();
-        let c1: Any<A> = [(string_key("toString"), c0)].to_object().to_any();
-        Ok([c1].to_array().to_any())
-    }));
-    check::<A>("functions", Any::dot([function_any(), A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("|")].to_array().to_any())), string_any("()=>undefined|(...$0)=>$0[0]"));
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("noArgument", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("1,2,3"));
+    check::<A>("undefinedSeparator", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([Nullish::Undefined.to_any()].to_array().to_any())) }), string_any("1,2"));
+    check::<A>("separator", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([string_any("-")].to_array().to_any())) }), string_any("1-2"));
+    check::<A>("emptySeparator", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([string_any("")].to_array().to_any())) }), string_any("12"));
+    check::<A>("functionSeparatorEmpty", scope(|| { Any::dot(Array::default().to_any(), string_any("join")).end_call(&rt, || Ok([A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any()].to_array().to_any())) }), string_any(""));
+    check::<A>("functionSeparatorSingle", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any()].to_array().to_any())) }), string_any("1"));
+    check::<A>("functionInSeparatorEmpty", scope(|| { Any::dot(Array::default().to_any(), string_any("join")).end_call(&rt, || Ok([[A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any()].to_array().to_any()].to_array().to_any())) }), string_any(""));
+    check::<A>("nullSeparator", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([Nullish::Null.to_any()].to_array().to_any())) }), string_any("1null2"));
+    check::<A>("numberSeparator", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("102"));
+    check::<A>("arraySeparator", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([[f64_any(0x4008000000000000), f64_any(0x4010000000000000)].to_array().to_any()].to_array().to_any())) }), string_any("13,42"));
+    check::<A>("nullish", scope(|| { Any::dot([Nullish::Null.to_any(), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([string_any(";")].to_array().to_any())) }), string_any(";;1"));
+    check::<A>("nested", scope(|| { Any::dot([f64_any(0x3ff0000000000000), [f64_any(0x4000000000000000), [f64_any(0x4008000000000000), Nullish::Null.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([string_any(";")].to_array().to_any())) }), string_any("1;2,3,"));
+    check::<A>("values", scope(|| { Any::dot([true.to_any(), bigint_any(5), string_any("a"), Object::default().to_any(), f64_any(0x8000000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("true,5,a,[object Object],0"));
+    check::<A>("empty", scope(|| { Any::dot(Array::default().to_any(), string_any("join")).end_call(&rt, || Ok([string_any("-")].to_array().to_any())) }), string_any(""));
+    check::<A>("one", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([string_any("-")].to_array().to_any())) }), string_any("1"));
+    check::<A>("bigintSeparator", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([bigint_any(0)].to_array().to_any())) }), string_any("102"));
+    check::<A>("ownToStringSeparator", scope(|| { Any::dot([f64_any(0x0000000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([[(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("-")) }, 0, [rt.clone()].to_array(), Some("()=>\"-\"")).to_any())].to_object().to_any()].to_array().to_any())) }), string_any("0-2"));
+    check::<A>("ownToStringElement", scope(|| { Any::dot([[(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("x")) }, 0, [rt.clone()].to_array(), Some("()=>\"x\"")).to_any())].to_object().to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([string_any(";")].to_array().to_any())) }), string_any("x;1"));
+    check_throws::<A>("emptyThrowingSeparator", scope(|| { Any::dot(Array::default().to_any(), string_any("join")).end_call(&rt, || Ok([[(string_key("toString"), A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, [rt.clone()].to_array(), Some("()=>1n/0n")).to_any())].to_object().to_any()].to_array().to_any())) }));
+    check::<A>("functions", scope(|| {
+        Any::dot([A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any(), A::static_function(|_self, _args| {
+            let _b179: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b179.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any(), string_any("join")).end_call(&rt, || Ok([string_any("|")].to_array().to_any()))
+    }), string_any("()=>undefined|(...$0)=>$0[0]"));
 }

@@ -20,7 +20,7 @@ compile time:
   a value owns, is a call of what the value holds. An own property of the
   name on an object shadows the built-in, a type without the built-in throws
   the `TypeError` JavaScript throws. An unguarded nullish receiver throws before
-  its arguments are evaluated; [optional chaining](../../../spec/property-access/optional-chaining.md)
+  its arguments are evaluated; [optional chaining](../../../spec/property-access/optional-chaining/README.md)
   short-circuits the remaining chain, including arguments, at a nullish receiver
   or callee guarded by `?.`.
 
@@ -38,7 +38,7 @@ native implementation.
 | `__defineSetter__` | ❌ | ❌ | Object. Annex B. Mutates an object. |
 | `__lookupGetter__` | ❌ | ❌ | Object. Annex B. Prototype reflection. |
 | `__lookupSetter__` | ❌ | ❌ | Object. Annex B. Prototype reflection. |
-| `__proto__` | ❌ | ❌ | Object. [object Object] |
+| `__proto__` | ❌ | ❌ | Object. Annex B. Accessor that reads and replaces the prototype. |
 | `anchor` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `apply` | ❌ | ❌ | Function. Passes `this`, which no function here reads. |
 | `arguments` | ❌ | ❌ | Function. Annex B. Data property, throws in strict mode. |
@@ -70,7 +70,7 @@ native implementation.
 | `fontcolor` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `fontsize` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `forEach` | ❌ | ❌ | Array. Answers `undefined`, exists for side effects. |
-| `hasOwnProperty` | ❌ | ❌ | Object. Reflection, superseded by the [`entry` pattern](../../../spec/property-access/entries.md). |
+| `hasOwnProperty` | ❌ | ❌ | Object. Reflection, superseded by the [`entry` pattern](../../../spec/property-access/entries/README.md). |
 | `includes` | ❌ | ✅ | Array, String. Pure, SameValueZero so `NaN` is found. |
 | `indexOf` | ❌ | ✅ | Array, String. Pure, strict equality so `NaN` is not found. |
 | `isPrototypeOf` | ❌ | ❌ | Object. Prototype reflection. |
@@ -155,7 +155,7 @@ library and asserts the version at compile time
 so a build whose library carries another version does not build; the pin
 moves only with the toolchain. A host engine on another Unicode version is an
 engine-defined edge the spec documents
-([built-in member functions](../../../spec/built-ins/member-functions.md)),
+([built-in member functions](../../../spec/built-ins/member-functions/README.md)),
 reachable through text the module does not control, such as a search query.
 `normalize` stays refused: nothing pins the engine's normalization tables.
 

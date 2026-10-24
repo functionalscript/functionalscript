@@ -166,6 +166,21 @@ export const thunks = {
     expected: [['ok', true], ['ok', true], ['ok', true], ['ok', true], ['ok', true], ['ok', true]],
 };
 
+// `inflate` of one zlib stream: a stored block, a fixed-Huffman one, the empty
+// stream, and the four ways a stream is refused, by the code the host gives:
+// a bad header, bytes after the end, a stream that ends early, and a check
+// value that is wrong. Streams are Node's `zlib.deflateSync` output.
+export const inflates = {
+    run: (/** @type {string} */ _root) => step('inflate', [-5030117122984582791269772711231783n], (/** @type {unknown} */ v) => v === -14770787n)(
+        step('inflate', [-329657858348783285541978696330233710769n], (/** @type {unknown} */ v) => v === -22259132390116257092906811197650249990495843715610602607n)(
+            step('inflate', [-17914196716307873793n], (/** @type {unknown} */ v) => v === 0n)(
+                step('inflate', [-63645n], none)(
+                    step('inflate', [-5530741095614940518727453655730738296053105155n], none)(
+                        step('inflate', [-5030179723339588707610758916171779n], none)(
+                            step('inflate', [-329657858348783285541978696330233710768n], none)(end)))))))([]),
+    expected: [['ok', true], ['ok', true], ['ok', true], ['error', 'Z_DATA_ERROR'], ['error', 'ERR_TRAILING_BYTES'], ['error', 'Z_BUF_ERROR'], ['error', 'Z_DATA_ERROR']],
+};
+
 export const resolution = {
     run: (/** @type {string} */ root) => step('writeFile', [root + '/m.f.mjs', hi], none)(
         step('resolveFileModule', [root + '/m.f.mjs', null], (/** @type {any} */ v) => v.id.startsWith('file:///') && v.id.endsWith('/m.f.mjs') && v.path.endsWith('m.f.mjs'))(
@@ -202,8 +217,8 @@ export const directory = {
         step('mkdir', [root + '/a', undefined], none)(
             step('writeFile', [root + '/z', hi], none)(
                 step('writeFile', [root + '/a/f', hi], none)(
-                    step('readdir', [root, {}], (/** @type {any} */ v) => [entry(v[0], 'name')[0], entry(v[1], 'name')[0], entry(v[2], 'name')[0]])(
-                        step('readdir', [root, { recursive: true }], (/** @type {any} */ v) => [entry(v[0], 'name')[0], entry(v[1], 'name')[0], entry(v[2], 'name')[0], entry(v[3], 'name')[0]])(
+                    step('readdir', [root, {}], (/** @type {any} */ v) => [entry(v[0], 'name'), entry(v[1], 'name'), entry(v[2], 'name')])(
+                        step('readdir', [root, { recursive: true }], (/** @type {any} */ v) => [entry(v[0], 'name'), entry(v[1], 'name'), entry(v[2], 'name'), entry(v[3], 'name')])(
                             step('readdir', [root + '/none', {}], none)(end)))))))([]),
     expected: [['ok', null], ['ok', null], ['ok', null], ['ok', null], ['ok', ['a', 'b', 'z']], ['ok', ['a', 'b', 'z', 'f']], ['error', 'ENOENT']],
 };

@@ -3,7 +3,7 @@
  * @import { LockMap } from '../revision/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { dialect, mediaType, checkReferences, validate, decodeText, encodeText } from './module.f.mjs'
 import {
     dialect as revisionDialect,

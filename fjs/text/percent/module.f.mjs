@@ -8,28 +8,27 @@
  */
 
 import {
-    fullStop, hexDigitValue, hyphenMinus, isDigit, isLatinCapitalLetter, isLatinSmallLetter, lowLine,
+    fullStop, hyphenMinus, isDigit, isLatinCapitalLetter, isLatinSmallLetter, lowLine,
     solidus, tilde,
-} from '../ascii/module.f.mjs'
+} from '../ascii/module.f.js'
 import { fromU8List, stringToU8List } from '../utf8/module.f.mjs'
+import { codeUnitToString } from '../utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { unwrap } from '../../types/nullable/module.f.mjs'
+import { unwrap } from '../../types/nullable/module.f.js'
+import { decode, encodeScalar } from '../../basen/base16/module.f.mjs'
 
 /** @type {(s: string) => readonly number[]} */
 const utf8Bytes = s => toArray(stringToU8List(s))
 
 /**
  * The byte the two hexadecimal digits beginning a part split on `%` denote,
- * or `null` when they are not both digits. A missing character reads as
- * `NaN`, which denotes no digit.
+ * or `null` when they are not both digits. A part shorter than two
+ * characters is an odd count or no pair at all, which the codec refuses or
+ * reads as no byte.
  *
  * @type {(part: string) => Nullable<number>}
  */
-const escapeByte = part => {
-    const hi = hexDigitValue(part.charCodeAt(0))
-    const lo = hexDigitValue(part.charCodeAt(1))
-    return hi === null || lo === null ? null : hi * 16 + lo
-}
+const escapeByte = part => decode(part.slice(0, 2))?.[0] ?? null
 
 /** Whether a part split on `%` begins with two hexadecimal digits. @type {(part: string) => boolean} */
 const isEscape = part => escapeByte(part) !== null
@@ -64,9 +63,12 @@ const pathMarks = [hyphenMinus, fullStop, lowLine, tilde, solidus]
 const isPathByte = b =>
     isDigit(b) || isLatinSmallLetter(b) || isLatinCapitalLetter(b) || pathMarks.includes(b)
 
+/** A byte as two hexadecimal digits. */
+const hexByte = encodeScalar(2)
+
 /** `b` as it reads in a URL path: itself, or its escape. @type {(b: number) => string} */
 const pathByte = b =>
-    isPathByte(b) ? String.fromCharCode(b) : `%${b.toString(16).toUpperCase().padStart(2, '0')}`
+    isPathByte(b) ? codeUnitToString(b) : `%${hexByte(b).toUpperCase()}`
 
 /** Every UTF-8 byte of `s` as it reads in a URL path. @type {(s: string) => string} */
 const encodeLiteral = s => utf8Bytes(s).map(pathByte).join('')

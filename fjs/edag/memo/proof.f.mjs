@@ -7,10 +7,10 @@
  * @import { EdagValue, Values, Array as ValueArray } from '../value/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { conditional } from '../testlib.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
-import { lazyOp2Id } from '../module.f.mjs'
 import { memo, invoke } from './module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
@@ -59,19 +59,26 @@ export const proof = {
     // every function it calls, as `amnesia`'s does.
     runtime: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'member', ['{}', [[':', 'startsWith', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]]]]
+        const runtime = ['{}', [[':', 'dot', ['=>', 2, [], ['?:', ['===', ['arg', 1], 'startsWith'], ['()', ['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]], [['arg', 0]]], ['undefined']]]]]]
         /** @type {Exp} */
         const nested = ['()', ['=>', 0, [], ['.', 'abc', 'startsWith', ['|()', ['b']]]], []]
         const run = memo(assertOk(analysis(nested)))
         assertEq(assertOk(run({ args: [], runtime })), 'abc')
         assertStructurallySame(assertError(run({ args: [] })), ['undefined'])
+        // the callee before the arguments, as in `amnesia`: a `dot` that
+        // throws fails the call before an argument that would
+        /** @type {import('../value/types.ts').Runtime} */
+        const throwing = ['{}', [[':', 'dot', ['=>', 2, [], ['throw', 'resolving']]]]]
+        const argued = memo(assertOk(analysis(['.', 'abc', 'slice', ['|()', [['throw', 'evaluated']]]])))
+        assertEq(assertError(argued({ args: [], runtime: throwing })), 'resolving')
+        assertEq(assertError(argued({ args: [], runtime })), 'evaluated')
     },
     // `Object.is` under memoization: the runtime's body in a function the
     // module calls, a function returning it read twice as one value, and
     // the named failure without a runtime, as `amnesia`'s.
     objectIs: () => {
         /** @type {import('../value/types.ts').Runtime} */
-        const runtime = ['{}', [[':', 'static', ['{}', [[':', 'Object', ['{}', [[':', 'is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]]]]]]]
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
         /** @type {Exp} */
         const nested = ['()', ['=>', 0, [], ['()', ['Object.is'], [1, 1]]], []]
         const run = memo(assertOk(analysis(nested)))
@@ -115,7 +122,7 @@ export const proof = {
         eq(['.', o, 'step', ['|()', [0, o]]], 1_000)
         eq(['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000], ['?.()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [0]], 1_000)
         eq(['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000], [',', [['arg', 0], ['()', ['self'], [['+', ['arg', 0], 1]]]]], ['arg', 0]]], [0]], 1_000)
-        eq(['()', ['=>', 1, [], ['&&', ['<', ['arg', 0], 1_000], ['||', false, ['??', null, ['()', ['self'], [['+', ['arg', 0], 1]]]]]]], [0]], false)
+        eq(['()', ['=>', 1, [], conditional("&&", ['<', ['arg', 0], 1_000], conditional("||", false, conditional("??", null, ['()', ['self'], [['+', ['arg', 0], 1]]])))], [0]], false)
         // the step after a call step continues from the call's value
         eq(['?.', ['{}', [[':', 'f', ['=>', 0, [], ['{}', [[':', 'x', 7]]]]]]], 'f', ['|()', [], ['|.', 'x']]], 7)
         // a tail call's failures are the call's: a callee that is not a
@@ -149,30 +156,21 @@ export const proof = {
     // only through untaken lazy positions is never evaluated, and one
     // demanded through two taken positions is evaluated once.
     lazy: () => {
-        assertStructurallySame(run(['[]', [['&&', false, boom], ['||', true, boom], ['??', 0, boom]]]), [false, true, 0])
+        assertStructurallySame(run(['[]', [conditional("&&", false, boom), conditional("||", true, boom), conditional("??", 0, boom)]]), [false, true, 0])
         eq(['?:', true, 7, boom], 7)
         // The language's own failure node is a lazy operand like any other.
         eq(['?:', true, 7, ['throw', 1]], 7)
-        const r = array(run(['[]', [['&&', true, s], ['||', false, s], ['?:', false, 0, s]]]))
+        const r = array(run(['[]', [conditional("&&", true, s), conditional("||", false, s), ['?:', false, 0, s]]]))
         assert(r[0] === r[1] && r[1] === r[2])
         // A step past a failed guard is not taken, so its operand is not demanded.
         eq(['?.', null, 'f', ['|()', boom]], undefined)
     },
-    /**
-     * **`lazyOp2Id` is held to this table's behaviour, not to its text.**
-     * The vocabulary is named once in `../module.f.mjs` because a reader of
-     * a graph, a printer of `.rs` and this executor all need the same three
-     * tags; a second list is the one that drifts. So every tag it names is
-     * shown here to leave its right operand undemanded given a left that
-     * decides the answer, and a tag from each other corner of `op2` is shown
-     * to force it — under `throw` below, since forcing it throws.
-     */
+    /** Former source logical forms are canonical conditionals with lazy arms. */
     lazyVocabulary: () => {
-        // The left that short-circuits, per operator.
         const deciding = { '&&': false, '||': true, '??': 0 }
-        for (const tag of lazyOp2Id) {
+        for (const tag of /** @type {const} */ (['&&', '||', '??'])) {
             const left = deciding[tag]
-            assertEq(run([tag, left, boom]), left)
+            assertEq(run(conditional(tag, left, boom)), left)
         }
     },
     // A body's slots are per call: a constructor inside is fresh per call
@@ -213,7 +211,7 @@ export const proof = {
         agrees(['()', ['=>', 0, [], ['.', ['rest'], 0]], [7]])
         agrees(['.', ['[]', [42]], 'at', ['|?.()', [0], ['|.', 'toFixed', ['|()', [1]]]]])
         agrees(['?.()', ['=>', 0, [], ['{}', [[':', 'y', 3]]]], [], ['|.', 'y']])
-        agrees(['typeof', ['&&', 1, 'a']])
+        agrees(['typeof', conditional("&&", 1, 'a')])
     },
     operations: () => {
         for (const tag of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>', '<', '<=', '>', '>=', '===', '!=='])) {
@@ -222,14 +220,14 @@ export const proof = {
         for (const tag of /** @type {const} */ (['!', 'typeof', 'String', 'Number', '~', '+', '-'])) { agrees([tag, '2']) }
         agrees(['instanceof', ['[]', [1]], 'Array'])
         agrees(['instanceof', ['{}', []], 'Array'])
-        agrees(['instanceof', ['&&', 1, null], 'Array'])
+        agrees(['instanceof', conditional("&&", 1, null), 'Array'])
         agrees(['+', ['[]', [1, 2]], ['{}', []]])
         agrees(['+', ['{}', [[':', 'valueOf', ['=>', 0, [], 3]]]], 2])
         agrees(['()', ['entry'], [['[]', [7]], 0]])
         agrees(['.', ['[]', [7]], ['Number', '0']])
         eq([',', []], undefined)
-        eq(['??', null, 4], 4)
-        eq(['||', 0, 5], 5)
+        eq(conditional("??", null, 4), 4)
+        eq(conditional("||", 0, 5), 5)
         assertEq(run(['===', ['args'], ['args']]), true)
         // Lists beginning with '#' are ordinary data, never table references.
         assertStructurallySame(assertOk(toData(apply(value(['=>', 0, [], ['[]', ['#', 42]]])))), ['#', 42])
@@ -257,20 +255,42 @@ export const proof = {
         eq(['.', ['{}', [[':', 'toString', ['=>', 0, [], 'own']]]], 'toString', ['|()', []]], 'own')
         // the `entry` helper: a function, called as one and read as one,
         // and a fresh one wherever the node is established
-        assertStructurallySame(run(['()', ['entry'], [['{}', [[':', 'k', 9]]], 'k']]), [9])
-        assertStructurallySame(run(['()', ['entry'], [['[]', [7, 8]], 1]]), [8])
-        assertStructurallySame(run(['()', ['entry'], [['[]', [7, 8]], 'length']]), [])
-        assertStructurallySame(run(['()', ['entry'], [['{}', [[':', '1', 42]]], ['{}', [[':', 'toString', ['=>', 0, [], '1']]]]]]), [42])
+        eq(['()', ['entry'], [['{}', [[':', 'k', 9]]], 'k']], 9)
+        eq(['()', ['entry'], [['[]', [7, 8]], 1]], 8)
+        eq(['()', ['entry'], [['[]', [7, 8]], 'length']], undefined)
+        eq(['()', ['entry'], [['{}', [[':', '1', 42]]], ['{}', [[':', 'toString', ['=>', 0, [], '1']]]]]], 42)
         eq(['.', ['entry'], 'length'], 2)
         eq(['typeof', ['entry']], 'function')
-        assertStructurallySame(run(['()', ['entry'], [['entry'], 'length']]), [])
+        eq(['()', ['entry'], [['entry'], 'length']], undefined)
+        eq(['()', ['hasEntry'], [['{}', [[':', 'k', 9]]], 'k']], true)
+        eq(['()', ['hasEntry'], [['[]', [7, 8]], 'length']], false)
+        eq(['.', ['hasEntry'], 'length'], 2)
+        // an intrinsic, `slice`: the member call on its first argument with
+        // the rest — a string's, an array's, an own property's — of `length`
+        // `3`, fresh per node
+        eq(['()', ['slice'], ['abcdef', 1, 3]], 'bc')
+        eq(['()', ['slice'], ['abcdef', 4]], 'ef')
+        assertStructurallySame(run(['()', ['slice'], [['[]', [7, 8, 9]], 1, 2]]), [8])
+        eq(['()', ['slice'], [['{}', [[':', 'slice', ['=>', 0, [], 'own']]]], 0, 1]], 'own')
+        eq(['.', ['slice'], 'length'], 3)
+        eq(['typeof', ['slice']], 'function')
+        eq(['===', ['slice'], ['slice']], false)
+        eq(['()', ['charCodeAt'], ['abc', 1]], 0x62)
+        eq(['.', ['charCodeAt'], 'length'], 2)
         eq(['===', ['entry'], ['entry']], false)
         eq(['()', ['=>', 0, [], ['===', ['entry'], ['entry']]], []], false)
         const helper = /** @type {Exp} */ (['entry'])
         eq(['===', helper, helper], true)
-        assertStructurallySame(run(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [[], []])
-        eq(['String', ['entry']], '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?[$2.value]:[];}')
+        assertStructurallySame(run(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [undefined, undefined])
+        eq(['String', ['entry']], '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
         fails(['.', ['{}', [[':', 'toString', 0]]], 'toString', ['|()', []]])
+        // `length` is own and not enumerable: no entry, no member name and
+        // no function, so a call through it throws, optional or not — the
+        // runtime's `dot` is asked for admitted member names alone
+        fails(['.', ['[]', [1]], 'length', ['|()', []]])
+        fails(['.', ['[]', [1]], 'length', ['|?.()', []]])
+        fails(['.', 'ab', 'length', ['|?.()', []]])
+        fails(['.', ['=>', 0, [], 1], 'length', ['|?.()', []]])
         eq(['.', ['[]', [2, 3]], 'at', ['|()', [1]]], 3)
         // `Object.entries`: a function no body defines, called and read as
         // one, and one function however often the node is established,
@@ -354,9 +374,9 @@ export const proof = {
         // runs, as `rest` is: a module has no frame.
         frameInModule: () => run(['frame', 0]),
         // Amnesia's throws are this executor's: a demanded lazy operand that throws, throws.
-        forced: () => run(['&&', true, boom]),
+        forced: () => run(conditional("&&", true, boom)),
         nullishBase: () => run(['.', ['undefined'], 'x']),
-        // Outside `lazyOp2Id`, the right operand is forced: comparison,
+        // Other canonical operators force their operands: comparison,
         // arithmetic and bitwise, one from each other corner of `op2`.
         eagerComparison: () => run(['===', 1, boom]),
         eagerArithmetic: () => run(['*', 1, boom]),

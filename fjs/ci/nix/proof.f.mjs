@@ -4,13 +4,14 @@
  * @import { NixJob, NixPin } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { node, nixpkgs, rustOverlay, typescript } from '../config/module.f.js'
 import { devNixJob, devSystems } from '../dev/module.f.mjs'
 import { major } from '../node/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.mjs'
 import {
     flakePath,
     flakeText,
@@ -114,7 +115,7 @@ const withPin = {
 
 const plainFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    outputs = { nixpkgs, ... }: {
+    outputs = { self, nixpkgs, ... }: {
         devShells.aarch64-linux.default = let
             pkgs = import nixpkgs {
                 system = "aarch64-linux";
@@ -123,13 +124,26 @@ const plainFlake = `{
         pkgs.mkShell {
             packages = [ pkgs.nodejs_26 ];
         };
+        packages.aarch64-linux.devTools = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+            extraTools = [ pkgs.stdenv.cc ];
+            toolLists = [ self.devShells.aarch64-linux.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
+        };
     };
 }
 `
 
 const shellHookFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    outputs = { nixpkgs, ... }: {
+    outputs = { self, nixpkgs, ... }: {
         devShells.aarch64-linux.default = let
             pkgs = import nixpkgs {
                 system = "aarch64-linux";
@@ -142,6 +156,19 @@ const shellHookFlake = `{
                 export CC=\${pkgs.gcc_multi}/bin/cc
             '';
         };
+        packages.aarch64-linux.devTools = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+            extraTools = [ pkgs.stdenv.cc ];
+            toolLists = [ self.devShells.aarch64-linux.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
+        };
     };
 }
 `
@@ -150,7 +177,7 @@ const rustFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
     inputs.rust-overlay.url = "git+https://github.com/oxalica/rust-overlay?ref=${rustOverlay.ref}&rev=${rustOverlay.commit}";
     inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
-    outputs = { nixpkgs, rust-overlay, ... }: {
+    outputs = { self, nixpkgs, rust-overlay, ... }: {
         devShells.aarch64-linux.default = let
             pkgs = import nixpkgs {
                 system = "aarch64-linux";
@@ -164,13 +191,27 @@ const rustFlake = `{
         pkgs.mkShell {
             packages = [ rust pkgs.wasmtime ];
         };
+        packages.aarch64-linux.devTools = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+                overlays = [ rust-overlay.overlays.default ];
+            };
+            extraTools = [ pkgs.stdenv.cc ];
+            toolLists = [ self.devShells.aarch64-linux.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
+        };
     };
 }
 `
 
 const pinFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    outputs = { nixpkgs, ... }: {
+    outputs = { self, nixpkgs, ... }: {
         devShells.aarch64-linux.default = let
             pkgs = import nixpkgs {
                 system = "aarch64-linux";
@@ -185,6 +226,19 @@ const pinFlake = `{
         in
         pkgs.mkShell {
             packages = [ pinned ];
+        };
+        packages.aarch64-linux.devTools = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+            extraTools = [ pkgs.stdenv.cc ];
+            toolLists = [ self.devShells.aarch64-linux.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
         };
     };
 }
@@ -222,7 +276,7 @@ const withSystems = {
 
 const systemsFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    outputs = { nixpkgs, ... }: let
+    outputs = { self, nixpkgs, ... }: let
         shell = { pkgs, url, hash, ... }: let
             pinned = pkgs.bun.overrideAttrs {
                 version = "1.4.0";
@@ -257,6 +311,32 @@ const systemsFlake = `{
             url = "https://example.test/bun-darwin-x64-baseline.zip";
             hash = "sha256-BBBB";
         };
+        packages.aarch64-linux.devTools = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+            extraTools = [ pkgs.stdenv.cc ];
+            toolLists = [ self.devShells.aarch64-linux.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
+        };
+        packages.x86_64-darwin.devTools = let
+            pkgs = import nixpkgs {
+                system = "x86_64-darwin";
+            };
+            extraTools = [ pkgs.stdenv.cc ];
+            toolLists = [ self.devShells.x86_64-darwin.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
+        };
     };
 }
 `
@@ -279,7 +359,7 @@ const withSystemsUnpinned = {
 
 const unpinnedSystemsFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    outputs = { nixpkgs, ... }: let
+    outputs = { self, nixpkgs, ... }: let
         shell = { pkgs, ... }: pkgs.mkShell {
             packages = [ pkgs.nodejs_26 ];
         };
@@ -300,6 +380,32 @@ const unpinnedSystemsFlake = `{
         in
         shell {
             pkgs = pkgs;
+        };
+        packages.aarch64-linux.devTools = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+            extraTools = [ pkgs.stdenv.cc ];
+            toolLists = [ self.devShells.aarch64-linux.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
+        };
+        packages.x86_64-darwin.devTools = let
+            pkgs = import nixpkgs {
+                system = "x86_64-darwin";
+            };
+            extraTools = [ pkgs.stdenv.cc ];
+            toolLists = [ self.devShells.x86_64-darwin.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
         };
     };
 }
@@ -337,6 +443,14 @@ const withPerSystem = {
                 ['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc'],
                 '/bin/cc',
             ],
+            commands: [{
+                name: 'fjs-i686-cc',
+                script: [
+                    'exec ',
+                    ['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc'],
+                    '/bin/cc "$@"',
+                ],
+            }],
         },
     },
 }
@@ -345,7 +459,7 @@ const perSystemFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
     inputs.rust-overlay.url = "git+https://github.com/oxalica/rust-overlay?ref=${rustOverlay.ref}&rev=${rustOverlay.commit}";
     inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
-    outputs = { nixpkgs, rust-overlay, ... }: let
+    outputs = { self, nixpkgs, rust-overlay, ... }: let
         shell = { pkgs, targets, shellHook, url, hash, ... }: let
             rust = pkgs.rust-bin.stable."1.98.0".minimal.override {
                 extensions = [ "clippy" ];
@@ -392,6 +506,40 @@ const perSystemFlake = `{
             shellHook = "";
             url = "https://example.test/bun-darwin-x64-baseline.zip";
             hash = "sha256-BBBB";
+        };
+        packages.aarch64-linux.devTools = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+                overlays = [ rust-overlay.overlays.default ];
+            };
+            command0 = pkgs.writeShellApplication {
+                name = "fjs-i686-cc";
+                text = ''
+                    exec \${pkgs.pkgsi686Linux.stdenv.cc}/bin/cc "$@"
+                '';
+            };
+            extraTools = [ pkgs.stdenv.cc command0 ];
+            toolLists = [ self.devShells.aarch64-linux.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
+        };
+        packages.x86_64-darwin.devTools = let
+            pkgs = import nixpkgs {
+                system = "x86_64-darwin";
+                overlays = [ rust-overlay.overlays.default ];
+            };
+            extraTools = [ pkgs.stdenv.cc ];
+            toolLists = [ self.devShells.x86_64-darwin.default.nativeBuildInputs extraTools ];
+        in
+        pkgs.buildEnv {
+            name = "fjs-dev-tools";
+            paths = pkgs.lib.concatLists toolLists;
+            extraOutputsToInstall = [ "out" "bin" ];
+            pathsToLink = [ "/bin" ];
         };
     };
 }
@@ -506,7 +654,7 @@ nix flake lock --extra-experimental-features 'nix-command flakes' ./gen.nix
         runText: () => assertEq(runText(), `#!/bin/sh
 exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-lock-file --quiet ./gen.nix --command "$@"
 `),
-        oneQuiet: () => assertEq(runText().split(' --quiet').length - 1, 1),
+        oneQuiet: () => assertEq(occurrences(' --quiet')(runText()), 1),
         runNamesItsFlake: () => {
             const [shebang, command, ...rest] = runText().split('\n')
             assertEq(shebang, '#!/bin/sh')

@@ -9,20 +9,20 @@
 import type { List } from '../../../types/list/types.ts'
 import type { Meta, Unmapped } from '../../../ebnf/ast/types.ts'
 import type { TokenMetadata } from '../../../ebnf/lib/js/types.ts'
-import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
-import type { Item, Key, Out, Parameter } from './types.ts'
+import type { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
+import type { Item, Key, Node, Out, Parameter } from './types.ts'
 
 /**
  * The ordinary token stream the grammar reads, with the tokenizer's one
  * physical end-of-input token split off.
  */
 export type _TokenStream = {
-    readonly tokens: readonly DjsTokenWithMetadata[]
+    readonly tokens: readonly ModuleTokenWithMetadata[]
     readonly eofMetadata: TokenMetadata
 }
 
 /** A position a reader inspects: a symbol of either alphabet, or a node the machine built. */
-export type _Leaf = Meta<DjsTokenWithMetadata | Out> | readonly unknown[]
+export type _Leaf = Meta<ModuleTokenWithMetadata | Out> | readonly unknown[]
 
 /**
  * `**`'s own optional round, `'**' unary`: no round, or one holding the
@@ -97,6 +97,21 @@ export type _ParametersAfterNode = Unmapped<readonly [] | readonly [Unmapped<rea
  */
 export type _DefaultNode = Unmapped<readonly [] | readonly [Unmapped<readonly [_Leaf, _Leaf]>]>
 
+/**
+ * What follows `(` value `,`, as its mapping returns it: the items read as
+ * parameters, the fixed ones a list and the rest parameter's token or
+ * `null`; read as a comma's operands, and the first token no operand list
+ * holds, or `null`; and whether a trailing comma ends it.
+ */
+export type _ParenItems = _ParameterTail & {
+    readonly operands: List<Node>
+    readonly refusal: ModuleTokenWithMetadata | null
+    readonly trailing: boolean
+}
+
+/** The node of a comma's operands after its first in a group, `{ ',' value }`: each round the comma's leaf and the value's. */
+export type _CommaOperandsNode = Unmapped<readonly Unmapped<readonly [unknown, _Leaf]>[]>
+
 /** The node of a name's own alternative, `id`: the name's token one level in, under the alternative its word matched, as a `const`'s name is. */
 export type _NameNode = Unmapped<readonly [unknown, _Leaf]>
 
@@ -108,7 +123,7 @@ export type _NameNode = Unmapped<readonly [unknown, _Leaf]>
  */
 export type _ParameterTail = {
     readonly fixed: List<Parameter>
-    readonly rest: DjsTokenWithMetadata | null
+    readonly rest: ModuleTokenWithMetadata | null
 }
 
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */

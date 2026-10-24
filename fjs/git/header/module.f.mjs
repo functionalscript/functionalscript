@@ -23,10 +23,10 @@
  * @import { Field, Header, OptionalField, Parse, Payload } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { ascii, byte, byteArray, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
-import { lf, space as sp } from '../../text/ascii/module.f.mjs'
+import { lf, space as sp } from '../../text/ascii/module.f.js'
 import { flat, flatMap, sameItems } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 

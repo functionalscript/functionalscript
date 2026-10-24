@@ -5,7 +5,7 @@
  * @import { Exp, PropertyLambda } from '../types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.mjs'
 
 /** @type {Exp} */
@@ -14,7 +14,7 @@ const c = ['[]', []]
 export const proof = {
     /** The lazy operations, the binary three and the conditional, and the three chain tags. */
     tags: () => {
-        assertStructurallySame(lazy, ['&&', '||', '??', '?:'])
+        assertStructurallySame(lazy, ['?:'])
         assertEq(['.', '?.', '?.()'].every(isChain), true)
         assertEq(isChain('()'), false)
     },
@@ -29,6 +29,9 @@ export const proof = {
         // an index is metadata, and the entry helper holds nothing
         assertStructurallySame(operandsOf(['arg', 0]), [])
         assertStructurallySame(operandsOf(['entry']), [])
+        assertStructurallySame(operandsOf(['hasEntry']), [])
+        assertStructurallySame(operandsOf(['slice']), [])
+        assertStructurallySame(operandsOf(['charCodeAt']), [])
         // the constructor's name is no operand
         assertStructurallySame(operandsOf(['instanceof', c, 'Array']), [c])
         // a list is read as a list, whatever its first item spells
@@ -46,7 +49,7 @@ export const proof = {
     },
     /** The positions a node establishes unconditionally. */
     eagerOperandsOf: () => {
-        assertStructurallySame(eagerOperandsOf(['&&', c, 1]), [c])
+        assertStructurallySame(eagerOperandsOf(['?:', c, 1, 0]), [c])
         assertStructurallySame(eagerOperandsOf(['?:', c, 1, 2]), [c])
         assertStructurallySame(eagerOperandsOf(['.', c, 'a', ['|()', [1]]]), [c, 'a'])
         assertStructurallySame(eagerOperandsOf(['?.', c, 'a']), [c])

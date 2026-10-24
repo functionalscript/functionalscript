@@ -33,7 +33,8 @@ export type KindSet<T> = true | readonly T[]
  * - `rest` absent: there is nothing past the prefix.
  *
  * A bare tuple schema is `{ prefix }` alone — the exact-length set, since
- * tuples are closed (see "Structs and tuples are closed" in `../README.md`) —
+ * tuples are closed (see "Structs and tuples are closed" in
+ * `../guide/schemas/closed-containers/README.md`) —
  * an `open` one is `{ prefix, rest: unknown }`, and a uniform array schema is
  * `{ prefix: [], rest }`.
  * All are points of the same kind, so a longer tuple pattern included in a

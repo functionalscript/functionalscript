@@ -9,7 +9,8 @@
  * migration debt `AGENTS.md` names, multiplied by every demo.
  *
  * @import { CommandSet, Commands } from '../effects/types.ts'
- * @import { Catch, Sandbox } from '../effects/common/types.ts'
+ * @import { Catch, RandomInt, Sandbox } from '../effects/common/types.ts'
+ * @import { BrowserOp } from '../effects/browser/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
  * @import { Element as HtmlElement } from '../media/html/types.ts'
  * @import { _FieldMemory as FieldMemory } from './private.ts'
@@ -17,28 +18,32 @@
 
 import { asyncPartialRun } from '../effects/module.mjs'
 import { commandsOf } from '../effects/module.f.mjs'
-import { commonOperationMap } from '../effects/common/module.mjs'
+import { commonOperationMap, randomIntOperationMap } from '../effects/common/module.mjs'
+import { browserOperationMap } from '../effects/browser/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
 import { editOf } from './demo/mirror/module.f.mjs'
+import { dragAxisAttributes, dragValue } from './demo/module.f.mjs'
 
 /**
  * What a demo may ask this page for.
  *
- * **Host-neutral operations only, and both of them are already written.**
- * `sandbox` runs a thunk and reports how long it took, `catch` reports whether
- * one threw — a browser has `performance.now()` and a `try` as surely as Node
- * does, which is why `effects/common` holds them rather than either host. A
- * demo that wants to measure something asks for `sandbox`; nothing in the page
- * knows what it is measuring.
+ * **Host-neutral operations, and the browser's own.** `sandbox` runs a thunk
+ * and reports how long it took, `catch` reports whether one threw, and
+ * `randomInt` answers 32 random bits — a browser has `performance.now()`, a
+ * `try` and `crypto.getRandomValues` as surely as Node does, which is why
+ * `effects/common` holds them rather than either host. A demo that wants to
+ * measure something asks for `sandbox`; nothing in the page knows what it is
+ * measuring. `fetchText` and `instantiate` are `effects/browser`'s: a file
+ * from the site, and a WebAssembly module from it, which the WASM demo pages
+ * load, and `jsHeapSize`, the JavaScript heap where Chromium reports it.
  *
  * **The list is what makes a refusal possible.** `partialMatch` recognises a
  * command against it before answering `notImplemented`, so a vocabulary and a
  * handler map are two different things: a command named here with no handler
  * declines, and one not named here is a malformed node. There is nothing in
- * the first category today, and the first browser-only operation — a fetch, a
- * file the reader picks — is where that gap opens.
+ * the first category today.
  *
  * Declared as a record because `CommandSet` is checked for *completeness*: a
  * command added to the vocabulary and forgotten here is a compile error, where
@@ -46,19 +51,19 @@ import { editOf } from './demo/mirror/module.f.mjs'
  * the runner tests membership against is derived from it, so the two cannot
  * disagree — the same shape `effects/node` uses for the same reason.
  *
- * @type {CommandSet<Sandbox | Catch>}
+ * @type {CommandSet<Sandbox | Catch | RandomInt | BrowserOp>}
  */
-const commandSet = { sandbox: null, catch: null }
+const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: null, instantiate: null, jsHeapSize: null }
 
 /**
  * The commands of {@link commandSet}, in the form a partial runner tests
  * membership against.
  *
- * @type {Commands<Sandbox | Catch>}
+ * @type {Commands<Sandbox | Catch | RandomInt | BrowserOp>}
  */
 const commands = commandsOf(commandSet)
 
-const run = asyncPartialRun(commands)(commonOperationMap)
+const run = asyncPartialRun(commands)({ ...commonOperationMap, ...randomIntOperationMap, ...browserOperationMap })
 
 /**
  * Says whether the page is waiting on this demo, and stops the reader asking
@@ -376,6 +381,25 @@ const fail = (root, cause) => {
 }
 
 /**
+ * What an `input` event reports of a field: its value, but nothing for a
+ * checkbox that is not checked, as a form leaves one out — a checkbox's
+ * value is the same either way.
+ *
+ * @type {(field: HTMLInputElement) => string}
+ */
+const valueOf = field => field.type === 'checkbox' && !field.checked ? '' : field.value
+
+/**
+ * Whether the reader has asked for less motion, as the site's stylesheet
+ * reads it: `prefers-reduced-motion: reduce`. A host without `matchMedia`
+ * has not.
+ *
+ * @type {(root: Element) => boolean}
+ */
+const lessMotion = root =>
+    root.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+
+/**
  * A demo runs one event at a time.
  *
  * An operation is asynchronous, so an event can arrive while an `update` is
@@ -399,8 +423,11 @@ const fail = (root, cause) => {
  * input it cares about.
  *
  * `nextEvent` requests one automatic event on a later turn after the latest
- * state renders. Reader events cancel the scheduled turn, and automatic
- * updates keep controls available so a Stop button can interrupt the work.
+ * state renders, `nextDelay` milliseconds later if the demo says — at once
+ * where the reader has asked for less motion, since a delay only holds a
+ * step of an animation on screen. Reader
+ * events cancel the scheduled turn, and automatic updates keep controls
+ * available so a Stop button can interrupt the work.
  *
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => (event: DemoEvent) => void}
  */
@@ -438,7 +465,10 @@ const stepper = (root, demo) => {
                     render(root, demo.view(state))
                     const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
                     incremental = next !== null
-                    if (next !== null) { scheduled = setTimeout(() => step(next, true), 0) }
+                    if (next !== null) {
+                        const delay = demo.nextDelay === undefined || lessMotion(root) ? 0 : demo.nextDelay(state)
+                        scheduled = setTimeout(() => step(next, true), delay)
+                    }
                 }
             } catch (cause) {
                 incremental = false
@@ -508,7 +538,7 @@ export const startDemo = async root => {
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
             echo(target)
-            step({ kind: 'input', name: target.name, value: target.value })
+            step({ kind: 'input', name: target.name, value: valueOf(target) })
         })
         // A click is how a demo is *asked* for work rather than told about
         // typing: a benchmark starts when a reader says so. So only a named
@@ -571,15 +601,16 @@ export const startDemo = async root => {
             location.x = pointer.clientX
             location.y = pointer.clientY
             const x = location.matrixTransform(matrix.inverse()).x
-            const min = Number(svg.getAttribute('data-demo-x-min'))
-            const max = Number(svg.getAttribute('data-demo-x-max'))
-            const left = Number(svg.getAttribute('data-demo-x-left'))
-            const right = Number(svg.getAttribute('data-demo-x-right'))
-            // The slider's minimum can be inside the graph's left boundary.
+            /** @type {(key: keyof typeof dragAxisAttributes) => number} */
+            const read = key => Number(svg.getAttribute(dragAxisAttributes[key]))
             const range = byName(root, name)
-            if (range === null || right <= left) { return }
-            const value = Math.min(Number(range.max), Math.max(Number(range.min), min + (x - left) / (right - left) * (max - min)))
-            step({ kind: 'input', name, value: value.toFixed(3) })
+            if (range === null) { return }
+            const value = dragValue(
+                { min: read('min'), max: read('max'), left: read('left'), right: read('right') },
+                { min: Number(range.min), max: Number(range.max) },
+                x)
+            if (value === null) { return }
+            step({ kind: 'input', name, value })
         })
         const endDrag = () => { drag = null }
         root.addEventListener('pointerup', endDrag)
@@ -591,7 +622,7 @@ export const startDemo = async root => {
         step({ kind: 'start' })
         for (const field of edits) {
             echo(field)
-            step({ kind: 'input', name: field.name, value: field.value })
+            step({ kind: 'input', name: field.name, value: valueOf(field) })
         }
     } catch (cause) {
         fail(root, cause)

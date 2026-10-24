@@ -5,10 +5,10 @@
  * @import { Rule, Variant } from '../../types.ts'
  * @import { RewriteSet } from '../../ll1/types.ts'
  * @import { Utf16 } from '../../utf16/types.ts'
- * @import { Container, ContainerNode } from './types.ts'
+ * @import { Container, ContainerNode, Entry, EntryNode, ValueCases } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { simpleEscapes } from '../../../js/string_escape/module.f.mjs'
 import { codePointListToString } from '../../../text/utf16/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
@@ -20,6 +20,7 @@ import {
     character,
     cj,
     createValue,
+    entry,
     escape,
     hex,
     items,
@@ -30,6 +31,7 @@ import {
     string,
     uint,
     value,
+    valueCases,
     ws,
     wsSymbol,
 } from './module.f.mjs'
@@ -178,6 +180,49 @@ export const proof = {
     },
     // An object is the same container over `property : value` pairs, with
     // whitespace allowed on both sides of the colon.
+    // The key and the value of each entry of an object, as the machine lays
+    // them out: the colon and the whitespace around it passed over. What a
+    // mapping receives for an entry is a node of the shape `entry` reads.
+    entry: () => {
+        // `EntryNode` leaves the separators `unknown`, so the claim is that the
+        // node fits it, not that the two are equal.
+        /** @typedef {Assert<Equal<Children<Entry<'k', 'v'>, Utf16, 'o'> extends EntryNode<Ast<'k', Utf16, 'o'>, Ast<'v', Utf16, 'o'>> ? true : false, true>>} _Shape */
+        /** @type {RewriteSet<Utf16, never>} */
+        const nothing = []
+        const parse = parser(object('k', 'v'), nothing)
+        /** @type {(text: string) => readonly (readonly [Ast<'k', Utf16>, Ast<'v', Utf16>])[]} */
+        const entriesOf = text => items(unwrap(parse(units(text)))[0]).map(entry)
+        const k = /** @type {const} */ ([{ symbol: 0x6b, meta: utf16 }])
+        const v = /** @type {const} */ ([{ symbol: 0x76, meta: utf16 }])
+        assertStructurallySame(entriesOf('{}'), [])
+        assertStructurallySame(entriesOf('{k:v}'), [[k, v]])
+        assertStructurallySame(entriesOf('{ k : v , k:v }'), [[k, v], [k, v]])
+    },
+    // One handler per branch: a container's receives its items, and the
+    // three keywords share one handler, which receives their constant.
+    valueCases: () => {
+        /** @type {RewriteSet<Utf16, never>} */
+        const nothing = []
+        const parse = parser(json, nothing)
+        /** @type {ValueCases<unknown, unknown, unknown, unknown, unknown>} */
+        const cases = {
+            array: items => ['array', items.length],
+            object: entries => ['object', entries.length],
+            string: () => ['string'],
+            number: () => ['number'],
+            word: word => ['word', word],
+        }
+        const kind = valueCases(cases)
+        /** @type {(text: string) => unknown} */
+        const kindOf = text => kind(unwrap(parse(units(text)))[0][1])
+        assertStructurallySame(kindOf('[1, 2]'), ['array', 2])
+        assertStructurallySame(kindOf('{"a": 1}'), ['object', 1])
+        assertStructurallySame(kindOf('"a"'), ['string'])
+        assertStructurallySame(kindOf('1'), ['number'])
+        assertStructurallySame(kindOf('true'), ['word', true])
+        assertStructurallySame(kindOf('false'), ['word', false])
+        assertStructurallySame(kindOf('null'), ['word', null])
+    },
     object: () => {
         assertStructurallySame(
             force(object('p', 'v')),

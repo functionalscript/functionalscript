@@ -3,13 +3,17 @@
  * @import { Commit } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { name, object, tagger, type, write as writeTag } from '../tag/module.f.mjs'
 import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.mjs'
 import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.mjs'
+
+/** An id's 40 hex digits, as a `parent` header spells it. */
+const idHex = encodeScalar(40)
 
 /** @type {(input: readonly number[]) => Commit} */
 const read = input => {
@@ -244,7 +248,7 @@ export const proof = {
     // Git puts no bound on the parents: a merge of eight thousand is read,
     // vouched for, and walked without a stack to run out of.
     octopus: () => {
-        const ps = Array.from({ length: 8_000 }, (_, i) => `parent ${i.toString(16).padStart(40, '0')}`)
+        const ps = Array.from({ length: 8_000 }, (_, i) => `parent ${idHex(i)}`)
         const c = commit([`tree ${treeId}`, ...ps, `author ${who}`, `committer ${who}`, '', 'm'])
         assertEq(parents(c).length, 8_000)
         assertEq(hex(parents(c)[7_999]), '1f3f'.padStart(40, '0'))

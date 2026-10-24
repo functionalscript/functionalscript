@@ -16,30 +16,9 @@
  */
 
 import { isDriveLetter, isDriveRoot, root, under } from '../../path/module.f.mjs'
-
-/**
- * An entry as the host will be given it: a path ends at its first `NUL`, because
- * a path is a `NUL`-terminated byte string everywhere this runs.
- *
- * **Not doing this is a refusal and not a miss**, which is why it is worth a
- * function. Node will not carry a `NUL` to the system call at all — every `fs`
- * operation throws `TypeError [ERR_INVALID_ARG_VALUE]`, "must be a string …
- * without null bytes" — and `fjs/effects/node` turns a thrown failure into a
- * channel error carrying that code. `ERR_INVALID_ARG_VALUE` is not `ENOENT`, so
- * `fjs/git/store` reads it as a store that holds the object and cannot give it
- * up, and the whole read is refused. Git meanwhile reads the donor behind the `NUL`.
- * Ending the path here is what keeps a repository Git reads readable.
- *
- * A `\000` escape is the only way into a quoted line; a raw `0x00` byte is the
- * other road, through a file whose own bytes hold one. Both arrive here as the
- * same character.
- *
- * @type {(entry: string) => string}
- */
-const untilNul = entry => {
-    const i = entry.indexOf('\u0000')
-    return i === -1 ? entry : entry.slice(0, i)
-}
+import { digitsValue, one as codePoint } from '../../text/ascii/module.f.js'
+import { codeUnitToString } from '../../text/utf16/module.f.mjs'
+import { untilNul } from '../bytes/module.f.js'
 
 /**
  * One line of an `objects/info/alternates`, unquoted where it is quoted and cut
@@ -82,6 +61,17 @@ const untilNul = entry => {
  * `"<donor>/objects\000x"` read the donor's blob at exit 0, where the controls
  * `"<donor>/objectsx"` and `"<donor>/objects\001x"` both exited 128.
  *
+ * **Not cutting there is a refusal and not a miss.** Node will not carry a
+ * `NUL` to the system call at all — every `fs` operation throws
+ * `TypeError [ERR_INVALID_ARG_VALUE]`, "must be a string … without null
+ * bytes" — and `fjs/effects/node` turns a thrown failure into a channel error
+ * carrying that code. `ERR_INVALID_ARG_VALUE` is not `ENOENT`, so
+ * `fjs/git/store` reads it as a store that holds the object and cannot give it
+ * up, and the whole read is refused, where Git reads the donor behind the
+ * `NUL`. A `\000` escape is the only way into a quoted line; a raw `0x00` byte
+ * is the other road, through a file whose own bytes hold one. Both arrive at
+ * the cut as the same character.
+ *
  * @type {(line: string) => Nullable<string>}
  */
 const alternateLine = line => {
@@ -99,12 +89,8 @@ const escapes = /** @type {Readonly<Record<string, string>>} */ ({
     '"': '"', '\\': '\\',
 })
 
-/**
- * Whether `c` is one of the eight octal digits an escape may be written in.
- *
- * @type {(c: string) => boolean}
- */
-const isOctal = c => c >= '0' && c <= '7'
+/** The number a run of octal digits spells, or `null` where one is no octal digit. */
+const octal = digitsValue(8n)
 
 /**
  * The three octal digits at `i` as the byte they name, or `null` where they are
@@ -113,14 +99,13 @@ const isOctal = c => c >= '0' && c <= '7'
  * @type {(line: string, i: number) => Nullable<number>}
  */
 const octalAt = (line, i) => {
-    if (i + 2 >= line.length
-        || !isOctal(line[i]) || !isOctal(line[i + 1]) || !isOctal(line[i + 2])) { return null }
-    const v = parseInt(line.slice(i, i + 3), 8)
+    if (i + 2 >= line.length) { return null }
+    const v = octal([line[i], line[i + 1], line[i + 2]].map(codePoint))
     // `\400` and above name no byte, and Git calls the unquoting failed rather
     // than truncating: measured on Git 2.43.0, a line of `"x\400"` read objects
     // from a directory named `"x\400"` — the whole line, quotes included. So
     // this is `null`, which {@link alternateLine} turns into the raw line.
-    return v > 0xFF ? null : v
+    return v === null || v > 0xffn ? null : Number(v)
 }
 
 /**
@@ -170,7 +155,7 @@ const unquoted = line => {
         }
         const v = octalAt(line, i + 1)
         if (v === null) { return null }
-        out += String.fromCharCode(v)
+        out += codeUnitToString(v)
         i += 4
     }
 }

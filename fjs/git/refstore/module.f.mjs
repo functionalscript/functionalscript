@@ -66,7 +66,7 @@
  * because it does not follow one, and those two want opposite answers: Git skips
  * the FIFO and follows the link. So an entry a listing cannot classify costs one
  * `stat`, which follows the link without opening what it finds. The
- * measurements are at `looseOf` and {@link statted}.
+ * measurements are at `looseOf` and its `statted`.
  *
  * The filter runs before a path is built and not after a file is read, which
  * matters for a name a caller passes in rather than one a directory listing
@@ -200,7 +200,7 @@
  */
 
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
-import { isDirectory, isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { isDirectory, isNotFound, leadsNowhere, notAFileMessage, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { occurrences } from '../../types/array/module.f.mjs'
 import { u8ListMsb, uint } from '../../types/bit_vec/module.f.mjs'
@@ -429,7 +429,7 @@ const answered = (id, packed) => [{ id, left: 0, packed }, null]
 const headBytes = dirs => catchStep(
     step(readdir(dirs.gitdir, {}), entries => headIsFile(entries)
         ? tryBytes(under(dirs.gitdir, head))
-        : refuseHeadKind(headKindMessage(under(dirs.gitdir, head)))),
+        : refuseHeadKind(notAFileMessage(under(dirs.gitdir, head)))),
     orElse(isNotFound, null))
 
 /**
@@ -480,6 +480,26 @@ const lookupOf = (dirs, oidBytes, readRef) => name => state => {
     // the name a caller typed.
     const text = askable(name)
     if (text === null) { return pureOk(answered(null, state.packed)) }
+    /**
+     * What this link makes of a loose ref file's bytes: the state the walk
+     * carries on with, and the names it has left to walk.
+     *
+     * The file is there, which is the case this answers — an absent one is
+     * {@link fromPacked}, and the two are separate because only that one reads
+     * another file. Pure, so the read below is one effect and a projection over
+     * it rather than a continuation with a body.
+     *
+     * @type {(bytes: Bytes) => readonly [_Lookup, List<Bytes>]}
+     */
+    const stepped = bytes => {
+        const r = readRef(bytes)
+        if (r === null) { return answered(null, state.packed) }
+        // The one rule about *which* file a ref was read from, which the
+        // grammar over one file's bytes cannot know. See {@link targetAllowed}.
+        if (!targetAllowed(text, r)) { return answered(null, state.packed) }
+        if (r.kind === 'direct') { return answered(r.id, state.packed) }
+        return [{ id: null, left: state.left - 1, packed: state.packed }, [r.target]]
+    }
     // Which directory the name's file sits in is the name's own question,
     // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
     // the repository's. See {@link dirOf}.
@@ -494,10 +514,10 @@ const lookupOf = (dirs, oidBytes, readRef) => name => state => {
     return step(read, bytes => bytes === null
         ? noFile()
         : text === head || readRef(bytes) !== null
-            ? pureOk(stepped(readRef, text, state, bytes))
+            ? pureOk(stepped(bytes))
             : step(isDirectoryAt(path), dir => dir
                 ? noFile()
-                : pureOk(stepped(readRef, text, state, bytes))))
+                : pureOk(stepped(bytes))))
 }
 
 /**
@@ -534,30 +554,6 @@ const fromPacked = (dirs, oidBytes, text, name, state) => {
         // malformed file answers `unexpected line` and resolves nothing
         ? answered(null, state.packed)
         : answered(packedId(packed, name), packed))
-}
-
-/**
- * What one link makes of a loose ref file's bytes: the state the walk carries on
- * with, and the names it has left to walk.
- *
- * The file is there, which is the case this answers — an absent one is
- * {@link fromPacked}, and the two are separate because only that one reads
- * another file.
- *
- * Pure, and at module scope with everything it reads as a parameter, so the link
- * above is one effect and a projection over it rather than a continuation with a
- * body (§3.3).
- *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, text: string, state: _Lookup, bytes: Bytes) => readonly [_Lookup, List<Bytes>]}
- */
-const stepped = (readRef, text, state, bytes) => {
-    const r = readRef(bytes)
-    if (r === null) { return answered(null, state.packed) }
-    // The one rule about *which* file a ref was read from, which the
-    // grammar over one file's bytes cannot know. See {@link targetAllowed}.
-    if (!targetAllowed(text, r)) { return answered(null, state.packed) }
-    if (r.kind === 'direct') { return answered(r.id, state.packed) }
-    return [{ id: null, left: state.left - 1, packed: state.packed }, [r.target]]
 }
 
 /**
@@ -733,33 +729,6 @@ const childOf = parent => d => ({
 })
 
 /**
- * What the walk of `refs/` makes of a ref it has read: the root a direct one
- * names, or the pair a symbolic one leaves for later.
- *
- * **A symbolic ref is not resolved here**, which is the whole reason this is a
- * projection and not an effect. Resolving reads `packed-refs`, and that file is
- * read *after* the loose ones — see {@link tryRoots}, where the order is what
- * keeps a `git pack-refs` running underneath from hiding a ref from both halves.
- * So the name and its target are recorded and {@link resolvePending} answers
- * them once the packed lines are in hand.
- *
- * The name is in `names` whichever it is, because that is the shadowing rule:
- * the loose file decides the name by existing, resolved or not.
- *
- * Everything it needs is a leading parameter, so it is closed and at module
- * scope: what the walk has found, the name, and the names (§3.3).
- *
- * @type {(found: _Found, name: readonly number[], names: List<readonly number[]>) => (r: Ref) => _Found}
- */
-const refOf = (found, name, names) => r => r.kind === 'direct'
-    ? { roots: concat(found.roots)([{ name, id: r.id }]), names, pending: found.pending }
-    : {
-        roots: found.roots,
-        names,
-        pending: concat(found.pending)([{ name, target: r.target }]),
-    }
-
-/**
  * A directory's entries as the walk's next items, or a refusal where the host
  * answered one name twice.
  *
@@ -774,29 +743,6 @@ const descendInto = (item, found) =>
             ? pureOk(walked(found, entries.map(childOf(item))))
             : refuseLossyName(lossyNameMessage(item.path, twice))
     })
-
-/**
- * The root a loose ref file names, and the name it adds to the walk either way.
- *
- * The captures are leading parameters and this sits at module scope (§3.3).
- *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, name: readonly number[], item: _Entry, found: _Found) => Effect<ReadFile, _Walked, IoChannel>}
- */
-const readAsRef = (readRef, name, item, found) => {
-    // A file whose name is no ref name refuses the listing, which is Git's
-    // answer for one — see {@link badNameCode}.
-    if (!isWholeName(name)) {
-        return refuseBadName(badNameMessage(item.path))
-    }
-    // the name is recorded whatever the file turns out to hold, because
-    // that is what shadows the packed line
-    const names = concat(found.names)([name])
-    const add = refOf(found, name, names)
-    return mapStep(mapStep(readFile(item.path), u8ListMsb), bytes => {
-        const r = readRef(bytes)
-        return walked(r === null ? null : add(r), null)
-    })
-}
 
 /**
  * The code an entry under `refs/` is refused with when it is a link to a
@@ -827,35 +773,6 @@ const refuseLinkedDir = refuse(linkedDirCode)
 const linkedDirMessage = path => `${path} is a link to a directory`
 
 /**
- * What the walk makes of an entry whose kind the listing could not name.
- *
- * `stat` is the question to ask, and the one thing it does that `readFile` must
- * not is follow the link *without opening it*: a writerless FIFO stats in 3 ms
- * and reads forever. So one `stat` separates the three cases the listing could
- * not — measured on node 22 over a directory holding each, where `readdir`
- * answers `isFile: false, isDirectory: false` for all of them and `stat` answers
- * `isFile` for a link to a ref file, `isDirectory` for a link to a directory, and
- * neither for a FIFO and for a link to one.
- *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, name: readonly number[], item: _Entry, found: _Found) => Effect<Stat | ReadFile, _Walked, IoChannel>}
- */
-const statted = (readRef, name, item, found) => step(
-    // The catch is around the `stat` and nothing else: a `readFile` below that
-    // cannot find what the listing named is a race or a broken host, and this
-    // module's rule is that such a read is the channel's.
-    catchStep(
-        stat(item.path),
-        orElse(leadsNowhere, null)),
-    s => s === null || !(s.isFile || s.isDirectory)
-        // a link that leads nowhere, or a FIFO, a socket or a device — every one
-        // of them an entry Git's listing skips, and the FIFO one this must not
-        // open
-        ? pureOk(walked(found, null))
-        : s.isFile
-            ? readAsRef(readRef, name, item, found)
-            : refuseLinkedDir(linkedDirMessage(item.path)))
-
-/**
  * The body of the walk of `refs/`: a directory gives its entries to walk
  * next, and a file gives a root or nothing.
  *
@@ -882,12 +799,12 @@ const statted = (readRef, name, item, found) => step(
  * Descending first reached that child and refused its name, turning a repository
  * Git lists into a channel error.
  *
- * The *whole-name* rule is asked in {@link readAsRef}, after the kind, because
+ * The *whole-name* rule is asked in `readAsRef`, after the kind, because
  * it is a rule about a ref and not about a path: `refs/heads/bad.` is no ref
  * name while `refs/heads/bad./v1` is one, so with the first a symlink to
  * `refs/tags` Git lists the second at exit 0. Skipping by the whole-name rule
  * before the kind dropped that subtree in silence, which is the one answer this
- * module must not give; here it reaches {@link statted}, and a link to a
+ * module must not give; here it reaches `statted`, and a link to a
  * directory is refused loudly with {@link linkedDirCode} — the deliberate
  * divergence argued there, and the same one a *valid* name linked to a directory
  * gets.
@@ -899,7 +816,7 @@ const statted = (readRef, name, item, found) => step(
  * every one of them `isFile: false` and `isDirectory: false` in a listing, which
  * `Dirent` answers without following a link. Reading the second question as the
  * negation of the first would open a FIFO, and reading it as "skip" would drop a
- * symlinked ref — so neither answer is in the listing and {@link statted} asks
+ * symlinked ref — so neither answer is in the listing and `statted` asks
  * one more question about exactly those entries. What a listing *can* say it
  * says, so an ordinary file and an ordinary directory cost nothing more.
  *
@@ -935,9 +852,84 @@ const looseOf = (oidBytes, scope) => {
                 : pureOk(walked(found, null))
         }
         if (!scope.keep(item.name)) { return pureOk(walked(found, null)) }
-        return item.isFile
-            ? readAsRef(readRef, name, item, found)
-            : statted(readRef, name, item, found)
+        /**
+         * The root this loose ref file names, and the name it adds to the walk
+         * either way.
+         *
+         * @type {() => Effect<ReadFile, _Walked, IoChannel>}
+         */
+        const readAsRef = () => {
+            // A file whose name is no ref name refuses the listing, which is
+            // Git's answer for one — see {@link badNameCode}.
+            if (!isWholeName(name)) {
+                return refuseBadName(badNameMessage(item.path))
+            }
+            // the name is recorded whatever the file turns out to hold,
+            // because that is what shadows the packed line
+            const names = concat(found.names)([name])
+            /**
+             * What the walk makes of a ref it has read: the root a direct one
+             * names, or the pair a symbolic one leaves for later.
+             *
+             * **A symbolic ref is not resolved here**, which is the whole
+             * reason this is a projection and not an effect. Resolving reads
+             * `packed-refs`, and that file is read *after* the loose ones —
+             * see {@link tryRoots}, where the order is what keeps a
+             * `git pack-refs` running underneath from hiding a ref from both
+             * halves. So the name and its target are recorded and
+             * {@link resolvePending} answers them once the packed lines are in
+             * hand.
+             *
+             * The name is in `names` whichever it is, because that is the
+             * shadowing rule: the loose file decides the name by existing,
+             * resolved or not.
+             *
+             * @type {(r: Ref) => _Found}
+             */
+            const add = r => r.kind === 'direct'
+                ? { roots: concat(found.roots)([{ name, id: r.id }]), names, pending: found.pending }
+                : {
+                    roots: found.roots,
+                    names,
+                    pending: concat(found.pending)([{ name, target: r.target }]),
+                }
+            return mapStep(mapStep(readFile(item.path), u8ListMsb), bytes => {
+                const r = readRef(bytes)
+                return walked(r === null ? null : add(r), null)
+            })
+        }
+        /**
+         * What the walk makes of this entry when the listing could not name
+         * its kind.
+         *
+         * `stat` is the question to ask, and the one thing it does that
+         * `readFile` must not is follow the link *without opening it*: a
+         * writerless FIFO stats in 3 ms and reads forever. So one `stat`
+         * separates the three cases the listing could not — measured on node
+         * 22 over a directory holding each, where `readdir` answers
+         * `isFile: false, isDirectory: false` for all of them and `stat`
+         * answers `isFile` for a link to a ref file, `isDirectory` for a link
+         * to a directory, and neither for a FIFO and for a link to one.
+         *
+         * @type {() => Effect<Stat | ReadFile, _Walked, IoChannel>}
+         */
+        const statted = () => step(
+            // The catch is around the `stat` and nothing else: a `readFile`
+            // below that cannot find what the listing named is a race or a
+            // broken host, and this module's rule is that such a read is the
+            // channel's.
+            catchStep(
+                stat(item.path),
+                orElse(leadsNowhere, null)),
+            s => s === null || !(s.isFile || s.isDirectory)
+                // a link that leads nowhere, or a FIFO, a socket or a device —
+                // every one of them an entry Git's listing skips, and the FIFO
+                // one this must not open
+                ? pureOk(walked(found, null))
+                : s.isFile
+                    ? readAsRef()
+                    : refuseLinkedDir(linkedDirMessage(item.path)))
+        return item.isFile ? readAsRef() : statted()
     }
 }
 
@@ -1035,7 +1027,7 @@ const refsDir = /** @type {const} */ ('refs')
  * does not follow a link — so a filter on `isDirectory` dropped the worktree's
  * whole ref tree without a word.
  *
- * The link is *followed* here, where {@link statted} refuses one below: the
+ * The link is *followed* here, where `looseOf`'s `statted` refuses one below: the
  * difference is what makes it safe. Every link inside the tree is refused, so
  * following the root buys exactly one level and no cycle — `refs` linked to `..`
  * lists the gitdir, whose own `refs` is that same link and is refused there.
@@ -1070,11 +1062,12 @@ const ownRefs = (dirs, entries) => {
  */
 export const headKindCode = /** @type {const} */ ('ERR_HEAD_KIND')
 
-/** Refuses with {@link headKindCode}. */
+/**
+ * Refuses with {@link headKindCode}, in the words `effects/node`'s
+ * `notAFileMessage` gives any path that is no regular file: the code says
+ * which refusal it is, and the message is the one the runners already use.
+ */
 const refuseHeadKind = refuse(headKindCode)
-
-/** @type {(path: string) => string} */
-const headKindMessage = path => `${path} is not a regular file`
 
 /**
  * The code a listing is refused with when `packed-refs` names `HEAD` and a
@@ -1224,7 +1217,7 @@ const headIsFile = entries => entries.every(d => d.name !== head || d.isFile)
 const tryHeadFound = (dirs, oidBytes, entries) => {
     const readRef = tryRef(oidBytes)
     if (!headIsFile(entries)) {
-        return refuseHeadKind(headKindMessage(under(dirs.gitdir, head)))
+        return refuseHeadKind(notAFileMessage(under(dirs.gitdir, head)))
     }
     return mapStep(tryBytes(under(dirs.gitdir, head)), bytes => {
         if (bytes === null) { return { roots: [], names: [], pending: [] } }

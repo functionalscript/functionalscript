@@ -34,9 +34,18 @@ refuses the shared comma, `a comma outside a scope`, and `_tryModuleSerialize`
 falls back to the multi-export writer, which answers. It predates writing a
 shared node once, which writes it the same way.
 
+### Current ownership
+
+The direct graph writers and their `moduleOperand` helper have been retired.
+Common placement now belongs to
+[`edag/to_fast`](../../../edag/to_fast/README.md), and source representability
+belongs to its [`source` admission pass](../../../edag/to_fast/source/module.f.mjs).
+The linked two-file fixture below remains the acceptance test for resolving this
+historical issue; a target serializer must not add graph placement to fix it.
+
 ### Proposal
 
-Refuse it in `moduleOperand`, as the compact writer does, or spell it: a
+Refuse it in source admission, or preserve the sequence region in common FAST: a
 comma the module shares is one value whose anchors run once, which a block
 applied once — `const $2=(()=>{const $0=[0];return 5;})();` — reads back
 as. Whichever, the round trip states which.
@@ -48,7 +57,7 @@ as. Whichever, the round trip states which.
 
 ### Related
 
-- [`../module.f.mjs`](../module.f.mjs) — `moduleOperand`,
-  `_tryModuleSerialize`.
+- [`../module.f.mjs`](../module.f.mjs) — the public `_tryModuleSerialize`
+  boundary, now consuming common conversion and preparation.
 - [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — `_defaultExport`,
   the linked comma.

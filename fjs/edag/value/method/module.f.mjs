@@ -1,12 +1,13 @@
 /**
  * Built-in calls on evaluated values. The interpreter resolves own properties
- * before calling this dispatcher, which answers a name natively — the host's
- * own built-in on the primitive, or an algorithm over represented values —
- * or, where it has no native implementation, from the runtime its executor
- * was given: the body [`fjs/js/runtime`](../../../js/runtime/module.f.js)
- * defines, a represented function called with the receiver first and then
- * the arguments. An executor given no runtime answers such a name with the
- * `TypeError` a VM that binds nothing throws. Conversion and callbacks
+ * before calling this dispatcher, which asks the runtime its executor was
+ * given first — `dot` of [`fjs/js/runtime`](../../../js/runtime/module.f.js),
+ * a represented function of the receiver and the key answering the callee,
+ * the function of the arguments a body answers, or `undefined` — and
+ * answers a name natively otherwise, the host's own built-in on the
+ * primitive, or an algorithm over represented values, while the name has
+ * no body. An executor given no runtime answers a name without a native
+ * with the `TypeError` a VM that binds nothing throws. Conversion and callbacks
  * return represented failures, and array operations retain represented
  * element identities.
  *
@@ -22,8 +23,8 @@ import { ok, error, mapOk, okThen } from '../../../types/result/module.f.js'
 import { allowedCalls, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype, objectPrototype } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.mjs'
 import { functionAt } from '../property/module.f.mjs'
-import { isFunction, typeOf } from '../semantics/module.f.mjs'
-import { toNumber, toString } from '../convert/module.f.mjs'
+import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/module.f.mjs'
+import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
 import { max } from '../../../types/number/max/module.f.js'
 
@@ -48,31 +49,30 @@ const typeName = receiver => typeof receiver === 'string' ? 'String'
     : 'Object'
 
 /**
- * The runtime's member function under `key`, asked for the receiver: the
- * function of the arguments the body answers for a receiver the name is a
- * member of, `undefined` for one it is not — or for a name the runtime has
- * no body for, an entry that is no function, or no runtime at all — and the
- * body's throw where its first step throws. The body is pure, so asking it
- * for the guard of an optional call and again for the call costs and
- * changes nothing. The runtime's shape is `fjs/js/runtime`'s, which its
- * `types.ts` pins.
+ * The callee the runtime's `dot` answers for the receiver and the key: an
+ * own property, or the function of the arguments the body of the name
+ * answers for the receiver, and `undefined` for neither — or for no
+ * runtime, or one without a `dot` function — and the throw where `dot`
+ * throws, a body's first step. `dot` is pure, so asking it for the guard
+ * of an optional call and again for the call costs and changes nothing.
+ * The runtime's shape is `fjs/js/runtime`'s, which its `types.ts` pins.
  *
  * @type {(runtime: Runtime | undefined, key: string, receiver: EdagValue, invoke: Invoke) => Result<EdagValue | undefined, EdagValue>}
  */
-const member = (runtime, key, receiver, invoke) => {
-    const body = functionAt(runtime, ['member', key])
-    if (body === undefined) { return ok(undefined) }
-    const stage = call(ok(body), [() => ok(receiver)], invoke)
-    return stage[0] === 'error' ? stage : ok(absent(stage[1]) ? undefined : stage[1])
+export const callee = (runtime, key, receiver, invoke) => {
+    const dot = functionAt(runtime, ['dot'])
+    if (dot === undefined) { return ok(undefined) }
+    const answer = call(ok(dot), [() => ok(receiver), () => ok(key)], invoke)
+    return answer[0] === 'error' ? answer : ok(isUndefined(answer[1]) ? undefined : answer[1])
 }
 
 /**
  * The admitted names this dispatcher has no native implementation of:
- * each is answered by the runtime's body, and by nothing without one. The
+ * each is answered by the runtime's `dot`, and by nothing without one. The
  * list is what `native` below leaves out, named once so the guard of an
- * optional call can ask it.
+ * optional call can ask it without running a native.
  */
-const left = ['startsWith']
+const left = ['startsWith', 'codePointAt']
 
 /**
  * Whether `key` is a name a call may make on the receiver: a non-nullish
@@ -83,53 +83,43 @@ const left = ['startsWith']
  * @type {(receiver: EdagValue, key: string) => boolean}
  */
 export const admits = (receiver, key) => {
-    if (receiver === null || typeOf(receiver) === 'undefined') { return false }
+    if (isNullish(receiver)) { return false }
     return prototypes[typeName(receiver)].some(name => name === key) && allowedCalls.some(name => name === key)
 }
 
 /**
  * Whether a call of `key` on the receiver has an implementation bound, the
  * guard of an optional call asks before it evaluates arguments: the name
- * is admitted on the receiver's type, and either this dispatcher answers
- * it natively or the runtime's body answers a function for the receiver —
- * the same question NaNVM's `Member::is_nullish` asks of its table and its
- * runtime, and a throw where the body's first step throws.
+ * is admitted on the receiver's type, and either the runtime's `dot`
+ * answers a callee for the receiver or this dispatcher answers the name
+ * natively — the same question NaNVM's `Member::is_nullish` asks of its
+ * table and its runtime, and a throw where `dot` throws.
  *
  * @type {(receiver: EdagValue, key: string, runtime: Runtime | undefined, invoke: Invoke) => Result<boolean, EdagValue>}
  */
 export const hasMethod = (receiver, key, runtime, invoke) => {
     if (!admits(receiver, key)) { return ok(false) }
-    if (!left.some(name => name === key)) { return ok(true) }
-    return mapOk(f => f !== undefined)(member(runtime, key, receiver, invoke))
+    return mapOk(f => f !== undefined || !left.some(name => name === key))(callee(runtime, key, receiver, invoke))
 }
-
-/** @type {(args: Values, index: number) => EdagValue} */
-const argument = (args, index) => args[index] === undefined ? ['undefined'] : args[index]
-
-/** @type {(value: EdagValue) => boolean} */
-const absent = value => typeOf(value) === 'undefined'
-
-/** ToIntegerOrInfinity after ToNumber. @type {(value: number) => number} */
-const integer = value => Math.trunc(value) || 0
 
 /** @type {(receiver: number | bigint, key: string, value: EdagValue, invoke: Invoke) => ValueResult} */
 const numberMethod = (receiver, key, value, invoke) => {
     if (key === 'toString') {
-        const result = absent(value) ? ok(10) : toNumber(value, invoke)
+        const result = isUndefined(value) ? ok(10) : toNumber(value, invoke)
         const [kind, number] = result
         if (kind === 'error') { return result }
-        const radix = integer(number)
+        const radix = toIntegerOrInfinity(number)
         return radix < 2 || radix > 36 ? error(['undefined']) : ok(receiver.toString(radix))
     }
     // Only numbers have the three formatting methods.
     const number = /** @type {number} */ (receiver)
-    if (absent(value)) {
+    if (isUndefined(value)) {
         return ok(key === 'toFixed' ? number.toFixed() : key === 'toPrecision' ? number.toPrecision() : number.toExponential())
     }
     const result = toNumber(value, invoke)
     const [kind, digits] = result
     if (kind === 'error') { return result }
-    const count = integer(digits)
+    const count = toIntegerOrInfinity(digits)
     if (key !== 'toFixed' && !Number.isFinite(number)) { return ok(String(number)) }
     if (count < (key === 'toPrecision' ? 1 : 0) || count > 100) { return error(['undefined']) }
     return ok(key === 'toFixed' ? number.toFixed(count) : key === 'toPrecision' ? number.toPrecision(count) : number.toExponential(count))
@@ -164,8 +154,8 @@ const replace = (receiver, search, replacement, all, invoke) => {
 
 /** The native string built-ins, `undefined` for a name the runtime's body answers. @type {(receiver: string, key: string, args: Values, invoke: Invoke) => ValueResult | undefined} */
 const stringMethod = (receiver, key, args, invoke) => {
-    const first = argument(args, 0)
-    const second = argument(args, 1)
+    const first = tagUndefined(args[0])
+    const second = tagUndefined(args[1])
     switch (key) {
         case 'toString': { return ok(receiver) }
         // Supported hosts provide these admitted ES2024 methods; the
@@ -195,38 +185,37 @@ const stringMethod = (receiver, key, args, invoke) => {
             return kind === 'error' ? result : replace(receiver, search, second, key === 'replaceAll', invoke)
         }
         case 'split': {
-            const result = absent(second) ? ok(0xFFFF_FFFF) : toNumber(second, invoke)
+            const result = isUndefined(second) ? ok(0xFFFF_FFFF) : toNumber(second, invoke)
             const [kind, limit] = result
             if (kind === 'error') { return result }
-            const separator = absent(first) ? ok(undefined) : toString(first, invoke)
+            const separator = isUndefined(first) ? ok(undefined) : toString(first, invoke)
             const [separatorKind, text] = separator
             if (separatorKind === 'error') { return separator }
             return ok(['[]', receiver.split(/** @type {string} */ (text), limit >>> 0)])
         }
-        case 'at': case 'charAt': case 'charCodeAt': case 'codePointAt': case 'repeat':
+        case 'at': case 'charAt': case 'charCodeAt': case 'repeat':
         case 'padStart': case 'padEnd': case 'slice': case 'substring': {
             const result = toNumber(first, invoke)
             const [kind, index] = result
             if (kind === 'error') { return result }
             switch (key) {
-                case 'at': { return ok(receiver.at(index) ?? ['undefined']) }
+                case 'at': { return ok(tagUndefined(receiver.at(index))) }
                 case 'charAt': { return ok(receiver.charAt(index)) }
                 case 'charCodeAt': { return ok(receiver.charCodeAt(index)) }
-                case 'codePointAt': { return ok(receiver.codePointAt(index) ?? ['undefined']) }
                 case 'repeat': {
-                    const count = integer(index)
+                    const count = toIntegerOrInfinity(index)
                     return count < 0 || count === Infinity ? error(['undefined']) : ok(receiver.repeat(count))
                 }
                 case 'padStart': case 'padEnd': {
                     // ToLength can establish a no-op before fill conversion.
-                    if (integer(index) <= receiver.length) { return ok(receiver) }
-                    const fill = absent(second) ? ok(' ') : toString(second, invoke)
+                    if (toIntegerOrInfinity(index) <= receiver.length) { return ok(receiver) }
+                    const fill = isUndefined(second) ? ok(' ') : toString(second, invoke)
                     const [fillKind, text] = fill
                     if (fillKind === 'error') { return fill }
                     return ok(key === 'padStart' ? receiver.padStart(index, text) : receiver.padEnd(index, text))
                 }
                 default: {
-                    const end = absent(second) ? ok(undefined) : toNumber(second, invoke)
+                    const end = isUndefined(second) ? ok(undefined) : toNumber(second, invoke)
                     const [endKind, last] = end
                     if (endKind === 'error') { return end }
                     return ok(key === 'slice' ? receiver.slice(index, last) : receiver.substring(index, last))
@@ -237,7 +226,7 @@ const stringMethod = (receiver, key, args, invoke) => {
             const result = toString(first, invoke)
             const [kind, search] = result
             if (kind === 'error') { return result }
-            const position = absent(second) ? ok(undefined) : toNumber(second, invoke)
+            const position = isUndefined(second) ? ok(undefined) : toNumber(second, invoke)
             const [positionKind, index] = position
             if (positionKind === 'error') { return position }
             switch (key) {
@@ -255,26 +244,27 @@ const stringMethod = (receiver, key, args, invoke) => {
 /** The native answer, `undefined` for a name this dispatcher leaves to the runtime. @type {(receiver: EdagValue, key: string, args: Values, invoke: Invoke) => ValueResult | undefined} */
 const native = (receiver, key, args, invoke) => {
     if (typeof receiver === 'string') { return stringMethod(receiver, key, args, invoke) }
-    if (typeof receiver === 'number' || typeof receiver === 'bigint') { return numberMethod(receiver, key, argument(args, 0), invoke) }
+    if (typeof receiver === 'number' || typeof receiver === 'bigint') { return numberMethod(receiver, key, tagUndefined(args[0]), invoke) }
     if (isArray(receiver) && receiver[0] === '[]') { return arrayMethod(receiver, key, args, invoke) }
     // Ordinary objects inherit the stock method regardless of valueOf.
     return isArray(receiver) && receiver[0] === '{}' ? ok('[object Object]') : toString(receiver, invoke)
 }
 
 /**
- * Call an admitted built-in after operands have been evaluated: natively
- * where this dispatcher implements the name, else the function the
- * runtime's body answers for the receiver, with the arguments, else — no
+ * Call an admitted built-in after operands have been evaluated: the callee
+ * the runtime's `dot` answers for the receiver, with the arguments, else
+ * natively where this dispatcher implements the name, else — no
  * implementation bound, the name not admitted on the receiver's type or
- * the body answering `undefined` for it — the `TypeError` of a VM that
+ * `dot` answering `undefined` for it — the `TypeError` of a VM that
  * binds nothing.
  *
  * @type {(receiver: EdagValue, key: string, args: Values, invoke: Invoke, runtime: Runtime | undefined) => ValueResult}
  */
 export const method = (receiver, key, args, invoke, runtime) => {
     if (!admits(receiver, key)) { return error(['undefined']) }
-    const answer = native(receiver, key, args, invoke)
-    if (answer !== undefined) { return answer }
-    return okThen((/** @type {EdagValue | undefined} */ f) => f === undefined ? error(['undefined']) : call(ok(f), args.map(v => () => ok(v)), invoke))(
-        member(runtime, key, receiver, invoke))
+    return okThen((/** @type {EdagValue | undefined} */ f) => {
+        if (f !== undefined) { return call(ok(f), args.map(v => () => ok(v)), invoke) }
+        const answer = native(receiver, key, args, invoke)
+        return answer === undefined ? error(['undefined']) : answer
+    })(callee(runtime, key, receiver, invoke))
 }

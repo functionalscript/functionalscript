@@ -6,16 +6,16 @@
  * @import { Access, All, Dirent, Engine, Env, Import, IoChannel, NodeProgramOptions, Readdir } from '../effects/node/types.ts'
  * @import { Effect } from '../effects/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
- * @import { Module, ModuleMap, LoadModuleOperations } from './types.ts'
+ * @import { LoadedModule, ModuleMap, LoadModuleOperations } from './types.ts'
  */
 
 import { allOk, import_, readdir } from '../effects/node/module.f.mjs'
 import { cmp as strCmp } from '../types/string/module.f.mjs'
 import { fromEntries } from '../types/object/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
-import { mapStep, pureOk, step } from '../effects/module.f.mjs'
+import { mapStep, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { join, relativize, toPosix } from '../path/module.f.mjs'
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq } from '../asserts/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 
 /**
@@ -137,9 +137,14 @@ export const allFiles = (s, predicate) => walk(s, (path, { name, isDirectory }) 
     : !name.startsWith('.') && predicate(path) ? 'take'
     : 'skip')
 
-/** @type {(f: string) => Effect<Access | Import, readonly (readonly [string, Module])[], IoChannel>} */
+/**
+ * One file, loaded: its import's `Result` is kept as the entry's value, so a
+ * module that will not load is recorded rather than failing the walk.
+ *
+ * @type {(f: string) => Effect<Access | Import, readonly (readonly [string, LoadedModule])[], never>}
+ */
 const loadFile = f =>
-    mapStep(import_(f), m => [/** @type {const} */ ([f, m])])
+    resultStep(import_(f), r => pureOk([/** @type {const} */ ([f, r])]))
 
 /**
  * Where discovery starts: `INIT_CWD`, the directory `npm run` was invoked
@@ -165,11 +170,17 @@ export const sourceRoot = env => {
  * The result is sorted by path key using `string.cmp` so the order is
  * deterministic regardless of filesystem traversal order.
  *
- * A failure — a directory that cannot be listed, a module that will not import
- * — propagates instead of panicking, so the program that asked for the map
- * decides what a partial view of the source tree means for it. Discovery reads
- * the whole tree, and a map missing the file it was asked about is worse than
- * no map at all.
+ * A directory that cannot be listed propagates instead of panicking, so the
+ * program that asked for the map decides what a partial view of the source
+ * tree means for it. Discovery reads the whole tree, and a map missing the
+ * file it was asked about is worse than no map at all.
+ *
+ * A module that will not import is not a missing file: it is in the map, as an
+ * `error` naming why. Importing a module evaluates it, and a module-level
+ * `assert` is a supported place for a check, so a failed import is often a
+ * failed test — the test runner reports it as one, beside the module's
+ * neighbours, rather than this ending the walk without saying which file it
+ * was.
  *
  * @type {(options: Pick<NodeProgramOptions, 'env' | 'engine'>) => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
  */
@@ -237,15 +248,18 @@ export const proof = {
         const [, result] = virtualAt({})(loadModuleMap({ env: { INIT_CWD: 'missing' }, engine: 'node' }))
         assert(result[0] === 'error', result)
     },
-    loadModuleMapReportsUnimportableModule: () => {
-        // The other half of the same breaking change, and the half `readdir`
-        // does not cover: discovery lists the file, then the import of it
-        // fails. `'a.f.ts': []` is content rather than a module, so the
-        // virtual runner's `import` refuses it. Without this, a `loadFile`
-        // that turned every import failure into a success would still pass
-        // every other proof here.
-        const [, result] = virtualAt({ 'a.f.ts': [] })(loadModuleMap({ env: {}, engine: 'node' }))
-        assert(result[0] === 'error', result)
+    loadModuleMapRecordsUnimportableModule: () => {
+        // The half `readdir` does not cover: discovery lists the file, then
+        // the import of it fails. `'a.f.ts': []` is content rather than a
+        // module, so the virtual runner's `import` refuses it. The map still
+        // answers, with that file's entry an `error` and its neighbour loaded:
+        // one module that will not load does not hide the others.
+        const [, result] = virtualAt({ 'a.f.ts': [], 'b.f.ts': () => ({}) })(loadModuleMap({ env: {}, engine: 'node' }))
+        const map = unwrap(result)
+        const a = map['./a.f.ts']
+        assert(a !== undefined && a[0] === 'error', a)
+        const b = map['./b.f.ts']
+        assert(b !== undefined && b[0] === 'ok', b)
     },
     loadModuleMapStripsInitCwdPrefix: () => {
         // With `INIT_CWD` set (the normal `npm run` case), discovery starts

@@ -17,24 +17,25 @@
  *
  * @module
  *
+ * @import { Sign } from '../../types/function/compare/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Bytes, OidBytes } from '../types.ts'
  * @import { TreeEntry } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
 import {
     digit0, digitsValue, fullStop as dot, isLatinCapitalLetter, latinCapitalLetterA, latinSmallLetterA, nul,
     solidus as slash, space as sp,
-} from '../../text/ascii/module.f.mjs'
+} from '../../text/ascii/module.f.js'
 import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
+import { cmp } from '../bytes/module.f.js'
 import { isOidOf } from '../oid/module.f.mjs'
-import { min } from '../../types/number/min/module.f.js'
 
 const octalDigit = range('07')
 
@@ -174,16 +175,15 @@ export const tryRead = oidBytes => {
 const sortKey = e => mode(e) === subtree ? [...byteArray(e.name), slash] : byteArray(e.name)
 
 /**
- * Byte-wise order: the first differing byte decides, and a prefix comes
- * first.
+ * The order of two entries in a tree Git writes: by name, a subtree as if
+ * its name ended in `/`, so a writer building a tree puts an entry where
+ * {@link validate} will find it in order.
  *
- * @type {(a: readonly number[], b: readonly number[]) => number}
+ * @throws As {@link mode} does, on an entry whose mode is not octal digits.
+ *
+ * @type {(a: TreeEntry, b: TreeEntry) => Sign}
  */
-const compare = (a, b) => {
-    const n = min(a.length, b.length)
-    const i = a.findIndex((x, i) => i < n && x !== b[i])
-    return i === -1 ? a.length - b.length : a[i] - b[i]
-}
+export const compare = (a, b) => cmp(sortKey(a), sortKey(b))
 
 /**
  * What is wrong with one entry, or `null`: the checks `git fsck` makes on
@@ -208,26 +208,29 @@ const problem = e => {
 }
 
 /**
- * What is wrong between an entry and the one before it, or `null`: the
- * same name twice, a file and a subtree of one name included, since Git
- * refuses the pair as `duplicateEntries` whatever their modes; or the
- * order Git requires broken.
+ * The index of the last entry whose name another entry has, or `-1`: Git
+ * refuses the pair as `duplicateEntries` whatever their modes. A file and
+ * a subtree of one name need not be neighbours — `a`, `a.txt`, `a/` is the
+ * order Git requires, and the pair is still refused — so the names are
+ * sorted on their own, which puts two of one name side by side.
  *
- * @type {(a: TreeEntry, b: TreeEntry) => Nullable<string>}
+ * @type {(entries: readonly TreeEntry[]) => number}
  */
-const pairProblem = (a, b) =>
-    compare(byteArray(a.name), byteArray(b.name)) === 0 ? 'duplicate name'
-        : compare(sortKey(a), sortKey(b)) >= 0 ? 'not sorted'
-        : null
+const duplicateName = entries => {
+    const names = entries.map(e => byteArray(e.name))
+    const sorted = names.toSorted(cmp)
+    const twice = sorted.find((n, i) => i !== 0 && cmp(sorted[i - 1], n) === 0)
+    return twice === undefined ? -1 : names.findLastIndex(n => cmp(n, twice) === 0)
+}
 
 /**
  * Vouches for a tree as `git fsck` does, or refuses it, naming the first
  * entry it cannot vouch for and why: a zero-padded mode, a mode that is
  * none of the five Git writes, an empty name, a name holding `/`, a name
  * that is `.` or `..`, a name that is `.git` in any case, a name over
- * 4096 bytes, an id of all zero bytes, a name twice whatever the modes, or
- * entries out of the order Git requires — by name, a subtree as if its
- * name ended in `/`.
+ * 4096 bytes, an id of all zero bytes, a name twice whatever the modes and
+ * wherever the two stand, or entries out of the order Git requires — by
+ * name, a subtree as if its name ended in `/`.
  *
  * Separate from {@link tryRead} on purpose: a reader reads what it can,
  * and only this says no.
@@ -238,9 +241,10 @@ export const validate = entries => {
     const problems = entries.map(problem)
     const i = problems.findIndex(p => p !== null)
     if (i !== -1) { return error(`${problems[i]} at ${i}`) }
-    const pairs = entries.map((e, i) => i === 0 ? null : pairProblem(entries[i - 1], e))
-    const j = pairs.findIndex(p => p !== null)
-    return j === -1 ? ok(entries) : error(`${pairs[j]} at ${j}`)
+    const d = duplicateName(entries)
+    if (d !== -1) { return error(`duplicate name at ${d}`) }
+    const unsorted = entries.findIndex((e, i) => i !== 0 && compare(entries[i - 1], e) >= 0)
+    return unsorted === -1 ? ok(entries) : error(`not sorted at ${unsorted}`)
 }
 
 /**

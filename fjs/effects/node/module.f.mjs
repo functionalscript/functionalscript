@@ -26,6 +26,7 @@
  */
 
 import { tryUtf8, utf8 } from '../../text/module.f.mjs'
+import { isDigits } from '../../text/ascii/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
@@ -37,7 +38,7 @@ import { commandsOf, do_, errorMessage, ioError, toIoError } from '../module.f.m
 import { min } from '../../types/number/min/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import {
-    all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
+    all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
     catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
@@ -63,10 +64,10 @@ export { errorMessage, ioError, toIoError }
 // `../common`'s, kept visible here because `NodeOp` unions them and dozens of
 // call sites name them through this module — a live coupling, not a shim. An
 // operation belongs to the layer of whoever implements it: a browser page
-// dispatches `sandbox`, `catch` and `import`, and the rest are there because
+// dispatches `sandbox`, `catch`, `import` and `randomInt`, and the rest are there because
 // nothing about them is Node's. `../common/types.ts` keeps the count,
 // and says how it counts.
-export { all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
+export { all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write }
 
 /**
  * The host a {@link Listen} refuses.
@@ -395,11 +396,6 @@ export const inflateTrailingCode = 'ERR_TRAILING_BYTES'
  */
 export const inflateTrailingMessage = count => `${count} bytes after the end of the zlib stream`
 
-// randomInt
-
-/** @type {Func<RandomInt>} */
-export const randomInt = do_('randomInt')
-
 // exec
 
 /** @type {Func<Exec>} */
@@ -512,8 +508,12 @@ export const writeFromStream = (path, e) => {
     return ioStep(createExclusive(path), () => written)
 }
 
-/** One chunk's worth of bytes: the `Vec` cap, which is what a chunk may not exceed. */
-const chunkBytes = Number(maxLengthBytes)
+/**
+ * The most bytes one `Vec` holds, as a `number`: what a chunk may not exceed,
+ * and the window a host's `readWhole` reads in. Linkage between this module
+ * and the hosts that implement its operations, not API.
+ */
+export const _maxVecBytes = Number(maxLengthBytes)
 
 /**
  * The most UTF-16 code units a piece has, less one, so that a piece of
@@ -521,7 +521,7 @@ const chunkBytes = Number(maxLengthBytes)
  * most three bytes, a surrogate pair four for its two. The extra unit is the
  * one a cut may take back, below.
  */
-const chunkUnits = Math.floor(chunkBytes / 3) - 1
+const chunkUnits = Math.floor(_maxVecBytes / 3) - 1
 
 /**
  * The pieces of `s`, each of at most `units + 1` code units: the cut after
@@ -620,7 +620,7 @@ export const writeFiles = files => forEachStep(
  * the other.
  *
  * **Bounded, it advances by the length it got.** Both `fjs/cas` loops stepped
- * `offset + chunkBytes` whatever the read returned, which is sound only
+ * `offset + _maxVecBytes` whatever the read returned, which is sound only
  * because an unbounded fold ends at the first empty read — on a local regular
  * file a short read is the last one. Under a declared length a short chunk is
  * not the last, and a fixed step would leave a hole in a body whose size the
@@ -656,7 +656,7 @@ export const readChunks = (source, bound) => {
     }
     /** @type {(offset: number) => EffectList<any, Vec, IoChannel>} */
     const loop = offset => {
-        const remaining = bound === null ? chunkBytes : bound - offset
+        const remaining = bound === null ? _maxVecBytes : bound - offset
         if (remaining <= 0) { return elEmpty() }
         // A source that performs a command suspends here, so the list is built
         // one cell per pull. A source that answers purely does not: `nonEmpty`
@@ -664,7 +664,7 @@ export const readChunks = (source, bound) => {
         // the whole chain is constructed up front and a large bound overflows
         // the stack. That is the list representation's property, not this
         // loop's — every chunk source with a real host behind it is a command.
-        return ioStep(source(offset, min(chunkBytes, remaining)), chunk => cell(chunk, offset))
+        return ioStep(source(offset, min(_maxVecBytes, remaining)), chunk => cell(chunk, offset))
     }
     return loop(0)
 }
@@ -889,13 +889,6 @@ export const declaredLength = headers => {
     const n = Number(v)
     return Number.isSafeInteger(n) ? n : null
 }
-
-/** Whether `s` is a non-empty run of decimal digits — no sign, no space, no
- * exponent, which is the whole of what a `Content-Length` may be.
- *
- * @type {(s: string) => boolean}
- */
-const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
 
 /**
  * Whether Node will carry no body for this response, so the producer is never

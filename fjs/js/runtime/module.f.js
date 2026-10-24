@@ -1,35 +1,51 @@
 /**
- * The built-in functions, defined once, in two sections. `member` holds,
- * by name, the member functions whose body is written, `startsWith`: each
- * a FunctionalScript function of the receiver alone, answering `undefined`
- * for a receiver the name is no member of, or the function of the
- * arguments as the call passed them, `undefined` past the end — so the body
- * dispatches on its receiver's type itself, and an executor asks it in two
- * steps, the first before any argument exists, which is what the guard of
- * `a.startsWith?.(x)` needs. `static` holds the static
- * functions by the path [`../static`](../static/module.f.js) admits them
- * under, `Object.is` at `static.Object.is` and `Number.isInteger` at
- * `static.Number.isInteger`, each a function of the arguments alone. Each
- * body is a VM's and no module's: a module calls the built-in, `Object.is`
- * or `Number.isInteger`, and every executor answers it from here, so
- * nothing else exports the body. A name without a body is absent — a
- * primitive no body can define in terms of the rest, or a name whose body
- * waits on a primitive the language has not admitted yet,
+ * The built-in functions, defined once: two tables, and the `runtime`
+ * export, two functions over them that an executor asks — the one place
+ * each resolution is written
+ * ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)).
+ *
+ * `member` holds, by name, the member functions whose body is written,
+ * `startsWith` and `codePointAt`: each a FunctionalScript function of the
+ * receiver alone, answering `undefined` for a receiver the name is no
+ * member of, or the function of the arguments as the call passed them,
+ * `undefined` past the end — so the body dispatches on its receiver's type
+ * itself, and an executor asks it in two steps, the first before any
+ * argument exists, which is what the guard of `a.startsWith?.(x)` needs.
+ * `statics` holds the static functions by id, the path
+ * [`../static`](../static/module.f.js) admits joined by `.` as the EDAG
+ * spells the node, `Object.is`, each a function of the arguments alone.
+ * Each body is a VM's and no module's: a module calls the built-in,
+ * `Object.is` or `Number.isInteger`, and every executor answers it from
+ * here, so nothing else exports the body. A name without a body is absent
+ * — a primitive no body can define in terms of the rest, or a name whose
+ * body waits on a primitive the language has not admitted yet,
  * [`README.md`](./README.md) says which — and each VM answers it from its
  * own native table.
  *
- * Which names a module may call stays [`../prototype`](../prototype/module.f.js)'s;
- * [`./types.ts`](./types.ts) pins every key here an allowed name. Every
- * executor reads this one table — the represented
- * interpreter runs a body as EDAG through the runtime its executor is
- * given, and NaNVM binds the module compiled to Rust by `npm run gen` — so
- * a built-in function is written here and nowhere else. The README says how
- * each binds it and how a name gets its body.
+ * `runtime.dot` is the dispatcher a call step asks: the callee of
+ * `a[key](...)` on a non-nullish receiver — the receiver's own enumerable
+ * property under the key, whatever it holds, which shadows a built-in as it
+ * does in JavaScript, else what the `member` body of the name answers for
+ * the receiver, else `undefined`, which the executor calls and throws for,
+ * or skips under `?.()`. `runtime.static` answers a static function by
+ * its id, the body or the built-in itself, or `undefined` for an id the
+ * table lacks. Every executor asks `dot` before its natives, which answer
+ * the names without a body
+ * ([`../todo/runtime-members.md`](../todo/runtime-members.md)), and
+ * `static` for every static read; neither reads a table itself. The two
+ * tables are exported for the type pins of [`./types.ts`](./types.ts),
+ * which keep every key an admitted name, for the proof, and for the Rust
+ * printer, which gives each static body the NativeFunction text of its id.
+ * Which names a module may call stays
+ * [`../prototype`](../prototype/module.f.js)'s. The README says how each
+ * executor binds the runtime and how a name gets its body.
  *
  * @module
  */
 
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
+import { charCodeAt, slice } from '../intrinsic/module.f.js'
 
 /**
  * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
@@ -98,55 +114,132 @@ const is = (a, b) => a === b
 const toNumber = value => /** @type {number} */ (value) - 0
 
 /**
- * A position argument as the string methods read one:
- * `ToIntegerOrInfinity`, which makes `NaN` and `undefined` `0`, and then
- * clamped into the string, between `0` and its `length`. The clamp comes
- * first here, since an infinity has no fraction to drop, and truncating a
- * finite position after it answers the same.
+ * An argument as `ToIntegerOrInfinity` reads one: `ToNumber`, then `NaN`
+ * made `0`, an infinity kept, and a finite number truncated toward zero,
+ * its fraction dropped.
+ *
+ * @type {(value: unknown) => number}
+ */
+const integer = value => {
+    const n = toNumber(value)
+    return isNaN_(n) ? 0 : isFinite_(n) ? n - n % 1 : n
+}
+
+/**
+ * A position argument as the string methods read one: {@link integer},
+ * then clamped into the string, between `0` and its `length`.
  *
  * @type {(value: unknown, length: number) => number}
  */
 const position = (value, length) => {
-    const n = toNumber(value)
-    const p = isNaN_(n) ? 0 : n
-    return p < 0 ? 0 : p > length ? length : p - p % 1
+    const p = integer(value)
+    return p < 0 ? 0 : p > length ? length : p
 }
 
 /**
  * Whether `s` is the substring of `self` at `start`, a position already
  * clamped into it. An empty `s` is found anywhere, past the end included.
+ * The substring is the intrinsic `slice`, called as a function: a member
+ * call would name what the runtime defines
+ * ([`../intrinsic`](../intrinsic/module.f.js)).
  *
  * @type {(self: string, s: string, start: number) => boolean}
  */
 const found = (self, s, start) => {
     const end = start + s.length
-    return end > self.length ? false : self.slice(start, end) === s
+    return end > self.length ? false : slice(self, start, end) === s
+}
+
+/** The member table: a name, then the body of the receiver. */
+export const member = {
+    /**
+     * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith),
+     * a string's and no other type's: whether `ToString(search)` occurs
+     * at `position`, clamped into the string. The search string is
+     * converted before the position, as the algorithm orders them, and
+     * either conversion can throw — a search whose own `toString`
+     * throws, a bigint position — so the order is observable. The two
+     * are a call's arguments, which every executor evaluates left to
+     * right; two `const`s would be evaluated as the result demands
+     * them, the position first.
+     *
+     * @type {(self: unknown) => undefined | ((search: unknown, at: unknown) => boolean)}
+     */
+    startsWith: self => typeof self !== 'string' ? undefined
+        : (search, at) => found(self, String(search), position(at, self.length)),
+    /**
+     * [`String.prototype.codePointAt`](https://tc39.es/ecma262/#sec-string.prototype.codepointat),
+     * a string's and no other type's: the code point at `at`, read as
+     * `ToIntegerOrInfinity`, or `undefined` outside the string. A code
+     * unit that leads a surrogate pair, followed by one that trails, is
+     * the pair's code point; any other code unit, a lone surrogate
+     * included, is itself. The code units are the intrinsic `charCodeAt`,
+     * called as a function, the first body that reads one.
+     *
+     * @type {(self: unknown) => undefined | ((at: unknown) => number | undefined)}
+     */
+    codePointAt: self => typeof self !== 'string' ? undefined
+        : at => {
+            const i = integer(at)
+            if (i < 0 || i >= self.length) { return undefined }
+            const first = charCodeAt(self, i)
+            if (first < 0xd800 || first > 0xdbff || i + 1 === self.length) { return first }
+            const second = charCodeAt(self, i + 1)
+            return second < 0xdc00 || second > 0xdfff ? first : (first - 0xd800) * 0x400 + (second - 0xdc00) + 0x1_0000
+        },
 }
 
 /**
- * The table: `static`, then a static path's keys, then the body; and
- * `member`, then a name, then the body.
+ * The static table: a static function's id, then the body — or, at a path
+ * every executor binds natively, `Object.entries`, the built-in itself, so
+ * that every admitted id holds a value and the table is complete.
  */
+export const statics = {
+    'Object.is': is,
+    'Object.entries': Object.entries,
+    'Number.isInteger': isInteger,
+    'Number.isSafeInteger': isSafeInteger,
+    'Number.isNaN': isNaN_,
+    'Number.isFinite': isFinite_,
+}
+
+/** The runtime: the two functions an executor asks, `static` and `dot`. */
 export const runtime = {
-    static: {
-        Object: { is },
-        Number: { isInteger, isSafeInteger, isNaN: isNaN_, isFinite: isFinite_ },
-    },
-    member: {
-        /**
-         * [`String.prototype.startsWith`](https://tc39.es/ecma262/#sec-string.prototype.startswith),
-         * a string's and no other type's: whether `ToString(search)` occurs
-         * at `position`, clamped into the string. The search string is
-         * converted before the position, as the algorithm orders them, and
-         * either conversion can throw — a search whose own `toString`
-         * throws, a bigint position — so the order is observable. The two
-         * are a call's arguments, which every executor evaluates left to
-         * right; two `const`s would be evaluated as the result demands
-         * them, the position first.
-         *
-         * @type {(self: unknown) => undefined | ((search: unknown, at: unknown) => boolean)}
-         */
-        startsWith: self => typeof self !== 'string' ? undefined
-            : (search, at) => found(self, String(search), position(at, self.length)),
+    /**
+     * The static function `id` names, `Object.is`: the entry of
+     * {@link statics}, read as the object literal it is so that no
+     * inherited name answers, or `undefined` for an id the table lacks,
+     * which an executor refuses by name and never answers with — the
+     * parser admits only the ids `../static` lists, so a missing one is
+     * the table incomplete, not a program's error.
+     *
+     * @type {(id: string) => unknown}
+     */
+    static: id => entry(statics, id),
+    /**
+     * The callee of `self[key](...)`, the receiver not nullish: the
+     * receiver's own enumerable property under the key — an object's
+     * field, an array's or a string's element, its presence asked by
+     * `hasEntry` so that an own `undefined` is found, its value read by
+     * `entry` — else what the `member` body of the name answers for the
+     * receiver, the function of the arguments or `undefined`, else
+     * `undefined`. An own property wins whatever it holds, as it does in
+     * JavaScript: `{ toString: f }` calls `f`, `{ x: undefined }.x()`
+     * throws, and `[1][0]()` throws for the element. `entry(member, key)`
+     * reads the table as the object literal it is, so no inherited name
+     * answers, and nothing is built on the way: a receiver that owns
+     * nothing under the key costs one scan, an object that owns it two.
+     * A body's throw is the call's, or the guard's. The core rule of
+     * DESIGN.md §13 holds here: no member call and no optional chain,
+     * only the two helpers, a conditional and a plain call of a function
+     * value, since an executor runs this to answer a member call. The
+     * runtime's proof pins the shape on the EDAG.
+     *
+     * @type {(self: unknown, key: string) => unknown}
+     */
+    dot: (self, key) => {
+        if (hasEntry(self, key)) { return entry(self, key) }
+        const body = /** @type {undefined | ((self: unknown) => unknown)} */ (entry(member, key))
+        return body === undefined ? undefined : body(self)
     },
 }

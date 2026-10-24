@@ -4,14 +4,18 @@
  * @import { List, Result } from '../list/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
  * @import { State } from '../../website/demo/versions/types.ts'
+ * @import { RandomInt } from '../../effects/common/types.ts'
+ * @import { RunInstance } from '../../effects/mock/types.ts'
  */
 
 import { values } from './module.f.mjs'
-import { cmp } from '../string/module.f.mjs'
+import { cmp, occurrences } from '../string/module.f.mjs'
 import { next, toArray } from '../list/module.f.mjs'
 import { value, find as findFind } from './find/module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { _census, _generate, _graphOf, _load, _move, _press, demo, presets } from './demo.f.mjs'
+import { run as mockRun } from '../../effects/mock/module.f.mjs'
+import { ok } from '../result/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../result/module.f.js'
@@ -78,9 +82,6 @@ const test = () => {
 /** @type {(state: State<Tree<number>>) => string} */
 const html = state => htmlToString(demo.view(state))
 
-/** @type {(s: string) => (part: string) => number} */
-const count = s => part => s.split(part).length - 1
-
 /** @type {(state: State<Tree<number>>) => string} */
 const censusOf = state => JSON.stringify(_census(state.versions))
 
@@ -92,7 +93,7 @@ const update = event => state => unwrap(assertNotNullish(runPure(demo.update(sta
 
 /**
  * A preset loaded and its hint followed: the button the hint names, pressed
- * with the key the preset put in the field.
+ * with the key the preset put in the field, or the key it says to click.
  *
  * @type {(name: string) => State<Tree<number>>}
  */
@@ -100,11 +101,18 @@ const follow = name => {
     const loaded = _load(name)
     const { status } = loaded
     assert('preset' in status, '')
-    return press(status.hint.startsWith('Press Insert') ? 'insert' : 'remove')(loaded.key)(loaded)
+    return status.hint.startsWith('Click') ? _move(Number(loaded.key))(loaded)
+        : press(status.hint.startsWith('Press Insert') ? 'insert' : 'remove')(loaded.key)(loaded)
 }
 
 /** @type {(tree: Tree<number>) => number} */
 const depth = tree => tree === null ? 0 : tree.length === 1 || tree.length === 2 ? 1 : 1 + depth(tree[0])
+
+/** @type {(tree: Tree<number>) => number} */
+const nodeCount = tree => tree === null ? 0
+    : tree.length === 1 || tree.length === 2 ? 1
+    : tree.length === 3 ? 1 + nodeCount(tree[0]) + nodeCount(tree[2])
+    : 1 + nodeCount(tree[0]) + nodeCount(tree[2]) + nodeCount(tree[4])
 
 /** @type {(name: string) => readonly [number, number]} */
 const depths = name => {
@@ -112,7 +120,29 @@ const depths = name => {
     return [depth(versions.before), depth(versions.after)]
 }
 
+/**
+ * A host whose `randomInt` answers 0, 1, 2, … in turn.
+ *
+ * @type {RunInstance<RandomInt, number>}
+ */
+const counter = mockRun(/** @type {Parameters<typeof mockRun<RandomInt, number>>[0]} */ ({
+    randomInt: () => (/** @type {number} */ n) => [n + 1, ok(n)],
+}))
+
 const demoProof = {
+    // Generate opens on 26 keys, the perfect tree of depth 3's, and builds a
+    // tree of 10, 20, … 260 from one `randomInt` per key.
+    generate: () => {
+        assert(html(demo.init).includes('name="count" value="26"'), '')
+        const [asked, r] = counter(0)(_generate(demo.init))
+        assertEq(asked, 26)
+        assert(r[0] === 'ok', '')
+        const { versions, status } = r[1]
+        assertEq(versions.before, versions.after)
+        assertEq(JSON.stringify(toArray(values(versions.after))), JSON.stringify(Array.from({ length: 26 }, (_, i) => (i + 1) * 10)))
+        assert('random' in status && status.random.length === 26, '')
+        assert(html(r[1]).includes('26 keys inserted in random order: 10, 30, 50, 70, '), '')
+    },
     // The page opens on the first preset loaded: one tree that is both
     // versions, every node shared, the key in the field and the hint saying
     // what to press. Nothing has changed, so nothing is coloured.
@@ -122,15 +152,18 @@ const demoProof = {
         assertEq(demo.init.versions.before, demo.init.versions.after)
         // One graph, with no node above the tree and no titles, and one
         // arrow, into its root.
-        assertEq(count(h)('<svg'), 1)
-        assertEq(count(h)('data-graph-label='), 0)
-        assertEq(count(h)('data-graph-entry=""'), 1)
+        assertEq(occurrences('<svg')(h), 1)
+        assertEq(occurrences('data-graph-label=')(h), 0)
+        assertEq(occurrences('data-graph-entry=""')(h), 1)
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
         assert(h.includes('value="80"'), h)
         assert(h.includes('<option value="Insert into a leaf" selected="">'), h)
         assert(h.includes('Press Insert to add 80'), h)
-        assertEq(count(h)('data-graph-kind="new"'), 0)
+        assertEq(occurrences('data-graph-kind="new"')(h), 0)
+        // Every key is a control that moves it.
+        assertEq(occurrences('data-demo-click="move:')(h), 7)
+        assert(h.includes('data-demo-click="move:40"'), h)
         assert(!h.includes('Custom'), h)
         assert(!h.includes('Error'), h)
     },
@@ -143,13 +176,13 @@ const demoProof = {
             const s = follow('Insert into a leaf')
             assertEq(censusOf(s), '{"built":3,"shared":4,"replaced":3}')
             const h = html(s)
-            assertEq(count(h)('data-graph-kind="new"'), 3)
-            assertEq(count(h)('data-graph-kind="shared"'), 4)
-            assertEq(count(h)('data-graph-kind="replaced"'), 0)
+            assertEq(occurrences('data-graph-kind="new"')(h), 3)
+            assertEq(occurrences('data-graph-kind="shared"')(h), 4)
+            assertEq(occurrences('data-graph-kind="replaced"')(h), 0)
             // The new leaf holds 7 and 8, each a row of its own with no
             // name beside it.
             assert(!h.includes('>Value'), h)
-            assert(h.includes('data-graph-value-label="">80<'), h)
+            assert(h.includes('data-graph-value-label="" pointer-events="none">80<'), h)
             // One arrow, into the new root.
             const { nodes, entries = [] } = _graphOf(s.versions)
             assertEq(JSON.stringify(entries.map(({ to, kind }) => [nodes[to].kind, kind ?? null])), '[["new",null]]')
@@ -162,20 +195,20 @@ const demoProof = {
         // first key is a leaf.
         emptyTree: () => {
             const loaded = html(_load('Empty tree'))
-            assertEq(count(loaded)('<svg'), 0)
+            assertEq(occurrences('<svg')(loaded), 0)
             assert(loaded.includes('The tree is empty.'), loaded)
             const s = follow('Empty tree')
             assertEq(censusOf(s), '{"built":1,"shared":0,"replaced":0}')
             const h = html(s)
             assert(h.includes('Last step, insert 10:'), h)
             assert(!h.includes('The tree is empty.'), h)
-            assertEq(count(h)('data-graph-entry=""'), 1)
+            assertEq(occurrences('data-graph-entry=""')(h), 1)
             // Removing the last key leaves the tree empty: nothing is drawn,
             // and the leaf it held is counted.
             const gone = press('remove')('10')(s)
             const g = html(gone)
             assert(g.includes('The tree is empty.'), g)
-            assertEq(count(g)('<svg'), 0)
+            assertEq(occurrences('<svg')(g), 0)
             assertEq(censusOf(gone), '{"built":0,"shared":0,"replaced":1}')
         },
         // A full leaf splits, and its middle key moves up into a branch of
@@ -219,6 +252,33 @@ const demoProof = {
             const h = html(s)
             assert(h.includes('Last step, remove 90: nothing changed, the key is not in the tree.'), h)
             assert(!h.includes('0 new'), h)
+        },
+        // A move keeps the keys and changes the shape: 40 leaves the root
+        // and goes back into a leaf with room, and the tree is one node
+        // smaller at the same depth.
+        moveAKey: () => {
+            const s = follow('Move a key')
+            const { before, after } = s.versions
+            assertEq(JSON.stringify(toArray(values(after))), JSON.stringify(toArray(values(before))))
+            assertEq(JSON.stringify([nodeCount(before), nodeCount(after)]), '[8,7]')
+            assertEq(JSON.stringify(depths('Move a key')), '[3,3]')
+            assert(html(s).includes('Last step, move 40:'), '')
+        },
+        // A move starts from the tree on screen, not the one before the
+        // last step: after inserting 80, moving 40 keeps 80.
+        moveAfterAStep: () => {
+            const inserted = follow('Insert into a leaf')
+            const s = _move(40)(inserted)
+            assertEq(s.versions.before, inserted.versions.after)
+            assertEq(JSON.stringify(toArray(values(s.versions.after))), JSON.stringify(toArray(values(inserted.versions.after))))
+            assert(toArray(values(s.versions.after)).includes(80), '')
+        },
+        // A move that builds the same shape back changes nothing: both
+        // versions are one tree, and it says so.
+        moveAKeyBack: () => {
+            const s = follow('Move a key back')
+            assertEq(s.versions.before, s.versions.after)
+            assert(html(s).includes('Last step, move 50: nothing changed, the key went back where it was.'), '')
         },
         // Five nodes built again, and 26 shared, without growing a level.
         bigTree: () => {
@@ -278,6 +338,7 @@ const demoProof = {
         assertEq(JSON.stringify(update({ kind: 'click', name: 'insert' })(typed).status), '{"step":{"op":"insert","key":9}}')
         assertEq(JSON.stringify(update({ kind: 'click', name: 'remove' })(typed).status), '{"step":{"op":"remove","key":9}}')
         assertEq(update({ kind: 'input', name: 'example', value: 'Big tree' })(typed).key, '320')
+        assertEq(JSON.stringify(update({ kind: 'click', name: 'move:40' })(typed).status), '{"step":{"op":"move","key":40}}')
         assertEq(update({ kind: 'click', name: 'other' })(typed), typed)
         assertEq(update({ kind: 'input', name: 'other', value: '1' })(typed), typed)
         assertEq(update({ kind: 'start' })(typed), typed)

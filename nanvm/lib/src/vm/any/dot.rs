@@ -9,9 +9,10 @@ impl<A: IVm> Any<A> {
     /// continuation may follow (`fjs/edag/README.md`, Chains).
     /// `dot(a, key).end()` is `a.b`, the one spelling of the node whether
     /// or not a continuation follows, and the one property read `nanvm-lib`
-    /// has; `dot(a, key).end_call(args)` is the method call `a.b(...args)`,
-    /// the property called on its receiver. The key is a value: `a[k]`
-    /// evaluates both operands whatever they are.
+    /// has; `dot(a, key).end_call(&runtime, args)` is the method call
+    /// `a.b(...args)`, the property called on its receiver, the runtime
+    /// value asked for the body of a name the receiver does not own. The
+    /// key is a value: `a[k]` evaluates both operands whatever they are.
     ///
     /// A nullish receiver throws here, before any continuation's arguments
     /// — the throw waits in the lambda until `end` or `end_call` surfaces

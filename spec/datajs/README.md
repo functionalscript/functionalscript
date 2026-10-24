@@ -981,7 +981,7 @@ Normalized form names its consts `$0`, `$1`, … — exactly a shell's positiona
 parameters — so where the association bites it bites the machine-produced
 documents rather than the hand-written ones. `_0` would carry none of it.
 
-**A document has to *be* shell source for that to happen, and passing through a
+**A document has to be shell source for that to happen, and passing through a
 shell is not the same thing.** An earlier draft of this section said the
 documents most likely to be piped through a shell for hashing or comparison
 were the most exposed, which is not so: a shell expands the words of a command
@@ -1038,7 +1038,7 @@ and `-1n` does not. Normalized form has one byte spelling per value, so a
 serializer claiming to produce it would have to make the space depend on the
 *sign* of a number — a coupling between the statement writer and the value
 writer that exists for no reason except this rule. Unconditional, the statement
-writer emits `export default ` and never looks at the value at all.
+writer emits `export default` and a space and never looks at the value at all.
 
 The reader's side is smaller but real: `const`, `export` and `default` may be
 lexed as a keyword followed by at least one whitespace character, needing no

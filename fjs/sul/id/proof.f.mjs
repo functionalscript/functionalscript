@@ -1,7 +1,7 @@
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { mask } from '../../types/bigint/module.f.mjs'
 import { vec } from '../../types/bit_vec/module.f.mjs'
-import { compress, hashId, isHash, isRaw, level3Id, rawId } from './module.f.mjs'
+import { compress, hashId, isHash, isHashLength, isRaw, level3Id, rawId } from './module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.js'
 
 // literal3ToVec bit patterns for symbols used below:
@@ -21,6 +21,15 @@ assertEq(asBase(hashId(0n)), 1n << 0xFFn)
 assertEq(asBase(hFF), mask(0x100n))
 
 export const proof = {
+    // `isHashLength` agrees with `compress` at the limit: 100 + 153 bits stay
+    // a raw `Id`, 100 + 154 become a hash.
+    isHashLength: () => {
+        const left = rawId(vec(100n)(0n))
+        assert(isRaw(compress(left, rawId(vec(153n)(0n)))))
+        assert(!isHashLength(253))
+        assert(isHash(compress(left, rawId(vec(154n)(0n)))))
+        assert(isHashLength(254))
+    },
     // Two level-3 literals whose combined bit vectors fit inline (≤ 253 bits)
     inline0000: () => assertEq(compress(level3Id(0x00n), level3Id(0x00n)), rawId(vec(16n)(0x0000n))),
     inline0001: () => assertEq(compress(level3Id(0x00n), level3Id(0x01n)), rawId(vec(16n)(0x0001n))),

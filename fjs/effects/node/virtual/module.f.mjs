@@ -15,7 +15,7 @@
  * @import { Dir, JsModule, RecordedResponse, State, _Entity, _OpenFile, _QueuedRequest, _RequestBodyCursor, _VirtualListener, _VirtualServer } from './types.ts'
  */
 
-import { assert, todo } from '../../../asserts/module.f.mjs'
+import { assert, todo } from '../../../asserts/module.f.js'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'

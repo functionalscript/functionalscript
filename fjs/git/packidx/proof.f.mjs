@@ -3,10 +3,9 @@
  * @import { Idx } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { u8ListMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { latin1, packIdx1, packIdx2 } from '../testlib.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from './module.f.mjs'
@@ -19,9 +18,6 @@ const id = hex => {
     assert(i !== null)
     return i
 }
-
-/** @type {(oid: Oid) => readonly number[]} */
-const idBytes = oid => toArray(u8ListMsb(oid))
 
 /**
  * What `git verify-pack -v` reports for the pack both fixtures index: each
@@ -76,7 +72,7 @@ const width = /** @type {const} */ (20)
  *
  * @type {(bytes: readonly number[]) => readonly number[]}
  */
-const sealed = bytes => [...bytes, ...idBytes(digestOf(width)(bytes))]
+const sealed = bytes => [...bytes, ...u8ArrayMsb(digestOf(width)(bytes))]
 
 /** A sealed file's bytes without its checksum, so it can be changed and sealed again. */
 const unsealed = /** @type {(bytes: readonly number[]) => readonly number[]} */ (
@@ -104,7 +100,7 @@ const emptyV1 = /** @type {const} */ ([
  * @type {(only: Oid, offset: readonly number[]) => readonly number[]}
  */
 const withLargeOffset = (only, offset) => {
-    const oid = idBytes(only)
+    const oid = u8ArrayMsb(only)
     return sealed([
         0xFF, 0x74, 0x4F, 0x63, ...u32(2),
         // one id, whose first byte is 0x18, so the fanout steps there
@@ -169,41 +165,18 @@ const flipped = (bytes, at, with_) =>
  * @type {(ids: readonly Oid[]) => readonly number[]}
  */
 const v2With = ids => {
-    const firsts = ids.map(o => idBytes(o)[0])
+    const firsts = ids.map(o => u8ArrayMsb(o)[0])
     return sealed([
         0xFF, 0x74, 0x4F, 0x63, ...u32(2),
         ...Array.from({ length: 256 }, (_, k) => u32(firsts.filter(v => v <= k).length)).flat(),
-        ...ids.flatMap(idBytes),
+        ...ids.flatMap(u8ArrayMsb),
         ...ids.flatMap(() => u32(0)),
         ...ids.flatMap((_, i) => u32(12 + i)),
-        ...idBytes(ids[0]),
+        ...u8ArrayMsb(ids[0]),
     ])
 }
 
 const only = id('1881c433d8e416edcd0de9c5ee468185bc1987cd')
-
-/**
- * A version 2 index over two ids, one offset word each as the caller spells
- * them, and an 8-byte table of two slots holding 12 and 24.
- *
- * The two ids are leading parameters rather than captures, so this is closed and
- * at module scope beside the other builders here (§3.3). What varies between the
- * cases below is the offset words, which is what the returned function takes.
- *
- * @type {(low: Oid, high: Oid) => (words: readonly number[]) => readonly number[]}
- */
-const withTwoSlots = (low, high) => {
-    const firsts = [low, high].map(o => idBytes(o)[0])
-    return words => sealed([
-        0xFF, 0x74, 0x4F, 0x63, ...u32(2),
-        ...Array.from({ length: 256 }, (_, k) => u32(firsts.filter(v => v <= k).length)).flat(),
-        ...idBytes(low), ...idBytes(high),
-        ...u32(0), ...u32(0),
-        ...words,
-        ...u32(0), ...u32(12), ...u32(0), ...u32(24),
-        ...idBytes(low),
-    ])
-}
 
 export const proof = {
     // A version 2 index as Git 2.43.0 wrote it, read against what
@@ -382,7 +355,7 @@ export const proof = {
     // Git writes such an index only for a pack over 2 GiB.
     version1WholeWord: () => {
         const only = id('1800000000000000000000000000000000000000')
-        const oid = idBytes(only)
+        const oid = u8ArrayMsb(only)
         /** @type {(offset: readonly number[]) => readonly number[]} */
         const v1 = offset => sealed([
             ...Array.from({ length: 256 }, (_, k) => k).flatMap(k => u32(k < oid[0] ? 0 : 1)),
@@ -429,7 +402,23 @@ export const proof = {
     largeOffsetSlots: () => {
         const low = id('1800000000000000000000000000000000000000')
         const high = id('2500000000000000000000000000000000000000')
-        const twoSlots = withTwoSlots(low, high)
+        const firsts = [low, high].map(o => u8ArrayMsb(o)[0])
+        /**
+         * A version 2 index over the two ids, one offset word each as the case
+         * spells them, and an 8-byte table of two slots holding 12 and 24. The
+         * words are the parameter because they are what the cases below vary.
+         *
+         * @type {(words: readonly number[]) => readonly number[]}
+         */
+        const twoSlots = words => sealed([
+            0xFF, 0x74, 0x4F, 0x63, ...u32(2),
+            ...Array.from({ length: 256 }, (_, k) => u32(firsts.filter(v => v <= k).length)).flat(),
+            ...u8ArrayMsb(low), ...u8ArrayMsb(high),
+            ...u32(0), ...u32(0),
+            ...words,
+            ...u32(0), ...u32(12), ...u32(0), ...u32(24),
+            ...u8ArrayMsb(low),
+        ])
         // In order, so the file itself is readable and the refusals below are
         // about which slots the words name and nothing else.
         const good = twoSlots([...u32(0x8000_0000), ...u32(0x8000_0001)])

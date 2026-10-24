@@ -32,20 +32,16 @@
 import { codeMarker } from '../../website/style/module.f.js'
 import { fromCodePointList } from './module.f.mjs'
 import { stringToCodePointList } from '../utf16/module.f.mjs'
-import { errorMask, isValidCodePoint } from '../code_point/module.f.mjs'
+import { errorMask, isValidCodePoint, unicodeNotation } from '../code_point/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import { textDemo, caption } from '../../website/demo/module.f.mjs'
 
-/** @type {(bytes: readonly number[]) => string} */
-const hex = bytes => bytes.map(b => b.toString(16).padStart(2, '0')).join(' ')
+/** A byte's two hex digits. */
+const byteHex = encodeScalar(2)
 
-/**
- * A code point as Unicode writes it: `U+`, then at least four upper-case hex
- * digits.
- *
- * @type {(cp: CodePoint) => string}
- */
-const unicode = cp => `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`
+/** @type {(bytes: readonly number[]) => string} */
+const hex = bytes => bytes.map(byteHex).join(' ')
 
 /**
  * One code point's line: the code point, then its UTF-8 bytes in hex.
@@ -58,8 +54,8 @@ const unicode = cp => `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`
  * @type {(cp: CodePoint) => string}
  */
 const line = cp => isValidCodePoint(cp)
-    ? `${unicode(cp).padEnd(8)} ${hex(toArray(fromCodePointList([cp])))}`
-    : `${unicode(cp ^ errorMask).padEnd(8)} error: unpaired surrogate, no UTF-8`
+    ? `${unicodeNotation(cp).padEnd(8)} ${hex(toArray(fromCodePointList([cp])))}`
+    : `${unicodeNotation(cp ^ errorMask).padEnd(8)} error: unpaired surrogate, no UTF-8`
 
 /**
  * One line per code point of `text`: the code point, then its UTF-8 bytes in

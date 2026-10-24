@@ -4,7 +4,11 @@
 **Status:** wip — the design is approved by `sergey-shandar` on
 [#2869](https://github.com/functionalscript/functionalscript/pull/2869#issuecomment-6141562332);
 the mechanism and the first body, `startsWith`, have landed
-([`../runtime/README.md`](../runtime/README.md))
+([`../runtime/README.md`](../runtime/README.md)); the proposal below
+describes the shape as first built — the member table is now the module's
+`member` export, keyed by name alone, and the runtime value its two
+functions, `static` and `dot`
+([`runtime-members.md`](./runtime-members.md))
 
 ### Problem
 
@@ -134,23 +138,23 @@ absent from the table for the same reason a primitive is, and a VM has the
 same duty towards both: bind it natively. The README says which is which,
 and why.
 
-**A VM binds the object dynamically.** It reads the compiled runtime's
-keys and installs each function value as the fallback member function of
-its type: a call step resolves an own property, then the type's native
-binding, then the runtime's body, then throws the `TypeError` for calling
-`undefined`, as it does today with a hand-written table in the third
-place. The guard of an optional call, `a.map?.(f)`, asks the same lookup,
-native or runtime, so a name whose native entry has gone to a body is
-still called, not skipped, and a name neither binds skips with its
-arguments unevaluated — the represented executors' `hasMethod` and
-NaNVM's `Member::is_nullish` in #2880 both do. The tables in
-`nanvm/lib/src/vm/lambda`'s `method.rs`, `string.rs` and `number.rs` are
-the one place a native binding lives, and hold two kinds of name: the
-names without a body, which they must, and the names a measurement keeps
-native, which they may — a native entry for a name that has a body is an
-optimization, and it stays in the same table, ahead of the body, for as
-long as the measurement says so and leaves when the compiled body is fast
-enough. NaNVM's current Rust implementations become exactly that. There
+**A VM asks the runtime, then its natives.** A call step resolves an own
+property, then the body the runtime's `dot` answers for the receiver,
+then the type's native binding for a name without a body, then throws
+the `TypeError` for calling `undefined` — every executor in that order,
+since the runtime became a value every module takes
+([`../runtime/README.md`](../runtime/README.md), "How each VM binds it").
+The guard of an optional call, `a.map?.(f)`, asks the same lookup, so a
+name whose native entry has gone to a body is still called, not skipped,
+and a name neither binds skips with its arguments unevaluated — the
+represented executors' `hasMethod` and NaNVM's `Member::is_nullish` both
+do. The tables in `nanvm/lib/src/vm/lambda`'s `method.rs`, `string.rs`
+and `number.rs` are the one place a native binding lives and hold the
+names without a body alone: an entry for a name that has a body is
+unreachable, since the body is asked first, and goes with the body's
+landing; substituting a native for a body, which
+[DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)
+allows a VM, is a measured change to the order, not an entry. There
 is no second table: the interpreter runs the body, the AOT Rust output
 links the compiled runtime, and the corpus in `nanvm/member` has one
 oracle per kind of name. A name with a body is checked against the body,
@@ -229,8 +233,10 @@ the example, the third, which gets its own `todo/` when its turn comes.
       executor is given and no longer calls the host engine for it; the
       executors' contexts carry the runtime, the transpiler takes it as
       `interpret(load)`, and the harness loads it for the expectations.
-- [x] NaNVM binds the compiled runtime through `IVm::runtime_method`,
-      after its native table; `npm run gen` compiles the module to
+- [x] NaNVM binds the compiled runtime, today as the value every compiled
+      module takes, asked before its native table
+      ([`../runtime/README.md`](../runtime/README.md)); `npm run gen`
+      compiles the module to
       `vm/gen.runtime.rs`; the corpus runs the body; `starts_with` left
       `vm/lambda/string.rs`; the four-row completeness test counts a
       body as an answer.
@@ -245,8 +251,10 @@ the example, the third, which gets its own `todo/` when its turn comes.
       asked first: `Object.is` is a value a module compares, so `naive`
       holds the object per thread
       ([`runtime-static.md`](./runtime-static.md)).
-- [ ] A name whose body lands leaves NaNVM's hand tables unless a
-      measurement keeps it, in the same table, as an optimization.
+- [ ] A name whose body lands leaves NaNVM's hand tables: an entry beside
+      a body is unreachable, since `dot` answers first, and a native a
+      measurement asks for substitutes for the body in the dispatch, not
+      in the table.
 - [x] File the static-function table as its own `todo/`:
       [`runtime-static.md`](./runtime-static.md), which also nests this
       table under `runtime.member`, keyed by the global's name, to make
@@ -270,7 +278,7 @@ the example, the third, which gets its own `todo/` when its turn comes.
   to Rust; the runtime is part of that closure.
 - [`nanvm/lib/todo/callable-function-objects.md`](../../../nanvm/lib/todo/callable-function-objects.md)
   — the `static function` tag a VM binding static functions needs.
-- [spec: built-in member functions](../../../spec/built-ins/member-functions.md)
+- [spec: built-in member functions](../../../spec/built-ins/member-functions/README.md)
   — the admitted set and the native-execution limits this design narrows.
 - [#2864](https://github.com/functionalscript/functionalscript/pull/2864)
   — the measurement.

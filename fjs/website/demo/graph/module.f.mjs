@@ -37,6 +37,10 @@
  * placeholder nodes Graphviz's `dot` inserts, and why an edge here is a run
  * of straight segments rather than a curve.
  *
+ * **A back edge goes around the graph.** An edge marked `back`, which
+ * closes a cycle, is left out of ranking and drawn down a gap, along a
+ * lane below every node and up another gap, so it crosses no box either.
+ *
  * **A primitive draws inside the node that holds it.** An edge whose `to`
  * is an {@link Inline} value leaves no line: its row grows a second cell,
  * right of the edge's label, holding the value. A number or a `null` has no
@@ -45,19 +49,22 @@
  *
  * @module
  *
- * @import { Corner, Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
+ * @import { Back, Corner, Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk } from './private.ts'
+ * @import { _BackEdge, _BackLane, _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Stack, _Frame, _Walk } from './private.ts'
  * @import { StateScan } from '../../../types/function/operator/types.ts'
+ * @import { StringMap } from '../../../types/object/types.ts'
  */
 
 import { stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /**
  * Every node's rank: the longest path from the root, so every edge points
  * right by at least one rank and never straight up or down, or back. A
+ * `back` edge is not a path, so it ranks nothing. A
  * node's id is its index here — a demo's own walk is expected to assign
  * ids `0, 1, 2, …` in creation order with no gaps, root first — so
  * `current[edge.from]` reads a node by id directly.
@@ -76,7 +83,7 @@ import { max } from '../../../types/number/max/module.f.js'
  */
 export const ranked = (nodes, edges) => {
     /** @type {readonly (readonly Edge[])[]} */
-    const incomingOf = nodes.map(n => edges.filter(e => e.to === n.id))
+    const incomingOf = nodes.map(n => edges.filter(e => e.to === n.id && e.back !== true))
     let current = nodes.map(n => ({ ...n, rank: n.id === 0 ? 0 : -Infinity }))
     for (let round = 0; round < nodes.length; round++) {
         const prior = current
@@ -98,19 +105,19 @@ const { is } = Object
  * @template V
  * @param {_Walk} walk
  * @param {V} value
- * @param {Shape<V>} s
+ * @param {Exclude<Shape<V>, Back<V>>} s
  * @returns {{ readonly id: number, readonly walk: _Walk, readonly children: _Frame<V>['children'] }}
  */
 const draw = (walk, value, s) => {
     const id = walk.next
-    const [kind, label, children] = 'inline' in s
-        ? [s.kind ?? 'leaf', s.inline, []]
-        : [s.kind, s.label, s.children]
+    const [kind, label, children, groups] = 'inline' in s
+        ? [s.kind ?? 'leaf', s.inline, [], undefined]
+        : [s.kind, s.label, s.children, s.groups]
     return {
         id,
         walk: {
             refs: [...walk.refs, [value, id]],
-            nodes: [...walk.nodes, { id, kind, label }],
+            nodes: [...walk.nodes, { id, kind, label, ...(groups === undefined ? {} : { groups }) }],
             edges: walk.edges,
             next: id + 1,
         },
@@ -120,6 +127,31 @@ const draw = (walk, value, s) => {
 
 /** `walk` with `edge` added. @type {(walk: _Walk, edge: Edge) => _Walk} */
 const withEdge = (walk, edge) => ({ ...walk, edges: [...walk.edges, edge] })
+
+const noOwner = 'graph: a back reference outside every node it could go back to'
+
+/**
+ * The id of the innermost node on `stack` that `owner` takes, each read
+ * with the label of the child the walk is in. Every frame on `stack` has
+ * moved past that child, so it is the one before `next`.
+ *
+ * **A back reference with no owner is refused**: an edge to no node would
+ * vanish and leave a picture that looks complete.
+ *
+ * @template V
+ * @param {_Stack<V>} stack
+ * @param {Back<V>['owner']} owner
+ * @returns {number}
+ */
+const ownerOf = (stack, owner) => {
+    let s = stack
+    while (s !== undefined) {
+        const [frame, rest] = s
+        if (owner(frame.value, frame.children[frame.next - 1][0])) { return frame.id }
+        s = rest
+    }
+    throw noOwner
+}
 
 /**
  * `root` as the graph it denotes, each value read by `shape`.
@@ -132,11 +164,19 @@ const withEdge = (walk, edge) => ({ ...walk, edges: [...walk.edges, edge] })
  * `kind` is the inline's own where it has one and `"leaf"` where it has
  * none.
  *
- * **A value that reaches itself is refused.** An edge back to a node the
+ * **A value that reaches itself is refused unless its node shape opts in
+ * with `recursive: true`.** An edge back to a node the
  * walk is still inside would be drawn pointing left, which is the one thing
  * {@link ranked}'s longest path cannot place: it would push the cycle's
  * ranks up for as many rounds as it runs and answer a plausible wrong
- * picture instead.
+ * picture instead. With the opt-in, that use is a back edge and does not
+ * participate in ranking. The value's identity still shares its definition,
+ * so recursive thunks can describe a finite graph without expanding forever.
+ *
+ * **A reference to an enclosing node can also be a {@link Back} shape**:
+ * an edge, marked `back`, to the innermost node the walk is inside that the shape's
+ * `owner` takes. Ranking ignores it, so it has no rank to need. A root
+ * that is a back reference is inside no node, and is refused.
  *
  * Ranks nothing while it walks: which rank a node belongs to depends on
  * every edge that reaches it, including ones the walk has not taken yet
@@ -155,10 +195,12 @@ export const graphOf =
         // out of stack on a path of a couple of thousand nodes. A node's
         // edge from its parent is added once everything under it is
         // drawn, so ids and edges come out in the order recursion gave.
-        const start = draw({ refs: [], nodes: [], edges: [], next: 0 }, root, shape(root))
+        const rootShape = shape(root)
+        if ('owner' in rootShape) { throw noOwner }
+        const start = draw({ refs: [], nodes: [], edges: [], next: 0 }, root, rootShape)
         let walk = start.walk
         /** @type {_Stack<V>} */
-        let stack = [{ id: start.id, path: [start.id], children: start.children, next: 0, label: '', kind: undefined }, undefined]
+        let stack = [{ value: root, id: start.id, path: [start.id], children: start.children, next: 0, label: '', kind: undefined }, undefined]
         while (stack !== undefined) {
             /** @type {readonly [_Frame<V>, _Stack<V>]} */
             const [top, rest] = stack
@@ -171,7 +213,10 @@ export const graphOf =
                 /** @type {_Stack<V>} */
                 const advanced = [{ ...top, next: top.next + 1 }, rest]
                 const c = shape(child)
-                if ('inline' in c) {
+                if ('owner' in c) {
+                    walk = withEdge(walk, { from: top.id, to: ownerOf(advanced, c.owner), label, kind, back: true })
+                    stack = advanced
+                } else if ('inline' in c) {
                     walk = withEdge(walk, { from: top.id, to: c, label, kind })
                     stack = advanced
                 } else {
@@ -179,12 +224,13 @@ export const graphOf =
                     if (found === undefined) {
                         const drawn = draw(walk, child, c)
                         walk = drawn.walk
-                        stack = [{ id: drawn.id, path: [...top.path, drawn.id], children: drawn.children, next: 0, label, kind }, advanced]
+                        stack = [{ value: child, id: drawn.id, path: [...top.path, drawn.id], children: drawn.children, next: 0, label, kind }, advanced]
                     } else {
                         // a value already drawn is one node however many
                         // edges reach it, unless the walk is still inside it
-                        if (top.path.includes(found[1])) { throw `graph: a cycle through node ${found[1]}` }
-                        walk = withEdge(walk, { from: top.id, to: found[1], label, kind })
+                        const back = top.path.includes(found[1])
+                        if (back && c.recursive !== true) { throw `graph: a cycle through node ${found[1]}` }
+                        walk = withEdge(walk, { from: top.id, to: found[1], label, kind, ...(back ? { back: true } : {}) })
                         stack = advanced
                     }
                 }
@@ -198,6 +244,8 @@ const portHeight = /** @type {const} */ (20)
 const rankGap = /** @type {const} */ (40)
 const nodeGap = /** @type {const} */ (14)
 const laneSize = /** @type {const} */ (10)
+// Leave room for the highlighted arrowhead before the nearest return bend.
+const backEntryPadding = /** @type {const} */ (20)
 const margin = /** @type {const} */ (10)
 const charWidth = /** @type {const} */ (7)
 const entryLength = /** @type {const} */ (24)
@@ -210,6 +258,32 @@ const cellWidthOf = label => max(24, label.length * charWidth + 12)
 
 /** @type {(edge: Edge) => string | null} */
 const inlineOf = ({ to }) => typeof to === 'number' ? null : to.inline
+
+/**
+ * What a port draws in its value cell: its inline value, or the label of
+ * the node its edge leads to where the row shows that instead, or nothing.
+ *
+ * @type {(port: _Port) => string | null}
+ */
+const valueOf = port => inlineOf(port.edge) ?? port.ref
+
+/**
+ * A port's key cell fills the row when there is no value/reference cell;
+ * otherwise it uses the shared key-column width, or zero for an empty key.
+ *
+ * @type {(p: _Positioned) => (port: _Port) => number}
+ */
+const keyWidthOf = p => port => valueOf(port) === null ? p.width - p.title
+    : port.edge.label === '' ? 0
+    : p.keyWidth
+
+/**
+ * The attribute a row showing its target's label draws with, on its cell
+ * and its text alike, or none.
+ *
+ * @type {(port: _Port) => { readonly 'data-graph-value-ref'?: '' }}
+ */
+const refAttrOf = port => port.ref === null ? {} : { 'data-graph-value-ref': '' }
 
 /** @type {(values: readonly number[]) => number} */
 const maxOf = values => values.reduce((m, v) => max(m, v), 0)
@@ -227,16 +301,72 @@ const valueKindOf = ({ to }) =>
     typeof to === 'number' || to.kind === undefined ? {} : { 'data-graph-value-kind': to.kind }
 
 /**
+ * The attributes an inline value's `click` draws with, on its cell: a
+ * control the demo runtime hears, which the keyboard can reach. The cell
+ * takes the pointer even where the stylesheet leaves it unfilled, and the
+ * text over it lets the pointer through, so the whole cell is the target.
+ *
+ * @type {(edge: Edge) => { readonly [k in string]?: string }}
+ */
+const clickOf = ({ to }) => typeof to === 'number' || to.click === undefined ? {} : {
+    'data-demo-click': to.click.name, tabindex: '0', role: 'button', 'aria-label': to.click.label,
+    'pointer-events': 'all', cursor: 'pointer',
+}
+
+/**
  * The attribute of the two groups a node is drawn in — its box with its
  * rows, and its text, which are apart because edges are drawn between
  * them: the node's kind, so a stylesheet can treat the whole node as one,
  * where `data-graph-kind`, on the box alone, styles the box. They are two
  * names because a rule meant for a box, a fill or a dash, would be wrong
- * on text.
+ * on text. A node with an `order` carries it on both groups too, so its
+ * box and its text fade as one.
  *
- * @type {(p: _Positioned) => { readonly 'data-graph-in-kind': string }}
+ * @type {(p: _Positioned) => { readonly 'data-graph-in-kind': string, readonly 'data-graph-order'?: string }}
  */
-const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
+const inKindOf = p => ({
+    'data-graph-in-kind': p.kind,
+    ...(p.order === undefined ? {} : { 'data-graph-order': String(p.order) }),
+})
+
+/**
+ * What an edge fades with: the node it leads to, if that one has an order,
+ * or else the node it leaves from — nothing when neither has one. So an
+ * edge into a node appears and goes with it, and an edge out of a node to
+ * one that stays goes with the node it leaves. Its kind and order are the
+ * ones the stylesheet reads off a node's groups.
+ *
+ * @type {(nodeOf: (id: number) => _Positioned) => (from: number, to: number) => { readonly 'data-graph-in-kind'?: string, readonly 'data-graph-order'?: string }}
+ */
+const fadeOf = nodeOf => (from, to) => {
+    const target = nodeOf(to)
+    const owner = target.order !== undefined ? target : nodeOf(from)
+    return owner.order !== undefined ? inKindOf(owner) : {}
+}
+
+/**
+ * An edge's or an entry's `data-key` in a keyed graph, from the keys of the
+ * nodes it joins, so a page that patches the drawing keeps the same path
+ * for it, and the site's stylesheet slides its route with its nodes. None
+ * when a node it joins has no key. The keys are written as a JSON array, so
+ * no key's own characters can make two edges' keys the same.
+ *
+ * @type {(part: string, ...keys: readonly (string | undefined)[]) => { readonly 'data-key'?: string }}
+ */
+const pathKeyOf = (part, ...keys) =>
+    keys.every(k => k !== undefined) ? { 'data-key': `${part}:${JSON.stringify(keys)}` } : {}
+
+/**
+ * Where a node's contents are drawn, and the attributes of the groups that
+ * hold them. A node with a `key` is drawn at the origin, its groups moved
+ * into place by a `transform` and keyed for the box and the text apart; any
+ * other is drawn where it is, as it always was.
+ *
+ * @type {(p: _Positioned) => { readonly local: _Positioned, readonly group: (part: string) => { readonly transform?: string, readonly 'data-key'?: string } }}
+ */
+const placeOf = p => p.key === undefined
+    ? { local: p, group: () => ({}) }
+    : { local: { ...p, x: 0, y: 0 }, group: part => ({ transform: `translate(${p.x},${p.y})`, 'data-key': `${part}:${p.key}` }) }
 
 /**
  * A node's ports: one row per outgoing edge, in the order the demo gave
@@ -264,29 +394,56 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
  * **An edge with a corner takes no row**: it leaves from that point of the
  * node's right side, and the rows are the other edges'.
  *
+ * **An edge beside values draws its target's label**, in the value's
+ * place, and its key, if any, in the key column: a row that differs from
+ * its neighbours by a missing value would read as one, and its key would
+ * not line up with theirs. The label says what the edge leads to, as an
+ * inline reference by name would. So does an edge with an empty key
+ * beside other edges, which would otherwise be a blank row. Its own
+ * attribute lets the stylesheet draw it as part of the edge, not as a
+ * value. A target with no label leaves the row as it was.
+ *
+ * **Rows that are all empty edge ports draw nothing**: a row holding no key
+ * and no value says nothing, so such a node is its label alone, as wide as
+ * a node without ports. It keeps a row's height per edge, so each edge
+ * still leaves from a point of its own on the node's right side.
+ *
  * **An empty label is no column at all** when the node has ports: its rows
  * already say what it is, and an empty column would be a blank band
  * beside them. A node with neither keeps its label, or it would have no
  * size.
  *
+ * **A node with groups draws a cell per group in its label column**, as
+ * wide as the widest group's label, in place of the node's own label: see
+ * {@link Node}. A grouped node's rows are always drawn.
+ *
  * **An edge into a node arrives at the middle of its left side**, which is
  * the middle of its label: between a two-key node's keys, not at the first
  * one.
  *
- * @type {(label: string) => (out: readonly _Out[]) => _Size}
+ * @type {(node: Node) => (out: readonly _Out[]) => _Size}
  */
-const portsOf = label => all => {
+const portsOf = ({ label, groups }) => all => {
     const out = all.filter(({ edge }) => edge.corner === undefined)
-    const inlines = out.flatMap(({ edge }) => {
-        const inline = inlineOf(edge)
-        return inline === null ? [] : [{ keyed: edge.label !== '', key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
+    const blank = groups === undefined && out.every(({ edge }) => inlineOf(edge) === null && edge.label === '')
+    /** @type {(o: _Out) => string | null} */
+    const refOf = ({ edge, target }) => blank || inlineOf(edge) !== null || target === '' ? null
+        : edge.label === '' || out.some(o => inlineOf(o.edge) !== null) ? target
+        : null
+    /** @type {(o: _Out) => string | null} */
+    const valueOf = o => inlineOf(o.edge) ?? refOf(o)
+    const inlines = out.flatMap(o => {
+        const value = valueOf(o)
+        return value === null ? [] : [{ keyed: o.edge.label !== '', key: cellWidthOf(o.edge.label), value: cellWidthOf(value) }]
     })
     const keyColumn = maxOf(inlines.flatMap(c => c.keyed ? [c.key] : []))
     const rows = max(
         maxOf(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
-        maxOf(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : [])))
-    const title = out.length === 0 ? widthOf(label) : label === '' ? 0 : cellWidthOf(label)
-    const width = max(widthOf(label), title + rows)
+        maxOf(out.flatMap(o => valueOf(o) === null ? [cellWidthOf(o.edge.label)] : [])))
+    const title = blank ? widthOf(label)
+        : groups !== undefined ? maxOf(groups.map(([group]) => cellWidthOf(group)))
+        : label === '' ? 0 : cellWidthOf(label)
+    const width = blank ? title : max(groups === undefined ? widthOf(label) : 0, title + rows)
     const height = out.length === 0 ? labelHeight : out.length * portHeight
     /** @type {Record<Corner, number>} */
     const exitAt = { top: 0, middle: height / 2, bottom: height }
@@ -295,8 +452,8 @@ const portsOf = label => all => {
         height,
         title,
         keyWidth: keyColumn,
-        ports: out.map(({ edge, index }, i) => ({ edge, index, y: i * portHeight })),
-        exits: all.flatMap(({ edge, index }) => edge.corner === undefined ? [] : [{ edge, index, y: exitAt[edge.corner] }]),
+        ports: out.map((o, i) => ({ ...o, y: i * portHeight, ref: refOf(o) })),
+        exits: all.flatMap(o => o.edge.corner === undefined ? [] : [{ ...o, y: exitAt[o.edge.corner] }]),
     }
 }
 
@@ -327,9 +484,10 @@ const missingEnds = ids => (edge, index) => [
  * A graph is a tree here when no node is the target of two edges and
  * every edge goes to the next rank, so no edge needs a lane. Any other
  * graph — a node shared by two parents, or an edge that skips a rank —
- * keeps its columns packed from the top: a shared node has no one parent
- * to sit beside. **Every node gets a top**: with one incoming edge at
- * most, and each edge one rank right, no edge can close a cycle, so every
+ * normally keeps its columns packed from the top: a shared node has no one
+ * parent to sit beside. `Graph.centerColumns` can align their nodes with
+ * incoming connections instead. **Every node gets a top**: with one incoming
+ * edge at most, and each edge one rank right, no edge can close a cycle, so every
  * node is reached from exactly one root.
  *
  * **Two passes over the ranks, not a walk down each subtree**, so a deep
@@ -382,6 +540,67 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
 }
 
 /**
+ * Each back edge's {@link _BackLane}, by its index, from the ranks it goes
+ * from and to and the height `y` it leaves its node at.
+ *
+ * **A narrower back edge takes a lane nearer the graph**, and nearer its
+ * columns in the gaps it goes down and up, so a back edge whose ranks lie
+ * strictly inside another's is drawn inside it and the two never cross.
+ * **Of two that span equally many ranks, the lower one is nearer**: going
+ * down one gap, the higher one then passes right of where the lower one
+ * leaves its node rather than across it. Back edges that share a gap and
+ * nest the other way can still cross there, where no order of lanes
+ * would keep them apart.
+ *
+ * @type {(edges: readonly _BackEdge[]) => ReadonlyMap<number, _BackLane>}
+ */
+const backLanesOf = edges => {
+    const backs = edges.toSorted((a, b) => (a.from - a.to) - (b.from - b.to) || b.y - a.y)
+    return new Map(backs.map(({ index, from, to }, lane) => [index, {
+        lane,
+        out: backs.slice(0, lane).filter(b => b.from === from).length,
+        into: backs.slice(0, lane).filter(b => b.to === to).length,
+    }]))
+}
+
+/**
+ * Fit preferred slot tops into a column without overlaps or reordering.
+ * Subtracting the packed offsets turns the spacing constraints into a
+ * nondecreasing sequence. Pool adjacent violations by averaging them,
+ * then clamp to the column's available slack. This minimizes squared
+ * displacement from the preferred tops, including routing lanes.
+ *
+ * @type {(desired: readonly number[], offsets: readonly number[], slack: number) => readonly number[]}
+ */
+const fittedTops = (desired, offsets, slack) => {
+    /** @typedef {{ readonly sum: number, readonly count: number }} Pool */
+    const pools = desired.reduce(
+        /** @type {(pools: readonly Pool[], top: number, index: number) => readonly Pool[]} */
+        ((pools, top, index) => {
+            let rest = pools
+            let pool = { sum: top - offsets[index], count: 1 }
+            while (rest.length !== 0) {
+                const last = rest[rest.length - 1]
+                if (last.sum / last.count <= pool.sum / pool.count) { break }
+                pool = { sum: pool.sum + last.sum, count: pool.count + last.count }
+                rest = rest.slice(0, -1)
+            }
+            return [...rest, pool]
+        }), [])
+    return pools.flatMap(({ sum, count }) => Array.from({ length: count }, () => max(margin, min(margin + slack, sum / count))))
+        .map((top, i) => top + offsets[i])
+}
+
+/** @type {(node: _Positioned) => readonly (readonly [number, number])[]} */
+const edgeHeightsOf = node => [
+    ...node.ports.map(port => /** @type {const} */ ([port.index, node.y + port.y + portHeight / 2])),
+    ...node.exits.map(exit => /** @type {const} */ ([exit.index, node.y + exit.y])),
+]
+
+/** @type {StateScan<_Sized, number, number>} */
+const offsetOf = ({ size }, offset) => [offset, offset + (size === null ? laneSize : size.height) + nodeGap]
+
+/**
  * Every column, left to right: its nodes and lanes in `key` order, each
  * placed top to bottom, and the column as wide as its widest node. A lane
  * spans its column's whole width, so the next column starts right of it
@@ -414,13 +633,27 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
  * existed.
  *
  * **A tree's nodes take the tops {@link treeTopsOf} gives them** instead
- * of the running `y`; a tree has no lanes.
+ * of the running `y`; a tree has no lanes. Back edges do not count: a graph
+ * that is a tree but for them is drawn as one.
+ *
+ * **Column centering is opt-in.** For a non-tree, `Graph.centerColumns`
+ * starts roots at the column midpoint, then places each node near the mean
+ * height of its incoming forward connections. Skip-rank lanes follow the
+ * preceding segment. Each column is fitted into the tallest packed column,
+ * preserving slot order and clearance; crowded slots compromise on their
+ * preferred positions. Back edges do not influence placement. A tree keeps
+ * its parent/child centering instead.
+ *
+ * **A back edge has no lane in any column.** It goes down a gap, along the
+ * bottom and up another gap ({@link routesOf}), so a gap is wider by a lane
+ * for each back edge that goes down or up it. A gap with incoming returns
+ * also reserves clearance for the enlarged highlighted arrowheads.
  *
  * The first column starts at `left`.
  *
- * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
+ * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[], center: boolean) => _Placed}
  */
-const layout = left => nodes => edges => {
+const layout = left => nodes => (edges, center) => {
     // **An edge must name nodes the graph has, or the graph is refused.**
     // An edge is drawn from a port of its source, so one whose source is
     // missing would have nowhere to leave from and would simply vanish,
@@ -433,48 +666,83 @@ const layout = left => nodes => edges => {
     // would hang a node's ports on whichever node sat at that index.
     // Each edge travels with its index, which is what names it from here
     // on: the same object may be listed twice and is then two edges.
+    const labels = new Map(nodes.map(n => [n.id, n.label]))
     const outgoing = new Map(nodes.map(n => [n.id,
-        edges.flatMap((edge, index) => edge.from === n.id ? [{ edge, index }] : [])]))
+        edges.flatMap((edge, index) => edge.from === n.id
+            ? [{ edge, index, target: typeof edge.to === 'number' ? /** @type {string} */ (labels.get(edge.to)) : '' }]
+            : [])]))
     const outgoingOf = /** @type {(id: number) => readonly _Out[]} */ (id => /** @type {readonly _Out[]} */ (outgoing.get(id)))
     const ranks = new Map(nodes.map(n => [n.id, n.rank]))
     const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (ranks.get(id)))
-    const spans = edges.map(({ from, to }) =>
-        ({ from: rankOf(from), to: typeof to === 'number' ? rankOf(to) : rankOf(from), key: from + 0.5 }))
+    const spans = edges.map(({ from, to, back }) =>
+        ({ from: rankOf(from), to: typeof to === 'number' && back !== true ? rankOf(to) : rankOf(from), key: from + 0.5 }))
+    // A back edge's ranks, from and to, which its route needs a gap at.
+    const backRanks = edges.flatMap(({ from, to, back }, index) =>
+        back === true && typeof to === 'number' ? [{ index, from: rankOf(from), to: rankOf(to) }] : [])
+    // the back edges going down the gap left of `rank`'s column, or up it
+    /** @type {(rank: number) => number} */
+    const gapOf = rank => laneSize * backRanks.filter(({ from, to }) => from + 1 === rank || to === rank).length
+        + (backRanks.some(({ to }) => to === rank) ? backEntryPadding : 0)
     const maxRank = nodes.reduce((m, n) => max(m, n.rank), 0)
-    const sizes = new Map(nodes.map(n => [n.id, portsOf(n.label)(outgoingOf(n.id))]))
+    const sizes = new Map(nodes.map(n => [n.id, portsOf(n)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
     /** @type {readonly (readonly _Slot[])[]} */
     const columns = Array.from({ length: maxRank + 1 }, (_, rank) => [
         ...nodes.filter(node => node.rank === rank).map(node => ({ node, rank, key: node.id })),
         ...spans.flatMap((span, lane) => span.from < rank && rank < span.to ? [{ lane, rank, key: span.key }] : []),
     ].toSorted((a, b) => a.key - b.key))
-    const treeTops = treeTopsOf(columns.map(column => column.flatMap(slot => slot.node === undefined ? [] : [slot.node.id])))(edges)(rankOf)(sizeOf)(
-        id => outgoingOf(id).flatMap(({ edge }) => typeof edge.to === 'number' ? [edge.to] : []))
-    /** @type {(left: number) => (widest: number) => StateScan<_Sized, number, _PlacedSlot>} */
+    const treeTops = treeTopsOf(columns.map(column => column.flatMap(slot => slot.node === undefined ? [] : [slot.node.id])))(edges.filter(e => e.back !== true))(rankOf)(sizeOf)(
+        id => outgoingOf(id).flatMap(({ edge }) => typeof edge.to === 'number' && edge.back !== true ? [edge.to] : []))
+    const align = center && treeTops === null
+    // Include the lanes between nodes: centering boxes alone would leave
+    // their skip-rank routes in positions that can pass through a box.
+    const columnHeights = columns.map(column => max(0, column.reduce((height, slot) =>
+        height + (slot.node === undefined ? laneSize : sizeOf(slot.node.id).height) + nodeGap, 0) - nodeGap))
+    const tallest = maxOf(columnHeights)
+    /** @type {(left: number) => (widest: number) => (sized: _Sized, top: number) => _PlacedSlot} */
     const placeSlot = left => widest => ({ slot, size }, top) => {
         if (size === null) {
             /** @type {_Lane} */
             const lane = { index: /** @type {number} */ (slot.lane), rank: slot.rank, y: top + laneSize / 2, left, right: left + widest }
-            return [{ lane }, top + laneSize + nodeGap]
+            return { lane }
         }
         const id = /** @type {Ranked} */ (slot.node).id
         /** @type {_Positioned} */
         const node = { .../** @type {Ranked} */ (slot.node), x: left, y: treeTops === null ? top : /** @type {number} */ (treeTops.get(id)), ...size }
-        return [{ node }, top + size.height + nodeGap]
+        return { node }
     }
-    /** @type {StateScan<readonly _Slot[], number, _Column>} */
-    const placeColumn = (column, left) => {
+    /** @typedef {{ readonly left: number, readonly heights: ReadonlyMap<number, number> }} ColumnState */
+    /** @type {StateScan<readonly [number, readonly _Slot[]], ColumnState, _Column>} */
+    const placeColumn = ([rank, column], prior) => {
+        const left = prior.left + gapOf(rank)
         const sized = column.map(slot => ({ slot, size: slot.node === undefined ? null : sizeOf(slot.node.id) }))
         const widest = sized.reduce((m, { size }) => max(m, size === null ? laneSize : size.width), 0)
-        const slots = toArray(stateScan(placeSlot(left)(widest))(margin)(sized))
-        return [{ end: left + widest, slots }, left + widest + rankGap]
+        const top = margin + (align ? (tallest - columnHeights[rank]) / 2 : 0)
+        const offsets = toArray(stateScan(offsetOf)(0)(sized))
+        const tops = align ? fittedTops(sized.map(({ slot, size }, i) => {
+            const incoming = size === null ? [prior.heights.get(/** @type {number} */ (slot.lane))]
+                : edges.flatMap(({ to, back }, index) => to === /** @type {Ranked} */ (slot.node).id && back !== true ? [prior.heights.get(index)] : [])
+            const heights = incoming.filter(h => h !== undefined)
+            return heights.length === 0 ? top + offsets[i]
+                : heights.reduce((sum, y) => sum + y, 0) / heights.length - (size === null ? laneSize : size.height) / 2
+        }), offsets, tallest - columnHeights[rank]) : offsets.map(offset => top + offset)
+        const place = placeSlot(left)(widest)
+        const slots = sized.map((sized, i) => place(sized, tops[i]))
+        const heights = align ? slots.flatMap(({ node, lane }) => node === undefined
+            ? [/** @type {const} */ ([/** @type {_Lane} */ (lane).index, /** @type {_Lane} */ (lane).y])]
+            : edgeHeightsOf(node)) : []
+        return [{ end: left + widest, slots }, { left: left + widest + rankGap, heights: new Map([...prior.heights, ...heights]) }]
     }
-    const placedColumns = toArray(stateScan(placeColumn)(left)(columns))
+    const placedColumns = toArray(stateScan(placeColumn)({ left, heights: new Map() })(columns.map((column, rank) => /** @type {const} */ ([rank, column]))))
     const placed = placedColumns.flatMap(column => column.slots)
+    const placedNodes = placed.flatMap(p => p.node === undefined ? [] : [p.node])
+    // where each edge leaves its node, from the top of the graph
+    const heights = new Map(placedNodes.flatMap(edgeHeightsOf))
     return {
-        nodes: placed.flatMap(p => p.node === undefined ? [] : [p.node]),
+        nodes: placedNodes,
         lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
         ends: placedColumns.map(column => column.end),
+        backs: backLanesOf(backRanks.map(back => ({ ...back, y: /** @type {number} */ (heights.get(back.index)) }))),
     }
 }
 
@@ -491,12 +759,28 @@ const layout = left => nodes => edges => {
  * running right first, it turns only in the gap between columns, where
  * there are no boxes.
  *
+ * **A back edge goes around the graph, not through it**: right from its
+ * port into the gap after its column, down to its lane below every node
+ * and lane, left along it to the gap before its target's column, and up
+ * into its target's left side. It turns only in gaps and below the graph,
+ * so it crosses no box either, and its lane keeps it off every other
+ * return ({@link backLanesOf}). Return entry points spread down the target
+ * in gap order: the outermost route enters highest, keeping these final
+ * segments distinct.
+ *
  * @type {(placed: _Placed) => readonly _Route[]}
  */
 const routesOf = placed => {
     const byId = new Map(placed.nodes.map(p => [p.id, p]))
     const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
+    const bottom = maxOf([...placed.nodes.map(p => p.y + p.height), ...placed.lanes.map(lane => lane.y + laneSize / 2)])
+    const targets = new Map(placed.nodes.flatMap(node => [...node.ports, ...node.exits].map(({ index, edge }) => [index, edge.to])))
+    const entries = new Map(placed.nodes.flatMap(({ id }) => {
+        const returning = [...placed.backs].filter(([index]) => targets.get(index) === id)
+            .toSorted((a, b) => b[1].into - a[1].into)
+        return returning.map(([index], i) => /** @type {const} */ ([index, (i + 1) / (returning.length + 1)]))
+    }))
     /** @type {(from: _Positioned) => readonly (readonly [_Out, number])[]} */
     const leaving = from => [
         ...from.ports.map(port => /** @type {const} */ ([port, port.y + portHeight / 2])),
@@ -508,17 +792,27 @@ const routesOf = placed => {
         const to = at(target)
         const y = from.y + offset
         const right = from.x + from.width
+        const middle = to.y + to.height / 2
+        /** @type {(back: _BackLane) => readonly _Point[]} */
+        const around = ({ lane, out, into }) => {
+            const down = placed.ends[from.rank] + laneSize * (out + 1)
+            const up = to.x - laneSize * (into + 1) - backEntryPadding
+            const below = bottom + laneSize * (lane + 1)
+            const entry = to.y + to.height * assertNotNullish(entries.get(port.index))
+            return [[right, y], [down, y], [down, below], [up, below], [up, entry], [to.x, entry]]
+        }
+        const back = placed.backs.get(port.index)
         /** @type {readonly _Point[]} */
-        const points = [
+        const points = back !== undefined ? around(back) : [
             [right, y],
             ...(right < placed.ends[from.rank] ? [/** @type {_Point} */ ([placed.ends[from.rank], y])] : []),
             ...Array.from({ length: to.rank - from.rank - 1 }, (_, i) => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
             }).flat(),
-            [to.x, to.y + to.height / 2],
+            [to.x, middle],
         ]
-        return [{ edge: port.edge, points }]
+        return [{ edge: port.edge, index: port.index, to: target, points }]
     }))
 }
 
@@ -568,9 +862,13 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  * the two — a child of a tree is a corner and a row is a value — so the
  * graph is refused rather than given room for both.
  *
+ * **A node's groups must take its rows**, every one of them and at least
+ * one each: a row left over would have no cell beside it, and a group with
+ * no row would be a cell with no height.
+ *
  * @type {(g: Graph) => _Placed}
  */
-const placedOf = ({ nodes, edges, entries = [] }) => {
+const placedOf = ({ nodes, edges, entries = [], centerColumns = false }) => {
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
@@ -586,7 +884,11 @@ const placedOf = ({ nodes, edges, entries = [] }) => {
     const fromCorners = new Set(edges.flatMap(({ from, corner }) => corner === undefined ? [] : [from]))
     const mixed = edges.findIndex(({ from, to, corner }) => corner === undefined && typeof to === 'number' && fromCorners.has(from))
     if (mixed !== -1) { throw `graph: edge ${mixed} leaves a row of node ${edges[mixed].from}, whose other arrows leave from its corners` }
-    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
+    const misgrouped = nodes.find(({ id, groups }) => groups !== undefined && (
+        groups.some(([, rows]) => rows < 1)
+        || groups.reduce((n, [, rows]) => n + rows, 0) !== edges.filter(e => e.from === id && e.corner === undefined).length))
+    if (misgrouped !== undefined) { throw `graph: node ${misgrouped.id}'s groups do not take its rows, at least one each` }
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, centerColumns)
 }
 
 /**
@@ -624,6 +926,23 @@ const radius = /** @type {const} */ (4)
 const clipIdOf = p => `graph-clip-${p.x}-${p.y}-${p.width}-${p.height}`
 
 /**
+ * The cells of a node's label column: one per group, each beside its own
+ * rows, `y` measured from the node's top edge — or none, for a node
+ * without groups, whose label is the one column.
+ *
+ * @type {(p: _Positioned) => readonly { readonly label: string, readonly y: number, readonly height: number }[]}
+ */
+const groupCellsOf = ({ groups = [] }) => toArray(stateScan(
+    /** @type {StateScan<readonly [string, number], number, { readonly label: string, readonly y: number, readonly height: number }>} */
+    (([label, rows], row) => [{ label, y: row * portHeight, height: rows * portHeight }, row + rows]))(0)(groups))
+
+/** @type {(p: _Positioned) => (attrs: StringMap<string>) => readonly Element[]} */
+const titleTraceOf = p => attrs => p.title === 0 ? [] : [/** @type {Element} */ (['rect', {
+    x: String(p.x), y: String(p.y), width: String(p.title), height: String(p.height), rx: String(radius),
+    'data-graph-trace': '', ...attrs,
+}])]
+
+/**
  * A graph, drawn: a node per {@link Ranked}, an edge per {@link Edge},
  * ranked by longest path from the root, left to right.
  *
@@ -651,25 +970,84 @@ const clipIdOf = p => `graph-clip-${p.x}-${p.y}-${p.width}-${p.height}`
  * as wide as its ranks or its ports make it, often wider than the page,
  * and without the container the whole page would scroll with it.
  *
+ * **Tracing is opt-in.** `Graph.trace` makes each complete connection a
+ * native focus target with a wider transparent hit area. Hover or focus
+ * highlights its route, source port and destination title; clicking gives it persistent
+ * focus, and Tab moves to the next connection. Bundled returns keep every
+ * logical route so one source can still be followed through a shared run.
+ * Hovering a reference cell traces that route and outlines only that cell;
+ * its adjacent key is inactive. A port without a separate reference cell
+ * keeps its single-cell interaction.
+ * Hovering a node name traces only its incoming connections and their
+ * source ports. Nodes without visible port cells use their title block.
+ * The SVG's own CSS relationships use numeric identities,
+ * not display names.
+ *
  * @type {(g: Graph) => Element}
  */
 export const graphSvg = g => {
     const placed = placedOf(g)
     const positioned = placed.nodes
+    const routes = routesOf(placed)
+    // A back edge's route is the one thing outside every node and lane.
+    const corners = routes.flatMap(({ points }) => points)
     const width = margin + maxOf([
         ...positioned.map(p => p.x + p.width),
         ...placed.lanes.map(lane => lane.right),
+        ...corners.map(([x]) => x),
     ])
     const height = margin + maxOf([
         ...positioned.map(p => p.y + p.height),
         ...placed.lanes.map(lane => lane.y + laneSize / 2),
+        ...corners.map(([, y]) => y),
     ])
-    /** @type {readonly Element[]} */
-    const edgeEls = routesOf(placed).map(({ edge, points }) => ['path', {
-        d: `M${points.map(([x, y]) => `${x},${y}`).join(' L')}`,
-        'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
-        ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
-    }])
+    /** @type {(id: number) => _Positioned} */
+    const nodeOf = id => assertNotNullish(positioned.find(n => n.id === id))
+    const fade = fadeOf(nodeOf)
+    const keyed = positioned.some(p => p.key !== undefined)
+    // A keyed graph's routes all have one more point than their bend, a
+    // straight run doubled, so one route's shape can slide into another's.
+    /** @type {(points: readonly _Point[]) => readonly _Point[]} */
+    const even = points => keyed && points.length === 2 ? [points[0], ...points] : points
+    // An edge's slot among the edges leaving its node tells two edges
+    // between the same nodes apart.
+    /** @type {(index: number, from: number) => number} */
+    const slotOf = (index, from) => g.edges.slice(0, index).filter(e => e.from === from).length
+    /** @type {readonly { readonly line: Element, readonly trace: readonly Element[] }[]} */
+    const edgeEls = routes.map(({ edge, index, to, points }) => {
+        const from = nodeOf(edge.from)
+        const target = nodeOf(to)
+        const d = `M${even(points).map(([x, y]) => `${x},${y}`).join(' L')}`
+        const line = /** @type {Element} */ (['path', {
+            d, 'data-graph-edge': '',
+            'marker-end': 'url(#graph-arrow)',
+            ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
+            ...fade(edge.from, to),
+            ...pathKeyOf('edge', from.key, String(slotOf(index, edge.from)), target.key),
+        }])
+        if (g.trace !== true) { return { line, trace: [] } }
+        const sourcePorts = from.ports.filter(port => port.index === index && from.title < from.width)
+        const description = `${from.label} [${edge.label}] → ${target.label}${edge.back === true ? ' (recursive)' : ''}`
+        return { line, trace: [/** @type {Element} */ (['g', {
+            'data-graph-connection': String(index), tabindex: '0', role: 'group', 'aria-label': description,
+            'data-graph-from': String(edge.from), 'data-graph-to': String(to),
+            ...pathKeyOf('connection', from.key, String(slotOf(index, edge.from)), target.key),
+        },
+            ['title', description],
+            ['path', { d, 'data-graph-hit': '' }],
+            ['path', { d, 'data-graph-trace': '', 'marker-end': 'url(#graph-trace-arrow)' }],
+            ...titleTraceOf(target)({ 'data-graph-title-outline': String(to) }),
+            ...(sourcePorts.length === 0 && edge.from !== to ? titleTraceOf(from)({ 'data-graph-title-outline': String(edge.from) }) : []),
+            ...sourcePorts.map(port => {
+                const key = port.ref === null ? 0 : keyWidthOf(from)(port)
+                return /** @type {Element} */ (['rect', {
+                    x: String(from.x + from.title + key), y: String(from.y + port.y),
+                    width: String(from.width - from.title - key), height: String(portHeight), rx: String(radius),
+                    'data-graph-trace': '', 'data-graph-port-outline': String(index),
+                }])
+            }),
+        ])] }
+    })
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge
     // would arrive.
@@ -680,42 +1058,65 @@ export const graphSvg = g => {
             d: `M${p.x - entryLength},${y} L${p.x},${y}`,
             'data-graph-edge': '', 'data-graph-entry': '', 'marker-end': 'url(#graph-arrow)',
             ...(kind === undefined ? {} : { 'data-graph-edge-kind': kind }),
+            ...fade(p.id, p.id),
+            ...pathKeyOf('entry', p.key),
         }])
     }))
-    /**
-     * How wide a port's key cell is: the whole row for an edge, nothing for
-     * a value with an empty key, and the key column for any other value.
-     * A row starts right of the label's column, `p.title` in.
-     *
-     * @type {(p: _Positioned) => (port: _Port) => number}
-     */
-    const keyWidthOf = p => port => inlineOf(port.edge) === null ? p.width - p.title
-        : port.edge.label === '' ? 0
-        : p.keyWidth
+    /** @type {(port: _Port) => { readonly 'data-graph-port-edge'?: string }} */
+    const portAttrOf = port => g.trace === true && typeof port.edge.to === 'number'
+        ? { 'data-graph-port-edge': String(port.index) } : {}
+    /** @type {(port: _Port) => { readonly 'data-graph-port-edge'?: string }} */
+    const keyPortAttrOf = port => port.ref === null ? portAttrOf(port) : {}
+    /** @type {(id: number) => { readonly 'data-graph-node-name'?: string }} */
+    const nameAttrOf = id => g.trace === true ? { 'data-graph-node-name': String(id) } : {}
+    // A keyed graph draws its keyed groups in an order of their own, by
+    // key, in a layer each: a page that patches it then finds a node's
+    // group among the same siblings, in the same order, from one drawing
+    // to the next, and never has to move it. Its edges are a layer too,
+    // sorted by key the same way, so the label layer after them stays the
+    // same element however many edges a drawing has, and an edge between
+    // nodes that stay is the same path, its route sliding with them.
+    /** @type {(el: Element) => string} */
+    const keyAttrOf = el => /** @type {{ readonly 'data-key'?: string }} */ (/** @type {readonly unknown[]} */ (el)[1])['data-key'] ?? ''
+    /** @type {(els: readonly Element[]) => readonly Element[]} */
+    const byKey = els => keyed ? els.toSorted((a, b) => keyAttrOf(a) < keyAttrOf(b) ? -1 : 1) : els
+    const drawn = keyed ? positioned.toSorted((a, b) => String(a.key) < String(b.key) ? -1 : 1) : positioned
+    /** @type {(els: readonly Element[]) => readonly Element[]} */
+    const layer = els => keyed ? [['g', ...els]] : els
     /** @type {readonly Element[]} */
-    const boxEls = positioned.map(p => ['g', inKindOf(p),
+    const boxEls = drawn.map(at => {
+        const { local: p, group } = placeOf(at)
+        return /** @type {Element} */ (['g', { ...inKindOf(p), ...group('box') },
         /** @type {Element} */ (['rect', {
             x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-node': '', 'data-graph-kind': p.kind,
         }]),
-        ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(p)})` },
+        ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(at)})` },
+            ...groupCellsOf(p).map(cell => /** @type {Element} */ (['rect', {
+                x: String(p.x), y: String(p.y + cell.y), width: String(p.title), height: String(cell.height),
+                'data-graph-group': '',
+            }])),
             ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x + p.title), y: String(p.y + port.y),
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-port': '',
+                ...keyPortAttrOf(port),
             }])]),
-            ...p.ports.flatMap(port => inlineOf(port.edge) === null ? [] : [/** @type {Element} */ (['rect', {
+            ...p.ports.flatMap(port => valueOf(port) === null ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x + p.title + keyWidthOf(p)(port)), y: String(p.y + port.y),
                 width: String(p.width - p.title - keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-value': '',
-                // A value with no key is the whole row, so it is left
-                // unfilled: a tint across every row would hide the node's
-                // own fill, which is what its kind is drawn with.
+                ...portAttrOf(port),
+                // A value with no key is the whole row: marked, so a
+                // stylesheet can leave it unfilled where a tint across
+                // every row would hide the node's own fill.
                 ...(keyWidthOf(p)(port) === 0 ? { 'data-graph-value-alone': '' } : {}),
+                ...refAttrOf(port),
                 ...valueKindOf(port.edge),
                 // An edge carries its kind on its line; a value has no
                 // line, so its cell carries the kind instead.
-                ...(port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
+                ...(port.ref !== null || port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
+                ...clickOf(port.edge),
             }])]),
         ]),
         // The node's border again, over its cells: their thinner lines
@@ -724,41 +1125,78 @@ export const graphSvg = g => {
             x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-outline': '',
         }])]),
-    ])
+        ...(g.trace === true ? titleTraceOf(p)({ 'data-graph-title-hover': String(p.id) }) : []),
+        ])
+    })
     /** @type {readonly Element[]} */
-    const clipEls = positioned.flatMap(p => p.ports.length === 0 ? [] : [/** @type {Element} */ (['clipPath', { id: clipIdOf(p) },
-        ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])])
+    const clipEls = positioned.flatMap(at => {
+        const { local: p } = placeOf(at)
+        return p.ports.length === 0 ? [] : [/** @type {Element} */ (['clipPath', { id: clipIdOf(at) },
+            ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])]
+    })
     /** @type {readonly Element[]} */
-    const labelEls = positioned.map(p => ['g', inKindOf(p),
-        ...(p.label === '' ? [] : [/** @type {Element} */ (['text', {
-            x: String(p.x + p.title / 2), y: String(p.y + p.height / 2),
-            'text-anchor': 'middle', 'data-graph-label': '',
-        }, p.label])]),
+    const labelEls = drawn.map(at => {
+        const { local: p, group } = placeOf(at)
+        return /** @type {Element} */ (['g', { ...inKindOf(p), ...group('text') },
+        ...(p.groups !== undefined
+            ? groupCellsOf(p).map(cell => /** @type {Element} */ (['text', {
+                x: String(p.x + p.title / 2), y: String(p.y + cell.y + cell.height / 2),
+                'text-anchor': 'middle', 'data-graph-label': '',
+                ...nameAttrOf(p.id),
+            }, cell.label]))
+            : p.label === '' ? [] : [/** @type {Element} */ (['text', {
+                x: String(p.x + p.title / 2), y: String(p.y + p.height / 2),
+                'text-anchor': 'middle', 'data-graph-label': '',
+                ...nameAttrOf(p.id),
+            }, p.label])]),
         ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.title + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',
+            ...keyPortAttrOf(port),
         }, port.edge.label])]),
         ...p.ports.flatMap(port => {
             const { to } = port.edge
-            return typeof to === 'number' ? [] : [/** @type {Element} */ (['text', {
+            const at = {
                 x: String(p.x + (p.title + keyWidthOf(p)(port) + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
                 'text-anchor': 'middle', 'data-graph-value-label': '',
+            }
+            return port.ref !== null ? [/** @type {Element} */ (['text', { ...at, ...refAttrOf(port), ...portAttrOf(port) }, port.ref])]
+                : typeof to === 'number' ? [] : [/** @type {Element} */ (['text', {
+                ...at,
                 ...valueKindOf(port.edge),
+                ...(to.click === undefined ? {} : { 'pointer-events': 'none' }),
             }, ...(to.parts === undefined ? [to.inline]
                 : to.parts.map(([text, kind]) => /** @type {Element} */ (['tspan', { 'data-graph-part': kind }, text])))])]
         }),
-    ])
-    return ['div', { 'data-graph': '' }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
+        ])
+    })
+    return ['div', { 'data-graph': '', ...(g.trace === true ? { tabindex: '-1' } : {}) }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
+        ...(g.trace === true ? [/** @type {Element} */ (['style', { 'data-graph-trace-style': '' },
+            // Numeric identities keep the selectors independent of labels.
+            // Each :has is scoped to its SVG, so equal ids in another graph
+            // on the same page do not share a hover state.
+            ...positioned.map(p => `svg:has([data-graph-node-name="${p.id}"]:hover) [data-graph-to="${p.id}"] [data-graph-trace] { opacity: 1 }\n`),
+            ...positioned.map(p => `svg:has([data-graph-node-name="${p.id}"]:hover) [data-graph-title-hover="${p.id}"] { opacity: 1 }\n`),
+            ...routes.map(r => `svg:has([data-graph-port-edge="${r.index}"]:hover) [data-graph-connection="${r.index}"] [data-graph-trace] { opacity: 1 }\n`),
+        ])] : []),
         ['defs',
             ['marker', {
                 id: 'graph-arrow', viewBox: '0 0 10 10', refX: '9', refY: '5',
                 markerWidth: '6', markerHeight: '6', orient: 'auto',
             },
                 ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-arrow': '' }]],
+            ...(g.trace === true ? [/** @type {Element} */ (['marker', {
+                id: 'graph-trace-arrow', viewBox: '0 0 10 10', refX: '9', refY: '5',
+                markerWidth: '6', markerHeight: '6', orient: 'auto',
+            }, ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-trace-arrow': '' }]])] : []),
             ...clipEls],
-        ...boxEls,
-        ...edgeEls,
-        ...entryEls,
-        ...labelEls,
+        ...layer(boxEls),
+        ...layer(byKey([...edgeEls.map(({ line }) => line), ...entryEls])),
+        // SVG paints siblings in order: all ordinary arrows must precede
+        // every selection overlay, including routes listed earlier.
+        ...(g.trace === true ? [/** @type {Element} */ (['g', { 'data-graph-trace-layer': '' },
+            ...byKey(edgeEls.flatMap(({ trace }) => trace)),
+        ])] : []),
+        ...layer(labelEls),
     ]]
 }

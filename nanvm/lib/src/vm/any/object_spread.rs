@@ -19,8 +19,8 @@ impl<A: IVm> Any<A> {
     pub fn object_spread(self) -> ObjectSpread<A> {
         match self.into() {
             Unpacked::Object(object) => ObjectSpread::Object(object.own_entries().into_iter()),
-            Unpacked::Array(array) => ObjectSpread::Array { array, next: 0 },
-            Unpacked::String(string) => ObjectSpread::String { string, next: 0 },
+            Unpacked::Array(array) => ObjectSpread::Array(array.into_iter().enumerate()),
+            Unpacked::String(string) => ObjectSpread::String(string.into_iter().enumerate()),
             _ => ObjectSpread::Empty,
         }
     }
@@ -34,8 +34,8 @@ impl<A: IVm> Any<A> {
     ///
     /// The code of the static function no FunctionalScript body defines,
     /// enumerating keys being what the language has no other way to do:
-    /// [`object_entries`](crate::vm::object_entries), the built-in
-    /// identified by its name, calls it.
+    /// `Object.entries` in the runtime value is a closure over it
+    /// (`fjs/js/runtime/README.md`, "How NaNVM finds it").
     pub fn entries(self) -> Result<Self, Self> {
         non_nullish_receiver(self.clone())?;
         Ok(self

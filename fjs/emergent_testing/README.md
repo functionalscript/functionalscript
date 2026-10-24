@@ -300,7 +300,7 @@ surprising.
 As a consequence, **exporting a function named `then` from a proof module is
 forbidden**: the module namespace object would become a thenable, corrupting
 dynamic `import()` resolution. See
-[spec/modules/exports.md](../../spec/modules/exports.md).
+[spec/modules/exports/README.md](../../spec/modules/exports/README.md).
 
 ## The two runners, and what sharing them cost
 
@@ -352,7 +352,7 @@ that became an *operation* — and naming it is what turned an injected `importe
 parameter into an interpreter's handler. It appeared to need a fan-out as well;
 it needed sequencing, which an effect already is.
 
-**Pure logic that reads a *user* value is not impure, it is effectful.**
+**Pure logic that reads a user value is not impure, it is effectful.**
 `errorDetails` and `text` are pure in substance and both need `try`/`catch`,
 which FunctionalScript does not have — reading `message` or `stack`, or calling
 `String`, runs the value's own code. They are effects over `catch` rather than

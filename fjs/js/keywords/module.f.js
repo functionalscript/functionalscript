@@ -69,15 +69,15 @@ export const literalWords = /** @type {const} */ ([
  * keywords: a module may not bind, assign or shadow one, and none is a
  * value a module can name — each is spelled only where the language admits
  * it: `Array` as the right operand of `instanceof`
- * ([spec: instanceof](../../../spec/operators/instanceof.md)), `Number` as
+ * ([spec: instanceof](../../../spec/operators/instanceof/README.md)), `Number` as
  * the callee of the conversion `Number(exp)`
- * ([spec: number conversion](../../../spec/conversions/number.md)),
+ * ([spec: number conversion](../../../spec/conversions/number/README.md)),
  * `Object` and `Number` as the namespaces of the static functions
  * [`../static`](../static/module.f.js) admits, and `Object` as the `entry` helper's
  * `Object.getOwnPropertyDescriptor`
- * ([spec: built-in static functions](../../../spec/built-ins/static-functions.md)),
+ * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
  * and `String` as the callee of the conversion `String(exp)`
- * ([spec: string conversion](../../../spec/conversions/string.md)).
+ * ([spec: string conversion](../../../spec/conversions/string/README.md)).
  * The first names under
  * [global-names](../../../spec/todo/2365-global-names.md)' rule.
  *

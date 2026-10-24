@@ -22,7 +22,7 @@ only on previous commands.
 
 |format|any                     |          |Notes                                           |
 |------|------------------------|----------|------------------------------------------------|
-|DJS   |const_ref               |u32       |[const](../bindings/constants.md)                       |
+|DJS   |const_ref               |u32       |[const](../bindings/constants/README.md)                       |
 |      |bigint_plus             |Array<u64>|[bigint](../values/README.md)                     |
 |      |bigint_minus            |Array<u64>|[bigint](../values/README.md)                     |
 |      |undefined               |          |[undefined](../values/README.md)               |
@@ -30,7 +30,7 @@ only on previous commands.
 |      |instance_property       |          |[property-accessor](../todo/2330-property-accessor.md)|
 |      |instance_method_call    |          |[property-accessor](../todo/2330-property-accessor.md)|
 |      |at                      |          |[property-accessor](../todo/2330-property-accessor.md)|
-|      |operators               |          |[operators](../todo/2340-operators.md)                |
+|      |operators               |          |[operators](../operators/README.md)                   |
 
 ## FJS commands
 

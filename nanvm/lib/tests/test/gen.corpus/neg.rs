@@ -2,41 +2,41 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("null", -(Nullish::Null.to_any()), f64_any(0x8000000000000000));
-    check::<A>("undefined", -(Nullish::Undefined.to_any()), f64_any(0x7ff8000000000000));
-    check::<A>("booleanFalse", -(false.to_any()), f64_any(0x8000000000000000));
-    check::<A>("booleanTrue", -(true.to_any()), f64_any(0xbff0000000000000));
-    check::<A>("numberZero", -(f64_any(0x0000000000000000)), f64_any(0x8000000000000000));
-    check::<A>("numberPositive", -(f64_any(0x4002666666666666)), f64_any(0xc002666666666666));
-    check::<A>("numberNegative", -(f64_any(0xc002666666666666)), f64_any(0x4002666666666666));
-    check::<A>("numberLarge", -(f64_any(0xc06de00000000000)), f64_any(0x406de00000000000));
-    check::<A>("numberInfinity", -(f64_any(0x7ff0000000000000)), f64_any(0xfff0000000000000));
-    check::<A>("numberNegativeInfinity", -(f64_any(0xfff0000000000000)), f64_any(0x7ff0000000000000));
-    check::<A>("numberNan", -(f64_any(0x7ff8000000000000)), f64_any(0x7ff8000000000000));
-    check::<A>("stringEmpty", -(string_any("")), f64_any(0x8000000000000000));
-    check::<A>("stringZero", -(string_any("0")), f64_any(0x8000000000000000));
-    check::<A>("stringNumber", -(string_any("2.3")), f64_any(0xc002666666666666));
-    check::<A>("stringExponent", -(string_any("2.3e2")), f64_any(0xc06cc00000000000));
-    check::<A>("stringNotANumber", -(string_any("a")), f64_any(0x7ff8000000000000));
-    check::<A>("arrayEmpty", -(Array::default().to_any()), f64_any(0x8000000000000000));
-    check::<A>("arrayNumber", -([f64_any(0x4002666666666666)].to_array().to_any()), f64_any(0xc002666666666666));
-    check::<A>("arrayNegativeNumber", -([f64_any(0xbfd3333333333333)].to_array().to_any()), f64_any(0x3fd3333333333333));
-    check::<A>("arrayString", -([string_any("-2.3")].to_array().to_any()), f64_any(0x4002666666666666));
-    check::<A>("arrayPositiveString", -([string_any("0.3")].to_array().to_any()), f64_any(0xbfd3333333333333));
-    check::<A>("arrayNull", -([Nullish::Null.to_any()].to_array().to_any()), f64_any(0x8000000000000000));
-    check::<A>("arrayPair", -([Nullish::Null.to_any(), Nullish::Null.to_any()].to_array().to_any()), f64_any(0x7ff8000000000000));
-    check::<A>("objectEmpty", -(Object::default().to_any()), f64_any(0x7ff8000000000000));
-    check::<A>("objectOwnValueOf", -([(string_key("valueOf"), function_any())].to_object().to_any()), f64_any(0x7ff8000000000000));
-    check::<A>("objectOwnValueOfNumber", -([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x4002666666666666)) }, 0, Array::default(), Some("()=>2.3")).to_any())].to_object().to_any()), f64_any(0xc002666666666666));
-    check::<A>("objectOwnToString", -([(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2.3")) }, 0, Array::default(), Some("()=>\"2.3\"")).to_any())].to_object().to_any()), f64_any(0xc002666666666666));
-    check::<A>("objectOwnBoth", -([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default(), Some("()=>\"2\"")).to_any())].to_object().to_any()), f64_any(0xbff0000000000000));
-    check::<A>("objectOwnValueOfNotAFunction", -([(string_key("valueOf"), string_any("x"))].to_object().to_any()), f64_any(0x7ff8000000000000));
-    check::<A>("objectOwnValueOfNotPrimitive", -([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(Object::default().to_any()) }, 0, Array::default(), Some("()=>{return {};}")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default(), Some("()=>\"2\"")).to_any())].to_object().to_any()), f64_any(0xc000000000000000));
-    check_throws::<A>("objectOwnNoPrimitive", -([(string_key("toString"), A::static_function(|_self, _args| { Ok(Array::default().to_any()) }, 0, Array::default(), Some("()=>[]")).to_any())].to_object().to_any()));
-    check_throws::<A>("objectOwnValueOfThrows", -([(string_key("valueOf"), A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default(), Some("()=>1n/0n")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default(), Some("()=>\"2\"")).to_any())].to_object().to_any()));
-    check::<A>("function", -(function_any()), f64_any(0x7ff8000000000000));
-    check::<A>("bigintPositive", -(bigint_any(1)), bigint_any(-1));
-    check::<A>("bigintNegative", -(bigint_any(-1)), bigint_any(1));
+    check::<A>("null", scope(|| { <Any<A> as core::ops::Neg>::neg(Nullish::Null.to_any()) }), f64_any(0x8000000000000000));
+    check::<A>("undefined", scope(|| { <Any<A> as core::ops::Neg>::neg(Nullish::Undefined.to_any()) }), f64_any(0x7ff8000000000000));
+    check::<A>("booleanFalse", scope(|| { <Any<A> as core::ops::Neg>::neg(false.to_any()) }), f64_any(0x8000000000000000));
+    check::<A>("booleanTrue", scope(|| { <Any<A> as core::ops::Neg>::neg(true.to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("numberZero", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0x0000000000000000)) }), f64_any(0x8000000000000000));
+    check::<A>("numberPositive", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0x4002666666666666)) }), f64_any(0xc002666666666666));
+    check::<A>("numberNegative", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0xc002666666666666)) }), f64_any(0x4002666666666666));
+    check::<A>("numberLarge", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0xc06de00000000000)) }), f64_any(0x406de00000000000));
+    check::<A>("numberInfinity", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0x7ff0000000000000)) }), f64_any(0xfff0000000000000));
+    check::<A>("numberNegativeInfinity", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0xfff0000000000000)) }), f64_any(0x7ff0000000000000));
+    check::<A>("numberNan", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0x7ff8000000000000)) }), f64_any(0x7ff8000000000000));
+    check::<A>("stringEmpty", scope(|| { <Any<A> as core::ops::Neg>::neg(string_any("")) }), f64_any(0x8000000000000000));
+    check::<A>("stringZero", scope(|| { <Any<A> as core::ops::Neg>::neg(string_any("0")) }), f64_any(0x8000000000000000));
+    check::<A>("stringNumber", scope(|| { <Any<A> as core::ops::Neg>::neg(string_any("2.3")) }), f64_any(0xc002666666666666));
+    check::<A>("stringExponent", scope(|| { <Any<A> as core::ops::Neg>::neg(string_any("2.3e2")) }), f64_any(0xc06cc00000000000));
+    check::<A>("stringNotANumber", scope(|| { <Any<A> as core::ops::Neg>::neg(string_any("a")) }), f64_any(0x7ff8000000000000));
+    check::<A>("arrayEmpty", scope(|| { <Any<A> as core::ops::Neg>::neg(Array::default().to_any()) }), f64_any(0x8000000000000000));
+    check::<A>("arrayNumber", scope(|| { <Any<A> as core::ops::Neg>::neg([f64_any(0x4002666666666666)].to_array().to_any()) }), f64_any(0xc002666666666666));
+    check::<A>("arrayNegativeNumber", scope(|| { <Any<A> as core::ops::Neg>::neg([f64_any(0xbfd3333333333333)].to_array().to_any()) }), f64_any(0x3fd3333333333333));
+    check::<A>("arrayString", scope(|| { <Any<A> as core::ops::Neg>::neg([string_any("-2.3")].to_array().to_any()) }), f64_any(0x4002666666666666));
+    check::<A>("arrayPositiveString", scope(|| { <Any<A> as core::ops::Neg>::neg([string_any("0.3")].to_array().to_any()) }), f64_any(0xbfd3333333333333));
+    check::<A>("arrayNull", scope(|| { <Any<A> as core::ops::Neg>::neg([Nullish::Null.to_any()].to_array().to_any()) }), f64_any(0x8000000000000000));
+    check::<A>("arrayPair", scope(|| { <Any<A> as core::ops::Neg>::neg([Nullish::Null.to_any(), Nullish::Null.to_any()].to_array().to_any()) }), f64_any(0x7ff8000000000000));
+    check::<A>("objectEmpty", scope(|| { <Any<A> as core::ops::Neg>::neg(Object::default().to_any()) }), f64_any(0x7ff8000000000000));
+    check::<A>("objectOwnValueOf", scope(|| { <Any<A> as core::ops::Neg>::neg([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any())].to_object().to_any()) }), f64_any(0x7ff8000000000000));
+    check::<A>("objectOwnValueOfNumber", scope(|| { <Any<A> as core::ops::Neg>::neg([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x4002666666666666)) }, 0, Array::default(), Some("()=>2.3")).to_any())].to_object().to_any()) }), f64_any(0xc002666666666666));
+    check::<A>("objectOwnToString", scope(|| { <Any<A> as core::ops::Neg>::neg([(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2.3")) }, 0, Array::default(), Some("()=>\"2.3\"")).to_any())].to_object().to_any()) }), f64_any(0xc002666666666666));
+    check::<A>("objectOwnBoth", scope(|| { <Any<A> as core::ops::Neg>::neg([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default(), Some("()=>\"2\"")).to_any())].to_object().to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("objectOwnValueOfNotAFunction", scope(|| { <Any<A> as core::ops::Neg>::neg([(string_key("valueOf"), string_any("x"))].to_object().to_any()) }), f64_any(0x7ff8000000000000));
+    check::<A>("objectOwnValueOfNotPrimitive", scope(|| { <Any<A> as core::ops::Neg>::neg([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(Object::default().to_any()) }, 0, Array::default(), Some("()=>{return {};}")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default(), Some("()=>\"2\"")).to_any())].to_object().to_any()) }), f64_any(0xc000000000000000));
+    check_throws::<A>("objectOwnNoPrimitive", scope(|| { <Any<A> as core::ops::Neg>::neg([(string_key("toString"), A::static_function(|_self, _args| { Ok(Array::default().to_any()) }, 0, Array::default(), Some("()=>[]")).to_any())].to_object().to_any()) }));
+    check_throws::<A>("objectOwnValueOfThrows", scope(|| { <Any<A> as core::ops::Neg>::neg([(string_key("valueOf"), A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default(), Some("()=>1n/0n")).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default(), Some("()=>\"2\"")).to_any())].to_object().to_any()) }));
+    check::<A>("function", scope(|| { <Any<A> as core::ops::Neg>::neg(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any()) }), f64_any(0x7ff8000000000000));
+    check::<A>("bigintPositive", scope(|| { <Any<A> as core::ops::Neg>::neg(bigint_any(1)) }), bigint_any(-1));
+    check::<A>("bigintNegative", scope(|| { <Any<A> as core::ops::Neg>::neg(bigint_any(-1)) }), bigint_any(1));
 }

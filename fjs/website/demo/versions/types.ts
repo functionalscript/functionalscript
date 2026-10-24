@@ -7,6 +7,8 @@
  */
 
 import type { Demo, DemoEvent } from '../types.ts'
+import type { Effect } from '../../../effects/types.ts'
+import type { RandomInt } from '../../../effects/common/types.ts'
 import type { Corner, Graph, Inline } from '../graph/types.ts'
 
 /**
@@ -18,10 +20,12 @@ import type { Corner, Graph, Inline } from '../graph/types.ts'
  *   middle for a B-tree's middle one.
  * - A value with an empty `label` is drawn alone, filling its row, and
  *   `parts` draws it in pieces, as an {@link Inline}'s do.
+ * - A value with a `key` is that key, and a click on it moves the key:
+ *   removes it and inserts it again.
  */
 export type Row<N> =
     | { readonly to: N, readonly corner: Corner }
-    | { readonly label: string, readonly inline: string, readonly parts?: Inline['parts'] }
+    | { readonly label: string, readonly inline: string, readonly parts?: Inline['parts'], readonly key?: number }
 
 /**
  * How a reader types a key and reads one back: `parse` answers `null` for a
@@ -89,27 +93,34 @@ export type Structure<V, N> = {
     readonly shape: (versions: Versions<V>) => Shape<N>
 }
 
-/** The step behind the drawing. */
+/**
+ * The step behind the drawing: a key inserted, removed, or moved — removed
+ * and inserted again, which keeps the keys and may change the shape.
+ */
 export type Step = {
-    readonly op: 'insert' | 'remove'
+    readonly op: 'insert' | 'remove' | 'move'
     readonly key: number
 }
 
 /**
  * What the drawing shows: a preset as it was loaded — its name, and the
- * hint saying which button to press — or the step that turned the old
- * version into the new one.
+ * hint saying which button to press — a random version, built by inserting
+ * its keys in the order given, or the step that turned the old version into
+ * the new one.
  */
 export type Status =
     | { readonly preset: string, readonly hint: string }
+    | { readonly random: readonly number[] }
     | { readonly step: Step }
 
 /**
- * The demo's state: the key field as typed, the two versions, what they
- * show, and why the last press did nothing, if it did nothing.
+ * The demo's state: the key field and the count field as typed, the two
+ * versions, what they show, and why the last press did nothing, if it did
+ * nothing.
  */
 export type State<V> = {
     readonly key: string
+    readonly count: string
     readonly versions: Versions<V>
     readonly status: Status
     readonly error: string | null
@@ -132,13 +143,26 @@ export type Census = {
 }
 
 /**
+ * How a demo builds a random version: the most keys it takes, the count its
+ * field opens on, and the keys a count stands for. The keys go in in an
+ * order the host's `randomInt` picks.
+ */
+export type Random = {
+    readonly max: number
+    readonly count: number
+    readonly keys: (count: number) => readonly number[]
+}
+
+/**
  * Everything a demo of one structure says about itself.
  *
  * - `name` — the key field's `name` prefix and `id`, unique on its page;
  * - `noun` — what one version is called: `tree`, `trie`;
  * - `intro` — the paragraph above the controls;
  * - `keys` — how keys are typed and read back; any safe integer, in
- *   decimal, when it is absent.
+ *   decimal, when it is absent;
+ * - `random` — how to build a random version, for a **Generate** button;
+ *   none when it is absent.
  */
 export type Options<V, N> = {
     readonly structure: Structure<V, N>
@@ -147,17 +171,20 @@ export type Options<V, N> = {
     readonly intro: string
     readonly keys?: Keys | undefined
     readonly presets: readonly Preset[]
+    readonly random?: Random | undefined
 }
 
 /**
  * A versions demo, and the parts of it its proofs reach for: loading a
- * preset by name, pressing a button, the graph of two versions, and what a
+ * preset by name, pressing a button, clicking a key, the graph of two versions, and what a
  * step built.
  */
 export type VersionsDemo<V> = {
-    readonly demo: Demo<State<V>, DemoEvent>
+    readonly demo: Demo<State<V>, DemoEvent, RandomInt>
     readonly load: (name: string) => State<V>
-    readonly press: (op: Step['op']) => (state: State<V>) => State<V>
+    readonly press: (op: 'insert' | 'remove') => (state: State<V>) => State<V>
+    readonly move: (key: number) => (state: State<V>) => State<V>
+    readonly generate: (state: State<V>) => Effect<RandomInt, State<V>, never>
     readonly graphOf: (versions: Versions<V>) => Graph
     readonly census: (versions: Versions<V>) => Census
 }

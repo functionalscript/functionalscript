@@ -24,6 +24,8 @@ pub mod function;
 pub mod function_scope;
 pub mod function_text;
 pub mod guarded_calls;
+pub mod intrinsic;
+pub mod intrinsic_throws;
 pub mod lazy;
 pub mod length;
 pub mod method;

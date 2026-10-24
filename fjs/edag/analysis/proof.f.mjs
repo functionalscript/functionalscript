@@ -7,8 +7,8 @@
  * @import { Analysis, Node, Operand, Ref } from './types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, checked, identityAnalysis, itemOperand, operandsOf, scopeHolds } from './module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { analysis, checked, identityAnalysis, itemOperand, operandsOf, ownOperandsOf, scopeHolds } from './module.f.mjs'
 import { sharedNodesOf } from '../sharing/module.f.mjs'
 
 /**
@@ -48,8 +48,11 @@ const an = e => sound(assertOk(analysis(e)))
 /** The identity table, checked as every table is. @type {(e: Exp) => Analysis} */
 const identity = e => sound(assertOk(identityAnalysis(e)))
 
-/** @type {(e: Exp, expected: Analysis) => void} */
-const table = (e, expected) => { assertStructurallySame(an(e), expected) }
+/** The table but its `exps`, which `exps` below is about. @type {(e: Exp, expected: Omit<Analysis, 'exps'>) => void} */
+const table = (e, expected) => {
+    const { root, nodes, scope, shared } = an(e)
+    assertStructurallySame({ root, nodes, scope, shared }, expected)
+}
 
 /** The nodes of a table, when that is all a case is about. @type {(e: Exp) => readonly Node[]} */
 const nodesOf = e => an(e).nodes
@@ -82,8 +85,8 @@ export const proof = {
             [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
             // the constructor name is metadata, never an operand
             [['instanceof', a, 'Array'], [a]], [['instanceof', 'Array', 'Array'], ['Array']],
-            [['&&', false, a], [false, a]], [['||', true, b], [true, b]],
-            [['??', null, a], [null, a]], [['?:', true, a, b], [true, a, b]],
+            [['?:', false, a, false], [false, a, false]], [['?:', true, true, b], [true, true, b]],
+            [['?:', null, a, null], [null, a, null]], [['?:', true, a, b], [true, a, b]],
             [['[]', []], []], [['{}', []], []], [[',', []], []],
             [['[]', [a, ['...', b], '#', '=>', a]], [a, b, '#', '=>', a]],
             [['{}', [[':', a, b], [':', '#', '...'], ['...', a]]], [a, b, '#', '...', a]],
@@ -106,10 +109,31 @@ export const proof = {
             expected.forEach((operand, i) => assertEq(actual[i], operand))
         }
     },
+    // A function's own operands are its captures, without its body; every
+    // other node's are all of them.
+    ownOperandsOf: () => {
+        /** @type {Ref} */
+        const a = ['#', 0]
+        /** @type {Ref} */
+        const b = ['#', 1]
+        assertStructurallySame(ownOperandsOf(['=>', 2, [a, 42], b]), [a, 42])
+        assertStructurallySame(ownOperandsOf(['=>', 0, [], 7]), [])
+        assertStructurallySame(ownOperandsOf(['+', a, b]), [a, b])
+    },
     checked: () => {
         const a = an(first)
         assertEq(assertOk(checked(a)), a)
         assertEq(assertError(checked(an(['frame', 0]))), 'invalid frame slot index or scope')
+    },
+    constructorMetadata: () => {
+        // The constructor name survives graph numbering without becoming a
+        // value dependency, including when the operand has the same text.
+        assertStructurallySame(nodesOf(['instanceof', 'Array', 'Array']), [
+            ['instanceof', 'Array', 'Array'],
+        ])
+        assertStructurallySame(nodesOf(['instanceof', empty, 'Array']), [
+            ['[]', []], ['instanceof', ['#', 0], 'Array'],
+        ])
     },
     // `Object.is` is a value wherever one stands — a callee, the root, an
     // argument, an element, a captured slot, a receiver — and one function
@@ -257,7 +281,7 @@ export const proof = {
         const cfg = ['args']
         /** @type {Exp} */
         const read = ['.', cfg, 'a']
-        /** @type {Analysis} */
+        /** @type {Omit<Analysis, 'exps'>} */
         const merged = {
             root: ['#', 2],
             nodes: [['args'], ['.', ['#', 0], 'a'], ['[]', [['#', 1], ['#', 1]]]],
@@ -275,6 +299,9 @@ export const proof = {
         assertEq(nodesOf(['[]', [['?.', cfg, 'a'], ['?.', cfg, 'a']]]).length, 3)
         // the `entry` helper mints a function, as `=>` does: two are two
         assertEq(nodesOf(['[]', [['entry'], ['entry']]]).length, 3)
+        assertEq(nodesOf(['[]', [['hasEntry'], ['hasEntry']]]).length, 3)
+        // and so does an intrinsic's helper
+        assertEq(nodesOf(['[]', [['slice'], ['slice']]]).length, 3)
     },
     // Inputs are the same by `Object.is`: `0` and `-0` are different inputs,
     // so `1 / 0` and `1 / -0` stay two entries, `Infinity` and `-Infinity`;
@@ -289,8 +316,8 @@ export const proof = {
     },
     // Operators, the comma and the three operations with no operands merge
     // as reads do; an edge from a lazy position is an edge, so a node
-    // reached only through `&&`'s right operand is shared all the same,
-    // and the merged `&&` keeps every edge its occurrences gave `s`.
+    // reached only through a conditional arm is shared all the same,
+    // and the merged `?:` keeps every edge its occurrences gave `s`.
     operators: () => {
         assertEq(nodesOf(['[]', [['args'], ['args']]]).length, 2)
         assertEq(nodesOf(['[]', [['undefined'], ['undefined']]]).length, 2)
@@ -298,9 +325,9 @@ export const proof = {
         assertEq(nodesOf(['[]', [['?:', 1, 2, 3], ['?:', 1, 2, 3]]]).length, 2)
         /** @type {Exp} */
         const s = ['[]', [1]]
-        table(['[]', [['&&', ['args'], s], ['&&', ['args'], s]]], {
+        table(['[]', [['?:', ['args'], s, ['args']], ['?:', ['args'], s, ['args']]]], {
             root: ['#', 3],
-            nodes: [['args'], ['[]', [1]], ['&&', ['#', 0], ['#', 1]], ['[]', [['#', 2], ['#', 2]]]],
+            nodes: [['args'], ['[]', [1]], ['?:', ['#', 0], ['#', 1], ['#', 0]], ['[]', [['#', 2], ['#', 2]]]],
             scope: [-1, -1, -1, -1],
             shared: [0, 1, 2],
         })
@@ -420,6 +447,7 @@ export const proof = {
                 nodes: [['arg', 0], ['arg', 0], ['+', ['#', 0], ['#', 1]], ['+', ['#', 2], ['#', 2]], ['=>', 1, [], ['#', 3]]],
                 scope: [4, 4, 4, 4, -1],
                 shared: [2],
+                exps: [['arg', 0], ['arg', 0], x, ['+', x, x], e],
             })
             /** @type {() => Exp} */
             const twin = () => ['+', ['arg', 0], ['arg', 0]]
@@ -436,7 +464,7 @@ export const proof = {
             assertEq(identity(['[]', [['.', ['args'], 'a'], ['.', ['args'], 'a']]]).nodes.length, 5)
         },
         primitive: () => {
-            assertStructurallySame(identity(1), { root: 1, nodes: [], scope: [], shared: [] })
+            assertStructurallySame(identity(1), { root: 1, nodes: [], scope: [], shared: [], exps: [] })
         },
         // the count is `../sharing`'s, scope by scope: a frame's slot the
         // scope around the body's, and what the body shares the body's
@@ -453,6 +481,58 @@ export const proof = {
             assertStructurallySame(a.shared.map(i => a.nodes[i]), [['[]', []], ['.', ['#', 2], 0]])
             assertEq(a.shared.length, sharedNodesOf(e).length + sharedNodesOf(body).length)
             assertEq(assertError(identityAnalysis(['[]', [x, ['=>', 0, [], x]]])), 'a node shared across a function boundary')
+        },
+    },
+    // The expression each entry stands for: the node the walk was handed,
+    // where nothing merges, and the expression restored once from the table,
+    // with its sharing, where entries merge.
+    exps: {
+        identity: () => {
+            /** @type {Exp} */
+            const x = ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const body = ['+', x, x]
+            /** @type {Exp} */
+            const e = ['=>', 1, [], body]
+            const { exps } = identity(e)
+            assertEq(exps.length, 5)
+            assertEq(exps[2], x)
+            assertEq(exps[3], body)
+            assertEq(exps[4], e)
+        },
+        merged: () => {
+            /** @type {() => Exp} */
+            const twin = () => ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const e = ['=>', 1, [], ['+', twin(), twin()]]
+            const { nodes, exps } = an(e)
+            assertEq(exps.length, nodes.length)
+            assertStructurallySame(exps.at(-1), e)
+            // the twins are one entry, so one expression
+            const [, , , body] = /** @type {readonly ['=>', number, readonly Exp[], readonly ['+', Exp, Exp]]} */ (exps.at(-1))
+            assertEq(body[1], body[2])
+        },
+        // Every kind of position restores: items and spreads, properties,
+        // captures, a comma, calls, and chains with every kind of step.
+        restored: () => {
+            /** @type {Exp} */
+            const a = ['args']
+            /** @type {Exp} */
+            const e = ['[]', [
+                ['[]', [a, ['...', a]]],
+                ['{}', [[':', 'k', a], ['...', a]]],
+                ['=>', 0, [a], ['frame', 0]],
+                [',', [a, 1]],
+                ['()', a, [a, ['...', a]]],
+                ['?.()', a, [a]],
+                ['?.()', a, [], ['|.', 'm', ['|?.()', []]]],
+                ['.', a, 'k'],
+                ['.', a, 'k', ['|()', [a]]],
+                ['.', a, 'k', ['|?.()', [a], ['|.', 'm', ['|!()', [a]]]]],
+                ['?.', a, 'k', ['|()', [a], ['|.', 'm']]],
+            ]]
+            const { exps } = an(e)
+            assertStructurallySame(exps.at(-1), e)
         },
     },
     // A node reached from two scopes is not a graph the compiler emits, and

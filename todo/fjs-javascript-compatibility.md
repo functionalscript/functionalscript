@@ -98,7 +98,7 @@ does; `fjs/compiler/parser/proof.f.mjs` holds the refusals and the valid
 `(-2) ** 2` and `-(2 ** 2)`. What is left is the comparison against a native
 JavaScript engine's early errors, and extending that gate to the
 logical/nullish operators and parameter syntax, which have since landed. The
-[operator plan](../spec/todo/2340-operators.md) owns the operators.
+[operators specification](../spec/operators/README.md) owns the operators.
 
 #### Pattern instructions — proposed bypass, rules 1 and 2
 
@@ -106,19 +106,19 @@ logical/nullish operators and parameter syntax, which have since landed. The
 and expressions have already been recognized correctly.**
 
 The former `entry` design, since landed as
-[the helper](../spec/property-access/entries.md), proposed a fixed token
+[the helper](../spec/property-access/entries/README.md), proposed a fixed token
 shape that could bypass syntactic support for the constructs inside it.
 Ignoring whitespace before statement recognition is the root problem, not a
 missing newline exception in one intrinsic. This whitespace-only change to the
-helper returns `undefined` in JavaScript, not `[7]`:
+helper returns `undefined` in JavaScript, not `7`:
 
 ```js
 const entry = (a, b) => {const x = Object.getOwnPropertyDescriptor(a, b);return
-x?.enumerable ? [x.value] : []}
+x?.enumerable ? x.value : undefined}
 export default entry({ answer: 7 }, "answer");
 ```
 
-There is no extra semicolon after the final `[]`: only the space after
+There is no extra semicolon after the final `undefined`: only the space after
 `return` changed to a newline. Separately, this arrow is invalid JavaScript:
 
 ```js
@@ -205,11 +205,12 @@ result of the program, so the `.js` writer's names — a hoisted function
 bound as `$0`, an inlined one taking the name of the position it is written
 in — are no compatibility question, and neither is the function text the
 exception above covers. No FJS program reads a function's name at all:
-[`entry`](../spec/property-access/entries.md) replaced the own-property read with
+[`entry`](../spec/property-access/entries/README.md) replaced the own-property read with
 the enumerable-entry helper so that it cannot — `person.name` is enumerable
 where `f.name` and `f.length` are not — and retired the proposals that would
 have exposed it, `own-access.md` and `function-name.md`, in `4f4da828`;
-`f.name` is refused at the key, `entry(f, 'name')` is `[]`, and
+`f.name` is refused at the key, `entry(f, 'name')` is `undefined` and
+`hasEntry(f, 'name')` `false`, and
 [the language](../spec/functions/README.md) carries no name in the graph.
 The property-access plan,
 [2330](../spec/todo/2330-property-accessor.md), holds the same boundary from
@@ -221,24 +222,24 @@ it.
 
 **Decision:** prohibit `Object.hasOwn` in FJS source rather than redefine it
 as an enumerability test. Presence is the
-[`entry` helper](../spec/property-access/entries.md)'s to answer, as an
-option:
+[`hasEntry` helper](../spec/property-access/entries/README.md)'s to answer, beside
+`entry`, which reads the value:
 
 ```js
-const entry = (a, b) => {
+const hasEntry = (a, b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
-    return x?.enumerable ? [x.value] : [];
+    return x?.enumerable === true;
 };
 ```
 
-This exact function returns `[value]` for an enumerable own property, an
-entry holding `undefined` included, and `[]` for anything else. The TODO
+This exact function returns `true` for an enumerable own property, an
+entry holding `undefined` included, and `false` for anything else. The TODO
 records that API choice rather than silently deciding it.
 
 The old `hasOwn` proposal already required extending or refusing unsupported
 receivers rather than returning a fabricated boolean. Its enumerability
 redefinition came with the `entry` helper
-([spec: entry](../spec/property-access/entries.md)), not from
+([spec: entry](../spec/property-access/entries/README.md)), not from
 that receiver rule. The new
 direction retires standard-call recognition and its unresolved undefined-value
 answer instead of requiring an implementation of it.
@@ -271,8 +272,9 @@ export default Object.values({ ...a, y: 1, x: 2 })
     .filter(value => value !== undefined); // [2, 1], not [1, 2]
 ```
 
-The `entry` helper's option also reads `[undefined]` for an ordinary
-`{ x: undefined }` entry and `[]` for a missing one. Equality of direct value
+The `hasEntry` helper also answers `true` for an ordinary
+`{ x: undefined }` entry and `false` for a missing one, where `entry` reads
+`undefined` for both. Equality of direct value
 reads or filtered output does not establish substitutability.
 
 **Root-cause correction:** define equivalence over all admitted observation
@@ -313,7 +315,7 @@ randomness and external mutation.
 - [x] Replace the token-bypass design with mandatory statement-aware AST
       recognition and retire the proposed `Object.hasOwn` source pattern.
 - [x] **P1:** apply the settled failure contract to the
-      [operator plan](../spec/todo/2340-operators.md) and align the
+      [operators](../spec/operators/README.md) and align the
       [representation examples](../spec/todo/1015-undefined-property-vm-layer.md)
       with complete proposed patterns or explicitly labeled JavaScript-only
       oracles. Execution/optimization and regression work remains below.

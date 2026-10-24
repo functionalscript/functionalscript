@@ -101,6 +101,18 @@ feedback as pure decisions with co-located proofs. The browser adapter reads
 responses, performs requests and DOM updates, and supplies browser clock and
 date-formatting results to that policy.
 
+## The playground
+
+[`playground/`](./playground/README.md) holds games, one subdirectory each,
+each a demo. The shared header links it as **Playground**.
+
+It needs no page of its own. **Every directory gets a page**, so the
+playground's page lists its games, and **a directory says it holds a demo**,
+so each game carries a play mark there: a new game is a new subdirectory, and
+nothing else changes. A game is an application of the modules it plays
+with, not part of them, which is why it lives here rather than beside them:
+a module's own demo explains the module, a game is played with it.
+
 ## The Rust API reference
 
 `/cargo.doc/` is rustdoc's output for the workspace's crates. Each crate's
@@ -234,7 +246,7 @@ generated nor linked, so nothing points at a page that was never written.
 [`todo/README.md`](../../todo/README.md#issue-format) defines them: a
 subfolder's are listed with the rest, named by their path inside the `todo/` —
 `blocked/later.md` — and a `README.md` documents its directory rather than
-being one. Each is read for its header by [`issue`](./issue/module.f.mjs), and
+being one. Each is read for its header by [`issue`](./issue/module.f.js), and
 **one whose status or priority cannot be read stops the build**, naming the
 file, rather than being listed with a guess — the answer a release file that
 does not parse already gets. Reading them costs the build about two seconds
@@ -246,7 +258,7 @@ against 15 s).
 P1s, the issues that block everything else, lead the list rather than sitting
 wherever their names sort, and the badges are its left column, so a reader sees
 where each priority starts. Within one priority, status is ordered as
-[`issue`](./issue/module.f.mjs)'s `statuses` lists it: work in progress, then
+[`issue`](./issue/module.f.js)'s `statuses` lists it: work in progress, then
 work not started, then work waiting or deferred, then the record, then what
 will not be done. Status first was the other order: it grouped the list by
 icon and sank the records to the bottom, but put every work in progress, a P5
@@ -514,8 +526,13 @@ through the demo's own channel, which is what `never` obliges the demo to
 absorb — the bigint demo turns it into a row saying so, and its proof drives
 exactly that runner. A command *not* named is a malformed node and panics: a
 vocabulary and a handler map are two different things, which is why the
-runtime declares both. The first browser-only operation — a fetch, a file the
-reader picks — is where `fjs/effects/browser/` becomes necessary.
+runtime declares both.
+
+**The browser's own operations** are [`effects/browser`](../effects/browser/types.ts)'s:
+`fetchText`, a file from the site as text, and `instantiate`, a WebAssembly
+module from the site with how long loading it took. The WASM demo pages
+([`todo/wasm-demos.md`](../../todo/wasm-demos.md)) are the first demos to need
+them.
 
 **A page already shows its demo's first view.** The build imports each demo
 and writes `view(init)` into its section, so the demo appears with the page.
@@ -559,6 +576,14 @@ can stop the work or edit an input. Updates during incremental work must be
 small: pure computation or a bounded synchronous `sandbox` call for timing.
 Do not request blocking I/O on these turns. Queuing a reader
 event cancels a scheduled turn; the latest rendered state decides whether to schedule another one.
+
+`nextDelay(state)`, when a demo has it, is how many milliseconds the runtime
+waits before that turn: a demo that animates holds each step on screen for
+that long. Where the reader has asked for less motion
+(`prefers-reduced-motion: reduce`) the runtime does not wait, and the steps
+pass at once. It is scheduling rather than an operation — the runtime already
+owns when a turn runs — so a demo needs no effect to wait, and a reader's
+event cancels the wait as it cancels any scheduled turn.
 
 Events are serialized: one `update` at a time, the next queued behind it. That
 is what makes a demo's state a fold over its events in the order they happened,
@@ -673,6 +698,23 @@ link in that same green would make one colour mean both "this went well" and
 values is coincidence, not aliasing: moving one later must not drag the other
 with it.
 
+## Graph selection has its own colour
+
+Graph hover and focus use `--graph-highlight`, amber `#b45309` on the light
+canvas and gold `#fbbf24` on the dark one. `--graph-highlight-bg` adds a faint
+fill to the selected port and title blocks. The thicker arrow and outlines
+also distinguish the selection; labels keep their normal text colours.
+The tint is opaque, so several incoming connections cannot darken the same
+title by stacking translucent fills.
+
+When a row has both a key and a schema reference, only the reference cell
+activates hover and receives the source highlight. A port with no separate
+reference cell keeps its single-cell interaction.
+
+These tokens are independent of `--value`: selecting a connection must not
+recolour the schema values. Both schemes live in the shared stylesheet,
+alongside the rest of the site's palette.
+
 ## The favicon is "fjs", committed rather than generated
 
 `favicon.ico` at the repository root, `favicon.svg` in
@@ -710,8 +752,8 @@ scheme it would have picked.
 
 ## Every page opens with the same header
 
-The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases** and
-**GitHub**.
+The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases**,
+**Playground** and **GitHub**.
 It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
 every page carries it — the root, a directory's page, the PR queue, and the
 changelog's.
@@ -735,8 +777,8 @@ and no other page had either.
   header only, a framed box, GitHub-style tabs with icons, and bordered
   buttons — and the box won, then went full width.
 - **It wraps rather than hiding behind a menu button.** In a monospace face a
-  phone has no room for the name and all four links on one line; a line break
-  costs no script, on a site that is otherwise static files. The four links are
+  phone has no room for the name and all five links on one line; a line break
+  costs no script, on a site that is otherwise static files. The five links are
   one group, so they wrap together under the name rather than one beside it
   and one below.
 - **A header link is not underlined.** Its place in the header is what says it
@@ -786,7 +828,7 @@ and a link per channel — built by `footer` in
   page of its own, and a strip under the header — and the footer won: it is
   on every page, where a reader arriving from a search lands, without
   competing with the site's navigation.
-- **Read from [`funding.json`](../../funding.json)**, by
+- **Read from** [`funding.json`](../../funding.json), by
   [`funding/module.f.mjs`](./funding/module.f.mjs): one link per channel, its
   `description` the text and its `address` the target. `.github/FUNDING.yml`
   holds only usernames, and turning those into links would mean copying

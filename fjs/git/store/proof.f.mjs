@@ -1,40 +1,24 @@
 /**
- * @import { Dirent, Inflate, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
- * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { Oid, OidBytes } from '../types.ts'
+ * @import { Oid } from '../types.ts'
  */
 
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { normalize } from '../../path/module.f.mjs'
-import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { tryEntries } from '../config/module.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { packIdxCode } from '../packstore/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
-import { commitPayload, initConfig, initSha256Config, latin1, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
-import { maxBorrowDepth, objectIdCode, objectPath, objectsDirs, oidBytes, readIn, tryOidBytes, tryRead } from './module.f.mjs'
-
-/**
- * The id width a `config` file Git reads names.
- *
- * @type {(text: string) => Nullable<OidBytes>}
- */
-const width = text => tryOidBytes(assertNotNullish(tryEntries(text)))
-
-/**
- * A file setting one key of `[extensions]` under a version.
- *
- * @type {(version: number | string, key: string, value: string) => string}
- */
-const extension = (version, key, value) =>
-    `[core]\n\trepositoryformatversion = ${version}\n[extensions]\n\t${key} = ${value}`
+import { commitPayload, latin1, noFile, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
+import { maxBorrowDepth, objectIdCode, objectPath, objectsDirs, readIn, tryRead } from './module.f.mjs'
 
 /** @type {(hex: string) => Oid} */
 const id = hex => {
@@ -60,9 +44,11 @@ const wrongId = /** @type {const} */ ('ffffffffffffffffffffffffffffffffffffffff'
 /** An id whose file holds no object. */
 const junkId = /** @type {const} */ ('1111111111111111111111111111111111111111')
 
-const compressed = u8ListToVecMsb(tagLoose)
+/** Bytes that inflate to no object: a stored stream of `junk`. */
+const junk = storedBytes(latin1('junk'))
 
-const tagEnvelope = u8ListToVecMsb(toArray(writeEnvelope('tag', tagPayload)))
+/** The tag's loose file with a byte of its zlib header flipped, which is no zlib stream. */
+const brokenLoose = [tagLoose[0] ^ 1, ...tagLoose.slice(1)]
 
 /** The pack Git wrote that `repo` below keeps, and the two files it is. */
 const packName = /** @type {const} */ ('pack-9a32788c2cd72bdef63b26b7320c2fc2729359bf')
@@ -72,9 +58,6 @@ const packChecksum = /** @type {const} */ ('9a32788c2cd72bdef63b26b7320c2fc27293
 
 /** An id that is in that pack and has no loose file: the blob at offset 508. */
 const packedId = /** @type {const} */ ('b00a3b66a7a094e6165bfcd39e0b8524042140db')
-
-/** The zlib stream of its entry, and what the host inflates it to. */
-const packedStream = u8ListToVecMsb(packMixed.slice(510, 525))
 
 const packedBlob = latin1(`${'y'.repeat(300)}D\n`)
 
@@ -90,7 +73,7 @@ const u32 = n => [n >> 24 & 0xFF, n >> 16 & 0xFF, n >> 8 & 0xFF, n & 0xFF]
  *
  * @type {(hex: string) => readonly number[]}
  */
-const idBytes = hex => toArray(u8ListMsb(id(hex)))
+const idBytes = hex => u8ArrayMsb(id(hex))
 
 /**
  * A version 2 index over `named`, each an id and the offset its entry begins
@@ -150,14 +133,11 @@ const files = {
     [`repo/objects/pack/${packName}.pack`]: packMixed,
     'repo/config': latin1('[core]\n\trepositoryformatversion = 0\n'),
     [objectPath('repo')(id(tagId))]: tagLoose,
-    [objectPath('repo')(id(commitId))]: toArray(writeEnvelope('commit', commitPayload)),
-    [objectPath('repo')(id(emptyBlobId))]: toArray(writeEnvelope('blob', [])),
-    [objectPath('repo')(id(wrongId))]: toArray(writeEnvelope('blob', [])),
-    [objectPath('repo')(id(junkId))]: latin1('junk'),
-    'sha/config': latin1('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256\n'),
-    [objectPath('sha')(id(sha256CommitId))]: toArray(writeEnvelope('commit', sha256Commit)),
-    'odd/config': latin1('[extensions]\n\tobjectformat = sha3\n'),
-    'bad/config': latin1('[extensions\n\tobjectformat = sha256\n'),
+    [objectPath('repo')(id(commitId))]: storedBytes(toArray(writeEnvelope('commit', commitPayload))),
+    [objectPath('repo')(id(emptyBlobId))]: storedBytes(toArray(writeEnvelope('blob', []))),
+    [objectPath('repo')(id(wrongId))]: storedBytes(toArray(writeEnvelope('blob', []))),
+    [objectPath('repo')(id(junkId))]: junk,
+    [objectPath('sha')(id(sha256CommitId))]: storedBytes(toArray(writeEnvelope('commit', sha256Commit))),
     // A borrower that holds nothing of its own and names `repo`'s objects, and
     // a lender chain behind it: `mid` borrows from `repo` and `far` from `mid`,
     // so a read through `far` reaches `repo` two hops away.
@@ -187,9 +167,10 @@ const files = {
     'brokenBorrows/objects/info/alternates': latin1('../../sha/objects\n'),
     'brokenBorrows/objects/pack/pack-junk.idx': latin1('junk'),
     // A lender holding the tag loose and no packs at all, so what answers for it
-    // is the loose read and nothing else, and a borrower holding nothing.
+    // is the loose read and nothing else, and a borrower holding nothing. The
+    // file is the tag's with a byte of its zlib header flipped, so it does not inflate.
     'borrowsBadLoose/objects/info/alternates': latin1('../../looseOnly/objects\n'),
-    [objectPath('looseOnly')(id(tagId))]: tagLoose,
+    [objectPath('looseOnly')(id(tagId))]: brokenLoose,
     // A lender whose `.idx` names the object and whose `.pack` is gone. The
     // index has said the store holds the id, so the `ENOENT` for the pack is
     // corruption and not a store without the object — the borrower's own
@@ -200,11 +181,11 @@ const files = {
     // no object, and the lender has no file at all. The first answer stands, so
     // `null` and not the lender's `ENOENT`.
     'twoMisses/objects/info/alternates': latin1('../../sha/objects\n'),
-    [objectPath('twoMisses')(id(junkId))]: latin1('junk'),
+    [objectPath('twoMisses')(id(junkId))]: junk,
     // A borrower whose own loose file holds bytes that are no object, borrowing
     // from a store that does not hold it either.
     'shadowJunk/objects/info/alternates': latin1('../../repo/objects\n'),
-    [objectPath('shadowJunk')(id(junkId))]: latin1('junk'),
+    [objectPath('shadowJunk')(id(junkId))]: junk,
     // A store naming itself by the absolute path it already has, where the
     // spelling repeats and the name ends the walk. `git clone --shared` writes
     // absolute entries, so this is the shape a repeat actually takes.
@@ -219,7 +200,7 @@ const files = {
     // A borrower whose own copy of an object is garbage, with the good copy in
     // the store it borrows from.
     'shadow/objects/info/alternates': latin1('../../repo/objects\n'),
-    [objectPath('shadow')(id(tagId))]: latin1('junk'),
+    [objectPath('shadow')(id(tagId))]: junk,
     // An alternates file whose bytes are not UTF-8: a lone 0xFF, which the
     // decoder turns into `ÿ` rather than refusing, so the path it names is not
     // the path the file holds.
@@ -241,10 +222,6 @@ const files = {
     // the file names the objects of the pack beside it, so nothing there is
     // reachable.
     'broken/objects/pack/pack-junk.idx': latin1('junk'),
-    // A repository directory that is a root, for the `config` path below
-    // one. `fjs/git/repo` answers `/` for a gitfile of `gitdir: /`, and a
-    // path built by writing the separator would look for `//config` here.
-    '/config': latin1('[core]\n\trepositoryformatversion = 0\n'),
 }
 
 /**
@@ -258,21 +235,17 @@ const files = {
  */
 const at = (fs, path) => fs[normalize(path)]
 
-/** @type {(path: string) => ReturnType<typeof ioError>} */
-const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
-
 /** @type {(parentPath: string, n: string) => Dirent} */
 const dirent = (parentPath, n) => ({ name: n, parentPath, isFile: true, isDirectory: false })
 
 /**
- * A host over a file map: the two whole-file commands, the two the packs need,
- * and an inflater over the streams these fixtures hold.
+ * A host over a file map: the two whole-file commands and the two the packs need.
  *
  * `readdir` lists the one pack directory there is and refuses every other path,
  * which is what a repository without one answers — `sha` and `odd` below have no
  * packs, and their reads say so through the same ENOENT.
  *
- * @type {(fs: StringMap<readonly number[]>) => MemOperationMap<ReadFile | Readdir | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>}
+ * @type {(fs: StringMap<readonly number[]>) => MemOperationMap<ReadFile | Readdir | Stat | ReadWhole | ReadBytes, readonly string[]>}
  */
 const hostOf = fs => ({
     readFile: path => log => {
@@ -317,12 +290,6 @@ const hostOf = fs => ({
             file === undefined ? error(noFile(path)) : ok([u8ListToVecMsb(file)]),
         ]
     },
-    inflate: data => log => [
-        [...log, 'inflate'],
-        ok(uint(data) === uint(compressed) ? tagEnvelope
-            : uint(data) === uint(packedStream) ? u8ListToVecMsb(packedBlob)
-            : data),
-    ],
 })
 
 const host = hostOf(files)
@@ -376,11 +343,11 @@ export const proof = {
         // own directory rather than the root.
         assertEq(objectPath('')(id(tagId)), h.slice(1))
     },
-    // The signed tag by its id: the loose file Git wrote, read, inflated,
+    // The signed tag by its id: the loose file Git wrote, read whole, inflated,
     // hashed to the id asked for, and given back with its payload.
     tag: () => {
         const [log, r] = runHost(read(id(tagId)))
-        assertStructurallySame(log, [...altRead, `readFile ${objectPath('repo')(id(tagId))}`, 'inflate'])
+        assertStructurallySame(log, [...altRead, `readWhole ${objectPath('repo')(id(tagId))}`])
         assert(r[0] === 'ok')
         const e = r[1]
         assert(e !== null)
@@ -408,8 +375,7 @@ export const proof = {
         // packed copy would have been the answer
         assertStructurallySame(log, [
             ...altRead,
-            `readFile ${p}`,
-            'inflate',
+            `readWhole ${p}`,
             'readdir repo/objects/pack',
             ...idxRead,
         ])
@@ -438,10 +404,9 @@ export const proof = {
         assertStructurallySame(log, [
             'readFile borrow/objects/info/alternates',
             `readFile ${borrowedRepo}/info/alternates`,
-            `readFile ${objectPath('borrow')(id(tagId))}`,
+            `readWhole ${objectPath('borrow')(id(tagId))}`,
             'readdir borrow/objects/pack',
-            `readFile ${borrowedRepo}/b7/9a8e25df6a75ef83c047b329e730d92ad59dec`,
-            'inflate',
+            `readWhole ${borrowedRepo}/b7/9a8e25df6a75ef83c047b329e730d92ad59dec`,
         ])
     },
     // A lender's own borrowings are followed, so a chain of stores is one store
@@ -568,24 +533,18 @@ export const proof = {
         assertEq(e[1].code, packIdxCode)
     },
     // A borrowed *loose* object that cannot be read is a refusal too, not only a
-    // borrowed pack's. An inflate failure, or any read the host refuses that is
-    // not `ENOENT`, means the file is there and cannot be had — so it outlives
-    // the repository's own miss exactly as a pack's failure does.
+    // borrowed pack's. A stream that does not inflate, or any read the host
+    // refuses that is not `ENOENT`, means the file is there and cannot be had — so
+    // it outlives the repository's own miss exactly as a pack's failure does.
     //
     // An earlier revision named only the hash mismatch on this side, so a
     // borrowed store's corrupt loose object was reported as "no such object".
     // The lender here is a store with no packs, so the loose read is the whole of
     // what it says and the packed side cannot stand in for it, and the borrower
-    // holds no file at all — a plain `ENOENT`, which calls no inflater, so the
-    // failing stream can only be the lender's.
+    // holds no file at all — a plain `ENOENT`, so the failing stream can only be
+    // the lender's: the tag with a byte of its zlib header flipped.
     borrowedLooseRefusalOutlivesAMiss: () => {
-        const whole = hostOf(files)
-        const noInflate = /** @type {typeof whole} */ ({
-            ...whole,
-            inflate: /** @type {typeof whole.inflate} */ (
-                () => log => [[...log, 'inflate'], error(ioError({ code: 'Z_DATA_ERROR', message: 'bad' }))]),
-        })
-        const [, r] = run(noInflate)([])(tryRead('borrowsBadLoose', 20)(id(tagId)))
+        const [, r] = runHost(tryRead('borrowsBadLoose', 20)(id(tagId)))
         assert(r[0] === 'error')
         const e = r[1]
         assert(e[0] === 'ioError')
@@ -676,6 +635,9 @@ export const proof = {
                 readFile: /** @type {typeof whole.readFile} */ (path => log => below(path)
                     ? [[...log, `readFile ${path}`], error(ioError({ code, message: path }))]
                     : whole.readFile(path)(log)),
+                readWhole: /** @type {typeof whole.readWhole} */ (path => log => below(path)
+                    ? [[...log, `readWhole ${path}`], error(ioError({ code, message: path }))]
+                    : whole.readWhole(path)(log)),
                 // `readdir` takes the options as well as the path, so both are
                 // passed on: a handler may declare fewer parameters than the
                 // operation has, but a call has to give every one.
@@ -691,7 +653,7 @@ export const proof = {
             assertEq(e[1].code, 'ENOENT')
             assertEq(e[1].message, `no such file: ${objectPath('borrowsUnusable')(id(tagId))}`)
             // and the store behind the unusable entry was still asked
-            assert(log.some(l => l.startsWith('readFile borrowsUnusable/objects/../../sha/objects/')), code)
+            assert(log.some(l => l.startsWith('readWhole borrowsUnusable/objects/../../sha/objects/')), code)
         }
     },
     // A store with no `alternates` file borrows from nowhere, which is almost
@@ -762,8 +724,7 @@ export const proof = {
         assertStructurallySame(log, [
             'readFile own/objects/info/alternates',
             `readFile ${ownRepo}/info/alternates`,
-            `readFile ${objectPath('own')(id(tagId))}`,
-            'inflate',
+            `readWhole ${objectPath('own')(id(tagId))}`,
         ])
     },
     // A pack that cannot answer for the directory it is in is the channel's, and
@@ -809,12 +770,11 @@ export const proof = {
         assertStructurallySame(toArray(r[1].payload), packedBlob)
         assertStructurallySame(log, [
             ...altRead,
-            `readFile ${objectPath('repo')(id(packedId))}`,
+            `readWhole ${objectPath('repo')(id(packedId))}`,
             'readdir repo/objects/pack',
             ...idxRead,
             ...packFraming,
             `readBytes repo/objects/pack/${packName}.pack 508 17`,
-            'inflate',
         ])
     },
     // A loose file that is no object does not hide the packed copy of the same
@@ -823,18 +783,16 @@ export const proof = {
     // standing behind whichever copy answered.
     packedOverJunkLoose: () => {
         const p = objectPath('repo')(id(packedId))
-        const [log, r] = run(hostOf({ ...files, [p]: latin1('junk') }))([])(read(id(packedId)))
+        const [log, r] = run(hostOf({ ...files, [p]: junk }))([])(read(id(packedId)))
         assert(r[0] === 'ok' && r[1] !== null)
         assertStructurallySame(toArray(r[1].payload), packedBlob)
         assertStructurallySame(log, [
             ...altRead,
-            `readFile ${p}`,
-            'inflate',
+            `readWhole ${p}`,
             'readdir repo/objects/pack',
             ...idxRead,
             ...packFraming,
             `readBytes repo/objects/pack/${packName}.pack 508 17`,
-            'inflate',
         ])
     },
     // The other width: the SHA-256 repository's commit by its 32-byte id,
@@ -843,124 +801,6 @@ export const proof = {
         const [, r] = runHost(tryRead('sha', 32)(id(sha256CommitId)))
         assert(r[0] === 'ok' && r[1] !== null)
         assertStructurallySame(toArray(r[1].payload), sha256Commit)
-    },
-    // The width from `config`: absent is 20, `sha256` is 32, a format this
-    // module does not know is `null`, and no `config` is the channel's.
-    oidBytes: () => {
-        assertStructurallySame(runHost(oidBytes('repo'))[1], ['ok', 20])
-        assertStructurallySame(runHost(oidBytes('sha'))[1], ['ok', 32])
-        assertStructurallySame(runHost(oidBytes('odd'))[1], ['ok', null])
-        // A file holding a line Git cannot read names no width either.
-        assertStructurallySame(runHost(oidBytes('bad'))[1], ['ok', null])
-        // The `config` path is joined below the directory, not spelled with
-        // a separator: at the POSIX root the file is `/config`, and
-        // `//config` is a different namespace. This is the second of the two
-        // paths `todo/directory-separator.md` named, and without it the
-        // `${dir}/config` spelling passes every other case here.
-        assertStructurallySame(runHost(oidBytes('/'))[1], ['ok', 20])
-        const [log] = runHost(oidBytes('/'))
-        assertStructurallySame(log, ['readFile /config'])
-        const [, r] = runHost(oidBytes('none'))
-        assert(r[0] === 'error')
-    },
-    // The width: absent is SHA-1, `sha256` under version 1 is SHA-256, and
-    // what Git refuses is refused — a value in the wrong case, a value this
-    // module does not know, the extension under version 0. The section and
-    // the key are case-insensitive, the last of two values wins, and the key
-    // outside `[extensions]` is another key.
-    tryOidBytes: () => {
-        assertEq(width(initConfig), 20)
-        assertEq(width(initSha256Config), 32)
-        assertEq(width(''), 20)
-        assertEq(width(extension(1, 'objectFormat', 'sha1')), 20)
-        assertEq(width('[Core]\n\tRepositoryFormatVersion = 1\n[Extensions]\n\tObjectFormat = sha256'), 32)
-        assertEq(width(extension(1, 'objectformat', 'SHA256')), null)
-        assertEq(width(extension(1, 'objectformat', 'sha3')), null)
-        // A value is any text the file holds, so a key of `Object.prototype`
-        // names no hash either.
-        for (const v of ['toString', '__proto__', 'constructor', 'valueOf', 'hasOwnProperty']) {
-            assertEq(width(extension(1, 'objectFormat', v)), null)
-        }
-        // A format that ends in the space an empty pair of quotes keeps is a
-        // format Git does not know, and one a NUL cuts short is the format
-        // before it, which is the one Git reads.
-        assertEq(width(extension(1, 'objectFormat', 'sha256 ""')), null)
-        assertEq(width(extension(1, 'objectFormat', 'sha256\0junk')), 32)
-        assertEq(width(extension(1, 'objectFormat', 'sha256 \0junk')), null)
-        assertEq(width('\uFEFF' + extension(1, 'objectFormat', 'sha256')), 32)
-        assertEq(width(extension(0, 'objectformat', 'sha256')), null)
-        assertEq(width(extension(0, 'noop-v1', 'x')), null)
-        assertEq(width('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256\n\tobjectformat = sha1'), 20)
-        assertEq(width('[core]\n\tobjectformat = sha256'), 20)
-        // An `objectFormat` Git does not know refuses the file wherever it
-        // sits, since Git reads each assignment as it comes to it: a good
-        // one after it does not hide it, and neither does a version that
-        // reads no format at all.
-        assertEq(width('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = wat\n\tobjectformat = sha1'), null)
-        assertEq(width(extension(-2, 'objectFormat', 'wat')), null)
-    },
-    // An extension Git does not know refuses the repository under version 1,
-    // as Git refuses it; under version 0 it is ignored, as Git ignores it.
-    // `compatobjectformat` is one Git 2.43 does not know.
-    extensions: () => {
-        assertEq(width(extension(1, 'frobnicate', 'yes')), null)
-        assertEq(width(extension(1, 'compatObjectFormat', 'sha256')), null)
-        assertEq(width('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256\n\tfrobnicate = yes'), null)
-        assertEq(width(extension(1, 'worktreeconfig', 'true')), 20)
-        assertEq(width(extension(1, 'partialclone', 'origin')), 20)
-        assertEq(width(extension(1, 'noop-v1', 'anything')), 20)
-        assertEq(width(extension(0, 'frobnicate', 'yes')), 20)
-        // A subsection is part of an extension's name, not a section of
-        // its own: `[extensions "x"]` with `noop` names `x.noop`, which
-        // Git knows none of, so version 1 refuses it and version 0 ignores
-        // it — the key alone being one Git knows changes nothing. Nor is
-        // there a value to read under one: `objectFormat` there is not the
-        // key of that name, so its value is never judged and never read.
-        assertEq(width('[core]\n\trepositoryformatversion = 1\n[extensions "x"]\n\tnoop = true'), null)
-        assertEq(width('[core]\n\trepositoryformatversion = 1\n[extensions "x"]\n\tobjectFormat = sha256'), null)
-        assertEq(width('[core]\n\trepositoryformatversion = 1\n[extensions "x"]\n\tobjectFormat = wat'), null)
-        assertEq(width('[core]\n\trepositoryformatversion = 0\n[extensions "x"]\n\tnoop = true'), 20)
-        assertEq(width('[core]\n\trepositoryformatversion = 0\n[extensions "x"]\n\tobjectFormat = wat'), 20)
-        assertEq(width('[core]\n\trepositoryformatversion = 0\n[extensions "x"]\n\tworktreeConfig = maybe'), 20)
-    },
-    // An extension whose value Git reads as a boolean refuses the repository
-    // where the value is none, whatever the version says, and wherever the
-    // assignment sits. What reads as one is `fjs/git/config`'s `lastBool`.
-    booleans: () => {
-        assertEq(width(extension(1, 'worktreeConfig', 'maybe')), null)
-        assertEq(width(extension(0, 'preciousObjects', 'maybe')), null)
-        assertEq(width(extension(0, 'preciousObjects', '1.5')), null)
-        assertEq(width('[core]\n\trepositoryformatversion = 0\n[extensions]\n\tpreciousObjects = maybe\n\tpreciousObjects = true'), null)
-        for (const v of ['true', 'oFf', '', '0x1f', '" 1"']) {
-            assertEq(width(extension(0, 'preciousObjects', v)), 20)
-        }
-    },
-    // The version is a number, not text, so every spelling Git's parser
-    // reads is the version it spells — what reads as one is
-    // `fjs/git/config`'s `lastInt` — and every assignment must spell one,
-    // since Git reads each as it comes to it.
-    version: () => {
-        for (const v of ['1', '01', '+1', '0x1', '0b1', '1 # c', '"1"', '"\v1"']) {
-            assertEq(width(extension(v, 'objectFormat', 'sha256')), 32)
-        }
-        // Over 1 refuses the file, and so does an assignment that spells no
-        // number, however good the one after it.
-        for (const v of ['2', '1k', '0b10', 'abc', '"1 "']) {
-            assertEq(width('[core]\n\trepositoryformatversion = ' + v), null)
-        }
-        assertEq(width('[core]\n\trepositoryformatversion = abc\n\trepositoryformatversion = 1'), null)
-        // The last version wins.
-        assertEq(width('[core]\n\trepositoryformatversion = 2\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256'), 32)
-        // A file naming no version, and one naming `-1` however it spells
-        // it, are the same file to Git: it gives up the format it read, so
-        // both are SHA-1.
-        assertEq(width('[extensions]\n\tobjectformat = sha256'), 20)
-        for (const v of [-1, '" -1"', '-0b1']) {
-            assertEq(width(extension(v, 'objectFormat', 'sha256')), 20)
-        }
-        // Any other version below 0 keeps it, and refuses nothing.
-        assertEq(width(extension(-2, 'objectFormat', 'sha256')), 32)
-        assertEq(width(extension(-2, 'frobnicate', 'yes')), 20)
     },
     throw: {
         // A 32-byte id in a 20-byte store is a caller's bug.

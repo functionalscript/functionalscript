@@ -1,6 +1,6 @@
 /** The wire contracts and every pending-login validation branch. */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse } from '../../rtti/parse/module.f.mjs'
 import { allowedCallbackOrigin, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerTokenSchema, tokenSchema, userSchema, validPending, validVerifier } from './module.f.mjs'
 

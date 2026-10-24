@@ -16,6 +16,7 @@ use crate::{
     },
     common,
     files::{self, Dirent, IoError, Stat},
+    inflate,
     resolve::{FileModule, resolve_file_module},
 };
 use nanvm_lib::vm::{
@@ -246,6 +247,11 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
                 let size = decode_number(argument(payload, 2, "size")?)?;
                 Ok(answer(files::read_bytes(&path, offset, size), encode_bytes))
             }
+            "inflate" => {
+                arity(payload, 1)?;
+                let data = decode_bytes(argument(payload, 0, "data")?)?;
+                Ok(answer(inflate::inflate(&data), encode_bytes))
+            }
             "createExclusive" => {
                 arity(payload, 1)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
@@ -379,6 +385,8 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
 #[cfg(test)]
 mod test {
     use super::*;
+    #[cfg(not(target_family = "wasm"))]
+    use crate::scratch::Scratch;
     use nanvm_lib::{
         naive::Naive,
         vm::{
@@ -474,6 +482,27 @@ mod test {
         expected.extend([0xff; 8]);
         expected.push(0x80);
         assert_eq!(h.stdout().as_slice(), expected);
+    }
+
+    /// `inflate` answers the bytes of one zlib stream, and a stream it refuses
+    /// as the error zlib gives, through the continuation; a payload that is not
+    /// bytes is thrown.
+    #[test]
+    fn inflate() {
+        let stored = encode_bytes::<Naive>(vec![
+            0x78, 0x01, 0x01, 0x03, 0x00, 0xfc, 0xff, 0x61, 0x62, 0x63, 0x02, 0x4d, 0x01, 0x27,
+        ]);
+        let answer = host(b"").perform(string_any("inflate"), array([stored]));
+        assert_eq!(decode_bytes(ok(answer)).unwrap(), b"abc");
+        let bad = encode_bytes::<Naive>(vec![0x78, 0x9d]);
+        assert_eq!(
+            host(b"").perform(string_any("inflate"), array([bad])).unwrap().to_json(),
+            Ok("[\"error\",[\"ioError\",{\"code\":\"Z_DATA_ERROR\",\"message\":\"incorrect header check\"}]]".into())
+        );
+        let thrown = host(b"")
+            .perform(string_any("inflate"), array([string_any("x")]))
+            .unwrap_err();
+        assert_eq!(decode_string(thrown).unwrap(), "not a bit vector");
     }
 
     /// A command the host lacks is answered through the continuation as
@@ -623,10 +652,8 @@ mod test {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn files_through_perform() {
-        let dir =
-            std::env::temp_dir().join(format!("nanvm-effects-node-perform-{}", std::process::id()));
-        let at = |name: &str| string_any(&dir.join(name).to_string_lossy());
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = Scratch::new("perform");
+        let at = |name: &str| string_any(&dir.at(name));
         let undefined = || Nullish::Undefined.to_any();
 
         assert_eq!(ok(perform("mkdir", [at("a"), undefined()])), undefined());
@@ -652,16 +679,10 @@ mod test {
             Array::try_from(entries)
                 .unwrap()
                 .into_iter()
-                .map(|entry| {
-                    let name = nanvm_lib::vm::Object::try_from(entry)
-                        .unwrap()
-                        .own_property(&"name".into())
-                        .unwrap();
-                    decode_string(name).unwrap()
-                })
+                .map(|entry| decode_string(member_of(entry, "name")).unwrap())
                 .collect()
         };
-        let root = string_any(&dir.to_string_lossy());
+        let root = string_any(&dir.path().to_string_lossy());
         assert_eq!(
             names(ok(perform("readdir", [root.clone(), object([])]))),
             ["a", "b", "f"]
@@ -674,32 +695,21 @@ mod test {
 
         let missing = perform("readFile", [at("f")]).unwrap();
         assert_eq!(error_code(missing), string_any("ENOENT"));
-        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// `stat`, `access`, `rename` and `rmdir` through `perform`.
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn metadata_through_perform() {
-        let dir = std::env::temp_dir().join(format!(
-            "nanvm-effects-node-metadata-{}",
-            std::process::id()
-        ));
-        let at = |name: &str| string_any(&dir.join(name).to_string_lossy());
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = Scratch::new("metadata");
+        let at = |name: &str| string_any(&dir.at(name));
         let undefined = || Nullish::Undefined.to_any();
-        let member = |value: V, name: &str| {
-            nanvm_lib::vm::Object::try_from(value)
-                .unwrap()
-                .own_property(&name.into())
-                .unwrap()
-        };
 
         ok(perform("writeFile", [at("a"), hi()]));
         let stat = ok(perform("stat", [at("a")]));
-        assert_eq!(member(stat.clone(), "size"), Number::from(2.0).to_any());
-        assert_eq!(member(stat.clone(), "isFile"), true.to_any());
-        assert_eq!(member(stat, "isDirectory"), false.to_any());
+        assert_eq!(member_of(stat.clone(), "size"), Number::from(2.0).to_any());
+        assert_eq!(member_of(stat.clone(), "isFile"), true.to_any());
+        assert_eq!(member_of(stat, "isDirectory"), false.to_any());
         assert_eq!(ok(perform("access", [at("a")])), undefined());
         assert_eq!(ok(perform("rename", [at("a"), at("b")])), undefined());
         assert_eq!(ok(perform("rm", [at("b")])), undefined());
@@ -708,19 +718,14 @@ mod test {
 
         let missing = perform("stat", [at("d")]).unwrap();
         assert_eq!(error_code(missing), string_any("ENOENT"));
-        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// `readBytes`, `createExclusive` and `writeExclusive` through `perform`.
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn exclusive_and_windows_through_perform() {
-        let dir = std::env::temp_dir().join(format!(
-            "nanvm-effects-node-exclusive-{}",
-            std::process::id()
-        ));
-        let at = |name: &str| string_any(&dir.join(name).to_string_lossy());
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = Scratch::new("exclusive");
+        let at = |name: &str| string_any(&dir.at(name));
         let undefined = || Nullish::Undefined.to_any();
         let number = |n: f64| Number::from(n).to_any();
 
@@ -729,7 +734,7 @@ mod test {
             ok(perform("writeExclusive", [at("b"), array([hi(), hi()])])),
             undefined()
         );
-        assert_eq!(std::fs::read(dir.join("b")).unwrap(), b"hihi");
+        assert_eq!(std::fs::read(dir.at("b")).unwrap(), b"hihi");
         let window = ok(perform("readBytes", [at("b"), number(1.0), number(2.0)]));
         assert_eq!(decode_bytes(window).unwrap(), b"ih");
 
@@ -737,7 +742,6 @@ mod test {
         let again = perform("createExclusive", [at("a")]).unwrap();
         assert_eq!(error_code(again), string_any("EEXIST"));
         assert_eq!(thrown("writeExclusive", [at("c"), hi()]), "not an array");
-        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// The `{code?, message}` of an `['error', ['ioError', info]]` answer.
@@ -753,10 +757,7 @@ mod test {
     /// The code of an `['error', ['ioError', {code}]]` answer.
     #[cfg(not(target_family = "wasm"))]
     fn error_code(answer: V) -> V {
-        nanvm_lib::vm::Object::try_from(error_info(answer))
-            .unwrap()
-            .own_property(&"code".into())
-            .unwrap()
+        member_of(error_info(answer), "code")
     }
 
     /// `open`, `fstat`, `pread` and `close` through one host, which keeps the
@@ -764,18 +765,10 @@ mod test {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn handles_through_perform() {
-        let dir =
-            std::env::temp_dir().join(format!("nanvm-effects-node-handles-{}", std::process::id()));
-        let at = |name: &str| string_any(&dir.join(name).to_string_lossy());
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = Scratch::new("handles");
+        let at = |name: &str| string_any(&dir.at(name));
         let undefined = || Nullish::Undefined.to_any();
         let number = |n: f64| Number::from(n).to_any();
-        let member = |value: V, name: &str| {
-            nanvm_lib::vm::Object::try_from(value)
-                .unwrap()
-                .own_property(&name.into())
-                .unwrap()
-        };
         ok(perform("writeFile", [at("a"), hi()]));
         let mut h = host(b"");
         let mut run = |command: &str, payload: Vec<V>| {
@@ -785,8 +778,8 @@ mod test {
         let a = ok(run("open", vec![at("a")]));
         assert_eq!(a, number(0.0));
         let stat = ok(run("fstat", vec![a.clone()]));
-        assert_eq!(member(stat.clone(), "size"), number(2.0));
-        assert_eq!(member(stat, "isFile"), true.to_any());
+        assert_eq!(member_of(stat.clone(), "size"), number(2.0));
+        assert_eq!(member_of(stat, "isFile"), true.to_any());
         let window = |at: f64, size: f64| vec![number(0.0), number(at), number(size)];
         let bytes = |answer: Result<V, V>| decode_bytes(ok(answer)).unwrap();
         assert_eq!(bytes(run("pread", window(0.0, 2.0))), b"hi");
@@ -794,7 +787,7 @@ mod test {
         assert_eq!(bytes(run("pread", window(5.0, 1.0))), b"");
 
         // The path is gone, and the handle still reads what it opened.
-        std::fs::remove_file(dir.join("a")).unwrap();
+        std::fs::remove_file(dir.at("a")).unwrap();
         assert_eq!(bytes(run("pread", window(0.0, 2.0))), b"hi");
 
         // A name that is not there answers `ENOENT` and mints no handle.
@@ -802,10 +795,10 @@ mod test {
         assert_eq!(error_code(missing), string_any("ENOENT"));
         #[cfg(unix)]
         {
-            let directory = ok(run("open", vec![string_any(&dir.to_string_lossy())]));
+            let directory = ok(run("open", vec![string_any(&dir.path().to_string_lossy())]));
             assert_eq!(directory, number(1.0));
             let stat = ok(run("fstat", vec![directory.clone()]));
-            assert_eq!(member(stat, "isDirectory"), true.to_any());
+            assert_eq!(member_of(stat, "isDirectory"), true.to_any());
             let read = run("pread", vec![directory.clone(), number(0.0), number(1.0)]).unwrap();
             assert_eq!(error_code(read), string_any("EISDIR"));
             assert_eq!(ok(run("close", vec![directory])), undefined());
@@ -823,7 +816,7 @@ mod test {
         // The window is checked before the handle, as the Node runner does.
         let refused = run("pread", vec![a.clone(), number(-1.0), number(1.0)]).unwrap();
         assert_eq!(
-            member(error_info(refused), "message"),
+            member_of(error_info(refused), "message"),
             string_any("Offset -1 is negative")
         );
 
@@ -842,13 +835,12 @@ mod test {
         );
         let refused = run("pread", vec![number(99.0), number(-1.0), number(1.0)]).unwrap();
         assert_eq!(
-            member(error_info(refused), "message"),
+            member_of(error_info(refused), "message"),
             string_any("Offset -1 is negative")
         );
 
         // Closing frees the file: nothing is kept for a handle that is closed.
         assert_eq!(h.files.len(), 0);
-        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     fn thunk(code: nanvm_lib::vm::StaticCode<Naive>) -> V {
@@ -856,10 +848,10 @@ mod test {
         Naive::static_function(code, 0, [].to_array(), None).to_any()
     }
 
+    /// The member `name` of an object that has it.
     #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
-    fn members(value: V, names: [&str; 2]) -> [V; 2] {
-        let object = nanvm_lib::vm::Object::try_from(value).unwrap();
-        names.map(|name| object.own_property(&name.into()).unwrap())
+    fn member_of(value: V, name: &str) -> V {
+        member(&nanvm_lib::vm::Object::try_from(value).unwrap(), name).unwrap()
     }
 
     /// `catch` answers what the thunk did: `['ok', ['ok', value]]`, and a
@@ -891,7 +883,8 @@ mod test {
             (|_, _| Err(string_any("boom")), "[\"error\",\"boom\"]"),
         ] {
             let answer = ok(perform("sandbox", [thunk(code)]));
-            let [result, duration] = members(answer, ["result", "duration"]);
+            let [result, duration] =
+                ["result", "duration"].map(|name| member_of(answer.clone(), name));
             assert_eq!(result.to_json(), Ok(expected.into()));
             let milliseconds = f64::from(Number::try_from(duration).unwrap());
             assert!((0.0..60_000.0).contains(&milliseconds));
@@ -970,32 +963,18 @@ mod test {
             "resolveFileModule",
             [string_any("Cargo.toml"), Nullish::Null.to_any()],
         ));
-        let member = |name: &str| {
-            let value = nanvm_lib::vm::Object::try_from(module.clone())
-                .unwrap()
-                .own_property(&name.into())
-                .unwrap();
-            decode_string(value).unwrap()
-        };
-        assert!(member("path").replace('\\', "/").ends_with("/Cargo.toml"));
-        assert_eq!(
-            member("id"),
-            crate::resolve::path_to_file_url(&member("path"))
-        );
+        let text = |name: &str| decode_string(member_of(module.clone(), name)).unwrap();
+        assert!(text("path").replace('\\', "/").ends_with("/Cargo.toml"));
+        assert_eq!(text("id"), crate::resolve::path_to_file_url(&text("path")));
         let sibling = ok(perform(
             "resolveFileModule",
-            [string_any("./src/lib.rs"), string_any(&member("id"))],
+            [string_any("./src/lib.rs"), string_any(&text("id"))],
         ));
         assert!(
-            decode_string(
-                nanvm_lib::vm::Object::try_from(sibling)
-                    .unwrap()
-                    .own_property(&"path".into())
-                    .unwrap()
-            )
-            .unwrap()
-            .replace('\\', "/")
-            .ends_with("/nanvm/effects-node/src/lib.rs")
+            decode_string(member_of(sibling, "path"))
+                .unwrap()
+                .replace('\\', "/")
+                .ends_with("/nanvm/effects-node/src/lib.rs")
         );
     }
 

@@ -24,7 +24,7 @@ lands into an already-working pipeline and is verified end-to-end from day
 one, instead of a big-bang integration at the end.
 
 The EDAG module computation and generated Rust return the complete export
-object, as the [module contract](../spec/modules/exports.md) already
+object, as the [module contract](../spec/modules/exports/README.md) already
 requires on `main`. For example, `export const answer = 42; export default 7;`
 returns `{ answer: 42, default: 7 }`. Without `export default`, there is no
 `default` property. Module evaluation creates exported functions; invoking
@@ -144,6 +144,647 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured on `1ce90e7`, the head of `main` after
+[#3150](https://github.com/functionalscript/functionalscript/pull/3150). A
+leaf is as defined in the `5dcd94b` audit below, and the leaves were
+rediscovered as the `0c9ddf8` table below says: every authored non-proof
+module loaded through Node with a resolve hook recording each runtime
+import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 7 | `compiler/ast` and `js/ast/loop`, each accepted as written |
+| 2 | 5 | None: every remaining leaf is refused as written |
+
+There are seven leaves where the `7cee7a5` table below left five, because
+two are new.
+[#3143](https://github.com/functionalscript/functionalscript/pull/3143)
+normalized structured source through FAST: `compiler/ast` lost its runtime
+imports of `types/list` and `edag` and keeps only the operator tables and
+their predicates, and `js/ast/loop`, new in the same pull request,
+recognizes a scalar loop over FAST values. Neither imports an `.f.mjs` at
+run time, and the compiler accepts both whole, so each is converted with
+only its extension and its references changed: `compiler/ast`'s importers,
+`compiler/parser` and `compiler/parser/grammar` with its `types.ts` and
+`demo.f.mjs`, its own `types.ts`, the links from four `todo/` files and its proof;
+`js/ast/loop`'s importers, `edag/from_fast` and `js/ast/prepare`, and its
+proof. Both proofs stay `proof.f.mjs`.
+
+The renames expose no leaf: every importer of either imports other
+`.f.mjs` modules too. The second pass checks the five leaves left, against
+the same compiler, and converts none.
+
+The authored `.f.js` population under `fjs/` grows from 49 to 51, and
+`npm start compile` checks 132. It is 49, not the 48 the `7cee7a5` text
+counted, because
+[#3145](https://github.com/functionalscript/functionalscript/pull/3145)
+added `edag/testlib` and `js/ast/sugar/logical` as `.f.js` and
+[#3138](https://github.com/functionalscript/functionalscript/pull/3138)
+deleted the `sample` of `nanvm/demos/comma`, its demo folded into the
+specification's page. The compile check's count is 130 before the renames,
+not the 65 of `7cee7a5`, because the specification's refused-construct
+pages since
+[#3155](https://github.com/functionalscript/functionalscript/pull/3155)
+hold 64 more `.f.js` samples, 81 under `spec/` in all.
+
+The five rows are the `7cee7a5` table's, measured again, unchanged.
+Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `types/stack_walk/module.f.mjs` | 47:9 | `if (step[0] === 'error') { return step }`, a `return` guard inside `while (true)` in `walkFold`; the `let [acc, step] = …` before it is admitted since general bindings ([variables](../spec/bindings/variables/README.md)), which moved the row from 43:9 | Read, not measured: the tuple assignments `[acc, step] = …`, destructuring assignment, which no proposal admits; an `if … else if … else` whose branches `return` inside `while (true)`; `stack`, a second variable the loop assigns; and no `return` after `while (true)` |
+| `types/function/compare/module.f.mjs` | 65:9 | `if (e < b) { return b }`, a `return` guard inside the loop in `bsearch` | In `bsearch`, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second variable the loop assigns, `e` |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | Measured with the `for` rewritten as the admitted `while`: `input[first + i]`, a key computed at run time; behind it the two variables the loop steps, `word` and `i`. `let word` on its own is admitted since general bindings ([variables](../spec/bindings/variables/README.md)) |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['types/stack_walk', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `7cee7a5` (historical)
+
+Measured on `7cee7a5`, the head of
+[#3114](https://github.com/functionalscript/functionalscript/pull/3114),
+which renamed the NaNVM demo samples, with `git/config` renamed. A leaf is
+as defined in the `5dcd94b` audit below, and the leaves were rediscovered
+as the `0c9ddf8` table below says: every authored non-proof module loaded
+through Node with a resolve hook recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 6 | `git/config`, by renaming its private `_SubState`'s field `sub` to `part` |
+| 2 | 5 | None: every remaining leaf is refused as written |
+
+`git/config` held the one refusal its row in the `7baae35` table below
+lists: `acc.sub`, `sub` being a name `String.prototype` gives a value,
+which a read refuses whoever owns it
+([property access](../spec/property-access/README.md)). The field is the
+reader's own, a subsection's text so far, so it takes a name no prototype
+gives a value, `part`; `name` is no such name, `Function.prototype` giving
+it one. The local the subsection is bound to stays `sub`, a binding being
+no read. Nothing else in the module changes. Its references follow, five
+files with its proof, which stays `proof.f.mjs`.
+
+The rename exposes no leaf: `git/format`, its one importer, imports other
+`.f.mjs` modules too. The second pass checks the five leaves left, against
+the same compiler, and converts none.
+
+The authored `.f.js` population under `fjs/` grows from 47 to 48, and
+`npm start compile` checks 65.
+
+The five rows are the `7baae35` table's, measured again, unchanged.
+Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `types/stack_walk/module.f.mjs` | 43:9 | `let [acc, step] = …` in `walkFold`, a pattern where a loop's `let` takes a name | Read, not measured: a second `let`, `stack`; the tuple assignments `[acc, step] = …`; an `if … else if … else` whose branches `return` inside `while (true)`; the assignment to `stack`, not the loop's variable; and no `return` after `while (true)` |
+| `types/function/compare/module.f.mjs` | 65:9 | `if (e < b) { return b }`, a `return` guard inside the loop in `bsearch` | In `bsearch`, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['types/stack_walk', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `7baae35` (historical)
+
+Measured on `7baae35`, `main` at
+[#3100](https://github.com/functionalscript/functionalscript/pull/3100),
+which admitted [elisions](../spec/bindings/destructuring/README.md). A leaf is as
+defined in the `5dcd94b` audit below, and the leaves were rediscovered as
+the `0c9ddf8` table below says: every authored non-proof module loaded
+through Node with a resolve hook recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 10 | The `sample` of `nanvm/demos/collatz`, `comma`, `hello` and `sort`, each accepted as written |
+| 2 | 6 | None: every remaining leaf is refused as written |
+
+The four samples are new since the `e9df9df` table below: the programs of
+the NaNVM demo pages ([`todo/wasm-demos.md`](./wasm-demos.md)), each a
+module that imports nothing. The compiler accepts each as written, so only
+its name changes. The demos generator finds a sample by
+[`samplePath`](../fjs/nanvm/demos/page/module.f.mjs), which names
+`sample.f.js` now, and the Rust it compiles each into, in
+`nanvm/demos/gen.samples`, is unchanged. Their references follow, 13 files
+with the proofs, which stay `proof.f.mjs`.
+
+The renames expose no leaf: each demo page that imports a sample imports
+other `.f.mjs` modules too. The second pass checks the six leaves left,
+against the same compiler, and converts none.
+
+The authored `.f.js` population under `fjs/` grows from 43 to 47, and
+`npm start compile` checks 64.
+
+The `types/stack_walk` row is new, its module added since: its first
+refusal was measured, and what stands behind it was read, not measured.
+The other five rows are the `e9df9df` table's, measured again, unchanged.
+Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `git/config/module.f.mjs` | 379:41 | `acc.sub` in `subStep`, `sub` a `String.prototype` name (`prohibited property name`) | Nothing: the copy with `_SubState`'s `sub` renamed to a name no prototype gives a value, `part`, is accepted — `name` is no such name, `Function.prototype` giving it one |
+| `types/stack_walk/module.f.mjs` | 43:9 | `let [acc, step] = …` in `walkFold`, a pattern where a loop's `let` takes a name | Read, not measured: a second `let`, `stack`; the tuple assignments `[acc, step] = …`; an `if … else if … else` whose branches `return` inside `while (true)`; the assignment to `stack`, not the loop's variable; and no `return` after `while (true)` |
+| `types/function/compare/module.f.mjs` | 65:9 | `if (e < b) { return b }`, a `return` guard inside the loop in `bsearch` | In `bsearch`, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'git/config', 'types/stack_walk', 'types/function/compare', 'types/list',
+  'types/map', 'zlib/bits',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `e9df9df` (historical)
+
+Measured on `e9df9df`, the head of
+[#3097](https://github.com/functionalscript/functionalscript/pull/3097),
+which implemented [call statements](../spec/functions/call-statements/README.md),
+with `text/ascii` renamed. A leaf is as defined in the `5dcd94b` audit
+below, and the leaves were rediscovered as the `0c9ddf8` table below says:
+every authored non-proof module loaded through Node with a resolve hook
+recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 5 | `text/ascii`, by `'\u0000'` for `'\0'`, `undefined` for `void 0` and the rewrite of [rule 8](../doc/CONVERTING.md#8-bigint) |
+| 2 | 5 | None: every remaining leaf is refused as written |
+
+`text/ascii` held the refusals its row in the `2e0462e` table below lists,
+and each has an admitted spelling. `nul` is `one('\u0000')`, the same
+character. `at` compares its code point with `undefined`, the value
+`void 0` is. `digitsValue` and `hexDigitsValue` convert each digit with
+`bigint` from [`types/bigint/from_number`](../fjs/types/bigint/from_number/module.f.js),
+which answers as `BigInt` does on the safe integers they pass (rule 8). The
+`assert(…)` that opens `digitsValue` stays as written: it is a call
+statement now. Its references follow, 35 files with its proof, which
+stays `proof.f.mjs`.
+
+The rename exposes one leaf, `git/config`, which imports `text/ascii`,
+`types/object/entry`, `types/result` and `git/bytes`, all `.f.js` already.
+`main`'s `9183a13`, merged in since, added the last and moved nothing in
+the table. The second
+pass checks it with the four leaves left, against the same compiler, and
+converts none.
+
+The authored `.f.js` population under `fjs/` grows from 42 to 43, and
+`npm start compile` checks 60.
+
+The `git/config` row moved once
+[elisions](../spec/bindings/destructuring/README.md) landed, measured on that
+pull request's branch: the hole in `const [, list] = …` in `tryEntries`,
+its first refusal before, is read now. What remains was measured on a
+scratch copy, each refusal replaced by the spelling the language admits
+until the copy was accepted. The other four rows are the `2e0462e`
+table's, their modules unchanged since. Locations are `line:column`;
+paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `git/config/module.f.mjs` | 379:41 | `acc.sub` in `subStep`, `sub` a `String.prototype` name (`prohibited property name`) | Nothing: the copy with `_SubState`'s `sub` renamed to a name no prototype gives a value, `part`, is accepted — `name` is no such name, `Function.prototype` giving it one |
+| `types/function/compare/module.f.mjs` | 65:9 | `if (e < b) { return b }`, a `return` guard inside the loop in `bsearch` | In `bsearch`, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['git/config', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `2e0462e` (historical)
+
+Measured on `2e0462e`, the head of
+[#3079](https://github.com/functionalscript/functionalscript/pull/3079),
+which renamed `ebnf/ast` and `types/nullable`. A leaf is as defined in the
+`5dcd94b` audit below, and the leaves were rediscovered as the `0c9ddf8`
+table below says: every authored non-proof module loaded through Node with a
+resolve hook recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 6 | `ebnf/token_symbol`, by the rewrites of [rule 10](../doc/CONVERTING.md#10-a-call-made-for-its-failure), [rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings) and [rule 1](../doc/CONVERTING.md#1-computed-keys) |
+| 2 | 5 | None: every remaining leaf is refused as written |
+
+`ebnf/token_symbol` held the refusals its row in the `2a5b9c7` table below
+lists, and each has an admitted rewrite. Its two `assert(…)`
+statements stood directly before a `return`, so each call moves into that
+`return` as the comma's discarded operand and keeps its place in the order
+(rule 10). The `new Set(names)` that asked whether a name repeats is the
+question asked of the list itself,
+`names.every((n, i) => names.indexOf(n) === i)`, which rule 9 now names
+for a `Set` of strings. The key `names[symbol - start]` is
+`names[Number(symbol - start)]`, the same number (rule 1). Its references
+follow, six files, and its proof, which pins both refusals, stays
+`proof.f.mjs`.
+
+The rename exposes no leaf: every module importing `ebnf/token_symbol`
+imports another `.f.mjs` too. The second pass checks the five leaves left,
+against the same compiler, and converts none.
+
+The authored `.f.js` population under `fjs/` grows from 41 to 42, and
+`npm start compile` checks 59.
+
+The five rows are the `2a5b9c7` table's, each first refusal measured again.
+Three moved once [call statements](../spec/functions/call-statements/README.md)
+landed, measured on that pull request's branch: `assert(…);` is a call
+statement now, so the `assert` rows of `types/function/compare` and
+`zlib/bits` are refused at what comes after; and `types/map` is refused at
+its `new`, a reserved word, since the `Map(...)` after it on its line reads
+as a call statement, which the fold refuses only after the `new`. No leaf
+became convertible. Locations are `line:column`; paths are relative to
+`fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `text/ascii/module.f.mjs` | 39:24 | `'\0'` in `nul`, an escape the language does not read (`lit.string-escape`; `'\u0000'` is the admitted spelling) | `void 0` in `at` (`op.void`); `BigInt(…)` in `digitsValue` and `hexDigitsValue`, `const not found` ([rule 8](../doc/CONVERTING.md#8-bigint)) |
+| `types/function/compare/module.f.mjs` | 65:9 | `if (e < b) { return b }`, a `return` guard inside the loop in `bsearch` | In `bsearch`, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['text/ascii', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `2a5b9c7` (historical)
+
+Measured on `2a5b9c7`, the head of
+[#3077](https://github.com/functionalscript/functionalscript/pull/3077),
+which renamed `asserts`, with `main` merged in. A leaf is as defined in the
+`5dcd94b` audit below, and the leaves were rediscovered as the `0c9ddf8`
+table below says: every authored non-proof module loaded through Node with a
+resolve hook recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 7 | `ebnf/ast`, `types/nullable`, by the rewrite of [rule 10](../doc/CONVERTING.md#10-a-call-made-for-its-failure) |
+| 2 | 6 | None: every remaining leaf is refused as written |
+
+The seven leaves are the `265b4a7` table's, each first refused where that
+table says. `ebnf/ast` held four refusals and `types/nullable` one, each an
+`assert(…)` written directly before a `return`, so each call moves into
+that `return` as the comma's discarded operand and keeps its place in the
+order. Nothing else changes in either module. Their references follow:
+`ebnf/ast` is named in 11 files and its README, `types/nullable` in 21
+files, and each proof stays `proof.f.mjs`.
+
+The renames expose one leaf, `ebnf/token_symbol`, which imports
+`types/nullable` and `asserts` alone. The second pass checks it with the
+five leaves left, against the same compiler, and converts none.
+
+The authored `.f.js` population under `fjs/` grows from 39 to 41, and
+`npm start compile` checks 58.
+
+The `text/ascii` row was measured again: its module has grown since the
+`265b4a7` table, and the same rewrites carry it to acceptance, so the row
+is unchanged. The `types/function/compare`, `types/list`, `types/map` and
+`zlib/bits` rows are the `265b4a7` table's: of those modules, only the
+path of an `asserts` import has changed since. The `ebnf/token_symbol` row
+was measured as the others were: each refusal was removed on a scratch
+copy, in turn, or replaced by the spelling the language admits for it,
+until the copy was accepted, so a construct is listed only where the
+compiler reported it. Locations are `line:column`; paths are relative to
+`fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `ebnf/token_symbol/module.f.mjs` | 48:5 | `assert(…)` as a statement in `encoding`, before its `return` | `new Set(names)` in that assertion, `Set` not a language type; `assert(…)` as a statement in `encode`, before its `return`; `names[symbol - start]` in `decode`, `computed key is not Number(...)` ([rule 1](../doc/CONVERTING.md#1-computed-keys)) |
+| `text/ascii/module.f.mjs` | 39:24 | `'\0'` in `nul`, an escape the language does not read (`lit.string-escape`; `'\u0000'` is the admitted spelling) | `void 0` in `at` (`op.void`); `assert(…)` as a statement in `digitsValue`, before its `const`s; `BigInt(…)` in `digitsValue` and `hexDigitsValue`, `const not found` ([rule 8](../doc/CONVERTING.md#8-bigint)) |
+| `types/function/compare/module.f.mjs` | 15:5 | `assert(…)` as a statement in `index3` | The same in `index5`; in `bsearch`, a `return` guard inside the loop, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `zlib/bits/module.f.mjs` | 25:5 | `assert(…)` as a statement in `read`, before its guards | The `for` loop in `read`; `let word`, with no `while` after it |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ebnf/token_symbol', 'text/ascii', 'types/function/compare', 'types/list',
+  'types/map', 'zlib/bits',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `265b4a7` (historical)
+
+Measured on `265b4a7`, the head of
+[#3075](https://github.com/functionalscript/functionalscript/pull/3075),
+which added the comma operator. A leaf is as defined in the `5dcd94b` audit
+below, and the leaves were rediscovered as the `0c9ddf8` table below says:
+every authored non-proof module loaded through Node with a resolve hook
+recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 3 | `asserts`, by the rewrites of [rule 10](../doc/CONVERTING.md#10-a-call-made-for-its-failure) and [rule 7](../doc/CONVERTING.md#7-a-body-that-ends-without-return) |
+| 2 | 8 | `js/members` |
+| 3 | 7 | None: every remaining leaf is refused as written |
+
+`asserts` held the refusals the `122820b` row below lists, and each has an
+admitted rewrite now. `assert` braces its guard and returns `undefined`
+after it (rule 7). `assertEq` and `assertStructurallySame` return the call
+of `assert`, which returns `undefined` as the two did. `assertNotNullish`,
+`assertOk` and `assertError` return the comma of the call and the value
+(rule 10), which `tsc` still narrows, since TypeScript follows an `asserts`
+call through a comma's discarded operand. Its proof gains the cases of
+`assertNotNullish` it lacked, and stays `proof.f.mjs`. Its references are
+414 files: the import in every module and proof that asserts, and seven
+documents.
+
+The rename exposes six leaves, each importing no other `.f.mjs`: `ebnf/ast`, `js/members`, `text/ascii`, `types/function/compare`,
+`types/nullable` and `zlib/bits`. `js/members` was refused only inside
+`asserts`, and compiles whole with its extension and its references
+changed: its proof and its `types.ts`, no module importing it. The third
+pass checks the seven leaves left, against the same compiler, and converts
+none as written. Two compile whole with rule 10 alone: `ebnf/ast`, whose
+four refusals are each an `assert(…)` before a `return`, and
+`types/nullable`, whose one is. They are the next conversions.
+
+The authored `.f.js` population under `fjs/` grows from 37 to 39, and
+`npm start compile` checks 56.
+
+The `types/list` and `types/map` rows are the `122820b` table's,
+unchanged: neither module has changed since, and each first refusal was
+measured again and is the same. The five new rows were measured as the
+others were: each refusal was removed on a scratch copy, in turn, or
+replaced by the spelling the language admits for it, until the copy was
+accepted, so a construct is listed only where the compiler reported it.
+Locations are `line:column`; paths are relative to `fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `ebnf/ast/module.f.mjs` | 30:5 | `assert(…)` as a statement in `unmapped` | The same before the `return` of `items`, `variant` and `symbolAt`; rule 10 rewrites all four, and the module then compiles whole |
+| `text/ascii/module.f.mjs` | 39:24 | `'\0'` in `nul`, an escape the language does not read (`lit.string-escape`; `'\u0000'` is the admitted spelling) | `void 0` in `at` (`op.void`); `assert(…)` as a statement in `digitsValue`, before its `const`s; `BigInt(…)` in `digitsValue` and `hexDigitsValue`, `const not found` ([rule 8](../doc/CONVERTING.md#8-bigint)) |
+| `types/function/compare/module.f.mjs` | 15:5 | `assert(…)` as a statement in `index3` | The same in `index5`; in `bsearch`, a `return` guard inside the loop, a `switch` inside the loop whose cases assign `b` and `e` and end in `break`, no `return` after `while (true)`, and a second `let`, `e`, not the loop's variable |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+| `types/nullable/module.f.mjs` | 61:5 | `assert(…)` as a statement in `unwrap` | Nothing: the one refusal, which rule 10 rewrites |
+| `zlib/bits/module.f.mjs` | 25:5 | `assert(…)` as a statement in `read`, before its guards | The `for` loop in `read`; `let word`, with no `while` after it |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = [
+  'ebnf/ast', 'text/ascii', 'types/function/compare', 'types/list',
+  'types/map', 'types/nullable', 'zlib/bits',
+];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `122820b` (historical)
+
+Measured on `122820b`, the head of `main` after
+[#3062](https://github.com/functionalscript/functionalscript/pull/3062)
+renamed `website/issue`. A leaf is as defined in the `5dcd94b` audit below,
+and the leaves were rediscovered as the `0c9ddf8` table below says: every
+authored non-proof module loaded through Node with a resolve hook recording
+each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 3 | `types/object/structurally_same`, by one admitted rewrite |
+| 2 | 3 | None: every remaining leaf is refused |
+
+`types/object/structurally_same` held one refusal, not the two the
+`999164a` row below claimed: `new Map(entries(b))`. The `Map` was a lookup
+of `b`'s own entries by string key, and
+[`types/object/entry`](../fjs/types/object/entry/module.f.js)'s `hasEntry`
+and `entry` read the same entries, so the rewrite is
+[CONVERTING.md rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings),
+added with it: a `Map` stays only where its keys are not strings.
+`entry` imports nothing, so the module still imports nothing that reaches
+`fjs/asserts`, and the cycle its README describes stays closed. Its
+importers are `asserts` and `types/object`, which re-exports it, and the
+`nanvm` and `nanvm/corpus` proofs; its own proof stays `proof.f.mjs`.
+
+The rename exposes one leaf, `asserts`, whose only runtime import is
+`structurally_same`. `types/object` still imports `.f.mjs` modules,
+`types/list` and `types/nullable` among them. The second pass checks
+`asserts` with the two leaves the first left, against the same compiler,
+and converts none.
+
+The authored `.f.js` population under `fjs/` grows from 36 to 37, and
+`npm start compile` checks 54.
+
+The `types/list` and `types/map` rows are the `999164a` table's,
+unchanged: neither module has changed since, and each first refusal was
+measured again and is the same. The `asserts` row was measured as the
+others were: each refusal was removed on a scratch copy, in turn, until the
+copy was accepted. Locations are `line:column`; paths are relative to
+`fjs/`.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `asserts/module.f.mjs` | 26:13 | `throw` as the body of an `if` without braces, in `assert` | In `assert`, no `return` after the guard ([rule 7](../doc/CONVERTING.md#7-a-body-that-ends-without-return)); the call `assert(…)` as a statement, last in `assertEq` and `assertStructurallySame`, and before the `return` in `assertNotNullish`, `assertOk` and `assertError`: a body holds only `const`s and guards before its terminating statement ([bodies and guards](../spec/control-flow/guards/README.md)) |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['asserts', 'types/list', 'types/map'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `999164a` (historical)
+
+Measured at `999164a`, the head of `main` after
+[#3056](https://github.com/functionalscript/functionalscript/pull/3056)
+made the runtime value two functions. A leaf is as defined in the
+`5dcd94b` audit below, and the leaves were rediscovered as the `0c9ddf8`
+table below says: every authored non-proof module loaded through Node with a
+resolve hook recording each runtime import.
+
+| Pass | Implementation leaves checked | Converted to `.f.js` |
+| --- | ---: | --- |
+| 1 | 4 | `website/issue` |
+| 2 | 3 | None: every remaining leaf is refused |
+
+There are four leaves where the `3e1d1a09` table left three, because one
+leaf is new. `website/issue`, added by
+[#3022](https://github.com/functionalscript/functionalscript/pull/3022) to
+show every issue's status and priority, imports only `types/result`, an
+`.f.js`, and compiles whole.
+
+It is converted with only its extension and its references changed, and
+its proof stays `proof.f.mjs`. Its two importers are `website` and
+`website/page`; its `types.ts` imports the type of `priorities` and
+`statuses` from it, its demo and proof import it, and it is linked from
+[`fjs/website/README.md`](../fjs/website/README.md) and
+[`todo/README.md`](./README.md#issue-format). Both importers and the demo
+still import other `.f.mjs` modules, `media/html`, `path` and
+`website/demo` among them, so the rename exposes no new leaf. The nearest
+is still `nanvm/methods`, which waits on `media/rust` alone, and
+`media/rust` waits on `types/list` and `text/utf16`. The second pass checks
+the three leaves the first refused, against the same compiler, and converts
+none.
+
+The authored `.f.js` population under `fjs/` grows from 35 to 36, and
+`npm start compile` checks 53: those 36, the specification's six DataJS
+vectors, and its eleven per-area example modules. It is 35, not the 34 the
+`3e1d1a09` text counted, because `js/intrinsic` was added as an `.f.js`
+([#3048](https://github.com/functionalscript/functionalscript/pull/3048))
+and `text/shell` renamed to one
+([#2991](https://github.com/functionalscript/functionalscript/pull/2991))
+since.
+
+The three remaining rows are the `3e1d1a09` table's: none of the three
+modules had changed since, and each first refusal was measured again at
+this head and was the same. The last column was copied from that table,
+not measured again, and its `structurally_same` cell was wrong; it is
+corrected below.
+
+| Leaf file | Location | First refused construct | Behind it |
+| --- | ---: | --- | --- |
+| `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
+| `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
+| `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | Nothing: the one refusal. This cell first claimed `const { entries } = Object` was refused too, copied from the `3e1d1a09` row without being measured again; `Object.entries` has been admitted in both spellings since the `0c9ddf8` table ([CONVERTING.md rule 6](../doc/CONVERTING.md#6-objectis-and-objectentries)), and the module converted once its `Map` was replaced |
+
+To recheck the current table without writing generated output, run this from
+the repository root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['types/list', 'types/map', 'types/object/structurally_same'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update this table with
+the remaining refusals.
+
+#### Leaf migration fixed point at `3e1d1a09` (historical)
+
 Measured at `3e1d1a09`, the head of `main` after
 [#2980](https://github.com/functionalscript/functionalscript/pull/2980)
 converted the specification into a tree of pages. A leaf is as defined in
@@ -168,14 +809,14 @@ each now waits on an `.f.mjs` it imports, whatever it refuses itself.
 compiles whole since
 [#2963](https://github.com/functionalscript/functionalscript/pull/2963)
 admitted default parameters
-([spec: parameters](../spec/functions/parameters.md)), its one refusal.
+([spec: parameters](../spec/functions/parameters/README.md)), its one refusal.
 
 Both are converted with only their extension and their references changed,
 and each proof stays `proof.f.mjs`. `media/rust/item`'s six importers are
 `compiler/rust`, `edag/rust`, `nanvm/commands`, `nanvm/harness`,
 `nanvm/methods` and `nanvm/rust`, and it is linked from `media/rust` and
 from `edag/rust`'s
-[let-bindings `todo/`](../fjs/edag/rust/todo/let-bindings-owner.md).
+[prepared Rust binding contract](../fjs/rust/serializer/README.md).
 `website/demo/code`'s nine importers are the `compiler`, `crypto/hmac`,
 `crypto/pow`, `crypto/secp`, `crypto/sign` and `crypto/vdf` demos,
 `website/cli`, `website/demo/hash` and `website/demo/highlight`, and it is
@@ -603,7 +1244,7 @@ of what JavaScript already says, and this migration does not pay for one.
 then rewrote the two reads of a computed key the leaves still had as the
 language's own spellings: `nanvm/methods` reads `p[type]` as
 `entry(p, type)` and `types/list` reads `array[i]` as `array[Number(i)]`
-([reading an entry at run time](../spec/property-access/entries.md),
+([reading an entry at run time](../spec/property-access/entries/README.md),
 [property access](../spec/property-access/README.md)). That is not a rewrite
 of the kind above: each is the read JavaScript performed, in the one
 spelling the language has for it. `website/demo/code`'s `{ [codeMarker]: '' }`
@@ -832,10 +1473,10 @@ leaf, directly or not — what a leaf's rename opens up, since a proof stays
 
 The table above is a historical measurement. `array_index` now calls
 `Number.isInteger`, admitted as a static function
-([spec: built-in static functions](../spec/built-ins/static-functions.md)),
+([spec: built-in static functions](../spec/built-ins/static-functions/README.md)),
 in place of the shared helper it once imported. Its bounds and canonical
 string round-trip are unchanged. With
-[`String` conversion](../spec/conversions/string.md) admitted,
+[`String` conversion](../spec/conversions/string/README.md) admitted,
 `array_index` now compiles through the predicate and its canonical string
 check; the rename above completes that migration step. `types/number`,
 ASCII digit parsing, Unicode surrogate conversion, and Node/web validation
@@ -844,7 +1485,7 @@ call the same built-in.
 Compared with the previous measurement at `4c8ec55`, the `08d013b` snapshot
 had the same eighteen leaves and compiler progress on three of them.
 `Number(exp)` is in the language and `Number` a reserved word
-([number conversion](../spec/conversions/number.md)), so
+([number conversion](../spec/conversions/number/README.md)), so
 `array_index`'s `Number(key)` compiled at that snapshot, while the module
 still stopped at `Number.isInteger`, before reaching the `String` global.
 The shared integer predicate and admitted `String` call described above are
@@ -855,7 +1496,7 @@ refused unless it is `a[Number(i)]`, and is `git/bytes`' first refusal; every
 row with a runtime key says which of the language's two rewrites it takes, a number
 key's `a[Number(i)]` or a string key's `entry(a, k)`. `structurally_same` no
 longer waits on `instanceof`: all three of its uses have `Array` on the right
-([`instanceof`](../spec/operators/instanceof.md)). Two leaves changed their
+([`instanceof`](../spec/operators/instanceof/README.md)). Two leaves changed their
 source: `keywords` builds a second `new Set`, the same feature, and `style`'s
 stylesheet now substitutes two string `const`s. `style` also has 25 modules
 behind it, not 5: `fjs/website/demo`, which every demo imports, imports it.
@@ -870,18 +1511,18 @@ records that snapshot's blockers, including the since-migrated `array_index`:
 
 | Feature | Tracked in | Leaves it held at `08d013b` |
 | --- | --- | --- |
-| Template literals | now implemented ([spec: template literals](../spec/values/template-literals.md)) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
+| Template literals | now implemented ([spec: template literals](../spec/values/template-literals/README.md)) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
-| A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/property-access/entries.md)); the module rewrites `a[k]` as `entry(a, k)[0]`, imported from [`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js) | git/config, nanvm/methods |
+| A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/property-access/entries/README.md)); the module rewrites `a[k]` as `entry(a, k)`, and `k in a` as `hasEntry(a, k)`, both imported from [`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js) | git/config, nanvm/methods |
 | A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/property-access/README.md)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, git/config, browser-source |
-| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, the call `Number(exp)` is in the language ([spec: number conversion](../spec/conversions/number.md)), and so are the four predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, with `Object.is` ([spec: built-in static functions](../spec/built-ins/static-functions.md)), each other member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
+| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, the call `Number(exp)` is in the language ([spec: number conversion](../spec/conversions/number/README.md)), and so are the four predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, with `Object.is` ([spec: built-in static functions](../spec/built-ins/static-functions/README.md)), each other member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
 | `new` with a built-in constructor | nothing proposes it; `Map` and `Set` are undecided in [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, keywords, map, set, demo/examples |
 | `let`, reassignment, `+=`, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `+=` is [`3430-assignments.md`](../spec/todo/3430-assignments.md); `while` is [roadmap §3.2](../spec/todo/README.md#32-priority-2) | function, set, browser-source |
 | String escapes `\u{…}`, `\v`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
 | A non-terminating `if`, `break`, `continue` | [roadmap §3.2](../spec/todo/README.md#32-priority-2), the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
 | `for … of` | nothing proposes it | result |
 | `switch`, a default parameter | neither proposed; [`3120-parameters.md`](../spec/todo/3120-parameters.md) leaves a default parameter for later | ts |
-| A prohibited member function, `toLowerCase`, or property name, `sub` | `toLowerCase` is now admitted ([spec: built-in member functions](../spec/built-ins/member-functions.md)); `sub` stays a prohibited property name, [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prototypeNames` ([spec: property access](../spec/property-access/README.md)), and the module rewrites it, not the language | git/config |
+| A prohibited member function, `toLowerCase`, or property name, `sub` | `toLowerCase` is now admitted ([spec: built-in member functions](../spec/built-ins/member-functions/README.md)); `sub` stays a prohibited property name, [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prototypeNames` ([spec: property access](../spec/property-access/README.md)), and the module rewrites it, not the language | git/config |
 
 A leaf renames only when every feature it uses has landed. In that historical
 snapshot, these leaves waited on one feature alone: `style` on template literals,
@@ -895,7 +1536,7 @@ has. `iterate` in `function` could lose its loop today, which would leave
 that module on nothing — `let`, reassignment and `while` are all inside
 `iterate`, a recursion that halves `n` compiles, and the shorthand `result`
 in the object `fn` returns is in the language
-([objects](../spec/values/objects.md)) — the one rename no language step
+([objects](../spec/values/objects/README.md)) — the one rename no language step
 gates. `okList` in `result` could lose its `for … of` the same way, but
 `unwrap` and `invert` take destructured parameters, so that root waits on
 destructuring either way. Template literals hold nine leaves and
@@ -996,7 +1637,7 @@ nothing else moved.
 
 Template literals were the first refusal of two modules in five in these
 snapshots, almost all of them error messages and `assert` texts. Untagged
-templates are now implemented ([spec: template literals](../spec/values/template-literals.md)).
+templates are now implemented ([spec: template literals](../spec/values/template-literals/README.md)).
 Destructuring was next, and the string-escape row is tokenizer work. The leaf
 table above is what this count does not say: a module whose
 first refusal clears meets its next, and only a leaf whose every feature has

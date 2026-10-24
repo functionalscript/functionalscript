@@ -90,7 +90,7 @@ linking. No new EDAG operation or function-parameter representation is needed.
 
 ## Related
 
-- [Exports](modules/exports.md) — existing export-object contract.
+- [Exports](modules/exports/README.md) — existing export-object contract.
 - [Module compilation](../fjs/compiler/todo/compile-modules-to-edag.md) — module
   parameters are dependency export objects.
 - [Module resolution](../fjs/compiler/todo/module-resolution-compatibility.md)

@@ -8,22 +8,23 @@
  * @import { Unknown } from '../../media/datajs/types.ts'
  * @import { EdagValue, Object as ValueObject, Runtime } from '../../edag/value/types.ts'
  * @import { CompileValue } from '../../edag/value/to_unknown/types.ts'
- * @import { _Load, _Source } from '../source/types.ts'
+ * @import { _Load } from '../source/types.ts'
  * @import { InitializationError, SourceError } from './types.ts'
  * @import { RuntimeLoad } from '../types.ts'
  * @import { Effect, IoChannel } from '../../effects/types.ts'
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  */
 
-import { assertOk } from '../../asserts/module.f.mjs'
+import { assertOk } from '../../asserts/module.f.js'
+import { identity } from '../../types/function/module.f.js'
 import { isArray } from '../../types/array/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { findProperty, read } from '../../edag/value/property/module.f.mjs'
 import { toData, toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
 import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { unresolved, jsonValue } from '../edag/module.f.mjs'
-import { _fileError, _rootSource, _parseJson, _walk } from '../source/module.f.mjs'
+import { unresolved } from '../edag/module.f.mjs'
+import { _fileError, _jsonModule, _program } from '../source/module.f.mjs'
 import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 
 export { parse } from '../source/module.f.mjs'
@@ -36,7 +37,7 @@ export { parse } from '../source/module.f.mjs'
  * @type {(runtime: Runtime | undefined) => _Load<ValueObject, ValueObject, InitializationError>}
  */
 const interpreting = runtime => ({
-    json: value => ['{}', [[':', 'default', jsonValue(value)]]],
+    json: _jsonModule,
     select: (module, name) => name === null || findProperty(module, name) !== undefined ? module : undefined,
     module: ({ path }, imports, module) => {
         // An unresolved module selects its imports from complete export
@@ -48,21 +49,6 @@ const interpreting = runtime => ({
             : ok(/** @type {ValueObject} */ (value))
     },
 })
-
-/** Direct JSON is a document; modules yield their complete export object. @type {(runtime: Runtime | undefined) => (source: _Source) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>} */
-const interpretSource = runtime => source => source.json
-    ? mapStep(_parseJson(source.path), jsonValue)
-    : mapStep(_walk(interpreting(runtime))(source)({ stack: null, complete: null }), ([, value]) => value)
-
-/**
- * A source under the runtime `load` answers, run once the source is known
- * to be a module, so a JSON document never loads one.
- *
- * @type {(load: RuntimeLoad) => (source: _Source) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>}
- */
-const interpretLoaded = load => source => source.json
-    ? interpretSource(undefined)(source)
-    : step(load, runtime => interpretSource(runtime)(source))
 
 /**
  * No runtime: for a caller that compiles code outputs alone, which
@@ -81,11 +67,13 @@ export const noRuntime = pureOk(undefined)
  * the member functions the interpreter has no native implementation of
  * ([`edag/memo/types.ts`](../../edag/memo/types.ts)). A caller passes the
  * package's runtime, `packageRuntime` in [`compiler`](../module.f.mjs), a
- * runtime it holds as `pureOk(runtime)`, or {@link noRuntime}.
+ * runtime it holds as `pureOk(runtime)`, or {@link noRuntime}. A module
+ * yields its complete export object; a `.json` root is a document and yields
+ * its value, and never loads the runtime (`_program` in `../source`).
  *
  * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>}
  */
-export const interpret = load => path => step(_rootSource(path), interpretLoaded(load))
+export const interpret = load => _program(mapStep(load, interpreting), identity)
 
 /**
  * The runtime at `path`, `fjs/js/runtime`'s source or a stand-in for it:
@@ -124,6 +112,6 @@ export const transpile = load => path => step(interpret(load)(path), toUnknown)
  *
  * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>}
  */
-export const _transpileDefault = load => path => step(_rootSource(path), source => mapStep(
-    interpretLoaded(load)(source),
-    value => toData(source.json ? value : assertOk(read(ok(value), 'default')))))
+export const _transpileDefault = load => path => mapStep(
+    _program(mapStep(load, interpreting), module => assertOk(read(ok(module), 'default')))(path),
+    toData)

@@ -15,14 +15,16 @@
  * @module
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { devNixJob } from '../dev/module.f.mjs'
 import { flakeText, nixVersionStep } from '../nix/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.mjs'
 import {
     i686System,
     i686Target,
     rustPlatformCommands,
+    rustPlatformSteps,
     shellRustCommands,
     shellRustVersionSteps,
     wasmRust,
@@ -35,9 +37,6 @@ const devFlake = flakeText(devNixJob)
 /** @type {(needle: string) => void} */
 const assertFlakeContains = needle =>
     assert(devFlake.includes(needle), `the shell's flake is missing: ${needle}`)
-
-/** @type {(text: string, needle: string) => number} */
-const occurrences = (text, needle) => text.split(needle).length - 1
 
 export const proof = {
     // What 32-bit Linux needs, asserted through the text the generator
@@ -62,7 +61,7 @@ export const proof = {
         target: () => {
             assertFlakeContains(
                 `${wasmTargets.map(t => `"${t}"`).join(' ')} "i686-unknown-linux-gnu" ]`)
-            assertEq(occurrences(devFlake, '"i686-unknown-linux-gnu"'), 1)
+            assertEq(occurrences('"i686-unknown-linux-gnu"')(devFlake), 1)
         },
         // The linker, which is the whole reason this is a per-system
         // declaration. The hook has to name it: `mkShell` brings its own `cc`
@@ -77,6 +76,11 @@ export const proof = {
                 'export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER='
                 + '${pkgs.pkgsi686Linux.stdenv.cc}/bin/cc')
         },
+        profileLinker: () => {
+            assertFlakeContains('name = "fjs-i686-cc";')
+            assertFlakeContains('exec ${pkgs.pkgsi686Linux.stdenv.cc}/bin/cc "$@"')
+            assertEq(occurrences('name = "fjs-i686-cc";')(devFlake), 1)
+        },
         // The system, and that it is the only one. `pkgsi686Linux` throws
         // wherever the host is not x86 Linux, so the same hook in a second
         // shell would be a shell that cannot be entered — and the flake would
@@ -87,7 +91,8 @@ export const proof = {
             assert(
                 devNixJob.systems.includes(i686System),
                 'the shell has no Intel Linux to add it to')
-            assertEq(occurrences(devFlake, 'pkgsi686Linux'), 1)
+            // The shell hook and the profile command both retain the linker.
+            assertEq(occurrences('pkgsi686Linux')(devFlake), 2)
             // Nothing in `packages`: a 32-bit `cc` on `PATH` would shadow the
             // host one the untargeted commands need. The linker reaches the
             // closure by being interpolated into the hook.
@@ -125,6 +130,31 @@ export const proof = {
             'cargo clippy -- -D warnings',
             'cargo clippy --release -- -D warnings',
         ])
+    },
+    // Direct-install jobs need the toolchain markers as well as the commands.
+    // Windows Intel alone adds a second target and its debug/release checks.
+    platformSteps: () => {
+        const native = /** @type {const} */ ([
+            { type: 'rust' },
+            { type: 'test', step: { run: 'cargo test' } },
+            { type: 'test', step: { run: 'cargo test --release' } },
+            { type: 'test', step: { run: 'cargo clippy -- -D warnings' } },
+            { type: 'test', step: { run: 'cargo clippy --release -- -D warnings' } },
+        ])
+        assertStructurallySame(rustPlatformSteps('windows', 'intel'), [
+            ...native,
+            { type: 'rust', target: 'i686-pc-windows-msvc' },
+            { type: 'test', step: { run: 'cargo test --target i686-pc-windows-msvc' } },
+            { type: 'test', step: { run: 'cargo test --target i686-pc-windows-msvc --release' } },
+            { type: 'test', step: { run: 'cargo clippy --target i686-pc-windows-msvc -- -D warnings' } },
+            { type: 'test', step: { run: 'cargo clippy --target i686-pc-windows-msvc --release -- -D warnings' } },
+        ])
+        for (const [os, architecture] of /** @type {const} */ ([
+            ['windows', 'arm'],
+            ['macos', 'intel'],
+        ])) {
+            assertStructurallySame(rustPlatformSteps(os, architecture), native)
+        }
     },
     // And on Intel Linux, those four and the 32-bit target's four — the job
     // `ubuntu-intel32` was, now that the shell it would have entered is the

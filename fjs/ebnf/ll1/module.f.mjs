@@ -24,17 +24,19 @@
  * @import { Rule } from '../types.ts'
  * @import { EmptyTagMap, RuleNameMap, RuleSet, RuleVisitor } from '../data/types.ts'
  * @import { FirstMap, Mapping, Parser, RewriteSet } from './types.ts'
- * @import { _FirstState, _Follows, _Mappers, _RepeatFrame, _Stack, _State } from './private.ts'
+ * @import { _FirstState, _Follows, _Frame, _Mappers, _RepeatFrame, _Visit } from './private.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
+import { fixpoint } from '../../types/function/module.f.js'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, definedEntries, definedValues, structurallySame } from '../../types/object/module.f.mjs'
 import { contains, empty, intersection, union } from '../../types/range_set/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.mjs'
-import { _fixpoint, _nullable as nullable, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from '../data/module.f.mjs'
+import { _nullable as nullable, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from '../data/module.f.mjs'
 import { min as minNumber } from '../../types/number/min/module.f.js'
+import { walkFold } from '../../types/stack_walk/module.f.mjs'
 
 const { keys, fromEntries } = Object
 const { isSafeInteger } = Number
@@ -200,7 +202,7 @@ const followMap = (ruleSet, first, nullable, names) => {
             follow)
     // `structurallySame`, not `===`: a round rebuilds every set it unions
     // into, whether or not its contents changed.
-    return _fixpoint(step, structurallySame)(fromEntries(names.map(name => [name, empty])))
+    return fixpoint(step, structurallySame)(fromEntries(names.map(name => [name, empty])))
 }
 
 /**
@@ -283,11 +285,12 @@ const emitBy = mappers => (name, node) => {
 }
 
 /**
- * The machine, for a set already validated. A match is a loop over one
- * state — the frames suspended and what to do next — rather than a
- * recursion: nesting depth grows with the input, not the grammar, so a
- * recursive matcher would overflow the JS stack on a few thousand nested
- * brackets, where this one's stack grows on the heap.
+ * The machine, for a set already validated. A match is a walk over an
+ * explicit stack, driven by `../../types/stack_walk`'s `walkFold` with the
+ * cursor as its accumulator, rather than a recursion: nesting depth grows
+ * with the input, not the grammar, so a recursive matcher would overflow
+ * the JS stack on a few thousand nested brackets, where this one's stack
+ * grows on the heap.
  *
  * A node comes into existence at five sites — a set's leaf and the empty
  * sequence in `enter`, the end of a sequence, the variant wrap and the
@@ -359,13 +362,13 @@ const build = (ruleSet, empty, entry, mappers) => {
          * one may match empty, which is how `times(3)([])` matches empty
          * three times.
          *
-         * @type {(stack: _Stack, frame: _RepeatFrame, pos: number) => _State}
+         * @type {(frame: _RepeatFrame, pos: number) => _Visit}
          */
-        const round = (stack, frame, pos) => {
+        const round = (frame, pos) => {
             const { name, min, max, item, rounds, count } = frame
-            return count < min || (count < max && starts(item)(pos))
-                ? [{ top: frame, rest: stack }, ['enter', item, pos]]
-                : [stack, ['ok', emit(name, toArray(rounds)), pos]]
+            return [pos, count < min || (count < max && starts(item)(pos))
+                ? ['push', frame, item]
+                : ok(emit(name, toArray(rounds)))]
         }
 
         /**
@@ -374,15 +377,15 @@ const build = (ruleSet, empty, entry, mappers) => {
          * variant's branch, a repetition's next round — and every invocation
          * builds a node of its own.
          *
-         * @type {(stack: _Stack, name: string, pos: number) => _State}
+         * @type {(pos: number, name: string) => _Visit}
          */
-        const enter = (stack, name, pos) => {
-            /** @type {RuleVisitor<_State>} */
+        const enter = (pos, name) => {
+            /** @type {RuleVisitor<_Visit>} */
             const v = {
-                set: s => [stack, accepts(s)(pos) ? ['ok', emit(name, leafAt(pos)), pos + 1] : ['error', pos]],
-                sequence: items => items.length === 0
-                    ? [stack, ['ok', emit(name, []), pos]]
-                    : [{ top: { kind: 'sequence', name, items, index: 0, done: [] }, rest: stack }, ['enter', items[0], pos]],
+                set: s => accepts(s)(pos) ? [pos + 1, ok(emit(name, leafAt(pos)))] : [pos, error(pos)],
+                sequence: items => [pos, items.length === 0
+                    ? ok(emit(name, []))
+                    : ['push', { kind: 'sequence', name, items, index: 0, done: [] }, items[0]]],
                 // The branch the lookahead selects, else the one that
                 // matches empty — the last such, as `emptyTagMap` in
                 // `../data` names it.
@@ -390,12 +393,12 @@ const build = (ruleSet, empty, entry, mappers) => {
                     const all = definedEntries(branches)
                     const branch = all.find(([, item]) => starts(item)(pos))
                         ?? all.findLast(([, item]) => isNullable(item))
-                    return branch === undefined
-                        ? [stack, ['error', pos]]
-                        : [{ top: { kind: 'variant', name, tag: branch[0] }, rest: stack }, ['enter', branch[1], pos]]
+                    return [pos, branch === undefined
+                        ? error(pos)
+                        : ['push', { kind: 'variant', name, tag: branch[0] }, branch[1]]]
                 },
                 repeat: (min, max, item) =>
-                    round(stack, { kind: 'repeat', name, min, max, item, rounds: null, count: 0 }, pos),
+                    round({ kind: 'repeat', name, min, max, item, rounds: null, count: 0 }, pos),
             }
             return matchRule(v)(ruleSet[name])
         }
@@ -404,20 +407,20 @@ const build = (ruleSet, empty, entry, mappers) => {
          * Hands a matched node to the innermost frame: the next item of a
          * sequence, the variant's node tagged, or the next round.
          *
-         * @type {(stack: NonNullable<_Stack>, ast: unknown, pos: number) => _State}
+         * @type {(pos: number, top: _Frame, ast: unknown) => _Visit}
          */
-        const resume = ({ top, rest }, ast, pos) => {
+        const resume = (pos, top, ast) => {
             switch (top.kind) {
                 case 'sequence': {
                     const done = [...top.done, ast]
                     const index = top.index + 1
-                    return index < top.items.length
-                        ? [{ top: { ...top, index, done }, rest }, ['enter', top.items[index], pos]]
-                        : [rest, ['ok', emit(top.name, done), pos]]
+                    return [pos, index < top.items.length
+                        ? ['push', { ...top, index, done }, top.items[index]]
+                        : ok(emit(top.name, done))]
                 }
-                case 'variant': { return [rest, ['ok', emit(top.name, [top.tag, ast]), pos]] }
+                case 'variant': { return [pos, ok(emit(top.name, [top.tag, ast]))] }
                 case 'repeat': {
-                    return round(rest, { ...top, rounds: concat(top.rounds)([ast]), count: top.count + 1 }, pos)
+                    return round({ ...top, rounds: concat(top.rounds)([ast]), count: top.count + 1 }, pos)
                 }
             }
         }
@@ -430,23 +433,12 @@ const build = (ruleSet, empty, entry, mappers) => {
          */
         const physical = pos => minNumber(pos, length)
 
-        /** @type {_State} */
-        let state = [null, ['enter', entry, start]]
-        while (true) {
-            const [stack, step] = state
-            if (step[0] === 'enter') {
-                state = enter(stack, step[1], step[2])
-            } else if (step[0] === 'error') {
-                // LL(1) committed to every choice on the way here, so there
-                // is nothing to rewind and retry: the first failure is the
-                // match's.
-                return error(physical(step[1]))
-            } else if (stack === null) {
-                return ok([step[1], physical(step[2])])
-            } else {
-                state = resume(stack, step[1], step[2])
-            }
-        }
+        const result = walkFold({ enter, resume })(start)(entry)
+        // LL(1) committed to every choice on the way to an error, so there
+        // is nothing to rewind and retry: the first failure is the match's.
+        return result[0] === 'error'
+            ? error(physical(result[1]))
+            : ok([result[1][1], physical(result[1][0])])
     }
 }
 

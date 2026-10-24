@@ -16,8 +16,15 @@ const constants = [
 ]
 
 /** @type {Examples} */
-const destructuring = [
-    ['Destructuring', 'const { a, "b": [c, d] } = { a: 1, b: [2, 3] };\nconst [e] = "hi";\nconst f = ([x, { y }], z) => [x, y, z];\nexport default [a, c, d, e, f([4, { y: 5 }], 6)];'],
+const variables = [
+    ['Variables', 'export default n => {\n    let r = 0;\n    r = r + n;\n    r = r * 2;\n    return r;\n};'],
+    ['Variables: a snapshot for a closure', 'export default n => {\n    let r = n;\n    r = r + 1;\n    const s = r;\n    return () => s;\n};'],
 ]
 
-export default { constants, destructuring, all: [...constants, ...destructuring] }
+/** @type {Examples} */
+const destructuring = [
+    ['Destructuring', 'const { a, "b": [c, d] } = { a: 1, b: [2, 3] };\nconst [e] = "hi";\nconst f = ([x, { y }], z) => [x, y, z];\nexport default [a, c, d, e, f([4, { y: 5 }], 6)];'],
+    ['Destructuring: an elision', 'const [, b, , d] = [1, 2, 3, 4];\nconst second = ([, x]) => x;\nexport default [b, d, second("ab")];'],
+]
+
+export default { constants, variables, destructuring, all: [...constants, ...variables, ...destructuring] }

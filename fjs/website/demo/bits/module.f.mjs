@@ -43,7 +43,7 @@
 
 import { fromCodePointList } from '../../../text/utf8/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
-import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
+import { isValidCodePoint, unicodeNotation } from '../../../text/code_point/module.f.mjs'
 import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { toArray } from '../../../types/list/module.f.mjs'
@@ -60,7 +60,7 @@ const standIn = cp =>
     cp === 0x20 ? '␠'
     : cp === 0x0a ? '↵'
     : cp === 0x09 ? '⇥'
-    : cp < 0x20 || (0x7f <= cp && cp <= 0x9f) ? `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`
+    : cp < 0x20 || (0x7f <= cp && cp <= 0x9f) ? unicodeNotation(cp)
     : null
 
 /** @type {(b: number) => string} */
@@ -76,6 +76,18 @@ const byteChar = cp => {
     const bytes = toArray(fromCodePointList([cp]))
     const s = standIn(cp)
     return [bytes, { label: s ?? codePointToString(cp), standIn: s !== null, bytes: bytes.map(binary) }]
+}
+
+/**
+ * The text's characters, each with its UTF-8 bytes as numbers and as a
+ * {@link ByteChar} — or why there are none: an unpaired surrogate has no
+ * UTF-8 bytes.
+ *
+ * @type {(text: string) => Result<readonly (readonly [readonly number[], ByteChar])[], string>}
+ */
+export const byteChars = text => {
+    const cps = toArray(stringToCodePointList(text))
+    return cps.every(isValidCodePoint) ? ok(cps.map(byteChar)) : error('unpaired surrogate, no UTF-8')
 }
 
 /**
@@ -106,9 +118,8 @@ const groups = ({ width, stop }) => bits => {
  * @type {(scheme: BitScheme, encode: (v: Vec) => string) => (text: string) => Result<BitGroups, string>}
  */
 export const bitGroups = (scheme, encode) => text => {
-    const cps = toArray(stringToCodePointList(text))
-    if (!cps.every(isValidCodePoint)) { return error('unpaired surrogate, no UTF-8') }
-    const chars = cps.map(byteChar)
+    const [kind, chars] = byteChars(text)
+    if (kind === 'error') { return error(chars) }
     const bytes = chars.flatMap(([b]) => b)
     const v = tryU8ListToVecMsb(bytes)
     if (v === null) { return error(`text too long: more than ${maxLengthBytes} UTF-8 bytes`) }

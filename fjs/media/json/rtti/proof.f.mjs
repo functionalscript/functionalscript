@@ -5,7 +5,7 @@
  * @import { Unknown } from '../../../rtti/ts/types.ts'
  */
 
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.js'
 import { parse } from '../../../rtti/parse/module.f.mjs'
 import { primitive, unknown, object, array } from './module.f.mjs'
 

@@ -5,7 +5,7 @@
  * The recording document implements only the operations this adapter uses.
  */
 
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startPrs } from './prs-runtime.mjs'
 
 /** A recording HTML document, with one manually activated Refresh button. */

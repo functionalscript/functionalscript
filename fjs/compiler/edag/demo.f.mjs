@@ -23,27 +23,41 @@
  * lowered module already carries; this walk reads it rather than
  * reconstructing it.
  *
+ * **A property read draws its key as a value.** `a.x` is a `.` node with
+ * the receiver in its `obj` port and the key in its `key` port, `"x"`;
+ * `a[5]` is the same `.` with the index in its `idx` port, `5`. A computed
+ * index, `a[Number(i)]`, is an edge from `idx` to the node it is. A function
+ * is a `=>` node with its length in its `length` port.
+ *
  * **A method call is one node.** `o.f(x)` lowers to a `.` carrying its call
  * as a continuation, `['.', o, 'f', ['|()', [x]]]`, not to a `()` over a
  * `.`: the receiver stays live into the call rather than becoming a value
  * of its own, and a drawing with two nodes would show a value the EDAG never
- * has. So it draws as one node, labelled `.f()`, with the receiver in its
- * `obj` port and each argument in a port named by the call it belongs to,
- * `f(0)`.
+ * has. So it draws as one node, **a table of its links**: a cell per link
+ * holding its operator, beside that link's rows, each row a role and its
+ * value or arrow, as every node's are. The `.` link has two, the receiver in
+ * `obj` and the key `"f"` in `key`, as a plain `o.f` draws, and the `()` link one, its
+ * arguments in `...`, an arrow to the `[]` node they are drawn as. A call's
+ * arguments are one node, as an array literal's items are, rather than a
+ * port each: two calls in one chain would otherwise both have a `0`. A plain
+ * call, `f(x)`, is the same one link, `callee` and `...`. The node's label
+ * still spells the chain, `.f()`, and is what a row of another node names it
+ * by.
  *
  * **An optional chain is one node too, and its region is on the edges.**
  * `a?.b.c?.(x)` lowers to one `?.` node carrying its steps as its
- * continuation — `fjs/edag/README.md`, Chains — so it draws as one node,
- * labelled by the chain's spelling with the arguments left out, `?.b.c?.()`,
- * the receiver in `obj` and each call's arguments in ports named by their
- * call, `c?.(0)`; a guarded call, `f?.(x)`, is the same node with `callee`
- * first. Everything after a `?.` is skipped when the value before it is
- * nullish, so those edges are broken: a guarded call's arguments and every
- * step's after it, and a guarded access's computed key. The receiver, a
- * plain method call's arguments and the arguments of a call whose
- * parentheses ended the region, `(a?.b)(x)`, run regardless and draw solid;
- * that call's group is in the label, `(?.b)()`, since the parentheses are
- * the one thing that tells it from `a?.b(x)`.
+ * continuation — `fjs/edag/README.md`, Chains — so it draws as one table:
+ * `?.` beside `obj` and `key`, `.` beside `key`, `?.()` beside `...`. The
+ * first link always takes two rows, receiver and key, as a plain `a.b` does;
+ * a guarded call, `f?.(x)`, starts with `?.()` beside `callee` and `...`. A
+ * numbered key is a value in its link's `idx` row and a computed one an
+ * arrow from it. Everything after a `?.`
+ * is skipped when the value before it is nullish, so those edges are
+ * broken: a guarded call's arguments and every step's after it, and a
+ * guarded access's computed key. The receiver, a plain method call's
+ * arguments and the arguments of a call whose parentheses ended the region,
+ * `(a?.b)(x)`, run regardless and draw solid; that call's link is `(?.)()`,
+ * since the parentheses are the one thing that tells it from `a?.b(x)`.
  *
  * **A tag this demo has no shape for is drawn as itself**, labelled by the
  * tag, rather than silently dropped or wrongly drawn.
@@ -60,9 +74,16 @@
  * the zero-operand operator `['undefined']`. This demo draws the two alike,
  * because a reader sees the same value either way.
  *
- * **An operand a node may never evaluate draws dashed.** `&&`, `||` and `??`
- * establish their right operand only where the left has not already
- * decided the answer, `?:` establishes exactly one arm, and `=>` builds a
+ * **Recursion is an arrow back to the function.** `self` is the innermost
+ * function whose body holds it, so it draws as a back edge to the nearest
+ * `=>` the walk entered through its `body` port, routed around the
+ * graph. A `self` in a slot a nested function captures belongs to the
+ * enclosing function, and the `=>` it is entered through is skipped
+ * because its port is that slot, not `body`.
+ *
+ * **An operand a node may never evaluate draws dashed.** Source logical
+ * operators become conditional regions: `?:` establishes exactly one arm,
+ * reusing the established left value where it decides the result. `=>` builds a
  * closure without running its body, so those edges are marked and the
  * shared module draws them broken. The mark is on the
  * **edge** and not on the node it reaches, because laziness is positional:
@@ -83,7 +104,7 @@
  * @import { _Chain, _Child } from './private.ts'
  */
 
-import { lazyOp2Id, staticIds } from '../../edag/module.f.mjs'
+import { intrinsicIds, staticIds } from '../../edag/module.f.mjs'
 import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
@@ -99,40 +120,26 @@ import { chunksText } from '../../text/marked/module.f.mjs'
 // flat list of strings simple enough to check against the type file by eye.
 // The static functions are the one group a later row grows, so they are
 // the EDAG's own list.
-const op0 = new Set(['undefined', 'args', 'rest', 'self', 'entry', ...staticIds])
+const op0 = new Set(['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', ...intrinsicIds, ...staticIds])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
-    '&&', '||', '??',
 ])
 const op12 = new Set(['+', '-'])
 
-/**
- * The `op2` tags whose **right** operand is lazy, taken from `fjs/edag` rather
- * than repeated here: the executor and this drawing have to agree about
- * which operand may go unevaluated, and a second list is the one that
- * drifts.
- *
- * Why the mark then belongs on the **edge** and not on the node it reaches:
- * `fjs/edag`'s doc again — "all this laziness is positional, not nodal — the
- * same node referenced from an eager position elsewhere is still evaluated
- * there". A node is drawn once however many references reach it, and one of
- * them being conditional says nothing about the others.
- */
-const lazyRight = /** @type {ReadonlySet<string>} */ (new Set(lazyOp2Id))
 
 /**
- * A key as a chain's label spells it: a name, a numbered index, or nothing
- * for a computed one, which draws in an `idx` port instead.
+ * A key as a chain spells it: a name, a numbered index, or `[]` for a
+ * computed one, whose value is an `idx` row of its own.
  *
  * @type {(index: unknown) => string}
  */
-const keyLabel = index => typeof index === 'string' ? index : typeof index === 'number' ? `[${index}]` : ''
+const keyLabel = index => typeof index === 'string' ? index : typeof index === 'number' ? `[${index}]` : '[]'
 
-/** A plain access's spelling: `.x`, `[0]`, or `.` before a computed key. @type {(index: unknown) => string} */
-const dotLabel = index => typeof index === 'number' ? keyLabel(index) : `.${keyLabel(index)}`
+/** A plain access's spelling: `.x`, `[0]`, or `[]`. @type {(index: unknown) => string} */
+const dotLabel = index => typeof index === 'string' ? `.${index}` : keyLabel(index)
 
 /**
  * A node this demo has no shape for, drawn as itself, labelled by its tag,
@@ -146,29 +153,41 @@ const unsupported = exp => ({ kind: 'unsupported', label: `${exp[0]} (not yet dr
 const edge = (label, value, lazy) => lazy ? [label, value, 'lazy'] : [label, value]
 
 /**
- * The ports of an item list: one per item, named by `port` of its
- * position, a spread's marked `...`. An `[]` node's and a plain call's are
- * {@link numbered}; a chain's are named by the call they belong to.
+ * The ports of an `[]` node's items: one per item, named by its position,
+ * a spread's marked `...`.
  *
- * @type {(port: (position: string) => string, lazy: boolean) => (items: unknown) => readonly _Child[]}
+ * @type {(items: unknown) => readonly _Child[]}
  */
-const itemChildren = (port, lazy) => items => /** @type {readonly (readonly unknown[] | Exp)[]} */ (items).map((item, i) =>
+const numbered = items => /** @type {readonly (readonly unknown[] | Exp)[]} */ (items).map((item, i) =>
     item instanceof Array && item[0] === '...'
-        ? edge(port(`...${i}`), /** @type {Exp} */ (item[1]), lazy)
-        : edge(port(`${i}`), /** @type {Exp} */ (item), lazy))
-
-/** The ports of an `[]` node's items and a plain call's arguments. @type {(items: unknown) => readonly _Child[]} */
-const numbered = itemChildren(position => position, false)
-
-/** The `idx` port of a computed key, lazy inside a region, and no port for a key in the label. @type {(index: unknown, lazy: boolean) => readonly _Child[]} */
-const indexChildren = (index, lazy) => index instanceof Array ? [edge('idx', /** @type {Exp} */ (/** @type {unknown} */ (index)), lazy)] : []
+        ? [`...${i}`, /** @type {Exp} */ (item[1])]
+        : [`${i}`, /** @type {Exp} */ (item)])
 
 /**
- * A chain's steps folded onto the node its first link began: a key adds
- * its spelling to the label, and a call adds `()` and one port per
- * argument, named by the key the call is on and the call's own mark —
- * `f(0)`, `g?.(0)`, and `(f)(0)` for a call whose parentheses closed the
- * region, which the label groups the same way, `(?.f)()`.
+ * A call's arguments as the one `[]` node they are drawn as, in a `...`
+ * row: a port per argument would give two calls in one chain the same
+ * `0`, and a spread is the `[]`'s own.
+ *
+ * @type {(items: unknown, lazy: boolean) => _Child}
+ */
+const argsRow = (items, lazy) => edge('...', /** @type {Exp} */ (['[]', items]), lazy)
+
+/**
+ * A link's key as its row, as a plain `.` node draws it: a name a value in
+ * its `key` row, and an index, literal or computed, in its `idx` row — a
+ * computed one an edge, lazy inside a region.
+ *
+ * @type {(index: unknown, lazy: boolean) => _Child}
+ */
+const keyRow = (index, lazy) =>
+    edge(typeof index === 'string' ? 'key' : 'idx', /** @type {Exp} */ (index), lazy && index instanceof Array)
+
+/**
+ * A chain's steps, each a link of its own in the node its first link
+ * began: one row, beside a cell holding the link's operator — `.` with its
+ * key, `()` or `?.()` with its arguments, and `(?.)()` for a call whose
+ * parentheses closed the region. The node's label spells the chain for the
+ * rows that name it, `?.b.c()`.
  *
  * Once a `?.` has been passed, every operand after it is one a nullish
  * value skips and draws lazy — a guarded call's own arguments included —
@@ -178,35 +197,25 @@ const indexChildren = (index, lazy) => index instanceof Array ? [edge('idx', /**
  * @type {(chain: _Chain) => (step: unknown) => Shape<unknown>}
  */
 const steps = chain => step => {
-    if (step === undefined) { return { kind: 'op', label: chain.label, children: chain.children } }
+    if (step === undefined) { return { kind: 'op', label: chain.label, children: chain.children, groups: chain.groups } }
     const [tag, x, next] = /** @type {readonly unknown[]} */ (step)
-    if (tag === '|.') {
-        return steps({
-            label: chain.label + dotLabel(x),
-            children: [...chain.children, ...indexChildren(x, chain.lazy)],
-            key: keyLabel(x),
-            lazy: chain.lazy,
-        })(next)
-    }
+    /** @type {(op: string, label: string, row: _Child, lazy: boolean) => Shape<unknown>} */
+    const link = (op, label, row, lazy) =>
+        steps({ label, children: [...chain.children, row], groups: [...chain.groups, [op, 1]], lazy })(next)
+    if (tag === '|.') { return link('.', chain.label + dotLabel(x), keyRow(x, chain.lazy), chain.lazy) }
     const guarded = tag === '|?.()'
     const closing = tag === '|!()'
-    const mark = guarded ? '?.(' : '('
     const lazy = !closing && (chain.lazy || guarded)
-    const port = closing ? `(${chain.key})(` : chain.key + mark
-    return steps({
-        label: closing ? `(${chain.label})()` : `${chain.label}${mark})`,
-        children: [...chain.children, ...itemChildren(position => `${port}${position})`, lazy)(x)],
-        key: '',
-        lazy,
-    })(next)
+    const op = closing ? '(?.)()' : guarded ? '?.()' : '()'
+    return link(op, closing ? `(${chain.label})()` : `${chain.label}${guarded ? '?.()' : '()'}`, argsRow(x, lazy), lazy)
 }
 
 /**
  * A chain — an access, plain or guarded, a guarded call, and the steps
- * any of them carries — drawn as the one node it is, {@link steps}: an
- * access's receiver in `obj`, with its computed key if it has one, or a
- * guarded call's callee in `callee` with its arguments after it, and the
- * steps folded on.
+ * any of them carries — drawn as the one node it is, a table of its
+ * links, {@link steps}. The first link takes two rows, so that every arrow
+ * has its name beside it: an access's receiver in `obj` and its key, or a
+ * guarded call's callee in `callee` and its arguments.
  *
  * @type {(exp: readonly unknown[]) => Shape<unknown>}
  */
@@ -215,16 +224,21 @@ const chain = exp => {
     if (tag === '?.()') {
         return steps({
             label: '?.()',
-            children: [['callee', /** @type {Exp} */ (base)], ...itemChildren(position => `?.(${position})`, true)(x)],
-            key: '',
+            children: [['callee', /** @type {Exp} */ (base)], argsRow(x, true)],
+            groups: [['?.()', 2]],
             lazy: true,
         })(step)
     }
     const guarded = tag === '?.'
+    // A plain access with nothing after it is a `.` node of its own, its key
+    // a value in its `key` row or its index in its `idx`.
+    if (!guarded && step === undefined) {
+        return { kind: 'op', label: '.', children: [['obj', /** @type {Exp} */ (base)], keyRow(x, false)] }
+    }
     return steps({
         label: guarded ? `?.${keyLabel(x)}` : dotLabel(x),
-        children: [['obj', /** @type {Exp} */ (base)], ...indexChildren(x, guarded)],
-        key: keyLabel(x),
+        children: [['obj', /** @type {Exp} */ (base)], keyRow(x, guarded)],
+        groups: [[guarded ? '?.' : '.', 2]],
         lazy: guarded,
     })(step)
 }
@@ -270,7 +284,7 @@ export const _shapeOf = e => {
     }
     if (tag === '.' || tag === '?.' || tag === '?.()') { return chain(exp) }
     if (tag === '()') {
-        return { kind: 'op', label: '()', children: [['callee', /** @type {Exp} */ (exp[1])], ...numbered(exp[2])] }
+        return { kind: 'op', label: '()', children: [['callee', /** @type {Exp} */ (exp[1])], argsRow(exp[2], false)] }
     }
     if (tag === ',') {
         const items = /** @type {readonly Exp[]} */ (exp[1])
@@ -302,7 +316,7 @@ export const _shapeOf = e => {
             ],
         }
     }
-    // Length is metadata, while frame and lazy body are expression edges;
+    // Length is a value port, while frame and lazy body are expression edges;
     // a fixed parameter and a frame slot are inputs, their index metadata.
     if (tag === 'arg') { return { inline: `arg ${exp[1]}`, kind: 'terminal' } }
     if (tag === 'frame') { return { inline: `frame ${exp[1]}`, kind: 'terminal' } }
@@ -311,13 +325,15 @@ export const _shapeOf = e => {
         // body after them: a function that captures nothing has no frame
         // port at all.
         return {
-            kind: 'op', label: `=> (${exp[1]})`,
+            kind: 'op', label: '=>',
             children: [
+                ['length', /** @type {Exp} */ (exp[1])],
                 .../** @type {readonly Exp[]} */ (exp[2]).map((slot, i) => /** @type {readonly [string, Exp]} */ ([`frame ${i}`, slot])),
                 ['body', /** @type {Exp} */ (exp[3]), 'lazy'],
             ],
         }
     }
+    if (tag === 'self') { return { owner: (v, port) => port === 'body' && v instanceof Array && v[0] === '=>' } }
     if (typeof tag === 'string' && op0.has(tag)) {
         // `Op0Id` groups by operand count, not by meaning — its own doc in
         // `fjs/edag` says so. `undefined` is a primitive, where `args` and
@@ -341,9 +357,7 @@ export const _shapeOf = e => {
             kind: 'op', label: tag,
             children: [
                 ['left', /** @type {Exp} */ (exp[1])],
-                lazyRight.has(tag)
-                    ? ['right', /** @type {Exp} */ (exp[2]), 'lazy']
-                    : ['right', /** @type {Exp} */ (exp[2])],
+                ['right', /** @type {Exp} */ (exp[2])],
             ],
         }
     }
@@ -377,11 +391,15 @@ const drawn = module => {
 
 /**
  * `text` as the EDAG its module lowers to, or the parser's own error if it
- * does not compile.
+ * does not compile. An operand drawn beside a value names the node it
+ * leads to, its key in the values' key column, so a node's operands line
+ * up whether they are constants or nodes. A shared node is still drawn
+ * once: its label in the rows of the edges into it reads as a reference to
+ * the one box the edges reach.
  *
  * @type {(text: string) => Result<Graph, string>}
  */
-export const _graphOf = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast).edag))))
+export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast).edag))))
 
 /**
  * The drop-down is [the compiler's shared list](../examples/module.f.js), one
@@ -399,8 +417,9 @@ export const _graphOf = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast)
  * the box could not have said which of the six was the conditional one. The
  * numbers and `undefined` are primitives, tinted cells inside the ports that
  * use them. `rest` is an input, a filled grey cell: a value arriving from
- * outside a scope rather than computed from operands. The function has no
- * frame port because it captures nothing, and its `body` port is broken
+ * outside a scope rather than computed from operands. The function's
+ * `length` is a value, `1`; it has no frame port because it captures
+ * nothing, and its `body` port is broken
  * because building the function does not run it. `checked` is the one thing
  * the export does not reach, so the compiler anchors it with a comma and the
  * whole module is that comma's result. Its two edges carry the roles a
@@ -414,20 +433,35 @@ export const _graphOf = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast)
  * - **Primitives** puts every kind inline in the port that uses it. The
  *   hexadecimal number and bigint draw as the values they spell, `255` and
  *   `16n`: the graph keeps the value, not the spelling.
- * - **Laziness: `&&` `||` `??`** breaks each one's right edge, and
- *   **Laziness: `?:`** both arms and not the condition — with a function's
- *   body in each, every lazy position the compiler has.
+ * - **Laziness: `&&` `||` `??`** draws the conditional regions each source
+ *   operation becomes. **Laziness: `?:`** marks both arms and keeps the
+ *   condition eager; a function's body is a lazy edge of its own.
  * - **Closure** is a function that captures its enclosing parameter and a
  *   module `const`, each read inside the body through a frame slot.
- * - **Methods and properties** draws a method call as one node, `.at()`,
- *   the receiver in its `obj` port and the argument in its `at(0)` port.
- * - **Optional chaining** draws each chain as one node: `o?.a.b` is a
- *   `?.a.b` node, `n?.a.b` the same over `null`, `o.f?.(2)` a `.f?.()`
- *   node whose `f?.(0)` edge is broken — the argument is inside the region
- *   the guard opens — and `n?.(2)` a `?.()` node over a `null` callee.
- *   `(o?.a).b` is a `.b` node over a `?.a` node: the parentheses ended the
- *   region, so the access after them is a node of its own, where `o?.a.b`
- *   is one.
+ * - **Recursion** draws the recursive call's `callee` as an arrow back to
+ *   the `=>`, routed around the graph rather than through it.
+ *   **Recursion: Ackermann** has three such arrows, one lane each below the
+ *   graph. The inner `ack(m, n - 1)` is the outer call's argument, so its
+ *   arrow spans more ranks and runs outside the other two rather than
+ *   across them.
+ * - **Methods and properties** draws a method call as one node of two
+ *   links: `.` beside the receiver in `obj` and `"at"` in `key`, and `()`
+ *   beside its arguments, a `[]` node.
+ * - **Optional chaining** draws each chain as one node, a cell per link:
+ *   `o?.a.b` is `?.` beside `obj` and `key`, then `.` beside `key`, `n?.a.b`
+ *   the same over `null`, `o.f?.(2)` a `.` link and a `?.()` link whose
+ *   `...` edge is broken — the argument is inside the region the guard
+ *   opens — and `n?.(2)` one `?.()` link over a `null` callee. `(o?.a).b`
+ *   is a `.` node over a `?.` node: the parentheses ended the region, so the
+ *   access after them is a node of its own, where `o?.a.b` is one.
+ * - **Optional chaining: a long chain** is the table at length:
+ *   `o?.a.f(1)[Number(i)].length` is one node of six rows — `?.` beside
+ *   `obj` and `key`, then `.` beside `key`, `()` beside `...`, `.` beside
+ *   its broken `idx` edge, and `.` beside `key` — and `(o?.a.f)(...[i, 2])`
+ *   ends with a `(?.)()` link whose arguments, a `[]` node with its spread,
+ *   run regardless and draw solid. The `3` beside them is a value in the
+ *   array, so the array's rows name the two chains they reach, by their
+ *   spellings `?.a.f()[].length` and `(?.a.f)()`.
  * - **Named exports** draws the module as the object of its exports, each
  *   a port: a module that is not only a default is that object, and there
  *   is no `.default` to read off it.
@@ -441,6 +475,12 @@ export const _graphOf = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast)
  *   `?:` node, the statements after a guard its alternate, so the drawing
  *   has no `if` in it — the statement is sugar over the conditional, and
  *   the graph is the one `n < 0 ? -1 : n > 0 ? 1 : 0` draws.
+ * - **Switch** is a body that is one `switch` over three cases: a `?:`
+ *   node per case, its condition the `===` of the discriminant — one node,
+ *   read by every test — and a label, two labels joined by a conditional, the next
+ *   case its alternate and the `default` block the last, a `throw` node,
+ *   so the drawing has no `switch` in it either — the statement is sugar
+ *   over the same conditional a chain of guards is.
  * - **Hex escape** and **Parse error** do not parse, because an error is
  *   something this demo shows too.
  *
@@ -457,6 +497,6 @@ export const demo = stageDemo({
     intro: 'Lowers a FunctionalScript module to an expression graph. Arrows point to operands, multiple arrows to one node show sharing, and dashed arrows mark operands that may not be evaluated.',
     name: 'edag',
 })(text => {
-    const [kind, value] = _graphOf(text)
+    const [kind, value] = graphOfText(text)
     return [kind === 'ok' ? graphSvg(value) : refusal(value)]
 })

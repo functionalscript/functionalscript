@@ -39,7 +39,7 @@
 import { resultMarker } from '../../website/style/module.f.js'
 import { p, sloth } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
-import { digitsValue, hexDigitsValue } from '../../text/ascii/module.f.mjs'
+import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { pureOk, resultStep } from '../../effects/module.f.mjs'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
@@ -47,12 +47,12 @@ import { computeSync, sha256 } from '../sha2/module.f.mjs'
 import { sandbox } from '../../effects/common/module.f.mjs'
 import { _formatDuration, _validDuration } from './performance/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
 const batch = 10n
 
 const sha256Sync = computeSync(sha256)
-const decimalValue = digitsValue(10n)
 const yDigits = p.toString(16).length
 
 /** Verification steps per second, measured in Node at `aa87d8cd`. */
@@ -70,17 +70,17 @@ export const xOf = text => {
 /** A non-negative decimal step count, or null while its field is invalid.
  * @type {(text: string) => bigint | null}
  */
-export const parseSteps = text => decimalValue([...text].map(c => c.charCodeAt(0)))
+export const parseSteps = text => decimalValue(codePoints(text))
 
 /** A non-empty hexadecimal number, or null.
  * @type {(text: string) => bigint | null}
  */
-export const parseHex = text => hexDigitsValue([...text].map(c => c.charCodeAt(0)))
+export const parseHex = text => hexDigitsValue(codePoints(text))
 
 /** `y` in hex, padded to the width of `p`.
  * @type {(y: bigint) => string}
  */
-export const hexOfY = y => y.toString(16).padStart(yDigits, '0')
+export const hexOfY = encodeScalar(yDigits)
 
 /** Time only the evaluation call, keeping Stop and input available between batches.
  * @type {(state: DemoState, run: DemoRun) => Effect<Sandbox, DemoState, never>}
@@ -163,12 +163,15 @@ const verdictView = ({ verdict, steps }) =>
                         ? [['p', { role: 'status', [resultMarker]: 'ok' }, `✓ y verifies: squaring it ${steps} times returns x, up to sign.`]]
                         : [['p', { role: 'status', [resultMarker]: 'error' }, '✗ y does not verify for this x and number of steps.']]
 
+/** A SHA-256 digest as 64 hexadecimal digits. */
+const hexOfX = encodeScalar(64)
+
 /** `x` in hex, or the refusal of a text too long to hash.
  * @type {(x: bigint | null) => readonly Element[]}
  */
 const xView = x => x === null
     ? [refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)]
-    : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(x.toString(16).padStart(64, '0'), 'Copy x')]
+    : [caption('Input x = SHA-256 of the text, hex:'), codeBlock(hexOfX(x), 'Copy x')]
 
 /** The evaluated `y`, once every step is done.
  * @type {(run: DemoRun | null) => readonly Element[]}

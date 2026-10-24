@@ -5,8 +5,9 @@
  * @import { Exp, Function as FunctionExp } from '../../../edag/types.ts'
  */
 
+import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tryFunctionText } from '../module.f.mjs'
 
 /** @type {(e: FunctionExp, captures?: readonly unknown[]) => (...args: readonly unknown[]) => any} */
@@ -27,11 +28,13 @@ export const proof = {
             [[',', []], undefined], [[',', [2]], 2], [[',', [1, 2]], 2],
             [['[]', [['...', 'ab'], [',', [1, 2]]]], ['a', 'b', 2]],
             [['.', ['[]', [8]], ['Number', '0']], 8],
-            [['()', ['entry'], [['{}', [[':', 'x', 3]]], 'x']], [3]],
-            [['()', ['entry'], [['{}', [[':', 'u', ['undefined']]]], 'u']], [undefined]],
-            [['()', ['entry'], [['{}', []], 'toString']], []],
-            [['()', ['entry'], [['[]', [7]], 0]], [7]],
-            [['()', ['entry'], [['[]', [7]], 'length']], []],
+            [['()', ['entry'], [['{}', [[':', 'x', 3]]], 'x']], 3],
+            [['()', ['entry'], [['{}', [[':', 'u', ['undefined']]]], 'u']], undefined],
+            [['()', ['entry'], [['{}', []], 'toString']], undefined],
+            [['()', ['entry'], [['[]', [7]], 0]], 7],
+            [['()', ['entry'], [['[]', [7]], 'length']], undefined],
+            [['()', ['hasEntry'], [['{}', [[':', 'u', ['undefined']]]], 'u']], true],
+            [['()', ['hasEntry'], [['[]', [7]], 'length']], false],
             [['.', ['entry'], 'length'], 2],
             [['()', ['Object.is'], [0, -0]], false], [['()', ['Object.is'], [NaN, NaN]], true],
             [['()', ['Number.isInteger'], [1.5]], false], [['()', ['Number.isSafeInteger'], [2 ** 53]], false],
@@ -93,7 +96,7 @@ export const proof = {
         const shared = /** @type {const} */ (['[]', []])
         /** @type {FunctionExp} */
         const graph = ['=>', 2, [], ['[]', [
-            ['&&', ['arg', 0], shared], ['||', ['arg', 1], shared],
+            conditional('&&', ['arg', 0], shared), conditional('||', ['arg', 1], shared),
         ]]]
         const fn = compile(graph)
         const first = fn(true, false)
@@ -104,7 +107,7 @@ export const proof = {
         assertStructurallySame(fn(false, true), [false, true])
         const failure = /** @type {const} */ (['throw', 'demanded'])
         const lazy = compile(['=>', 2, [], ['[]', [
-            ['&&', ['arg', 0], failure], ['||', ['arg', 1], failure],
+            conditional('&&', ['arg', 0], failure), conditional('||', ['arg', 1], failure),
         ]]])
         assertStructurallySame(lazy(false, true), [false, true])
         throws(() => lazy(true, true), e => e === 'demanded')

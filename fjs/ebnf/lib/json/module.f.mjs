@@ -4,12 +4,12 @@
  * @module
  *
  * @import { Rule } from '../../types.ts'
- * @import { Container, ContainerNode, Entry, JsonValue, Value } from './types.ts'
+ * @import { Container, ContainerNode, Entry, EntryNode, JsonValue, Value, ValueCases, ValueNode } from './types.ts'
  */
 
-import { assert } from "../../../asserts/module.f.mjs"
+import { assert } from "../../../asserts/module.f.js"
 import { isFixedArray } from "../../../types/array/module.f.mjs"
-import { unmapped } from "../../ast/module.f.mjs"
+import { unmapped } from "../../ast/module.f.js"
 import { range, remove, repeatFrom0, unicodeMax, set, times, option, join, joined } from "../../module.f.mjs"
 
 const isFixedArray2 =
@@ -106,6 +106,40 @@ export const cj = (oc, item) => {
  * @type {<T>(node: ContainerNode<T>) => readonly T[]}
  */
 export const items = ([, , list]) => joined(unmapped(list)).map(pair => unmapped(pair)[0])
+
+/**
+ * The key and the value of an entry `object` built, read out of the node the
+ * machine built for it. The colon and the whitespace around it are
+ * scaffolding, as `items`' pairs are; the key and the value may be mapped,
+ * and are returned as they stand. Typed by the shape of the node.
+ *
+ * @type {<K, V>(node: EntryNode<K, V>) => readonly [K, V]}
+ */
+export const entry = node => {
+    const [key, , , , value] = unmapped(node)
+    return [key, value]
+}
+
+/**
+ * The dispatch over the branches `createValue` builds, as one function from
+ * a handler per branch: a container's handler receives its items, read out
+ * by `items`, and the three keywords share one handler that receives their
+ * constant. A reader of this grammar is one application of it; a reader of
+ * a grammar that adds branches handles those first and hands this the rest.
+ *
+ * @type {<T, E, S, N, R>(cases: ValueCases<T, E, S, N, R>) => (node: ValueNode<T, E, S, N>) => R}
+ */
+export const valueCases = ({ array, object, string, number, word }) => node => {
+    switch (node[0]) {
+        case 'array': { return array(items(unmapped(node[1]))) }
+        case 'object': { return object(items(unmapped(node[1]))) }
+        case 'string': { return string(node[1]) }
+        case 'number': { return number(node[1]) }
+        case 'true': { return word(true) }
+        case 'false': { return word(false) }
+        case 'null': { return word(null) }
+    }
+}
 
 /** @type {<const V extends Rule>(v: V) => Container<V>} */
 export const array = v => cj('[]', v)

@@ -23,7 +23,7 @@
  * @import { Chunk, Marked } from '../text/marked/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
- * @import { _Checked, _CompileOp, RuntimeLoad } from './types.ts'
+ * @import { _Checked, _CompileOp, OutputRefusal, RuntimeLoad } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { SourceError } from './transpiler/types.ts'
  * @import { Effect, IoChannel, IoError } from '../effects/types.ts'
@@ -314,21 +314,28 @@ const check = env => resultStep(
  */
 const refused = message => pureError(ioError({ message }))
 
-/** A raw refusal beside its CLI diagnostic. @type {(message: string, diagnostic: string) => Result<Marked, readonly [string, string]>} */
-const refusal = (message, diagnostic) => error([message, diagnostic])
+/**
+ * A raw refusal beside its CLI diagnostic, and the source error it reports
+ * when there is one: where in the module the refusal is.
+ *
+ * @type {(message: string, diagnostic: string, source?: SourceError | null) => Result<Marked, OutputRefusal>}
+ */
+const refusal = (message, diagnostic, source = null) => error([message, diagnostic, source])
 
 /**
  * The output `outputFileName` asks for from the module `inputFileName`, as
  * marked text — what {@link compileFile} writes the text of — or why it is
  * refused: an output extension naming no language, a parse error, or a
- * refused output. A refusal is `[message, diagnostic]`: the message alone,
- * which a page shows beside the output it is about, and the line the command
- * prints, which adds where the refusal is. It is the whole of the compile but
+ * refused output. A refusal is `[message, diagnostic, source]`: the message
+ * alone, which a page shows beside the output it is about; the line the
+ * command prints, which adds where the refusal is; and, for a refusal of the
+ * module rather than of the output, the source error itself, whose token a
+ * page can mark in the module's text. It is the whole of the compile but
  * its tail, the directory and the write, so a page that shows what
  * `fjs compile` writes runs this and the text it shows is the file's, which
  * its proof pins. Exported for linkage, as the other `_` exports are.
  *
- * @type {(load: RuntimeLoad) => (inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, readonly [message: string, diagnostic: string]>, never>}
+ * @type {(load: RuntimeLoad) => (inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, OutputRefusal>, never>}
  */
 export const _outputMarked = load => (inputFileName, outputFileName) => {
     const text = outputMarked(load)(outputFileName)
@@ -337,17 +344,17 @@ export const _outputMarked = load => (inputFileName, outputFileName) => {
     }
     return resultStep(
         text(inputFileName),
-        /** @type {(result: Result<Result<Marked, string>, SourceError>) => Effect<never, Result<Marked, readonly [string, string]>, never>} */
+        /** @type {(result: Result<Result<Marked, string>, SourceError>) => Effect<never, Result<Marked, OutputRefusal>, never>} */
         (result) => {
             const [kind, value] = result
-            if (kind === 'error') { return pureOk(refusal(value.message, diagnostic(inputFileName)(value))) }
+            if (kind === 'error') { return pureOk(refusal(value.message, diagnostic(inputFileName)(value), value)) }
             const [tag, content] = value
             return pureOk(tag === 'error' ? refusal(content, `${outputFileName} - error: ${content}`) : ok(content))
         })
 }
 
 /** Keep the CLI diagnostic when compilation is refused.
- * @type {(result: Result<Marked, readonly [message: string, diagnostic: string]>) => Result<Marked, string>}
+ * @type {(result: Result<Marked, OutputRefusal>) => Result<Marked, string>}
  */
 const compileResult = result => {
     const [tag, value] = result
@@ -418,7 +425,8 @@ export const compileFile = load => (inputFileName, outputFileName) => step(
  * initialization code; the EDAG output is
  * that graph, including the module's complete export object, as a DataJS
  * document; and the `.rs` output prints it as `let`
- * bindings and a `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`.
+ * bindings and a `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>`,
+ * of the runtime value it is given.
  *
  * The output's directory is created first, so a compile can write into a
  * directory that does not exist yet — a deleted `gen.*` directory, say.

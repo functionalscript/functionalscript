@@ -1,7 +1,8 @@
 /**
  * The Cloudflare build, generated: `gen.cloudflare/build.sh` is the build
  * command Cloudflare's Workers Builds runs. It installs what the build image
- * lacks — Rust today — documents the workspace's crates with `cargo doc`, and
+ * lacks — Rust today, for `cargo doc` alone — documents the workspace's
+ * crates with `cargo doc`, and
  * runs `npm run website`, which stays the generator alone, so a checkout
  * builds the site with `npm run website` exactly as before and only the
  * deploy carries the installs.
@@ -46,6 +47,12 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * the smallest profile that carries `cargo` and `rustdoc`, exactly the
  * pinned toolchain, and no edit to a shell profile nothing would read: the
  * script puts the new `cargo` on its own `PATH` instead.
+ *
+ * **Not the WASM demo pages' module**
+ * ([`todo/wasm-demos.md`](../../../todo/wasm-demos.md)): that is committed in
+ * `nanvm/demos/wasm/`, with each sample's WAT, and CI rebuilds it and fails on
+ * any difference (`../../nanvm/demos/module.f.mjs`), so the site is served
+ * as checked out and the deploy builds no `wasm32` target.
  *
  * **Then the site's bars, `cargo doc`, and the site** — the order
  * [`../README.md`](../README.md#the-rust-api-reference) gives.

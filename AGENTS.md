@@ -12,8 +12,9 @@ work before starting, and check that no open pull request, draft or not, already
 works on the same `todo/`. Claim a task by opening a draft pull request for it
 at once ([SESSION.md](./doc/SESSION.md#claim-the-task)).
 
-Develop inside the Nix shell `./dev.sh` opens on Linux and ARM macOS; use
-the pinned tools directly on Intel macOS or bare Windows
+Develop inside the Nix shell `./dev.sh` opens on Linux and ARM macOS, or use
+the same tools installed in the devcontainer. Use the pinned tools directly on
+Intel macOS or bare Windows
 ([§2](#2-environment-and-running-tests)). The shell carries every tool below
 at the version CI uses.
 
@@ -174,7 +175,8 @@ which runs on the Node
 `setup-node` installs. The packed-package check that closes `node26` stays out
 of it too, by design: it installs the published tarball with `setup-node`'s
 Node and npm, as a consumer would. On supported Nix platforms, do not install
-those tools by hand or pick their versions; the shell is the environment.
+those tools by hand or pick their versions; use the shell or the devcontainer's
+profile, generated from the same tool definitions.
 Intel macOS uses the same pins
 directly; see [CONTRIBUTING.md](./CONTRIBUTING.md#direct-tools-on-intel-macos).
 
@@ -216,10 +218,12 @@ On ARM macOS and Linux, install Nix on the host. Intel macOS uses the
 pinned tools directly. Nix does not run natively on
 Windows: open the repository in the devcontainer —
 [`.devcontainer/`](./.devcontainer/devcontainer.json) builds a Debian image
-with Nix and runs `npm ci` in the shell on any host, and VS Code and Codespaces
-also open every terminal inside the shell — or work in WSL2 with Nix installed
-there. The shell is the same either way. Bare Windows, outside both, is on your
-own: install the tools [CONTRIBUTING.md](./CONTRIBUTING.md#requirements)'s table
+with the same pinned tools installed on its container-wide `PATH` and runs
+`npm ci`. Extensions, tasks and terminals use them directly; rebuild the
+container when the generated flake or lock changes. Or work in WSL2 with Nix
+installed there and enter the shell through `./dev.sh`. Bare Windows, outside
+both, is on your own: install the tools
+[CONTRIBUTING.md](./CONTRIBUTING.md#requirements)'s table
 names yourself, at the exact versions `fjs/ci/config/module.f.js` pins, which
 are what CI's Windows jobs install. A Claude Code cloud session runs `npm ci` in
 the shell and puts the shell's tools on its `PATH` before its first command,
@@ -254,6 +258,16 @@ into FunctionalScript. Existing `.mjs` files that violate this rule are
 migration debt, not precedent: find or file a co-located `todo/` to extract the
 business logic as soon as possible.
 
+**Name a module by what the compiler accepts.** A module the current
+FunctionalScript compiler accepts whole is `.f.js`, never `.f.mjs`: write it as
+`.f.js` from the start when it compiles, and `git mv` an existing `.f.mjs` to
+`.f.js` in the same pull request that makes it compile — the change that removes
+the last construct the compiler refused, or the compiler change that starts
+accepting it. Update its importers, runtime and type references in that pull
+request, and run `npm start compile` from the repository root to confirm. Its
+`proof.f.mjs` keeps its name ([fjs/AGENTS.md §1.2](./fjs/AGENTS.md#12-proof-coverage-is-mandatory)).
+Do not leave a compilable module as `.f.mjs` for a later pull request.
+
 Every new `.f.mjs` or `.f.js` module ships a co-located `proof.f.mjs` with
 **100% proof coverage** — every export called, every line executed, every branch
 taken.
@@ -265,6 +279,8 @@ JSDoc `@typedef`; function-local typedefs are allowed. Named types live in
 `types.ts` (the public declaration closure) or an optional `private.ts`.
 
 Testing, documentation, and the full coding style: [fjs/AGENTS.md](./fjs/AGENTS.md).
+Compiler representations and pass ownership:
+[compiler architecture](./fjs/compiler/architecture.md).
 
 ## 4. Rust (`nanvm/lib/`)
 

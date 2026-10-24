@@ -1,5 +1,5 @@
-import { assertEq } from '../../asserts/module.f.mjs'
-import { startsWith, u32be, u64be } from './module.f.js'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { cmp, cString, startsWith, u32be, u64be, untilNul } from './module.f.js'
 
 export const proof = {
     // Most significant byte first, at any offset.
@@ -43,5 +43,30 @@ export const proof = {
         assertEq(pack([0x50, 0x41, 0x43, 0x4C]), false)
         assertEq(pack([0x50, 0x41, 0x43]), false)
         assertEq(startsWith([])([]), true)
+    },
+    // Cut at the first NUL, not the last; no NUL keeps everything, and one
+    // at the start leaves nothing.
+    cString: () => {
+        assertStructurallySame(cString([0x61, 0x00, 0x62, 0x00]), [0x61])
+        assertStructurallySame(cString([0x61, 0x62]), [0x61, 0x62])
+        assertStructurallySame(cString([0x00, 0x61]), [])
+    },
+    // The same three shapes over a string.
+    untilNul: () => {
+        assertEq(untilNul('a\u0000b\u0000'), 'a')
+        assertEq(untilNul('ab'), 'ab')
+        assertEq(untilNul('\u0000a'), '')
+    },
+    // The first differing byte decides, unsigned, whatever the lengths; a
+    // proper prefix sorts first; equal arrays are equal.
+    cmp: () => {
+        assertEq(cmp([1, 2], [1, 2]), 0)
+        assertEq(cmp([], []), 0)
+        assertEq(cmp([1, 2], [1, 3]), -1)
+        assertEq(cmp([1, 3], [1, 2]), 1)
+        assertEq(cmp([1], [1, 0]), -1)
+        assertEq(cmp([1, 0], [1]), 1)
+        assertEq(cmp([0xFF], [0x00, 0x00]), 1)
+        assertEq(cmp([0x00, 0xFF], [0x01]), -1)
     },
 }

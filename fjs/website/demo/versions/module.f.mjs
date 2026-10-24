@@ -17,23 +17,40 @@
  * nothing and left nothing behind changed nothing, and says so — whether
  * the structure answered the same version or an equal one.
  *
+ * **A click on a key moves it**: removes it and inserts it again, a step
+ * that keeps the keys and may change the shape. A move whose version is
+ * drawn as the one before it changed nothing, however many nodes it built
+ * on the way, and answers the version it was given.
+ *
  * **A preset loads a version and a key, and takes no step.** Its version is
  * both versions, so nothing is coloured, and its hint names the button to
  * press: the reader makes the change and sees it happen.
  *
+ * **Generate builds a random version, and takes no step either**, for a
+ * demo that says how ({@link Random}): it inserts the keys a count stands
+ * for in an order the host picks, asking `randomInt` once per key. The
+ * order is the host's, so it is not the same on the next press or the next
+ * visit, and the line under the controls spells it out.
+ *
  * @module
  *
- * @import { Census, Keys, Layout, Options, Preset, Row, Shape, State, Step, Structure, Versions, VersionsDemo } from './types.ts'
- * @import { Edge, Graph } from '../graph/types.ts'
+ * @import { Census, Keys, Layout, Options, Preset, Random, Row, Shape, State, Step, Structure, Versions, VersionsDemo } from './types.ts'
+ * @import { Effect, NotImplemented } from '../../../effects/types.ts'
+ * @import { RandomInt } from '../../../effects/common/types.ts'
+ * @import { Click, Edge, Graph } from '../graph/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  */
 
 import { refusal } from '../module.f.mjs'
 import { graphSvg } from '../graph/module.f.mjs'
 import { examplePicker, name as exampleName } from '../examples/module.f.js'
-import { pureOk } from '../../../effects/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
+import { randomInt } from '../../../effects/common/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
+import { digitsValue, one } from '../../../text/ascii/module.f.js'
+
+const readBinary = digitsValue(2n)
 
 /**
  * Keys as a reader types them unless a demo says otherwise: any safe
@@ -54,6 +71,29 @@ export const decimal = {
 }
 
 /**
+ * Keys typed in binary, up to `width` digits, and shown in all `width`: the
+ * reading and the drawing of a demo's {@link Keys}, which names them itself.
+ * A key reads through `text/ascii`'s `digitsValue`, so an empty text and a
+ * character other than `0` or `1` are refused.
+ *
+ * @throws If `width` is not `1` to `53`: a key is a `number`, and a wider
+ * one would read two spellings as one key. A caller's mistake no text can
+ * cause.
+ *
+ * @type {(width: number) => Pick<Keys, 'parse' | 'show'>}
+ */
+export const binaryKeys = width => {
+    assert(Number.isInteger(width) && 1 <= width && width <= 53, ['binary key width out of range', width])
+    return {
+        parse: text => {
+            const key = text.length <= width ? readBinary([...text].map(one)) : null
+            return key === null ? null : Number(key)
+        },
+        show: key => key.toString(2).padStart(width, '0'),
+    }
+}
+
+/**
  * Every node of each version, once: a node two paths reach — two rows of
  * one parent, or two parents — is still one node.
  *
@@ -66,6 +106,40 @@ const nodesOfBoth = ({ root, shape }) => versions => {
     const nodesOf = node => node === null ? [] : [node, ...rows(node).flatMap(row => 'to' in row ? nodesOf(row.to) : [])]
     return [[...new Set(nodesOf(root(versions.before)))], [...new Set(nodesOf(root(versions.after)))]]
 }
+
+/**
+ * Whether two versions are drawn the same: the same titles and rows, node
+ * by node, a value's parts included, whether or not the nodes are the same
+ * objects.
+ *
+ * @type {<V, N>(structure: Structure<V, N>) => (versions: Versions<V>) => boolean}
+ */
+export const sameShape = ({ root, shape }) => versions => {
+    const { rows, title } = shape(versions)
+    /** @typedef {Parameters<typeof rows>[0]} N */
+    /** @type {(a: N | null) => (b: N | null) => boolean} */
+    const same = a => b => {
+        if (a === b) { return true }
+        if (a === null || b === null) { return false }
+        const [ra, rb] = [rows(a), rows(b)]
+        return title(a) === title(b) && ra.length === rb.length && ra.every((x, i) => {
+            const y = rb[i]
+            return 'to' in x
+                ? 'to' in y && x.corner === y.corner && same(x.to)(y.to)
+                : !('to' in y) && x.label === y.label && x.inline === y.inline
+                    && JSON.stringify(x.parts) === JSON.stringify(y.parts)
+        })
+    }
+    return same(root(versions.before))(root(versions.after))
+}
+
+/**
+ * What a click on a key row does: moves the key, and says so.
+ *
+ * @type {(row: { readonly inline: string, readonly key?: number }) => Click | undefined}
+ */
+const clickOf = ({ inline, key }) =>
+    key === undefined ? undefined : { name: `move:${key}`, label: `Remove ${inline} and insert it again` }
 
 /**
  * The new version as a graph: one node per distinct node, an arrow into
@@ -95,7 +169,7 @@ export const graphOf = structure => versions => {
         entries: newRoot === null ? [] : [{ to: all.indexOf(newRoot) }],
         edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => 'to' in row
             ? { from, to: all.indexOf(row.to), label: '', corner: row.corner }
-            : { from, to: { inline: row.inline, parts: row.parts }, label: row.label }))),
+            : { from, to: { inline: row.inline, parts: row.parts, click: clickOf(row) }, label: row.label }))),
     }
 }
 
@@ -112,26 +186,51 @@ export const census = structure => versions => {
 }
 
 /**
+ * Why a step that built nothing and left nothing behind changed nothing,
+ * by what it tried.
+ *
+ * @type {(noun: string) => Record<Step['op'], string>}
+ */
+const unchanged = noun => ({
+    insert: `the key is already in the ${noun}`,
+    remove: `the key is not in the ${noun}`,
+    move: 'the key went back where it was',
+})
+
+/**
  * What the last step did, or, if it built nothing and left nothing behind,
- * why: the key was already there, or was not.
+ * why: the key was already there, or was not, or went back where it was.
  *
  * @type {(noun: string) => (show: Keys['show']) => (step: Step) => (c: Census) => string}
  */
 export const stepLine = noun => show => ({ op, key }) => ({ built, shared, replaced }) => built === 0 && replaced === 0
-    ? `Last step, ${op} ${show(key)}: nothing changed, the key is ${op === 'insert' ? 'already' : 'not'} in the ${noun}.`
+    ? `Last step, ${op} ${show(key)}: nothing changed, ${unchanged(noun)[op]}.`
     : `Last step, ${op} ${show(key)}: ${built} new (blue), ${shared} shared with the ${noun} before, ${replaced} only in the ${noun} before.`
+
+/**
+ * `keys` in an order the host picks: one `randomInt` per key, each choosing
+ * one of the keys still left. A remainder is a fair enough choice among a
+ * hundred keys from 2^32 numbers.
+ *
+ * @type {(keys: readonly number[]) => Effect<RandomInt, readonly number[], NotImplemented>}
+ */
+export const shuffled = keys => keys.length === 0 ? pureOk([]) : step(randomInt(), r => {
+    const i = r % keys.length
+    return mapStep(shuffled([...keys.slice(0, i), ...keys.slice(i + 1)]), rest => [keys[i], ...rest])
+})
 
 /**
  * A demo of `options.structure`.
  *
  * @type {<V, N>(options: Options<V, N>) => VersionsDemo<V>}
  */
-export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, presets }) => {
+export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, presets, random }) => {
     const { parse, show, label, accepts } = keys
     const picker = examplePicker(presets.map(([n]) => [n, n]))
     const graph = graphOf(structure)
     const count = census(structure)
     const line = stepLine(noun)(show)
+    const same = sameShape(structure)
     /** @typedef {Parameters<typeof structure.root>[0]} V */
     /** @type {(name: string) => State<V>} */
     const load = presetName => {
@@ -139,33 +238,70 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
         const source = picker.pick(presetName)
         const [, keys, key, hint] = assertNotNullish(presets.find(([n]) => n === source))
         const version = keys.reduce((v, k) => structure.insert(k)(v), structure.empty)
-        return { key: show(key), versions: { before: version, after: version }, status: { preset: presetName, hint }, error: null }
+        return { key: show(key), count: random === undefined ? '' : String(random.count), versions: { before: version, after: version }, status: { preset: presetName, hint }, error: null }
     }
-    /** @type {(op: Step['op']) => (state: State<V>) => State<V>} */
+    /** @type {(order: readonly number[]) => (state: State<V>) => State<V>} */
+    const built = order => state => {
+        const version = order.reduce((v, k) => structure.insert(k)(v), structure.empty)
+        return { ...state, versions: { before: version, after: version }, status: { random: order }, error: null }
+    }
+    /** @type {(r: Random) => (state: State<V>) => Effect<RandomInt, State<V>, never>} */
+    const generate = ({ max: most, keys: keysOf }) => state => {
+        const n = decimal.parse(state.count.trim())
+        if (n === null || n < 1 || n > most) {
+            return pureOk({ ...state, error: `"${state.count}" is not a number of keys: type a whole number from 1 to ${most}.` })
+        }
+        return resultStep(shuffled(keysOf(n)), r => pureOk(r[0] === 'ok' ? built(r[1])(state)
+            : { ...state, error: `No random tree: ${errorMessage(r[1])}.` }))
+    }
+    /** @type {(op: 'insert' | 'remove') => (state: State<V>) => State<V>} */
     const press = op => state => {
         const key = parse(state.key.trim())
         if (key === null) { return { ...state, error: `"${state.key}" is not a key: type ${accepts}.` } }
         const { after } = state.versions
-        return { key: state.key, versions: { before: after, after: structure[op](key)(after) }, status: { step: { op, key } }, error: null }
+        return { ...state, versions: { before: after, after: structure[op](key)(after) }, status: { step: { op, key } }, error: null }
     }
+    /** @type {(key: number) => (state: State<V>) => State<V>} */
+    const move = key => state => {
+        const before = state.versions.after
+        const moved = structure.insert(key)(structure.remove(key)(before))
+        const after = same({ before, after: moved }) ? before : moved
+        return { ...state, key: show(key), versions: { before, after }, status: { step: { op: 'move', key } }, error: null }
+    }
+    /** @type {(name: string) => number | null} */
+    const movedKey = eventName => eventName.startsWith('move:') ? decimal.parse(eventName.slice(5)) : null
     /** @type {(versions: Versions<V>) => Element} */
     const drawing = versions => structure.root(versions.after) === null
         ? ['p', `The ${noun} is empty.`]
         : graphSvg(graph(versions))
+    /** @type {(key: number | null) => (state: State<V>) => State<V>} */
+    const clicked = key => state => key === null ? state : move(key)(state)
     const keyId = `${name}-key`
+    const countId = `${name}-count`
+    /** @type {(status: State<V>['status']) => (versions: Versions<V>) => string} */
+    const statusLine = status => versions =>
+        'preset' in status ? status.hint
+        : 'random' in status ? `${status.random.length} keys inserted in random order: ${status.random.map(show).join(', ')}.`
+        : line(status.step)(count(versions))
     return {
         load,
         press,
+        move,
+        generate: random === undefined ? pureOk : generate(random),
         graphOf: graph,
         census: count,
         demo: {
             init: load(presets[0][0]),
-            update: state => event => pureOk(
-                event.kind === 'input' && event.name === 'key' ? { ...state, key: event.value }
-                : event.kind === 'input' && event.name === exampleName ? load(event.value)
-                : event.kind === 'click' && (event.name === 'insert' || event.name === 'remove') ? press(event.name)(state)
-                : state),
-            view: ({ key, versions, status, error }) => ['div',
+            update: state => event => random !== undefined && event.kind === 'click' && event.name === 'generate'
+                ? generate(random)(state)
+                : pureOk(
+                    event.kind === 'input' && event.name === 'key' ? { ...state, key: event.value }
+                    : event.kind === 'input' && event.name === 'count' ? { ...state, count: event.value }
+                    : event.kind === 'input' && event.name === exampleName ? { ...load(event.value), count: state.count }
+                    : event.kind === 'click' && (event.name === 'insert' || event.name === 'remove') ? press(event.name)(state)
+                    : event.kind === 'click' ? clicked(movedKey(event.name))(state)
+                    : state),
+            view: ({ key, count: keyCount, versions, status, error }) => ['div',
                 ['p', intro],
                 picker.view('preset' in status ? status.preset : ''),
                 ['p',
@@ -176,8 +312,14 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
                     ' ',
                     ['button', { type: 'button', name: 'remove' }, 'Remove'],
                 ],
+                ...(random === undefined ? [] : [/** @type {Element} */ (['p',
+                    ['label', { for: countId }, 'Random keys '],
+                    ['input', { type: 'text', id: countId, name: 'count', value: keyCount, size: '4' }],
+                    ' ',
+                    ['button', { type: 'button', name: 'generate' }, 'Generate'],
+                ])]),
                 ...(error === null ? [] : [refusal(error)]),
-                ['p', 'preset' in status ? status.hint : line(status.step)(count(versions))],
+                ['p', statusLine(status)(versions)],
                 drawing(versions),
             ],
         },

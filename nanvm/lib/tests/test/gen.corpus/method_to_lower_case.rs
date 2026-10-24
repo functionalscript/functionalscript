@@ -2,17 +2,18 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("ascii", Any::dot(string_any("aBc"), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any("abc"));
-    check::<A>("latin1", Any::dot(string_any("ÄÖ"), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any("äö"));
-    check::<A>("finalSigma", Any::dot(string_any("ΟΔΟΣ"), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any("οδος"));
-    check::<A>("sigmaAlone", Any::dot(string_any("Σ"), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any("σ"));
-    check::<A>("dottedI", Any::dot(string_any("İ"), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any("i̇"));
-    check::<A>("kelvinSign", Any::dot(string_any("K"), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any("k"));
-    check::<A>("titlecase", Any::dot(string_any("ǅ"), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any("ǆ"));
-    check::<A>("pair", Any::dot(string_any("𐐀"), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any("𐐨"));
-    check::<A>("loneSurrogate", Any::dot(string_any_utf16(&[0x0041, 0xd800, 0x0042, 0xdc00]), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any_utf16(&[0x0061, 0xd800, 0x0062, 0xdc00]));
-    check::<A>("empty", Any::dot(string_any(""), string_any("toLowerCase")).end_call(|| Ok(Array::default().to_any())), string_any(""));
-    check::<A>("argumentIgnored", Any::dot(string_any("A"), string_any("toLowerCase")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("a"));
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("ascii", scope(|| { Any::dot(string_any("aBc"), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("abc"));
+    check::<A>("latin1", scope(|| { Any::dot(string_any("ÄÖ"), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("äö"));
+    check::<A>("finalSigma", scope(|| { Any::dot(string_any("ΟΔΟΣ"), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("οδος"));
+    check::<A>("sigmaAlone", scope(|| { Any::dot(string_any("Σ"), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("σ"));
+    check::<A>("dottedI", scope(|| { Any::dot(string_any("İ"), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("i̇"));
+    check::<A>("kelvinSign", scope(|| { Any::dot(string_any("K"), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("k"));
+    check::<A>("titlecase", scope(|| { Any::dot(string_any("ǅ"), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("ǆ"));
+    check::<A>("pair", scope(|| { Any::dot(string_any("𐐀"), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("𐐨"));
+    check::<A>("loneSurrogate", scope(|| { Any::dot(string_any_utf16(&[0x0041, 0xd800, 0x0042, 0xdc00]), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any_utf16(&[0x0061, 0xd800, 0x0062, 0xdc00]));
+    check::<A>("empty", scope(|| { Any::dot(string_any(""), string_any("toLowerCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any(""));
+    check::<A>("argumentIgnored", scope(|| { Any::dot(string_any("A"), string_any("toLowerCase")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("a"));
 }

@@ -7,9 +7,11 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
+import { encodeScalar } from '../../../basen/base16/module.f.mjs'
 import { curve, isPublicKey, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../../../crypto/secp/module.f.mjs'
-import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
+import { isDigits } from '../../../text/ascii/module.f.js'
 
 /** The example from the secp README: all 28 finite points have order 29.
  * @type {Curve}
@@ -36,7 +38,7 @@ export const pointOf = text => text === 'O' ? null : points.find(p => `${p[0]},$
  * @type {(text: string, max: bigint) => Result<bigint, string>}
  */
 export const scalar = (text, max) => {
-    if (text.length === 0 || text.length > max.toString().length || ![...text].every(c => c >= '0' && c <= '9')) {
+    if (!isDigits(text) || text.length > max.toString().length) {
         return error(`Enter a decimal integer from 0 to ${max}.`)
     }
     const k = BigInt(text)
@@ -159,6 +161,6 @@ export const publicKey = (name, text) => {
     if (parsed[1] === 0n) { return error('The private scalar must satisfy 1 ≤ d < n.') }
     const q = assertNotNullish(c.mul(parsed[1])(c.g))
     assert(isPublicKey(c)(q))
-    const digits = Math.ceil(c.pf.p.toString(2).length / 8) * 2
-    return ok(`X = ${q[0].toString(16).padStart(digits, '0')}\nY = ${q[1].toString(16).padStart(digits, '0')}`)
+    const hex = encodeScalar(Math.ceil(c.pf.p.toString(2).length / 8) * 2)
+    return ok(`X = ${hex(q[0])}\nY = ${hex(q[1])}`)
 }

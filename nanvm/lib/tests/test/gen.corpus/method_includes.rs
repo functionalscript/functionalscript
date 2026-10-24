@@ -2,59 +2,39 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("found", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("notFound", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x4010000000000000)].to_array().to_any())), false.to_any());
-    check::<A>("nan", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x7ff8000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("negativeZero", Any::dot([f64_any(0x0000000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x8000000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("noCoercion", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([string_any("1")].to_array().to_any())), false.to_any());
-    check::<A>("nullIsNotUndefined", Any::dot([Nullish::Null.to_any()].to_array().to_any(), string_any("includes")).end_call(|| Ok([Nullish::Undefined.to_any()].to_array().to_any())), false.to_any());
-    check::<A>("noArgument", Any::dot([Nullish::Undefined.to_any()].to_array().to_any(), string_any("includes")).end_call(|| Ok(Array::default().to_any())), true.to_any());
-    check::<A>("empty", Any::dot(Array::default().to_any(), string_any("includes")).end_call(|| Ok([Nullish::Undefined.to_any()].to_array().to_any())), false.to_any());
-    check::<A>("from", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())), false.to_any());
-    check::<A>("fromTheEnd", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x4008000000000000), f64_any(0xbff0000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("fromBeforeTheStart", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0xc022000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("fromPastTheEnd", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x4008000000000000), f64_any(0x4008000000000000)].to_array().to_any())), false.to_any());
-    check::<A>("fromInfinity", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0x7ff0000000000000)].to_array().to_any())), false.to_any());
-    check::<A>("fromString", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), string_any("1")].to_array().to_any())), false.to_any());
-    check::<A>("emptyBigintFrom", Any::dot(Array::default().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())), false.to_any());
-    check::<A>("emptyOwnValueOfFrom", Any::dot(Array::default().to_any(), string_any("includes")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default(), Some("()=>1n/0n")).to_any();
-        let c1: Any<A> = [(string_key("valueOf"), c0)].to_object().to_any();
-        Ok([f64_any(0x3ff0000000000000), c1].to_array().to_any())
-    }), false.to_any());
-    check::<A>("ownValueOfFrom", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("includes")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any();
-        let c1: Any<A> = [(string_key("valueOf"), c0)].to_object().to_any();
-        Ok([f64_any(0x3ff0000000000000), c1].to_array().to_any())
-    }), false.to_any());
-    check_throws::<A>("bigintFrom", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())));
-    check_throws::<A>("object", Any::dot(Object::default().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
-    check::<A>("stringFound", Any::dot(string_any("abc"), string_any("includes")).end_call(|| Ok([string_any("bc")].to_array().to_any())), true.to_any());
-    check::<A>("stringNotFound", Any::dot(string_any("abc"), string_any("includes")).end_call(|| Ok([string_any("cb")].to_array().to_any())), false.to_any());
-    check::<A>("stringEmpty", Any::dot(string_any("abc"), string_any("includes")).end_call(|| Ok([string_any("")].to_array().to_any())), true.to_any());
-    check::<A>("stringFrom", Any::dot(string_any("abc"), string_any("includes")).end_call(|| Ok([string_any("a"), f64_any(0x3ff0000000000000)].to_array().to_any())), false.to_any());
-    check::<A>("stringFromNegative", Any::dot(string_any("abc"), string_any("includes")).end_call(|| Ok([string_any("a"), f64_any(0xc014000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("stringNoArgument", Any::dot(string_any("undefined"), string_any("includes")).end_call(|| Ok(Array::default().to_any())), true.to_any());
-    check::<A>("stringNumber", Any::dot(string_any("a1b"), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), true.to_any());
-    check::<A>("stringObject", Any::dot(string_any("[object Object]"), string_any("includes")).end_call(|| Ok([Object::default().to_any()].to_array().to_any())), true.to_any());
-    check::<A>("stringOwnToString", Any::dot(string_any("xundefinedx"), string_any("includes")).end_call(|| {
-        let c0: Any<A> = [(string_key("toString"), function_any())].to_object().to_any();
-        Ok([c0].to_array().to_any())
-    }), true.to_any());
-    check::<A>("stringOwnToStringNeedle", Any::dot(string_any("xbx"), string_any("includes")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { Ok(string_any("b")) }, 0, Array::default(), Some("()=>\"b\"")).to_any();
-        let c1: Any<A> = [(string_key("toString"), c0)].to_object().to_any();
-        Ok([c1].to_array().to_any())
-    }), true.to_any());
-    check_throws::<A>("stringToStringNotAFunction", Any::dot(string_any("a"), string_any("includes")).end_call(|| {
-        let c0: Any<A> = [(string_key("toString"), string_any("h"))].to_object().to_any();
-        Ok([c0].to_array().to_any())
-    }));
-    check::<A>("stringOwnValueOf", Any::dot(string_any("x[object Object]"), string_any("includes")).end_call(|| {
-        let c0: Any<A> = [(string_key("valueOf"), function_any())].to_object().to_any();
-        Ok([c0].to_array().to_any())
-    }), true.to_any());
-    check_throws::<A>("stringBigintFrom", Any::dot(string_any("abc"), string_any("includes")).end_call(|| Ok([string_any("a"), bigint_any(0)].to_array().to_any())));
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("found", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("notFound", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x4010000000000000)].to_array().to_any())) }), false.to_any());
+    check::<A>("nan", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x7ff8000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("negativeZero", scope(|| { Any::dot([f64_any(0x0000000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x8000000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("noCoercion", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([string_any("1")].to_array().to_any())) }), false.to_any());
+    check::<A>("nullIsNotUndefined", scope(|| { Any::dot([Nullish::Null.to_any()].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([Nullish::Undefined.to_any()].to_array().to_any())) }), false.to_any());
+    check::<A>("noArgument", scope(|| { Any::dot([Nullish::Undefined.to_any()].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok(Array::default().to_any())) }), true.to_any());
+    check::<A>("empty", scope(|| { Any::dot(Array::default().to_any(), string_any("includes")).end_call(&rt, || Ok([Nullish::Undefined.to_any()].to_array().to_any())) }), false.to_any());
+    check::<A>("from", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())) }), false.to_any());
+    check::<A>("fromTheEnd", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x4008000000000000), f64_any(0xbff0000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("fromBeforeTheStart", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), f64_any(0xc022000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("fromPastTheEnd", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x4008000000000000), f64_any(0x4008000000000000)].to_array().to_any())) }), false.to_any());
+    check::<A>("fromInfinity", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), f64_any(0x7ff0000000000000)].to_array().to_any())) }), false.to_any());
+    check::<A>("fromString", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), string_any("1")].to_array().to_any())) }), false.to_any());
+    check::<A>("emptyBigintFrom", scope(|| { Any::dot(Array::default().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())) }), false.to_any());
+    check::<A>("emptyOwnValueOfFrom", scope(|| { Any::dot(Array::default().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), [(string_key("valueOf"), A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, [rt.clone()].to_array(), Some("()=>1n/0n")).to_any())].to_object().to_any()].to_array().to_any())) }), false.to_any());
+    check::<A>("ownValueOfFrom", scope(|| { Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, [rt.clone()].to_array(), Some("()=>1")).to_any())].to_object().to_any()].to_array().to_any())) }), false.to_any());
+    check_throws::<A>("bigintFrom", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())) }));
+    check_throws::<A>("object", scope(|| { Any::dot(Object::default().to_any(), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }));
+    check::<A>("stringFound", scope(|| { Any::dot(string_any("abc"), string_any("includes")).end_call(&rt, || Ok([string_any("bc")].to_array().to_any())) }), true.to_any());
+    check::<A>("stringNotFound", scope(|| { Any::dot(string_any("abc"), string_any("includes")).end_call(&rt, || Ok([string_any("cb")].to_array().to_any())) }), false.to_any());
+    check::<A>("stringEmpty", scope(|| { Any::dot(string_any("abc"), string_any("includes")).end_call(&rt, || Ok([string_any("")].to_array().to_any())) }), true.to_any());
+    check::<A>("stringFrom", scope(|| { Any::dot(string_any("abc"), string_any("includes")).end_call(&rt, || Ok([string_any("a"), f64_any(0x3ff0000000000000)].to_array().to_any())) }), false.to_any());
+    check::<A>("stringFromNegative", scope(|| { Any::dot(string_any("abc"), string_any("includes")).end_call(&rt, || Ok([string_any("a"), f64_any(0xc014000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("stringNoArgument", scope(|| { Any::dot(string_any("undefined"), string_any("includes")).end_call(&rt, || Ok(Array::default().to_any())) }), true.to_any());
+    check::<A>("stringNumber", scope(|| { Any::dot(string_any("a1b"), string_any("includes")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), true.to_any());
+    check::<A>("stringObject", scope(|| { Any::dot(string_any("[object Object]"), string_any("includes")).end_call(&rt, || Ok([Object::default().to_any()].to_array().to_any())) }), true.to_any());
+    check::<A>("stringOwnToString", scope(|| { Any::dot(string_any("xundefinedx"), string_any("includes")).end_call(&rt, || Ok([[(string_key("toString"), A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any())].to_object().to_any()].to_array().to_any())) }), true.to_any());
+    check::<A>("stringOwnToStringNeedle", scope(|| { Any::dot(string_any("xbx"), string_any("includes")).end_call(&rt, || Ok([[(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("b")) }, 0, [rt.clone()].to_array(), Some("()=>\"b\"")).to_any())].to_object().to_any()].to_array().to_any())) }), true.to_any());
+    check_throws::<A>("stringToStringNotAFunction", scope(|| { Any::dot(string_any("a"), string_any("includes")).end_call(&rt, || Ok([[(string_key("toString"), string_any("h"))].to_object().to_any()].to_array().to_any())) }));
+    check::<A>("stringOwnValueOf", scope(|| { Any::dot(string_any("x[object Object]"), string_any("includes")).end_call(&rt, || Ok([[(string_key("valueOf"), A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any())].to_object().to_any()].to_array().to_any())) }), true.to_any());
+    check_throws::<A>("stringBigintFrom", scope(|| { Any::dot(string_any("abc"), string_any("includes")).end_call(&rt, || Ok([string_any("a"), bigint_any(0)].to_array().to_any())) }));
 }

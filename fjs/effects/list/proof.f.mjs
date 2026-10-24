@@ -4,8 +4,8 @@
  */
 
 import { runPure } from '../module.f.mjs'
-import { empty, nonEmpty } from './module.f.mjs'
-import { assert, assertEq, assertOk } from '../../asserts/module.f.mjs'
+import { empty, fromList, nonEmpty } from './module.f.mjs'
+import { assert, assertEq, assertOk } from '../../asserts/module.f.js'
 
 /**
  * Pulls one cell. Both constructors are pure, so the cell is reached without a
@@ -32,5 +32,16 @@ export const proof = {
         assert(cell !== undefined, cell)
         assertEq(cell.first, 1)
         assertEq(cell.tail, tail)
+    },
+    /** `fromList` streams a strict list cell by cell and ends where it ends. */
+    fromList: () => {
+        const c1 = pull(fromList([1, 2]))
+        assert(c1 !== undefined, c1)
+        assertEq(c1.first, 1)
+        const c2 = pull(c1.tail)
+        assert(c2 !== undefined, c2)
+        assertEq(c2.first, 2)
+        assertEq(pull(c2.tail), undefined)
+        assertEq(pull(fromList(null)), undefined)
     },
 }

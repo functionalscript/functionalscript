@@ -2,7 +2,7 @@
  * Proofs for the completeness table.
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { allowedCalls, prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { generate, path, pending, rows, types } from './module.f.mjs'
 

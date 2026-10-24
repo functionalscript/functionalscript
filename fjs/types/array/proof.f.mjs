@@ -1,6 +1,6 @@
-import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, dedup, assoc, occurrences } from './module.f.mjs'
+import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, dedup, assoc, occurrences, findMap } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {
     stringify: () => {
@@ -152,6 +152,19 @@ export const proof = {
         // a stored `undefined` is a value, not absence
         () => assertEq(assoc('a')([['a', undefined]]), undefined),
         () => assertEq(assoc('a')([['a', null]]), null),
+    ],
+    findMap: [
+        // the first answer that is not `null`, with the index it was found at
+        () => assertEq(findMap((/** @type {number} */ x, /** @type {number} */ i) => x > 1 ? `${x}@${i}` : null)([1, 2, 3]), '2@1'),
+        () => assertEq(findMap(() => null)([1, 2]), null),
+        () => assertEq(findMap(() => 'x')([]), null),
+        // `undefined` is an answer: only `null` is absence
+        () => assertEq(findMap((/** @type {number} */ x) => x === 1 ? undefined : 'later')([1, 2]), undefined),
+        // nothing after the first answer is asked
+        () => assertEq(findMap((/** @type {number} */ x) => {
+            assert(x <= 2, x)
+            return x === 2 ? 'two' : null
+        })([1, 2, 3]), 'two'),
     ],
     occurrences: [
         () => {

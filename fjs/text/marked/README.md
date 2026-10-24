@@ -33,8 +33,6 @@ established practice it follows and the alternatives it rejected, is
 11. [Adding a producer: a checklist](#11-adding-a-producer-a-checklist)
 12. [Design record](#12-design-record)
 
----
-
 ## 1. The model
 
 | Type | Is | Notes |
@@ -67,6 +65,12 @@ no type for (TextMate and Tree-sitter keep that distinction too).
 | `comment` | a comment | none | none | the `// @generated` line |
 | `operator` | an operator | none | none | none |
 | `identifier` | a name, whatever it names | the name of a shared node's `const`, `$0` | every name: a parameter or binding, `$0`, a property after `.` (even `x.true`), a global such as `Array` | every other word: crate, module, type, function and method names, `Ok`, `c0` |
+
+The TypeScript printer (`fjs/rtti/ts`) marks `type`, `readonly`, `in` and the
+primitive type names — `string`, `number`, `bigint`, `boolean`, `unknown`,
+`never`, `undefined` — `keyword`, as TypeScript spells them; `null`, `true` and
+`false` types `literal`; string and number literal types `string` and `number`;
+alias names `identifier`.
 
 Everything not in the table is plain text: punctuation, operators and
 parentheses. Plain is the default, and a producer marks a piece only when it is
@@ -190,6 +194,7 @@ text is an addition beside it. The `_`-prefixed functions are linkage, not API.
 | extended JSON codec (`fjs/media/json/extended`) | `serialize`, `stringify` | — | its leaves are marked, and its `Codec` has `marked`, which the module does not export yet |
 | `.js` writer (`fjs/compiler/serializer`) | `tryStringify`, `tryModuleStringify`, `trySerialize`, `tryModuleSerialize` | `tryMarked`, `tryModuleMarked` | `_trySerialize`, `_tryModuleSerialize` |
 | Rust (`fjs/compiler/rust`) | `toRust`, `generate` | `toRustMarked` | `scopeTagged`, `useLinesTagged` in `fjs/edag/rust` |
+| TypeScript types (`fjs/rtti/ts`) | `dataToTs`, `printer` | `dataToTsMarked` | `_taggedPrinter`, `_taggedPrimitive`, `_taggedUnion` in `fjs/types/ts` |
 | The compiler (`fjs/compiler`) | the file `compileFile(load)` writes | `_outputMarked(load)(input, output)`, `_compileMarked(load)(input, output)` | — |
 
 `_outputMarked` is `compile` without its tail, creating the output's
@@ -197,8 +202,12 @@ directory and writing the file. Its first argument is the `RuntimeLoad` a
 data output interprets the module under — `packageRuntime(packageRoot)`,
 or `noRuntime` for a caller whose outputs interpret nothing, as the
 generators pass. It answers the output the output name asks
-for as `Marked`, or a refusal as `[message, diagnostic]`: the producer's raw
-message for a demo pane and the diagnostic `fjs compile` would print.
+for as `Marked`, or a refusal as `[message, diagnostic, source]`: the
+producer's raw message for a demo pane, the diagnostic `fjs compile` would
+print, and the `SourceError` for a refusal of the module, so a demo can mark
+its token in the source text. The `source` field is `null` when the refusal
+has no source error, such as an unsupported output extension. This is the
+compiler's `OutputRefusal` tuple.
 `_compileMarked` selects the diagnostic on refusal. `compileFile` is it followed
 by the directory and write, writing `toText` of the result; so the file is the
 text of the marked output, by construction.
@@ -229,10 +238,8 @@ oracle, so it establishes agreement modulo that boundary, not identical rendered
 spans. The highlighter's `signedLeaves` proof pins both renderings explicitly.
 
 The compiler (side-by-side), parser, serializer, Rust and rtti demos render
-their producers' runs; the rtti demo leaves its TypeScript block plain until
-the printer marks it
-([`rtti/ts/todo/marked-output.md`](../../rtti/ts/todo/marked-output.md)),
-and its comparison block, which is a summary rather than code. How a demo's code blocks look is
+their producers' runs; the rtti demo leaves its comparison block plain, which
+is a summary rather than code. How a demo's code blocks look is
 [`website/demo/README.md`](../../website/demo/README.md#output).
 
 ## 7. The fallback for text with no producer
@@ -353,10 +360,8 @@ here builds it.
    the oracle where the tokenizer reads the language.
 6. **Use it where it is shown:** a demo renders `render(marked)` and drops its
    call to `highlight`.
-7. **Update the table in [§2](#2-kinds-and-what-each-producer-marks) and
-   [§5](#5-producers-and-their-entry-points)** of this file.
-
----
+7. **Update the tables** in [§2](#2-kinds-and-what-each-producer-marks) and
+   [§5](#5-producers-and-their-entry-points) of this file.
 
 ## 12. Design record
 

@@ -160,7 +160,7 @@ written and whether the import carries `with { type: "json" }` — see
 resolver/loader to validate under the host contract, even on cache hits. Its order
 defines the import parameter positions in `edag`. `edag` is the parameterized computation for the module,
 with the complete module export object as its root/result
-([named and default exports](../../../spec/modules/exports.md)).
+([named and default exports](../../../spec/modules/exports/README.md)).
 
 `Unresolved` is a compiler/loading structure only. It is **not part of EDAG**, and
 import specifiers and resolved loading locations must not be embedded into EDAG
@@ -591,7 +591,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       [`fjs/compiler/edag`](../edag/module.f.mjs), a function of the AST alone.
 - [x] Do not silently drop required body evaluation: a `const` the export does not
       reach is anchored by the `','` operation, whatever it holds. Done as a
-      reachability rule, `anchors` in [`fjs/compiler/ast`](../ast/module.f.mjs): the roots
+      reachability rule, `anchors` in [`fjs/compiler/ast`](../ast/module.f.js): the roots
       of the unreached part are the operands before the export.
 - [x] Do not silently discard eager imported-module evaluation just because the
       binding is unused: an import parameter the export does not reach is anchored the
@@ -658,8 +658,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       where `a.toString` is refused
       ([`fjs/js/prototype/README.md`](../../js/prototype/README.md)). Grouping the
       access is no way around either rule: `(a.b)(c)` keeps the receiver and is
-      that same method call, while the detached `(0, a.b)(c)` waits on the comma
-      operator.
+      that same method call, while the detached `(0, a.b)(c)` is the comma
+      operator's, the plain call over the access
+      ([comma](../../../spec/operators/comma/README.md)).
 - [x] Add proofs for non-capturing nested functions and ordinary/method calls in the
       supported Stage 2 subset, including accepted static/numeric method-call
       properties and rejection of prohibited/runtime-computed string properties. Done:
@@ -768,7 +769,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`157-json-djs-shared-value-machine.md`](../../media/json/todo/157-json-djs-shared-value-machine.md) — existing JSON/DJS serializer deduplication task.
 - [`fjs/compiler/ast/types.ts`](../../compiler/ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
   and the ordered syntax entries used by lowering.
-- [`fjs/compiler/ast/module.f.mjs`](../../compiler/ast/module.f.mjs) — lowering and reachability helpers; the value evaluator is retired.
+- [`fjs/compiler/ast/module.f.js`](../../compiler/ast/module.f.js) — lowering and reachability helpers; the value evaluator is retired.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
 - [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — the

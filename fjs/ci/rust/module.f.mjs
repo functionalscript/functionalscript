@@ -22,7 +22,7 @@
  */
 
 import { rust, wasmer, wasmtime } from '../config/module.f.js'
-import { test } from '../common/module.f.mjs'
+import { isUbuntuArm, test } from '../common/module.f.mjs'
 import { nixVersionStep } from '../nix/module.f.mjs'
 
 /**
@@ -92,6 +92,8 @@ const i686 = (v, a) => {
  */
 export const i686System = /** @type {const} */ ('x86_64-linux')
 
+const i686Compiler = /** @type {const} */ (['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc'])
+
 /**
  * What Intel Linux adds to the shared shell: the 32-bit target, and the linker
  * `cargo` has to be pointed at to use it.
@@ -120,6 +122,8 @@ export const i686System = /** @type {const} */ ('x86_64-linux')
  * a derivation into the hook puts it in the closure, which is all that is
  * wanted here — a 32-bit `cc` on `PATH` would only shadow the host one that
  * the untargeted `cargo test` needs.
+ * The installable profile exposes it as `fjs-i686-cc` instead, so containers
+ * can select it without a shell hook or a collision with the native compiler.
  *
  * The `shellHook` names that linker outright rather than trusting `PATH`.
  * `mkShell` brings its own `cc` from `stdenv`, and `addToSearchPath` appends,
@@ -140,9 +144,13 @@ export const i686PerSystem = {
         targets: [i686Linux],
         shellHook: [
             'export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=',
-            /** @type {const} */ (['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc']),
+            i686Compiler,
             '/bin/cc',
         ],
+        commands: [{
+            name: 'fjs-i686-cc',
+            script: ['exec ', i686Compiler, '/bin/cc "$@"'],
+        }],
     },
 }
 
@@ -176,7 +184,7 @@ export const rustPlatformSteps = (v, a) => [
  *
  * @type {(v: Os, a: Architecture) => boolean}
  */
-const wasmPlatform = (v, a) => v === 'ubuntu' && a === 'arm'
+const wasmPlatform = isUbuntuArm
 
 /**
  * What a platform job on the shared shell asserts before its `cargo` commands

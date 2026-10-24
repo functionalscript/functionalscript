@@ -1,13 +1,19 @@
-import { digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, lowerHexDigitValue, one, range } from './module.f.mjs'
+import {
+    charIs, codePoints, decimalValue, digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, isDigit, isDigits,
+    isLatinLetter, lowerHexDigitValue, one, range,
+} from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
-
-/** The code points of a string. @type {(s: string) => readonly number[]} */
-const codePoints = s => [...s].map(one)
+import { assertEq } from '../../asserts/module.f.js'
 
 const values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
 export const proof = {
+    codePoints: () => {
+        assertEq(stringifySorted(codePoints('')), '[]')
+        assertEq(stringifySorted(codePoints('0a')), '[48,97]')
+        // one per character, so an astral character is one code point
+        assertEq(stringifySorted(codePoints('1\u{1f600}')), '[49,128512]')
+    },
     range: () => {
         const r = stringifySorted(range("A"))
         assertEq(r, '[65,65]')
@@ -75,6 +81,40 @@ export const proof = {
             assertEq(stringifySorted(values.map(v => hexDigitValue(hexDigitCodePoint(v)))), stringifySorted(values))
         },
     },
+    charIs: {
+        member: () => {
+            assertEq(charIs(isDigit)('0'), true)
+            assertEq(charIs(isDigit)('9'), true)
+            assertEq(charIs(isLatinLetter)('a'), true)
+            assertEq(charIs(isLatinLetter)('Z'), true)
+        },
+        notMember: () => {
+            assertEq(charIs(isDigit)('a'), false)
+            assertEq(charIs(isLatinLetter)('0'), false)
+            assertEq(charIs(isLatinLetter)('\u212a'), false)
+        },
+        notOneCodeUnit: () => {
+            assertEq(charIs(isDigit)(''), false)
+            assertEq(charIs(isDigit)('12'), false)
+            assertEq(charIs(isLatinLetter)('ab'), false)
+            assertEq(charIs(isDigit)('\u{1d7ce}'), false)
+        },
+    },
+    isDigits: {
+        digits: () => {
+            assertEq(isDigits('0'), true)
+            assertEq(isDigits('007'), true)
+            assertEq(isDigits('1234567890'), true)
+        },
+        notDigits: () => {
+            assertEq(isDigits(''), false)
+            assertEq(isDigits('1a'), false)
+            assertEq(isDigits('-1'), false)
+            assertEq(isDigits(' 1'), false)
+            assertEq(isDigits('1e3'), false)
+            assertEq(isDigits('\u0661'), false)
+        },
+    },
     isCanonicalDigits: {
         canonical: () => {
             assertEq(isCanonicalDigits(codePoints('0')), true)
@@ -137,6 +177,11 @@ export const proof = {
             assertEq(digitsValue(10n)([48.5]), null)
             assertEq(digitsValue(10n)([NaN]), null)
         },
+    },
+    decimalValue: () => {
+        assertEq(decimalValue(codePoints('042')), 42n)
+        assertEq(decimalValue(codePoints('a')), null)
+        assertEq(decimalValue([]), null)
     },
     hexDigitsValue: {
         digits: () => {

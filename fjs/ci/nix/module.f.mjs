@@ -1,11 +1,11 @@
 /**
- * Generates the shared, self-contained Nix development shell.
+ * Generates the shared Nix development shell and installable tools.
  *
  * `gen.nix/flake.nix` pins the exact Nixpkgs commit from
  * `../config/module.f.js` and exposes a `devShells.<system>.default` for
- * each supported system. Every Nix-backed CI job and developer enters this
- * environment. The file is static and readable on purpose: no job selection,
- * shared Nix modules or helper libraries.
+ * each supported system, plus `packages.<system>.devTools` for containers.
+ * Both use the same packages. The file is static and readable on purpose:
+ * no job selection, shared Nix modules or helper libraries.
  *
  * See `./types.ts` for the `NixJob` type-level API.
  *
@@ -15,13 +15,13 @@
  * @import { IoChannel, Mkdir, Rm, WriteBytes, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression, _Binding, _Reference } from '../../media/nix/types.ts'
- * @import { NixArchive, NixJob, NixPerSystem, NixPin, NixRust } from './types.ts'
+ * @import { NixArchive, NixCommand, NixJob, NixPerSystem, NixPin, NixRust } from './types.ts'
  * @import { _ShellValues } from './private.ts'
  */
 
 import { writeFiles } from '../../effects/node/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
-import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
+import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { install, test, uses } from '../common/module.f.mjs'
 import { nixpkgs, rustOverlay } from '../config/module.f.js'
@@ -386,14 +386,50 @@ const systemArguments = (job, system) => {
     ]
 }
 
+/** @type {(command: NixCommand, index: number) => _Binding} */
+const commandBinding = ({ name, script }, index) => ['=', [`command${index}`],
+    ['apply', ['ref', 'pkgs', 'writeShellApplication'], ['set',
+        ['=', ['name'], name],
+        ['=', ['text'], ['indented-string', ...script]],
+    ]],
+]
+
 /**
- * The `devShells` set, and — for a job with more than one system — the function
- * its entries share.
+ * Install the shell's declared tools and its implicit native compiler.
+ * Commands add distinctly named executables without running the shell hook.
+ *
+ * @type {(job: NixJob, system: string) => _Binding}
+ */
+const devTools = (job, system) => {
+    const commands = (additions(job, system).commands ?? []).map(commandBinding)
+    return ['=', ['packages', system, 'devTools'], ['let', [
+        ['=', ['pkgs'], packageSet(system, job.rust)],
+        ...commands,
+        ['=', ['extraTools'], ['list',
+            ['ref', 'pkgs', 'stdenv', 'cc'],
+            ...commands.map(([, [name]]) => /** @type {const} */ (['ref', name])),
+        ]],
+        ['=', ['toolLists'], ['list',
+            ['ref', 'self', 'devShells', system, 'default', 'nativeBuildInputs'],
+            ['ref', 'extraTools'],
+        ]],
+    ], ['apply', ['ref', 'pkgs', 'buildEnv'], ['set',
+        ['=', ['name'], 'fjs-dev-tools'],
+        ['=', ['paths'], ['apply', ['ref', 'pkgs', 'lib', 'concatLists'], ['ref', 'toolLists']]],
+        // mkShell can select .dev outputs in nativeBuildInputs; include executables too.
+        ['=', ['extraOutputsToInstall'], ['list', 'out', 'bin']],
+        ['=', ['pathsToLink'], ['list', '/bin']],
+    ]]]]
+}
+
+/**
+ * The shells and installable packages, and — for a job with more than one
+ * system — the function its shells share.
  *
  * The abstraction appears exactly where it pays. One shell written through a
- * function would be indirection for nothing, so a single-system flake stays the
- * flat text it has always been, byte for byte. Four shells written out is the
- * same twenty lines four times, so those share.
+ * function would be indirection for nothing, so a single-system shell stays
+ * inline. Four shells written out is the same twenty lines four times, so
+ * those share.
  *
  * It is a function rather than a loop on purpose: `devShells.<system>.default`
  * is still written once per system, so the systems a flake serves are a list
@@ -408,7 +444,7 @@ const systemArguments = (job, system) => {
  *
  * @type {(job: NixJob) => Expression}
  */
-const devShells = job => {
+const environments = job => {
     const [system, ...rest] = job.systems
     if (rest.length === 0) {
         const values = systemValues(job, system)
@@ -420,6 +456,7 @@ const devShells = job => {
                 ],
                 mkShell(job, values.shellHook),
             ]],
+            devTools(job, system),
         ]
     }
     const values = sharedValues(job)
@@ -439,16 +476,15 @@ const devShells = job => {
                     ['apply', ['ref', shellName], ['set', ...systemArguments(job, s)]],
                 ],
             ])),
+            ...job.systems.map(s => devTools(job, s)),
         ],
     ]
 }
 
 /**
- * A job declaring neither `rust` nor `pin` generates exactly what it generated
- * before those declarations existed: one input, one lambda argument, no
- * overlay, one `let` binding. Everything either one brings is conditional on
- * the job asking for it, and a job declaring one system generates the one
- * `devShells` attribute it always did.
+ * A job declaring neither `rust` nor `pin` needs only Nixpkgs, without an
+ * overlay or an overridden package. `self` lets each installable profile use
+ * its shell's packages without another tool list or a second set of pins.
  *
  * @type {(job: NixJob) => Expression}
  */
@@ -461,8 +497,8 @@ const flake = job => ['set',
         ['=', ['inputs', 'rust-overlay', 'inputs', 'nixpkgs', 'follows'], 'nixpkgs'],
     ])),
     ['=', ['outputs'], ['lambda',
-        ['open-set-pattern', 'nixpkgs', ...(job.rust === undefined ? [] : ['rust-overlay'])],
-        devShells(job),
+        ['open-set-pattern', 'self', 'nixpkgs', ...(job.rust === undefined ? [] : ['rust-overlay'])],
+        environments(job),
     ]]
 ]
 

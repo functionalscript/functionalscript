@@ -13,7 +13,7 @@
 
 import { parseFromTokens } from './module.f.mjs'
 import { expectModule, expectRefused, tokenizeString } from './proof.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 
 /** An array pattern nested as deep as the parser's bar, binding `a` at the bottom. */
 const deep = `${'['.repeat(20000)}a${']'.repeat(20000)}`
@@ -26,50 +26,50 @@ export const proof = {
     // writes the reads the pattern is sugar for — a hidden entry per source,
     // the initializer first, and one entry per name, each a `cref` of it —
     // and binds every name as a `const`'s
-    // (spec/bindings/destructuring.md).
+    // (spec/bindings/destructuring/README.md).
     destructuring: {
         module: () => {
             // an object pattern's property is an access of the hidden entry,
             // the shorthand and the string key alike; an array pattern is a
             // hidden spread of its source and an access per element
             expectModule('const { a, "%": [c, d] } = { a: null, "%": [true, false] }; export default [a, c, d];',
-                '[[],[["object",[[":","a",null],[":","%",["array",[true,false]]]]],[".",["cref",0],"a"],["array",[["...",[".",["cref",0],"%"]]]],[".",["cref",2],0],[".",["cref",2],1],["object",[[":","default",["array",[["cref",1],["cref",3],["cref",4]]]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\"{}\",[[\":\",\"a\",null],[\":\",\"%\",[\"[]\",[true,false]]]]],\"a\"],[\".\",[\"[]\",[[\"...\",[\".\",[\"{}\",[[\":\",\"a\",null],[\":\",\"%\",[\"[]\",[true,false]]]]],\"%\"]]]],0],[\".\",[\"[]\",[[\"...\",[\".\",[\"{}\",[[\":\",\"a\",null],[\":\",\"%\",[\"[]\",[true,false]]]]],\"%\"]]]],1]]]]]]")
             // a nested pattern reads through a hidden entry of its own
             expectModule('const o = { a: { b: 1 } }; const { a: { b } } = o; export default b;',
-                '[[],[["object",[[":","a",["object",[[":","b",1]]]]]],["cref",0],[".",["cref",1],"a"],[".",["cref",2],"b"],["object",[[":","default",["cref",3]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",1]]]]]],\"a\"],\"b\"]]]]")
             expectModule('const x = [1]; const [a] = x; export default a;',
-                '[[],[["array",[1]],["array",[["...",["cref",0]]]],[".",["cref",1],0],["object",[[":","default",["cref",2]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[[\"...\",[\"[]\",[1]]]]],0]]]]")
             // `length` is the one prototype name an access reads, so a pattern reads it
-            expectModule('const { length } = "abc"; export default length;', '[[],["abc",[".",["cref",0],"length"],["object",[[":","default",["cref",1]]]]]]')
+            expectModule('const { length } = "abc"; export default length;', "[\"{}\",[[\":\",\"default\",[\".\",\"abc\",\"length\"]]]]")
             // an empty pattern binds nothing and keeps its failure: the spread
             // of the source alone, and one read of the source's `length`
             expectModule('const x = {}; const {} = x; const [] = x; export default 1;',
-                '[[],[["object",[]],["cref",0],[".",["cref",1],"length"],["array",[["...",["cref",0]]]],["object",[[":","default",1]]]]]')
+                "[\",\",[[\".\",[\"{}\",[]],\"length\"],[\"[]\",[[\"...\",[\"{}\",[]]]]],[\"{}\",[[\":\",\"default\",1]]]]]")
             // a literal alone in the brackets is the constant key an access
             // admits in brackets, by its spelling: `[1.0]` names `1`
             expectModule('const o = { "3": 1, a: 2 }; const { [3]: x, ["a"]: y, [1.0]: z } = o; export default [x, y, z];',
-                '[[],[["object",[[":","3",1],[":","a",2]]],["cref",0],[".",["cref",1],3],[".",["cref",1],"a"],[".",["cref",1],1],["object",[[":","default",["array",[["cref",2],["cref",3],["cref",4]]]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\"{}\",[[\":\",\"3\",1],[\":\",\"a\",2]]],3],[\".\",[\"{}\",[[\":\",\"3\",1],[\":\",\"a\",2]]],\"a\"],[\".\",[\"{}\",[[\":\",\"3\",1],[\":\",\"a\",2]]],1]]]]]]")
             // a trailing comma, as the literals allow one; an exported
             // pattern exports each of its names, and the hidden entry none
             expectModule('export const { a, b, } = { a: 1, b: 2 };',
-                '[[],[["object",[[":","a",1],[":","b",2]]],[".",["cref",0],"a"],[".",["cref",0],"b"],["object",[[":","a",["cref",1]],[":","b",["cref",2]]]]]]')
+                "[\"{}\",[[\":\",\"a\",[\".\",[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2]]],\"a\"]],[\":\",\"b\",[\".\",[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2]]],\"b\"]]]]")
             expectModule('const x = {}; const [a] = x; const { b } = x\nexport default [a, b];',
-                '[[],[["object",[]],["array",[["...",["cref",0]]]],[".",["cref",1],0],["cref",0],[".",["cref",3],"b"],["object",[[":","default",["array",[["cref",2],["cref",4]]]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\"[]\",[[\"...\",[\"{}\",[]]]]],0],[\".\",[\"{}\",[]],\"b\"]]]]]]")
         },
         body: () => {
             // a body's entries are numbered by the entries before them, not
             // by the statements: one pattern makes several
             expectModule('const f = (...r) => { const [x, y] = r; const z = 1; return [y, x, z]; }; export default f;',
-                '[[],[["=>",0,[["array",[["...",["rest"]]]],[".",["cref",0],0],[".",["cref",0],1],1,["array",[["cref",2],["cref",1],["cref",3]]]]],["object",[[":","default",["cref",0]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"[]\",[[\".\",[\"[]\",[[\"...\",[\"rest\"]]]],1],[\".\",[\"[]\",[[\"...\",[\"rest\"]]]],0],1]]]]]]")
             expectModule('const f = () => { const [a] = [1]; return a; }; export default f;',
-                '[[],[["=>",0,[["array",[["...",["array",[1]]]]],[".",["cref",0],0],["cref",1]]],["object",[[":","default",["cref",0]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\"[]\",[[\"...\",[\"[]\",[1]]]]],0]]]]]")
             // in a loop's block, the body of a function of its own, whose
             // entries are counted as a body's are
             expectModule('export default n => { let r = 0; while (r < n) { const { d, e: [f] } = { d: 1, e: [2] }; r = r + d + f; } return r; };',
-                '[[],[["object",[[":","default",["=>",1,[["()",["=>",1,[["?:",["<",["arg",0],["fref",0]],["()",["=>",0,[["object",[[":","d",1],[":","e",["array",[2]]]]],[".",["cref",0],"d"],["array",[["...",[".",["cref",0],"e"]]]],[".",["cref",2],0],["+",["+",["fref",0],["cref",1]],["cref",3]],["()",["fref",1],[["cref",4]]]],[["arg",0],["self"]]],[]],["arg",0]]],[["arg",0]]],[0]],["cref",0]]]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"+\",[\"arg\",0],[\".\",[\"{}\",[[\":\",\"d\",1],[\":\",\"e\",[\"[]\",[2]]]]],\"d\"]],[\".\",[\"[]\",[[\"...\",[\".\",[\"{}\",[[\":\",\"d\",1],[\":\",\"e\",[\"[]\",[2]]]]],\"e\"]]]],0]]]],[\"arg\",0]]],[0]]]]]]")
             // in a guard's arms, each its own body
             expectModule('const f = (...r) => { if (r[0]) { const [a] = r; return a; } const [b] = r; return b; }; export default f;',
-                '[[],[["=>",0,[["?:",[".",["rest"],0],["()",["=>",0,[["array",[["...",["fref",0]]]],[".",["cref",0],0],["cref",1]],[["rest"]]],[]],["()",["=>",0,[["array",[["...",["fref",0]]]],[".",["cref",0],0],["cref",1]],[["rest"]]],[]]]]],["object",[[":","default",["cref",0]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?:\",[\".\",[\"rest\"],0],[\".\",[\"[]\",[[\"...\",[\"rest\"]]]],0],[\".\",[\"[]\",[[\"...\",[\"rest\"]]]],0]]]]]]")
         },
         // A fixed parameter binds a pattern as a `const` does, the argument
         // its source: the pattern's reads are the first entries of the
@@ -77,28 +77,28 @@ export const proof = {
         // name — under an expression body and a block body alike, whose
         // own entries count from after them; and a pattern counts as one
         // parameter toward the function's `length`
-        // (spec/bindings/destructuring.md).
+        // (spec/bindings/destructuring/README.md).
         parameters: () => {
-            expectModule('export default ({ a }) => a;', '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["cref",1]]]]]]]]')
+            expectModule('export default ({ a }) => a;', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\".\",[\"arg\",0],\"a\"]]]]]")
             expectModule('export default ({ a }, [b, c], ...r) => [a, b, c, r];',
-                '[[],[["object",[[":","default",["=>",2,[["arg",0],[".",["cref",0],"a"],["array",[["...",["arg",1]]]],[".",["cref",2],0],[".",["cref",2],1],["array",[["cref",1],["cref",3],["cref",4],["rest"]]]]]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"=>\",2,[],[\"[]\",[[\".\",[\"arg\",0],\"a\"],[\".\",[\"[]\",[[\"...\",[\"arg\",1]]]],0],[\".\",[\"[]\",[[\"...\",[\"arg\",1]]]],1],[\"rest\"]]]]]]]")
             expectModule('export default (x, { a: [b] }) => { const c = b; return [x, c]; };',
-                '[[],[["object",[[":","default",["=>",2,[["arg",1],["array",[["...",[".",["cref",0],"a"]]]],[".",["cref",1],0],["cref",2],["array",[["arg",0],["cref",3]]]]]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"=>\",2,[],[\"[]\",[[\"arg\",0],[\".\",[\"[]\",[[\"...\",[\".\",[\"arg\",1],\"a\"]]]],0]]]]]]]")
             // a trailing comma, as the list allows one
-            expectModule('export default ({ a },) => a;', '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["cref",1]]]]]]]]')
+            expectModule('export default ({ a },) => a;', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\".\",[\"arg\",0],\"a\"]]]]]")
             // an empty pattern keeps its failure: the spread of the argument
             // alone, and one read of the argument's `length`
-            expectModule('export default ([]) => 0;', '[[],[["object",[[":","default",["=>",1,[["array",[["...",["arg",0]]]],0]]]]]]]')
-            expectModule('export default ({}) => 0;', '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"length"],0]]]]]]]')
+            expectModule('export default ([]) => 0;', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\",\",[[\"[]\",[[\"...\",[\"arg\",0]]]],0]]]]]]")
+            expectModule('export default ({}) => 0;', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\",\",[[\".\",[\"arg\",0],\"length\"],0]]]]]]")
             // the function's own name and a capture are read from the body
             // as under a name, and a nested function captures a pattern's
             // name as it captures any parameter
             expectModule('const f = ({ a }) => a ? f : 0; export default f;',
-                '[[],[["=>",1,[["arg",0],[".",["cref",0],"a"],["?:",["cref",1],["self"],0]]],["object",[[":","default",["cref",0]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\".\",[\"arg\",0],\"a\"],[\"self\"],0]]]]]")
             expectModule('const k = 1; export default ({ a }) => [a, k];',
-                '[[],[1,["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["array",[["cref",1],["fref",0]]]],[["cref",0]]]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"[]\",[[\".\",[\"arg\",0],\"a\"],1]]]]]]")
             expectModule('export default ({ a }) => ({ b }) => [a, b];',
-                '[[],[["object",[[":","default",["=>",1,[["arg",0],[".",["cref",0],"a"],["=>",1,[["arg",0],[".",["cref",0],"b"],["array",[["fref",0],["cref",1]]]],[["cref",1]]]]]]]]]]')
+                "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"=>\",1,[[\".\",[\"arg\",0],\"a\"]],[\"[]\",[[\"frame\",0],[\".\",[\"arg\",0],\"b\"]]]]]]]]")
         },
         // A parameter pattern's name is a parameter by every rule of one,
         // and the pattern itself one fixed parameter: bound twice — across
@@ -173,11 +173,58 @@ export const proof = {
             expectRefused('const x = {}; const { [(3)]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             expectRefused('const x = {}; const { [-1]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             expectRefused('const x = {}; const { ["toString"]: a } = x; export default 1;', 'prohibited property name', 24)
-            // a default is no literal, so the grammar stops at its `=`; an
-            // elision is no array of this language
+            // a default is no literal, so the grammar stops at its `=`
             expectRefused('const x = []; const [a = 1] = x; export default 1;', 'unexpected token', 24)
             expectRefused('const x = {}; const { a = 1 } = x; export default 1;', 'unexpected token', 25)
-            expectRefused('const x = []; const [a, , b] = x; export default 1;', 'unexpected token', 25)
+            // a rest element after an elision is still the rest element
+            expectRefused('const x = []; const [, ...r] = x; export default 1;', 'rest element not supported', 24)
+        },
+        // An elision skips a position of an array pattern: it binds and
+        // reads nothing, and the element after it reads the next index of
+        // the spread — leading, medial, trailing, alone, nested, in a body,
+        // and in a parameter, the head of a list and after it
+        // (spec/bindings/destructuring/README.md).
+        elision: () => {
+            expectModule('const x = [1, 2]; const [, b] = x; export default b;',
+                "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[[\"...\",[\"[]\",[1,2]]]]],1]]]]")
+            expectModule('const x = [1, 2, 3]; const [a, , c] = x; export default [a, c];',
+                "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\"[]\",[[\"...\",[\"[]\",[1,2,3]]]]],0],[\".\",[\"[]\",[[\"...\",[\"[]\",[1,2,3]]]]],2]]]]]]")
+            // after a trailing elision's comma nothing follows, as after a
+            // trailing comma
+            expectModule('const x = [1, 2]; const [a, ,] = x; export default a;',
+                "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[[\"...\",[\"[]\",[1,2]]]]],0]]]]")
+            // elisions alone bind nothing and keep the spread's failure, as
+            // the empty pattern does
+            expectModule('const x = [1]; const [, ,] = x; export default 1;',
+                "[\",\",[[\"[]\",[[\"...\",[\"[]\",[1]]]]],[\"{}\",[[\":\",\"default\",1]]]]]")
+            expectModule('const x = [[1, 2]]; const [[, b], , { c }] = x; export default [b, c];',
+                "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\"[]\",[[\"...\",[\".\",[\"[]\",[[\"...\",[\"[]\",[[\"[]\",[1,2]]]]]]],0]]]],1],[\".\",[\".\",[\"[]\",[[\"...\",[\"[]\",[[\"[]\",[1,2]]]]]]],2],\"c\"]]]]]]")
+            expectModule('export default () => { const [, b] = [1, 2]; return b; };',
+                "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\"[]\",[[\"...\",[\"[]\",[1,2]]]]],1]]]]]")
+            expectModule('export default ([, v]) => v;',
+                "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\".\",[\"[]\",[[\"...\",[\"arg\",0]]]],1]]]]]")
+            expectModule('export default (a, [, , v]) => [a, v];',
+                "[\"{}\",[[\":\",\"default\",[\"=>\",2,[],[\"[]\",[[\"arg\",0],[\".\",[\"[]\",[[\"...\",[\"arg\",1]]]],2]]]]]]]")
+            // the names around an elision are bound by every rule of a name
+            expectRefused('const x = []; const [a, a, , ] = x; export default 1;', 'duplicate id', 25)
+            expectRefused('export default ([, a], [, a]) => 1;', 'duplicate id', 27)
+        },
+        // A hole in an array value is refused by design, at the comma that
+        // makes it: an array of this language has none
+        // (spec/values/arrays/README.md). A value's earlier failure comes first,
+        // errors being first-to-last; and the grammar admits no elision in
+        // a call's arguments, as JavaScript admits none, so it stops there.
+        holes: () => {
+            expectRefused('export default [1, , 2];', 'array hole', 20)
+            expectRefused('export default [, 1];', 'array hole', 17)
+            expectRefused('export default [1, ,];', 'array hole', 20)
+            expectRefused('export default { a: [1, , 2] };', 'array hole', 25)
+            expectRefused('const [a] = [, 1]; export default a;', 'array hole', 14)
+            // a group that no `=>` follows is a value
+            expectRefused('const a = 1; export default ([, a]);', 'array hole', 31)
+            expectRefused('export default [missing, , 1];', 'const not found', 17)
+            expectRefused('const f = (...a) => 1; export default f(1, , 2);', 'unexpected token', 44)
+            expectRefused('const f = (...a) => 1; export default f(,);', 'unexpected token', 41)
         },
         // The walk is one over an explicit stack, so a pattern as deep as
         // the lazy operators' bar costs no call stack, and its names are
@@ -212,8 +259,8 @@ export const proof = {
             // default follows
             expectRefused('export const {} = {};', 'module exports nothing', 1)
             expectRefused('const x = []; export const [] = x; export const {} = x;', 'module exports nothing', 36)
-            expectModule('export const {} = {}; export default 1;', '[[],[["object",[]],[".",["cref",0],"length"],["object",[[":","default",1]]]]]')
-            expectModule('export const [] = []; export const a = 1;', '[[],[["array",[["...",["array",[]]]]],1,["object",[[":","a",["cref",1]]]]]]')
+            expectModule('export const {} = {}; export default 1;', "[\",\",[[\".\",[\"{}\",[]],\"length\"],[\"{}\",[[\":\",\"default\",1]]]]]")
+            expectModule('export const [] = []; export const a = 1;', "[\",\",[[\"[]\",[[\"...\",[\"[]\",[]]]]],[\"{}\",[[\":\",\"a\",1]]]]]")
             expectRefused('const x = {}; const { toString } = x; export default 1;', 'prohibited property name', 23)
             expectRefused('const x = {}; const { __proto__: p } = x; export default 1;', 'prohibited property name', 23)
             // the initializer read the name from outside, and the pattern
@@ -221,13 +268,13 @@ export const proof = {
             // loop's block as in a body
             expectRefused('const a = [1]; export default () => { const { a } = a; return a; };', 'capture shadowed', 47)
             expectRefused('const d = { d: 1 }; export default n => { let r = 0; while (r < n) { const { d } = d; r = 1; } return r; };', 'capture shadowed', 78)
-            // a loop's block may not bind the loop's variable, in a pattern
-            // as by name
-            expectRefused('export default n => { let r = 0; while (r < n) { const [r] = [1]; } return r; };', 'loop variable shadowed', 57)
-            expectRefused('export default n => { let r = 0; while (r < n) { const { a: [r] } = {}; } return r; };', 'loop variable shadowed', 62)
+            // a `const`'s pattern binds no variable: an assignment to a name
+            // it binds is refused, in a loop's block as in a body
+            expectRefused('export default n => { let r = 0; while (r < n) { const [r] = [1]; r = 2; } return r; };', 'assignment to const', 67)
+            expectRefused('export default n => { let r = 0; while (r < n) { const { a: [r] } = {}; r = 2; } return r; };', 'assignment to const', 73)
             // and `Object`, a reserved global, bound by a pattern after an
             // `entry` helper read it
-            expectRefused('const e = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? [x.value] : []; }; const { Object } = {}; export default e;', 'reserved word', 122)
+            expectRefused('const e = (a, b) => { const x = Object.getOwnPropertyDescriptor(a, b); return x?.enumerable ? x.value : undefined; }; const { Object } = {}; export default e;', 'reserved word', 127)
             // the statement before it, written without its `;`, still ends
             // at a newline and not at a pattern on the same line
             expectRefused('const x = {}; const [a] = x const { b } = x; export default [a, b];', 'unexpected token', 29)

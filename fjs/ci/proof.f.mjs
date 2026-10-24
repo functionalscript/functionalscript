@@ -1,5 +1,5 @@
 /**
- * @import { Job, MetaStep, Os, GitHubAction, Step } from './common/types.ts'
+ * @import { Architecture, Job, MetaStep, Os, GitHubAction, Step } from './common/types.ts'
  * @import { Dir, State } from '../effects/node/virtual/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
  */
@@ -18,7 +18,7 @@ import { utf8 } from '../text/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { install, test, ubuntu, uses, parseGitHubAction } from './common/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { definedValues } from '../types/object/module.f.mjs'
@@ -167,7 +167,7 @@ const runPin = /** @type {const} */ ('=9.9.9')
 
 const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":"${runPin}"}}`
 
-/** @type {(rust: boolean, nodeExtra?: (o: Os) => readonly MetaStep[]) => GitHubAction} */
+/** @type {(rust: boolean, nodeExtra?: (o: Os, a: Architecture) => readonly MetaStep[]) => GitHubAction} */
 const run = (rust, nodeExtra = () => []) => {
     const [state, result] = virtualAt(makeRoot(rust, runPackageJson))(ci({ nodeExtra }))
     assertEq(exitCode(result), 0)
@@ -436,18 +436,18 @@ export const proof = {
                     `unexpected ${cmd} in a command line`)
             }
         },
-        // `nodeExtra` takes the OS, and `README.md` advertises that so a
-        // caller can branch on it. Nothing else here would notice if the
-        // generator stopped passing it: every other proof injects the same
-        // step into every job, so `nodeExtra(o)` and `nodeExtra('ubuntu')`
-        // would be indistinguishable.
+        // `nodeExtra` takes the OS and the architecture, and `README.md`
+        // advertises that so a caller can branch on them. Nothing else here
+        // would notice if the generator stopped passing them: every other
+        // proof injects the same step into every job, so `nodeExtra(o, a)`
+        // and `nodeExtra('ubuntu', 'intel')` would be indistinguishable.
         osSpecific: () => {
-            const gha = run(false, o => [test({ run: `echo ${o}` })])
+            const gha = run(false, (o, a) => [test({ run: `echo ${o} ${a}` })])
             for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
                 for (const a of /** @type {const} */ (['intel', 'arm'])) {
                     assert(
-                        carriesInjected(`${o}-${a}`, `echo ${o}`)(gha),
-                        `expected the ${o} spelling in ${o}-${a}`)
+                        carriesInjected(`${o}-${a}`, `echo ${o} ${a}`)(gha),
+                        `expected the ${o} ${a} spelling in ${o}-${a}`)
                 }
             }
         },
@@ -778,7 +778,8 @@ export const proof = {
             const made = at(step => step.run === `mkdir ${consumerDirectory}`)
             const packed = at(step => step.run === nixDevelop(`npm pack --pack-destination ${consumerDirectory}`))
             const drift = at(step => step.run === 'git add -A && git diff --cached --exit-code')
-            const setup = at(step => step.uses === `actions/setup-node@${actions['actions/setup-node']}`)
+            // Smart CI also installs a bootstrap Node before cache lookup.
+            const setup = job.steps.findLastIndex(step => step.uses === `actions/setup-node@${actions['actions/setup-node']}`)
             assert(made !== -1 && packed !== -1 && drift !== -1 && setup !== -1, 'expected the directory made, the tarball packed into it, the drift check and the consumer\'s Node')
             // The directory exists before `npm pack` writes into it, which it
             // refuses to do otherwise; and the drift check, the last word on
@@ -792,7 +793,8 @@ export const proof = {
             // on the repository it consumes.
             assertEq(job.steps[setup]?.with?.['node-version'], node)
             assertEq(job.steps[setup]?.with?.['package-manager-cache'], 'false')
-            const check = job.steps.slice(setup + 1)
+            const report = at(step => step.run === 'npm start ci report package')
+            const check = job.steps.slice(setup + 1, report === -1 ? undefined : report)
             assert(check.length !== 0, 'expected the check after its Node')
             for (const step of check) {
                 assert(step['working-directory'] !== undefined, `expected the consumer directory: ${step.run}`)

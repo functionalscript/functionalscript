@@ -1,7 +1,7 @@
 /**
  * @module
  *
- * @import { Exp, OptionLambda, OptionPropertyLambda, Plain, StaticId } from './types.ts'
+ * @import { Exp, IntrinsicId, ItemsOver, OptionLambda, OptionPropertyLambda, Plain, StaticId, StepOver } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
 
@@ -17,9 +17,10 @@ import {
 /**
  * Every tuple here is closed — the members it declares and nothing else, which
  * is what a bare `Tuple` says ("Structs and tuples are closed" in
- * `../rtti/README.md`). That is load-bearing rather than incidental: the
- * chain grammar below claims each JS chain has exactly one spelling, and an
- * `open` tuple would let any node carry a trailing element nothing reads,
+ * `../rtti/guide/schemas/closed-containers/README.md`). That is load-bearing
+ * rather than incidental: the chain grammar below claims each JS chain has
+ * exactly one spelling, and an `open` tuple would let any node carry a
+ * trailing element nothing reads,
  * splitting one function into unboundedly many graphs. So do **not** wrap any
  * of these in `open`. No operand of any node is optional either. A chain that
  * ends says so by **arity**: the step or node is simply the shorter tuple,
@@ -542,7 +543,7 @@ export const staticIds = /** @type {const} */ (['Object.is', 'Object.entries', '
 
 /**
  * A static function as a value, `['Object.is']`: the function the
- * runtime's `static` section holds at its path, {@link staticPath},
+ * runtime's `static` answers for the id, `runtime.static('Object.is')`,
  * capturing nothing and called as any function is,
  * `['()', ['Object.is'], [a, b]]`. Unlike `entry` it is one function, not
  * fresh where it is established — `Object.is === Object.is` holds in
@@ -570,8 +571,9 @@ export const staticId = or(...staticIds)
 export const isStatic = node => node instanceof Array && node.length === 1 && staticIds.some(id => id === node[0])
 
 /**
- * A static function's path into the runtime's `static` section, its tag's
- * keys: `['Number', 'isInteger']` for `Number.isInteger`.
+ * A static function's path, the keys of its tag — `['Number', 'isInteger']`
+ * for `Number.isInteger` — as [`../js/static`](../js/static/module.f.js)
+ * admits it; the runtime is asked by the tag itself.
  *
  * @type {(id: StaticId) => readonly string[]}
  */
@@ -589,7 +591,18 @@ export const staticPath = id => id.split('.')
  *
  * @type {(id: StaticId) => string}
  */
-export const staticText = id => `function ${staticPath(id).at(-1)}() { [native code] }`
+export const staticText = id => nativeFunctionText(`${staticPath(id).at(-1)}`)
+
+/**
+ * The text of a built-in named `name`, NativeFunction syntax
+ * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)):
+ * `function is() { [native code] }`. A static function's is
+ * {@link staticText}; the runtime as a value gives it to every function
+ * its `static` and `member` sections reach (`fjs/compiler/rust/runtime`).
+ *
+ * @type {(name: string) => string}
+ */
+export const nativeFunctionText = name => `function ${name}() { [native code] }`
 
 /**
  * The failure of a static function no binding answers, by its name: the
@@ -601,13 +614,56 @@ export const staticText = id => `function ${staticPath(id).at(-1)}() { [native c
  */
 export const noStatic = name => `no binding for the static ${name}`
 
+/**
+ * The intrinsics: the member functions no body can define — the
+ * primitives of `fjs/js/runtime/README.md`, under the code's word for
+ * them, since `Primitive` is the EDAG's name for a literal value — which
+ * every executor binds natively, and which a module calls as a function
+ * through a helper the parser recognizes whole, `(s, a, b) => s.slice(a, b)`
+ * ([`../js/intrinsic`](../js/intrinsic/module.f.js)): each the helper's
+ * tag, the member's name, and the helper's `length`, the receiver and the
+ * native's arguments. A call of the node, `['()', ['slice'], [s, a, b]]`,
+ * is the member call `s.slice(a, b)` as an executor answers it with no
+ * runtime — the receiver's own property, else the native, else the
+ * `TypeError` of calling `undefined` — which is how the runtime's own
+ * bodies reach a native without naming what the runtime defines
+ * (`fjs/js/runtime/README.md`, "Two invariants"). As a value the node is fresh where it
+ * is established, as `entry` is and every `=>` is.
+ */
+export const intrinsics = /** @type {const} */ ([['slice', 3], ['charCodeAt', 2]])
+
+/** The intrinsics' tags, {@link intrinsics}: `slice`, `charCodeAt`. */
+export const intrinsicIds = intrinsics.map(([id]) => id)
+
+/** An intrinsic as a value, `['slice']`: one tag of {@link intrinsicIds}. */
+export const intrinsicId = or(...intrinsicIds)
+
+/**
+ * Whether a node — the EDAG's, or the AST's, which shares it — is an
+ * intrinsic, `['slice']`: one tag of {@link intrinsicIds} and nothing
+ * else, asked as {@link isStatic} is, before a `switch` on the tag.
+ *
+ * @param {unknown} node
+ * @returns {node is readonly [IntrinsicId]}
+ */
+export const isIntrinsic = node => node instanceof Array && node.length === 1 && intrinsicIds.some(id => id === node[0])
+
+/**
+ * The `length` of an intrinsic's helper, {@link intrinsics}: `3` for
+ * `slice`, the receiver and the native's two positions, `2` for
+ * `charCodeAt`, the receiver and the position.
+ *
+ * @type {(id: IntrinsicId) => number}
+ */
+export const intrinsicLength = id => intrinsics.filter(([i]) => i === id)[0][1]
+
 
 /**
  * `op0`/`op1`/`op2` group operation nodes by their `exp`-operand count —
  * zero, one, or two. `undefined`, module imports (`args`), invocation
  * rest (`rest`), the owning function itself (`self`), the `entry`
- * helper (`entry`) and the static functions ({@link staticId}) have no
- * expression operands. `self` is the function whose body holds it, as a value — the
+ * helper (`entry`), the intrinsics ({@link intrinsicId}) and the static
+ * functions ({@link staticId}) have no expression operands. `self` is the function whose body holds it, as a value — the
  * same value every read, so recursion is `['()', ['self'], args]` and a
  * nested function captures its parent's `self` as a slot — and it is what
  * keeps a recursive function an acyclic graph: without it a function would
@@ -623,17 +679,17 @@ export const noStatic = name => `no binding for the static ${name}`
  * ```js
  * (a, b) => {
  *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable ? [x.value] : [];
+ *     return x?.enumerable ? x.value : undefined;
  * }
  * ```
  *
  * A function of `length` `2` capturing nothing, minting a fresh identity
  * where it is established as every `=>` does, and called as any function
- * is, `['()', ['entry'], [a, b]]`: the option of the enumerable own
- * property the key names — a fresh `[value]` for an object's field, an
- * array's or a string's element, an entry holding `undefined` included,
- * and `[]` for nothing a value owns without enumerating it, a `length` or
- * anything of a function — the key converted as
+ * is, `['()', ['entry'], [a, b]]`: the value of the enumerable own
+ * property the key names — an object's field, an array's or a string's
+ * element — and `undefined` for none, an entry holding `undefined`
+ * included, and for nothing a value owns without enumerating it, a
+ * `length` or anything of a function — the key converted as
  * `Object.getOwnPropertyDescriptor` converts it, `0` and `"0"` naming one
  * entry, once a `null` or `undefined` receiver has failed (`entryJs` in
  * `./proof.f.mjs`). The compiler emits the node
@@ -641,9 +697,16 @@ export const noStatic = name => `no binding for the static ${name}`
  * helper and no other way: the source has no other spelling of a key
  * computed at run time.
  *
+ * `hasEntry` is the helper beside it, the presence as a boolean, `true`
+ * for an entry holding `undefined`: `['()', ['hasEntry'], [a, b]]`
+ * ([spec: why two helpers](../../spec/property-access/entries/README.md#why-two-helpers)).
+ *
+ * The intrinsics, {@link intrinsicId}, are the helpers calling a member
+ * function no body defines, `['slice']`.
+ *
  * The rest are the static functions, {@link staticId}.
  */
-export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', staticId)
+export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', intrinsicId, staticId)
 
 
 export const op0 = /** @type {const} */ ([op0Id])
@@ -654,10 +717,10 @@ export const op0 = /** @type {const} */ ([op0Id])
  * `String`/`Number` are casts, `!` is logical and `~` bitwise not, and
  * `typeof` is the type tag of its operand — always a fresh string, never the
  * operand itself, so it is the one unary operation with no identity concern.
- * Like unary `+` (see `op12Id` below), `typeof` is an EDAG operation that
- * FunctionalScript does not yet spell: it is pure, so the EDAG admits it, and
- * whether the language admits it as syntax is decided in
- * `../../spec/todo/2340-operators.md`, not here. Negation is not here
+ * `typeof` is pure, so the EDAG admits it, as it admits unary `+` (see
+ * `op12Id` below); which operations the language spells as syntax —
+ * `typeof`, not unary `+` — is decided in `../../spec/operators/README.md`,
+ * not here. Negation is not here
  * either: it is `-` at unary arity, an `op12`.
  *
  * `throw` is the one operation that never has a value: it establishes its
@@ -675,37 +738,14 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
 // Binary Operations
 
 /**
- * The `op2` tags whose **right operand is lazy**: established only where
- * the left has not already decided the answer.
- *
- * **Named once, because two readers have to agree.** The operations table
- * implements exactly these three with `o2lazy`
- * ([`./operations/module.f.mjs`](./operations/module.f.mjs)) — the rest with
- * `o2`, which forces the thunk — and anything that *draws* or *compiles* a
- * graph has to know the same three. A second list somewhere else would be
- * a second implementation, and the one that drifts is the one nobody runs.
- * `lazyVocabulary` in [`./memo/proof.f.mjs`](./memo/proof.f.mjs) holds
- * this list to the table's behaviour rather than to its text. It walks the
- * list, so it catches a tag wrongly added and not one wrongly removed; a
- * removed tag fails the `op2`, Rust printer and demo proofs instead.
- */
-export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
-
-/**
- * The JS comparison, arithmetic, bitwise, and logical operators they
- * name — with `&&`/`||`/`??` short-circuiting exactly as in JS: their
- * right operand is conditional, never established eagerly. All this
- * laziness is positional, not nodal — the same node referenced from an
- * eager position elsewhere is still evaluated there. `+` and `-` are not
- * here: each is also a unary operator, so both are `op12` below.
- * `Object.is` is no operator: it is a static function, {@link staticIds},
- * whose body the runtime spells with these operators.
+ * Eager comparison, arithmetic and bitwise operators. Source logical operators
+ * are normalized to conditionals before graph construction. `+` and `-` also
+ * have unary arities and belong to op12; static functions remain values.
  */
 export const op2Id = or(
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
-    '&', '|', '^', '<<', '>>', '>>>',
-    ...lazyOp2Id
+    '&', '|', '^', '<<', '>>', '>>>'
 )
 
 export const op2 = /** @type {const} */ ([op2Id, exp, exp])
@@ -731,7 +771,7 @@ export const op2 = /** @type {const} */ ([op2Id, exp, exp])
  * on a bigint** where `Number` converts. The two are different operations,
  * not two spellings of one. `Number` is FunctionalScript's coercion form and
  * unary `+` is not FunctionalScript syntax at all
- * (`../../spec/todo/2340-operators.md`): the EDAG spells it because it is a
+ * (`../../spec/operators/README.md`): the EDAG spells it because it is a
  * pure operation an executor can implement, and which of the EDAG's
  * operations the language admits as syntax is the language's decision, not
  * the schema's.
@@ -748,7 +788,7 @@ export const op12 = or(
 /**
  * `?:` is the conditional: `['?:', c, t, e]` establishes `c`, then exactly
  * one of `t` and `e` — the one `ToBoolean(c)` selects — and is that arm's
- * value. The laziness is positional, as `&&`/`||`/`??`'s is: the unselected
+ * value. Laziness is positional: the unselected
  * arm is not established *here*, and the same node reached from an eager
  * position elsewhere still is. It is subject 3 of
  * `../../todo/edag-stage1-discussion.md`, "Lazy operators and the branch
@@ -783,3 +823,53 @@ export const constructorId = or('Array')
  * expression, and the name would be walked as a literal.
  */
 export const instanceOf = /** @type {const} */ (['instanceof', exp, constructorId])
+
+// Traversal
+
+/**
+ * Whether an item of a list, {@link items}, is a spread rather than a
+ * plain operand.
+ *
+ * @template E
+ * @param {E | readonly ['...', E]} item
+ * @returns {item is readonly ['...', E]}
+ */
+const isSpread = item => item instanceof Array && item[0] === '...'
+
+/**
+ * An item list with `f` applied to every operand, a spread kept a spread
+ * around its operand's image: the map over an array's items or a call's
+ * arguments, whatever the operands are. A walk that threads a state through
+ * the items, as an executor's evaluation does, or spells a spread as text,
+ * as a writer does, is not a map and keeps its own loop.
+ *
+ * @type {<E, F>(f: (e: E) => F) => (items: ItemsOver<E>) => ItemsOver<F>}
+ */
+export const mapItems = f => items => items.map(item => isSpread(item) ? ['...', f(item[1])] : f(item))
+
+/**
+ * What a chain's steps hold, in written order: each `|.` step's key read
+ * by `key` and each call step's item list by `args`, then its
+ * continuation's, and nothing where there is no step. The fold under every
+ * walk that lists a chain's operands.
+ *
+ * @type {<E, I, O>(key: (i: I) => readonly O[], args: (items: ItemsOver<E>) => readonly O[]) => (k: StepOver<E, I> | undefined) => readonly O[]}
+ */
+export const stepOperands = (key, args) => k => {
+    if (k === undefined) { return [] }
+    const [, , next] = k
+    return [...(k[0] === '|.' ? key(k[1]) : args(k[1])), ...stepOperands(key, args)(next)]
+}
+
+/**
+ * A chain's steps with each `|.` step's key mapped by `key` and each call
+ * step's item list by `items`, every tag and arity kept: the map twin of
+ * {@link stepOperands}.
+ *
+ * @type {<E, I, F, J>(key: (i: I) => J, items: (items: ItemsOver<E>) => ItemsOver<F>) => (k: StepOver<E, I>) => StepOver<F, J>}
+ */
+export const mapSteps = (key, items) => k => {
+    const [, , next] = k
+    const rest = next === undefined ? [] : [mapSteps(key, items)(next)]
+    return /** @type {StepOver<any, any>} */ (/** @type {unknown} */ (k[0] === '|.' ? ['|.', key(k[1]), ...rest] : [k[0], items(k[1]), ...rest]))
+}

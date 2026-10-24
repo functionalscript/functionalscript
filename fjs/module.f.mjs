@@ -11,6 +11,7 @@ import { compile } from './compiler/module.f.mjs'
 import { main as testMain } from './emergent_testing/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
+import { commands as ciCacheCommands } from './ci/cache/module.f.mjs'
 import { errorExit, errorMessage, exitStep, import_ } from './effects/node/module.f.mjs'
 import { dispatch, isMain } from './cli/module.f.mjs'
 import { casMcpServer } from './mcp/module.f.mjs'
@@ -42,7 +43,7 @@ export const commands = [
         description: 'Content-addressable storage operations',
         usage: 'fjs cas <command> [args]',
         examples: ['fjs help cas'],
-        note: 'Choose add, get or list below. Content is stored under ~/.cas/.',
+        note: 'Choose add, get or list below for the store under ~/.cas/, or git for the same three over a Git branch.',
         docs: 'fjs/cas/README.md',
         handler: casCommands,
     },
@@ -67,12 +68,12 @@ export const commands = [
     },
     {
         names: ['ci', 'i'],
-        description: 'Generate the GitHub Actions CI and npm publishing workflows',
-        usage: 'fjs ci',
-        examples: ['fjs ci'],
+        description: 'Generate CI workflows or cache successful checks',
+        usage: 'fjs ci\nfjs ci init\nfjs ci report <check>\nfjs ci publish',
+        examples: ['fjs ci', 'npm start ci init'],
         note: 'Run in the project whose GitHub Actions workflows you want to generate. This writes .github/workflows/gen.ci.yml and gen.npm-publish.yml.',
         docs: 'fjs/ci/README.md',
-        handler: ciMain,
+        handler: options => options.args.length === 0 ? ciMain() : dispatch(ciCacheCommands)(options),
     },
     {
         names: ['web', 'w'],

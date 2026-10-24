@@ -5,13 +5,16 @@
  */
 
 import {
-    catchStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
+    attemptStep, catchStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
     match, orElse, partialMatch, pure, pureError, pureOk, refuse, resultMapStep, resultStep,
     runPure, step, toIoError, unwrapStep, commandsOf,
 } from './module.f.mjs'
 import { run as mockRun } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
-import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.js'
+import { assertIoMessage } from './testlib.f.js'
+import { demo, runWords } from './demo.f.mjs'
+import { htmlToString } from '../media/html/module.f.mjs'
 
 /**
  * Asserts that `e` reaches `expected` without performing a command.
@@ -171,18 +174,6 @@ const checked = v => {
  * @type {(e: unknown) => string}
  */
 const show = e => `${e}`
-
-/**
- * Asserts that a channel error is a host failure carrying `message`. Every
- * runner reports through the same normalized `IoError`, so a proof names the
- * message rather than the shape.
- *
- * @type {(e: IoChannel, message: string) => void}
- */
-const assertIoMessage = (e, message) => {
-    assert(e[0] === 'ioError', e)
-    assertEq(e[1].message, message)
-}
 
 export const proof = {
     // The one boundary where a runner's `catch` becomes effect data: whatever
@@ -669,6 +660,23 @@ export const proof = {
         overFailedDo: () => {
             assertEq(assertOk(run(resultMapStep(div(1, 0), r => ok(r[0])))), 'error')
         },
+    },
+    // The whole `Result` arrives as the value, and the effect itself never
+    // fails: the chain goes on either way.
+    attemptStep: {
+        ok: () => {
+            const [tag, value] = assertOk(pureResult(attemptStep(pureOk(3))))
+            assertEq(tag, 'ok')
+            assertEq(value, 3)
+        },
+        error: () => {
+            const [tag, value] = assertOk(pureResult(attemptStep(pureError('boom'))))
+            assertEq(tag, 'error')
+            assertEq(value, 'boom')
+        },
+        overFailedDo: () => {
+            assertEq(assertOk(run(attemptStep(div(1, 0))))[0], 'error')
+        },
     },    finallyStep: {
         // The cleanup runs after `e`, is handed what `e` answered, and `e`'s
         // answer is what comes out — on both branches.
@@ -689,6 +697,34 @@ export const proof = {
             const [log, r] = runNoted(finallyStep(pureOk(5), () => note('fail')))
             assertEq(log.join(','), 'fail')
             assertEq(assertOk(r), 5)
+        },
+    },
+    demo: {
+        // Every word is asked, in order, and the answers are collected.
+        answers: () => {
+            const [trace, r] = runWords('a\nb')
+            assertEq(trace.join('|'), "ask('a') -> ok 'A'|ask('b') -> ok 'B'")
+            assertEq(assertOk(r).join(','), 'A,B')
+        },
+        // A refusal stops the program: no word after it is asked.
+        stops: () => {
+            const [trace, r] = runWords('read the fail file')
+            assertEq(trace.length, 3)
+            assertEq(trace[2], "ask('fail') -> error 'refused'")
+            assertEq(assertError(r), 'refused')
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            const typed = runPure(demo.update('')({ kind: 'input', name: 'words', value: 'x' }))
+            assertEq(typed.length === 1 ? assertOk(typed[0]) : null, 'x')
+            const kept = runPure(demo.update('kept')({ kind: 'start' }))
+            assertEq(kept.length === 1 ? assertOk(kept[0]) : null, 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="words"'), html)
+            assert(html.includes("error &#39;refused&#39;") || html.includes("error 'refused'"), html)
+            assert(htmlToString(demo.view('')).includes('(none)'), 'an empty program performs nothing')
         },
     },
 }

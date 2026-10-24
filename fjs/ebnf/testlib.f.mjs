@@ -4,9 +4,11 @@
  * @module
  *
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
+ * @import { Meta } from './ast/types.ts'
+ * @import { MatchResult, Parser } from './ll1/types.ts'
  */
 
-import { assert } from '../asserts/module.f.mjs'
+import { assert } from '../asserts/module.f.js'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { anchor } from '../website/demo/railroad/module.f.mjs'
 
@@ -46,3 +48,47 @@ export const diagramPage = ({ init, view }, titles) => () => {
     assert(links.length !== 0, html)
     links.forEach(link => assert(html.includes(`<section id="${link}">`), link))
 }
+
+/**
+ * A recognizer over a parser: whether the input is accepted with every symbol
+ * consumed, and the parser's answer that decided it — the `MatchResult` of
+ * its last match — as the diagnostic, so a refusal says where.
+ *
+ * `decode` is the alphabet: a text grammar's code units or code points,
+ * with whatever metadata the grammar's parser reads. A match that ends
+ * short of the input is resumed where it ended, so a token layer's
+ * one-token grammar recognizes a text as a run of tokens, and a grammar
+ * ending in `eof` is matched once. The grammar is asked at least once, so
+ * the empty input is accepted only where it matches empty, and a match
+ * that consumes nothing short of the end is a refusal rather than a loop.
+ *
+ * @template I
+ * @param {Parser<unknown, I>} parse
+ * @param {(input: string) => readonly Meta<I>[]} decode
+ * @returns {(input: string) => { readonly accepted: boolean, readonly diagnostic: MatchResult<unknown> }}
+ */
+export const recognizer = (parse, decode) => input => {
+    const symbols = decode(input)
+    let start = 0
+    while (true) {
+        const diagnostic = parse(symbols, start)
+        const [tag, value] = diagnostic
+        if (tag === 'error') { return { accepted: false, diagnostic } }
+        const [, end] = value
+        if (end === symbols.length || end === start) { return { accepted: end === symbols.length, diagnostic } }
+        start = end
+    }
+}
+
+/**
+ * A proof that a recognizer answers each case as expected — `true` for an
+ * input it must accept whole, `false` for one it must refuse — failing with
+ * `[input, diagnostic]`, the corpus row and the parser's answer to it.
+ *
+ * @type {(recognize: (input: string) => { readonly accepted: boolean, readonly diagnostic: unknown }) =>
+ *  (cases: readonly (readonly [input: string, accepted: boolean])[]) => void}
+ */
+export const assertRecognizes = recognize => cases => cases.forEach(([input, expected]) => {
+    const { accepted, diagnostic } = recognize(input)
+    assert(accepted === expected, [input, diagnostic])
+})

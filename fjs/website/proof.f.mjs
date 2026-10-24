@@ -2,16 +2,19 @@
  * @import { Dir, State, _Entity } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { Env } from '../effects/node/types.ts'
+ * @import { Effect } from '../effects/types.ts'
+ * @import { FetchText } from '../effects/browser/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { main } from './module.f.mjs'
+import { isTodoDir, main, startRounds } from './module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
-import { ioError } from '../effects/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
+import { ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { fetchText, instantiate } from '../effects/browser/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { utf8 } from '../text/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
@@ -105,6 +108,12 @@ const pageAt = (root, path) => textOf(
     `the page for ${path.join('/')}`)
 
 export const proof = {
+    isTodoDir: () => {
+        assert(isTodoDir('spec/todo'))
+        assert(isTodoDir('spec/todo/blocked'))
+        assert(!isTodoDir('spec'))
+        assert(!isTodoDir('spec/todo-list'))
+    },
     cli: {
         page: () => {
             const { root } = generate({})
@@ -702,6 +711,33 @@ export const proof = {
             assert(!page.includes('README.md</a>'), page)
         },
         /**
+         * **A directory's `README.md` is the top of its page**, its links
+         * moved to the site; one the reader refuses stays a link, with why.
+         */
+        readmeIsRendered: () => {
+            const { root } = generate({
+                a: { 'README.md': file('# A\n\nSee [b](../b/README.md#x) and [c](c.md).\n') },
+                b: { 'README.md': file('| t |\n') },
+                c: { 'README.md': file('[up](../../x)\n') },
+            })
+            const a = pageAt(root, ['a'])
+            assert(a.includes('<article data-readme=""><h2 id="a">A</h2><p>See <a href="/b/index.html#x">b</a> and <a href="/a/c.md">c</a>.</p></article>'), a)
+            const b = pageAt(root, ['b'])
+            assert(b.includes('<a href="/b/README.md">README.md</a> is not rendered here: line 1: a table.'), b)
+            const c = pageAt(root, ['c'])
+            assert(c.includes('is not rendered here: a link that leaves the repository: ../../x.'), c)
+        },
+        readmeGeneratedRoutes: () => {
+            const { root } = generate({
+                'README.md': file('[CLI](/cli/) and [PRs](/prs/) and [Rust](/cargo.doc/)'),
+                target: { doc: { nanvm_lib: { 'index.html': file('crate') } } },
+            }, { WORKERS_CI_COMMIT_SHA: '0123456789abcdef0123456789abcdef01234567' })
+            const page = pageAt(root, [])
+            for (const route of ['cli', 'prs', 'cargo.doc']) {
+                assert(page.includes(`href="/${route}/index.html"`), page)
+            }
+        },
+        /**
          * **An issue whose header cannot be read stops the build**, naming
          * the file, rather than being listed with a guess.
          */
@@ -927,6 +963,50 @@ export const proof = {
                 { 'a/demo.f.mjs': { init: 'hi', view: (/** @type {string} */ s) => ['p', s] } })
             const page = pageAt(root, ['a'])
             assert(page.includes('<div data-demo="/a/demo.f.mjs"><p>hi</p></div>'), page)
+        },
+        /**
+         * **The page holds the demo after its `start`**: the build performs
+         * it, reading each file it fetches from the checkout, round after
+         * round, so a fetch that waits on another's answer is read too.
+         */
+        prerenderedStarted: () => {
+            /** @type {(path: string) => Effect<FetchText, string, never>} */
+            const fetched = path => resultStep(fetchText(path), r => pureOk(r[0] === 'ok' ? r[1] : 'missing'))
+            const demo = {
+                init: 'loading',
+                view: (/** @type {string} */ s) => ['p', s],
+                // `/a/x.txt` names the next file, which is fetched once it arrives.
+                update: () => () => step(fetched('/a/x.txt'), first => mapStep(fetched(first.trim()), second => `${first.trim()} then ${second.trim()}`)),
+            }
+            const { root } = generateWith(
+                { a: { 'demo.f.mjs': file('export const demo = {}'), 'x.txt': file('/a/y.txt\n'), 'y.txt': file('two\n') } },
+                { 'a/demo.f.mjs': demo })
+            const page = pageAt(root, ['a'])
+            assert(page.includes('<p>/a/y.txt then two</p>'), page)
+        },
+        // A chain longer than the rounds the build gives it stops at the last
+        // round's state; a missing file and a module are answered as such.
+        prerenderedRounds: () => {
+            /** @type {(path: string) => Effect<FetchText, string, never>} */
+            const fetched = path => resultStep(fetchText(path), r => pureOk(r[0] === 'ok' ? r[1].trim() : 'missing'))
+            const demo = {
+                init: 'loading',
+                view: (/** @type {string} */ s) => ['p', s],
+                update: () => () => step(fetched('/a/1'), one => step(fetched(one), two => step(fetched(two), three =>
+                    step(fetched('/a/none'), none => resultStep(instantiate('/a/m.wasm'), wasm => pureOk(`${three} ${none} ${wasm[0]}`)))))),
+            }
+            const { root } = generateWith(
+                { a: { 'demo.f.mjs': file('export const demo = {}'), '1': file('/a/2'), '2': file('/a/3'), '3': file('/a/4'), '4': file('four') } },
+                { 'a/demo.f.mjs': demo })
+            const page = pageAt(root, ['a'])
+            assert(page.includes(`<p>missing missing error</p>`), page)
+            assert(startRounds === 3)
+        },
+        // A start that fails keeps the first view.
+        prerenderedFailedStart: () => {
+            const demo = { init: 'first', view: (/** @type {string} */ s) => ['p', s], update: () => () => pureError('no') }
+            const { root } = generateWith({ a: { 'demo.f.mjs': file('export const demo = {}') } }, { 'a/demo.f.mjs': demo })
+            assert(pageAt(root, ['a']).includes('<p>first</p>'))
         },
         /**
          * **A demo the build cannot render keeps its page**, with the empty

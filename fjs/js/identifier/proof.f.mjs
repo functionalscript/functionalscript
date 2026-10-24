@@ -1,5 +1,6 @@
-import { assert } from '../../asserts/module.f.mjs'
-import { isIdentifier, isInteger } from './module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
+import { one } from '../../text/ascii/module.f.js'
+import { isIdentifier, isIdentifierPart, isIdentifierStart, isInteger } from './module.f.mjs'
 
 export const proof = {
     isInteger: () => {
@@ -9,6 +10,18 @@ export const proof = {
         assert(!isInteger('01'))
         assert(!isInteger('1a'))
         assert(!isInteger('-1'))
+    },
+    // A letter, `_` and `$` open an identifier; a digit does not, nor does
+    // the Kelvin sign.
+    isIdentifierStart: () => {
+        assert([...'aZ_$'].map(one).every(isIdentifierStart))
+        assert(![...'09-\u212A'].map(one).some(isIdentifierStart))
+    },
+    // A letter, `_`, `$` and a digit continue an identifier; nothing else
+    // does, the Kelvin sign included.
+    isIdentifierPart: () => {
+        assert([...'aZ_$09'].map(one).every(isIdentifierPart))
+        assert(![...'-. \u212A'].map(one).some(isIdentifierPart))
     },
     isIdentifier: () => {
         assert(isIdentifier('abc'))

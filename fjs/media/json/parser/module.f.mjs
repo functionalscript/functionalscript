@@ -46,21 +46,20 @@
  * @import { Mapping, Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
  * @import { hex } from '../../../ebnf/lib/json/module.f.mjs'
- * @import { Entry, JsonValue } from '../../../ebnf/lib/json/types.ts'
+ * @import { Entry, JsonValue, ValueCases } from '../../../ebnf/lib/json/types.ts'
  * @import { _LiteralId, _Member, _OnlyKey, Json, NumberPolicy, Out, ParseUnknown, Tagged, Text } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
-import { hexDigitsValue } from '../../../text/ascii/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
+import { hexDigitsValue } from '../../../text/ascii/module.f.js'
+import { codeUnitToString } from '../../../text/utf16/module.f.mjs'
 import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.js'
 import { eof } from '../../../ebnf/module.f.mjs'
-import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
+import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, unitAt, units } from '../../../ebnf/utf16/module.f.mjs'
-import { character, escape, items, json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'
-
-const { fromCharCode } = String
+import { character, entry as jsonEntry, escape, json, number, string, value, valueCases } from '../../../ebnf/lib/json/module.f.mjs'
 const { fromEntries } = Object
 
 /**
@@ -138,12 +137,12 @@ const textMapping = mapping
  */
 const escapeMapping = textMapping(escape, ([, e]) => {
     const branch = unmapped(e)
-    if (branch[0] === 'c') { return textTag.symbol(fromCharCode(assertNotNullish(escapeToCodePoint(unitAt(branch[1]))))) }
+    if (branch[0] === 'c') { return textTag.symbol(codeUnitToString(assertNotNullish(escapeToCodePoint(unitAt(branch[1]))))) }
     const [, digits] = unmapped(branch[1])
     // The grammar admits exactly four hex digits here, so `hexDigitsValue`
     // never answers `null` and the value fits one code unit.
     const unit = assertNotNullish(hexDigitsValue(unmapped(digits).map(hexDigitUnit)))
-    return textTag.symbol(fromCharCode(Number(unit)))
+    return textTag.symbol(codeUnitToString(Number(unit)))
 })
 
 /**
@@ -153,7 +152,7 @@ const escapeMapping = textMapping(escape, ([, e]) => {
  * @type {Mapping<Utf16, Text>}
  */
 const characterMapping = textMapping(character, node =>
-    node[0] === 'c' ? textTag.symbol(fromCharCode(unitAt(node[1]))) : symbolAt(node[1]))
+    node[0] === 'c' ? textTag.symbol(codeUnitToString(unitAt(node[1]))) : symbolAt(node[1]))
 
 /**
  * The mapping of the grammar's `string` rule: to the text of its characters,
@@ -199,7 +198,7 @@ const pair = key => value => [key, value]
 const entry = node => {
     /** @type {Tagged<Out<P>, 'json', 'result'>} */
     const { at } = jsonTag()
-    const [key, , , , v] = unmapped(node)
+    const [key, v] = jsonEntry(node)
     return mapOk(pair(textAt(key)))(at(v))
 }
 
@@ -220,15 +219,15 @@ const toJson = node => {
     // infer from the constant alone.
     /** @type {Tagged<Out<P>, 'json', 'result'>} */
     const { symbol, at } = jsonTag()
-    switch (node[0]) {
-        case 'array': { return symbol(okList(items(unmapped(node[1])).map(at))) }
-        case 'object': { return symbol(mapOk(fromEntries)(okList(items(unmapped(node[1])).map(entry)))) }
-        case 'string': { return symbol(ok(textAt(node[1]))) }
-        case 'number': { return symbol(at(node[1])) }
-        case 'true': { return symbol(ok(true)) }
-        case 'false': { return symbol(ok(false)) }
-        case 'null': { return symbol(ok(null)) }
+    /** @type {ValueCases<Ast<JsonValue, Utf16, Out<P>>, Ast<Entry<typeof string, JsonValue>, Utf16, Out<P>>, Ast<typeof string, Utf16, Out<P>>, Ast<typeof number, Utf16, Out<P>>, Meta<Json<P>>>} */
+    const cases = {
+        array: items => symbol(okList(items.map(at))),
+        object: entries => symbol(mapOk(fromEntries)(okList(entries.map(entry)))),
+        string: node => symbol(ok(textAt(node))),
+        number: node => symbol(at(node)),
+        word: word => symbol(ok(word)),
     }
+    return valueCases(cases)(node)
 }
 
 /**

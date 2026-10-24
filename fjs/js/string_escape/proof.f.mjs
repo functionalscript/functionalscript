@@ -1,4 +1,4 @@
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import {
     backspace,
     cr,
@@ -14,7 +14,7 @@ import {
     quotationMark,
     reverseSolidus,
     solidus,
-} from '../../text/ascii/module.f.mjs'
+} from '../../text/ascii/module.f.js'
 import {
     codePointToEscape,
     escapeToCodePoint,

@@ -48,7 +48,7 @@
  * body as the graph has it, and its text is the writer's.
  *
  * **Sharing decides how many times, never when.** An edge from a lazy
- * position — the right operand of `&&`, `||`, `??`, an arm of `?:` — counts
+ * position — an arm of `?:` or a guarded-chain operand — counts
  * as an edge, since the table records sharing and the executor decides when.
  *
  * **Refused.** A node reached from two scopes, which the compiler never
@@ -64,18 +64,18 @@
  *
  * @module
  *
- * @import { Arg, Exp, ExpOp, Frame, Index, Items, Op0, Op1, Op2, Op3, Op12, Primitive, Properties, TagMap } from '../types.ts'
+ * @import { Arg, Exp, ExpOp, Frame, Index, Items, ItemsOver, Op0, Op1, Op2, Op3, Op12, Primitive, Properties, StepOver, TagMap } from '../types.ts'
  * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
  * @import { Analysis, IndexOperand, ItemOperand, Node, Operand, PropertyOperand, Ref, Step } from './types.ts'
  * @import { _Entry, _Handlers, _Scope, _State, _Walk } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { isStatic } from '../module.f.mjs'
+import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.mjs'
 import { sharedNodesOf } from '../sharing/module.f.mjs'
 
 /** A walk that has added nothing, and merges twins where `merges` says. @type {(merges: boolean) => _State} */
@@ -103,8 +103,9 @@ const same = (a, b) => a instanceof Array
  * @type {(node: Node) => boolean}
  */
 export const mergeable = node => {
+    if (isIntrinsic(node)) { return false }
     switch (node[0]) {
-        case '[]': case '{}': case '=>': case 'entry': case '()': case '?.()': { return false }
+        case '[]': case '{}': case '=>': case 'entry': case 'hasEntry': case '()': case '?.()': { return false }
         case '.': case '?.': { return node.length === 3 }
         default: { return true }
     }
@@ -268,6 +269,10 @@ const handlers = {
     rest: o0,
     self: o0,
     entry: o0,
+    hasEntry: o0,
+    // the intrinsics, a row each, as the static functions below
+    slice: o0,
+    charCodeAt: o0,
     // the static functions, a row each, so a new one is a `tsc` error here
     // until it has its row
     'Object.is': o0,
@@ -302,9 +307,6 @@ const handlers = {
     '<<': o2,
     '>>': o2,
     '>>>': o2,
-    '&&': o2,
-    '||': o2,
-    '??': o2,
     '?:': o3,
     // One operand and a constructor name: the name is metadata, carried
     // across as `arg`'s index is, never walked.
@@ -368,12 +370,9 @@ const handlers = {
 const named = x => x instanceof Array ? [x[1]] : []
 
 /** The operands of a chain's steps, including guarded arguments and computed keys. @type {(k: Step | undefined) => readonly Operand[]} */
-export const stepOperands = k => {
-    if (k === undefined) { return [] }
-    if (k[0] === '|.') { return [k[1], ...stepOperands(k[2])] }
-    const [, x, cont] = k
-    return [...x.map(itemOperand), ...stepOperands(cont)]
-}
+export const stepOperands = edagStepOperands(
+    /** @type {(k: IndexOperand) => readonly Operand[]} */ (k => [k]),
+    /** @type {(xs: ItemsOver<Operand>) => readonly Operand[]} */ (xs => xs.map(itemOperand)))
 
 /** A plain item or the operand of a spread. @type {(x: ItemOperand) => Operand} */
 export const itemOperand = x => x instanceof Array && x[0] === '...' ? x[1] : x
@@ -385,16 +384,17 @@ const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
  * Every operand in written order, including primitives and lazy positions.
  * Repeated occurrences remain repeated, and references retain their identity.
  * Spreads, properties and chain steps expose their operands; tags and metadata
- * are excluded. A function lists its captures followed by its body, so callers
- * that walk only the enclosing scope must handle that boundary themselves.
+ * are excluded. A function lists its captures followed by its body; a caller
+ * that walks only the enclosing scope asks {@link ownOperandsOf}.
  *
  * @type {(node: Node) => readonly Operand[]}
  */
 export const operandsOf = node => {
-    // a static function, as `entry`, is a function of its parameters alone
-    if (isStatic(node)) { return [] }
+    // a static function and an intrinsic, as `entry`, are functions of
+    // their parameters alone
+    if (isStatic(node) || isIntrinsic(node)) { return [] }
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': case 'hasEntry': { return [] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }
@@ -417,6 +417,15 @@ export const operandsOf = node => {
         }
     }
 }
+
+/**
+ * The operands a node establishes in its own scope: {@link operandsOf}, but a
+ * function's body, which is that function's scope and not this one's. A
+ * function lists its captures alone.
+ *
+ * @type {(node: Node) => readonly Operand[]}
+ */
+export const ownOperandsOf = node => node[0] === '=>' ? node[2] : operandsOf(node)
 
 /** One referenced entry per edge; primitive operands name no entry. @type {(node: Node) => readonly number[]} */
 const refs = node => operandsOf(node).flatMap(named)
@@ -453,6 +462,64 @@ const sharedByIdentity = (e, visited) => {
     return [...visited].flatMap(([n, i]) => shared.includes(n) ? [i] : [])
 }
 
+/** One operand as an expression, from the expressions of the entries before it. @type {(exps: readonly ExpOp[], operand: Operand) => Exp} */
+const restore = (exps, operand) => operand instanceof Array ? exps[operand[1]] : operand
+
+/** @type {(exps: readonly ExpOp[], items: readonly ItemOperand[]) => ItemsOver<Exp>} */
+const restoreItems = (exps, items) => mapItems(/** @type {(x: Operand) => Exp} */ (x => restore(exps, x)))(items)
+
+/** @type {(exps: readonly ExpOp[], step: Step) => StepOver<Exp>} */
+const restoreStep = (exps, step) => mapSteps(
+    /** @type {(x: IndexOperand) => Exp} */ (x => restore(exps, x)),
+    /** @type {(items: ItemsOver<Operand>) => ItemsOver<Exp>} */ (items => restoreItems(exps, items)))(step)
+
+/**
+ * An entry as an expression, from the expressions of the entries before it,
+ * which its operands are: the table's sharing restored, an operand named by
+ * one index one node.
+ *
+ * @type {(exps: readonly ExpOp[], node: Node) => ExpOp}
+ */
+const restoreNode = (exps, node) => {
+    switch (node[0]) {
+        case '[]': { return ['[]', restoreItems(exps, node[1])] }
+        case '{}': { return ['{}', node[1].map(p => p[0] === '...'
+            ? ['...', restore(exps, p[1])]
+            : [':', restore(exps, p[1]), restore(exps, p[2])])] }
+        case '=>': { return ['=>', node[1], node[2].map(x => restore(exps, x)), restore(exps, node[3])] }
+        case ',': { return [',', node[1].map(x => restore(exps, x))] }
+        case '()': { return ['()', restore(exps, node[1]), restoreItems(exps, node[2])] }
+        case '?.()': {
+            const [, callee, args, continuation] = node
+            const head = /** @type {const} */ (['?.()', restore(exps, callee), restoreItems(exps, args)])
+            return /** @type {ExpOp} */ (continuation === undefined ? head : [...head, restoreStep(exps, continuation)])
+        }
+        case '.': case '?.': {
+            const [tag, receiver, key, continuation] = node
+            const head = /** @type {const} */ ([tag, restore(exps, receiver), restore(exps, key)])
+            return /** @type {ExpOp} */ (continuation === undefined ? head : [...head, restoreStep(exps, continuation)])
+        }
+        default: {
+            // All remaining tuples contain only metadata, primitives and
+            // operand references, with no lists or continuation productions.
+            return /** @type {ExpOp} */ (/** @type {unknown} */ (node.map(part => part instanceof Array ? restore(exps, part) : part)))
+        }
+    }
+}
+
+/**
+ * The expression each entry stands for. Where nothing merged, an entry is
+ * one node the walk was handed, and the walk added each to `visited` as it
+ * added its entry, so the keys are the entries' nodes in index order. Where
+ * entries merged, one entry stands for several nodes, and its expression is
+ * restored from the table, once.
+ *
+ * @type {(merges: boolean, nodes: readonly Node[], visited: _State['visited']) => readonly ExpOp[]}
+ */
+const expsOf = (merges, nodes, visited) => merges
+    ? nodes.reduce((/** @type {readonly ExpOp[]} */ prefix, node) => [...prefix, restoreNode(prefix, node)], [])
+    : [...visited.keys()]
+
 /**
  * The table of `e`, its twins merged where `merges` says, and its shared
  * entries counted as the table writes them: by places, where twins merge,
@@ -469,6 +536,7 @@ const table = merges => e => {
         nodes,
         scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(visited.get(x.scope))),
         shared: merges ? places(root, nodes).flatMap((n, i) => n > 1 ? [i] : []) : sharedByIdentity(e, visited),
+        exps: expsOf(merges, nodes, visited),
     })
 }
 

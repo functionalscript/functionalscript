@@ -6,7 +6,8 @@ import { consumerDirectory, packageCheckSteps } from './module.f.mjs'
 import { typescript } from '../config/module.f.js'
 import { generatedDirectory } from '../nix/module.f.mjs'
 import { packageConsumer } from '../self/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
+import { isDigits } from '../../text/ascii/module.f.js'
 
 const steps = packageCheckSteps(packageConsumer)
 
@@ -25,9 +26,6 @@ const consumerFiles = consumer => {
     assert(good !== undefined && bad !== undefined, 'expected both consumer files written')
     return [good, bad]
 }
-
-/** @type {(s: string) => boolean} */
-const digits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
 
 export const proof = {
     // The defining property. A command started in the checkout would find a
@@ -75,7 +73,7 @@ export const proof = {
     installsAnExactVersion: () => {
         const parts = typescript.version.split('.')
         assert(
-            parts.length === 3 && parts.every(digits),
+            parts.length === 3 && parts.every(isDigits),
             `not an exact version: ${typescript.version}`)
         assert(
             scriptHas(`"typescript@${typescript.version}"`),

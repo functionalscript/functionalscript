@@ -1,22 +1,24 @@
 /**
- * @import { Inflate, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
  * @import { Bytes, ObjectType, Oid } from '../types.ts'
  * @import { Read } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { ioError, pureOk } from '../../effects/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { pureOk } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
 import { objectPath, objectsDir, readIn } from '../store/module.f.mjs'
-import { latin1 } from '../testlib.f.mjs'
+import { latin1, noFile } from '../testlib.f.mjs'
 import { mode, write as writeTree } from '../tree/module.f.mjs'
 import { peel, tryEntries, tryEntry } from './module.f.mjs'
 
@@ -232,31 +234,27 @@ const files = Object.fromEntries([
     ...chain.slice(1).map(t => tagFile(t.id, t.payload)),
 ])
 
-/** @type {(path: string) => ReturnType<typeof ioError>} */
-const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
-
 /**
- * The host the store reads through: the objects above, uncompressed, with
- * `inflate` handing every buffer back as it is, and a log of the ids read
- * so a proof can see which objects the walk asked for.
+ * The host the store reads through: the objects above, each as a stored zlib
+ * stream, which is a stream like any other, and a log of the ids read so a proof
+ * can see which objects the walk asked for.
  *
  * This repository keeps no packs, which is what the three commands a pack read
  * uses answer here — the store asks its packs for an object no loose file holds,
  * and a directory that is not there is the ordinary way to have none. They log
  * nothing, so the log stays the list of objects the walk asked for.
  *
- * @type {MemOperationMap<ReadFile | Readdir | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>}
+ * @type {MemOperationMap<ReadFile | Readdir | Stat | ReadWhole | ReadBytes, readonly string[]>}
  */
 const host = {
-    readFile: path => log => {
-        const f = files[path]
-        return [[...log, path], f === undefined ? error(noFile(path)) : ok(u8ListToVecMsb(f))]
-    },
+    readFile: path => log => [log, error(noFile(path))],
     readdir: path => log => [log, error(noFile(path))],
     stat: path => log => [log, error(noFile(path))],
     readBytes: path => log => [log, error(noFile(path))],
-    readWhole: path => log => [log, error(noFile(path))],
-    inflate: data => log => [log, ok(data)],
+    readWhole: path => log => {
+        const f = files[path]
+        return [[...log, path], f === undefined ? error(noFile(path)) : ok([u8ListToVecMsb(storedBytes(f))])]
+    },
 }
 
 const runHost = run(host)([])
@@ -297,7 +295,7 @@ const idOf = /** @type {(k: number) => Oid} */ (k => idAt(hexOf(k)))
 const wideId = idAt('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')
 
 /** The 40 hex digits a number spells, as an id is written. */
-const hexOf = /** @type {(k: number) => string} */ (k => k.toString(16).padStart(40, '0'))
+const hexOf = encodeScalar(40)
 
 /** A tag naming an id, declaring a type for it, as the format writes one. */
 const tagAt = /** @type {(target: string, type: ObjectType) => Bytes} */ ((target, type) =>

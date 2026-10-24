@@ -1,6 +1,6 @@
 /**
- * Type-level API for `fjs/compiler/parser/module.f.mjs`: the `ParseError`
- * shape `parseFromTokens` reports. The syntax tree it folds is
+ * Type-level API for `fjs/compiler/parser/module.f.mjs`: the resolved source
+ * record and the `ParseError` shape `parseFromTokens` reports. The syntax tree it folds is
  * `./syntax/types.ts`'s, and the input alphabet the grammar's, in
  * `./grammar/types.ts`.
  *
@@ -8,6 +8,26 @@
  */
 
 import type { TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
+import type { Binding, BindingId, BindingScope } from '../../js/ast/types.ts'
+import type { SourceModule } from '../../js/ast/sugar/source.ts'
+
+/** Source evidence retained until admission and assignment normalization finish. */
+export type BindingOrigin = {
+    readonly id: BindingId
+    readonly name: string | null
+    readonly kind: 'import' | 'const' | 'let' | 'parameter' | 'temporary'
+    readonly metadata: TokenMetadata
+}
+
+/**
+ * An admitted source tree and the complete resolved source binding facts.
+ * Lexical value/loop regions do not create source function boundaries.
+ */
+export type ResolvedModule = SourceModule & {
+    readonly scope: BindingScope
+    readonly bindings: readonly Binding[]
+    readonly origins: readonly BindingOrigin[]
+}
 
 /**
  * A parse failure and where it is.

@@ -30,8 +30,8 @@
  * @import { Commit } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
-import { lf } from '../../text/ascii/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
+import { lf } from '../../text/ascii/module.f.js'
 import { concat, includes } from '../../types/list/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../types/result/module.f.js'
 import { field, hasNulHeader, keyIs, tryRead as readPayload, tryReadAtLeast, valuesOf, write as writePayload } from '../header/module.f.mjs'

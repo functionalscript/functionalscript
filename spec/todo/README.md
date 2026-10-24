@@ -73,61 +73,57 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 1. [ ] [property-accessor](./2330-property-accessor.md),
 2. [ ] [optional chaining](./2335-optional-chaining.md) — `a?.b`, `a?.[k]`,
    `a?.(…)`; implemented
-   ([optional chaining](../property-access/optional-chaining.md)), open for linked
+   ([optional chaining](../property-access/optional-chaining/README.md)), open for linked
    designer approval,
-3. [ ] [operators](./2340-operators.md),
-4. [x] enumerable presence — prohibit `Object.hasOwn`; [`entry`](../property-access/entries.md)
-   answers an option, `[value]` or `[]`,
-5. [ ] [built-in](./2360-built-in.md),
-6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
+3. [x] enumerable presence — prohibit `Object.hasOwn`; [`entry`](../property-access/entries/README.md)
+   reads the value and `hasEntry` beside it answers the presence,
+4. [ ] [built-in](./2360-built-in.md),
+5. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; each name is reserved no later
    than `built-in` admits it, since admitting a name a module may already
    have bound is a breaking change, so the list may land a name at a time
    (its file says P3, not this list's P2),
-7. [ ] [number-spread](./2363-number-spread.md) — `Number(...a)`, refused
-   until a representation is chosen; `Number(...[])` is `0`
-   (its file says P3, not this list's P2),
-8. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
-9. [x] computed property key from an expression — `{ [name]: 0 }`
-   ([property keys](../values/objects.md#property-keys)).
-10. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
+6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+7. [x] computed property key from an expression — `{ [name]: 0 }`
+   ([property keys](../values/objects/README.md#property-keys)).
+8. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
    by design; open for designer approval
    (its file says P3, not this list's P2).
 
 ### 2.3. Syntactic Sugar
 
-1. [x] shorthand members, `{ a }` ([objects](../values/objects.md));
+1. [x] shorthand members, `{ a }` ([objects](../values/objects/README.md));
    whether a reserved word that denotes a value, `NaN`, may stand as one is
    [literal-words-as-references](./2445-literal-words-as-references.md),
    at P5,
 2. [ ] [destructuring](./2450-destructuring.md) — binding patterns in
    `const` and parameters, lowered to property reads and the spread; the
    design is approved and both halves implemented
-   ([destructuring](../bindings/destructuring.md)); the rest element and
-   the elision are open,
+   ([destructuring](../bindings/destructuring/README.md)), the elision
+   included; the rest element is open,
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
 4. [ ] number spellings beyond JSON's — `0o7`, `.5`, `1.`
-   ([numbers](../values/numbers.md)); hexadecimal, binary and numeric separators are implemented;
+   ([numbers](../values/numbers/README.md)); hexadecimal, binary and numeric separators are implemented;
    [binary design review](./2470-binary-literals.md) remains open for linked
    designer approval, as does the
    [numeric-separator design review](./2471-numeric-separators.md).
    Octal has no use case yet; `.5` lands with
    [`?.` before a digit](../../fjs/js/tokenizer/todo/optional-chain-before-digit.md),
 5. [ ] names beyond ASCII — Unicode identifier characters and `\u` escapes
-   in a name, `const é = 1` ([identifiers](../lexical/identifiers.md)),
+   in a name, `const é = 1` ([identifiers](../lexical/identifiers/README.md)),
 6. [ ] the rest of JavaScript's trivia — VT, FF, NBSP and the other `Zs`,
    U+FEFF (a leading BOM too), U+2028/U+2029 outside a string, a leading
    hashbang line — each recognized, or its refusal justified as
    [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-   asks ([whitespace](../lexical/whitespace.md)),
+   asks ([whitespace](../lexical/whitespace/README.md)),
 7. [ ] import attribute spellings — a string key, `with { "type": "json" }`,
    a trailing comma and an empty `with {}`
    ([importing](../modules/imports.md)).
 8. [x] an omitted `;` where ECMAScript's automatic semicolon insertion
    permits one ([module structure](../modules/README.md)).
 9. [x] spread, in an array literal and a call's arguments and in an object
-   literal ([spread](../values/arrays.md#spread),
-   [object spread](../values/objects.md#object-spread)).
+   literal ([spread](../values/arrays/README.md#spread),
+   [object spread](../values/objects/README.md#object-spread)).
 
 ## 3. Functions
 
@@ -156,7 +152,7 @@ information — see [serialization](../design/serialization.md) and
    calling itself landed ([functions](../functions/README.md)); a later
    `const`, and so mutual recursion, is open
 5. [x] `export const`, named-only and mixed modules
-   ([exports](../modules/exports.md)).
+   ([exports](../modules/exports/README.md)).
 
 ### 3.2. Priority 2
 
@@ -166,15 +162,20 @@ information — see [serialization](../design/serialization.md) and
    non-terminating branch with `else`, and the module-level guard are
    follow-ups.
 2. [x] [let](./3220-let.md) — the one-variable loop, `let x = init;` and
-   its `while`, is in the language ([loops](../control-flow/loops.md)); several
+   its `while`, is in the language ([loops](../control-flow/loops/README.md)); several
    variables, `break`, `continue`, `for` and a `let` outside a loop are
    open in the record
 3. [x] `while` — with `let` above; `while` over several variables, and
    `break` and `continue` in its block, are open there
-4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
+4. [x] [switch](./3230-switch.md) — the terminating `switch`, every case a
+   guard's block and `default` last, is in the language
+   ([switch](../control-flow/switch/README.md)); surface syntax over `?:` and
+   `===`, no new EDAG node. The brace-less case, `break` and the
+   module-level `switch` are open in the record
+5. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
    ([mutability](../design/mutability.md)), **not** for I/O: effects keep I/O state in
    the runner ([io-effects](../design/io-effects.md)).
-5. [x] `throw` — a panic as a statement, in a function body and at module
+6. [x] `throw` — a panic as a statement, in a function body and at module
    level ([functions](../functions/README.md),
    [module structure](../modules/README.md)); with `if` it is what
    `assert` needs.
@@ -196,7 +197,7 @@ information — see [serialization](../design/serialization.md) and
 ### 3.4. Syntactic Sugar
 
 1. [ ] [assignments](./3430-assignments.md)
-2. [x] [Untagged template literals](../values/template-literals.md), lowered to
+2. [x] [Untagged template literals](../values/template-literals/README.md), lowered to
    the existing `String` and binary `+` operations.
 3. [ ] `async`/`await`. Depends on the implementation of promises.
 4. [ ] [default parameters](./3125-default-parameters.md) — `(a = 1) => …`
@@ -205,12 +206,23 @@ information — see [serialization](../design/serialization.md) and
    `length` is JavaScript's; no new EDAG node. Parameter defaults are
    implemented ([functions](../functions/README.md)); pattern defaults and
    the designer approval remain open.
+5. [x] [call statements](../functions/call-statements/README.md) — `assert(a);`, a
+   call evaluated for its failure, lowered as an unread `const` to the `,`
+   anchor; no new EDAG node.
 
 ### 3.5. Priority 4
 
 1. [ ] [shadowing](./3150-shadowing.md) — a nested function must not reuse a
    name an enclosing scope binds; a warning or an error, undecided.
 2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
+
+### 3.6. Priority 5
+
+1. [ ] [definite assignment](./3225-definite-assignment.md) — `let x;`
+   admitted where every path assigns `x` before it is read,
+   `let x; if (c) { x = 2; } else { x = 3; }` denoting what
+   `const x = c ? 2 : 3` denotes; refused by design until then
+   ([variables](../bindings/variables/README.md)).
 
 ## 4. ECMAScript Proposals
 

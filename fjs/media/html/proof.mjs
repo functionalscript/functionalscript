@@ -11,7 +11,7 @@
  * @import { Element as HtmlElement } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { fill, macrotask, patch, toDom } from './module.mjs'
 
 const xhtml = 'http://www.w3.org/1999/xhtml'
@@ -91,6 +91,13 @@ const dom = () => {
                 replaceChild: (/** @type {any} */ n, /** @type {any} */ old) => {
                     self.children = self.children.map((/** @type {any} */ c) => c === old ? n : c)
                     log.push('replace')
+                },
+                // Moves `n` if it is already a child, as the DOM does.
+                insertBefore: (/** @type {any} */ n, /** @type {any} */ before) => {
+                    const rest = self.children.filter((/** @type {any} */ c) => c !== n)
+                    const i = before === null ? rest.length : rest.indexOf(before)
+                    self.children = [...rest.slice(0, i), n, ...rest.slice(i)]
+                    log.push('insert')
                 },
                 removeChild: (/** @type {any} */ old) => {
                     self.children = self.children.filter((/** @type {any} */ c) => c !== old)
@@ -345,6 +352,82 @@ export const proof = {
         patch(target, ['div', ['input', { name: 'a' }], 'x', ['i']])
         assertStructurallySame(shape(target), ['div', xhtml, {}, ['input', xhtml, { name: 'a' }], 'x', ['i', xhtml, {}]])
         assertEq(target.children[0], input)
+    },
+    /**
+     * **A keyed child keeps its node wherever it goes.** Children with a
+     * `data-key` are matched by it, not by position: reordered, each is
+     * the node it was, moved; a key not there before is a new node, put in
+     * its place; a key gone takes its node with it; and an unkeyed child
+     * never takes a keyed node, but goes in before it.
+     */
+    patchMatchesKeys: () => {
+        const document = dom()
+        const target = built(document, ['svg', ['g', { 'data-key': 'a' }], ['g', { 'data-key': 'b' }], ['g', { 'data-key': 'c' }]])
+        const [a, b, c] = target.children
+        patch(target, ['svg', ['g', { 'data-key': 'c', id: 'moved' }], ['g', { 'data-key': 'd' }], ['g', { 'data-key': 'a' }], ['circle']])
+        assertEq(target.children.length, 4)
+        assertEq(target.children[0], c)
+        assertEq(target.children[0].getAttribute('id'), 'moved')
+        assert(target.children[1] !== b && target.children[1].getAttribute('data-key') === 'd')
+        assertEq(target.children[2], a)
+        assertEq(target.children[3].localName, 'circle')
+        // A key of another tag is a new node; an unkeyed child before a
+        // keyed node goes in before it.
+        patch(target, ['svg', ['rect', { 'data-key': 'c' }], 'text', ['g', { 'data-key': 'a' }]])
+        assert(target.children[0] !== c && target.children[0].localName === 'rect', '')
+        assertEq(target.children[2], a)
+        assertEq(target.children.length, 3)
+        // An unkeyed child of the keyed node's tag still does not take it.
+        const lone = built(document, ['svg', ['g', { 'data-key': 'k' }]])
+        const [k] = lone.children
+        patch(lone, ['svg', ['g', { id: 'plain' }], ['g', { 'data-key': 'k' }]])
+        assertEq(lone.children.length, 2)
+        assert(lone.children[0] !== k && lone.children[0].getAttribute('id') === 'plain', '')
+        assertEq(lone.children[1], k)
+    },
+    /**
+     * **A keyed node that keeps its order is never moved**, since a browser
+     * drops a moved node's transition. Keys gone are removed first, and a
+     * new key is inserted before the node after it: the nodes around it
+     * stay where they are.
+     */
+    /**
+     * **A key that comes back as another tag leaves before anything is
+     * placed**, so its old node is not left in the way of the next keyed
+     * node, which stays where it is and is never moved.
+     */
+    patchRemovesRetaggedKeysFirst: () => {
+        const document = dom()
+        const target = built(document, ['svg', ['g', { 'data-key': 'a' }], ['g', { 'data-key': 'b' }]])
+        const [, b] = target.children
+        const before = document.log.length
+        patch(target, ['svg', ['rect', { 'data-key': 'a' }], ['g', { 'data-key': 'b' }]])
+        assertStructurallySame(document.log.slice(before), ['remove', 'set data-key', 'insert'])
+        assertEq(target.children[0].localName, 'rect')
+        assertEq(target.children[1], b)
+    },
+    /**
+     * **A child that is not an element, a comment, has no key to read**: it
+     * is matched by position, as text is, and replaced.
+     */
+    patchReadsNoKeyOffAComment: () => {
+        const document = dom()
+        const target = built(document, ['div', ['p']])
+        target.children = [{ nodeType: 8 }, ...target.children]
+        patch(target, ['div', ['p', { 'data-key': 'a' }]])
+        assertEq(target.children.length, 1)
+        assertEq(target.children[0].getAttribute('data-key'), 'a')
+    },
+    patchKeepsKeyedNodesInPlace: () => {
+        const document = dom()
+        const target = built(document, ['g', ['g', { 'data-key': 'a' }], ['g', { 'data-key': 'b' }], ['g', { 'data-key': 'c' }]])
+        const [a, , c] = target.children
+        const before = document.log.length
+        patch(target, ['g', ['g', { 'data-key': 'a' }], ['g', { 'data-key': 'x' }], ['g', { 'data-key': 'c' }]])
+        assertStructurallySame(document.log.slice(before), ['remove', 'set data-key', 'insert'])
+        assertEq(target.children[0], a)
+        assertEq(target.children[2], c)
+        assertEq(target.children[1].getAttribute('data-key'), 'x')
     },
     /**
      * **What is already right is not touched**: patching an element with

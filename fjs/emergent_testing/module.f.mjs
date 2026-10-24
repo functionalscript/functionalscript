@@ -17,7 +17,7 @@
  * @import { Operation } from '../effects/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
- * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
+ * @import { LoadedModule, LoadModuleOperations, ModuleMap } from '../dev/types.ts'
  * @import { TestFn, TestEntry, TestSet, Path, LeafReporter, Reporter, RunState, RunTotals, TestFailure, TestId, TestResult, _TestAndPath } from './types.ts'
  * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
@@ -27,12 +27,12 @@ import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, test } from '../effects/node/module.f.mjs'
 import { catch_, sandbox } from '../effects/common/module.f.mjs'
 import {
-    catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
-    resultMapStep, resultStep, step,
-    walkStep,
+    attemptStep, catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
+    resultStep, step,
+    unreadableThrownValue, walkStep,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
-import { invert, ok } from '../types/result/module.f.js'
+import { invert } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { concat } from '../types/list/module.f.mjs'
 import { isIdentifier, isInteger } from '../js/identifier/module.f.mjs'
@@ -325,8 +325,8 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
         // Both are still needed after they have been reported, so the reporting
         // call is captured rather than nested inside its own step.
         //
-        // **Its `Result` is carried as a value** — that is what `resultMapStep`
-        // with `ok` does — because the leaf has already run by the time it is
+        // **Its `Result` is carried as a value** — that is what `attemptStep`
+        // does — because the leaf has already run by the time it is
         // reported, and a report that fails must not erase the test that
         // succeeded or failed underneath it. Handling the failure by nesting a
         // continuation inside this one would see `t` and `sr`, and is what
@@ -334,7 +334,7 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
         // hands the next line both the outcome and the leaf it belongs to.
         const reported = historyStep(
             history(evaluated),
-            ([t, sr]) => resultMapStep(result(t, sr, set.throws), ok))
+            ([t, sr]) => attemptStep(result(t, sr, set.throws)))
         // The leaf's children are *answered*, not walked here: `walkEntries`
         // puts them in front of the siblings that remain, which is the same
         // order — the tree a leaf returned, then the next leaf — without a
@@ -425,10 +425,28 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
 const runModule = reporter => (k, v) => state =>
     runEntries(reporter)(k, collectTests([], false, v))(state)
 
+/**
+ * What a discovered module offers the runner: its `proof` export, or — for a
+ * module that would not load — a proof whose one leaf fails with the reason.
+ *
+ * A module that throws while it is evaluated is a failed test, not an absent
+ * one: a module-level `assert` is a supported place for a check (`./README.md`,
+ * "Proof location and scope"). Turning the failure into a leaf here is what
+ * makes both runners report it the same way — `fjs t` counts it and describes
+ * it with the run's other failures, and an external framework reports the
+ * registered test as failed — rather than each needing its own rule for it.
+ *
+ * @type {(loaded: LoadedModule) => unknown}
+ */
+const loadedProof = ([tag, value]) =>
+    tag === 'ok' ? value.proof : () => { throw errorMessage(value) }
+
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
 const proofEntries = moduleMap =>
-    definedEntries(moduleMap)
-        .flatMap(([k, v]) => v.proof !== undefined ? [/** @type {const} */ ([k, v.proof])] : [])
+    definedEntries(moduleMap).flatMap(([k, v]) => {
+        const proof = loadedProof(v)
+        return proof !== undefined ? [/** @type {const} */ ([k, proof])] : []
+    })
 
 /**
  * Runs all test modules in `moduleMap` whose names pass `isTest`, accumulates
@@ -626,18 +644,10 @@ const fmtResultEnd = ({ duration }, color, label) =>
     `${color}${label}${reset}, ${terminalDuration(duration)}`
 
 /**
- * What a value that cannot be read is called.
- *
- * A value reaches a report by being described, and describing runs the value's
- * own code — a `toString`, a getter, a proxy trap — which can throw in its
- * turn. Every route that meets one says this, so a reader meets one phrase
- * rather than a spelling per runner.
- */
-export const unknownValue = 'Unknown thrown value'
-
-/**
  * The text of a value that may not want to be read. `String` runs user code, so
- * it is attempted rather than called.
+ * it is attempted rather than called, and a value whose own code throws is
+ * named by `fjs/effects`' `unreadableThrownValue`, the phrase every runner and
+ * host says for one.
  *
  * **A runner that cannot `catch` gets the same phrase**, which is why the
  * refusal is folded in here rather than propagated: there is no reader for whom
@@ -651,7 +661,7 @@ export const text = value => resultStep(
     catch_(() => String(value)),
     r => pureOk(r[0] === 'ok' && r[1][0] === 'ok'
         ? /** @type {string} */ (r[1][1])
-        : unknownValue))
+        : unreadableThrownValue))
 
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through

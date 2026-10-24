@@ -17,7 +17,7 @@ import { virtualAt, emptyState, nodeProgramOptions } from '../effects/node/virtu
 import { utf8 } from '../text/module.f.mjs'
 import { isObject } from '../types/object/module.f.mjs'
 import { tryParse as parseDataJs } from '../media/datajs/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.mjs'
 
 /**
@@ -44,16 +44,23 @@ export const proof = {
         assertEq(compileSource('export default (m) => { const a = [1]; if (m) { return a; } return 0; };')('output.js'), 'export default ($0)=>{const $1=[1];return $0?$1:0;};')
         assertEq(compileSource('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };')('output.js'), 'export default ($0)=>$0?(()=>{throw 1;})():[2];')
         assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.js'), 'export default ($0)=>$0?(()=>{throw 1;})():(()=>{const $1=[2];return 1;})();')
-        assertEq(compileSource('export default (v, msg) => { if (v) { return undefined; } throw msg ?? "assertion failed"; };')('output.js'), 'export default ($0,$1)=>$0?undefined:(()=>{throw $1??"assertion failed";})();')
+        assertEq(compileSource('export default (v, msg) => { if (v) { return undefined; } throw msg ?? "assertion failed"; };')('output.js'), "export default ($0,$1)=>$0?undefined:(()=>{throw ($1===null?true:$1===undefined)?\"assertion failed\":$1;})();")
         assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",1,[],["?:",["arg",0],["throw",1],[",",[["[]",[2]],1]]]]]]];')
-        assert(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.rs').includes([
-            '        let c0 = || {',
-            '            let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
-            '            Ok([c1.clone(), c1.clone()].to_array().to_any())',
-            '        };',
-            '        Any::conditional(args.argument(0), c0, || Ok(f64_any(0x0000000000000000)))',
-        ].join('\n')))
+        assert(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.rs').includes("if Any::<A>::to_boolean(_args.argument(0)) {\n        let _b1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();\n        Ok([_b1.clone(), _b1.clone()].to_array().to_any())\n    } else { Ok(f64_any(0x0000000000000000)) }"))
         assertEq(jsonRefused('export default (a) => { if (a) { return 1; } return 2; };'), 'output.json - error: callable materialization requires a target compile/load boundary')
+    },
+    // A switch is written back as what it lowers to, as a guard is: the
+    // chain of conditionals over the discriminant, a `const` of the body
+    // where more than one test reads it — `switch` itself is never written
+    // — and the Rust output tests the discriminant with `strict_eq`, the
+    // labels of one case joined by conditional regions after the first.
+    switches: () => {
+        assertEq(compileSource('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };')('output.js'), 'export default ($0)=>$0===1?1:2;')
+        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.js'), "export default ($0)=>{const $1=$0[0];const $2=$1===1;return ($2?$2:$1===2)?1:$1===3?(()=>{throw 3;})():0;};")
+        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: { const x = [1]; return [x, x]; } } const y = [2]; return y; };')('output.js'), 'export default ($0)=>$0[0]===1?(()=>{const $1=[1];return [$1,$1];})():[2];')
+        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.edag.data.js'), "const $0=[\".\",[\"arg\",0],0];const $1=[\"===\",$0,1];export default [\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"?:\",$1,$1,[\"===\",$0,2]],1,[\"?:\",[\"===\",$0,3],[\"throw\",3],0]]]]]];")
+        assert(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.rs').includes("        let _b1: Any<A> = (Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?;\n        let _b2: Any<A> = (strict_eq(_b1.clone(), f64_any(0x3ff0000000000000)))?;\n        if Any::<A>::to_boolean(if Any::<A>::to_boolean(_b2.clone()) { _b2.clone() } else { (strict_eq(_b1.clone(), f64_any(0x4000000000000000)))? }) { Ok(f64_any(0x3ff0000000000000)) } else { if Any::<A>::to_boolean((strict_eq(_b1.clone(), f64_any(0x4008000000000000)))?) { Err(f64_any(0x4008000000000000)) } else { Ok(f64_any(0x0000000000000000)) } }"))
+        assertEq(jsonRefused('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };'), 'output.json - error: callable materialization requires a target compile/load boundary')
     },
     // JSON denotes a tree, so a node the export reaches twice is written
     // where each reference reaches it, as `JSON.stringify` writes it — a
@@ -288,7 +295,7 @@ export const proof = {
             assertEq(compileSource('export default [-0b101, -0B10n, -0b0];')('output.data.js'), 'export default [-5,-2n,-0];')
         },
         access: () => {
-            assertEq(fjsRoundTrip('export default 0b10.length;'), 'const $0=2;export default $0.length;')
+            assertEq(fjsRoundTrip('export default 0b10.length;'), "export default (2).length;")
         },
         refused: () => {
             assertEq(moduleRefused('export default 0b;'), 'input.f.js:1:18 - error: unexpected token')
@@ -317,7 +324,7 @@ export const proof = {
             assertEq(compileSource('export default [-0xFF, -0x8000000000000000n];')('output.data.js'), 'export default [-255,-9223372036854775808n];')
         },
         access: () => {
-            assertEq(fjsRoundTrip('export default 0x10.length;'), 'const $0=16;export default $0.length;')
+            assertEq(fjsRoundTrip('export default 0x10.length;'), "export default (16).length;")
         },
         // what JavaScript refuses: no digit, a word or a digit against the
         // literal, and a fraction or a suffix where the literal has ended
@@ -690,7 +697,7 @@ export const proof = {
         },
         // The `.json` reader is JSON, not the module reader with a JSON flag:
         // a bigint is not JSON, whatever a module makes of it.
-        jsonInputRejectsDjsExtensions: () => {
+        jsonInputRejectsModuleExtensions: () => {
             const root = { 'a.json': [utf8('{"a":1n}')] }
             const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['a.json', 'a.data.js'])))
             assertEq(exitCode(code), 1)
@@ -790,7 +797,7 @@ export const proof = {
         outputs: () => {
             assertEq(compileSource('const a = [1]; export default [...a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["...",["[]",[1]]]]]]]];')
             assertEq(compileSource('const f = (...r) => r; export default (...r) => f(...r, 1);')('output.js'), 'const $0=(...$1)=>$1;export default (...$2)=>$0(...$2,1);')
-            assert(compileSource('export default [...null, 1];')('output.rs').includes('spread_array([spread_item(Nullish::Null.to_any()), value_item(f64_any(0x3ff0000000000000))])?'))
+            assert(compileSource('export default [...null, 1];')('output.rs').includes("spread_array([spread_item(Nullish::Null.to_any()), value_item(f64_any(0x3ff0000000000000))]))?"))
         },
         // a call whose function reads its rest array through a spread stays
         // a call, as one reading it any other way does
@@ -865,7 +872,7 @@ export const proof = {
         outputs: () => {
             assertEq(compileSource('const o = { a: 1 }; export default { ...o };')('output.edag.data.js'), 'export default ["{}",[[":","default",["{}",[["...",["{}",[[":","a",1]]]]]]]]];')
             assertEq(compileSource('const o = { a: 1 }; export default { x: 0, ...o, ...{ y: 1 }, };')('output.js'), 'export default {"x":0,...{"a":1},...{"y":1}};')
-            assert(compileSource('const o = { a: 1 }; export default { x: 1, ...o, y: 2 };')('output.rs').includes('spread_object([property_item(string_key("x"), f64_any(0x3ff0000000000000)), spread_entries(c0), property_item(string_key("y"), f64_any(0x4000000000000000))])'))
+            assert(compileSource('const o = { a: 1 }; export default { x: 1, ...o, y: 2 };')('output.rs').includes("spread_object([property_item(string_key(\"x\"), f64_any(0x3ff0000000000000)), spread_entries([(string_key(\"a\"), f64_any(0x3ff0000000000000))].to_object().to_any()), property_item(string_key(\"y\"), f64_any(0x4000000000000000))])"))
         },
         // a call whose function reads its rest array through a spread stays
         // a call
@@ -932,16 +939,17 @@ export const proof = {
             assertEq(moduleRefused('const f = (a = null.x) => a; export default f();'), 'input.f.js - error: module initialization failed')
             assertEq(moduleRefused('const f = (a, b = null.x) => a === 5 ? b : a; export default f(6);'), 'input.f.js - error: module initialization failed')
             assertEq(compileSource('const f = (a, b = null.x) => a === 5 ? b : a; export default f(6, 1);')('output.json'), '6')
-            assertEq(compileSource('export default (a, b = null.x) => a === 5 ? b : a;')('output.js'), 'export default ($0,...$1)=>{const $2=$1[0]===undefined?null.x:$1[0];return $0===5?$2:$0;};')
+            assertEq(compileSource('export default (a, b = null.x) => a === 5 ? b : a;')('output.js'), 'export default ($0,...$1)=>{const $2=$1[0];const $3=$2===undefined?null.x:$2;return $0===5?$3:$0;};')
         },
         outputs: () => {
             const source = 'export default (a, b = a, ...r) => [a, b, r];'
-            assertEq(compileSource(source)('output.js'), 'export default ($0,...$1)=>[$0,$1[0]===undefined?$0:$1[0],$1.slice(1)];')
+            assertEq(compileSource(source)('output.js'), 'export default ($0,...$1)=>{const $2=$1[0];return [$0,$2===undefined?$0:$2,$1.slice(1)];};')
+            // Fixed argument reads share their established invocation value.
             assertEq(compileSource(source)('output.edag.data.js'),
-                'const $0=["rest"];export default ["{}",[[":","default",["=>",1,[],["[]",[["arg",0],["?:",["===",[".",$0,0],["undefined"]],["arg",0],[".",$0,0]],[".",$0,"slice",["|()",[1]]]]]]]]];')
-            assert(compileSource(source)('output.rs').includes('Any::conditional(c2, || Ok(args.argument(0)), c3)'))
-            assertEq(compileSource('export default (a = 1) => { const b = [a]; return [b, b]; };')('output.js'), 'export default (...$0)=>{const $1=[$0[0]===undefined?1:$0[0]];return [$1,$1];};')
-            assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), 'const $0={};export default ($1,...$2)=>[$1,$2[0]===undefined?$0:$2[0],$2.slice(1)];')
+                'const $0=["arg",0];const $1=["rest"];const $2=[".",$1,0];export default ["{}",[[":","default",["=>",1,[],["[]",[$0,["?:",["===",$2,["undefined"]],$0,$2],[".",$1,"slice",["|()",[1]]]]]]]]];')
+            assert(compileSource(source)('output.rs').includes('if Any::<A>::to_boolean((strict_eq(_b2.clone(), Nullish::Undefined.to_any()))?) { _args.argument(0) } else { _b2.clone() }'))
+            assertEq(compileSource('export default (a = 1) => { const b = [a]; return [b, b]; };')('output.js'), 'export default (...$0)=>{const $1=$0[0];const $2=[$1===undefined?1:$1];return [$2,$2];};')
+            assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), 'const $0={};export default ($1,...$2)=>{const $3=$2[0];return [$1,$3===undefined?$0:$3,$2.slice(1)];};')
         },
     },
     // Code outputs preserve throws; data outputs execute module initialization.

@@ -1,7 +1,7 @@
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tokenize } from './module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { _tokensOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -31,7 +31,7 @@ export const proof = {
     // else — the layer holds no state, `-` being a token the grammar reads
     // rather than a sign folded into the literal after it. Doesn't re-test
     // JS-level token shapes already covered above/elsewhere in this file.
-    djsTokenize: [
+    moduleTokens: [
         () => {
             // `;` is a token of its own — the statement terminator DataJS
             // requires and the module grammar accepts — not an error

@@ -40,9 +40,10 @@ import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { tryJsonStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { assertOk } from '../../asserts/module.f.mjs'
+import { assertOk } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { withoutNegativeZero } from '../corpus/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
 /** The first line of a generated expectation. @type {(fixture: string) => string} */
 const header = fixture =>
@@ -54,8 +55,11 @@ const none = '#[rustfmt::skip]\npub const JSON: Option<&[u8]> = None;'
 /** The `THROWS` constant: whether the fixture is expected to throw. @type {(throws: boolean) => string} */
 const throwsConstant = throws => `pub const THROWS: bool = ${throws};`
 
+/** A byte as two hexadecimal digits. */
+const hexByte = encodeScalar(2)
+
 /** A byte as a Rust hexadecimal literal. @type {(byte: number) => string} */
-const byteLiteral = byte => `0x${byte.toString(16).padStart(2, '0')}`
+const byteLiteral = byte => `0x${hexByte(byte)}`
 
 /**
  * The `JSON` constant: the UTF-8 bytes of the text, or `None`. The bytes are
@@ -85,7 +89,7 @@ const throwing = [
     'use nanvm_lib::vm::{Any, IVm, Nullish, ToAny};',
     '',
     '#[rustfmt::skip]',
-    'pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {',
+    'pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {',
     '    Err(Nullish::Undefined.to_any())',
     '}',
 ].join('\n')

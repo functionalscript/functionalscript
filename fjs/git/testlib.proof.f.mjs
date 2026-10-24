@@ -1,5 +1,5 @@
 /**
- * The proof of [`testlib.f.mjs`](./testlib.f.mjs)'s two functions.
+ * The proof of [`testlib.f.mjs`](./testlib.f.mjs)'s three functions.
  *
  * Beside the module rather than in a directory of its own, because the module
  * is a bare file: `fjs/git` holds the fixtures every reader here shares, and
@@ -13,10 +13,17 @@
  * API, which is the case that rule names outright.
  */
 
-import { assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
-import { hexBytes, latin1 } from './testlib.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
+import { isNotFound } from '../effects/node/module.f.mjs'
+import { hexBytes, latin1, noFile } from './testlib.f.mjs'
 
 export const proof = {
+    // What an in-memory host answers for a path it holds nothing at: the
+    // code `isNotFound` reads, and the path in the message.
+    noFile: () => {
+        assertStructurallySame(noFile('a/b'), ['ioError', { code: 'ENOENT', message: 'no such file: a/b' }])
+        assert(isNotFound(noFile('a/b')))
+    },
     // The bytes a hex string spells, and the cases a hand-typed fixture gets
     // wrong: a digit dropped, and a letter that is no digit.
     hexBytes: () => {
@@ -25,7 +32,7 @@ export const proof = {
         assertStructurallySame(hexBytes('ff'), [0xff])
         assertStructurallySame(hexBytes('0f10a5'), [0x0F, 0x10, 0xA5])
         // Upper case reads too, though the fixtures are written lower: the
-        // digit rule is `fjs/text/ascii`'s and admits both, and refusing one
+        // reader is `fjs/basen/base16`'s and admits both, and refusing one
         // here would be a rule of this function's own invention.
         assertStructurallySame(hexBytes('FF0A'), [0xff, 0xa])
         // a word of a fanout table, which is what these captures mostly are

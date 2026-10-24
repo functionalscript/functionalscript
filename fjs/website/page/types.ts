@@ -68,6 +68,12 @@ export type Dir = {
      * however it is reached.
      */
     readonly proofs: readonly Proof[]
+    /**
+     * The directory's `README.md` as the top of its page: its rendering, or
+     * the note saying why it is not rendered here; empty where there is no
+     * README. Rendered by the build, as the demo's first view is.
+     */
+    readonly readme: readonly Element[]
     /** The demo of this directory, or `null` where there is none. */
     readonly demo: PageDemo | null
     /**

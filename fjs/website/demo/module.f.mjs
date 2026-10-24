@@ -23,7 +23,7 @@
  *
  * @module
  *
- * @import { Demo, DemoEvent, TextDemoOptions, TextFieldOptions, InputFieldOptions } from './types.ts'
+ * @import { Demo, DemoEvent, DragAxis, DragBounds, TextDemoOptions, TextFieldOptions, InputFieldOptions, RadioOption } from './types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Node, Element } from '../../media/html/types.ts'
@@ -33,6 +33,8 @@ import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { examplePicker, name as exampleName } from './examples/module.f.js'
 import { captionMarker, editorMarker, mirrorMarker, resultMarker } from '../style/module.f.js'
+import { max } from '../../types/number/max/module.f.js'
+import { min } from '../../types/number/min/module.f.js'
 
 /**
  * A demo whose state is the text in a labelled textarea, followed by what
@@ -99,6 +101,20 @@ export const inputField = ({ name, label }, value) => ['p',
     ['input', { type: 'text', id: name, name, value }],
 ]
 
+/** A choice from a few options that all stay visible: a group of inline
+ * radio buttons sharing `name`, under a legend saying what is chosen. Each
+ * option's `id` is `name` and its value joined by `-`, so it is unique on the
+ * page as long as `name` is.
+ * @type {(name: string, label: string, options: readonly RadioOption[], value: string) => Element}
+ */
+export const radios = (name, label, options, value) => ['fieldset', { 'data-radios': '' },
+    ['legend', label],
+    ['div', ...options.map(/** @returns {Element} */ option => ['label', { for: `${name}-${option.value}` },
+        ['input', { type: 'radio', id: `${name}-${option.value}`, name, value: option.value, ...(option.value === value ? { checked: '' } : {}) }],
+        option.label,
+    ])],
+]
+
 /** A caption naming the result drawn after it: a `p` marked with the
  * stylesheet's `captionMarker`, which sets it bold so a reader tells a
  * result's name from the result and from the prose around it.
@@ -113,6 +129,43 @@ export const refusal = message => ['div', { role: 'status' },
     caption('Refused:'),
     ['pre', { [resultMarker]: 'error' }, message],
 ]
+
+/**
+ * The attributes a graph carries its {@link DragAxis} under, which the page
+ * runtime reads back when a handle in it is dragged: one record, so the
+ * graph that writes them and the runtime that reads them cannot disagree.
+ */
+export const dragAxisAttributes = /** @type {const} */ ({
+    min: 'data-demo-x-min',
+    max: 'data-demo-x-max',
+    left: 'data-demo-x-left',
+    right: 'data-demo-x-right',
+})
+
+/**
+ * The attributes a graph spreads into its `svg` to say how a drag across
+ * it maps onto a value.
+ *
+ * @type {(axis: DragAxis) => { readonly [k in string]: string }}
+ */
+export const dragAxis = axis => ({
+    [dragAxisAttributes.min]: `${axis.min}`,
+    [dragAxisAttributes.max]: `${axis.max}`,
+    [dragAxisAttributes.left]: `${axis.left}`,
+    [dragAxisAttributes.right]: `${axis.right}`,
+})
+
+/**
+ * The value a drag to the x `x` sets, as the `input` event spells it: `x`
+ * mapped through the axis, kept within the slider's `bounds` (whose minimum
+ * can be inside the graph's left boundary), and rounded to three decimals.
+ * `null` where `right <= left` leaves no axis to map onto.
+ *
+ * @type {(axis: DragAxis, bounds: DragBounds, x: number) => string | null}
+ */
+export const dragValue = (axis, bounds, x) => axis.right <= axis.left
+    ? null
+    : min(bounds.max, max(bounds.min, axis.min + (x - axis.left) / (axis.right - axis.left) * (axis.max - axis.min))).toFixed(3)
 
 /** Update an existing string field; unrelated events keep the state.
  * @type {<S extends StringMap<string>>(state: S) => (event: DemoEvent) => Effect<never, S, never>}

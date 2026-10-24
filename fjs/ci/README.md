@@ -97,6 +97,10 @@ for, and whether that answer should change, is
 
 ## Usage
 
+This repository's generated CI uses a [success cache](./cache/README.md) to
+skip checks whose inputs and execution contracts have already passed. The
+ordinary `fjs ci` generator leaves this repository-specific cache disabled.
+
 1. Enter `./dev.sh` and ensure dependencies are installed with `npm ci`.
 2. Regenerate the workflow definitions and the Nix environments with the
    project's `gen` script:
@@ -212,7 +216,7 @@ canonical job asserts, as its first command, that its own shell reports the vers
 `config/module.f.js` records for it:
 
 ```sh
-test "$(sh ./gen.nix/run node --version)" = "v26.12.0"
+test "$(sh ./gen.nix/run node --version)" = "v26.12.1"
 test "$(sh ./gen.nix/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
 ```
 
@@ -540,13 +544,14 @@ the packed package's consumer:
 
 ```ts
 export type Setup = {
-    readonly nodeExtra: (os: Os) => readonly MetaStep[]
+    readonly nodeExtra: (os: Os, architecture: Architecture) => readonly MetaStep[]
     readonly packageConsumer?: PackageConsumer
     readonly mergeQueueOnly?: readonly Os[]
 }
 ```
 
-`nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
+`nodeExtra` receives the target OS and architecture so callers can conditionally add
+platform-specific steps.
 
 `packageConsumer` is the consumer half of the packed-package check: a published module
 and a runtime export it must load, its `types.ts` as a consumer spells it,

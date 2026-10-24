@@ -8,20 +8,24 @@ import type { Edge, Node, Ranked } from './types.ts'
 
 /**
  * An outgoing edge and its `index`, its position in the graph's list of
- * edges — what tells two listings of one `Edge` object apart.
+ * edges — what tells two listings of one `Edge` object apart — and
+ * `target`, the label of the node it ends at, empty for an inline value.
  */
 export type _Out = {
     readonly edge: Edge
     readonly index: number
+    readonly target: string
 }
 
 /**
  * One row of a node's ports: the edge that leaves from it, and where the
  * row sits, `y` measured from the node's own top edge. A row starts right
- * of the node's label column.
+ * of the node's label column. `ref` is the target's label, when the row
+ * draws it in place of a key: see `portsOf` (`./module.f.mjs`).
  */
 export type _Port = _Out & {
     readonly y: number
+    readonly ref: string | null
 }
 
 /**
@@ -109,23 +113,49 @@ export type _Lane = {
     readonly right: number
 }
 
+/** A back edge's source/target ranks and source height. */
+export type _BackEdge = {
+    readonly index: number
+    readonly from: number
+    readonly to: number
+    readonly y: number
+}
+
 /**
- * The whole layout: every node and lane placed, and each rank's far edge
+ * Where a back edge runs: `lane`, its place below the graph, nearest first,
+ * and `out` and `into`, its place in its source and target gaps.
+ */
+export type _BackLane = {
+    readonly lane: number
+    readonly out: number
+    readonly into: number
+}
+
+/**
+ * The whole layout: every node and lane placed, each rank's far edge
  * along the flow — `ends[rank]` is the right of that rank's column, where
- * an edge from a narrower node runs to before it turns.
+ * an edge from a narrower node runs to before it turns — and each back
+ * edge's {@link _BackLane}, by the edge's index.
  */
 export type _Placed = {
     readonly nodes: readonly _Positioned[]
     readonly lanes: readonly _Lane[]
     readonly ends: readonly number[]
+    readonly backs: ReadonlyMap<number, _BackLane>
 }
 
 /** A point of an edge's route. */
 export type _Point = readonly [number, number]
 
-/** An edge and the points it is drawn through, port first, target last. */
+/**
+ * An edge, its `index` in the graph's list of edges, the node it ends at —
+ * an inline edge has no route — and the points it is drawn through, port
+ * first, target last.
+ */
 export type _Route = {
     readonly edge: Edge
+    readonly index: number
+    readonly to: number
     readonly points: readonly _Point[]
 }
 
@@ -142,13 +172,14 @@ export type _Walk = {
 }
 
 /**
- * A node `graphOf` is inside: its id, the ids of the nodes it is inside,
- * root first and its own last, its children and the next of them to walk,
- * and the label and kind of the edge that reached it — added from the
- * frame below once everything under this one is drawn. The root's are
+ * A node `graphOf` is inside: its value and id, the ids of the nodes it is
+ * inside, root first and its own last, its children and the next of them
+ * to walk, and the label and kind of the edge that reached it — added from
+ * the frame below once everything under this one is drawn. The root's are
  * never read.
  */
 export type _Frame<V> = {
+    readonly value: V
     readonly id: number
     readonly path: readonly number[]
     readonly children: readonly (readonly [label: string, value: V, kind?: string])[]

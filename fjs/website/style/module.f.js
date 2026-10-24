@@ -115,6 +115,32 @@ export const resultMarker = 'data-result'
  */
 export const verdictMarker = 'data-verdict'
 
+/** The attribute shared by a long listing in a code box, such as a WASM
+ * module's WAT, and the rule that caps its height and scrolls it.
+ * @type {string}
+ */
+export const listingMarker = 'data-listing'
+
+/** The attribute of the banner a refused construct's spec page opens its
+ * demo with: the compiler refuses the sample, by design.
+ */
+export const refusedMarker = 'data-refused'
+
+/** The attribute of the banner the undecided constructs' page opens its
+ * demo with: the compiler refuses each, and no decision says it should.
+ */
+export const undecidedMarker = 'data-undecided'
+
+/** The attribute of the banner an admitted feature's spec page opens its
+ * demo with: the compiler accepts the example, and runs it both ways.
+ */
+export const admittedMarker = 'data-admitted'
+
+/** The attribute of a register row's card, one construct with its sample
+ * and what the compiler prints for it.
+ */
+export const registerRowMarker = 'data-register-row'
+
 /** The attribute shared by the PoW verdict row and its layout rules.
  * @type {string}
  */
@@ -219,8 +245,8 @@ const railroadLabel = kind => `[${railroadLabelMarker}="${kind}"]`
  * Named because two stylesheets declare them: {@link stylesheet} on every
  * page, and {@link rustdocStylesheet} on rustdoc's.
  */
-const lightTokens = '--graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
-const darkTokens = '--graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
+const lightTokens = '--graph-highlight: #b45309; --graph-highlight-bg: color-mix(in srgb, var(--graph-highlight) 10%, var(--bg)); --graph-new-bg: #aecbfa; --graph-added-bg: #a8dab5; --graph-removed-bg: #f6aea9; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce; --syntax-name: #8a4b00'
+const darkTokens = '--graph-highlight: #fbbf24; --graph-highlight-bg: color-mix(in srgb, var(--graph-highlight) 16%, var(--bg)); --graph-new-bg: #1c2d4d; --graph-added-bg: #1c3d27; --graph-removed-bg: #4d1c1c; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9; --syntax-name: #f0a868'
 
 /**
  * The rules for the site's two bars, the header and the funding footer,
@@ -586,7 +612,9 @@ svg text { font: inherit }
    end of its row — so a label always sits in the box it names rather than
    over a line. A port is a thinner, unfilled cell inside the node's own
    border, clipped to its rounded corners, with the border drawn once more
-   over the cells so it stays one weight all round. A primitive — a
+   over the cells so it stays one weight all round. A node whose rows fall
+   into parts — a chain's links — draws its label column as a cell per
+   part, outlined as a port is. A primitive — a
    number, null, undefined — is no node of its own: its value draws in a
    cell right of its key, and no line leaves for it. A value is tinted and
    a key is grey, so the two differ by more than their order in the row.
@@ -612,15 +640,80 @@ svg text { font: inherit }
 [data-graph-kind="new"] { fill: var(--graph-new-bg) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+[data-graph-connection] { outline: none; pointer-events: none }
+[data-graph-hit] { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer }
+/* Selection has its own accent; schema values keep their semantic blue. */
+[data-graph-trace] { opacity: 0; fill: none; stroke: var(--graph-highlight); stroke-width: 3.5; pointer-events: none }
+/* An opaque tint stays faint when several incoming routes outline one title. */
+rect[data-graph-trace] { fill: var(--graph-highlight-bg) }
+[data-graph-trace-arrow] { fill: var(--graph-highlight) }
+/* Focus is the fallback while no explicit graph hover target is active.
+   Low specificity lets the SVG's port/name relationship rules take over. */
+:where([data-graph-connection]:focus) [data-graph-trace] { opacity: 1 }
+[data-graph]:where(:has([data-graph-hit]:hover, [data-graph-port-edge]:hover, [data-graph-node-name]:hover)) :where([data-graph-connection]:focus) [data-graph-trace] { opacity: 0 }
+[data-graph-connection]:has(> [data-graph-hit]:hover) [data-graph-trace] { opacity: 1 }
+[data-graph-port-edge], [data-graph-node-name] { cursor: pointer }
+[data-graph-port-edge] { pointer-events: all }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
-[data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
+[data-graph-port], [data-graph-group] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
-[data-graph-value-alone] { fill: none }
+/* The versions demos draw a node's kind as its fill, so a value filling a
+   row of one is left unfilled, or the tint would hide it. */
+[data-graph-in-kind="new"] [data-graph-value-alone],
+[data-graph-in-kind="shared"] [data-graph-value-alone],
+[data-graph-in-kind="leaving"] [data-graph-value-alone] { fill: none }
+/* A node fading in mid-move, before the move is done and its nodes turn
+   blue, keeps its values' light tint: it reads as arriving, lighter than
+   the blue a finished move draws. */
+[data-graph-in-kind="entering"] [data-graph-value-alone] { fill: var(--value-bg) }
+/* The B-tree game's moved key: red in the cell it is removed from, green in
+   the one it is inserted into. */
+[data-graph-value][data-graph-value-kind="removed"] { fill: var(--graph-removed-bg) }
+[data-graph-value][data-graph-value-kind="added"] { fill: var(--graph-added-bg) }
+/* A change node by node: a node with an order fades out if it is leaving
+   and in otherwise — new, or entering, a node a step built that its demo
+   draws plain — over 150 ms, 150 ms after the order before it.
+   Only where the reader has not asked for less motion: then the drawing
+   changes at once. The page updates its elements in place, and an
+   animation runs again only when its name changes, so the drawing's
+   container alternates data-graph-replay between "a" and "b", and each
+   name has a twin. Orders 0 to 6 are timed: order 0 and one per rank of
+   the deepest tree the B-tree game draws, 80 keys in at most six ranks. A
+   higher order has no rule and no delay. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-graph-order] { animation-duration: .15s; animation-fill-mode: both; animation-timing-function: ease }
+  /* A keyed node that stays but moves slides to its new place, and a keyed
+     edge's route with it, where the browser animates a path's d; where it
+     does not, the route is redrawn at once. */
+  [data-graph] [data-key] { transition: transform .15s ease, d .15s ease }
+  /* A key about to be removed turns red, through order 0, before anything
+     fades. */
+  [data-graph-value-kind="removed"] { animation: graph-redden .15s ease both }
+  [data-graph-replay="a"] [data-graph-order]:not([data-graph-in-kind="leaving"]) { animation-name: graph-in-a }
+  [data-graph-replay="b"] [data-graph-order]:not([data-graph-in-kind="leaving"]) { animation-name: graph-in-b }
+  [data-graph-replay="a"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-a }
+  [data-graph-replay="b"] [data-graph-in-kind="leaving"][data-graph-order] { animation-name: graph-out-b }
+  [data-graph-order="1"] { animation-delay: .15s }
+  [data-graph-order="2"] { animation-delay: .3s }
+  [data-graph-order="3"] { animation-delay: .45s }
+  [data-graph-order="4"] { animation-delay: .6s }
+  [data-graph-order="5"] { animation-delay: .75s }
+  [data-graph-order="6"] { animation-delay: .9s }
+}
+@keyframes graph-redden { from { fill-opacity: 0 } }
+@keyframes graph-in-a { from { opacity: 0 } }
+@keyframes graph-in-b { from { opacity: 0 } }
+@keyframes graph-out-a { to { opacity: 0 } }
+@keyframes graph-out-b { to { opacity: 0 } }
+/* A row showing the node an edge leads to is part of the edge, not a
+   value. */
+[data-graph-value][data-graph-value-ref] { fill: none }
 /* A value drawn in parts: a prefix's inherited bits muted, its own bits
    strong. */
 [data-graph-part="prior"] { fill: var(--muted) }
 [data-graph-part="current"] { font-weight: bold }
 [data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
+[data-graph-value-label][data-graph-value-ref] { fill: var(--muted); font-style: italic }
 [data-graph-value][data-graph-value-kind="terminal"] { fill: var(--border) }
 [data-graph-value-label][data-graph-value-kind="terminal"] { fill: var(--text) }
 [data-graph-edge-label] { dominant-baseline: middle; fill: var(--muted); font-size: .7rem }
@@ -644,6 +737,13 @@ a:hover > ${railroadBox('nonTerminal')} { fill: var(--pass-bg) }
 ${railroadLabel('terminal')} { fill: var(--value) }
 ${railroadLabel('category')} { fill: var(--text); font-style: italic }
 ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
+/* A demo's radio group: a few choices that all stay visible, inline under a
+   bold legend, each as tall as a touch target. */
+[data-radios] { border: 0; margin: 1rem 0; padding: 0; min-width: 0 }
+[data-radios] legend { font-weight: bold; padding: 0 }
+[data-radios] > div { display: flex; flex-wrap: wrap; gap: 1rem }
+[data-radios] label { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; cursor: pointer }
+[data-radios] input { width: auto; margin: 0; accent-color: var(--link) }
 /* A codec's bit groups: a box per group, its bits over the character the
    codec wrote for it, shaded. The borders are what pair a character with its
    bits — in one monospace face the two are otherwise the same kind of text —
@@ -677,6 +777,69 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-stand-in] { color: var(--muted) }
 [data-bit="fill"] { color: var(--muted); text-decoration: underline dotted }
 [data-bit="stop"] { color: var(--value); font-weight: 700 }
+/* SUL's levels as stripes: each unit — a character, eight typed bits,
+   eight padding bits — is a column of its label, its bits, and a row of
+   pixels for each level, one pixel a bit wide. The units touch, so a word
+   that spans two of them is one unbroken stripe; a unit's label is boxed,
+   as a byte's is, to show where one ends. A level's pixels take one of two
+   colours, switching where a word ends, and a hash's are hatched over
+   them. The hatching is a square tile a pixel wide, its lines running
+   corner to corner, so each pixel takes the lines up where its neighbour
+   left them and a hash's stripe reads as one hatched bar. The padding's
+   pixels are faded, as they carry no data. A label never widens its unit,
+   which would open a gap in the stripes: it is as wide as the unit's bits.
+   The padding's first label is the exception: the padding is the last run
+   of units, and its box grows to hold its word even over a single bit.
+   Typed bits have no label, and no box. A label's height is fixed, not a
+   minimum: a stand-in such as ␠ is missing from most monospace fonts, and
+   the font the browser borrows it from can have a taller line, which would
+   make that one box taller than the others. The units are one line that
+   scrolls sideways, so no stripe breaks; the rows' names are the first
+   unit, pinned to the left edge as the line scrolls. */
+[data-sul-scroll] { margin-block: .5rem; overflow-x: auto; padding-bottom: .25rem }
+[data-sul-units] { display: flex; width: max-content }
+[data-sul-unit] { display: flex; flex-direction: column; gap: 2px }
+[data-sul-names] { background: var(--bg); color: var(--muted); left: 0; padding-right: .5rem; position: sticky; z-index: 1 }
+[data-sul-label] { border: 1px solid var(--border); box-sizing: border-box; height: 1.5em; line-height: calc(1.5em - 2px); margin-left: -1px; min-width: calc(100% + 1px); text-align: center; white-space: nowrap; width: 0 }
+[data-sul-label]:empty { border-color: transparent }
+[data-sul-pad] [data-sul-label] { width: auto }
+[data-sul-label]:not([data-stand-in], :empty) { background: color-mix(in srgb, var(--border) 45%, var(--bg)); font-weight: 700 }
+[data-sul-row] { display: flex; height: 1.2em; line-height: 1.2em }
+[data-sul-bit], [data-sul-px] { text-align: center; width: 1ch }
+[data-sul-px="a"] { background: var(--value) }
+[data-sul-px="b"] { background: var(--syntax-name) }
+[data-sul-pad] [data-sul-px] { opacity: .35 }
+[data-sul-hash] { background-image: linear-gradient(135deg, color-mix(in srgb, var(--bg) 70%, transparent) 0 15%, transparent 15% 50%, color-mix(in srgb, var(--bg) 70%, transparent) 50% 65%, transparent 65%); background-size: 1ch 1ch }
+/* A rendered README reads as GitHub renders it: prose in the platform's sans
+   face at GitHub's measure and leading, its title and sections ruled, inline
+   code and code fences shaded, and code itself in the site's monospace face.
+   This is the one place the site's single face gives way — a spec page is
+   prose to be read, and the rest of the page stays set in monospace
+   (render-readme's "prose face"). */
+[data-readme] { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; margin-block: 1.5rem; max-width: 60rem; overflow-wrap: break-word }
+[data-readme] > :first-child { margin-top: 0 }
+[data-readme] :is(h2, h3, h4, h5, h6) { font-weight: 600; line-height: 1.25; margin: 1.5em 0 1rem }
+[data-readme] h2 { border-bottom: 1px solid var(--border); font-size: 2em; padding-bottom: .3em }
+[data-readme] h3 { border-bottom: 1px solid var(--border); font-size: 1.5em; padding-bottom: .3em }
+[data-readme] h4 { font-size: 1.25em }
+[data-readme] h5 { font-size: 1em }
+[data-readme] h6 { color: var(--muted); font-size: .875em }
+[data-readme] :is(p, ul, pre, table) { margin: 0 0 1rem }
+[data-readme] ul { padding-left: 2em }
+[data-readme] li + li { margin-top: .25em }
+[data-readme] li > :is(p, pre) { margin-top: 1rem }
+[data-readme] li > ul { margin: .25em 0 0 }
+[data-readme] .task-list-item { list-style: none }
+[data-readme] .task-list-item input { margin: 0 .2em .25em -1.4em; vertical-align: middle }
+[data-readme] table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; width: max-content }
+[data-readme] :is(th, td) { border: 1px solid var(--border); padding: 6px 13px }
+[data-readme] th { font-weight: 600 }
+[data-readme] tbody tr:nth-child(2n) { background: color-mix(in srgb, var(--border) 25%, var(--bg)) }
+[data-readme] a, [data-readme] a:visited { color: var(--value); text-decoration: none }
+[data-readme] a:hover { text-decoration: underline }
+[data-readme] code { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border-radius: 6px; font: 85% ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: .2em .4em; white-space: break-spaces }
+[data-readme] pre { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-radius: 6px; line-height: 1.45; overflow: auto; padding: 1rem; white-space: pre }
+[data-readme] pre > code { background: transparent; font-size: 85%; padding: 0; white-space: pre }
 /* A code block — a demo's source, such as the rtti demo's schema — is a
    shaded, bordered box, so code reads apart from the prose around it. A
    reader's answer in the rtti demo is the same box, tinted green for a
@@ -741,6 +904,29 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [${codeMarker}][${resultMarker}] { color: var(--text) }
 [${codeMarker}][${resultMarker}="ok"] { border-left: 4px solid var(--pass) }
 [${codeMarker}][${resultMarker}="error"] { border-left: 4px solid var(--fail) }
+/* A listing too long to read whole, a WASM module's WAT: a box of its own
+   height that scrolls, its lines kept unbroken so the indentation reads. */
+[${listingMarker}] { max-height: 24rem; overflow: auto; overflow-wrap: normal; white-space: pre }
+[${listingMarker}] > pre { white-space: pre }
+/* A refused construct's banner: the page's verdict, read before anything
+   else on it, so it is larger than a result and edged in the failure colour. */
+[${refusedMarker}] { background: var(--fail-bg); border: 2px solid var(--fail); border-left-width: 8px; border-radius: 6px; color: var(--fail); margin-block: 1rem; padding: .75rem 1rem }
+[${refusedMarker}] > strong { display: block; font-size: 1.5rem }
+[${refusedMarker}] > p { color: var(--text); margin: .5rem 0 0 }
+/* An undecided construct's banner: the same weight as a refusal's, in the
+   neutral value colour, since nothing is decided to have failed. */
+[${undecidedMarker}] { background: var(--value-bg); border: 2px solid var(--value); border-left-width: 8px; border-radius: 6px; color: var(--value); margin-block: 1rem; padding: .75rem 1rem }
+[${undecidedMarker}] > strong { display: block; font-size: 1.5rem }
+[${undecidedMarker}] > p { color: var(--text); margin: .5rem 0 0 }
+/* An admitted feature's banner: the verdict a refused or undecided page
+   opens with, here the compiler's acceptance, in the passing colour and a
+   lighter weight, since it is the page's expected state. */
+[${admittedMarker}] { background: var(--pass-bg); border: 1px solid var(--pass); border-left-width: 8px; border-radius: 6px; color: var(--pass); margin-block: 1rem; padding: .5rem 1rem }
+[${admittedMarker}] > strong { display: block; font-size: 1.15rem }
+[${admittedMarker}] > p { color: var(--text); margin: .25rem 0 0 }
+[${registerRowMarker}] { border: 1px solid var(--border); border-radius: 6px; margin-block: 1rem; padding: .5rem 1rem }
+[${registerRowMarker}] > h3 { margin: .25rem 0 .5rem }
+[${registerRowMarker}] > div > p { display: inline; margin: 0 }
 [${verdictMarker}="ok"] { color: var(--pass) }
 [${verdictMarker}="error"] { color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows
@@ -798,11 +984,6 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-secp-finite-negation] { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 2 4; stroke-linecap: round; fill: none }
 [data-secp-reflection] { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 5 4 }
 [data-demo-drag] { cursor: ew-resize; touch-action: none }
-[data-secp-radios] { border: 0; margin: 1rem 0; padding: 0; min-width: 0 }
-[data-secp-radios] legend { font-weight: bold; padding: 0 }
-[data-secp-radios] > div { display: flex; flex-wrap: wrap; gap: 1rem }
-[data-secp-radios] label { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; cursor: pointer }
-[data-secp-radios] input { width: auto; margin: 0; accent-color: var(--link) }
 [data-secp-playground] select { max-width: 100%; min-height: 44px }
 [data-secp-playground] input[type="range"] { width: 100%; min-height: 44px }
 [data-secp-playground] pre { white-space: pre-wrap; overflow-wrap: anywhere }

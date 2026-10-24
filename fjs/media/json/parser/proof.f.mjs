@@ -9,12 +9,13 @@
  * @import { Json, NumberPolicy, Out, ParseUnknown, Text } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
 import { escape, json, string } from '../../../ebnf/lib/json/module.f.mjs'
 import { mappings, parse as parseWithPolicy, stringMappings, syntaxError, textAt } from './module.f.mjs'
+import { isObject } from '../../../types/object/module.f.mjs'
 
 const { is } = Object
 
@@ -184,7 +185,7 @@ export const proof = {
         assert(objects instanceof Array)
         assertEq(objects.length, s)
         const entries = parsed(`{${Array.from({ length: s }, (_, i) => `"k${i}":[]`).join(',')}}`)
-        assert(typeof entries === 'object' && entries !== null && !(entries instanceof Array))
+        assert(isObject(entries))
         assertEq(Object.keys(entries).length, s)
         const m = 12_000
         const wide = parsed(`[${Array.from({ length: m }, (_, i) => i).join(',')}]`)

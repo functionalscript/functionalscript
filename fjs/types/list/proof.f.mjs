@@ -1,12 +1,17 @@
 /**
  * @import { Unknown } from '../../media/json/types.ts'
+ * @import { DemoEvent } from '../../website/demo/types.ts'
  * @import { List } from './types.ts'
  */
 
-import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, isEmpty, sameItems, tryFold, intersperse, mergeAdjacent } from './module.f.mjs'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, findMap, isEmpty, sameItems, tryFold, intersperse, mergeAdjacent } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { addition, reduceToScan } from '../function/operator/module.f.js'
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { demo, listing, parse } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { unwrap } from '../result/module.f.js'
 
 /** @type {(sequence: List<Unknown>) => string} */
 const str = sequence => stringifySorted(toArray(sequence))
@@ -330,6 +335,16 @@ export const proof = {
     flatMap: flatMapTest,
     take: takeTest,
     find: findTest,
+    findMap: [
+        () => assertEq(findMap((/** @type {number} */ x) => x % 2 === 0 ? x * 10 : null)([1, 3, 4, 6]), 40),
+        () => assertEq(findMap(() => null)([1, 2]), null),
+        () => assertEq(findMap(() => 'x')([]), null),
+        // lazy: nothing after the first answer is asked
+        () => assertEq(findMap((/** @type {number} */ x) => {
+            assert(x <= 2, x)
+            return x === 2 ? 'two' : null
+        })([1, 2, 3]), 'two'),
+    ],
     takeWhile: takeWhileTest,
     dropWhile: dropWhileTest,
     drop: dropTest,
@@ -399,5 +414,55 @@ export const proof = {
             assertEq(result, '[]')
         },
     ],
+    demo: {
+        /**
+         * **The answers the demo shows are this module's own.** Pinned so a
+         * change to a combinator, or to how the demo prints it, lands on a
+         * test rather than only on a page.
+         */
+        listing: () => assertEq(listing([3, 1, 4]), [
+            'toArray(map(x => x * 2)(xs))           [6, 2, 8]',
+            'toArray(filter(x => x % 2 === 0)(xs))  [4]',
+            'fold(x => acc => acc + x)(0)(xs)       8',
+            'toArray(foldScan(addition)(0)(xs))     [3, 4, 8]',
+            'toArray(reverse(xs))                   [4, 1, 3]',
+            'toArray(take(3)(xs))                   [3, 1, 4]',
+            'toArray(intersperse(0)(xs))            [3, 0, 1, 0, 4]',
+            'toArray(entries(xs))                   [[0, 3], [1, 1], [2, 4]]',
+            "toArray(zip(xs)(['a', 'b']))           [[3, 'a'], [1, 'b']]",
+            'toArray(take(10)(cycle(xs)))           [3, 1, 4, 3, 1, 4, 3, 1, 4, 3]',
+        ].join('\n')),
+        // Commas, spaces and line breaks all separate; anything that is not a
+        // whole number is named.
+        parse: () => {
+            assertEq(str(unwrap(parse(' 1,2\n 3 '))), '[1,2,3]')
+            assertEq(str(unwrap(parse(''))), '[]')
+            assertEq(str(parse('1, 2.5')), '["error","a whole number of at most six digits, not: 2.5"]')
+            assertEq(str(parse('9007199254740993')), '["error","a whole number of at most six digits, not: 9007199254740993"]')
+            assertEq(str(parse('1000000')), '["error","a whole number of at most six digits, not: 1000000"]')
+            assertEq(str(unwrap(parse('-999999 999999'))), '[-999999,999999]')
+            assertEq(str(parse('1,\t,2')), '["error","a whole number of at most six digits, not: \\t"]')
+            assertEq(str(parse('0x10')), '["error","a whole number of at most six digits, not: 0x10"]')
+            assertEq(str(unwrap(parse('-3 0'))), '[-3,0]')
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            /** @type {(event: DemoEvent) => (state: string) => string} */
+            const step = event => state => {
+                const [result] = runPure(demo.update(state)(event))
+                return unwrap(assertNotNullish(result,
+                    'expected the demo to reach a value without asking for an operation'))
+            }
+            assertEq(step({ kind: 'input', name: 'xs', value: '1' })(''), '1')
+            assertEq(step({ kind: 'start' })('kept'), 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="xs"'), html)
+            assert(html.includes('take(10)(cycle(xs))'), html)
+            const refused = htmlToString(demo.view('1, x'))
+            assert(refused.includes('a whole number of at most six digits, not: x'), refused)
+        },
+    },
     // stress
 }

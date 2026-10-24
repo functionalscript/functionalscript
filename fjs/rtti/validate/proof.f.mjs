@@ -19,7 +19,7 @@ import {
     assertErrorPath,
     assertOk,
     assertStructurallySame,
-} from '../../asserts/module.f.mjs'
+} from '../../asserts/module.f.js'
 
 /** Both readers with their payload type erased, so a table can hold rows of mixed schemas. */
 
@@ -510,7 +510,7 @@ export const proof = {
             ok: () => assertStructurallySame(
                 unwrap(validate([42, 'hello'])([42, 'hello'])), [42, 'hello']),
             // A tuple is CLOSED, so a longer array is not one of its values —
-            // see "Structs and tuples are closed" in ../README.md. Under
+            // see ../guide/schemas/closed-containers/README.md. Under
             // `open` it is, and it comes back as it went in.
             extraItemsRejected: () => {
                 const long = [42, 1, 2, 3]
@@ -926,8 +926,8 @@ export const proof = {
             assert(visits <= 3 * depth, 'the shared operand is walked once per level, not once per arm')
         }
     },
-    // The walk is bounded by what the value and its prototypes carry rather
-    // than by `length`: a sparse array as long as the index space allows
+    // The walk is bounded by the value's own indices rather than by
+    // `length`: a sparse array as long as the index space allows
     // answers at once, where materializing the range exhausted memory first.
     // The verdicts are the ordinary ones — a bare tuple is too short for it,
     // a rest with nothing present past the prefix admits it.

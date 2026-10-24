@@ -5,13 +5,16 @@
  * [mvp-roadmap](../../../nanvm/lib/todo/mvp-roadmap.md),
  * [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md).
  *
- * The node printer, its temporaries and the lines of a scope are not this
- * module's own: they live in
- * [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared with
- * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs), which prints the
- * operator conformance corpus the same way. What is specific to this module:
+ * [`fjs/edag/rust`](../../edag/rust/module.f.mjs) admits the graph, then
+ * the shared EDAG-to-FAST conversion and preparation passes establish its
+ * bindings and regions. [`fjs/rust/serializer`](../../rust/serializer/module.f.mjs)
+ * spells that prepared program, through the same pipeline used by
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) for the operator corpus.
+ * What is specific to this module:
  * laying a module's scope out as the body of the
- * `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>` a harness can call —
+ * `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>` a
+ * harness can call with the runtime value it built once
+ * (`fjs/js/runtime/README.md`, "How NaNVM finds it") —
  * `A: IStaticFunction` once the module holds a function, the capability its
  * closures bind through — and importing exactly the `nanvm_lib` names the
  * printer reports its text spells (`scope`'s `uses`, `useLines`) — the
@@ -36,7 +39,7 @@
 
 import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.js'
 import { analysis, checked } from '../../edag/analysis/module.f.mjs'
-import { holdsFunction, readsArgs, scopeTagged, useLinesTagged } from '../../edag/rust/module.f.mjs'
+import { holdsFunction, needsRuntime, readsArgs, scopeTagged, useLinesTagged } from '../../edag/rust/module.f.mjs'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.mjs'
 
@@ -51,10 +54,8 @@ import { fromTagged, tagged, untagged, withNames } from '../../text/marked/modul
 const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
 
 /**
- * The module's scope, one line per temporary and its `Ok(…)`, indented into
- * the module's function, with the names it spells —
- * `fjs/edag/rust`'s {@link scope}, which also prints every function's body
- * the module holds, each a scope of its own inside its closure — or the
+ * The prepared module scope, indented into the module's function, with the
+ * names it spells, or the
  * refusal. Validate bindings against their owning functions before printing:
  * a fixed read cannot reach past its owner's length, and a closure's frame
  * belongs to the enclosing scope. The fragment printer cannot perform that
@@ -64,15 +65,55 @@ const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
  * printed as a name nothing binds; a module has no frame either, and a
  * `['frame', i]` in its own scope is `checked`'s refusal.
  *
- * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
+ * `text` is the text a caller gives a function node in place of the
+ * writer's, where it gives one: the runtime's built-ins
+ * ([`./runtime`](./runtime/module.f.mjs)), each the NativeFunction text of
+ * its path. `runtime` names the runtime value in the scope, a compiled
+ * module's parameter, or is `null` for the runtime module itself, which
+ * has none and may use nothing it defines.
+ *
+ * @type {(root: Exp, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null) => Result<Scope, readonly unknown[]>}
  */
-const body = root => {
+const body = (root, text, runtime) => {
     const [kind, a] = okThen(checked)(analysis(root))
     if (kind === 'error') { return error([a, root]) }
     return readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
-    : mapOk((/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(l => `${indent}${l}`), uses }))(scopeTagged(root))
+    : mapOk((/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(l => `${indent}${l}`), uses }))(scopeTagged(root, text, runtime))
 }
+
+/**
+ * A module's scope as one Rust function item, tagged, with the names it
+ * spells and the bound on its VM parameter, under `#[rustfmt::skip]`:
+ * {@link generateTagged}'s `module`,
+ * `pub fn module<A: bound>(runtime: Any<A>) -> Result<Any<A>, Any<A>>`,
+ * of the runtime value every compiled module takes — named `_runtime`
+ * where the module reaches no built-in, so the parameter is the same and
+ * `-D warnings` is kept — and the runtime module's own `runtime`
+ * ([`./runtime`](./runtime/module.f.mjs)), `pub fn runtime<A: bound>()`,
+ * with no parameter, since it is the value, and with the texts `text`
+ * gives its built-ins. `runtime` is the parameter's name, or `null` for
+ * none.
+ *
+ * @type {(name: string, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null) => (root: Exp) => Result<{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }, readonly unknown[]>}
+ */
+export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Scope} */ { lines, uses }) => {
+    const bound = vmBound(root)
+    const parameter = runtime === null ? '' : `${needsRuntime(root) ? runtime : `_${runtime}`}: Any<A>`
+    return {
+        lines: [
+            '#[rustfmt::skip]',
+            // Preparation preserves the condition even when both results agree.
+            // Folding those arms here would introduce a target-specific pass.
+            '#[allow(clippy::if_same_then_else)]',
+            `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} ${name}<A: ${bound}>(${parameter}) -> Result<Any<A>, Any<A>> {`,
+            ...lines,
+            '}',
+        ],
+        uses,
+        bound,
+    }
+})(body(root, text, runtime))
 
 /**
  * The EDAG as a generated Rust module, or the refusal: a node shape this
@@ -82,30 +123,26 @@ const body = root => {
  * Invalid length metadata or a node shared across invocation scopes is
  * refused through the same diagnostic channel.
  *
- * `pub fn module` carries `#[rustfmt::skip]`, the same as every function
- * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) emits: the layout is
- * the printer's own — one temporary per line, a closure's body a block
- * under its `let` — and not rustfmt's, which breaks a closure argument
+ * `pub fn module` carries `#[rustfmt::skip]` — the policy
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs)'s output gets once, on
+ * its `mod` declaration, which a compiled module has no hand-written
+ * owner to carry: the layout is
+ * the serializer's own — prepared declarations and expression regions,
+ * including each closure's body — and not rustfmt's, which breaks a closure argument
  * and a method chain its own way, and a line still grows with the items
  * of one literal. A layout-preserving printer would have to reproduce
  * rustfmt's own wrapping, which is what the skip avoids paying for.
  *
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
-const generateTagged = root => mapOk((/** @type {Scope} */ { lines, uses }) => {
-    const bound = vmBound(root)
-    return [
-        tagged('comment')(generatedHeader('`fjs compile`', 'recompile the source module instead')),
-        '',
-        ...useLinesTagged(uses, bound),
-        '',
-        '#[rustfmt::skip]',
-        `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} module<A: ${bound}>() -> Result<Any<A>, Any<A>> {`,
-        ...lines,
-        '}',
-        '',
-    ].join('\n')
-})(body(root))
+const generateTagged = root => mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }} */ { lines, uses, bound }) => [
+    tagged('comment')(generatedHeader('`fjs compile`', 'recompile the source module instead')),
+    '',
+    ...useLinesTagged(uses, bound),
+    '',
+    ...lines,
+    '',
+].join('\n'))(itemTagged('module', undefined, 'runtime')(root))
 
 /**
  * {@link generateTagged} as plain text, the form every caller before marked

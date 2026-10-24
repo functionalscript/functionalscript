@@ -34,18 +34,25 @@
  * template ::= noSubstitutionTemplate
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' statement* terminator '}'
- * statement ::= const | 'if' '(' value ')' block
- *             | 'let' id '=' value end | 'while' '(' value ')' loopBlock
+ * statement ::= const | 'if' '(' value ')' block | let
+ *             | 'while' '(' value ')' loopBlock | bodyNameStatement
+ * let    ::= 'let' bindingTarget '=' value end
  * terminator ::= 'return' value end | 'throw' value end
+ *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
+ * caseTail ::= 'case' value ':' caseTail | block afterCase
+ * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
+ *            | '}' statement* terminator
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | id '=' value end
+ * loopStatement ::= const | let | bodyNameStatement
+ * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
  * func   ::= [ '...' id ] ')' '=>' body
- * afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
+ * afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
  *              | '=' value [ ',' [ names ] ] ')' '=>' body
  * arrowOrRest ::= '=>' body | access* powTail tail
+ * parenItems ::= '...' id | value [ '=' value ] [ ',' [ parenItems ] ]
  * names  ::= '...' id | target [ '=' value ] [ ',' [ names ] ]
- * group  ::= value ')' access* powTail
- * groupOperand ::= value ')' access*
+ * group  ::= value { ',' value } ')' access* powTail
+ * groupOperand ::= value { ',' value } ')' access*
  * powTail ::= [ '**' unary ]
  * eagerTail ::= { mulOp unary }
  *            { addOp unary <the multiplicative repeat above> }
@@ -63,7 +70,8 @@
  * access ::= '.' id | '[' value ']' | '(' [ items(item) ] ')'
  *          | '?.' optionalStep
  * optionalStep ::= id | '[' value ']' | '(' [ items(item) ] ')'
- * array  ::= '[' [ items(item) ] ']'
+ * array  ::= '[' [ elements ] ']'
+ * elements ::= ',' [ elements ] | item [ ',' [ elements ] ]
  * item   ::= '...' value | value
  * object ::= '{' [ items(entry) ] '}'
  * entry  ::= '...' value | member
@@ -81,7 +89,7 @@
  * was meant.
  *
  * `tail`, the binary-operator suffix — Stage A of
- * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md)
+ * [`spec/operators/README.md`](../../../../spec/operators/README.md)
  * and Stage B, the lazy operators and the conditional, above it — is
  * spread inline onto every branch that may carry one, rather than
  * wrapping a shared primary the way a textbook precedence ladder would:
@@ -99,7 +107,7 @@
  * - **Trivia is no symbol.** Whitespace, newlines and comments are not in
  *   the stream the grammar reads: the tokenizer leaves them out and marks
  *   each token with whether a newline stood before it, `newline` in
- *   `DjsTokenWithMetadata`. So no rule mentions them, none begins with
+ *   `ModuleTokenWithMetadata`. So no rule mentions them, none begins with
  *   them — the classical grammar's statement terminator and the module's
  *   final optional `;` both did, a first/first conflict on the trivia
  *   symbols — and the two places JavaScript forbids a line break, before
@@ -129,38 +137,38 @@
  *
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
- * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
-import { assert } from '../../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.js'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
-import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
-import { literalWords } from '../../../js/keywords/module.f.js'
-import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
+import { encoding } from '../../../ebnf/token_symbol/module.f.js'
+import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
+import { _moduleTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
-import { eagerLayers, lazyLayers } from '../../ast/module.f.mjs'
+import { eagerLayers, lazyLayers } from '../../ast/module.f.js'
 
 const { fromEntries } = Object
 
 /**
- * The token kinds, every `DjsToken` kind but `eof`: the tokenizer's
+ * The token kinds, every `ModuleToken` kind but `eof`: the tokenizer's
  * physical end-of-input token is split off the stream before any name is
  * mapped, and the backend synthesizes its own logical one. The kinds are
- * the tokenizer's own list, {@link _djsTokenKinds}, rather than a copy of it.
+ * the tokenizer's own list, {@link _moduleTokenKinds}, rather than a copy of it.
  *
  * The names are the *token* vocabulary, not the tokenizer grammar's tag
- * vocabulary: only twelve punctuators survive into `DjsToken`, so the JS
+ * vocabulary: only twelve punctuators survive into `ModuleToken`, so the JS
  * operator set the tokenizer recognizes is far larger than what reaches
  * this layer.
  *
  * The `_…AreComplete` assertions in `./types.ts` check both halves
- * against `DjsToken` and `_FramingKeyword` at compile time, so a kind or
+ * against `ModuleToken` and `_FramingKeyword` at compile time, so a kind or
  * keyword added there breaks the build rather than going unrepresented.
  * Exported with a leading `_` for that linkage — the export is not API.
  */
-export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
+export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
 
 /**
  * The keywords a rule below *requires* in some position, which the
@@ -168,7 +176,8 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * own list because {@link symbolOf} has to recognize exactly these values,
  * not merely encode them. Six frame a module, `return` and `throw` end a
  * function's block body — `throw` a module too — `if` opens a guard in
- * one, `let` and `while` a loop, and `as` introduces an import alias.
+ * one, `let` and `while` a loop, `switch` and `case` a switch, and `as`
+ * introduces an import alias.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
  * carries its own symbol, a rule whose identifier terminal is the bare `id`
@@ -190,15 +199,16 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'as', 'typeof', 'instanceof'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'switch', 'case', 'as', 'typeof', 'instanceof'])
 
 /**
- * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
- * one per keyword above. No keyword collides with a kind, so the two
- * lists concatenate without a name being registered twice — which
- * `encoding` would reject anyway.
+ * The complete alphabet: one name per `ModuleToken` kind except `eof`, plus
+ * one per keyword above, plus `keyword`, the one symbol of every other
+ * word `fjs/js/keywords` reserves, {@link symbolOf}. No keyword collides
+ * with a kind, so the lists concatenate without a name being registered
+ * twice — which `encoding` would reject anyway.
  */
-export const _ordinaryTokenNames = [..._tokenKindNames, ..._framingKeywords]
+export const _ordinaryTokenNames = [..._tokenKindNames, ..._framingKeywords, /** @type {const} */ ('keyword')]
 
 const alphabet = encoding(_ordinaryTokenNames)
 
@@ -207,18 +217,26 @@ export const sym = alphabet.encode
 
 /**
  * One token as the parser's input: the symbol of its kind — of its word,
- * for a keyword with its own symbol — with the whole token as metadata, so that a fold
- * above still has its value and its position.
+ * for a keyword with its own symbol, and `keyword` for any other word
+ * `fjs/js/keywords` reserves, `else` or `var` — with the whole token as
+ * metadata, so that a fold above still has its value and its position.
+ *
+ * `keyword` stands wherever {@link identifier} does, so a reserved word is
+ * a key and a property name as in JavaScript, and a binding or a reference
+ * the fold refuses at the word; and it is kept out of
+ * {@link assignable}, the words a statement may begin with, so `else`,
+ * `var` or `for` opening a statement is refused at the word, as no rule
+ * begins with it.
  *
  * `eof` has no symbol: a stream reaching here has had it split off, and
  * one that has not is a caller's mistake, not bad input.
  *
- * @type {(t: DjsTokenWithMetadata) => Meta<DjsTokenWithMetadata>}
+ * @type {(t: ModuleTokenWithMetadata) => Meta<ModuleTokenWithMetadata>}
  */
 export const symbolOf = t => {
     const { token } = t
     const keyword = token.kind === 'id' ? _framingKeywords.find(k => k === token.value) : undefined
-    const name = keyword ?? token.kind
+    const name = keyword ?? (token.kind === 'id' && isKeyword(token.value) ? 'keyword' : token.kind)
     assert(name !== 'eof', ['eof token reached the parser alphabet', t])
     return { symbol: sym(name), meta: t }
 }
@@ -231,6 +249,7 @@ export const symbolOf = t => {
  */
 export const identifier = /** @type {const} */ ({
     id: sym('id'),
+    keyword: sym('keyword'),
     import: sym('import'),
     const: sym('const'),
     export: sym('export'),
@@ -242,6 +261,8 @@ export const identifier = /** @type {const} */ ({
     if: sym('if'),
     let: sym('let'),
     while: sym('while'),
+    switch: sym('switch'),
+    case: sym('case'),
     as: sym('as'),
     // required only where a tail continues, after an operand, where no
     // reference may stand — so unlike `typeof` it opens no second branch
@@ -319,7 +340,7 @@ export const items = item => {
  * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
  * space since `1.x` is one number and a stray word in JavaScript. Stages A
  * and B of
- * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md):
+ * [`spec/operators/README.md`](../../../../spec/operators/README.md):
  * arithmetic (`+ - * / % **`, and unary `-`), strict comparison
  * (`=== !== > >= < <=`), bitwise (`& | ^ ~ << >> >>>`), the lazy operators
  * (`&& || ??`) and the conditional (`?:`). `==`/`!=` stay refused, and the
@@ -357,8 +378,7 @@ export const template = () => ['const', {
 }]
 
 /**
- * A call's arguments: the items an array holds, {@link values}, reached
- * through a thunk.
+ * A call's arguments: {@link values}, reached through a thunk.
  *
  * This is where the grammar's cycle is broken a second time — a value takes
  * steps, a step may be a call, and a call holds values, so `access` would
@@ -421,7 +441,7 @@ const reference = /** @type {const} */ ([identifier, accesses])
  * Every binary layer's rounds keyed by a name none of the other layers
  * use, read back to the operator's tag — which is also the token the round
  * opens with, so {@link opOf} makes each layer's grammar from its own
- * record of `eagerLayers` or `lazyLayers` in `../../ast/module.f.mjs`, and
+ * record of `eagerLayers` or `lazyLayers` in `../../ast/module.f.js`, and
  * this one merged map serves `../syntax/module.f.mjs` a round from any
  * layer with a plain lookup. `**` is not here: it is {@link powTail}'s, no
  * layer's round. The lookup is by a name read at run time, so it is typed
@@ -442,7 +462,7 @@ const opOf = tags => fromEntries(definedEntries(tags).map(([name, tag]) => [name
 
 /**
  * The short-circuit operators, Stage B of
- * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md),
+ * [`spec/operators/README.md`](../../../../spec/operators/README.md),
  * each a choice of its own rather than one of three branches, since which
  * of them opens a chain decides what may follow it — see
  * {@link circuitTail}.
@@ -484,6 +504,37 @@ export const parameterNames = () => ['const', {
     rest: [sym('...'), identifierName],
     fixed: [bindingTarget, option([sym('='), value]), option([sym(','), option(parameterNames)])],
 }]
+
+/**
+ * What follows `(` value `,`: the parameters after a named list's first,
+ * or the operands after a comma's first — `b, c` in `(a, b, c) => 1` and
+ * in `(a, b, c)`, which agree up to the `)`. So this is a cover, as the
+ * first value is ({@link afterValue}): each item is read as a value, with
+ * a default, `= value`, where it has one, and a trailing comma allowed;
+ * the rest parameter, `...r`, keeps a plain name and ends the list. What
+ * follows the `)` decides the reading, {@link arrowOrRest}: `=>` makes the
+ * items parameters, and the fold refuses one that is no binding target;
+ * anything else makes them a comma's operands, and the fold refuses a
+ * default, a rest and a trailing comma, none of which a comma has
+ * ([spec: operators](../../../../spec/operators/README.md)). One symbol
+ * decides each choice: `...` begins no value, and `=` follows a value
+ * here and nowhere a value goes on.
+ *
+ * @type {ParenItems}
+ */
+export const parenItems = () => ['const', {
+    rest: [sym('...'), identifierName],
+    fixed: [value, option([sym('='), value]), option([sym(','), option(parenItems)])],
+}]
+
+/**
+ * The operands after a comma's first in a group no function may open,
+ * {@link group} and {@link groupOperand}: each `,` and the value after
+ * it, as many as are written.
+ *
+ * @type {CommaOperands}
+ */
+const commaOperands = repeatFrom0([sym(','), value])
 
 /**
  * What a prefix takes: every value but a function. JavaScript's
@@ -592,7 +643,7 @@ export const unaryOperand = () => ['const', {
 
 /**
  * The eager binary-operator suffix, one layer per record of `eagerLayers`
- * in `../../ast/module.f.mjs`, tightest first, `|` the ladder's own top:
+ * in `../../ast/module.f.js`, tightest first, `|` the ladder's own top:
  * every layer whose operands are all established, and so the first part
  * of {@link tail}, and every lazy operator's own operand — `unary`
  * followed by these lists, which is what a `bitwiseOr`-level expression
@@ -805,9 +856,11 @@ export const arrowOrRest = {
 
 /**
  * What follows the value a `(` opened: `,` — the value is the first of a
- * named parameter list, and the names after it, the `)`, `=>` on the same
- * line and the body follow — or `)`, after which {@link arrowOrRest} tells
- * the one-parameter function `(a) => 1` from the group `(a)` — or `=`,
+ * named parameter list or of a comma's operands, the items after it,
+ * {@link parenItems}, and the `)` follow, after which {@link arrowOrRest}
+ * tells the function `(a, b) => 1` from the comma `(a, b)` — or `)`, after
+ * which {@link arrowOrRest} tells the one-parameter function `(a) => 1`
+ * from the group `(a)` — or `=`,
  * the value being the first parameter and what follows the `=` its
  * default, after which only a list goes on: the names after a `,`, if
  * any, the `)`, `=>` and the body. `(a = 1)` is no group, an assignment
@@ -819,21 +872,24 @@ export const arrowOrRest = {
  * a value, the way JavaScript's own cover grammar does, and the fold
  * checks it is a plain name where the `=>` or the `,` says a parameter was
  * meant — a reference, not grouped again, `((a)) => 1` being a syntax
- * error in JavaScript. The names after the comma are
- * {@link parameterNames}, read as names outright: nothing but a list
- * continues with a comma there.
+ * error in JavaScript. The items after the comma are values too, for the
+ * same reason, {@link parenItems}; after a default only a list goes on,
+ * so the names after it are {@link parameterNames}, read as names
+ * outright.
  *
  * @type {AfterValue}
  */
 export const afterValue = {
-    list: [sym(','), option(parameterNames), sym(')'), sym('=>'), body],
+    list: [sym(','), option(parenItems), sym(')'), arrowOrRest],
     closed: [sym(')'), arrowOrRest],
     default: [sym('='), value, option([sym(','), option(parameterNames)]), sym(')'), sym('=>'), body],
 }
 
 /**
- * A group after its `(`: any value, the `)`, and the steps after it. A
- * group denotes the value it holds and nothing more — `(x)` is `x`, the
+ * A group after its `(`: any value — or a comma's operands, each `,` and
+ * the value after it, {@link commaOperands}, `(a, b)` being the comma
+ * operator's, which makes a node of its own — the `)`, and the steps after
+ * it. A group denotes the value it holds and nothing more — `(x)` is `x`, the
  * graph and its sharing as if the parentheses were not written, which is
  * what JavaScript means by them — so it makes no node of its own and there
  * is no canonical form to choose.
@@ -856,7 +912,7 @@ export const afterValue = {
  *
  * @type {Group}
  */
-export const group = [value, sym(')'), accesses, powTail]
+export const group = [value, commaOperands, sym(')'), accesses, powTail]
 
 /**
  * What a `(` opens: the rest of a function whose list is the rest
@@ -890,7 +946,8 @@ export const parenGroup = [sym('('), group]
 
 /**
  * A group after its `(`, without the power {@link group} itself may
- * carry: the value, `)` and the steps the group takes — everything
+ * carry: the value or a comma's operands, `)` and the steps the group
+ * takes — everything
  * {@link group} has but its own {@link powTail}.
  * `-(1).x` is the negation of the access, but `-(1) ** 2` is a syntax
  * error in JavaScript, so {@link unaryOperand}'s restricted `(` stops
@@ -898,7 +955,7 @@ export const parenGroup = [sym('('), group]
  *
  * @type {GroupOperand}
  */
-export const groupOperand = [value, sym(')'), accesses]
+export const groupOperand = [value, commaOperands, sym(')'), accesses]
 
 /**
  * `(` and {@link groupOperand}: what a prefix may take in
@@ -954,10 +1011,36 @@ export const entries = items(entry)
  */
 export const item = { spread: [sym('...'), value], value }
 
-/** The items of an array. A rule of its own, so that a reader may map it. */
+/**
+ * The items of a call's arguments, {@link item}s with no elision between
+ * them, as JavaScript's `Arguments` have none: `f(a, , b)` stops at its
+ * second comma. A rule of its own, so that a reader may map it.
+ */
 export const values = items(item)
 
-export const array = /** @type {const} */ ([sym('['), option(values), sym(']')])
+/**
+ * The elements of an array: {@link item}s, as a call's {@link values} are,
+ * and an **elision** before any of them — a comma where an item would
+ * begin, `[, a]`, `[a, , b]` and `[a, ,]`, each skipping a position, as
+ * JavaScript's `Elision` does. `,` begins no item, so one symbol decides.
+ *
+ * An array of this language has no hole
+ * ([spec: arrays](../../../../spec/values/arrays/README.md)), so the rule admits
+ * the elision for a pattern's sake alone: a pattern is read by this rule,
+ * {@link bindingTarget}, and there an elision skips an element of the
+ * source ([spec: destructuring](../../../../spec/bindings/destructuring/README.md)).
+ * Which of the two the text is, the position alone decides, so the reader
+ * records the elision and the fold refuses it in a value.
+ *
+ * @type {Elements}
+ */
+export const elements = () => ['const', {
+    elision: [sym(','), option(elements)],
+    item: [item, option([sym(','), option(elements)])],
+}]
+
+/** @type {ArrayLiteral} */
+export const array = [sym('['), option(elements), sym(']')]
 
 export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')])
 
@@ -968,7 +1051,7 @@ export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')
  * of what follows: `;` begins no statement and no statement's
  * continuation, so one symbol of lookahead still decides. Whether the
  * token after an omitted `;` begins a line is the token's to say,
- * `newline` in `DjsTokenWithMetadata`, and the reader in `../module.f.mjs`
+ * `newline` in `ModuleTokenWithMetadata`, and the reader in `../module.f.mjs`
  * refuses the same-line case JavaScript refuses.
  *
  * @type {End}
@@ -980,7 +1063,7 @@ export const end = option([sym(';')])
  * binding pattern — an array or an object, {@link array} and
  * {@link object}, the value rules' own, since a pattern spells the literal
  * the same text would and JavaScript reads the two apart by position alone
- * ([spec: destructuring](../../../../spec/bindings/destructuring.md)). A
+ * ([spec: destructuring](../../../../spec/bindings/destructuring/README.md)). A
  * name's word, `[` and `{` begin nothing else in either position, so one
  * symbol decides. What the literal reads that no pattern may hold — a
  * value in a binding position, a spread, a computed key — is the reader's
@@ -996,7 +1079,7 @@ export const bindingTarget = { name: identifierName, array, object }
 /**
  * A `const` statement: what it binds, {@link bindingTarget}, `=`, the
  * value, and its {@link end}. A module's statement and a function body's
- * alike — {@link djsModule} takes a run of them after the imports, and
+ * alike — {@link module} takes a run of them after the imports, and
  * {@link block} a run of them before the `return`.
  *
  * Declared here, above {@link block}, rather than with the other module
@@ -1008,25 +1091,78 @@ export const bindingTarget = { name: identifierName, array, object }
 export const constStatement = [sym('const'), bindingTarget, sym('='), value, end]
 
 /**
+ * What follows a case's label: another label, `case`, a value, `:` and
+ * this rule again — so a case stacks any number of labels over its one
+ * block, `case a: case b: { … }`, as in JavaScript — or the case's
+ * {@link block}, the guard's own, so the case ends as every block does,
+ * in `return`, `throw` or a switch with a `default`, and never falls
+ * through into the next
+ * ([spec: switch](../../../../spec/control-flow/switch/README.md)), and then
+ * what follows the case, {@link afterCase}. `case` and `{` decide the
+ * two in one symbol. A case without braces, and `break`, are follow-ups.
+ *
+ * A thunk, and a variant: the block holds the terminator, which holds the
+ * case, which holds this, and a rule names itself across a block through
+ * a variant, as {@link statement} does — `fjs/ebnf/ast` expands a
+ * variant's branch when it is read and a tuple's element as it builds the
+ * tuple, so a cycle through a tuple alone has no finite type.
+ *
+ * @type {CaseTail}
+ */
+export const caseTail = () => ['const', {
+    case: [sym('case'), value, sym(':'), caseTail],
+    block: [block, afterCase],
+}]
+
+/**
+ * What follows a case's block: the next case, `case`, its first label,
+ * `:` and its {@link caseTail}; `default`, `:`, a {@link block} and the
+ * `}`, which ends the block the switch stands in — nothing may follow, as
+ * nothing follows a `return`; or that `}` alone, and then the statements
+ * and the terminator of the block the switch stands in, which are what
+ * runs when no label matched, as the statements after a guard run when
+ * its condition is falsy. `case`, `default` and `}` decide the three in
+ * one symbol, and `default` last is the one place it stands. A thunk and
+ * a variant, as {@link caseTail} is.
+ *
+ * @type {AfterCase}
+ */
+export const afterCase = () => ['const', {
+    case: [sym('case'), value, sym(':'), caseTail],
+    default: [sym('default'), sym(':'), block, sym('}')],
+    rest: [sym('}'), repeatFrom0(statement), terminator],
+}]
+
+/**
  * The statement a block ends with, {@link terminator}: `return value`, or
  * `throw value` — the function fails with the value, the language's one way
- * to fail on purpose ([spec: functions](../../../../spec/functions/README.md)).
- * Each is followed by its own {@link end}. JavaScript has
- * `throw [no LineTerminator here] Expression` exactly as it has `return`'s,
- * so the reader refuses a value beginning a line after either the same way
- * ({@link block}). One symbol decides between the two.
+ * to fail on purpose ([spec: functions](../../../../spec/functions/README.md))
+ * — or a switch, `switch (value) { case value: …`, its first case begun
+ * here and the rest of it {@link caseTail}'s: every case ends in one of
+ * the two, and the switch ends the block itself with a `default` or hands
+ * it on to the statements after it, {@link afterCase} — the one statement
+ * that holds the rest of its block, so that the block is a terminator
+ * short exactly when the switch has the `default` the grammar then lets
+ * nothing follow ([spec: switch](../../../../spec/control-flow/switch/README.md)).
+ * A switch with no case has no place here, so `switch (v) {}` is refused
+ * at its `}` and `switch (v) { default: … }` at its `default`.
+ * `return` and `throw` are each followed by their own {@link end}.
+ * JavaScript has `throw [no LineTerminator here] Expression` exactly as
+ * it has `return`'s, so the reader refuses a value beginning a line after
+ * either the same way ({@link block}). One symbol decides among the three.
  *
  * @type {Terminator}
  */
 export const terminator = /** @type {const} */ ({
     return: [sym('return'), value, end],
     throw: [sym('throw'), value, end],
+    switch: [sym('switch'), sym('('), value, sym(')'), sym('{'), sym('case'), value, sym(':'), caseTail],
 })
 
 /**
  * A statement of a function's block body before its {@link terminator}: a
  * `const`, or a guard, `if (condition) block` — its block this same
- * {@link block}, so the branch always ends in `return` or `throw`, and the
+ * {@link block}, so the branch always ends in a terminator, and the
  * statements after the guard are what runs when the condition is falsy
  * ([spec: functions](../../../../spec/functions/README.md)). No {@link end}
  * follows the guard's `}`: a block statement takes no `;` in JavaScript,
@@ -1038,50 +1174,84 @@ export const terminator = /** @type {const} */ ({
  * guard admits one form, and the others are follow-ups
  * ([spec: functions](../../../../spec/functions/README.md)).
  *
- * A loop is two statements, `let name = value;` and `while (condition)
- * loopBlock`, the second right after the first — one form, read by the
- * fold as one ([spec: loops](../../../../spec/control-flow/loops.md)); the
- * grammar reads each as a statement of its own, since one symbol decides
- * each, and leaves their adjacency to the fold, as it leaves the guard's
- * block's ending to it. No {@link end} follows the loop's `}`, as none
- * follows the guard's.
+ * A `let` is a declaration as a `const` is, {@link letStatement}, and a
+ * loop is `while (condition) loopBlock`: two statements the grammar reads
+ * where a `const` may stand, each on its own, since one symbol decides
+ * each; which variable a loop steps is the fold's to find, from the
+ * assignments in its block
+ * ([spec: loops](../../../../spec/control-flow/loops/README.md)). No
+ * {@link end} follows the loop's `}`, as none follows the guard's.
+ *
+ * A statement that begins with a name is an assignment or a call
+ * statement, {@link bodyNameStatement}: the keywords above each open a
+ * statement of their own, and a name is none of them.
  *
  * @type {Statement}
  */
 export const statement = () => ['const', {
     const: constStatement,
     if: [sym('if'), sym('('), value, sym(')'), block],
-    let: [sym('let'), identifierName, sym('='), value, end],
+    let: letStatement,
     while: [sym('while'), sym('('), value, sym(')'), loopBlock],
+    name: bodyNameStatement,
 }]
 
 /**
- * The words a loop's assignment may name: `id`, and the two framing
- * keywords JavaScript leaves ordinary, `from` and `as` — the words a `let`
- * may bind. Not {@link identifier}: `const` opens the loop block's other
- * statement, so the two would open on one symbol, and the reserved words
- * among the rest are refused by the fold wherever they are bound.
+ * A `let` statement: `let`, what it binds, {@link bindingTarget}, `=`, the
+ * value, and its {@link end} — the {@link constStatement} under the other
+ * keyword, which declares a variable: a name an assignment,
+ * {@link bodyNameStatement}, may rebind. The initializer is required, as a
+ * `const`'s is: JavaScript's `let x;` is refused at the `;`, by design — a
+ * variable names its value where it is declared
+ * ([spec: variables](../../../../spec/bindings/variables/README.md)).
+ *
+ * @type {LetStatement}
+ */
+export const letStatement = [sym('let'), bindingTarget, sym('='), value, end]
+
+/**
+ * The words a statement may begin with where it is no keyword's: `id`, and
+ * the two framing keywords JavaScript leaves ordinary, `from` and `as` —
+ * the words an assignment may rebind, and the words that may begin a
+ * reference where a statement starts. Not {@link identifier}: every other word with
+ * a symbol of its own opens a statement of its own, `const` or `if`, or is
+ * reserved, and the reserved words among these three are refused by the
+ * fold wherever they are bound.
  */
 export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from'), as: sym('as') })
 
 /**
- * The assignment to a loop's variable, `name = value`, with its
- * {@link end}: the one statement that rebinds a name, and it stands in a
- * loop's block alone ([spec: loops](../../../../spec/control-flow/loops.md)).
+ * A body's statement that begins with a name: the assignment, `name =
+ * value` — the one statement that rebinds a name, a variable a `let` or
+ * a parameter declared
+ * ([spec: variables](../../../../spec/bindings/variables/README.md)) — or a
+ * call statement, `assert(a);`, the rest of the value the name begins, as a
+ * value's name branch reads it, {@link arrowOrRest}
+ * ([spec: call statements](../../../../spec/functions/call-statements/README.md)):
+ * the grammar reads any value a name begins, and the fold admits a call
+ * alone, refusing any other at the name, as the grammar refused it before.
+ * A statement opening with anything but a name is not read: `(` and `[`
+ * continue the statement before it as a call and an index where no `;`
+ * ends it — JavaScript reads `f` on one line and `(g)(x)` on the next as
+ * `f(g)(x)` — so one symbol could not tell them from a new statement's;
+ * and a prefix or a literal opens no call worth a statement. `=` decides the assignment in one symbol, an assignment being no
+ * value of the language; and the {@link end} of either. Which names an
+ * assignment may rebind is the fold's to say.
  */
-export const assignment = /** @type {const} */ ([assignable, sym('='), value, end])
+export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [sym('='), value], ...arrowOrRest }, end])
 
 /**
- * A statement of a loop's block: a `const`, or the {@link assignment}.
- * `const` and a name decide the two in one symbol. A thunk, as
- * {@link statement} is, since the block holds this rule and this rule
- * holds a value.
+ * A statement of a loop's block: a `const`, a `let`, or what begins with
+ * a name, {@link bodyNameStatement}. `const`, `let` and a name decide the
+ * three in one symbol. A thunk, as {@link statement} is, since the block
+ * holds this rule and this rule holds a value.
  *
  * @type {LoopStatement}
  */
 export const loopStatement = () => ['const', {
     const: constStatement,
-    assign: assignment,
+    let: letStatement,
+    name: bodyNameStatement,
 }]
 
 /**
@@ -1099,7 +1269,8 @@ export const loopBlock = /** @type {const} */ ([
 /**
  * A function's block body: `{ const x = 1; return value; }` — any number of
  * {@link statement}s, `const`s and guards, and then the one
- * {@link terminator}, a `return` or a `throw`
+ * {@link terminator}, a `return`, a `throw`, or a switch, which holds the
+ * rest of the block where it has no `default`
  * ([spec: functions](../../../../spec/functions/README.md)).
  *
  * The `const` is {@link constStatement}, the module's own rule: the body
@@ -1172,6 +1343,14 @@ export const importStatement = /** @type {const} */ ([
 ])
 
 /**
+ * A module's statement before its exports: a `const`, a `let`, or what
+ * begins with a name, an assignment or a call statement,
+ * {@link bodyNameStatement}, as a body's. `const`, `let` and a name decide
+ * the three in one symbol.
+ */
+export const moduleStatement = /** @type {const} */ ({ const: constStatement, let: letStatement, name: bodyNameStatement })
+
+/**
  * What a module ends with, after its imports and constants: its exports —
  * `export default value`, or an exported `const`, the statements after it,
  * and optionally the rest of this rule again — or a `throw`, which stands
@@ -1186,19 +1365,21 @@ export const importStatement = /** @type {const} */ ([
 export const lastStatement = () => ['const', {
     export: [sym('export'), {
         default: [sym('default'), value, end],
-        named: [constStatement, repeatFrom0(constStatement), option(lastStatement)],
+        named: [constStatement, repeatFrom0(moduleStatement), option(lastStatement)],
     }],
     throw: [sym('throw'), value, end],
 }]
 
 /**
- * The whole module: imports first, ordinary and exported constants in order,
- * and {@link lastStatement} — at least one export, or a `throw`. Ending on
- * `eof` is what makes a trailing stray token a failure.
+ * The whole module: imports first, ordinary and exported constants,
+ * variables, assignments and call statements in order,
+ * {@link moduleStatement}, and {@link lastStatement} —
+ * at least one export, or a `throw`. Ending on `eof` is what makes a
+ * trailing stray token a failure.
  */
-export const djsModule = /** @type {const} */ ([
+export const module = /** @type {const} */ ([
     repeatFrom0(importStatement),
-    repeatFrom0(constStatement),
+    repeatFrom0(moduleStatement),
     lastStatement,
     eof,
 ])

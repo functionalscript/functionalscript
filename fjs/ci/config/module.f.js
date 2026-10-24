@@ -39,7 +39,7 @@ export const functionalscript = /** @type {const} */ '0.56.0'
 // package definition. Delete this and the table below the day the snapshot
 // carries a Bun this suite passes on.
 // https://bun.sh/
-export const bun = '1.4.3'
+export const bun = '1.4.4'
 
 // The archive that release publishes for each system a generated flake targets,
 // with the SHA-256 its content must have, as an SRI string.
@@ -56,15 +56,15 @@ export const bun = '1.4.3'
 export const bunSources = {
     'aarch64-linux': {
         archive: 'bun-linux-aarch64',
-        hash: 'sha256-76mBPaXtckI7+Ef5FujSxHwNd2rdlyNUAmp14Q2pqiE=',
+        hash: 'sha256-uqa7NvUdblhWHgK76oJQOKnfRU9nPW13bou/hvjHhQ4=',
     },
     'x86_64-linux': {
         archive: 'bun-linux-x64',
-        hash: 'sha256-PnMFKNiXdfA/h/BcBnh8TfQJnQo38/JS57gpyyOBbhg=',
+        hash: 'sha256-v4zL+ysLgBWeD5ptFcVTF63YB3U028YTCj7bUvzLOVw=',
     },
     'aarch64-darwin': {
         archive: 'bun-darwin-aarch64',
-        hash: 'sha256-gK/UwGm0am+o8+xSC+vHUKeEPkqNW5WD0prUNsAKNAM=',
+        hash: 'sha256-wkDX8My5DCY6hJ/NsJt+5iYw2SE0jtaq/ahrnVd7xRA=',
     },
 }
 
@@ -85,7 +85,7 @@ export const deno = '2.8.3'
 // engine, package-lock.json's root engine and .node-version synchronized with
 // this exact pin; an accepted update replaces the supported Node version.
 // https://nodejs.org/en/download
-export const node = /** @type {const} */ ('26.12.0')
+export const node = /** @type {const} */ ('26.12.1')
 
 // The TypeScript this repository type-checks with, and the one the
 // packed-package check installs from npm to check the declarations the packed
@@ -126,13 +126,14 @@ export const rust = '1.99.1'
 // default is six hours, and a job that hangs holds its runner for all of them:
 // two `macos-intel` jobs stuck building their shell held the scarcest runners
 // for three and a half hours before they were cancelled by hand. The slowest
-// job, `macos-intel`, has taken up to 13.3 minutes, so a job past this limit is
-// one that hung rather than one that is slow.
+// job, `macos-intel`, has taken up to 13.3 minutes, too close to a 15-minute
+// limit for a slow runner to finish; twice that leaves room for a slow job,
+// so a job past this limit is one that hung rather than one that is slow.
 //
 // It does not count the wait for a runner. That wait belongs to the merge
 // queue's status check timeout, a repository setting, which has to cover it.
 // https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes
-export const jobTimeout = /** @type {const} */ (15)
+export const jobTimeout = /** @type {const} */ (30)
 
 // Official Nixpkgs snapshot used by the shared flake. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
@@ -149,7 +150,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixpkgs-26.05-darwin',
-    commit: '7529d323f8f9926b38df356da2483c2a4e759d00',
+    commit: 'da6dc0e7b26060f2f71ce3ef7088fb56ee44fa36',
 })
 
 // `rust-overlay`, the second input of the shared flake. Nixpkgs builds

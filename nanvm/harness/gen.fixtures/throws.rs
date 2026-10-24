@@ -4,7 +4,7 @@ use nanvm_lib::vm::unstable::{bigint_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
-    Ok([(string_key("default"), c0)].to_object().to_any())
+#[allow(clippy::if_same_then_else)]
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+    Ok([(string_key("default"), (bigint_any(1) / bigint_any(0))?)].to_object().to_any())
 }

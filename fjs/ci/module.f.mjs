@@ -45,6 +45,7 @@ import { devNixJob } from './dev/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
 import { shellSpiderMonkeyCommands, shellSpiderMonkeyVersionSteps } from './spidermonkey/module.f.mjs'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
+import { smartJobs } from './smart/module.f.mjs'
 
 /**
  * Where the pipeline writes the CI workflow. GitHub reads any `.yml` in
@@ -282,11 +283,11 @@ const canonicalJobs = packageConsumer => ({
  *
  * @type {(setup: Setup) => (rust: boolean) => readonly (readonly [path: string, text: string])[]}
  */
-const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => rust => {
+const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [], smart = false }) => rust => {
     /** @type {Jobs} */
     const jobs = {
         ...Object.fromEntries(os.flatMap(o =>
-            architecture.map(platformJob(rust, nodeExtra(o), mergeQueueOnly.includes(o))(o)))),
+            architecture.map(a => platformJob(rust, nodeExtra(o, a), mergeQueueOnly.includes(o))(o)(a)))),
         ...canonicalJobs(packageConsumer),
     }
     /** @type {GitHubAction} */
@@ -310,7 +311,7 @@ const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => rust =>
         permissions: {
             contents: 'read',
         },
-        jobs,
+        jobs: smart ? smartJobs(jobs) : jobs,
     }
     return [
         [ciPath, workflowText(gha)],

@@ -18,12 +18,40 @@
  * A node with edges draws its `label` as a column left of its rows. An
  * empty `label` draws no column, for a demo whose rows already say what
  * the node is.
+ *
+ * `order`, when given, is the node's place in an animation, drawn as
+ * `data-graph-order`: the site's stylesheet fades a `new` node in and a
+ * `leaving` one out, 150 ms after the order before it, so a change can
+ * appear node by node.
+ *
+ * `key`, when given, names the node across drawings: its box and its text
+ * are each drawn in a group moved into place by a `transform` and keyed
+ * `data-key`, so a page that patches the drawing keeps the same groups for
+ * the same node, and the site's stylesheet slides them from where they
+ * were to where they are. An edge or entry between keyed nodes is keyed by
+ * their keys too, so its route slides with them where the browser animates
+ * a path's `d`, and is redrawn at once where it does not.
+ *
+ * **A node with `groups` draws its label column in pieces**, a cell per
+ * {@link Group}, each beside its own rows, in place of `label`: a record
+ * whose rows fall into parts, such as a chain's links, names each part
+ * where it is. `label` is still what a row of another node names it by.
  */
 export type Node = {
     readonly id: number
     readonly kind: string
     readonly label: string
+    readonly order?: number | undefined
+    readonly key?: string | undefined
+    readonly groups?: readonly Group[] | undefined
 }
+
+/**
+ * One cell of a node's label column: its `label`, beside the next `rows`
+ * of the node's rows. A node's groups take its rows in order and must
+ * take every one of them, at least one each.
+ */
+export type Group = readonly [label: string, rows: number]
 
 /** A {@link Node} once `ranked` (`./module.f.mjs`) has placed it. */
 export type Ranked = Node & { readonly rank: number }
@@ -41,10 +69,25 @@ export type Ranked = Node & { readonly rank: number }
  * **An edge ends at a node, or at an {@link Inline} value** drawn in its
  * port, right of the label, rather than as a node of its own.
  *
+ * **Beside values, an edge's row shows the label of the node it leads
+ * to** in the value's place, its key in the key column, marked
+ * `data-graph-value-ref` so the stylesheet draws it as part of the edge.
+ * So does a row with an empty label beside other edges. In a node whose
+ * rows are all edges with empty labels, no row is drawn at all.
+ *
  * **An edge's kind is about the edge, not about what it points at.** The
  * EDAG demo marks an operand a node may never evaluate — `&&`'s right, an
  * arm of `?:` — and the same node reached from an eager position elsewhere
  * is still evaluated there, so the distinction cannot live on the node.
+ *
+ * **A `back` edge closes a cycle**, such as a recursive call to the
+ * function whose body holds it. It ends at a node, and ranking ignores it,
+ * so it can point to its source's own rank or any rank left of it. It is drawn
+ * around the outside of the graph: down from its port to below every node,
+ * left along the bottom, and up into its target's left side, in a lane of
+ * its own below the graph and in each gap it goes down or up. Returns
+ * enter at distinct points down the target's left side, with the outermost
+ * route entering highest. Each return keeps its own arrowhead.
  */
 export type Edge = {
     readonly from: number
@@ -52,6 +95,7 @@ export type Edge = {
     readonly label: string
     readonly kind?: string | undefined
     readonly corner?: Corner | undefined
+    readonly back?: boolean | undefined
 }
 
 /**
@@ -82,11 +126,22 @@ export type Corner = 'top' | 'middle' | 'bottom'
  * kind as `data-graph-part`, so a stylesheet can colour them apart — the
  * bits a prefix inherits beside the bits it adds, say. Joined, they must
  * spell `inline`, which is still what sizes the cell.
+ *
+ * `click`, when given, makes the value's cell a control: a click on it, or
+ * Enter or Space while it has focus, sends the demo a `click` event with
+ * `click.name`, and `click.label` is what a screen reader announces.
  */
 export type Inline = {
     readonly inline: string
     readonly kind?: string | undefined
     readonly parts?: readonly (readonly [text: string, kind: string])[] | undefined
+    readonly click?: Click | undefined
+}
+
+/** A control's demo event name and what it says it does. */
+export type Click = {
+    readonly name: string
+    readonly label: string
 }
 
 /**
@@ -107,20 +162,44 @@ export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
     readonly entries?: readonly Entry[] | undefined
+    /** Trace lines/output ports, incoming connections at node names, or native keyboard/click focus. */
+    readonly trace?: boolean | undefined
+    /**
+     * Center non-tree nodes on incoming forward connections, fitting nodes
+     * and routing lanes within the tallest packed column without overlaps.
+     * Trees retain their parent/child centering.
+     */
+    readonly centerColumns?: boolean | undefined
 }
 
 /**
  * How `graphOf` (`./module.f.mjs`) reads one value: a node, with the
- * values its edges lead to, or a spelling drawn inline in its parent's port.
+ * values its edges lead to, a spelling drawn inline in its parent's port,
+ * or a {@link Back} reference to a node the walk is inside.
  *
- * A node shape's `kind` and `label` become its {@link Node}'s, and each
- * child's label and optional kind become an {@link Edge}'s. The inline
- * shape is an {@link Inline} as it stands.
+ * A node shape's `kind`, `label` and `groups` become its {@link Node}'s,
+ * and each child's label and optional kind become an {@link Edge}'s. The
+ * inline shape is an {@link Inline} as it stands.
  */
-export type Shape<V> =
-    | {
-        readonly kind: string
-        readonly label: string
-        readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
-    }
-    | Inline
+export type Shape<V> = NodeShape<V> | Inline | Back<V>
+
+/** A {@link Shape} that is a node, with the values its edges lead to. */
+export type NodeShape<V> = {
+    readonly kind: string
+    readonly label: string
+    readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
+    readonly groups?: readonly Group[] | undefined
+    /** A use of this node from inside itself draws as a back edge. */
+    readonly recursive?: boolean | undefined
+}
+
+/**
+ * A value that stands for a node the walk is inside, such as an EDAG's
+ * `self` for the function whose body holds it: drawn as a `back`
+ * {@link Edge} to the nearest such node for which `owner` holds. `port` is
+ * the label of the edge the walk left that node by, so that a function's
+ * body can be told from a slot its parent fills.
+ */
+export type Back<V> = {
+    readonly owner: (value: V, port: string) => boolean
+}

@@ -5,29 +5,18 @@
 //! `expected` each case carries.
 
 #[cfg(not(target_family = "wasm"))]
+mod common;
+
+#[cfg(not(target_family = "wasm"))]
 mod host {
-    use nanvm_effects_node::{Native, run};
-    use nanvm_harness::fixtures::parity;
+    use super::common::{member, names, perform_case};
+    use nanvm_effects_node::Native;
+    use nanvm_harness::{fixtures::parity, runtime};
     use nanvm_lib::{
         naive::Naive,
-        vm::{Any, Array, Function, Object, ToArray, unstable::string_any},
+        vm::{Object, ToArray, unstable::string_any},
     };
     use std::{fs, io::Cursor, path::PathBuf};
-
-    type V = Any<Naive>;
-
-    fn member(object: &Object<Naive>, name: &str) -> V {
-        object.own_property(&name.into()).unwrap()
-    }
-
-    /// The names of the module's exports, which are the cases.
-    fn names(exports: &Object<Naive>) -> Vec<String> {
-        exports
-            .own_entries()
-            .into_iter()
-            .map(|(key, _)| key.into())
-            .collect()
-    }
 
     /// A fresh directory under the system's, removed when dropped.
     struct Scratch(PathBuf);
@@ -52,27 +41,15 @@ mod host {
     /// directory to give a test.
     #[test]
     fn the_native_host_answers_what_the_cases_expect() {
-        let exports = Object::try_from(parity::module::<Naive>().unwrap()).unwrap();
+        let exports = Object::try_from(parity::module::<Naive>(runtime()).unwrap()).unwrap();
         let cases = names(&exports);
         assert!(!cases.is_empty());
         for case in cases {
             let object = Object::try_from(member(&exports, &case)).unwrap();
             let directory = Scratch::new(&case);
             let root = string_any(&directory.0.to_string_lossy());
-            let effect = Function::try_from(member(&object, "run"))
-                .unwrap()
-                .call([root].to_array())
-                .unwrap();
             let mut host = Native::new(Cursor::new(Vec::new()), Vec::new(), Vec::new());
-            let result = run(effect, |command, payload| host.perform(command, payload))
-                .unwrap_or_else(|thrown| panic!("{case} threw {thrown:?}"));
-            let [tag, answers]: [V; 2] = Array::try_from(result).unwrap().try_into().unwrap();
-            assert_eq!(tag, string_any("ok"), "{case}");
-            assert_eq!(
-                answers.to_json().unwrap(),
-                member(&object, "expected").to_json().unwrap(),
-                "{case}"
-            );
+            perform_case(&case, &object, [root].to_array(), &mut host);
         }
     }
 }

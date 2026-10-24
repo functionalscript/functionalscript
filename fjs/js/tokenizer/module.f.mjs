@@ -51,8 +51,8 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _TemplateContext, _TemplateDecode, _Trivia } from './private.ts'
  */
-import { assert } from '../../asserts/module.f.mjs'
-import { items, variant } from '../../ebnf/ast/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
+import { items, variant } from '../../ebnf/ast/module.f.js'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { lineTerminators, mergeTrivia, templateContinuation, token } from '../../ebnf/lib/js/module.f.mjs'
 import { isKeyword } from '../keywords/module.f.js'
@@ -62,9 +62,9 @@ import {
     reverseSolidus,
     hexDigitValue, hexDigitsValue, isDigit,
     latinSmallLetterU,
-} from '../../text/ascii/module.f.mjs'
+} from '../../text/ascii/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { mapUnwrap } from '../../types/nullable/module.f.mjs'
+import { mapUnwrap } from '../../types/nullable/module.f.js'
 import { concat, empty, flat, fold, stateScan, toArray } from '../../types/list/module.f.mjs'
 
 // -- layer 1: the grammar, one token at a time ------------------------------

@@ -23,9 +23,9 @@
  * layer tighter than it, which is the precedence ladder drawn as boxes.
  * Every rule that reaches itself — a value holds values, a list is
  * right-recursive — is titled, so no diagram is drawn forever.
- * `callArguments` draws the same list as `values`: the grammar reads a
- * call's arguments through a rule of its own, which the parser maps apart
- * from an array's items.
+ * `callArguments` draws the same list as `values`, which a call reaches
+ * through a rule of its own. An array's `elements` hold the same items,
+ * and an elision besides.
  *
  * @module
  *
@@ -34,17 +34,17 @@
 
 import {
     _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, body, callArguments,
-    circuitTail, conditionalTail, constStatement, djsModule, eagerTail, end, entries, entry, func, group, groupOperand,
+    circuitTail, conditionalTail, constStatement, module, eagerTail, elements, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
-    lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren,
-    parenGroup, parenGroupOperand, parenthesized, primitive, statement, template, terminator, unary, unaryOperand,
+    lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
+    parenGroup, parenGroupOperand, parenthesized, primitive, statement, afterCase, caseTail, template, terminator, unary, unaryOperand,
     value, values,
 } from './module.f.mjs'
-import { eagerLayers } from '../../ast/module.f.mjs'
-import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
+import { eagerLayers } from '../../ast/module.f.js'
+import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { tokens } from '../../../ebnf/railroad/module.f.mjs'
 import { grammarDemo } from '../../../website/demo/railroad/module.f.mjs'
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 /**
  * One diagram per `eagerTail` layer, titled by the names of its operators
@@ -64,7 +64,7 @@ const layers = eagerTail.map((rule, i) => [Object.keys(assertNotNullish(eagerLay
  * @type {readonly Selection[]}
  */
 export const diagrams = [
-    ['djsModule', djsModule],
+    ['module', module],
     ['importStatement', importStatement],
     ['importClause', importClause],
     ['namedImports', namedImports],
@@ -80,11 +80,14 @@ export const diagrams = [
     ['block', block],
     ['statement', statement],
     ['terminator', terminator],
+    ['caseTail', caseTail],
+    ['afterCase', afterCase],
     ['paren', paren],
     ['parenthesized', parenthesized],
     ['func', func],
     ['parameters', parameters],
     ['afterValue', afterValue],
+    ['parenItems', parenItems],
     ['parameterNames', parameterNames],
     ['arrowOrRest', arrowOrRest],
     ['unary', unary],
@@ -101,6 +104,7 @@ export const diagrams = [
     ['callArguments', callArguments],
     ['template', template],
     ['array', array],
+    ['elements', elements],
     ['values', values],
     ['item', item],
     ['object', object],
@@ -119,7 +123,7 @@ const categories = /** @type {const} */ ([
 ])
 
 export const demo = grammarDemo({
-    grammar: djsModule,
+    grammar: module,
     alphabet: tokens(encoding(_ordinaryTokenNames), categories),
     description: 'The FunctionalScript module grammar, drawn from the rules the parser reads a module with.',
     guide: 'Follow a track from left to right; a pill is a token, a grey one in italics any token of its kind, and a box is another diagram — select it to go there.',

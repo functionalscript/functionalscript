@@ -32,6 +32,7 @@
 import { error } from '../../../types/result/module.f.js'
 import { array } from '../array/module.f.mjs'
 import { isFunction } from '../semantics/module.f.mjs'
+import { intrinsicLength, isIntrinsic } from '../../module.f.mjs'
 
 /**
  * The bindings of a call of a function of `length` to `values`: the fixed
@@ -57,9 +58,10 @@ export const prepare = (callee, args) => {
     const [argumentKind, argumentsArray] = argumentsResult
     if (argumentKind === 'error') { return argumentsResult }
     if (!isFunction(fn)) { return error(['undefined']) }
-    // the `entry` helper takes its two, as its `length` says; a static
-    // function's are bound where its body is found, so none is here
-    const length = fn[0] === '=>' ? fn[1] : fn[0] === 'entry' ? 2 : 0
+    // the `entry` helper takes its two, as its `length` says, and an
+    // intrinsic its helper's; a static function's are bound where its body
+    // is found, so none is here
+    const length = fn[0] === '=>' ? fn[1] : fn[0] === 'entry' || fn[0] === 'hasEntry' ? 2 : isIntrinsic(fn) ? intrinsicLength(fn[0]) : 0
     const [fixed, rest] = bind(length, argumentsArray[1])
     return ['call', fn, fixed, rest]
 }

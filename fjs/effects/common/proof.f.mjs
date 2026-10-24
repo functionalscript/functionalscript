@@ -1,21 +1,20 @@
 /**
  * @import { RunInstance } from '../mock/types.ts'
- * @import { All, Catch, Import, Module, Read, Sandbox, Write } from './types.ts'
+ * @import { All, Catch, Import, Module, RandomInt, Read, Sandbox, Write } from './types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Effect, NotImplemented } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { run as mockRun } from '../mock/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
-import { u8ListMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { toCodePointList, utf8ToString } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
 import {
-    all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
+    all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write,
 } from './module.f.mjs'
 import { pureError, pureOk } from '../module.f.mjs'
 
@@ -40,6 +39,15 @@ import { pureError, pureOk } from '../module.f.mjs'
 const runner = mockRun(/** @type {Parameters<typeof mockRun<Catch | Sandbox, null>>[0]} */ ({
     sandbox: (/** @type {() => unknown} */ f) => (/** @type {null} */ s) => [s, ok(f())],
     catch: (/** @type {() => unknown} */ f) => (/** @type {null} */ s) => [s, ok(ok(f()))],
+}))
+
+/**
+ * A runner that answers `randomInt` from a counter, as `../node/virtual`
+ * does: a fair die is not what a proof can check, and the name is.
+ *
+ * @type {RunInstance<RandomInt, number>} */
+const counter = mockRun(/** @type {Parameters<typeof mockRun<RandomInt, number>>[0]} */ ({
+    randomInt: () => (/** @type {number} */ n) => [n + 1, ok(n)],
 }))
 
 /**
@@ -96,7 +104,7 @@ const reader = mockRun(/** @type {Parameters<typeof mockRun<Read, readonly numbe
 }))
 
 /** @type {(s: string) => readonly number[]} */
-const bytes = s => toArray(u8ListMsb(utf8(s)))
+const bytes = s => u8ArrayMsb(utf8(s))
 
 // Decoded the way `readLine` decodes, rather than through a second
 // round-trip: the assertion is about which bytes are left, and a helper that
@@ -128,6 +136,12 @@ export const proof = {
         const [, r] = loader(null)(import_('a.f.mjs'))
         assert(r[0] === 'ok', r)
         assertEq(r[1].proof, 'a.f.mjs')
+    },
+    // The constructor asks by the name the hosts answer: the number comes
+    // back, and the runner's state moves on.
+    randomInt: () => {
+        const [n, r] = counter(7)(randomInt())
+        assertEq(JSON.stringify([n, r]), '[8,["ok",7]]')
     },
     all: {
         // The nesting is the operation's point: the outer `Result` is the

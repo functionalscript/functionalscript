@@ -24,7 +24,7 @@
  *
  * A tuple schema declares by length, so a hole in the *schema* is a declared
  * position whose schema is `undefined` — see "A hole is a declared position"
- * in `../README.md`.
+ * in `../guide/schemas/closed-containers/README.md`.
  *
  * The length check is the model rather than an inference from the rendering.
  * #1622 added one by reading `Ts<readonly[42]>`'s exact tuple as the value
@@ -43,36 +43,21 @@
  * The error shape, path bookkeeping, primitive checks, schema recognition
  * (`visit`) and the container handlers come from `../common/module.f.mjs`.
  * The handlers are one skeleton per container shape, shared with
- * `../validate/module.f.mjs` so the two readers read a container in one order;
- * `parse` supplies a `Reader` that collects the parsed members, and a rebuild
- * per kind.
+ * `../validate/module.f.mjs` through `readerOf`, so the two readers read a
+ * container in one order; `parse` supplies a collector of the parsed members,
+ * and a rebuild per kind.
  *
  * See `./types.ts` for the `Result`/`Parse` type-level API.
  *
  * @module
  *
- * @import { ConstObject, Type } from '../types.ts'
- * @import { Reader, ValidateE } from '../common/types.ts'
+ * @import { Type } from '../types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
  * @import { _Entries, _Rebuild } from './private.ts'
  */
 
-import { ok } from '../../types/result/module.f.js'
-import {
-    constContainerRead,
-    constPrimitiveValidate,
-    containerRead,
-    isArray,
-    isObject,
-    orVisit,
-    primitive0Validate,
-    restContainerRead,
-    structSchemaEntries,
-    tupleSchemaEntries,
-    verror,
-    visit,
-} from '../common/module.f.mjs'
+import { readerOf } from '../common/module.f.mjs'
 import { emptyRest } from '../data/module.f.mjs'
 import { reverse, toArray } from '../../types/list/module.f.mjs'
 
@@ -124,91 +109,30 @@ const tupleRebuild = entries => {
 }
 
 /**
- * What `parse` brings to the container skeletons in `../common/module.f.mjs`:
- * itself, for each member's schema, and the parsed members, consed on in
- * reverse as they are read — an O(1) prepend, unlike rebuilding an array on
- * every member. A declared member that is absent is collected by nothing, so
- * it leaves no entry and the rebuilds omit it.
+ * What `parse` brings to `readerOf` in `../common/module.f.mjs`: the parsed
+ * members, consed on in reverse as they are read — an O(1) prepend, unlike
+ * rebuilding an array on every member — and a rebuild per container kind. A
+ * declared member that is absent is collected by nothing, so it leaves no
+ * entry and the rebuilds omit it.
  *
- * @type {Reader<_Entries>}
+ * Every member of a uniform container is parsed, so a fresh container is
+ * always returned even if the inner type is a primitive. An absent member of
+ * a closed const container is **omitted** from what is built rather than
+ * materialized as `undefined`: the struct kind drops the key, and the tuple
+ * kind preserves indices — a trailing absent run shortens the result, an
+ * interior one stays a hole (see `tupleRebuild`). A container with a stated
+ * `rest` builds the declared members and nothing else, since `rest` says what
+ * an undeclared member must be and not that the result should carry it.
  */
-const reader = {
-    // Through the erased `ValidateE`: `parse(t)` at `Type` would instantiate
-    // `Ts<Type>` (TS2589) — the boundary `orVisit` describes.
-    read: t => /** @type {any} */ (parse(t)),
-    empty: null,
-    cons: (acc, k, v) => ({ first: [k, v], tail: acc }),
-}
-
-/**
- * The uniform containers: every member is parsed, so a fresh container is
- * always returned even if the inner type is a primitive.
- */
-const arrayParse = containerRead(reader)(
-    isArray,
-    item => (value, declared) => value.length <= declared || !emptyRest([], item),
-    arrayRebuild,
+const read = readerOf(
+    {
+        /** @type {_Entries} */
+        empty: null,
+        cons: (acc, k, v) => ({ first: /** @type {const} */ ([k, v]), tail: acc }),
+    },
+    { array: arrayRebuild, record: recordRebuild, tuple: tupleRebuild, struct: recordRebuild },
+    emptyRest,
 )
-
-const recordParse = containerRead(reader)(isObject, () => () => true, recordRebuild)
-
-/**
- * The closed const containers. An absent member is **omitted** from what is
- * built rather than materialized as `undefined`: the struct kind drops the
- * key, and the array kind preserves indices — a trailing absent run shortens
- * the result, an interior one stays a hole (see `tupleRebuild`).
- */
-const tupleParse = constContainerRead(reader)(
-    isArray,
-    tupleSchemaEntries,
-    (value, k) => value[Number(k)],
-    (value, declared) => value.length <= declared,
-    tupleRebuild,
-)
-
-const structParse = constContainerRead(reader)(
-    isObject,
-    structSchemaEntries,
-    (value, k) => value[k],
-    () => true,
-    recordRebuild,
-)
-
-/**
- * The containers with a stated `rest`: what is built carries the declared
- * members and nothing else, since `rest` says what an undeclared member must
- * be and not that the result should carry it.
- */
-const restTupleParse = restContainerRead(reader)(
-    isArray,
-    tupleSchemaEntries,
-    (value, k) => value[Number(k)],
-    (rtti, r) => (value, declared) => value.length <= declared || !emptyRest(rtti, r),
-    tupleRebuild,
-)
-
-const restStructParse = restContainerRead(reader)(
-    isObject,
-    structSchemaEntries,
-    (value, k) => value[k],
-    () => () => true,
-    recordRebuild,
-)
-
-/** @type {(rtti: ConstObject, r: Type) => ValidateE} */
-const restParse = (rtti, r) =>
-    rtti instanceof Array
-        ? restTupleParse(rtti, r)
-        : restStructParse(rtti, r)
-
-const orParse =
-    /**
-     * @template {readonly Type[]} T
-     * @param {T} rtti
-     * @returns {Parse<() => readonly ['or', ...T]>}
-     */
-    rtti =>
-        /** @type {any} */ (orVisit(/** @type {any} */ (parse))(rtti))
 
 /**
  * Creates a parser function for the given RTTI schema.
@@ -239,24 +163,10 @@ const orParse =
  * // `open` admits anything else at all, and carries none of it over
  * parse(open({ a: number }))({ a: 1, b: 2 }) // ['ok', { a: 1 }]
  * ```
+ *
+ * @type {<const T extends Type>(rtti: T) => Parse<T>}
  */
-const parseVisitor = /** @type {any} */ ({
-    tuple: tupleParse,
-    struct: structParse,
-    rest: restParse,
-    array: arrayParse,
-    record: recordParse,
-    or: orParse,
-    constPrimitive: constPrimitiveValidate,
-    primitive0: primitive0Validate,
-    unknown: () => ok,
-    // Absence is decided by the container loop before dispatch, so a value
-    // that reaches this handler is present — and no present value is absent.
-    // An ordinary error is what lets `orVisit` try the other members of
-    // `or(option, t)`.
-    option: () => () => verror('unexpected value'),
-})
-
-/** @type {<const T extends Type>(rtti: T) => Parse<T>} */
 export const parse = rtti =>
-    (visit(parseVisitor)(rtti))
+    // Through the erased `ValidateE`: `Parse<T>` is what it reads as, and
+    // naming it on `readerOf`'s side would instantiate `Ts<Type>` (TS2589).
+    /** @type {any} */ (read(rtti))

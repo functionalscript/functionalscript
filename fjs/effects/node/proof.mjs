@@ -33,10 +33,10 @@ import { lstat, mkdir, readFile, readdir, realpath, symlink, writeFile } from 'n
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { ioError, pureError, pureOk, resultMapStep, resultStep, step } from '../module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { ioError, pureError, pureOk, resultMapStep, resultStep, step, unreadableThrownValue } from '../module.f.mjs'
 import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
-import { byteLength, length, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, length, maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
@@ -48,11 +48,10 @@ import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
     awaitIfPromise, both, catch_, childWait, close, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat, import_,
-    inflate, inflateTrailingCode, open, pread, readWhole, rename, requestBodyOffsetMessage,
+    inflate, inflateTrailingCode, open, pread, randomInt, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
     writeFile as writeFileEffect,
 } from './module.f.mjs'
-import { _unreadableThrownValue } from '../module.mjs'
 import { _wrapInlineTest, readFlags, runEffect } from './module.mjs'
 import { isNode, loopback, within, withServer, withTemporary } from './testlib.mjs'
 
@@ -147,7 +146,7 @@ const unalignedBytes = n => Uint8Array.from({ length: n }, (_, i) => i % 251)
  *
  * @type {(chunks: readonly Vec[]) => readonly number[]}
  */
-const chunkBytes = chunks => chunks.flatMap(v => toArray(u8ListMsb(v)))
+const chunkBytes = chunks => chunks.flatMap(v => u8ArrayMsb(v))
 
 /**
  * Asserts that two byte sequences are the same, by length and then by the first
@@ -622,6 +621,14 @@ export const proof = {
             await hostCheck(resolveFileModule(missing, null), result => assertEq(result[0], 'error'))
         }),
     },
+    // The shared handler through the real runner: a whole number in
+    // `[0, 2^32)`, from the host's `crypto.getRandomValues`.
+    randomInt: async () => {
+        /** @type {NodeProgram} */
+        const program = () => resultMapStep(randomInt(), r =>
+            r[0] === 'ok' && Number.isInteger(r[1]) && r[1] >= 0 && r[1] < 0x1_0000_0000 ? ok(0) : error(1))
+        assertEq(await exitCode(program), 0)
+    },
     inflate: {
         // A stream through the real zlib: the bytes it was made from, every
         // one, and the whole input taken.
@@ -630,7 +637,7 @@ export const proof = {
             /** @type {NodeProgram} */
             const program = () => resultMapStep(inflate(toVec(deflated(data))), r => {
                 if (r[0] === 'error') { return error(1) }
-                const out = toArray(u8ListMsb(r[1]))
+                const out = u8ArrayMsb(r[1])
                 return out.length === data.length && out.every((b, i) => b === data[i]) ? ok(0) : error(2)
             })
             assertEq(await exitCode(program), 0)
@@ -644,7 +651,7 @@ export const proof = {
             /** @type {NodeProgram} */
             const program = () => resultMapStep(inflate(u8ListToVecMsb(tagLoose)), r => {
                 if (r[0] === 'error') { return error(1) }
-                const out = toArray(u8ListMsb(r[1]))
+                const out = u8ArrayMsb(r[1])
                 return out.length === envelope.length && out.every((b, i) => b === envelope[i]) ? ok(0) : error(2)
             })
             assertEq(await exitCode(program), 0)
@@ -732,9 +739,9 @@ export const proof = {
             /** @type {readonly (readonly [string, string, string | undefined])[]} */
             const cases = [
                 ['throw new Error("plain")', 'plain', undefined],
-                ['throw { toString() { throw 1 } }', _unreadableThrownValue, undefined],
-                ['throw { get code() { throw 1 } }', _unreadableThrownValue, undefined],
-                ['throw { get message() { throw 1 } }', _unreadableThrownValue, undefined],
+                ['throw { toString() { throw 1 } }', unreadableThrownValue, undefined],
+                ['throw { get code() { throw 1 } }', unreadableThrownValue, undefined],
+                ['throw { get message() { throw 1 } }', unreadableThrownValue, undefined],
                 // A string on the first read, an object on any later one: each
                 // field is read once, so the string is what is kept.
                 ['let n = 0; throw { get message() { return n++ === 0 ? "a" : {} } }', 'a', undefined],

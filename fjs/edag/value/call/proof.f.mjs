@@ -8,7 +8,7 @@
  * @import { Body, Invoke } from './types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { func } from '../function/module.f.mjs'
 import { call, invoker, prepare, settle } from './module.f.mjs'
@@ -150,6 +150,10 @@ export const proof = {
         // here, its arguments all rest for the invoker to bind to the body
         // it finds
         assertStructurallySame(prepare(ok(['entry']), [() => ok(data)]), ['call', ['entry'], [data, ['undefined']], ['[]', []]])
+        assertStructurallySame(prepare(ok(['hasEntry']), [() => ok(data)]), ['call', ['hasEntry'], [data, ['undefined']], ['[]', []]])
+        // an intrinsic takes its helper's `length`, three for `slice`
+        assertStructurallySame(prepare(ok(['slice']), [() => ok(data)]), ['call', ['slice'], [data, ['undefined'], ['undefined']], ['[]', []]])
+        assertStructurallySame(prepare(ok(['charCodeAt']), [() => ok(data)]), ['call', ['charCodeAt'], [data, ['undefined']], ['[]', []]])
         assertStructurallySame(prepare(ok(['Object.entries']), [() => ok(data), () => ok(record)]), ['call', ['Object.entries'], [], ['[]', [data, record]]])
         assertStructurallySame(prepare(ok(['Object.is']), [() => ok(data)]), ['call', ['Object.is'], [], ['[]', [data]]])
     },

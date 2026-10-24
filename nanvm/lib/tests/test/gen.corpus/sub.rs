@@ -2,33 +2,33 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("nullMinusOne", Nullish::Null.to_any() - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
-    check::<A>("undefinedMinusOne", Nullish::Undefined.to_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("trueMinusOne", true.to_any() - f64_any(0x3ff0000000000000), f64_any(0x0000000000000000));
-    check::<A>("falseMinusOne", false.to_any() - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
-    check::<A>("stringTenMinusOne", string_any("10") - f64_any(0x3ff0000000000000), f64_any(0x4022000000000000));
-    check::<A>("stringLetterMinusOne", string_any("a") - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("emptyArrayMinusOne", Array::default().to_any() - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
-    check::<A>("arrayTenMinusOne", [f64_any(0x4024000000000000)].to_array().to_any() - f64_any(0x3ff0000000000000), f64_any(0x4022000000000000));
-    check::<A>("arrayStringTenMinusOne", [string_any("10")].to_array().to_any() - f64_any(0x3ff0000000000000), f64_any(0x4022000000000000));
-    check::<A>("arrayPairMinusOne", [f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("emptyObjectMinusOne", Object::default().to_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("functionMinusOne", function_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("nullMinusNull", Nullish::Null.to_any() - Nullish::Null.to_any(), f64_any(0x0000000000000000));
-    check::<A>("nullMinusZero", Nullish::Null.to_any() - f64_any(0x0000000000000000), f64_any(0x0000000000000000));
-    check::<A>("negativeZeroMinusZero", f64_any(0x8000000000000000) - f64_any(0x0000000000000000), f64_any(0x8000000000000000));
-    check::<A>("zeroMinusNegativeZero", f64_any(0x0000000000000000) - f64_any(0x8000000000000000), f64_any(0x0000000000000000));
-    check::<A>("undefinedMinusZero", Nullish::Undefined.to_any() - f64_any(0x0000000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("zeroMinusOne", f64_any(0x0000000000000000) - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
-    check::<A>("oneMinusNegativeOne", f64_any(0x3ff0000000000000) - f64_any(0xbff0000000000000), f64_any(0x4000000000000000));
-    check::<A>("negativeTenMinusTen", f64_any(0xc024000000000000) - f64_any(0x4024000000000000), f64_any(0xc034000000000000));
-    check::<A>("bigZeroMinusZero", bigint_any(0) - bigint_any(0), bigint_any(0));
-    check::<A>("bigOneMinusOne", bigint_any(1) - bigint_any(1), bigint_any(0));
-    check::<A>("bigOneMinusNegativeOne", bigint_any(1) - bigint_any(-1), bigint_any(2));
-    check::<A>("bigNegativeOneMinusOne", bigint_any(-1) - bigint_any(1), bigint_any(-2));
-    check::<A>("emptyStringMinusOne", string_any("") - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
-    check_throws::<A>("numberMinusBigint", f64_any(0x3ff0000000000000) - bigint_any(1));
-    check_throws::<A>("bigintMinusNumber", bigint_any(1) - f64_any(0x3ff0000000000000));
+    check::<A>("nullMinusOne", scope(|| { Nullish::Null.to_any() - f64_any(0x3ff0000000000000) }), f64_any(0xbff0000000000000));
+    check::<A>("undefinedMinusOne", scope(|| { Nullish::Undefined.to_any() - f64_any(0x3ff0000000000000) }), f64_any(0x7ff8000000000000));
+    check::<A>("trueMinusOne", scope(|| { true.to_any() - f64_any(0x3ff0000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("falseMinusOne", scope(|| { false.to_any() - f64_any(0x3ff0000000000000) }), f64_any(0xbff0000000000000));
+    check::<A>("stringTenMinusOne", scope(|| { string_any("10") - f64_any(0x3ff0000000000000) }), f64_any(0x4022000000000000));
+    check::<A>("stringLetterMinusOne", scope(|| { string_any("a") - f64_any(0x3ff0000000000000) }), f64_any(0x7ff8000000000000));
+    check::<A>("emptyArrayMinusOne", scope(|| { Array::default().to_any() - f64_any(0x3ff0000000000000) }), f64_any(0xbff0000000000000));
+    check::<A>("arrayTenMinusOne", scope(|| { [f64_any(0x4024000000000000)].to_array().to_any() - f64_any(0x3ff0000000000000) }), f64_any(0x4022000000000000));
+    check::<A>("arrayStringTenMinusOne", scope(|| { [string_any("10")].to_array().to_any() - f64_any(0x3ff0000000000000) }), f64_any(0x4022000000000000));
+    check::<A>("arrayPairMinusOne", scope(|| { [f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any() - f64_any(0x3ff0000000000000) }), f64_any(0x7ff8000000000000));
+    check::<A>("emptyObjectMinusOne", scope(|| { Object::default().to_any() - f64_any(0x3ff0000000000000) }), f64_any(0x7ff8000000000000));
+    check::<A>("functionMinusOne", scope(|| { A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any() - f64_any(0x3ff0000000000000) }), f64_any(0x7ff8000000000000));
+    check::<A>("nullMinusNull", scope(|| { Nullish::Null.to_any() - Nullish::Null.to_any() }), f64_any(0x0000000000000000));
+    check::<A>("nullMinusZero", scope(|| { Nullish::Null.to_any() - f64_any(0x0000000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("negativeZeroMinusZero", scope(|| { f64_any(0x8000000000000000) - f64_any(0x0000000000000000) }), f64_any(0x8000000000000000));
+    check::<A>("zeroMinusNegativeZero", scope(|| { f64_any(0x0000000000000000) - f64_any(0x8000000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("undefinedMinusZero", scope(|| { Nullish::Undefined.to_any() - f64_any(0x0000000000000000) }), f64_any(0x7ff8000000000000));
+    check::<A>("zeroMinusOne", scope(|| { f64_any(0x0000000000000000) - f64_any(0x3ff0000000000000) }), f64_any(0xbff0000000000000));
+    check::<A>("oneMinusNegativeOne", scope(|| { f64_any(0x3ff0000000000000) - f64_any(0xbff0000000000000) }), f64_any(0x4000000000000000));
+    check::<A>("negativeTenMinusTen", scope(|| { f64_any(0xc024000000000000) - f64_any(0x4024000000000000) }), f64_any(0xc034000000000000));
+    check::<A>("bigZeroMinusZero", scope(|| { bigint_any(0) - bigint_any(0) }), bigint_any(0));
+    check::<A>("bigOneMinusOne", scope(|| { bigint_any(1) - bigint_any(1) }), bigint_any(0));
+    check::<A>("bigOneMinusNegativeOne", scope(|| { bigint_any(1) - bigint_any(-1) }), bigint_any(2));
+    check::<A>("bigNegativeOneMinusOne", scope(|| { bigint_any(-1) - bigint_any(1) }), bigint_any(-2));
+    check::<A>("emptyStringMinusOne", scope(|| { string_any("") - f64_any(0x3ff0000000000000) }), f64_any(0xbff0000000000000));
+    check_throws::<A>("numberMinusBigint", scope(|| { f64_any(0x3ff0000000000000) - bigint_any(1) }));
+    check_throws::<A>("bigintMinusNumber", scope(|| { bigint_any(1) - f64_any(0x3ff0000000000000) }));
 }

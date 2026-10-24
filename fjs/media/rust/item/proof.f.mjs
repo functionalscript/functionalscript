@@ -2,7 +2,7 @@
  * Proofs for Rust items spelled over strings.
  */
 
-import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { stringLiteral } from '../module.f.mjs'
 import { constSlice, generatedHeader, indent } from './module.f.js'

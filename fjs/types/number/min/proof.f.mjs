@@ -1,4 +1,4 @@
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.js'
 import { min } from './module.f.js'
 
 const values = [NaN, -Infinity, -1.5, -1, -0, 0, 1, 1.5, Infinity]

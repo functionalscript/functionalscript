@@ -14,407 +14,986 @@
   "jobs": {
     "ubuntu-intel": {
       "runs-on": "ubuntu-26.04",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.2"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.0\""
-        },
-        {
-          "run": "sh ./gen.nix/run npm ci"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run node --test"
-        }
-      ]
-    },
-    "ubuntu-arm": {
-      "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.2"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.0\""
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run wasmtime --version)\" = \"wasmtime 45.0.2\""
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run wasmer --version)\" = \"wasmer 7.1.0\""
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run js --version)\" = \"JavaScript-C140.14.0\""
-        },
-        {
-          "run": "sh ./gen.nix/run npm ci"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo fmt -- --check"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads --release -- -D warnings"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
-        },
-        {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "sh ./gen.nix/run node --test"
-        },
-        {
-          "run": "sh ./gen.nix/run npm run sm c"
-        },
-        {
-          "run": "sh ./gen.nix/run npm run sm t"
-        }
-      ]
-    },
-    "macos-intel": {
-      "runs-on": "macos-26-intel",
-      "timeout-minutes": 15,
-      "steps": [
-        {
-          "uses": "dtolnay/rust-toolchain@1.99.1",
+          "uses": "actions/checkout@v7.0.1",
           "with": {
-            "components": "rustfmt,clippy"
+            "fetch-depth": "1"
           }
         },
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.12.0"
+            "package-manager-cache": "false",
+            "node-version": "26.12.1"
           }
         },
         {
-          "uses": "actions/checkout@v7.0.1"
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
         },
         {
-          "run": "test \"$(node --version)\" = \"v26.12.0\""
+          "id": "init",
+          "run": "npm start ci init",
+          "continue-on-error": true,
+          "env": {
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run cargo test\"},{\"run\":\"sh ./gen.nix/run cargo test --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu\"},{\"run\":\"sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run node --test\"}]}]",
+            "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"x64\"}"
+          }
         },
-        {
-          "run": "npm ci"
-        },
-        {
-          "run": "cargo test"
-        },
-        {
-          "run": "cargo test --release"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
-        },
-        {
-          "run": "cargo clippy --release -- -D warnings"
-        },
-        {
-          "run": "node --test"
-        }
-      ]
-    },
-    "macos-arm": {
-      "runs-on": "macos-26",
-      "timeout-minutes": 15,
-      "steps": [
         {
           "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
-          "uses": "actions/checkout@v7.0.1"
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\""
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.0\""
+          "run": "sh ./gen.nix/run npm ci",
+          "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm ci"
+          "run": "sh ./gen.nix/run cargo test",
+          "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test"
+          "run": "sh ./gen.nix/run cargo test --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --release"
+          "run": "sh ./gen.nix/run cargo clippy -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings"
+          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings"
+          "run": "sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu",
+          "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run node --test"
+          "run": "sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "npm start ci report rust",
+          "if": "steps.init.outputs.hit-rust != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "sh ./gen.nix/run node --test",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "npm start ci report suite",
+          "if": "steps.init.outputs.hit-suite != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "sh ./gen.nix/run bash -e -c \"$FJS_CI_RUN\"",
+          "env": {
+            "FJS_CI_RUN": "sh ./nanvm/demos/gen.build.sh"
+          }
+        },
+        {
+          "run": "sh ./gen.nix/run bash -e -c \"$FJS_CI_RUN\"",
+          "env": {
+            "FJS_CI_RUN": "git add -A && git diff --cached --exit-code"
+          }
+        },
+        {
+          "run": "npm start ci publish",
+          "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
         }
-      ]
+      ],
+      "permissions": {
+        "contents": "write"
+      }
+    },
+    "ubuntu-arm": {
+      "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 30,
+      "steps": [
+        {
+          "uses": "actions/checkout@v7.0.1",
+          "with": {
+            "fetch-depth": "1"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "package-manager-cache": "false",
+            "node-version": "26.12.1"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "npm start ci init",
+          "continue-on-error": true,
+          "env": {
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run wasmtime --version)\\\" = \\\"wasmtime 45.0.2\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run wasmer --version)\\\" = \\\"wasmer 7.1.0\\\"\"},{\"run\":\"sh ./gen.nix/run cargo fmt -- --check\"},{\"run\":\"sh ./gen.nix/run cargo test\"},{\"run\":\"sh ./gen.nix/run cargo test --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1 --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip1 -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip1 --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip2\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip2 --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip2 -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip2 --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-unknown-unknown\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run node --test\"}]},{\"id\":\"spidermonkey-compile\",\"rung\":\"fjs\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run js --version)\\\" = \\\"JavaScript-C140.14.0\\\"\"},{\"run\":\"sh ./gen.nix/run npm run sm c\"}]},{\"id\":\"spidermonkey-suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run js --version)\\\" = \\\"JavaScript-C140.14.0\\\"\"},{\"run\":\"sh ./gen.nix/run npm run sm t\"}]}]",
+            "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"arm64\"}"
+          }
+        },
+        {
+          "uses": "cachix/install-nix-action@v31.11.2",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\"",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run wasmtime --version)\" = \"wasmtime 45.0.2\"",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run wasmer --version)\" = \"wasmer 7.1.0\"",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run js --version)\" = \"JavaScript-C140.14.0\"",
+          "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run npm ci",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo fmt -- --check",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "npm start ci report rust",
+          "if": "steps.init.outputs.hit-rust != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "sh ./gen.nix/run node --test",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "npm start ci report suite",
+          "if": "steps.init.outputs.hit-suite != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "sh ./gen.nix/run npm run sm c",
+          "if": "steps.init.outputs.hit-spidermonkey-compile != 'true'"
+        },
+        {
+          "run": "npm start ci report spidermonkey-compile",
+          "if": "steps.init.outputs.hit-spidermonkey-compile != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "sh ./gen.nix/run npm run sm t",
+          "if": "steps.init.outputs.hit-spidermonkey-suite != 'true'"
+        },
+        {
+          "run": "npm start ci report spidermonkey-suite",
+          "if": "steps.init.outputs.hit-spidermonkey-suite != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "npm start ci publish",
+          "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        }
+      ],
+      "permissions": {
+        "contents": "write"
+      }
+    },
+    "macos-intel": {
+      "runs-on": "macos-26-intel",
+      "timeout-minutes": 30,
+      "steps": [
+        {
+          "uses": "actions/checkout@v7.0.1",
+          "with": {
+            "fetch-depth": "1"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "package-manager-cache": "false",
+            "node-version": "26.12.1"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "npm start ci init",
+          "continue-on-error": true,
+          "env": {
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"dtolnay/rust-toolchain@1.99.1\",\"with\":{\"components\":\"rustfmt,clippy\"}},{\"run\":\"test \\\"\\u0024(node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"cargo test\"},{\"run\":\"cargo test --release\"},{\"run\":\"cargo clippy -- -D warnings\"},{\"run\":\"cargo clippy --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"run\":\"test \\\"\\u0024(node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"npm ci\"},{\"run\":\"node --test\"}]}]",
+            "FJS_CI_PLATFORM": "{\"os\":\"macos\",\"version\":\"26\",\"architecture\":\"x64\"}"
+          }
+        },
+        {
+          "uses": "dtolnay/rust-toolchain@1.99.1",
+          "with": {
+            "components": "rustfmt,clippy"
+          },
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "test \"$(node --version)\" = \"v26.12.1\"",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "npm ci",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "cargo test",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo test --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo clippy -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "npm start ci report rust",
+          "if": "steps.init.outputs.hit-rust != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "node --test",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "npm start ci report suite",
+          "if": "steps.init.outputs.hit-suite != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "npm start ci publish",
+          "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        }
+      ],
+      "permissions": {
+        "contents": "write"
+      }
+    },
+    "macos-arm": {
+      "runs-on": "macos-26",
+      "timeout-minutes": 30,
+      "steps": [
+        {
+          "uses": "actions/checkout@v7.0.1",
+          "with": {
+            "fetch-depth": "1"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "package-manager-cache": "false",
+            "node-version": "26.12.1"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "npm start ci init",
+          "continue-on-error": true,
+          "env": {
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run cargo test\"},{\"run\":\"sh ./gen.nix/run cargo test --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run node --test\"}]}]",
+            "FJS_CI_PLATFORM": "{\"os\":\"macos\",\"version\":\"26\",\"architecture\":\"arm64\"}"
+          }
+        },
+        {
+          "uses": "cachix/install-nix-action@v31.11.2",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\"",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run npm ci",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo test --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "npm start ci report rust",
+          "if": "steps.init.outputs.hit-rust != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "sh ./gen.nix/run node --test",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "npm start ci report suite",
+          "if": "steps.init.outputs.hit-suite != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "npm start ci publish",
+          "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        }
+      ],
+      "permissions": {
+        "contents": "write"
+      }
     },
     "windows-intel": {
       "runs-on": "windows-2025",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
+        {
+          "uses": "actions/checkout@v7.0.1",
+          "with": {
+            "fetch-depth": "1"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "package-manager-cache": "false",
+            "node-version": "26.12.1"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "npm start ci init",
+          "continue-on-error": true,
+          "env": {
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"dtolnay/rust-toolchain@1.99.1\",\"with\":{\"components\":\"rustfmt,clippy\",\"targets\":\"i686-pc-windows-msvc\"}},{\"run\":\"cargo test\"},{\"run\":\"cargo test --release\"},{\"run\":\"cargo clippy -- -D warnings\"},{\"run\":\"cargo clippy --release -- -D warnings\"},{\"run\":\"cargo test --target i686-pc-windows-msvc\"},{\"run\":\"cargo test --target i686-pc-windows-msvc --release\"},{\"run\":\"cargo clippy --target i686-pc-windows-msvc -- -D warnings\"},{\"run\":\"cargo clippy --target i686-pc-windows-msvc --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"run\":\"npm install -g functionalscript@0.56.0\"},{\"run\":\"fjs test\"}]}]",
+            "FJS_CI_PLATFORM": "{\"os\":\"windows\",\"version\":\"2025\",\"architecture\":\"x64\"}"
+          }
+        },
         {
           "uses": "dtolnay/rust-toolchain@1.99.1",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "i686-pc-windows-msvc"
+          },
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "npm install -g functionalscript@0.56.0",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "cargo test",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo test --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo clippy -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo clippy --target i686-pc-windows-msvc --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "npm start ci report rust",
+          "if": "steps.init.outputs.hit-rust != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "fjs test",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "npm start ci report suite",
+          "if": "steps.init.outputs.hit-suite != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "npm start ci publish",
+          "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        }
+      ],
+      "permissions": {
+        "contents": "write"
+      }
+    },
+    "windows-arm": {
+      "runs-on": "windows-11-arm",
+      "timeout-minutes": 30,
+      "steps": [
+        {
+          "uses": "actions/checkout@v7.0.1",
+          "with": {
+            "fetch-depth": "1"
           }
         },
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.12.0"
+            "package-manager-cache": "false",
+            "node-version": "26.12.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.56.0"
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
         },
         {
-          "uses": "actions/checkout@v7.0.1"
+          "id": "init",
+          "run": "npm start ci init",
+          "continue-on-error": true,
+          "env": {
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"dtolnay/rust-toolchain@1.99.1\",\"with\":{\"components\":\"rustfmt,clippy\"}},{\"run\":\"cargo test\"},{\"run\":\"cargo test --release\"},{\"run\":\"cargo clippy -- -D warnings\"},{\"run\":\"cargo clippy --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"run\":\"npm install -g functionalscript@0.56.0\"},{\"run\":\"fjs test\"}]}]",
+            "FJS_CI_PLATFORM": "{\"os\":\"windows\",\"version\":\"11\",\"architecture\":\"arm64\"}"
+          }
         },
-        {
-          "run": "cargo test"
-        },
-        {
-          "run": "cargo test --release"
-        },
-        {
-          "run": "cargo clippy -- -D warnings"
-        },
-        {
-          "run": "cargo clippy --release -- -D warnings"
-        },
-        {
-          "run": "cargo test --target i686-pc-windows-msvc"
-        },
-        {
-          "run": "cargo test --target i686-pc-windows-msvc --release"
-        },
-        {
-          "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings"
-        },
-        {
-          "run": "cargo clippy --target i686-pc-windows-msvc --release -- -D warnings"
-        },
-        {
-          "run": "fjs test"
-        }
-      ]
-    },
-    "windows-arm": {
-      "runs-on": "windows-11-arm",
-      "timeout-minutes": 15,
-      "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.99.1",
           "with": {
             "components": "rustfmt,clippy"
+          },
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "npm install -g functionalscript@0.56.0",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "cargo test",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo test --release",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo clippy -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "cargo clippy --release -- -D warnings",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "npm start ci report rust",
+          "if": "steps.init.outputs.hit-rust != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "fjs test",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "npm start ci report suite",
+          "if": "steps.init.outputs.hit-suite != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "npm start ci publish",
+          "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        }
+      ],
+      "permissions": {
+        "contents": "write"
+      }
+    },
+    "deno": {
+      "runs-on": "ubuntu-26.04-arm",
+      "timeout-minutes": 30,
+      "steps": [
+        {
+          "uses": "actions/checkout@v7.0.1",
+          "with": {
+            "fetch-depth": "1"
           }
         },
         {
           "uses": "actions/setup-node@v7.1.0",
           "with": {
-            "node-version": "26.12.0"
+            "package-manager-cache": "false",
+            "node-version": "26.12.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.56.0"
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
         },
         {
-          "uses": "actions/checkout@v7.0.1"
+          "id": "init",
+          "run": "npm start ci init",
+          "continue-on-error": true,
+          "env": {
+            "FJS_CI_CHECKS": "[{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run deno eval 'console.log(Deno.version.deno)')\\\" = \\\"2.8.3\\\"\"},{\"run\":\"sh ./gen.nix/run deno install --frozen\"},{\"run\":\"sh ./gen.nix/run deno task cov\"}]}]",
+            "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"arm64\"}"
+          }
         },
         {
-          "run": "cargo test"
+          "uses": "cachix/install-nix-action@v31.11.2",
+          "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "cargo test --release"
+          "run": "test \"$(sh ./gen.nix/run deno eval 'console.log(Deno.version.deno)')\" = \"2.8.3\"",
+          "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "cargo clippy -- -D warnings"
+          "run": "sh ./gen.nix/run deno install --frozen",
+          "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "cargo clippy --release -- -D warnings"
+          "run": "sh ./gen.nix/run deno task cov",
+          "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "fjs test"
+          "run": "npm start ci report suite",
+          "if": "steps.init.outputs.hit-suite != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "npm start ci publish",
+          "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
         }
-      ]
-    },
-    "deno": {
-      "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.2"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run deno eval 'console.log(Deno.version.deno)')\" = \"2.8.3\""
-        },
-        {
-          "run": "sh ./gen.nix/run deno install --frozen"
-        },
-        {
-          "run": "sh ./gen.nix/run deno task cov"
-        }
-      ]
+      ],
+      "permissions": {
+        "contents": "write"
+      }
     },
     "bun": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
         {
-          "uses": "cachix/install-nix-action@v31.11.2"
+          "uses": "actions/checkout@v7.0.1",
+          "with": {
+            "fetch-depth": "1"
+          }
         },
         {
-          "uses": "actions/checkout@v7.0.1"
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "package-manager-cache": "false",
+            "node-version": "26.12.1"
+          }
         },
         {
-          "run": "test \"$(sh ./gen.nix/run bun --version)\" = \"1.4.3\""
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
         },
         {
-          "run": "sh ./gen.nix/run bun install --frozen-lockfile"
+          "id": "init",
+          "run": "npm start ci init",
+          "continue-on-error": true,
+          "env": {
+            "FJS_CI_CHECKS": "[{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run bun --version)\\\" = \\\"1.4.4\\\"\"},{\"run\":\"sh ./gen.nix/run bun install --frozen-lockfile\"},{\"run\":\"sh ./gen.nix/run bun test --coverage\"}]}]",
+            "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"arm64\"}"
+          }
         },
         {
-          "run": "sh ./gen.nix/run bun test --coverage"
+          "uses": "cachix/install-nix-action@v31.11.2",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "test \"$(sh ./gen.nix/run bun --version)\" = \"1.4.4\"",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run bun install --frozen-lockfile",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run bun test --coverage",
+          "if": "steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "npm start ci report suite",
+          "if": "steps.init.outputs.hit-suite != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "npm start ci publish",
+          "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
         }
-      ]
+      ],
+      "permissions": {
+        "contents": "write"
+      }
     },
     "node26": {
       "runs-on": "ubuntu-26.04-arm",
-      "timeout-minutes": 15,
+      "timeout-minutes": 30,
       "steps": [
+        {
+          "uses": "actions/checkout@v7.0.1",
+          "with": {
+            "fetch-depth": "1"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.1.0",
+          "with": {
+            "package-manager-cache": "false",
+            "node-version": "26.12.1"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "npm start ci init",
+          "continue-on-error": true,
+          "env": {
+            "FJS_CI_CHECKS": "[{\"id\":\"tsc\",\"rung\":\"ts\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run tsc --version)\\\" = \\\"Version 7.0.2\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run tsc\"}]},{\"id\":\"compile\",\"rung\":\"fjs\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run npm start compile\"}]},{\"id\":\"coverage\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run npm run cov\"}]},{\"id\":\"package\",\"rung\":\"ts\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run tsc --version)\\\" = \\\"Version 7.0.2\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"mkdir \\\"\\u0024RUNNER_TEMP/consumer\\\"\"},{\"run\":\"sh ./gen.nix/run npm pack --pack-destination \\\"\\u0024RUNNER_TEMP/consumer\\\"\"},{\"uses\":\"actions/setup-node@v7.1.0\",\"with\":{\"package-manager-cache\":\"false\",\"node-version\":\"26.12.1\"}},{\"run\":\"npm init -y > /dev/null\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npm install \\\"packed@file:\\u0024(echo *.tgz)\\\"\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npm install \\\"typescript@7.0.2\\\"\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"echo '{\\\"include\\\":[\\\"node_modules/packed/**/*\\\",\\\"node_modules/packed/**/.*\\\",\\\"node_modules/packed/**/.*/**/*\\\"],\\\"exclude\\\":[],\\\"compilerOptions\\\":{\\\"module\\\":\\\"nodenext\\\",\\\"target\\\":\\\"esnext\\\",\\\"strict\\\":true,\\\"noEmit\\\":true,\\\"skipLibCheck\\\":false}}' > tsconfig.json\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npx tsc\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"echo 'import { prototypeNames } from \\\"packed/fjs/js/prototype/module.f.js\\\";\\nimport type { PrototypeName } from \\\"packed/fjs/js/prototype/types.js\\\";\\nconst accepted: PrototypeName = \\\"map\\\";\\nif (prototypeNames === undefined) { throw new Error(\\\"prototypeNames did not load\\\"); }' > good.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"echo 'import type { PrototypeName } from \\\"packed/fjs/js/prototype/types.js\\\";\\nconst refused: PrototypeName = \\\"stone\\\";' > bad.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext good.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"node good.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"! npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext bad.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"}]}]",
+            "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"arm64\"}"
+          }
+        },
         {
           "uses": "cachix/install-nix-action@v31.11.2"
         },
         {
-          "uses": "actions/checkout@v7.0.1"
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\""
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.0\""
+          "run": "test \"$(sh ./gen.nix/run tsc --version)\" = \"Version 7.0.2\"",
+          "if": "steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-package != 'true'"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run tsc --version)\" = \"Version 7.0.2\""
+          "run": "sh ./gen.nix/run npm ci",
+          "if": "steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-coverage != 'true' || steps.init.outputs.hit-package != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm ci"
+          "run": "sh ./gen.nix/run tsc",
+          "if": "steps.init.outputs.hit-tsc != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run tsc"
+          "run": "npm start ci report tsc",
+          "if": "steps.init.outputs.hit-tsc != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
         },
         {
-          "run": "sh ./gen.nix/run npm start compile"
+          "run": "sh ./gen.nix/run npm start compile",
+          "if": "steps.init.outputs.hit-compile != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm run cov"
+          "run": "npm start ci report compile",
+          "if": "steps.init.outputs.hit-compile != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
         },
         {
-          "run": "mkdir \"$RUNNER_TEMP/consumer\""
+          "run": "sh ./gen.nix/run npm run cov",
+          "if": "steps.init.outputs.hit-coverage != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm pack --pack-destination \"$RUNNER_TEMP/consumer\""
+          "run": "npm start ci report coverage",
+          "if": "steps.init.outputs.hit-coverage != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "mkdir \"$RUNNER_TEMP/consumer\"",
+          "if": "steps.init.outputs.hit-package != 'true'"
+        },
+        {
+          "run": "sh ./gen.nix/run npm pack --pack-destination \"$RUNNER_TEMP/consumer\"",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "sh ./gen.nix/run npm run gen"
@@ -426,50 +1005,84 @@
           "uses": "actions/setup-node@v7.1.0",
           "with": {
             "package-manager-cache": "false",
-            "node-version": "26.12.0"
-          }
+            "node-version": "26.12.1"
+          },
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "npm init -y > /dev/null",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "npm install \"packed@file:$(echo *.tgz)\"",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "npm install \"typescript@7.0.2\"",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "echo '{\"include\":[\"node_modules/packed/**/*\",\"node_modules/packed/**/.*\",\"node_modules/packed/**/.*/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "npx tsc",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "echo 'import { prototypeNames } from \"packed/fjs/js/prototype/module.f.js\";\nimport type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst accepted: PrototypeName = \"map\";\nif (prototypeNames === undefined) { throw new Error(\"prototypeNames did not load\"); }' > good.mts",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "echo 'import type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst refused: PrototypeName = \"stone\";' > bad.mts",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext good.mts",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "node good.mts",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "! npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext bad.mts",
-          "working-directory": "${{ runner.temp }}/consumer"
+          "working-directory": "${{ runner.temp }}/consumer",
+          "if": "steps.init.outputs.hit-package != 'true'"
+        },
+        {
+          "run": "npm start ci report package",
+          "if": "steps.init.outputs.hit-package != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "npm start ci publish",
+          "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
+            "GIT_COMMITTER_NAME": "github-actions[bot]",
+            "GIT_COMMITTER_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
         }
-      ]
+      ],
+      "permissions": {
+        "contents": "write"
+      }
     }
   }
 }

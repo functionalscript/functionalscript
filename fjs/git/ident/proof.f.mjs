@@ -2,8 +2,8 @@
  * @import { Ident } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { greaterThanSign as gt, lessThanSign as lt, space as sp } from '../../text/ascii/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { greaterThanSign as gt, lessThanSign as lt, space as sp } from '../../text/ascii/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tryRead as readPayload } from '../header/module.f.mjs'

@@ -37,15 +37,17 @@
  */
 
 import { emptyState, patriciaTrie } from './module.f.mjs'
-import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { binaryKeys, versionsDemo } from '../../website/demo/versions/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { max } from '../number/max/module.f.js'
 
 /** A key's bits: the trie branches on them, most significant first. */
 const bits = 8
 
-/** @type {(key: number) => string} */
-const binary = key => key.toString(2).padStart(bits, '0')
+/** Keys typed and shown in binary, `bits` digits. */
+const keyBits = binaryKeys(bits)
+
+const binary = keyBits.show
 
 /**
  * The trie's `create`: a branch's identity is its children's, joined, and
@@ -174,8 +176,7 @@ export const presets = [
  * @type {Keys}
  */
 const keys = {
-    parse: text => text.length >= 1 && text.length <= bits && [...text].every(c => c === '0' || c === '1') ? parseInt(text, 2) : null,
-    show: binary,
+    ...keyBits,
     label: 'Key (8 bits)',
     accepts: 'up to eight binary digits, such as 01100100',
 }

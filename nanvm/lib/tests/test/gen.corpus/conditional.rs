@@ -2,29 +2,26 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check_throws::<A>("unreachedCondition", scope(|| {
-        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
-        Any::conditional(c0, || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))
-    }));
-    check::<A>("truePicksConsequent", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("falsePicksAlternate", Any::conditional(false.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    check::<A>("nullPicksAlternate", Any::conditional(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    check::<A>("undefinedPicksAlternate", Any::conditional(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    check::<A>("zeroPicksAlternate", Any::conditional(f64_any(0x0000000000000000), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    check::<A>("nanPicksAlternate", Any::conditional(f64_any(0x7ff8000000000000), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    check::<A>("emptyStringPicksAlternate", Any::conditional(string_any(""), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    check::<A>("nonEmptyStringPicksConsequent", Any::conditional(string_any("a"), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("bigZeroPicksAlternate", Any::conditional(bigint_any(0), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    check::<A>("bigNonZeroPicksConsequent", Any::conditional(bigint_any(5), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("emptyArrayPicksConsequent", Any::conditional(Array::default().to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("emptyObjectPicksConsequent", Any::conditional(Object::default().to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("functionPicksConsequent", Any::conditional(function_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
-    check::<A>("truePicksStringConsequent", Any::conditional(true.to_any(), || Ok(string_any("yes")), || Ok(string_any("no"))), string_any("yes"));
-    check::<A>("falsePicksBigAlternate", Any::conditional(false.to_any(), || Ok(bigint_any(1)), || Ok(bigint_any(2))), bigint_any(2));
-    check::<A>("trueSkipsAlternate", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || bigint_any(1) / bigint_any(0)), f64_any(0x3ff0000000000000));
-    check::<A>("falseSkipsConsequent", Any::conditional(false.to_any(), || bigint_any(1) / bigint_any(0), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    check::<A>("nullSkipsConsequent", Any::conditional(Nullish::Null.to_any(), || bigint_any(1) / bigint_any(0), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
-    check::<A>("emptyArraySkipsAlternate", Any::conditional(Array::default().to_any(), || Ok(f64_any(0x3ff0000000000000)), || bigint_any(1) / bigint_any(0)), f64_any(0x3ff0000000000000));
+    check_throws::<A>("unreachedCondition", scope(|| { if Any::<A>::to_boolean((bigint_any(1) / bigint_any(0))?) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }));
+    check::<A>("truePicksConsequent", scope(|| { if Any::<A>::to_boolean(true.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("falsePicksAlternate", scope(|| { if Any::<A>::to_boolean(false.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("nullPicksAlternate", scope(|| { if Any::<A>::to_boolean(Nullish::Null.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("undefinedPicksAlternate", scope(|| { if Any::<A>::to_boolean(Nullish::Undefined.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("zeroPicksAlternate", scope(|| { if Any::<A>::to_boolean(f64_any(0x0000000000000000)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("nanPicksAlternate", scope(|| { if Any::<A>::to_boolean(f64_any(0x7ff8000000000000)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("emptyStringPicksAlternate", scope(|| { if Any::<A>::to_boolean(string_any("")) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("nonEmptyStringPicksConsequent", scope(|| { if Any::<A>::to_boolean(string_any("a")) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("bigZeroPicksAlternate", scope(|| { if Any::<A>::to_boolean(bigint_any(0)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("bigNonZeroPicksConsequent", scope(|| { if Any::<A>::to_boolean(bigint_any(5)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("emptyArrayPicksConsequent", scope(|| { if Any::<A>::to_boolean(Array::default().to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("emptyObjectPicksConsequent", scope(|| { if Any::<A>::to_boolean(Object::default().to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("functionPicksConsequent", scope(|| { if Any::<A>::to_boolean(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("truePicksStringConsequent", scope(|| { if Any::<A>::to_boolean(true.to_any()) { Ok(string_any("yes")) } else { Ok(string_any("no")) } }), string_any("yes"));
+    check::<A>("falsePicksBigAlternate", scope(|| { if Any::<A>::to_boolean(false.to_any()) { Ok(bigint_any(1)) } else { Ok(bigint_any(2)) } }), bigint_any(2));
+    check::<A>("trueSkipsAlternate", scope(|| { if Any::<A>::to_boolean(true.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { bigint_any(1) / bigint_any(0) } }), f64_any(0x3ff0000000000000));
+    check::<A>("falseSkipsConsequent", scope(|| { if Any::<A>::to_boolean(false.to_any()) { bigint_any(1) / bigint_any(0) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("nullSkipsConsequent", scope(|| { if Any::<A>::to_boolean(Nullish::Null.to_any()) { bigint_any(1) / bigint_any(0) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("emptyArraySkipsAlternate", scope(|| { if Any::<A>::to_boolean(Array::default().to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { bigint_any(1) / bigint_any(0) } }), f64_any(0x3ff0000000000000));
 }

@@ -8,11 +8,11 @@
  * @import { Unknown } from './types.ts'
  */
 
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { fromCodePointList } from '../../text/utf8/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { concat } from '../../types/string/module.f.mjs'
+import { concat, occurrences } from '../../types/string/module.f.mjs'
 import { tryJsonSerialize, tryJsonStringify, tryParse, tryParseBytes, trySerialize, tryStringify } from './module.f.mjs'
 import { _graphOf, demo, examples } from './demo.f.mjs'
 import { _crossings } from '../../website/demo/graph/module.f.mjs'
@@ -28,9 +28,6 @@ const utf8 = text => fromCodePointList(stringToCodePointList(text))
 
 /** The graph the document denotes, read as code units. */
 const graph = unwrap(tryParse(document))
-
-/** How many times `needle` appears in `text`, non-overlapping. @type {(text: string, needle: string) => number} */
-const occurrences = (text, needle) => text.split(needle).length - 1
 
 export const proof = {
     // The surface holds the six signatures the design fixed, and the
@@ -83,19 +80,19 @@ export const proof = {
             // and `"a"`'s edge is the one left skipping a rank.
             sharing: () => {
                 const html = htmlToString(demo.view(demo.init))
-                assertEq(occurrences(html, 'data-graph-kind="array"'), 1)
+                assertEq(occurrences('data-graph-kind="array"')(html), 1)
                 assert(html.includes('>&quot;a&quot;<'), html)
                 assert(html.includes('>&quot;c&quot;<'), html)
                 // `1` and `2` sit in the array's own ports, not in boxes.
-                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 0)
-                assertEq(occurrences(html, 'data-graph-value=""'), 2)
+                assertEq(occurrences('data-graph-kind="leaf"')(html), 0)
+                assertEq(occurrences('data-graph-value=""')(html), 2)
             },
             // `typeof null === 'object'` is why `walk` checks `=== null`
             // first — without it, `null` would reach `instanceof Array` and
             // `Object.entries` as if it held members.
             nullIsALeaf: () => {
                 const html = htmlToString(demo.view('export default null;'))
-                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 1)
+                assertEq(occurrences('data-graph-kind="leaf"')(html), 1)
                 assert(!html.includes('data-graph-edge'), html)
                 assert(html.includes('>null<'), html)
             },
@@ -135,8 +132,8 @@ export const proof = {
             // container would be — "primitive sharing is not [written]".
             equalLeavesDoNotShare: () => {
                 const html = htmlToString(demo.view('export default [1,1];'))
-                assertEq(occurrences(html, 'data-graph-value=""'), 2)
-                assertEq(occurrences(html, 'data-graph-value-label="">1<'), 2)
+                assertEq(occurrences('data-graph-value=""')(html), 2)
+                assertEq(occurrences('data-graph-value-label="">1<')(html), 2)
             },
             // Three array elements sharing one value are three ports and
             // three lines into one node — each index in its own cell, so
@@ -144,9 +141,9 @@ export const proof = {
             // The object's `"n"` is a fourth port, holding its `1`.
             parallelEdgesArePorts: () => {
                 const html = htmlToString(demo.view('const $0={"n":1};\nexport default [$0,$0,$0];'))
-                assertEq(occurrences(html, 'data-graph-kind="object"'), 1)
-                assertEq(occurrences(html, 'data-graph-port=""'), 4)
-                assertEq(occurrences(html, 'data-graph-edge=""'), 3)
+                assertEq(occurrences('data-graph-kind="object"')(html), 1)
+                assertEq(occurrences('data-graph-port=""')(html), 4)
+                assertEq(occurrences('data-graph-edge=""')(html), 3)
                 assert(!html.includes('>0, 1, 2<'), html)
                 // Three different lines, not three drawn on top of each
                 // other: each piece before an edge's marker ends with its

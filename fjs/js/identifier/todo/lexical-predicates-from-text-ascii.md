@@ -7,26 +7,19 @@
 
 "Is this character a digit, or a Latin letter?" is written in module after
 module, in nearly as many spellings, and until recently the one copy in the
-module that owns the question was the only one nobody could use:
+module that owns the question was the only one nobody could use. The rows
+still carrying their own:
 
 |Where|What|
 |-|-|
-|[`fjs/text/ascii`](../../../text/ascii/module.f.mjs)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges, and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
-|[`fjs/git/config`](../../../git/config/module.f.mjs)|`isAlpha`, `isDigit`, over string comparisons|
-|[`fjs/git/alternates`](../../../git/alternates/module.f.mjs)|`isOctal` over string comparisons, and `parseInt(…, 8)` for the value, where `fjs/git/tree` reads octal with `text/ascii`'s `digitsValue(8n)`|
-|[`fjs/git/refstore/scope`](../../../git/refstore/scope/module.f.js)|`isPseudoref`, the capital letters as `'A'`..`'Z'`|
-|[`fjs/git/tree`](../../../git/tree/module.f.mjs)|`lower`, the capital letters as `0x41`..`0x5A`|
-|[`fjs/rtti/ts`](../../../rtti/ts/module.f.mjs)|`isIdStart` and `isIdPart`, JavaScript's identifier rule over string comparisons, which `isTypeName` reads|
-|[`fjs/web`](../../../web/module.f.mjs)|`isDigits`, the digit range again|
-|[`fjs/effects/node`](../../../effects/node/module.f.mjs)|`isDigits`, the same body as `fjs/web`'s|
-|[`fjs/website/browser-source`](../../../website/browser-source/module.f.mjs)|`nameChar`, JavaScript's identifier characters over string comparisons|
-|[`fjs/website/changelog`](../../../website/changelog/module.f.mjs)|`isDigit` and `isHex`, over `charCodeAt` and named constants|
-|[`fjs/path`](../../../path/module.f.mjs)|`isDriveLetter`, the Latin letters over string comparisons|
-|[`fjs/media/nix`](../../../media/nix/module.f.mjs)|the same classes built as `RangeSet`s, for Nix's identifier rule|
-|[`fjs/media/datajs/vectors/matrix`](../../../media/datajs/vectors/matrix/module.f.mjs)|`lower`, `upper` and `digits`, the classes spelled out as string literals|
+|[`fjs/text/ascii`](../../../text/ascii/module.f.js)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges; `charIs`, any of them asked of a one-character string; `isDigits`, a string of decimal digits; and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
 
 Most of these ask about a one-character *string*, where `text/ascii`'s
-classes take a code point, which is part of why each consumer wrote its own.
+classes take a code point, which is part of why each consumer wrote its own;
+`charIs` now asks a class of such a string, so no consumer converts or
+measures length for itself. `fjs/git/config`, `fjs/path`, `fjs/web`,
+`fjs/effects/node` and `fjs/website/changelog` ask it already, and
+`fjs/git/tree`, which reads bytes, asks `isLatinCapitalLetter` directly.
 
 A character class written from literals is a class that drifts. The hole
 this issue was raised over is what that costs: the FunctionalScript writer
@@ -38,8 +31,7 @@ such answer to give.
 The classes now live in `fjs/text/ascii`, exported, and JavaScript's rule
 over them in [`fjs/js/identifier`](../module.f.mjs), which the writer in
 [`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs), the
-tokenizer and `fjs/emergent_testing` ask. Every row below the owner's still
-carries its own.
+tokenizer and `fjs/emergent_testing` ask.
 
 ### Proposal
 
@@ -75,9 +67,9 @@ written out again.
 
 ### Tasks
 
-- [ ] Decide whether `text/ascii` also offers the classes over a
+- [x] Decide whether `text/ascii` also offers the classes over a
       one-character string, which most rows above ask about, or each
-      consumer converts to a code point first.
+      consumer converts to a code point first: it does, as `charIs`.
 - [x] `fjs/js/identifier/module.f.mjs`: `isIdentifier` over `text/ascii`'s
       classes and `isInteger` over `isCanonicalDigits`, with a co-located proof
       at 100% (the cases in `fjs/emergent_testing/proof.f.mjs` are the start).
@@ -86,21 +78,27 @@ written out again.
       reserves introducing one for the change that enumerates every module.
 - [x] `fjs/emergent_testing`: drop the four definitions, import the two.
 - [x] `fjs/js/tokenizer`: `isDigit` from `text/ascii`, the magic numbers gone.
-- [ ] `fjs/git/config`: `isAlpha`/`isDigit` from `text/ascii`; its `isKeyChar`
+- [x] `fjs/git/config`: `isAlpha`/`isDigit` from `text/ascii`; its `isKeyChar`
       keeps the `-` it adds.
-- [ ] `fjs/git/alternates`: `isOctal` from the classes, and the octal value read
-      with `digitsValue(8n)` as `fjs/git/tree` does, not `parseInt`.
-- [ ] `fjs/git/refstore/scope`: `isPseudoref` over `isLatinCapitalLetter`, keeping
-      the `-` and `_` it adds; `fjs/git/tree`: `lower` over the same class.
-- [ ] `fjs/rtti/ts`: `isIdStart`/`isIdPart` go; `isTypeName` asks
+- [x] `fjs/git/alternates`: the octal value read with `digitsValue(8n)` as
+      `fjs/git/tree` does, not `parseInt`; it refuses a digit outside the
+      radix itself, so `isOctal` went rather than moved.
+- [x] `fjs/git/refstore/scope`: `isPseudoref` over `isLatinCapitalLetter`, keeping
+      the `-` and `_` it adds.
+- [x] `fjs/git/tree`: `lower` over the same class.
+- [x] `fjs/rtti/ts`: `isIdStart`/`isIdPart` go; `isTypeName` asks
       `isIdentifier`.
-- [ ] `fjs/web` and `fjs/effects/node`: one `isDigits` over `isDigit`.
-- [ ] `fjs/website/browser-source`: `nameChar` over the identifier rule;
-      `fjs/website/changelog`: `isDigit` and `isHex` from `text/ascii`.
-- [ ] `fjs/path`: `isDriveLetter` over `isLatinLetter`.
-- [ ] `fjs/media/nix`: its range sets over `text/ascii`'s classes, keeping
+- [x] `fjs/web` and `fjs/effects/node`: one `isDigits` over `isDigit`, in
+      `text/ascii`.
+- [x] `fjs/website/browser-source`: `nameChar` over the identifier rule,
+      `isIdentifierPart`, which `isIdentifier` reads too.
+- [x] `fjs/text/marked`: `withNames`' `isNameStart` and `isNamePart` over
+      `isIdentifierStart` and `isIdentifierPart`, through `charIs`.
+- [x] `fjs/website/changelog`: `isDigit` and `isHex` from `text/ascii`.
+- [x] `fjs/path`: `isDriveLetter` over `isLatinLetter`.
+- [x] `fjs/media/nix`: its range sets over `text/ascii`'s classes, keeping
       Nix's own identifier rule.
-- [ ] `fjs/media/datajs/vectors/matrix`: `lower`, `upper` and `digits` over
+- [x] `fjs/media/datajs/vectors/matrix`: `lower`, `upper` and `digits` over
       the classes, keeping the punctuation each allowed set adds.
 - [x] `fjs/compiler/serializer`: `identifierKey` becomes `isIdentifier`, with
       nothing added. Its proof walks every keyword and expects `.k` for each,
@@ -110,7 +108,7 @@ written out again.
 
 ### Related
 
-- [`fjs/text/ascii/module.f.mjs`](../../../text/ascii/module.f.mjs) — the
+- [`fjs/text/ascii/module.f.js`](../../../text/ascii/module.f.js) — the
   owner of the classes, and of the hexadecimal codec that states the reason.
 - [`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs) — the writer
   whose Kelvin-sign hole raised this.

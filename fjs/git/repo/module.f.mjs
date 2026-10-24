@@ -23,7 +23,7 @@
  *
  * The answer is where Git would look and not a promise that a repository
  * is there: reading `config` at it is what says whether one is, and that is
- * `fjs/git/store`'s `oidBytes`.
+ * `fjs/git/format`'s `oidBytes`.
  *
  * Two things about a path Git has and this does not, and both are answered
  * by refusing rather than by guessing. A path is bytes to Git and a string
@@ -45,8 +45,8 @@ import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { isBareDrive, isDriveRoot, under } from '../../path/module.f.mjs'
 import { isWellFormed } from '../../text/utf16/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
-import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
+import { cString } from '../bytes/module.f.js'
 
 /** What a `.git` file says before the directory it names. */
 const gitdir = /** @type {const} */ ('gitdir: ')
@@ -90,13 +90,12 @@ const here = /** @type {const} */ ('.')
  * @type {(v: Vec) => { readonly raw: number, readonly size: number, readonly text: Nullable<string> }}
  */
 const read = v => {
-    const bs = toArray(u8ListMsb(v))
+    const bs = u8ArrayMsb(v)
     const end = bs.slice(0, bs.findLastIndex(b => b !== 0x0A && b !== 0x0D) + 1)
-    const nul = end.indexOf(0)
     return {
         raw: bs.length,
         size: end.length,
-        text: fromVec(u8ListToVecMsb(nul === -1 ? end : end.slice(0, nul))),
+        text: fromVec(u8ListToVecMsb(cString(end))),
     }
 }
 
@@ -288,7 +287,7 @@ const tryGitdir = (worktree, size, text) => {
  * is what a `gitdir:` line named, since the `commondir` under it is absent
  * exactly as it is absent under a main repository. Whether a repository is
  * at the answer is what reading `config` there says, and that is
- * `fjs/git/store`'s `oidBytes`.
+ * `fjs/git/format`'s `oidBytes`.
  *
  * @type {(worktree: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
  */

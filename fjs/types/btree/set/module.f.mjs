@@ -11,7 +11,7 @@
 import { collapseRoot } from '../types/module.f.js'
 import { find } from '../find/module.f.mjs'
 import { fold } from '../../list/module.f.mjs'
-import { assert } from '../../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.js'
 
 /** @type {<T>(b: Branch5<T> | Branch7<T>) => Branch1<T> | Branch3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]

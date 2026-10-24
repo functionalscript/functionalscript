@@ -16,14 +16,13 @@
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.js'
+import { decodeCodePoints, encodeCodePoints } from '../../basen/base16/module.f.mjs'
 import { sha1 } from '../../crypto/sha1/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { isWholeBytesIn, length, tryU8ListToVecMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { next, toArray } from '../../types/list/module.f.mjs'
+import { isWholeBytesIn, length, tryU8ListToVecMsb, u8ListToVecChunksMsb, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { write } from '../object/module.f.mjs'
 
 /**
@@ -37,14 +36,19 @@ import { write } from '../object/module.f.mjs'
  * @type {(hex: Bytes) => Nullable<Oid>}
  */
 export const tryFromHex = hex => {
-    const digits = byteArray(hex)
-    const values = digits.flatMap(b => {
-        const v = hexDigitValue(b)
-        return v === null ? [] : [v]
-    })
-    if (values.length !== digits.length || values.length === 0 || values.length % 2 !== 0) { return null }
-    return tryU8ListToVecMsb(values.filter((_, i) => i % 2 === 0).map((h, i) => h * 16 + values[2 * i + 1]))
+    const bytes = decodeCodePoints(byteArray(hex))
+    return bytes === null || bytes.length === 0 ? null : tryU8ListToVecMsb(bytes)
 }
+
+/**
+ * The id whose raw spelling is the `width` bytes at `at`: how a binary
+ * format holds one — a pack index's tables and trailer, a `refDelta`'s base.
+ * Bytes short of `at + width` make a narrower id, which a reader that has not
+ * checked the length refuses with {@link isOidOf}.
+ *
+ * @type {(b: readonly number[], at: number, width: number) => Oid}
+ */
+export const oidAt = (b, at, width) => u8ListToVecMsb(b.slice(at, at + width))
 
 /**
  * Whether an id is as wide as a repository's ids: `oidBytes` whole bytes.
@@ -115,28 +119,9 @@ const chunkBytes = /** @type {const} */ (65_536)
  * is held at a time and never the object as an array, so an object longer
  * than an array would hold is hashed all the same.
  *
- * The tail the gathering reached is what the next chunk starts from, not
- * the list with a count dropped from its front: a dropped list walks the
- * bytes it drops, and a chunk over a list dropped over a list would walk
- * every byte before it, once per chunk, which is quadratic in the object.
- * Every byte is walked once here.
- *
  * @type {(bytes: Bytes) => List<Vec>}
  */
-const chunks = bytes => () => {
-    let rest = bytes
-    let taken = 0
-    const gathered = Array.from({ length: chunkBytes }, () => {
-        const r = next(rest)
-        if (r === null) { return 0 }
-        rest = r.tail
-        taken += 1
-        return r.first
-    })
-    return taken === 0
-        ? null
-        : { first: u8ListToVecMsb(taken === chunkBytes ? gathered : gathered.slice(0, taken)), tail: chunks(rest) }
-}
+const chunks = u8ListToVecChunksMsb(chunkBytes)
 
 /**
  * The id Git gives an object, at the repository's width: the hash of
@@ -197,7 +182,7 @@ export const digestOf = oidBytes => {
 export const toHex = oid => {
     const bits = length(oid)
     assert(bits !== 0n && isWholeBytesIn(bits), ['not whole bytes', oid])
-    return toArray(u8ListMsb(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
+    return encodeCodePoints(u8ArrayMsb(oid))
 }
 
 /**

@@ -2,23 +2,23 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("null", !(Nullish::Null.to_any()), true.to_any());
-    check::<A>("undefined", !(Nullish::Undefined.to_any()), true.to_any());
-    check::<A>("booleanFalse", !(false.to_any()), true.to_any());
-    check::<A>("booleanTrue", !(true.to_any()), false.to_any());
-    check::<A>("numberZero", !(f64_any(0x0000000000000000)), true.to_any());
-    check::<A>("numberNegativeZero", !(f64_any(0x8000000000000000)), true.to_any());
-    check::<A>("numberNan", !(f64_any(0x7ff8000000000000)), true.to_any());
-    check::<A>("numberPositive", !(f64_any(0x4002666666666666)), false.to_any());
-    check::<A>("numberNegative", !(f64_any(0xc002666666666666)), false.to_any());
-    check::<A>("stringEmpty", !(string_any("")), true.to_any());
-    check::<A>("stringNonEmpty", !(string_any("a")), false.to_any());
-    check::<A>("bigintZero", !(bigint_any(0)), true.to_any());
-    check::<A>("bigintPositive", !(bigint_any(5)), false.to_any());
-    check::<A>("bigintNegative", !(bigint_any(-5)), false.to_any());
-    check::<A>("emptyArray", !(Array::default().to_any()), false.to_any());
-    check::<A>("emptyObject", !(Object::default().to_any()), false.to_any());
-    check::<A>("function", !(function_any()), false.to_any());
+    check::<A>("null", scope(|| { <Any<A> as core::ops::Not>::not(Nullish::Null.to_any()) }), true.to_any());
+    check::<A>("undefined", scope(|| { <Any<A> as core::ops::Not>::not(Nullish::Undefined.to_any()) }), true.to_any());
+    check::<A>("booleanFalse", scope(|| { <Any<A> as core::ops::Not>::not(false.to_any()) }), true.to_any());
+    check::<A>("booleanTrue", scope(|| { <Any<A> as core::ops::Not>::not(true.to_any()) }), false.to_any());
+    check::<A>("numberZero", scope(|| { <Any<A> as core::ops::Not>::not(f64_any(0x0000000000000000)) }), true.to_any());
+    check::<A>("numberNegativeZero", scope(|| { <Any<A> as core::ops::Not>::not(f64_any(0x8000000000000000)) }), true.to_any());
+    check::<A>("numberNan", scope(|| { <Any<A> as core::ops::Not>::not(f64_any(0x7ff8000000000000)) }), true.to_any());
+    check::<A>("numberPositive", scope(|| { <Any<A> as core::ops::Not>::not(f64_any(0x4002666666666666)) }), false.to_any());
+    check::<A>("numberNegative", scope(|| { <Any<A> as core::ops::Not>::not(f64_any(0xc002666666666666)) }), false.to_any());
+    check::<A>("stringEmpty", scope(|| { <Any<A> as core::ops::Not>::not(string_any("")) }), true.to_any());
+    check::<A>("stringNonEmpty", scope(|| { <Any<A> as core::ops::Not>::not(string_any("a")) }), false.to_any());
+    check::<A>("bigintZero", scope(|| { <Any<A> as core::ops::Not>::not(bigint_any(0)) }), true.to_any());
+    check::<A>("bigintPositive", scope(|| { <Any<A> as core::ops::Not>::not(bigint_any(5)) }), false.to_any());
+    check::<A>("bigintNegative", scope(|| { <Any<A> as core::ops::Not>::not(bigint_any(-5)) }), false.to_any());
+    check::<A>("emptyArray", scope(|| { <Any<A> as core::ops::Not>::not(Array::default().to_any()) }), false.to_any());
+    check::<A>("emptyObject", scope(|| { <Any<A> as core::ops::Not>::not(Object::default().to_any()) }), false.to_any());
+    check::<A>("function", scope(|| { <Any<A> as core::ops::Not>::not(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any()) }), false.to_any());
 }

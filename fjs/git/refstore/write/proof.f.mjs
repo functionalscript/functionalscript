@@ -9,7 +9,7 @@
  * @import { Dirs } from '../types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError } from '../../../effects/module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../../text/utf16/module.f.mjs'

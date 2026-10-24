@@ -39,11 +39,12 @@
  * @import { Ast, Children, Meta } from '../../../ebnf/ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
- * @import { Entry as EntryRule } from '../../../ebnf/lib/json/types.ts'
+ * @import { Entry as EntryRule, ValueCases } from '../../../ebnf/lib/json/types.ts'
+ * @import { string } from '../../../ebnf/lib/json/module.f.mjs'
  * @import { DataJsValue } from '../../../ebnf/lib/datajs/types.ts'
  * @import { constStatement, property } from '../../../ebnf/lib/datajs/module.f.mjs'
  * @import { Primitive, Unknown } from '../types.ts'
- * @import { _Binding, _Env, _Frame, _Stack, _State } from './private.ts'
+ * @import { _Binding, _Env, _Frame, _Step } from './private.ts'
  * @import { Tagged } from '../../json/parser/types.ts'
  * @import { Container, Entry, Node, Out, Value } from './types.ts'
  */
@@ -51,12 +52,13 @@
 import { concat, toArray } from '../../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../../types/ordered_map/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
+import { walk } from '../../../types/stack_walk/module.f.mjs'
 import { eof } from '../../../ebnf/module.f.mjs'
-import { unmapped } from '../../../ebnf/ast/module.f.mjs'
+import { unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { lexeme, units } from '../../../ebnf/utf16/module.f.mjs'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
-import { items } from '../../../ebnf/lib/json/module.f.mjs'
+import { entry, valueCases } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { stringMappings, syntaxError, tagged, textAt } from '../../json/parser/module.f.mjs'
 
@@ -106,12 +108,29 @@ const numberOf = node => {
  * @type {(node: Ast<EntryRule<typeof property, DataJsValue>, Utf16, Out>) => Entry}
  */
 const member = node => {
-    const [key, , , , v] = unmapped(node)
+    const [key, v] = entry(node)
     const k = unmapped(key)
     if (k[0] === 'proto') { return [protoKey, nodeAt(v)] }
     const name = textAt(k[1])
     return [name, name === protoKey ? protoRejected : nodeAt(v)]
 }
+
+/**
+ * A branch DataJS shares with JSON is the node JSON's dispatch makes of it:
+ * a container of its items' nodes, a string the text its mapping returned, a
+ * number the leaf its mapping returned, and a word its constant.
+ *
+ * @type {ValueCases<Ast<DataJsValue, Utf16, Out>, Ast<EntryRule<typeof property, DataJsValue>, Utf16, Out>, Ast<typeof string, Utf16, Out>, Ast<typeof number, Utf16, Out>, Meta<Value>>}
+ */
+const jsonCases = {
+    array: items => _valueSymbol(['array', items.map(nodeAt)]),
+    object: entries => _valueSymbol(['object', entries.map(member)]),
+    string: node => _valueSymbol(textAt(node)),
+    number: node => _valueSymbol(nodeAt(node)),
+    word: _valueSymbol,
+}
+
+const jsonNode = valueCases(jsonCases)
 
 /**
  * A value is the node its branch made: a container of its items' nodes, a
@@ -122,16 +141,10 @@ const member = node => {
  */
 const toNode = node => {
     switch (node[0]) {
-        case 'array': { return _valueSymbol(['array', items(unmapped(node[1])).map(nodeAt)]) }
-        case 'object': { return _valueSymbol(['object', items(unmapped(node[1])).map(member)]) }
-        case 'string': { return _valueSymbol(textAt(node[1])) }
-        case 'number': { return _valueSymbol(nodeAt(node[1])) }
-        case 'true': { return _valueSymbol(true) }
-        case 'false': { return _valueSymbol(false) }
-        case 'null': { return _valueSymbol(null) }
         case 'nan': { return _valueSymbol(NaN) }
         case 'undefined': { return _valueSymbol(undefined) }
         case 'id': { return _valueSymbol(['ref', lexeme(node[1])]) }
+        default: { return jsonNode(node) }
     }
 }
 
@@ -180,46 +193,36 @@ const close = (container, done) =>
  *
  * @type {(env: _Env) => (root: Node) => Result<Unknown, string>}
  */
-const evaluate = env => root => {
+const evaluate = env => {
     /**
      * The next item of a container, or the container closed when none is
      * left.
      *
-     * @type {(stack: _Stack, frame: _Frame) => _State}
+     * @type {(frame: _Frame) => _Step}
      */
-    const round = (stack, frame) => {
+    const round = frame => {
         const { container, index, done } = frame
         return index < container[1].length
-            ? [{ top: frame, rest: stack }, ['enter', itemAt(container, index)]]
-            : [stack, ok(close(container, toArray(done)))]
+            ? ['push', frame, itemAt(container, index)]
+            : ok(close(container, toArray(done)))
     }
 
-    /** @type {(stack: _Stack, node: Node) => _State} */
-    const enter = (stack, node) => {
-        if (!(node instanceof Array)) { return [stack, ok(node)] }
-        switch (node[0]) {
-            case 'ref': {
-                const binding = at(node[1])(env)
-                return [stack, binding === null ? error(`unresolved reference ${node[1]}`) : ok(binding[0])]
+    return walk({
+        /** @type {(node: Node) => _Step} */
+        enter: node => {
+            if (!(node instanceof Array)) { return ok(node) }
+            switch (node[0]) {
+                case 'ref': {
+                    const binding = at(node[1])(env)
+                    return binding === null ? error(`unresolved reference ${node[1]}`) : ok(binding[0])
+                }
+                case 'error': { return error(node[1]) }
+                default: { return round({ container: node, index: 0, done: null }) }
             }
-            case 'error': { return [stack, error(node[1])] }
-            default: { return round(stack, { container: node, index: 0, done: null }) }
-        }
-    }
-
-    /** @type {_State} */
-    let state = [null, ['enter', root]]
-    while (true) {
-        const [stack, step] = state
-        if (step[0] === 'enter') {
-            state = enter(stack, step[1])
-        } else if (step[0] === 'error' || stack === null) {
-            return step
-        } else {
-            const { top, rest } = stack
-            state = round(rest, { ...top, index: top.index + 1, done: concat(top.done)([step[1]]) })
-        }
-    }
+        },
+        /** @type {(top: _Frame, value: Unknown) => _Step} */
+        resume: (top, value) => round({ ...top, index: top.index + 1, done: concat(top.done)([value]) }),
+    })
 }
 
 /**

@@ -13,7 +13,7 @@
 
 import { toArray } from '../../types/list/module.f.mjs'
 import { length, msb, uint, uintChunkList, unpack, vec } from '../../types/bit_vec/module.f.mjs'
-import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { secp256r1 } from '../../crypto/secp/module.f.mjs'
 import { base32 } from '../../crypto/sha2/module.f.mjs'
@@ -145,3 +145,14 @@ export const compress = (a, b) => {
     }
     return rawId(concat(ra)(rb))
 }
+
+/**
+ * Whether a hash-level symbol covering `length` input bits is a hash. Every
+ * `compress` of raw parts keeps their bits inline, in order, as a raw `Id`
+ * while they fit in 253, and hashes them once they do not; a part that is a
+ * hash covers more than 253 bits already. So a symbol is raw exactly when the
+ * input bits it covers fit, and a hash exactly when they do not.
+ *
+ * @type {(length: number) => boolean}
+ */
+export const isHashLength = length => BigInt(length) > rawLenMax

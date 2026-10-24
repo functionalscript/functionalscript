@@ -3,12 +3,13 @@
  * @import { BitGroups } from '../../website/demo/bits/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.f.mjs'
 import { encode, decode } from './module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
+import { occurrences } from '../../types/string/module.f.mjs'
 
 /**
  * @param {string} s
@@ -181,7 +182,7 @@ export const proof = {
             // `h` is two characters, so its block is padded with two
             // hidden placeholders to the width of a full one.
             const short = htmlToString(demo.view('h'))
-            assertEq(short.split('data-bit-placeholder').length - 1, 2)
+            assertEq(occurrences('data-bit-placeholder')(short), 2)
             assert(html.includes('Result: <strong>aMOp</strong>'), html)
         },
     },

@@ -2,30 +2,30 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("null", Any::bitwise_not(Nullish::Null.to_any()), f64_any(0xbff0000000000000));
-    check::<A>("undefined", Any::bitwise_not(Nullish::Undefined.to_any()), f64_any(0xbff0000000000000));
-    check::<A>("booleanFalse", Any::bitwise_not(false.to_any()), f64_any(0xbff0000000000000));
-    check::<A>("booleanTrue", Any::bitwise_not(true.to_any()), f64_any(0xc000000000000000));
-    check::<A>("stringTen", Any::bitwise_not(string_any("10")), f64_any(0xc026000000000000));
-    check::<A>("stringLetter", Any::bitwise_not(string_any("a")), f64_any(0xbff0000000000000));
-    check::<A>("emptyArray", Any::bitwise_not(Array::default().to_any()), f64_any(0xbff0000000000000));
-    check::<A>("arrayTen", Any::bitwise_not([f64_any(0x4024000000000000)].to_array().to_any()), f64_any(0xc026000000000000));
-    check::<A>("arrayStringTen", Any::bitwise_not([string_any("10")].to_array().to_any()), f64_any(0xc026000000000000));
-    check::<A>("arrayPair", Any::bitwise_not([f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any()), f64_any(0xbff0000000000000));
-    check::<A>("emptyObject", Any::bitwise_not(Object::default().to_any()), f64_any(0xbff0000000000000));
-    check::<A>("function", Any::bitwise_not(function_any()), f64_any(0xbff0000000000000));
-    check::<A>("truncatesTowardZero", Any::bitwise_not(f64_any(0x400f333333333333)), f64_any(0xc010000000000000));
-    check::<A>("negativeTruncatesTowardZero", Any::bitwise_not(f64_any(0xc00f333333333333)), f64_any(0x4000000000000000));
-    check::<A>("nan", Any::bitwise_not(f64_any(0x7ff8000000000000)), f64_any(0xbff0000000000000));
-    check::<A>("infinity", Any::bitwise_not(f64_any(0x7ff0000000000000)), f64_any(0xbff0000000000000));
-    check::<A>("negativeInfinity", Any::bitwise_not(f64_any(0xfff0000000000000)), f64_any(0xbff0000000000000));
-    check::<A>("wrapsAt32Bits", Any::bitwise_not(f64_any(0x41f0000000500000)), f64_any(0xc018000000000000));
-    check::<A>("negativeOne", Any::bitwise_not(f64_any(0xbff0000000000000)), f64_any(0x0000000000000000));
-    check::<A>("bigZero", Any::bitwise_not(bigint_any(0)), bigint_any(-1));
-    check::<A>("bigPositive", Any::bitwise_not(bigint_any(5)), bigint_any(-6));
-    check::<A>("bigNegative", Any::bitwise_not(bigint_any(-5)), bigint_any(4));
-    check::<A>("bigOne", Any::bitwise_not(bigint_any(1)), bigint_any(-2));
-    check::<A>("bigNegativeOne", Any::bitwise_not(bigint_any(-1)), bigint_any(0));
+    check::<A>("null", scope(|| { Any::bitwise_not(Nullish::Null.to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("undefined", scope(|| { Any::bitwise_not(Nullish::Undefined.to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("booleanFalse", scope(|| { Any::bitwise_not(false.to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("booleanTrue", scope(|| { Any::bitwise_not(true.to_any()) }), f64_any(0xc000000000000000));
+    check::<A>("stringTen", scope(|| { Any::bitwise_not(string_any("10")) }), f64_any(0xc026000000000000));
+    check::<A>("stringLetter", scope(|| { Any::bitwise_not(string_any("a")) }), f64_any(0xbff0000000000000));
+    check::<A>("emptyArray", scope(|| { Any::bitwise_not(Array::default().to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("arrayTen", scope(|| { Any::bitwise_not([f64_any(0x4024000000000000)].to_array().to_any()) }), f64_any(0xc026000000000000));
+    check::<A>("arrayStringTen", scope(|| { Any::bitwise_not([string_any("10")].to_array().to_any()) }), f64_any(0xc026000000000000));
+    check::<A>("arrayPair", scope(|| { Any::bitwise_not([f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("emptyObject", scope(|| { Any::bitwise_not(Object::default().to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("function", scope(|| { Any::bitwise_not(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("truncatesTowardZero", scope(|| { Any::bitwise_not(f64_any(0x400f333333333333)) }), f64_any(0xc010000000000000));
+    check::<A>("negativeTruncatesTowardZero", scope(|| { Any::bitwise_not(f64_any(0xc00f333333333333)) }), f64_any(0x4000000000000000));
+    check::<A>("nan", scope(|| { Any::bitwise_not(f64_any(0x7ff8000000000000)) }), f64_any(0xbff0000000000000));
+    check::<A>("infinity", scope(|| { Any::bitwise_not(f64_any(0x7ff0000000000000)) }), f64_any(0xbff0000000000000));
+    check::<A>("negativeInfinity", scope(|| { Any::bitwise_not(f64_any(0xfff0000000000000)) }), f64_any(0xbff0000000000000));
+    check::<A>("wrapsAt32Bits", scope(|| { Any::bitwise_not(f64_any(0x41f0000000500000)) }), f64_any(0xc018000000000000));
+    check::<A>("negativeOne", scope(|| { Any::bitwise_not(f64_any(0xbff0000000000000)) }), f64_any(0x0000000000000000));
+    check::<A>("bigZero", scope(|| { Any::bitwise_not(bigint_any(0)) }), bigint_any(-1));
+    check::<A>("bigPositive", scope(|| { Any::bitwise_not(bigint_any(5)) }), bigint_any(-6));
+    check::<A>("bigNegative", scope(|| { Any::bitwise_not(bigint_any(-5)) }), bigint_any(4));
+    check::<A>("bigOne", scope(|| { Any::bitwise_not(bigint_any(1)) }), bigint_any(-2));
+    check::<A>("bigNegativeOne", scope(|| { Any::bitwise_not(bigint_any(-1)) }), bigint_any(0));
 }

@@ -19,13 +19,13 @@
  * @import { AnyCase, CallbackName, Group, SharedNode, Value } from './types.ts'
  */
 
-import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
-import { structurallySame } from '../types/object/structurally_same/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.js'
+import { structurallySame } from '../types/object/structurally_same/module.f.js'
 import { exp } from '../edag/module.f.mjs'
 import { vm, invoke } from '../edag/amnesia/module.f.mjs'
 import { call } from '../edag/value/call/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'
-import runtimeEdag from '../js/runtime/gen.edag.data.mjs'
+import runtimeEdag from '../js/runtime/gen.edag.data.js'
 import { toData } from '../edag/value/to_unknown/module.f.mjs'
 import { ok } from '../types/result/module.f.js'
 import { validate } from '../rtti/validate/module.f.mjs'
@@ -50,6 +50,7 @@ import {
     valueExp,
     valuesExp,
 } from './module.f.mjs'
+import { conditional } from '../edag/testlib.f.js'
 
 const { fromEntries, is } = Object
 
@@ -450,8 +451,8 @@ const unreachedOperand = {
     },
     /** In a lazy position the case answers, a container holding it too; in an eager one it returns an error. */
     lazy: () => {
-        assertEq(assertOk(corpus()(['&&', false, valueExp(unreached)])), false)
-        assertEq(assertOk(corpus()(['&&', false, valueExp([unreached])])), false)
+        assertEq(assertOk(corpus()(conditional('&&', false, valueExp(unreached)))), false)
+        assertEq(assertOk(corpus()(conditional('&&', false, valueExp([unreached])))), false)
         assertEq(assertOk(corpus()(['?:', true, 1, valueExp(unreached)])), 1)
     },
     failures: () => {

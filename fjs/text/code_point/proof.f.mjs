@@ -2,11 +2,12 @@ import {
     assertEq,
     assertNotNullish,
     assertStructurallySame,
-} from '../../asserts/module.f.mjs'
+} from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/module.f.mjs'
 import {
     bmpMax,
     eofFlush,
+    errorMask,
     isBmpCodePoint,
     isHighSurrogate,
     isLowSurrogate,
@@ -16,6 +17,7 @@ import {
     restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
+    unicodeNotation,
 } from './module.f.mjs'
 
 /**
@@ -191,4 +193,21 @@ export const proof = {
         () => assertEq(isTextCodePoint(0xa0), true), // NBSP
         () => assertEq(isTextCodePoint(0x10_ffff), true),
     ],
+    unicodeNotation: {
+        // padded to four digits, and no further
+        spelled: () => {
+            assertEq(unicodeNotation(0x0a), 'U+000A')
+            assertEq(unicodeNotation(0xfeff), 'U+FEFF')
+            assertEq(unicodeNotation(0x1_f600), 'U+1F600')
+            assertEq(unicodeNotation(0x10_ffff), 'U+10FFFF')
+            assertEq(unicodeNotation(0xd800), 'U+D800')
+        },
+        // no notation for what is not a code point: refused, not misspelled
+        throw: {
+            tagged: () => unicodeNotation(0x41 | errorMask),
+            past: () => unicodeNotation(0x11_0000),
+            negative: () => unicodeNotation(-1),
+            fraction: () => unicodeNotation(0x41 + 0.5),
+        },
+    },
 }

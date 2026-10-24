@@ -6,7 +6,7 @@
  * its names and makes the AST of it.
  *
  * ```text
- * DjsToken stream ==the module grammar, one symbol per token==> tree
+ * ModuleToken stream ==the module grammar, one symbol per token==> tree
  *                 ==the rewrite set: a node per value, a record per statement==> module
  * ```
  *
@@ -34,23 +34,23 @@
  * @import { Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Primitive } from '../../../media/datajs/types.ts'
- * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Chain, Const, Entry, Import, ImportBinding, Item, Key, Let, LoopBlock, LoopStatement, Member, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LetStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ParameterNames, Parenthesized, Statement, Template, Unary, UnaryOperand, Value } from '../grammar/types.ts'
- * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopStatement, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { namedImports, primitive } from '../grammar/module.f.mjs'
+ * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
 import { concat, toArray } from '../../../types/list/module.f.mjs'
-import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
-import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
+import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
-    binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, entries, entry, loopStatement, member, parameterNames, statement, symbolOf, template, unary, unaryOperand, value, values,
+    afterCase, binaryOpTag, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
+    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopStatement, member, moduleStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -73,7 +73,7 @@ import {
  * Anything else missing an `eof` is a genuine contract violation and has no
  * position to report.
  *
- * @type {(tokens: readonly DjsTokenWithMetadata[]) => Result<_TokenStream, ParseError>}
+ * @type {(tokens: readonly ModuleTokenWithMetadata[]) => Result<_TokenStream, ParseError>}
  */
 const splitEof = tokens => {
     const eofIdx = tokens.findIndex(({ token }) => token.kind === 'eof')
@@ -101,7 +101,7 @@ const splitEof = tokens => {
 /**
  * The token at a position: an input symbol, whose metadata is the token.
  *
- * @type {(node: _Leaf) => DjsTokenWithMetadata}
+ * @type {(node: _Leaf) => ModuleTokenWithMetadata}
  */
 const tokenAt = node => {
     const { meta } = symbolAt(node)
@@ -190,10 +190,17 @@ const itemTargetAt = node => {
     return out.target
 }
 
-/** @type {(node: _Leaf) => List<BindingElement>} */
-const valueTargetsAt = node => {
+/** @type {(node: _Leaf) => List<Element>} */
+const elementsAt = node => {
     const out = outAt(node)
-    assert(out.id === 'values')
+    assert(out.id === 'elements')
+    return out.items
+}
+
+/** @type {(node: _Leaf) => List<BindingElement>} */
+const elementTargetsAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'elements')
     return out.targets
 }
 
@@ -218,10 +225,10 @@ const entryTargetsAt = node => {
     return out.targets
 }
 
-/** A value that is no binding target, at the token it begins with. @type {(first: DjsTokenWithMetadata) => BindingTarget} */
+/** A value that is no binding target, at the token it begins with. @type {(first: ModuleTokenWithMetadata) => BindingTarget} */
 const invalid = first => ['invalid', first]
 
-/** A name as a binding target, by its token. @type {(token: DjsTokenWithMetadata) => BindingTarget} */
+/** A name as a binding target, by its token. @type {(token: ModuleTokenWithMetadata) => BindingTarget} */
 const named = token => ['name', token]
 
 /** @type {(node: _Leaf) => Import} */
@@ -238,11 +245,39 @@ const constAt = node => {
     return out.statement
 }
 
+/** @type {(node: _Leaf) => NamedStatement} */
+const namedAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'named')
+    return out.statement
+}
+
 /** @type {(node: _Leaf) => BlockStatement} */
 const statementAt = node => {
     const out = outAt(node)
     assert(out.id === 'statement')
     return out.statement
+}
+
+/** @type {(node: _Leaf) => Block[1]} */
+const endAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'end')
+    return out.end
+}
+
+/** @type {(node: _Leaf) => Extract<Out, { readonly id: 'caseTail' }>} */
+const caseTailAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'caseTail')
+    return out
+}
+
+/** @type {(node: _Leaf) => Extract<Out, { readonly id: 'afterCase' }>} */
+const afterCaseAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'afterCase')
+    return out
 }
 
 /** @type {(node: _Leaf) => LoopStatement} */
@@ -284,7 +319,7 @@ const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
  * {@link textOf}, for the fold in `../module.f.mjs`, which reads the words
  * of the tokens the records here hold.
  *
- * @type {(t: DjsTokenWithMetadata) => string}
+ * @type {(t: ModuleTokenWithMetadata) => string}
  */
 export const nameOf = ({ token }) => {
     if (token.kind === 'id') { return token.value }
@@ -292,7 +327,7 @@ export const nameOf = ({ token }) => {
     return token.kind
 }
 
-/** The text a string token spells. @type {(t: DjsTokenWithMetadata) => string} */
+/** The text a string token spells. @type {(t: ModuleTokenWithMetadata) => string} */
 export const textOf = ({ token }) => {
     assert(token.kind === 'string')
     return token.value
@@ -303,7 +338,7 @@ export const textOf = ({ token }) => {
  * branch holds: the branch is the token's kind, so the switch is over the
  * grammar's own list of value kinds.
  *
- * @type {(node: Children<typeof primitive, DjsTokenWithMetadata, Out>) => Primitive}
+ * @type {(node: Children<typeof primitive, ModuleTokenWithMetadata, Out>) => Primitive}
  */
 const primitiveOf = ([tag, leaf]) => {
     const { token } = tokenAt(leaf)
@@ -342,7 +377,7 @@ const chunkOf = node => {
  * Conversion has a syntax node of its own so no reference or source binding
  * can replace it. The AST and EDAG already represent the same operation.
  *
- * @type {(node: Children<Template, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<Template, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toTemplate = ([tag, branch]) => {
     if (tag === 'plain') {
@@ -353,7 +388,7 @@ const toTemplate = ([tag, branch]) => {
     /** @type {Node} */
     const first = ['+', ['primitive', chunkOf(head)], ['String', nodeAt(firstValue)]]
     const beforeTail = unmapped(rounds).reduce(
-        /** @type {(acc: Node, round: Ast<readonly [number, Value], DjsTokenWithMetadata, Out>) => Node} */
+        /** @type {(acc: Node, round: Ast<readonly [number, Value], ModuleTokenWithMetadata, Out>) => Node} */
         ((acc, round) => {
             const [chunk, v] = unmapped(round)
             return ['+', ['+', acc, ['primitive', chunkOf(chunk)]], ['String', nodeAt(v)]]
@@ -391,14 +426,17 @@ const listOf = (itemAt, itemsAt) => {
     }
 }
 
-/** The items an array's optional list holds. */
+/** The items a call's optional list holds. */
 const valueItems = optionalItems(valuesAt)
+
+/** The elements an array's optional list holds. */
+const elementItems = optionalItems(elementsAt)
 
 /** The entries an object's optional list holds. */
 const entryItems = optionalItems(entriesAt)
 
-/** The targets an array's optional list holds, beside its items. */
-const valueTargets = optionalItems(valueTargetsAt)
+/** The targets an array's optional list holds, beside its elements. */
+const elementTargets = optionalItems(elementTargetsAt)
 
 /** The targets an object's optional list holds, beside its entries. */
 const entryTargets = optionalItems(entryTargetsAt)
@@ -406,8 +444,11 @@ const entryTargets = optionalItems(entryTargetsAt)
 /** The items of a list of values, its tail already mapped. */
 const valuesOf = listOf(itemAt, valuesAt)
 
-/** The targets of a list of values, beside its items. */
-const valueTargetsOf = listOf(itemTargetAt, valueTargetsAt)
+/** The elements of an array's list from an item on, its tail already mapped. @type {(node: _ListNode) => List<Element>} */
+const elementsOf = listOf(itemAt, elementsAt)
+
+/** The targets of an array's list from an item on, beside its elements. */
+const elementTargetsOf = listOf(itemTargetAt, elementTargetsAt)
 
 /** The targets of a list of entries, beside its entries. */
 const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
@@ -417,10 +458,10 @@ const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
  * its bracket, and the targets its list's mapping kept beside the items,
  * `[ open [ items ] close ]`'s list at the second position.
  *
- * @type {(tag: 'array' | 'object', open: DjsTokenWithMetadata, list: _OptionalList) => BindingTarget}
+ * @type {(tag: 'array' | 'object', open: ModuleTokenWithMetadata, list: _OptionalList) => BindingTarget}
  */
 const containerTarget = (tag, open, list) => {
-    if (tag === 'array') { return ['array', open, toArray(valueTargets(list))] }
+    if (tag === 'array') { return ['array', open, toArray(elementTargets(list))] }
     return ['object', open, toArray(entryTargets(list))]
 }
 
@@ -454,6 +495,50 @@ const parameterWith = (target, init) => {
     return ['=', target, tokenAt(eq), nodeAt(v)]
 }
 
+/**
+ * What a `(` value `,` holds after the comma where nothing follows it: no
+ * item, and the comma trailing.
+ *
+ * @type {(trailing: boolean) => _ParenItems}
+ */
+const noParenItems = trailing => ({ fixed: null, rest: null, operands: null, refusal: null, trailing })
+
+/** @type {(node: _Leaf) => _ParenItems} */
+const parenItemsAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'parenItems')
+    return out
+}
+
+/** The items a `(` value `,` holds after the comma, `[ parenItems ]`: none, a trailing comma, where nothing follows it. @type {(node: _OptionalList) => _ParenItems} */
+const parenItemsOf = node => {
+    const rounds = unmapped(node)
+    return rounds.length === 0 ? noParenItems(true) : parenItemsAt(rounds[0])
+}
+
+/** The items after an item, `[ ',' [ parenItems ] ]`: none where no comma follows it. @type {(node: _ParametersAfterNode) => _ParenItems} */
+const parenItemsAfter = node => {
+    const rounds = unmapped(node)
+    return rounds.length === 0 ? noParenItems(false) : parenItemsOf(unmapped(rounds[0])[1])
+}
+
+/**
+ * A comma's node from its operands and what refuses it, or the one
+ * operand's own where there is no other: a group is no node of its own.
+ *
+ * @type {(operands: readonly Node[], refusal: ModuleTokenWithMetadata | null) => Node}
+ */
+const comma = (operands, refusal) => operands.length === 1 && refusal === null ? operands[0] : [',', operands, refusal]
+
+/**
+ * A group's value from the value at its first position and the operands
+ * after it, `value { ',' value }`: the value alone, or the comma over all
+ * of them.
+ *
+ * @type {(v: _Leaf, more: _CommaOperandsNode) => Node}
+ */
+const grouped = (v, more) => comma([nodeAt(v), ...unmapped(more).map(round => nodeAt(unmapped(round)[1]))], null)
+
 /** The entries of a list of entries, its tail already mapped. */
 const entriesOf = listOf(entryAt, entriesAt)
 
@@ -464,7 +549,7 @@ const symbol = out => ({ symbol: 0, meta: out })
  * The token a property names its key by: `.name`'s identifier, at the
  * second position of the branch, under the identifier's own alternative.
  *
- * @type {(branch: _KeyBranch) => DjsTokenWithMetadata}
+ * @type {(branch: _KeyBranch) => ModuleTokenWithMetadata}
  */
 const accessKey = branch => tokenAt(unmapped(unmapped(branch)[1])[1])
 
@@ -517,7 +602,7 @@ const parameterOf = node => {
  * is no target inside a pattern, `([(a)]) => 1`, is the pattern's to carry
  * and the fold's to refuse where it stands, as it is in a `const`.
  *
- * @type {(open: DjsTokenWithMetadata, head: _Leaf, init: (target: BindingTarget) => Parameter, more: _ParameterTail) => ParameterList}
+ * @type {(open: ModuleTokenWithMetadata, head: _Leaf, init: (target: BindingTarget) => Parameter, more: _ParameterTail) => ParameterList}
  */
 const namedList = (open, head, init, more) => {
     const out = outAt(head)
@@ -790,7 +875,7 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  * one tuple deep for exactly this reason — see its own comment in
  * `./grammar/module.f.mjs` — so the same reads serve both rules.
  *
- * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<UnaryOperand, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'not' | 'typeof' | 'name', unknown]>) => Node}
+ * @type {(node: Exclude<Children<Unary, ModuleTokenWithMetadata, Out> | Children<UnaryOperand, ModuleTokenWithMetadata, Out> | Children<Value, ModuleTokenWithMetadata, Out> | Children<Body, ModuleTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'not' | 'typeof' | 'name', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
@@ -811,7 +896,7 @@ const baseOf = ([tag, branch]) => {
         case 'array': {
             const x = unmapped(branch)[0]
             const a = unmapped(x)[0]
-            return ['array', toArray(valueItems(unmapped(a)[1]))]
+            return ['array', toArray(elementItems(unmapped(a)[1]))]
         }
         case 'object': {
             const x = unmapped(branch)[0]
@@ -825,7 +910,7 @@ const baseOf = ([tag, branch]) => {
  * The token a value begins with, `first` of what its mapping returned,
  * whether or not a `(` opened it: what a `return` asks for its line.
  *
- * @type {(node: _Leaf) => DjsTokenWithMetadata}
+ * @type {(node: _Leaf) => ModuleTokenWithMetadata}
  */
 const firstAt = node => {
     const out = outAt(node)
@@ -838,7 +923,7 @@ const firstAt = node => {
  * token, under the alternative it matched, or a container's opening
  * bracket, the first symbol of `[ open [ items ] close ]`.
  *
- * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object', base: _Leaf) => DjsTokenWithMetadata}
+ * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object', base: _Leaf) => ModuleTokenWithMetadata}
  */
 const baseFirst = (tag, base) => tag === 'template' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
 
@@ -848,7 +933,7 @@ const baseFirst = (tag, base) => tag === 'template' ? firstAt(base) : tokenAt(/*
  * syntax error there — for the fold to refuse at the `=>`. A list already
  * malformed keeps its own refusal, which comes first in the source.
  *
- * @type {(list: ParameterList, arrow: DjsTokenWithMetadata) => ParameterList}
+ * @type {(list: ParameterList, arrow: ModuleTokenWithMetadata) => ParameterList}
  */
 const arrowed = (list, arrow) => 'invalid' in list || !arrow.newline ? list : { arrow }
 
@@ -861,7 +946,7 @@ const arrowed = (list, arrow) => 'invalid' in list || !arrow.newline ? list : { 
  * value's own, `closed` saying the value was a group, which the first
  * step after it reads ({@link steps}).
  *
- * @type {(list: ParameterList, base: Node, closed: boolean, node: Ast<ArrowOrRest, DjsTokenWithMetadata, Out>) => Node}
+ * @type {(list: ParameterList, base: Node, closed: boolean, node: Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>) => Node}
  */
 const continued = (list, base, closed, node) => {
     const [tag, branch] = unmapped(node)
@@ -877,9 +962,10 @@ const continued = (list, base, closed, node) => {
  * What a `(` opened, at the second position of `( (func | value afterValue)`:
  * a function whose list begins with no value, by that list at the first
  * position of `[ ... id ] ) => body`, its `=>` at the third and its body
- * at the fourth — or a value and what follows it: `,`, the names after the
- * value, the `=>` and the body at the fifth position of
- * `, [ names ] ) => body`, the value heading a named list; `=`, the
+ * at the fourth — or a value and what follows it: `,`, the items after the
+ * value and then {@link continued} at the fourth position of
+ * `, [ parenItems ] ) arrowOrRest`, the value heading a named list where
+ * `=>` follows and a comma's operands where anything else does; `=`, the
  * value's default at the second position of
  * `= value [ , [ names ] ] ) => body`, the names after it, the `=>` at the
  * fifth and the body at the sixth, the value heading a named list with
@@ -895,7 +981,7 @@ const continued = (list, base, closed, node) => {
  * reader that has to know is {@link namedList}, and the `paren` id of
  * this rule's own output is what tells it.
  *
- * @type {(open: DjsTokenWithMetadata, node: Children<Parenthesized, DjsTokenWithMetadata, Out>) => Node}
+ * @type {(open: ModuleTokenWithMetadata, node: Children<Parenthesized, ModuleTokenWithMetadata, Out>) => Node}
  */
 const parenNode = (open, [tag, branch]) => {
     if (tag === 'func') {
@@ -905,8 +991,14 @@ const parenNode = (open, [tag, branch]) => {
     const [v, after] = unmapped(branch)
     const [kind, rest] = unmapped(after)
     if (kind === 'list') {
-        const [, names, , arrow, b] = unmapped(rest)
-        return ['=>', arrowed(namedList(open, v, bare, parameterItems(names)), tokenAt(arrow)), nodeAt(b)]
+        // the items read both ways, and what follows the `)` deciding: an
+        // arrow's parameters, or a comma's operands — refused at the first
+        // token no operand list holds, a trailing comma's at the `)`
+        const [, items, close, next] = unmapped(rest)
+        const more = parenItemsOf(items)
+        const refusal = more.refusal ?? (more.trailing ? tokenAt(close) : null)
+        const list = namedList(open, v, bare, { fixed: more.fixed, rest: more.rest })
+        return continued(list, comma([nodeAt(v), ...toArray(more.operands)], refusal), true, next)
     }
     if (kind === 'default') {
         const [eq, d, more, , arrow, b] = unmapped(rest)
@@ -919,15 +1011,16 @@ const parenNode = (open, [tag, branch]) => {
 }
 
 /**
- * A group's node, from `value ) access* '**' unary`: the value at the
- * first position, the steps after the `)` at the third applied to it, and
- * the power at the fourth raised over that.
+ * A group's node, from `value { ',' value } ) access* '**' unary`: the
+ * value at the first position, or the comma over it and the operands at
+ * the second, {@link grouped}, the steps after the `)` at the fourth
+ * applied to it, and the power at the fifth raised over that.
  *
- * @type {(node: Ast<Group, DjsTokenWithMetadata, Out>) => Node}
+ * @type {(node: Ast<Group, ModuleTokenWithMetadata, Out>) => Node}
  */
 const groupNode = node => {
-    const [v, , accesses, powTail] = unmapped(node)
-    return withPow(steps(nodeAt(v), unmapped(accesses), true), powTail)
+    const [v, more, , accesses, powTail] = unmapped(node)
+    return withPow(steps(grouped(v, more), unmapped(accesses), true), powTail)
 }
 
 /**
@@ -956,7 +1049,7 @@ const prefixOps = /** @type {const} */ ({ neg: '-', bitnot: '~', not: '!', typeo
  * tail lists above that, `-2 * 3`
  * reading `(-2) * 3` and not `-(2 * 3)`.
  *
- * @type {(node: Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<Unary, ModuleTokenWithMetadata, Out> | Children<Value, ModuleTokenWithMetadata, Out> | Children<Body, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toNode = node => {
     if (node[0] === 'paren') {
@@ -1011,7 +1104,7 @@ const toNode = node => {
  * the `)`; or the base itself, through {@link baseOf}, with only the
  * accesses after it applied.
  *
- * @type {(node: Children<UnaryOperand, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<UnaryOperand, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const operandToNode = node => {
     if (node[0] === 'neg' || node[0] === 'bitnot' || node[0] === 'not' || node[0] === 'typeof') {
@@ -1021,9 +1114,9 @@ const operandToNode = node => {
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
-        const [v, , accesses] = unmapped(g)
+        const [v, more, , accesses] = unmapped(g)
         const first = tokenAt(open)
-        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses), true), first, target: invalid(first) })
+        return symbol({ id: 'value', node: steps(grouped(v, more), unmapped(accesses), true), first, target: invalid(first) })
     }
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
@@ -1034,37 +1127,117 @@ const operandToNode = node => {
 
 /**
  * A block from its children, `{`, the statements, the terminator and `}`:
- * its ordered statements, `const`s and guards, then the `return` or `throw`
- * that ends it, tagged by its keyword — and the `{` it begins at. A
- * function's body and a guard's block are read the same way.
+ * its ordered statements, `const`s and guards, then what ends it, the
+ * terminator's own record, {@link toEnd} — and the `{` it begins at. A
+ * function's body, a guard's block and a case's are read the same way.
  *
- * @type {(node: Children<BlockRule, DjsTokenWithMetadata, Out>) => readonly [Block, DjsTokenWithMetadata]}
+ * @type {(node: Children<BlockRule, ModuleTokenWithMetadata, Out>) => readonly [Block, ModuleTokenWithMetadata]}
  */
-const blockOf = ([open, statements, term]) => {
-    const [kind, branch] = unmapped(term)
-    return [['block', [...unmapped(statements).map(statementAt), [kind, valueStatementOf(unmapped(branch))]]], tokenAt(open)]
+const blockOf = ([open, statements, term]) =>
+    [['block', [...unmapped(statements).map(statementAt), ...endAt(term)]], tokenAt(open)]
+
+/**
+ * What ends a block, from the terminator's children: the `return` or
+ * `throw`, tagged by its keyword, one statement; or the switch — the
+ * `switch` it begins at, its discriminant, and its first case closed over
+ * its first label, {@link closedCase}, which carries every case after it
+ * and what ends the switch: a `default` block, which ends the block the
+ * switch stands in; or the rest of that block, this record again, put
+ * after the switch — so that a block is one flat list whatever its
+ * switches hold, and the fold reads the statements after a switch where
+ * it reads the statements after a guard.
+ *
+ * @type {(node: Children<Terminator, ModuleTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toEnd = node => {
+    // destructured here rather than in the parameter list, where
+    // narrowing on `kind` would not reach `branch`
+    const [kind, branch] = node
+    if (kind === 'return') { return symbol({ id: 'end', end: [['return', valueStatementOf(unmapped(branch))]] }) }
+    if (kind === 'throw') { return symbol({ id: 'end', end: [['throw', valueStatementOf(unmapped(branch))]] }) }
+    const [first, , discriminant, , , , label, , tail] = unmapped(branch)
+    const { cases, end } = closedCase(nodeAt(label), caseTailAt(tail))
+    const read = { start: tokenAt(first), discriminant: nodeAt(discriminant), cases: toArray(cases) }
+    return symbol({ id: 'end', end: end[0] === 'default' ? [['switch', { ...read, default: end[1] }]] : [['switch', { ...read, default: null }], ...end[1]] })
+}
+
+/**
+ * A case closed over its first label, from the record of its tail: the
+ * label before the ones the tail read, the case before the ones closed
+ * after it, and what ends the switch as the tail has it.
+ *
+ * @type {(label: Node, tail: Extract<Out, { readonly id: 'caseTail' }>) => Extract<Out, { readonly id: 'afterCase' }>}
+ */
+const closedCase = (label, { labels, block, cases, end }) =>
+    ({ id: 'afterCase', cases: { first: { labels: [label, ...toArray(labels)], block }, tail: cases }, end })
+
+/**
+ * A case's tail, from its children: a label, put before the ones the tail
+ * after it read, the case still open; or the case's block, read as a
+ * body's, and what follows the case, {@link toAfterCase}, which opens the
+ * case with no label yet. Each mapping reads one node and puts one item
+ * before what its tail's mapping returned, as a list's does, so a switch
+ * of thousands of cases or of labels, which the grammar reads as that
+ * many levels, is read on the machine's heap stack and not the host's
+ * (`stackSafety` in `../proof.f.mjs`).
+ *
+ * @type {(node: Children<CaseTail, ModuleTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toCaseTail = node => {
+    const [which, branch] = node
+    if (which === 'case') {
+        const [, label, , next] = unmapped(branch)
+        const tail = caseTailAt(next)
+        return symbol({ ...tail, labels: { first: nodeAt(label), tail: tail.labels } })
+    }
+    const [blk, after] = unmapped(branch)
+    return symbol({ ...afterCaseAt(after), id: 'caseTail', labels: null, block: blockOf(unmapped(blk))[0] })
+}
+
+/**
+ * What follows a case's block, from its children: the next case, closed
+ * over its first label as the first case is, {@link closedCase}; the
+ * `default` block, read as a body's, which ends the switch and the block
+ * it stands in; or the rest of that block, its statements and its end,
+ * which follow the switch in it.
+ *
+ * @type {(node: Children<AfterCase, ModuleTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toAfterCase = node => {
+    const [which, branch] = node
+    if (which === 'case') {
+        const [, label, , next] = unmapped(branch)
+        return symbol(closedCase(nodeAt(label), caseTailAt(next)))
+    }
+    if (which === 'default') {
+        const [, , blk] = unmapped(branch)
+        return symbol({ id: 'afterCase', cases: null, end: ['default', blockOf(unmapped(blk))[0]] })
+    }
+    const [, statements, term] = unmapped(branch)
+    return symbol({ id: 'afterCase', cases: null, end: ['rest', [...unmapped(statements).map(statementAt), ...endAt(term)]] })
 }
 
 /**
  * A loop's block from its children, `{`, the statements and `}`: its
  * statements in order, `const`s and assignments.
  *
- * @type {(node: Children<LoopBlockRule, DjsTokenWithMetadata, Out>) => LoopBlock}
+ * @type {(node: Children<LoopBlockRule, ModuleTokenWithMetadata, Out>) => LoopBlock}
  */
 const loopBlockOf = ([, statements]) => ['loop', unmapped(statements).map(loopStatementAt)]
 
 /**
- * A block's statement, tagged by its keyword: a `const`, its record; a
- * guard, `if ( condition ) block` — the `if` it begins at, its condition,
- * and its block read as a body's is; a loop's `let`, the record a `const`
- * has; or its `while ( condition ) loopBlock`, read as the guard is.
+ * A block's statement, tagged by its keyword: a `const` or a `let`, its
+ * record; what begins with a name, an assignment or a call statement,
+ * {@link toBodyNameStatement}; a guard, `if ( condition ) block` — the `if`
+ * it begins at, its condition, and its block read as a body's is; or a
+ * loop, `while ( condition ) loopBlock`, read as the guard is.
  *
- * @type {(node: Children<Statement, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<Statement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toStatement = ([kind, branch]) => {
     switch (kind) {
-        case 'const': { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
-        case 'let': { return symbol({ id: 'statement', statement: ['let', letOf(unmapped(branch))] }) }
+        case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
+        case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
         case 'while': {
             const [first, , condition, , blk] = unmapped(branch)
             return symbol({ id: 'statement', statement: ['while', { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }] })
@@ -1078,17 +1251,49 @@ const toStatement = ([kind, branch]) => {
 }
 
 /**
- * A loop block's statement, tagged: a `const`, its record; or the
- * assignment, `name = value end`, which begins at the name.
+ * A call statement, `name rest end`: the record of a `const` that binds
+ * nothing, `['discard', name]`, its value the value the name begins, read
+ * as a value's name branch reads it, {@link continued}, and its beginning
+ * the name. Which values it may be — a call alone — is the fold's.
  *
- * @type {(node: Children<LoopStatementRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(name: ModuleTokenWithMetadata, rest: Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>, end: _EndNode) => Const}
  */
-const toLoopStatement = ([kind, branch]) => {
-    if (kind === 'const') { return symbol({ id: 'loopStatement', statement: ['const', constAt(branch)] }) }
-    const [name, , v, end] = unmapped(branch)
-    const token = tokenAt(unmapped(name)[1])
-    return symbol({ id: 'loopStatement', statement: ['assign', { start: token, semicolon: ended(end), name: token, value: nodeAt(v) }] })
+const discarded = (name, rest, end) =>
+    ({ start: name, semicolon: ended(end), target: ['discard', name], value: continued({ fixed: [named(name)], rest: null }, ['ref', name], false, rest) })
+
+/** A module's statement before its exports, tagged: a `const` or a `let`, the record a `const` has, unexported; or what begins with a name, {@link toBodyNameStatement}, a call statement the record of a `const` that binds nothing. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toModuleStatement = ([kind, branch]) => {
+    if (kind === 'name') {
+        const named = namedAt(branch)
+        return symbol({ id: 'moduleStatement', statement: named[0] === 'assign' ? named : ['const', { declaration: named[1], exported: false }] })
+    }
+    return symbol({ id: 'moduleStatement', statement: [kind, { declaration: constAt(branch), exported: false }] })
 }
+
+/**
+ * A body's statement that begins with a name, tagged: the assignment,
+ * `name = value end`, which begins at the name, where `=` follows it, and
+ * otherwise a call statement, {@link discarded}.
+ *
+ * @type {(node: Children<BodyNameStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toBodyNameStatement = ([name, rest, end]) => {
+    const token = tokenAt(unmapped(name)[1])
+    const [tag, assigned] = unmapped(rest)
+    if (tag !== 'assign') {
+        return symbol({ id: 'named', statement: ['const', discarded(token, /** @type {Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>} */ (rest), end)] })
+    }
+    const [, v] = unmapped(assigned)
+    return symbol({ id: 'named', statement: ['assign', { start: token, semicolon: ended(end), name: token, value: nodeAt(v) }] })
+}
+
+/**
+ * A loop block's statement, tagged: a `const` or a `let`, its record; or
+ * what begins with a name, {@link toBodyNameStatement}.
+ *
+ * @type {(node: Children<LoopStatementRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toLoopStatement = ([kind, branch]) => symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
 
 /**
  * The record of a statement that is a keyword and a value — `return`,
@@ -1096,7 +1301,7 @@ const toLoopStatement = ([kind, branch]) => {
  * keyword, and the value's first token is kept for the line the fold asks
  * of it after `return` and `throw`.
  *
- * @type {(node: Children<(typeof terminator)['return'], DjsTokenWithMetadata, Out>) => ValueStatement}
+ * @type {(node: Children<(typeof terminator)['return'], ModuleTokenWithMetadata, Out>) => ValueStatement}
  */
 const valueStatementOf = ([keyword, v, end]) =>
     ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
@@ -1117,7 +1322,7 @@ const memberOf = (member, target) => symbol({ id: 'member', member, target })
  * index holds — and the target its value is, the shorthand binding the
  * key's own name.
  *
- * @type {(node: Children<MemberRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<MemberRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toMember = ([tag, branch]) => {
     switch (tag) {
@@ -1149,7 +1354,7 @@ const toMember = ([tag, branch]) => {
  * position of `... value` — and beside it the property it is in an object
  * pattern, a spread being the rest property `...target`, by its `...`.
  *
- * @type {(node: Children<EntryRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<EntryRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toEntry = ([tag, branch]) => {
     if (tag === 'member') { return symbol({ id: 'entry', entry: memberAt(branch), target: memberTargetAt(branch) }) }
@@ -1188,7 +1393,7 @@ const importBindingsAt = node => {
 const importBindingsOf = listOf(importBindingAt, importBindingsAt)
 const importItems = optionalItems(importBindingsAt)
 
-/** @type {(node: Children<typeof importBinding, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+/** @type {(node: Children<typeof importBinding, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toImportBinding = ([name, alias]) => {
     const exported = tokenAt(unmapped(name)[1])
     const rounds = unmapped(alias)
@@ -1199,7 +1404,7 @@ const toImportBinding = ([name, alias]) => {
 /** @type {(node: _ListNode) => Meta<Out>} */
 const toImportBindings = node => symbol({ id: 'importBindings', items: importBindingsOf(node) })
 
-/** @type {(node: Children<typeof namedImports, DjsTokenWithMetadata, Out>) => readonly ImportBinding[]} */
+/** @type {(node: Children<typeof namedImports, ModuleTokenWithMetadata, Out>) => readonly ImportBinding[]} */
 const namedBindings = ([, bindings]) => toArray(importItems(bindings))
 
 /**
@@ -1212,7 +1417,7 @@ const namedBindings = ([, bindings]) => toArray(importItems(bindings))
  */
 const ended = node => unmapped(node).length !== 0
 
-/** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+/** @type {(node: Children<typeof importStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toImport = ([first, clause, , module, attribute, end]) => {
     const [kind, branch] = unmapped(clause)
     /** @type {readonly ImportBinding[]} */
@@ -1245,7 +1450,7 @@ const toImport = ([first, clause, , module, attribute, end]) => {
  * `[ open [ items ] close ]`, read from its list's mapping as a value's
  * is, {@link containerTarget}.
  *
- * @type {(node: Children<BindingTargetRule, DjsTokenWithMetadata, Out>) => BindingTarget}
+ * @type {(node: Children<BindingTargetRule, ModuleTokenWithMetadata, Out>) => BindingTarget}
  */
 const targetOf = ([tag, branch]) => {
     if (tag === 'name') { return ['name', tokenAt(unmapped(branch)[1])] }
@@ -1253,22 +1458,18 @@ const targetOf = ([tag, branch]) => {
     return containerTarget(tag, tokenAt(open), list)
 }
 
-/** @type {(node: Children<ConstStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+/** @type {(node: Children<ConstStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toConst = ([first, target, , v, end]) =>
     symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(v) } })
 
-/**
- * A loop's `let` from `let name = value end`: the record a `const` of a
- * name has, {@link Let}, its name the token under the alternative its word
- * matched; it begins at the `let`.
- *
- * @type {(node: Children<LetStatement, DjsTokenWithMetadata, Out>) => Let}
- */
-const letOf = ([first, name, , v, end]) =>
-    ({ start: tokenAt(first), semicolon: ended(end), name: tokenAt(unmapped(name)[1]), value: nodeAt(v) })
+/** @type {(node: _Leaf) => ModuleStatementRecord} */
+const moduleStatementAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'moduleStatement')
+    return out.statement
+}
 
-/** @type {(node: _Leaf) => ModuleConst} */
-const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
+
 
 /**
  * What a module ends with: the `throw` that stands in place of its exports,
@@ -1278,48 +1479,48 @@ const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
  * record's `const` is the token after — since the `export` is the token a
  * same-line statement before it is refused at.
  *
- * @type {(node: Children<LastStatement, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<LastStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toLast = ([kind, branch]) => {
     if (kind === 'throw') {
-        return symbol({ id: 'last', consts: null, default: null, thrown: valueStatementOf(unmapped(branch)) })
+        return symbol({ id: 'last', statements: null, default: null, thrown: valueStatementOf(unmapped(branch)) })
     }
     const [first, choice] = unmapped(branch)
     const start = tokenAt(first)
     const [which, exported] = unmapped(choice)
     if (which === 'default') {
         const [, v, end] = unmapped(exported)
-        return symbol({ id: 'last', consts: null, default: { start, semicolon: ended(end), first: firstAt(v), value: nodeAt(v) }, thrown: null })
+        return symbol({ id: 'last', statements: null, default: { start, semicolon: ended(end), first: firstAt(v), value: nodeAt(v) }, thrown: null })
     }
-    const [declaration, consts, tail] = unmapped(exported)
+    const [declaration, statements, tail] = unmapped(exported)
     const next = unmapped(tail)
     const rest = next.length === 0 ? null : lastAt(next[0])
     return symbol({
         id: 'last',
-        consts: concat([
-            { declaration: { ...constAt(declaration), start }, exported: true },
-            ...unmapped(consts).map(ordinaryConst),
-        ])(rest === null ? null : rest.consts),
+        statements: concat([
+            /** @type {ModuleStatementRecord} */ (['const', { declaration: { ...constAt(declaration), start }, exported: true }]),
+            ...unmapped(statements).map(moduleStatementAt),
+        ])(rest === null ? null : rest.statements),
         default: rest === null ? null : rest.default,
         thrown: rest === null ? null : rest.thrown,
     })
 }
 
-/** @type {(node: Children<typeof djsModule, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toModule = ([imports, consts, last]) => {
+/** @type {(node: Children<typeof module, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toModule = ([imports, statements, last]) => {
     const result = lastAt(last)
     return symbol({
         id: 'module',
         module: {
             imports: unmapped(imports).map(importAt),
-            consts: [...unmapped(consts).map(ordinaryConst), ...toArray(result.consts)],
+            statements: [...unmapped(statements).map(moduleStatementAt), ...toArray(result.statements)],
             exported: result.default,
             thrown: result.thrown,
         },
     })
 }
 
-/** @type {Mappings<DjsTokenWithMetadata, Out>} */
+/** @type {Mappings<ModuleTokenWithMetadata, Out>} */
 const map = mapping
 
 /**
@@ -1328,7 +1529,7 @@ const map = mapping
  * pattern, the value's target, or the rest element `...target` by its
  * `...`.
  *
- * @type {(node: Children<ItemRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<ItemRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toItem = ([tag, branch]) => {
     if (tag === 'value') { return symbol({ id: 'item', item: nodeAt(branch), target: valueTargetAt(branch) }) }
@@ -1336,10 +1537,30 @@ const toItem = ([tag, branch]) => {
     return symbol({ id: 'item', item: ['...', nodeAt(v)], target: ['...', tokenAt(dots), valueTargetAt(v)] })
 }
 
-/** @type {(node: Children<Items<ItemRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toValues = node => symbol({ id: 'values', items: valuesOf(node), targets: valueTargetsOf(node) })
+/** @type {(node: Children<Items<ItemRule>, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toValues = node => symbol({ id: 'values', items: valuesOf(node) })
 
-/** @type {(node: Children<Items<EntryRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+/**
+ * An array's elements from `elements`'s branch: an elision, by its comma,
+ * {@link Elision} — in the items and the targets alike, a hole in one and
+ * a skipped element in the other — before the elements the optional
+ * rest's mapping already returned; or an item and the elements after it,
+ * read as a list of values is.
+ *
+ * @type {(node: Children<Elements, ModuleTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toElements = ([tag, branch]) => {
+    if (tag === 'item') {
+        const list = unmapped(branch)
+        return symbol({ id: 'elements', items: elementsOf(list), targets: elementTargetsOf(list) })
+    }
+    const [comma, more] = unmapped(branch)
+    /** @type {Elision} */
+    const elision = ['elision', tokenAt(comma)]
+    return symbol({ id: 'elements', items: { first: elision, tail: elementItems(more) }, targets: { first: elision, tail: elementTargets(more) } })
+}
+
+/** @type {(node: Children<Items<EntryRule>, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toEntries = node => symbol({ id: 'entries', items: entriesOf(node), targets: entryTargetsOf(node) })
 
 /**
@@ -1351,7 +1572,7 @@ const toEntries = node => symbol({ id: 'entries', items: entriesOf(node), target
  * nodes, as an array's items do — or the rest parameter's token, which
  * ends the list.
  *
- * @type {(node: Children<ParameterNames, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<ParameterNames, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toParameterNames = ([tag, branch]) => {
     if (tag === 'rest') {
@@ -1364,12 +1585,41 @@ const toParameterNames = ([tag, branch]) => {
 }
 
 /**
+ * What follows `(` value `,`, from `parenItems`'s branch, read both ways
+ * the `)` may decide: a fixed item — its target as a parameter, with its
+ * default where it has one, {@link parameterWith}, and its node as an
+ * operand — before the items its tail's mapping already returned, the
+ * first token no operand list holds kept, the default's `=` before the
+ * tail's; or the rest parameter's token, which ends the list and is that
+ * token itself.
+ *
+ * @type {(node: Children<ParenItems, ModuleTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toParenItems = ([tag, branch]) => {
+    if (tag === 'rest') {
+        const [dots, name] = unmapped(branch)
+        return symbol({ ...noParenItems(false), id: 'parenItems', rest: tokenAt(unmapped(name)[1]), refusal: tokenAt(dots) })
+    }
+    const [v, init, more] = unmapped(branch)
+    const tail = parenItemsAfter(more)
+    const rounds = unmapped(init)
+    return symbol({
+        id: 'parenItems',
+        fixed: { first: parameterWith(valueTargetAt(v), init), tail: tail.fixed },
+        rest: tail.rest,
+        operands: { first: nodeAt(v), tail: tail.operands },
+        refusal: rounds.length === 0 ? tail.refusal : tokenAt(unmapped(rounds[0])[0]),
+        trailing: tail.trailing,
+    })
+}
+
+/**
  * The rewrite set: a value to its node, a list to its items, a member and
  * each statement to its record, and the module to the records of its
  * statements. Keyed by the rules `./grammar` holds, so that
- * `parser(djsModule, mappings)` yields one symbol carrying the module.
+ * `parser(module, mappings)` yields one symbol carrying the module.
  *
- * @type {RewriteSet<DjsTokenWithMetadata, Out>}
+ * @type {RewriteSet<ModuleTokenWithMetadata, Out>}
  */
 export const mappings = [
     map(template, toTemplate),
@@ -1383,6 +1633,7 @@ export const mappings = [
     map(unaryOperand, operandToNode),
     map(item, toItem),
     map(values, toValues),
+    map(elements, toElements),
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both
     map(callArguments, toValues),
@@ -1392,20 +1643,30 @@ export const mappings = [
     // the parameters after a named list's first, a list of its own so that
     // a list of any length is read in as many steps
     map(parameterNames, toParameterNames),
+    // what follows `(` value `,`, an arrow's parameters or a comma's
+    // operands, a list of its own as the names are
+    map(parenItems, toParenItems),
     map(importBinding, toImportBinding),
     map(importBindings, toImportBindings),
     map(importStatement, toImport),
     map(constStatement, toConst),
+    // a `let` is the record a `const` is, under the other keyword
+    map(letStatement, toConst),
+    map(bodyNameStatement, toBodyNameStatement),
+    map(moduleStatement, toModuleStatement),
     map(statement, toStatement),
+    map(terminator, toEnd),
+    map(caseTail, toCaseTail),
+    map(afterCase, toAfterCase),
     map(loopStatement, toLoopStatement),
     map(lastStatement, toLast),
-    map(djsModule, toModule),
+    map(module, toModule),
 ]
 
 // The tree of a whole module is too deep a type for `tsc` to unroll
 // through `parser`'s return type (TS2589); the rule is widened to `Rule`
 // here, and `moduleAt` reads the one symbol the match is.
-const parseModule = parser(/** @type {Rule} */ (djsModule), mappings)
+const parseModule = parser(/** @type {Rule} */ (module), mappings)
 
 /**
  * Reads the token list as the syntax tree of a module: the tokenizer's
@@ -1417,7 +1678,7 @@ const parseModule = parser(/** @type {Rule} */ (djsModule), mappings)
  * FunctionalScript admission checks, which are the fold's in
  * `../module.f.mjs`; callers compiling source use `parseFromTokens` there.
  *
- * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<Module, ParseError>}
+ * @type {(tokenList: List<ModuleTokenWithMetadata>) => Result<Module, ParseError>}
  */
 export const parseSyntax = tokenList => {
     const [tag, stream] = splitEof(toArray(tokenList))

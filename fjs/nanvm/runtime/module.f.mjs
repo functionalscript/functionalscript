@@ -42,7 +42,7 @@ export const rustPath = 'nanvm/lib/src/vm/gen.runtime.rs'
  * imports reads it — `npm run gen` deletes every `gen.*` first, and a
  * generator whose own imports needed one could not start.
  */
-export const edagPath = 'fjs/js/runtime/gen.edag.data.mjs'
+export const edagPath = 'fjs/js/runtime/gen.edag.data.js'
 
 /** Compiles the runtime to Rust, then to EDAG. @type {() => Effect<_CompileOp, void, IoChannel>} */
 export const generate = () => step(compileRust(), () => compileFile(noRuntime)(source, edagPath))

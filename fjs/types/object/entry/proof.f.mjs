@@ -1,23 +1,25 @@
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { entry } from './module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { entry, hasEntry } from './module.f.js'
 
 /** @type {(a: unknown, b: any) => unknown} */
 const noValue = (a, b) => entry(a, b)
 
 /** @type {(a: unknown, b: any, expected: unknown) => void} */
 const some = (a, b, expected) => {
-    const option = entry(a, b)
-    assertEq(option.length, 1)
-    assertEq(option[0], expected)
+    assertEq(hasEntry(a, b), true)
+    assertEq(entry(a, b), expected)
 }
 
 /** @type {(a: unknown, b: any) => void} */
-const none = (a, b) => assertEq(entry(a, b).length, 0)
+const none = (a, b) => {
+    assertEq(hasEntry(a, b), false)
+    assertEq(entry(a, b), undefined)
+}
 
 export const proof = {
     // An object's fields, a repeated key's last value among them, and
     // nothing a prototype gives it: the point of the helper. An entry
-    // holding `undefined` is an entry, which the option tells from none.
+    // holding `undefined` reads as none and is one, which `hasEntry` tells.
     object: () => {
         some({ a: 7 }, 'a', 7)
         none({ a: 7 }, 'b')
@@ -46,6 +48,7 @@ export const proof = {
     none: () => {
         none(entry, 'length')
         none(entry, 'name')
+        none(hasEntry, 'length')
         none(() => 1, 'name')
         none(5, 'a')
         none(true, '0')
@@ -66,27 +69,28 @@ export const proof = {
         some({ '[object Object]': 42 }, {}, 42)
         some({ k: 42 }, { toString: () => 'k' }, 42)
     },
-    // The option is an array, fresh on every call, and composes with
-    // arrays: read, destructured, defaulted and flattened.
-    option: () => {
+    // The value composes as a value: a default through `??`, which an entry
+    // holding `undefined` takes too, and the presence through `hasEntry`
+    // where that matters.
+    value: () => {
         const o = { a: 1, u: undefined }
-        assert(entry(o, 'a') !== entry(o, 'a'))
-        assertEq(entry(o, 'a')[0], 1)
-        assertEq(entry(o, 'b')[0], undefined)
-        const [v] = entry(o, 'b')
-        assertEq(v, undefined)
-        assertEq([...entry(o, 'u'), 'fallback'][0], undefined)
-        assertEq([...entry(o, 'b'), 'fallback'][0], 'fallback')
-        assertStructurallySame(['a', 'b', 'u', 'a'].flatMap(k => entry(o, k)), [1, undefined, 1])
+        assertEq(entry(o, 'a') ?? 'fallback', 1)
+        assertEq(entry(o, 'u') ?? 'fallback', 'fallback')
+        assertEq(hasEntry(o, 'u') ? entry(o, 'u') : 'fallback', undefined)
+        assertEq(entry(o, 'b') ?? 'fallback', 'fallback')
+        assertStructurallySame(['a', 'b', 'u', 'a'].map(k => entry(o, k)), [1, undefined, undefined, 1])
     },
     // A function like any other: two parameters, and a value to pass.
     function: () => {
         assertEq(entry.length, 2)
+        assertEq(hasEntry.length, 2)
         assertEq(typeof entry, 'function')
-        assertStructurallySame(noValue({ a: 1 }, 'a'), [1])
-        assertStructurallySame([1, 2].map(entry), [[], []])
+        assertEq(noValue({ a: 1 }, 'a'), 1)
+        assertStructurallySame([1, 2].map(entry), [undefined, undefined])
+        assertStructurallySame([{ 0: 1 }, {}].map(hasEntry), [true, false])
     },
     throw: {
+        hasEntryNullish: () => { hasEntry(null, 'a') },
         nullReceiver: () => { entry(null, 'a') },
         undefinedReceiver: () => { entry(undefined, 'a') },
         keyConversion: () => { entry({}, { toString: () => { throw 'key' } }) },

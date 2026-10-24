@@ -6,10 +6,12 @@
  * @module
  *
  * @import { Bytes } from './types.ts'
+ * @import { IoError } from '../effects/types.ts'
  */
 
-import { assert } from '../asserts/module.f.mjs'
-import { hexDigitValue } from '../text/ascii/module.f.mjs'
+import { assert } from '../asserts/module.f.js'
+import { decode } from '../basen/base16/module.f.mjs'
+import { ioError } from '../effects/module.f.mjs'
 
 /**
  * The bytes a Latin-1 string spells, one per code unit: how a fixture is
@@ -19,6 +21,15 @@ import { hexDigitValue } from '../text/ascii/module.f.mjs'
  * @type {(s: string) => readonly number[]}
  */
 export const latin1 = s => [...s].map(c => c.charCodeAt(0))
+
+/**
+ * The error a proof's in-memory host answers for a path it holds nothing
+ * at: `ENOENT`, which `effects/node`'s `isNotFound` reads as absent, under a
+ * message naming the path.
+ *
+ * @type {(path: string) => IoError}
+ */
+export const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
 
 /**
  * The payload of commit `d2bc56a53b2d6d7c1dc0860dec10435ed479b22d` of this
@@ -338,13 +349,9 @@ export const sha256Tree = latin1([
  * @type {(s: string) => readonly number[]}
  */
 export const hexBytes = s => {
-    assert(s.length % 2 === 0, ['odd hex length', s.length])
-    return Array.from({ length: s.length / 2 }, (_, i) => {
-        const hi = hexDigitValue(s.charCodeAt(i * 2))
-        const lo = hexDigitValue(s.charCodeAt(i * 2 + 1))
-        assert(hi !== null && lo !== null, ['not hex', s.slice(i * 2, i * 2 + 2)])
-        return hi * 16 + lo
-    })
+    const bytes = decode(s)
+    assert(bytes !== null, ['not hex', s])
+    return bytes
 }
 
 /**

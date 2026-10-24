@@ -858,7 +858,7 @@ are stated instead:
   When stage 4 erases that reference while lowering to EDAG, the binding is
   left unreachable from the root — and the compiler already anchors such a
   binding with `','` rather than rejecting it (`anchors` in
-  [`fjs/compiler/ast`](../fjs/compiler/ast/module.f.mjs)), so 12's legality half has
+  [`fjs/compiler/ast`](../fjs/compiler/ast/module.f.js)), so 12's legality half has
   landed and does not block stage 4. What 12 still owns is the totality
   exemption, which decides whether such a binding is evaluated or dropped;
   whether stage 4 waits on it for cost is open.

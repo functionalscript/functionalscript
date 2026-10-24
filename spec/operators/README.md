@@ -8,27 +8,31 @@ export default 1 + 2 * 3;
 
 Beyond unary `-` ([supported value types](../values/README.md)), the
 language has arithmetic (`+ - * / % **`), comparison
-(`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
-[operators](../todo/2340-operators.md) — and, above them, the lazy operators
+(`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A, the
+first the language had — and, above them, the lazy operators
 (`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
 logical not and the type tag, the prefixes neither stage had — and
-`instanceof Array`, the one instance check ([below](instanceof.md)).
+`instanceof Array`, the one instance check ([below](instanceof/README.md)) — and
+the comma operator, written in parentheses ([below](comma/README.md)).
 `==`/`!=` stay refused, since neither language reads them the same way
-twice, and so does `in` ([below](in.md)). The comma operator is not
-recognized yet.
+twice, and so does `in` ([below](in/README.md)). Unary `+` is not in the language:
+the conversion to a number is `Number(x)`
+([number conversion](../conversions/number/README.md)). The EDAG admits every pure
+operation, unary `+` among them, and the language spells a subset of them;
+which is the language's decision, made on these pages, not the EDAG's.
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
 levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
 the shifts `<< >> >>>`; `< <= > >=` and `instanceof`; `=== !==`; `&`; `^`;
 `|`; `&&`; `||`,
-with `??` a chain of its own at the same level; and the conditional above
-them all. The shifts therefore sit between arithmetic and comparison, unlike
+with `??` a chain of its own at the same level; the conditional above
+them; and the comma above them all, in its parentheses. The shifts therefore sit between arithmetic and comparison, unlike
 `& ^ |`:
 `1 << 2 + 3` is `1 << (2 + 3)` and `1 << 2 < 5` is `(1 << 2) < 5`. `**` is
 right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), the conditional nests
 to the right (`a ? b : c ? d : e` is `a ? b : (c ? d : e)`), and every other
 operator here is left-associative; a group overrides both
-([grouping](grouping.md)). A prefix immediately before `**` is refused,
+([grouping](grouping/README.md)). A prefix immediately before `**` is refused,
 matching JavaScript exactly: `-2 ** 2`, `~2 ** 2`, `!2 ** 2` and
 `typeof 2 ** 2` are syntax errors here as there, at any depth of prefix
 nesting, and parentheses are the only way to write either reading —
@@ -99,6 +103,28 @@ languages, whatever `a` and `b` are. The
 reorder around that; being reached only through a lazy position is not what
 decides whether a `const` runs.
 
+**The anchoring rule** says which computations a module or a body holds, and
+is best read as a subtraction. Every `const` and every import starts as an
+operand of a comma, in source order, with the result last; then each operand
+is deleted that a later operand is guaranteed to evaluate through eager edges
+alone — a container's item, an access's base, a call's callee and its
+arguments, a prefix's operand, both operands of an eager binary operator and
+the left one of a lazy one, a conditional's condition, and a comma's operand
+([comma](comma/README.md)) — and never through a lazy one: the right operand of
+`&&`, `||` or `??`, or a conditional's arm. `const c = null.x; export default
+1 + c;` deletes `c`, the `+` evaluating it, where `1 && c` keeps it. A
+function body is not lazy for this purpose, since constructing the function
+evaluates its frame.
+So `const c = null.x; export default [a && c, b && c];` keeps `c`,
+`[',', [c, ['[]', [['?:', a, c, a], ['?:', b, c, b]]]]]`, and throws at load as
+JavaScript does, where `[c, a && c]` deletes it, the array evaluating it
+first. The rule holds one level down too: an operand another unreached
+operand reaches only lazily is not deleted for it —
+`const d = null.x; const c = a && d; export default b && c;` keeps both `d`
+and `c`, since evaluating `a && d` as a root establishes `d` no more than
+`b && c` established `c`. Required FAST definitions are preserved by
+[`fjs/edag/from_fast`](../../fjs/edag/from_fast/module.f.mjs) under this rule.
+
 Unparenthesized, a function is no operand of these operators, the
 conditional's condition included: `(...a) => body` reads everything to its
 right as `body`, exactly as in JavaScript, so `1 * (...a) => 2` is refused
@@ -111,25 +137,35 @@ stands in either bare, its body ending where `:` cannot continue it —
 `1 ? () => 2 : 3` is the function and then the else arm, and
 `0 ? 2 : () => 3 ? 4 : 5` is `0 ? 2 : () => (3 ? 4 : 5)`.
 
-The front end computes none of these — it builds the operation and passes
-it on. Unary `-` alone folds, over an operand that lowers to a number or a
-`bigint`, exact and total arithmetic ([numbers](../values/numbers.md)); every other
-operator here reaches the EDAG as a node, over numbers too (`1 + 2`, `~1`),
-the lazy ones and the conditional included. Of the other outputs
+Unary `-` folds over an operand that lowers to a number or a `bigint`, exact
+and total arithmetic ([numbers](../values/numbers/README.md)). AST-to-FAST lowering
+establishes the left operand of `&&`, `||` and `??` once in its original
+region, then uses conditionals. For a binding `t` of that value, `t && b`
+becomes `t ? b : t`, `t || b` becomes `t ? t : b`, and `t ?? b` becomes
+`(t === null ? true : t === undefined) ? b : t`. The `undefined` is the
+primitive value even when source code shadows its name. Every occurrence of
+`t` shares the same established value; the selected arm alone runs.
+Canonical EDAG has no logical-operator tags. Other operators reach EDAG as
+nodes, over numbers too (`1 + 2`, `~1`). `+` would need `ToPrimitive` to
+decide number or string, and folding the rest while leaving `+` a node would
+draw an inconsistent line: fold what is exact, and leave what needs an
+assumption to the readers that want a value. Of the other outputs
 ([output](../command-line/output.md)), the Rust one spells every operator, running a lazy
 operand or an arm only where JavaScript would, and calls an object's own
 `valueOf` or `toString` when conversion requires it. JSON and DataJS output
 evaluate these operators through the represented EDAG interpreter, then
 check whether the selected result belongs to their data format. The
-FunctionalScript writer, the `.js` output, spells every operator here, with
+FunctionalScript writer, the `.js` output, spells canonical operators, with
 the parentheses its precedence and associativity ask for and no more —
 `1 + 2 * 3` and `(1 + 2) * 3` come back as written, less the spaces, and
-`(1 + 2) + 3` as `1+2+3`; `??` is never bare beside `&&` or `||`; a prefix
+`(1 + 2) + 3` as `1+2+3`; logical source operators return as conditionals; a prefix
 or a negative number on the left of `**` is grouped, `(-2)**2`; a `-`
 before a text opening with `-` takes a space, `1- -2`; a function under an
 operator, and an operator's text under an access, stand in a group,
-`-(()=>1)` and `(1+2).x`; and a value shared under one lazy operand
-alone is written in a block of the operand's own ([functions](../functions/README.md)).
+`-(()=>1)` and `(1+2).x`; a value shared under one lazy operand
+alone is written in a block of the operand's own ([functions](../functions/README.md));
+and a comma's discarded operand is the `const` of the block it is anchored
+in ([comma](comma/README.md)).
 Read back, that text is the graph it was written from. Graph output retains
 the operation, while value output retains its result: `export default 1 + 2 * 3;`
 is `export default 1+2*3;` as FunctionalScript, `export default 7;` as DataJS
@@ -137,13 +173,31 @@ and `7` as JSON.
 
 ## Pages
 
-- [Grouping](./grouping.md)
-- [`instanceof`](./instanceof.md)
-- [`in` Is Refused](./in.md)
+- [Grouping](./grouping/README.md)
+- [Comma](./comma/README.md)
+- [`instanceof`](./instanceof/README.md)
+
+Refused by design, each page showing what `fjs compile` prints and what to write instead:
+
+- [`in` Is Refused](./in/README.md)
+- [`instanceof` Other Than `Array` Is Refused](./instanceof/other-classes/README.md)
+- [`==` Is Refused](./loose-equality/README.md)
+- [`this` Is Refused](./this/README.md)
 
 ## Examples
 
 The compiler demo offers the programs `index` in [`module.f.js`](./module.f.js), each with its real output.
+
+The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
+example as a function of one number — the arithmetic, bitwise, logical,
+`typeof` and conditional operators — with every output `fjs compile` makes
+of it: the expression graph (EDAG), the Rust and the WebAssembly that Rust
+builds to. Its Run button calls the default export with `1` and `2`, as
+JavaScript and as WebAssembly, and shows what each call returned or threw.
+
+```js
+export default (...a) => [a[0] + 2 * 3, 7 % a[0], 2 ** a[0], ~a[0], !a[0], typeof a[0], a[0] > 1 ? "big" : "small"];
+```
 
 ## Reference
 

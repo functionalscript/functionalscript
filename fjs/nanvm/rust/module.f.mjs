@@ -11,11 +11,10 @@
  * Each statement is printed from the EDAG expression the case denotes, the
  * same expression [`../proof.f.mjs`](../proof.f.mjs) evaluates, so the two
  * consumers read one program rather than each reading the case its own way.
- * The node printer and its binding mechanism are not this module's own:
- * they live in [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared
- * with the `.rs` output branch of `fjs compile`
- * (`fjs/compiler/rust/module.f.mjs`), so the operator tables and the mechanism
- * have one copy between the two generators. What stays here is everything
+ * [`fjs/edag/rust`](../../edag/rust/module.f.mjs) admits each graph through
+ * the common FAST conversion and preparation passes, then the prepared Rust
+ * serializer spells it. The `.rs` output branch of `fjs compile` uses this
+ * same pipeline. What stays here is everything
  * test-corpus-specific: naming a group's Rust function, the per-group `let`
  * bindings a case's shared operands need, and the assertion statements
  * themselves.
@@ -25,9 +24,12 @@
  * because `snakeCase` over a punctuation tag such as `*` produces nothing
  * usable.
  *
- * Every emitted function carries `#[rustfmt::skip]`: the line layout here is
- * one statement per case, and `cargo fmt -- --check` runs in CI, so the
- * printer would otherwise have to reproduce rustfmt's wrapping exactly.
+ * No emitted item carries `#[rustfmt::skip]`: the line layout here is one
+ * statement per case, and `cargo fmt -- --check` runs in CI, so the
+ * formatting policy is declared once for the whole module, as
+ * `#[rustfmt::skip]` on its `mod generated;` in the hand-written
+ * `nanvm/lib/tests/test/main.rs`. Not as an inner `#![rustfmt::skip]` here:
+ * a custom inner tool attribute is unstable on stable Rust.
  *
  * @module
  *
@@ -56,38 +58,23 @@ import {
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
-import { braced, expExpr as sharedExpExpr, nestsOperation, statementsOf } from '../../edag/rust/module.f.mjs'
+import { bindingLine, braced, expExpr as sharedExpExpr, needsRuntime, statementsOf } from '../../edag/rust/module.f.mjs'
 
-/**
- * The shared printer as a throwing convenience, for this module's own use:
- * every case in the shared operator corpus is already valid, so a refusal
- * here is a bug in the corpus, not an expected outcome to report as a
- * `Result` — the same distinction {@link expExpr}'s own doc comment draws,
- * decided the other way for a different consumer.
- *
- * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
- */
-const expExpr = shared => e => unwrap(sharedExpExpr(shared)(e))
+/** The name a group's `run` binds the runtime value to, {@link groupFile}. */
+const runtimeName = 'rt'
 
 /** @type {(e: Exp) => string} */
-export const nodeExpr = e => unwrap(sharedExpExpr([])(e))
+export const nodeExpr = e => unwrap(sharedExpExpr([], runtimeName)(e))
 
 /**
- * A case's result as the `Result` `check` takes: one bare operation over
- * its operands as written — the flat statement every case has been —
- * unless an operation stands in an eager position, which a bare statement
- * has no line to bind on. Then the case is a scope, `scope(|| { … })`: its
- * temporaries bound inside the closure with their `?`, and the root's own
- * `Result` the closure's answer, handed to `check` whole — the shape a
- * thunk's body and a compiled module already have (`fjs/edag/rust`'s
- * `statementsOf`). `scope` is the harness's, a name for the call rather
- * than `(|| …)()`, which clippy calls redundant.
+ * Every case uses the common prepared Result scope. The corpus selects no
+ * graph-specific placement policy: preparation supplies its declarations and
+ * expression regions, and `scope` provides the failure-propagation boundary
+ * whose result `check` consumes.
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
  */
-const caseText = shared => e => nestsOperation(shared)(e)
-    ? `scope(|| ${braced(unwrap(statementsOf(shared)(e)))})`
-    : expExpr(shared)(e)
+const caseText = shared => e => `scope(|| ${braced(unwrap(statementsOf(shared, runtimeName)(e)))})`
 
 /**
  * Where this printer's output goes, relative to the repository root: a
@@ -111,7 +98,8 @@ export const directory = 'nanvm/lib/tests/test/gen.corpus'
  * `groupKey`: the operation tag, or for an `Op12` group the tag and its
  * arity, since `-` at one operand and at two are two functions.
  *
- * Written out rather than derived: a canonical id may be punctuation, and the
+ * Written out rather than derived: canonical ids and source logical labels
+ * may be punctuation, and the
  * generated function names are this printer's concern and stay stable when an
  * id is respelled — `neg` and `unary_plus` were named for the ids `neg` and
  * `unaryPlus` and kept their names when those became `-` and `+`.
@@ -243,7 +231,11 @@ const header = [
  * One group's file: its cases as the statements of one function, `run`,
  * named by the module the file is rather than by itself. Everything a
  * statement names comes from the harness's glob, so no file lists what it
- * happens to use and none warns of what it does not.
+ * happens to use and none warns of what it does not. Where a case or a
+ * shared value reaches the runtime — a member call, a static read — `run`
+ * binds the runtime value first, `rt`, as a compiled module receives it;
+ * a group that reaches none binds nothing, since an unused binding is a
+ * warning.
  *
  * @type {(shared: readonly SharedNode[]) => (g: Group) => string}
  */
@@ -251,19 +243,22 @@ const groupFile = shared => g => {
     const used = usedShared(shared)(g)
     /** @type {(s: SharedNode) => readonly[Exp, string]} */
     const binding = ([k, node]) => [node, `${snakeCase(k)}.clone()`]
+    const reaches = [...used.map(([, node]) => node), ...casesOf(g).flatMap(c => orders(g)(c).map(([, args]) => caseExp(shared)(g)(args)))].some(needsRuntime)
     return [
         ...header,
         'use crate::harness::*;',
         '',
-        '#[rustfmt::skip]',
+        // Identical prepared arms still evaluate their condition; preserve that
+        // program rather than adding a corpus-specific simplification pass.
+        '#[allow(clippy::if_same_then_else)]',
         'pub fn run<A: IStaticFunction>() {',
+        ...(reaches ? [`${indent}let ${runtimeName}: Any<A> = runtime::<A>().unwrap();`] : []),
         // An initializer is printed against the bindings established before
         // it, so a `ref` to an earlier shared value clones that binding
         // rather than constructing a second object. Printed without them the
         // Rust heap graph would not be the graph the nodes describe.
-        ...used.map(([k, node], i) =>
-            `${indent}let ${snakeCase(k)}: Any<A> = ${
-                expExpr(used.slice(0, i).map(binding))(node)};`),
+        ...used.flatMap(([k, node], i) => unwrap(bindingLine(used.slice(0, i).map(binding), snakeCase(k), runtimeName)(node))
+            .split('\n').map(line => `${indent}${line}`)),
         ...casesOf(g).flatMap(c => orders(g)(c).flatMap(([name, args]) =>
             emit(c.rust)(assertion(c.expected)(name)(
                 caseText(used.map(binding))(caseExp(shared)(g)(args)))))),
@@ -275,7 +270,8 @@ const groupFile = shared => g => {
 /**
  * The directory's `mod.rs`: a module per group, then `all`, which runs them
  * in the corpus's order. The declarations are sorted, the order `rustfmt`
- * keeps them in, since this file is formatted like any other.
+ * would keep them in, though the module-wide skip leaves this file as
+ * printed too.
  *
  * @type {(data: Data) => string}
  */

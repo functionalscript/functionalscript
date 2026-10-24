@@ -40,10 +40,14 @@
  */
 
 import { validate } from '../rtti/validate/module.f.mjs'
-import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame, todo } from '../asserts/module.f.js'
+import { demo, run as runDemo } from './demo.f.mjs'
+import { htmlToString } from '../media/html/module.f.mjs'
+import { runPure } from '../effects/module.f.mjs'
 import {
-    exp, fromValue, isStatic, op0Id, op1Id, op12Id, op2Id, op3Id,
-    noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText,
+    exp, fromValue, isStatic, mapItems, mapSteps, op0Id, op1Id, op12Id, op2Id, op3Id,
+    intrinsicIds, intrinsicLength, intrinsics, isIntrinsic,
+    noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText, stepOperands,
 } from './module.f.mjs'
 
 /**
@@ -97,7 +101,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -107,7 +111,6 @@ const op2Ids = /** @type {const} */ ([
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
-    '&&', '||', '??',
 ])
 
 /** Same purpose as `op0Ids`, for `op12` — each id legal at both arities. */
@@ -232,6 +235,18 @@ export const proof = {
     // Each static tag is its path's keys joined by `.`, and the test a
     // reader dispatches a static node on is the node of one tag of the
     // list: a tag's own spelling and nothing near it, alone.
+    // The intrinsics: `slice`, its helper of `length` `3`, and `charCodeAt`,
+    // of `2`; a node is
+    // one by its one tag, and nothing else is — a helper, a static, a tag
+    // with an operand, the bare tag.
+    intrinsics: () => {
+        assertStructurallySame(intrinsics, [['slice', 3], ['charCodeAt', 2]])
+        assertStructurallySame(intrinsicIds, ['slice', 'charCodeAt'])
+        assertEq(intrinsicLength('slice'), 3)
+        assertEq(intrinsicLength('charCodeAt'), 2)
+        for (const id of intrinsicIds) { assert(isIntrinsic([id]), id) }
+        for (const node of [['entry'], ['hasEntry'], ['Object.is'], ['slice', 1], ['charCodeAt', 1], 'slice', [], null]) { assert(!isIntrinsic(node), node) }
+    },
     staticIds: () => {
         assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])
         assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }'])
@@ -699,25 +714,39 @@ export const proof = {
         // the helper as a value) denotes, the language's own helper run as
         // JavaScript; not a schema check.
         entryJs: () => {
-            /** @type {(a: unknown, k: PropertyKey) => readonly [unknown] | readonly []} */
+            /** @type {(a: unknown, k: PropertyKey) => unknown} */
             const entry = (a, k) => {
                 const x = Object.getOwnPropertyDescriptor(a, k)
-                return x?.enumerable ? [x.value] : []
+                return x?.enumerable ? x.value : undefined
+            }
+            /** @type {(a: unknown, k: PropertyKey) => boolean} */
+            const hasEntry = (a, k) => {
+                const x = Object.getOwnPropertyDescriptor(a, k)
+                return x?.enumerable === true
             }
             const a = { ['__proto__']: 42, u: undefined }
-            assertStructurallySame(entry(a, '__proto__'), [42])
-            assertStructurallySame(entry(a, 'u'), [undefined])
-            assertStructurallySame(entry(a, 'x'), [])
-            assertStructurallySame(entry(a, 'toString'), [])
-            assertStructurallySame(entry([7], 0), [7])
-            assertStructurallySame(entry([7], '0'), [7])
-            assertStructurallySame(entry([7], 'length'), [])
-            assertStructurallySame(entry('ab', 1), ['b'])
-            assertStructurallySame(entry('ab', 'length'), [])
-            assertStructurallySame(entry(entry, 'length'), [])
-            assertStructurallySame(entry(entry, 'name'), [])
-            assertStructurallySame(entry({ length: 3 }, 'length'), [3])
+            assertEq(entry(a, '__proto__'), 42)
+            assertEq(entry(a, 'u'), undefined)
+            assertEq(hasEntry(a, 'u'), true)
+            assertEq(entry(a, 'x'), undefined)
+            assertEq(hasEntry(a, 'x'), false)
+            assertEq(entry(a, 'toString'), undefined)
+            assertEq(entry([7], 0), 7)
+            assertEq(entry([7], '0'), 7)
+            assertEq(entry([7], 'length'), undefined)
+            assertEq(entry('ab', 1), 'b')
+            assertEq(entry('ab', 'length'), undefined)
+            assertEq(entry(entry, 'length'), undefined)
+            assertEq(entry(entry, 'name'), undefined)
+            assertEq(entry({ length: 3 }, 'length'), 3)
         },
+    },
+    formerLogicalTags: () => {
+        for (const tag of ['&&', '||', '??']) {
+            assertNoMatch(vOp2Id(tag))
+            assertNoMatch(v([tag, 1, 2]))
+            assertNoMatch(v(['[]', [[tag, 1, 2]]]))
+        }
     },
     op2: {
         ok: () => {
@@ -956,5 +985,76 @@ export const proof = {
             ['|()', [['.', 'obj', 'a']]],
         ])
         assertOk(v(value))
+    },
+    // The chain-step traversal: a fold listing what the steps hold, and the
+    // maps over the steps and over an item list, every tag, arity and spread
+    // kept. Over strings, so a mapped operand is told from the original.
+    traversal: {
+        mapItems: () => {
+            /** @type {(x: string) => string} */
+            const upper = x => x.toUpperCase()
+            assertStructurallySame(mapItems(upper)([]), [])
+            assertStructurallySame(mapItems(upper)(['a', ['...', 'b']]), ['A', ['...', 'B']])
+        },
+        stepOperands: () => {
+            /** @type {(k: string) => readonly string[]} */
+            const key = k => [`key ${k}`]
+            /** @type {(items: readonly (string | readonly ['...', string])[]) => readonly string[]} */
+            const args = items => [`${items.length} args`]
+            const operands = stepOperands(key, args)
+            assertStructurallySame(operands(undefined), [])
+            assertStructurallySame(
+                operands(['|.', 'a', ['|()', ['x', 'y'], ['|?.()', [], ['|.', 'b']]]]),
+                ['key a', '2 args', '0 args', 'key b'])
+            assertStructurallySame(operands(['|!()', ['x']]), ['1 args'])
+        },
+        mapSteps: () => {
+            /** @type {(k: string) => string} */
+            const key = k => `.${k}`
+            const steps = mapSteps(key, mapItems(/** @type {(x: string) => string} */ (x => x.toUpperCase())))
+            assertStructurallySame(steps(['|.', 'a']), ['|.', '.a'])
+            assertStructurallySame(
+                steps(['|.', 'a', ['|()', ['x', ['...', 'y']], ['|?.()', ['z']]]]),
+                ['|.', '.a', ['|()', ['X', ['...', 'Y']], ['|?.()', ['Z']]]])
+            assertStructurallySame(steps(['|!()', ['x']]), ['|!()', ['X']])
+        },
+    },
+    demo: {
+        /**
+         * **The interpreters agree on data and differ on identity.** A shared
+         * number is the same either way; a shared `{}` is one object under
+         * memo and two under amnesia, which is the difference the page shows.
+         */
+        initial: () => assertStructurallySame(assertOk(runDemo(demo.init)), [
+            'export default {"default":[9,10,[1,4],true]};',
+            'export default {"default":[9,10,[1,4],false]};',
+        ]),
+        // An operation's own failure is what the module throws, in both.
+        throws: () => assertStructurallySame(assertOk(runDemo('export default 1n / 0n')),
+            ['throws export default undefined;', 'throws export default undefined;']),
+        // A built-in the package runtime defines answers as it does in the
+        // compiler's executors, in both.
+        runtime: () => assertStructurallySame(assertOk(runDemo("export default 'abc'.startsWith('a')")),
+            ['export default {"default":true};', 'export default {"default":true};']),
+        // A function has no data form, and the page says why.
+        callable: () => assert(assertOk(runDemo('export default x => x'))[0].startsWith('(callable'), 'a function is not data'),
+        // Source the parser refuses is refused before any graph exists.
+        refused: () => {
+            assertEq(assertError(runDemo('export default (')), 'unexpected end')
+            const html = htmlToString(demo.view('export default ('))
+            assert(html.includes('unexpected end'), html)
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            const [typed] = runPure(demo.update('')({ kind: 'input', name: 'module', value: 'x' }))
+            assertEq(assertOk(assertNotNullish(typed)), 'x')
+            const [kept] = runPure(demo.update('kept')({ kind: 'start' }))
+            assertEq(assertOk(assertNotNullish(kept)), 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="module"'), html)
+            assert(html.includes('amnesia answers:'), html)
+        },
     },
 }

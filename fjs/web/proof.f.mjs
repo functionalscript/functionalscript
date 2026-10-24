@@ -6,7 +6,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq } from '../asserts/module.f.js'
 import { createServer, exitCode, ioError, listen, open, readBytes } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
@@ -15,8 +15,7 @@ import { step } from '../effects/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { empty as elEmpty } from '../effects/list/module.f.mjs'
-import { length, u8ListMsb, u8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
-import { toArray } from '../types/list/module.f.mjs'
+import { length, u8ListToVecMsb, u8ArrayMsb } from '../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { main, resolve, respond } from './module.f.mjs'
 
@@ -119,13 +118,13 @@ const drain = (state, e, between = s => s) => {
  * @type {(e: EffectList<NodeOp, Vec, IoChannel>) => string}
  */
 const textOf = e =>
-    utf8ToString(u8ListToVecMsb(drain(emptyState, e)[1].flatMap(v => toArray(u8ListMsb(v)))))
+    utf8ToString(u8ListToVecMsb(drain(emptyState, e)[1].flatMap(v => u8ArrayMsb(v))))
 
 /** Every byte a response body carries, its chunks joined.
  *
  * @type {(r: RecordedResponse) => readonly number[]}
  */
-const bodyBytes = r => r.body.flatMap(v => toArray(u8ListMsb(v)))
+const bodyBytes = r => r.body.flatMap(v => u8ArrayMsb(v))
 
 /**
  * Asserts that a response carries exactly `expected`, by length and then by the
@@ -177,7 +176,7 @@ const countingKib = n => u8ListToVecMsb(Array.from({ length: 1_024 }, (_, i) => 
 const largeChunks = Array.from({ length: 129 }, (_, n) => countingKib(n))
 
 /** @type {readonly number[]} */
-const largeBytes = largeChunks.flatMap(v => toArray(u8ListMsb(v)))
+const largeBytes = largeChunks.flatMap(v => u8ArrayMsb(v))
 
 /** @type {Dir} */
 const largeRoot = { 'large.bin': largeChunks }
@@ -579,13 +578,13 @@ export const proof = {
             assertEq(r.status, 200)
             assertEq(`${r.headers['content-length']}`, `${largeBytes.length}`)
             const [afterBody, chunks] = drain(afterListener, r.body, s => ({ ...s, root: other }))
-            const bytes = chunks.flatMap(v => toArray(u8ListMsb(v)))
+            const bytes = chunks.flatMap(v => u8ArrayMsb(v))
             assertEq(bytes.length, largeBytes.length)
             assertEq(bytes.findIndex((b, i) => b !== largeBytes[i]), -1)
             // The replacement really did land: the *name* now holds the other
             // file, so the reads above answered the opened entry and not the
             // current one.
-            assertEq(toArray(u8ListMsb(unwrap(virtual(afterBody)(readBytes('large.bin', 0, 1))[1])))[0], 200)
+            assertEq(u8ArrayMsb(unwrap(virtual(afterBody)(readBytes('large.bin', 0, 1))[1]))[0], 200)
             // And the handle is given back by the `release` the response carries.
             assertEq(virtual(afterBody)(r.release)[0].handles.length, 0)
         },

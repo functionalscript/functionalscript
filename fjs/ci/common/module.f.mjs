@@ -1,13 +1,13 @@
 /**
  * Shared CI types and helpers: GitHub Actions step/job RTTI schemas, the
  * `MetaStep` representation used by tool-specific modules, and assemblers like
- * `install`, `test`, `job`, `ubuntu`, and `toSteps`. See `./types.ts` for the
+ * `install`, `npmGlobalInstall`, `test`, `job`, `ubuntu`, and `toSteps`. See `./types.ts` for the
  * `Os`/`Architecture`/`Image`/`Step`/`Job`/`Jobs`/`GitHubAction`/`StepType`/
  * `MetaStep` type-level API.
  *
  * @module
  *
- * @import { Image, Step, Job, MetaStep, StepType } from './types.ts'
+ * @import { Architecture, Image, Step, Job, MetaStep, Os, StepType } from './types.ts'
  */
 
 import { actions, images, jobTimeout } from '../config/module.f.js'
@@ -36,9 +36,13 @@ export const _workflowsDirectory = /** @type {const} */ ('.github/workflows')
 // boolean: `false` is the field's own default, so emitting it would say
 // nothing, and a schema that accepts both invites a step that spells its
 // default out. A step carrying it is a step whose failure is an expected
-// outcome — the npm publish, whose "already published" answer is the usual one
-// — and there is exactly one.
+// outcome: npm publish may find the version already published, and cache
+// access and reports may fail without invalidating the checks themselves.
 export const stepSchema = /** @type {const} */ ({
+    // The cache bootstrap exposes hit flags through $GITHUB_OUTPUT; its id
+    // and each dependent step's condition name those flags.
+    id: or(option, string),
+    if: or(option, string),
     run: or(option, string),
     uses: or(option, string),
     with: or(option, record(string)),
@@ -71,6 +75,9 @@ export const stepSchema = /** @type {const} */ ({
 // takes `jobTimeout` from `../config/module.f.js`.
 export const jobSchema = /** @type {const} */ ({
     'runs-on': string,
+    // Only jobs using the build cache need to publish commits. The workflow
+    // stays read-only for the generic generator and publishing workflow.
+    permissions: or(option, record(string)),
     if: or(option, string),
     needs: or(option, array(string)),
     'timeout-minutes': number,
@@ -108,6 +115,16 @@ export const uses = (name, w) => ({
 
 /** @type {(step: Step) => MetaStep} */
 export const install = step => ({ type: 'install', step })
+
+/**
+ * Installs the `version` release of the npm package `pkg` globally: the one
+ * shape every pinned npm tool a job needs takes. Curried, so a job that
+ * always installs the same package can bind it once.
+ *
+ * @type {(pkg: string) => (version: string) => MetaStep}
+ */
+export const npmGlobalInstall = pkg => version =>
+    install({ run: `npm install -g ${pkg}@${version}` })
 
 /** @type {(step: Step) => MetaStep} */
 export const test = step => ({ type: 'test', step })
@@ -147,3 +164,12 @@ export const ubuntu = job(images.ubuntu.intel)
 
 /** @type {(ms: readonly MetaStep[]) => Job} */
 export const ubuntuArm = job(images.ubuntu.arm)
+
+/**
+ * Whether a platform is the one {@link ubuntuArm} runs on: Ubuntu on ARM, the
+ * runner every canonical job uses. A platform job that carries a canonical
+ * check of its own asks this, rather than naming the pair itself.
+ *
+ * @type {(v: Os, a: Architecture) => boolean}
+ */
+export const isUbuntuArm = (v, a) => v === 'ubuntu' && a === 'arm'

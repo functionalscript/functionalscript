@@ -3,7 +3,7 @@
 **Priority:** P2
 **Status:** done — kept as the record; cited by `nanvm/lib/src/vm/lambda/mod.rs`
 and `method.rs` (the dispatch algorithm), `fjs/nanvm/methods/module.f.mjs`,
-`nanvm/lib/README.md`, `spec/built-ins/member-functions.md`,
+`nanvm/lib/README.md`, `spec/built-ins/member-functions/README.md`,
 `spec/todo/cavm-function-to-string.md`, `spec/design/serialization.md`,
 `spread-operations.md` and `fjs/nanvm/todo/corpus-improvements.md`
 
@@ -47,11 +47,11 @@ with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
    the name, which
    [`fjs/js/runtime`](../../../fjs/js/runtime/README.md) writes once in
    FunctionalScript and `npm run gen` compiles to
-   [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs). The call step asks
-   `runtime_method(key)` in `vm/runtime.rs` for its code, asks the code
-   for the receiver — the function of the arguments, or `undefined` for a
-   receiver the name is no member of — and calls that function with the
-   arguments.
+   [`vm/gen.runtime.rs`](../src/vm/gen.runtime.rs) as a value every
+   compiled module takes. The call step asks the value's `dot` for the
+   receiver and the key — the function of the arguments, or `undefined`
+   for a receiver the name is no member of — and calls that function with
+   the arguments.
 4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 
@@ -98,7 +98,7 @@ function answers it, so `f.toString()`, `String(f)`, `+`, an array joined
 and a string method's argument all reach the one text. A function without
 text — a host or hand-written one — is refused (`error::function_text`), never
 answered with a placeholder. The property key, which no module can compute
-but through the [`entry`](../../../spec/property-access/entries.md) helper,
+but through the [`entry`](../../../spec/property-access/entries/README.md) helper,
 reaches the same text, and the `function-text` fixture proves it. What remains
 is the host evaluator's own rendering, which the corpus's `host` marker skips
 until it has one.
@@ -191,7 +191,8 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 - [x] `at` — `vm/string/reads.rs`
 - [x] `charAt` — `vm/string/reads.rs`
 - [x] `charCodeAt` — `vm/string/reads.rs`
-- [x] `codePointAt` — `vm/string/reads.rs`
+- [x] `codePointAt` — `fjs/js/runtime/module.f.js`, the runtime's body,
+      bound through `vm/runtime.rs`
 - [x] `concat` — `vm/string/building.rs`
 - [x] `endsWith` — `vm/string/search.rs`
 - [x] `includes` — `vm/string/search.rs`

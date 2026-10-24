@@ -1,49 +1,52 @@
 /**
  * A loose object as it sits on disk, `.git/objects/xx/yyyy…`: one zlib
- * stream holding the envelope and the payload. Inflating it is the host's,
- * behind the `inflate` effect, and reading the inflated bytes is the pure
- * envelope reader's; this module is the boundary between the two, and
- * nothing more. One of the two places a real repository meets the decoder —
- * [`fjs/git/packstore`](../packstore/module.f.mjs) is the other, and is the one
- * a clone takes for most of its objects.
+ * stream holding the envelope and the payload. The file is read whole, in the
+ * chunks one open takes, and inflated by
+ * [`fjs/zlib/inflate`](../../zlib/inflate/module.f.mjs), a pure inflater; the
+ * inflated bytes are read by the pure envelope reader. This module is the
+ * boundary between the three, and nothing more. One of the two places a real
+ * repository meets the decoder — [`fjs/git/packstore`](../packstore/module.f.mjs)
+ * is the other, and is the one a clone takes for most of its objects.
  *
- * The bytes come back as a `Vec`, the bound every host effect here has,
- * 128 KiB, and the file goes in as one too, so a loose object is refused on
- * either side of its stream, through the channel and never cut short: a
- * file over the bound before it is inflated, `readFile`'s refusal, and a
- * stream that inflates past it, `inflate`'s. A packed object meets the same
- * ceiling at the same effect, since `packstore` hands `inflate` an entry's
- * window as a `Vec` and takes one back — so this is the boundary's bound and
- * not the loose path's. The first binds an object the
- * second would take — an incompressible blob near the bound is larger
- * compressed than plain. A FunctionalScript inflater over a byte list,
- * fed a window at a time, lifts both; it is its own issue,
- * [`todo/inflate.md`](../../../todo/inflate.md).
+ * Nothing here is bounded by a `Vec`. The file is as many chunks as it takes
+ * and the object as many as it inflates to, and the payload is a list over them,
+ * as long as the object is. The host's `inflate` effect, which this used,
+ * answered one `Vec` of 128 KiB at most for one of the same, so a blob over that
+ * was refused; roughly one in a hundred in this repository.
+ *
+ * `readWhole` and not `readFile`, which answers one `Vec`, and not a run of
+ * windows, which can straddle a rename: one open is one snapshot of the file.
  *
  * @module
  *
- * @import { Inflate, IoChannel, ReadFile } from '../../effects/node/types.ts'
+ * @import { IoChannel, ReadWhole } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Envelope } from '../object/types.ts'
  */
 
-import { mapStep, step } from '../../effects/module.f.mjs'
-import { inflate, readFile } from '../../effects/node/module.f.mjs'
-import { u8ListMsb } from '../../types/bit_vec/module.f.mjs'
-import { tryRead as readEnvelope } from '../object/module.f.mjs'
+import { pureOk, refuse, step } from '../../effects/module.f.mjs'
+import { readWhole } from '../../effects/node/module.f.mjs'
+import { bytesOf, inflateWithin } from '../inflater/module.f.mjs'
+import { tryLength, tryRead as readEnvelope } from '../object/module.f.mjs'
+
+/**
+ * How much output holds an envelope whole: `commit`, a space, sixteen digits and
+ * the NUL are 24 bytes, so by 32 it is there or no envelope is.
+ */
+const envelopeBytes = 32
 
 /**
  * Reads the loose object at `path`: the file, inflated, past its envelope.
  * `null` where the inflated bytes are no object — no envelope, or a
  * payload not as long as the envelope claims; a file that cannot be read,
- * or is no zlib stream, or holds bytes after its stream, or inflates past
- * the bound, is the channel's.
+ * or is no zlib stream, or holds bytes after its stream, is the channel's.
  *
- * @type {(path: string) => Effect<ReadFile | Inflate, Nullable<Envelope>, IoChannel>}
+ * @type {(path: string) => Effect<ReadWhole, Nullable<Envelope>, IoChannel>}
  */
-export const tryRead = path => {
-    const compressed = readFile(path)
-    const inflated = step(compressed, inflate)
-    return mapStep(inflated, v => readEnvelope(u8ListMsb(v)))
-}
+export const tryRead = path => step(readWhole(path), chunks => {
+    const inflated = inflateWithin(envelopeBytes, tryLength)(chunks)
+    return inflated[0] === 'error'
+        ? refuse(inflated[1].code)(inflated[1].message)
+        : pureOk(inflated[1] === null ? null : readEnvelope(bytesOf(inflated[1])))
+})

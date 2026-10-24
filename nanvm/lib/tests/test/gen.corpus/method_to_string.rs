@@ -2,39 +2,42 @@
 
 use crate::harness::*;
 
-#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("number", Any::dot(f64_any(0x3ff8000000000000), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("1.5"));
-    check::<A>("negativeZero", Any::dot(f64_any(0x8000000000000000), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("0"));
-    check::<A>("boolean", Any::dot(true.to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("true"));
-    check::<A>("string", Any::dot(string_any("ab"), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("ab"));
-    check::<A>("bigint", Any::dot(bigint_any(5), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("5"));
-    check::<A>("array", Any::dot([f64_any(0x3ff0000000000000), string_any("b"), Nullish::Null.to_any(), Nullish::Undefined.to_any(), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any()].to_array().to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("1,b,,,2,3"));
-    check::<A>("object", Any::dot(Object::default().to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("[object Object]"));
-    check::<A>("radixTen", Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4024000000000000)].to_array().to_any())), string_any("255"));
-    check::<A>("radixUndefined", Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(|| Ok([Nullish::Undefined.to_any()].to_array().to_any())), string_any("255"));
-    check::<A>("radix", Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4030000000000000)].to_array().to_any())), string_any("ff"));
-    check::<A>("radixTwo", Any::dot(f64_any(0xc06fe00000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("-11111111"));
-    check::<A>("radixTruncated", Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4030e66666666666)].to_array().to_any())), string_any("ff"));
-    check::<A>("radixString", Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(|| Ok([string_any("36")].to_array().to_any())), string_any("73"));
-    check::<A>("radixLargeInteger", Any::dot(f64_any(0x444b1ae4d6e2ef50), string_any("toString")).end_call(|| Ok([f64_any(0x4030000000000000)].to_array().to_any())), string_any("3635c9adc5dea00000"));
-    check::<A>("radixNegativeZero", Any::dot(f64_any(0x8000000000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("0"));
-    check::<A>("radixNan", Any::dot(f64_any(0x7ff8000000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("NaN"));
-    check::<A>("radixInfinity", Any::dot(f64_any(0xfff0000000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4030000000000000)].to_array().to_any())), string_any("-Infinity"));
-    check_throws::<A>("radixOne", Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
-    check_throws::<A>("radixThirtySeven", Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4042800000000000)].to_array().to_any())));
-    check_throws::<A>("radixOutOfRangeOnNan", Any::dot(f64_any(0x7ff8000000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4042800000000000)].to_array().to_any())));
-    // TODO: the digits of a fraction in another radix are the engine's: check::<A>("radixFraction", Any::dot(f64_any(0x3fe0000000000000), string_any("toString")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("0.1"));
-    check::<A>("bigintRadix", Any::dot(bigint_any(255), string_any("toString")).end_call(|| Ok([f64_any(0x4030000000000000)].to_array().to_any())), string_any("ff"));
-    check::<A>("bigintNegativeRadix", Any::dot(bigint_any(-255), string_any("toString")).end_call(|| Ok([f64_any(0x4042000000000000)].to_array().to_any())), string_any("-73"));
-    check::<A>("bigintRadixTen", Any::dot(bigint_any(10), string_any("toString")).end_call(|| Ok([Nullish::Undefined.to_any()].to_array().to_any())), string_any("10"));
-    check_throws::<A>("bigintRadixOutOfRange", Any::dot(bigint_any(1), string_any("toString")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())));
-    check::<A>("argumentIgnored", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toString")).end_call(|| Ok([f64_any(0x4030000000000000)].to_array().to_any())), string_any("1"));
-    check_throws::<A>("null", Any::dot(Nullish::Null.to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())));
-    check_throws::<A>("undefined", Any::dot(Nullish::Undefined.to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())));
-    check::<A>("function", Any::dot(function_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("()=>undefined"));
-    check::<A>("callback", Any::dot(A::static_function(|_self, args| {
-        let rest = args.rest(0);
-        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("(...$0)=>$0[0]"));
+    let rt: Any<A> = runtime::<A>().unwrap();
+    check::<A>("number", scope(|| { Any::dot(f64_any(0x3ff8000000000000), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("1.5"));
+    check::<A>("negativeZero", scope(|| { Any::dot(f64_any(0x8000000000000000), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("0"));
+    check::<A>("boolean", scope(|| { Any::dot(true.to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("true"));
+    check::<A>("string", scope(|| { Any::dot(string_any("ab"), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("ab"));
+    check::<A>("bigint", scope(|| { Any::dot(bigint_any(5), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("5"));
+    check::<A>("array", scope(|| { Any::dot([f64_any(0x3ff0000000000000), string_any("b"), Nullish::Null.to_any(), Nullish::Undefined.to_any(), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any()].to_array().to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("1,b,,,2,3"));
+    check::<A>("object", scope(|| { Any::dot(Object::default().to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("[object Object]"));
+    check::<A>("radixTen", scope(|| { Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4024000000000000)].to_array().to_any())) }), string_any("255"));
+    check::<A>("radixUndefined", scope(|| { Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(&rt, || Ok([Nullish::Undefined.to_any()].to_array().to_any())) }), string_any("255"));
+    check::<A>("radix", scope(|| { Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4030000000000000)].to_array().to_any())) }), string_any("ff"));
+    check::<A>("radixTwo", scope(|| { Any::dot(f64_any(0xc06fe00000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("-11111111"));
+    check::<A>("radixTruncated", scope(|| { Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4030e66666666666)].to_array().to_any())) }), string_any("ff"));
+    check::<A>("radixString", scope(|| { Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(&rt, || Ok([string_any("36")].to_array().to_any())) }), string_any("73"));
+    check::<A>("radixLargeInteger", scope(|| { Any::dot(f64_any(0x444b1ae4d6e2ef50), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4030000000000000)].to_array().to_any())) }), string_any("3635c9adc5dea00000"));
+    check::<A>("radixNegativeZero", scope(|| { Any::dot(f64_any(0x8000000000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("0"));
+    check::<A>("radixNan", scope(|| { Any::dot(f64_any(0x7ff8000000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("NaN"));
+    check::<A>("radixInfinity", scope(|| { Any::dot(f64_any(0xfff0000000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4030000000000000)].to_array().to_any())) }), string_any("-Infinity"));
+    check_throws::<A>("radixOne", scope(|| { Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }));
+    check_throws::<A>("radixThirtySeven", scope(|| { Any::dot(f64_any(0x406fe00000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4042800000000000)].to_array().to_any())) }));
+    check_throws::<A>("radixOutOfRangeOnNan", scope(|| { Any::dot(f64_any(0x7ff8000000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4042800000000000)].to_array().to_any())) }));
+    // TODO: the digits of a fraction in another radix are the engine's: check::<A>("radixFraction", scope(|| { Any::dot(f64_any(0x3fe0000000000000), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("0.1"));
+    check::<A>("bigintRadix", scope(|| { Any::dot(bigint_any(255), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4030000000000000)].to_array().to_any())) }), string_any("ff"));
+    check::<A>("bigintNegativeRadix", scope(|| { Any::dot(bigint_any(-255), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4042000000000000)].to_array().to_any())) }), string_any("-73"));
+    check::<A>("bigintRadixTen", scope(|| { Any::dot(bigint_any(10), string_any("toString")).end_call(&rt, || Ok([Nullish::Undefined.to_any()].to_array().to_any())) }), string_any("10"));
+    check_throws::<A>("bigintRadixOutOfRange", scope(|| { Any::dot(bigint_any(1), string_any("toString")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }));
+    check::<A>("argumentIgnored", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4030000000000000)].to_array().to_any())) }), string_any("1"));
+    check_throws::<A>("null", scope(|| { Any::dot(Nullish::Null.to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }));
+    check_throws::<A>("undefined", scope(|| { Any::dot(Nullish::Undefined.to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }));
+    check::<A>("function", scope(|| { Any::dot(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("()=>undefined"));
+    check::<A>("callback", scope(|| {
+        Any::dot(A::static_function(|_self, _args| {
+            let _b92: Any<A> = _args.rest(0).to_any();
+            Any::dot(_b92.clone(), f64_any(0x0000000000000000)).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any()))
+    }), string_any("(...$0)=>$0[0]"));
 }

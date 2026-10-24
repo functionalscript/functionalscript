@@ -1,4 +1,4 @@
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.js'
 import { matches } from './module.f.js'
 
 export const proof = {
