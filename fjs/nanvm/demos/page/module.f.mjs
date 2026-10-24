@@ -197,7 +197,7 @@ export const runWasm = name => ({ exports }) => {
         : decode(Array.from({ length: value }, (_, i) => /** @type {(i: number) => number} */ (outputByte)(i)))
     // Each size is read outside the sandbox, so the timed interval holds
     // `run_sample` alone.
-    const before = history(step(loaded, () => pureOk(live.buffer.byteLength)))
+    const before = history(mapStep(loaded, () => live.buffer.byteLength))
     const ran = historyStep(before, () => resultMapStep(sandbox(() => /** @type {() => number} */ (runSample)()), r => ok(r)))
     return resultMapStep(ran, h => {
         if (h[0] === 'error') { return ok(error(h[1])) }
