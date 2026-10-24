@@ -1034,7 +1034,9 @@ export const graphSvg = g => {
         },
             ['title', description],
             ['path', { d, 'data-graph-hit': '' }],
-            ['path', { d, 'data-graph-trace': '', 'marker-end': 'url(#graph-trace-arrow)' }],
+            ['path', { d, 'data-graph-trace': '', 'marker-end': 'url(#graph-trace-arrow)',
+                ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
+            }],
             ...titleTraceOf(target)({ 'data-graph-title-outline': String(to) }),
             ...(sourcePorts.length === 0 && edge.from !== to ? titleTraceOf(from)({ 'data-graph-title-outline': String(edge.from) }) : []),
             ...sourcePorts.map(port => /** @type {Element} */ (['rect', {

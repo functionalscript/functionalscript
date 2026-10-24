@@ -494,9 +494,9 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = stageDemo({
-    intro: 'Lowers a FunctionalScript module to an expression graph. Arrows point to operands, multiple arrows to one node show sharing, and dashed arrows mark operands that may not be evaluated.',
+    intro: 'Lowers a FunctionalScript module to an expression graph. Arrows point to operands, multiple arrows to one node show sharing, and dashed arrows mark operands that may not be evaluated. Hover an operand name or reference to follow its arrow; hover a node title to see its incoming uses. Click an arrow to keep it selected, or use Tab to move between connections.',
     name: 'edag',
 })(text => {
     const [kind, value] = graphOfText(text)
-    return [kind === 'ok' ? graphSvg(value) : refusal(value)]
+    return [kind === 'ok' ? graphSvg({ ...value, trace: true }) : refusal(value)]
 })
