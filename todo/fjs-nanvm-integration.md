@@ -1610,38 +1610,41 @@ non-leaf modules are outside this normalization.
 #### The whole repository
 
 The same loop over every authored module, not only the leaves, measured at
-`4c8ec55`: of 228 modules — 222 `module.f.mjs` and 6 `module.f.js`
-— the 6 `.f.js` compile and every `.f.mjs` stops at its first refusal. The
+`55d1204`: of 317 modules — 272 `module.f.mjs` and 45 `module.f.js`
+— the 45 `.f.js` compile and every `.f.mjs` stops at its first refusal. The
 table counts that first refusal only, read at the token the compiler names,
 so it says which feature to settle first, not how much each costs; a refusal
-the compiler meets in an import is counted under the import's feature, 17 of
+the compiler meets in an import is counted under the import's feature, 65 of
 the rows' members.
 
 | Modules | First refusal |
 | ---: | --- |
-| 94 | a template literal |
-| 47 | destructuring, a `const` or a parameter |
-| 23 | `let`, `for`, `switch`, or an `if` with no block |
-| 13 | a computed member or key, `a[i]`, `{ [k]: v }` |
-| 10 | an escape in a single-quoted string, `'\x07'`, `'\0'` |
-| 9 | a call as a statement, `assert(…)` |
-| 8 | `const not found`: three reads of a later `const` ([`3140`](../spec/todo/3140-forward-references.md)), five of `Number` or `Boolean` ([`2365`](../spec/todo/2365-global-names.md)) |
-| 5 | `new Set`, `new Map` |
-| 5 | `instanceof` |
-| 5 | `export { … }`, with and without `from` |
-| 3 | one each: a reassignment, `in`, a default parameter |
+| 43 | `for`, `for…of`: no proposal ([3220](../spec/todo/3220-let.md#general-loops) leaves it a separate extension) |
+| 33 | a computed member, `a[i]`, its key not `Number(…)` |
+| 32 | a general loop: an `if` with `return`, `break` or `continue` inside a `while`, a nested `while`, a second variable the loop assigns ([general loops and tail calls](../fjs/todo/general-loops-and-tail-calls.md), H) |
+| 27 | a block whose end is reachable: a body of calls with no `return` (`assert(…)`), an `if` with no terminator, `else` among them, a `switch` with no `default` or with `break` |
+| 27 | a global name: `Object`, `Array`, `String`, `BigInt`, `JSON`, `Math`, `Boolean`, `parseFloat`, `encodeURIComponent` ([2360](../spec/todo/2360-built-in.md), [2365](../spec/todo/2365-global-names.md)) |
+| 17 | `export { … }`, with and without `from` |
+| 17 | a read of a later `const` ([3140](../spec/todo/3140-forward-references.md)) |
+| 17 | a property name a prototype owns: `name` 11 times, `concat`, `reduce`, `sub`, `push` |
+| 14 | `new Map`, `new Set` |
+| 10 | `in` |
+| 9 | an escape the tokenizer refuses, `'\0'`, `'\x1b'` |
+| 6 | a rest element in a pattern, `[a, ...rest]` |
+| 5 | a compound assignment, `+=`, `-=`, `>>=`, `<<=` |
+| 5 | a `case` or `if` body without braces |
+| 4 | a default in a pattern, `{ x = 1 }` |
+| 3 | a numeric key in an object literal, `{ 0: … }` |
+| 3 | one each: `import * as`, unary `+`, an assignment to a pattern |
 
-The count at `8f78921`, with `main` at `0882d09` merged in, was the same
-table over 227 modules with 93 template literals: one module was added and
-nothing else moved.
-
-Template literals were the first refusal of two modules in five in these
-snapshots, almost all of them error messages and `assert` texts. Untagged
-templates are now implemented ([spec: template literals](../spec/values/template-literals/README.md)).
-Destructuring was next, and the string-escape row is tokenizer work. The leaf
-table above is what this count does not say: a module whose
-first refusal clears meets its next, and only a leaf whose every feature has
-landed renames.
+At `4c8ec55` the table was over 228 modules, 6 of them `.f.js`, with template
+literals the first refusal of 94 and destructuring of 47. Both have landed
+since — templates entirely, destructuring but for the rest element and
+defaults — and loops lead now: `for` and the general loop, 75 between them.
+The leaf table above is what this count does not say: a module whose first
+refusal clears meets its next, and only a leaf whose every feature has landed
+renames. The same count over the self-hosting loader's dependencies is in
+[the MVP roadmap](../nanvm/lib/todo/mvp-roadmap.md#where-self-hosting-stands).
 
 The count of modules that compile cannot go down unnoticed: a module renames
 to `.f.js` once the compiler accepts it, and `fjs compile` with no arguments

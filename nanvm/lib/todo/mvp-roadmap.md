@@ -5,19 +5,18 @@
 
 ### Problem
 
-The MVP is reached, as
-[fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md) records. The
-remaining tasks here, P2 and below, and the self-hosting milestone are
-post-MVP.
-
 The MVP — `fjs compile` emitting Rust that calls the `nanvm-lib` API, built and
-run by a harness crate with cargo — is defined and tracked in
-[fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md): the export-object
-module contract, the named-module acceptance example, the `.rs` output target
-and harness export selection.
+run by a harness crate with cargo — is reached. It is defined in
+[fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md), which records
+its acceptance: the named-module example runs through the harness in a
+`cargo test`. Every P1 task below is done.
+
 This file records the design decided around that pipeline and the work after
-it, toward the self-hosted `nanvm` crate
-([console-program](./console-program.md)).
+it: the remaining tasks, P2 and below, and the
+[self-hosting milestone](#post-mvp-milestone-self-hosting), the self-hosted
+`nanvm` crate ([console-program](./console-program.md)). What the milestone
+waits on is mostly compiler coverage of the language its own sources use:
+[where it stands](#where-self-hosting-stands) is measured below.
 
 See [`spec/`](../../../spec/README.md) for language details. Details
 for individual items below are added only after discussion.
@@ -291,8 +290,17 @@ tracked in [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#tasks)
       interpreter in the [loader](../../../fjs/compiler/todo/load-modules-without-import-effect.md),
       then use it for [proof loading](../../../fjs/emergent_testing/todo/load-proofs-through-fjs.md)
       on Node and, as compiler coverage permits, AOT-compiled Rust.
-- [ ] **Control statements**: `if`, `while`, etc. (Rust).
-      See [`spec/todo/README.md` §3.2](../../../spec/todo/README.md).
+- [ ] **Control statements.** Implemented: the guard, an `if` whose block
+      ends in `return` or `throw` ([guards](../../../spec/control-flow/guards/README.md));
+      `let`, assignment and the loop over one variable
+      ([variables](../../../spec/bindings/variables/README.md),
+      [loops](../../../spec/control-flow/loops/README.md)); the terminating
+      `switch` ([switch](../../../spec/control-flow/switch/README.md)).
+      Remaining: general loops — `break`, `continue` and `return` inside a
+      loop, nested and sequential loops — milestones E, F and H of
+      [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md);
+      and `for`, which [3220](../../../spec/todo/3220-let.md#general-loops)
+      leaves a separate extension with no proposal yet.
 - [ ] **`Any` serialization (CBOR)** — generic serialization of `Any`
       values, which covers code as data; includes the deterministic profile
       needed for CAVM hashing (see open questions).
@@ -327,6 +335,35 @@ in the compiler, analysis and executor also need
 or a separately approved language design. Both are semantic prerequisites, not
 ordinary compiler coverage. As these migrations and language
 coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
+
+#### Where self-hosting stands
+
+Measured on `55d1204`. The loader is `interpret` in
+[`compiler/transpiler`](../../../fjs/compiler/transpiler/module.f.mjs); with its
+runtime dependencies it is 115 modules, the imports Node resolves when it loads
+the transpiler. 22 are `.f.js`, which the compiler accepts. The other 93 are
+`.f.mjs`, and the compiler refuses every one. Their first refusals, counted as
+[the whole repository's table](../../../todo/fjs-nanvm-integration.md#the-whole-repository)
+counts them, a refusal met in an import under the import's construct:
+
+| Modules | First refusal | Owner |
+| ---: | --- | --- |
+| 18 | `for`, `for…of` | none: no proposal, [3220](../../../spec/todo/3220-let.md#general-loops) |
+| 17 | a general loop: an `if` with `return`, `break` or `continue` inside a `while` | H of [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md) |
+| 11 | a block whose end is reachable: an `if` with no terminator, a body of calls with no `return`, a `switch` with no `default` | none |
+| 10 | a global name: `Object`, `Array`, `String`, `JSON`, `Boolean`, `parseFloat` | [2360](../../../spec/todo/2360-built-in.md), [2365](../../../spec/todo/2365-global-names.md) |
+| 8 | `new Map`, `new Set` | the container migration above |
+| 8 | a computed member, `a[i]` | [computed-property-key](../../../fjs/compiler/todo/computed-property-key.md), [2330](../../../spec/todo/2330-property-accessor.md) |
+| 6 | a later `const` | [3140](../../../spec/todo/3140-forward-references.md), or reordering |
+| 5 | `export { … }`, with and without `from` | [export-lists](../../../spec/todo/export-lists.md), or `export const` |
+| 3 | `in` | a rewrite: [2346](../../../spec/todo/2346-in-operator.md) proposes keeping it out |
+| 3 | an escape the tokenizer refuses, `'\0'` | [2460](../../../spec/todo/2460-js-string-literals.md) |
+| 4 | one each: a name a prototype owns, a numeric key, a rest element, an `if` body without braces | |
+
+Loops lead: 35 of the 93 stop at one. A module moves to `.f.js` only once every
+refusal behind its first has cleared too, so the table orders the work and does
+not size it: `new Map` and `new Set` are written in 13 and 15 of these modules,
+not only the 8 that stop at them first.
 
 ### Open questions
 
