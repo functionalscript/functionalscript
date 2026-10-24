@@ -1875,6 +1875,55 @@ export const proof = {
         assertEq(value[1], value[2])
         assert(value[0] !== value[1])
     },
+    loopMemoReusedDefinitionOccurrences: () => {
+        const prerequisite = id(0), lazy = id(0)
+        const definition = /** @type {Statement} */ (['define', lazy, ['array', [ref(prerequisite)]], 'lazy'])
+        const first = collectingMemo(ref(lazy), 1)
+        const second = collectingMemo(ref(lazy), 1)
+        const value = evaluate(fromFast(result(['array', [
+            collectedMemo(ref(first.results[0])), collectedMemo(ref(first.results[0])),
+            collectedMemo(ref(second.results[0])), collectedMemo(ref(second.results[0])), ref(lazy),
+        ]], [
+            ['define', prerequisite, 1, 'required'], definition, ['loop', first],
+            ['define', prerequisite, 2, 'required'], definition, ['loop', second],
+        ])))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[1], [1], [2], [2], [2]])
+        assertEq(value[0], value[1])
+        assertEq(value[2], value[3])
+        assertEq(value[2], value[4])
+        assert(value[0] !== value[2])
+    },
+    loopMemoReusedBlockOccurrences: () => {
+        const prerequisite = id(0), lazy = id(0), first = id(0), second = id(0)
+        const loop = collectingMemo(ref(lazy), 1)
+        const region = result(['array', [collectedMemo(ref(loop.results[0])), ref(lazy)]], [
+            ['define', lazy, ['array', [ref(prerequisite)]], 'lazy'], ['loop', loop],
+        ])
+        const value = evaluate(fromFast(result(['array', [ref(first), ref(second)]], [
+            ['define', prerequisite, 1, 'required'], ['block', [first], region],
+            ['define', prerequisite, 2, 'required'], ['block', [second], region],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array)
+        assertStructurallySame(value, [[[1], [1]], [[2], [2]]])
+        assertEq(value[0][0], value[0][1])
+        assertEq(value[1][0], value[1][1])
+        assert(value[0][0] !== value[1][0])
+    },
+    loopMemoReusedLoopOccurrences: () => {
+        const prerequisite = id(0), lazy = id(0), first = id(0), second = id(0)
+        const loop = collectingMemo(ref(lazy), 1)
+        const value = evaluate(fromFast(result(['array', [ref(first), ref(second), ref(lazy)]], [
+            ['define', prerequisite, 1, 'required'], ['define', lazy, ['array', [ref(prerequisite)]], 'lazy'], ['loop', loop],
+            ['define', first, collectedMemo(ref(loop.results[0])), 'required'],
+            ['define', prerequisite, 2, 'required'], ['define', lazy, ['array', [ref(prerequisite)]], 'lazy'], ['loop', loop],
+            ['define', second, collectedMemo(ref(loop.results[0])), 'required'],
+        ])))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[1], [2], [2]])
+        assertEq(value[1], value[2])
+        assert(value[0] !== value[1])
+    },
     loopMemoLoopParameterShadowsVirtualAlias: () => {
         const lazy = id(0), output = id(0)
         const witness = collectingMemo(ref(lazy), 1)

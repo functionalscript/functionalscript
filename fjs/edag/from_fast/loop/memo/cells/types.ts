@@ -1,6 +1,6 @@
 /** Caller-owned deferred recipes selected for normal helper transport. @module */
 
-import type { BindingId, Definition, Loop, Value } from '../../../../../js/ast/types.ts'
+import type { BindingId, Block, Definition, Loop, Value } from '../../../../../js/ast/types.ts'
 
 export type MemoCell = {
     readonly binding: BindingId
@@ -9,6 +9,8 @@ export type MemoCell = {
 }
 
 export type MemoPlan = {
+    /** Statement occurrences have distinct identities; value operands are opaque. */
+    readonly block: Block
     /** Caller-owned dependency closure, ordered by source definitions. */
     readonly cells: readonly MemoCell[]
     /** Declaration identity selects roots and aliases before lexical activation. */

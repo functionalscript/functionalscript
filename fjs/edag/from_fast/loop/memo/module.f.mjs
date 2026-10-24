@@ -8,13 +8,15 @@
  *
  * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { List } from '../../../../types/list/types.ts'
- * @import { _Block, _Context, _Exit, _Frame, _Task, _Value, _Values } from './private.ts'
+ * @import { _Block, _Context, _Exit, _Value, _Values } from './private.ts'
+ * @import { Task } from '../../task/types.ts'
  */
 
 import { concat, toArray } from '../../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
 import { memoCells } from './cells/module.f.mjs'
+import { bind, call, done, run } from '../../task/module.f.mjs'
 
 /** @type {(index?: number) => BindingId} */
 const binding = (index = 0) => ({ index })
@@ -22,37 +24,6 @@ const binding = (index = 0) => ({ index })
 const ref = id => ['ref', id]
 /** A source binder shadows only this region's active aliases. @type {(aliases: ReadonlyMap<BindingId, number>, bindings: readonly BindingId[]) => ReadonlyMap<BindingId, number>} */
 const withoutAliases = (aliases, bindings) => new Map([...aliases].filter(([id]) => !bindings.includes(id)))
-/** @type {<T>(value: T) => _Task<T>} */
-const done = value => ({ kind: 'done', value })
-/** @type {<T>(run: () => _Task<T>) => _Task<T>} */
-const call = run => ({ kind: 'call', run })
-/**
- * @template T, U
- * @param {_Task<T>} first
- * @param {(value: T) => _Task<U>} next
- * @returns {_Task<U>}
- */
-const bind = (first, next) => ({ kind: 'bind', first, next: value => next(/** @type {T} */ (value)) })
-/**
- * @template T
- * @param {_Task<T>} input
- * @returns {T}
- */
-const run = input => {
-    /** @type {_Task<unknown>} */
-    let task = input
-    /** @type {_Frame | null} */
-    let frames = null
-    while (true) {
-        if (task.kind === 'call') { task = task.run(); continue }
-        if (task.kind === 'bind') { frames = { next: task.next, tail: frames }; task = task.first; continue }
-        if (frames === null) { return /** @type {T} */ (task.value) }
-        const frame = /** @type {_Frame} */ (frames)
-        frames = frame.tail
-        task = frame.next(task.value)
-    }
-}
-
 /** @type {(value: Value, context: _Context) => _Value} */
 const plain = (value, context) => ({ statements: null, value, memo: context.memo, usesMemo: false })
 
@@ -64,9 +35,9 @@ const memoResult = result => result.normal && result.block.exit[0] === 'yield'
 const valueMemoResult = result => result.normal && result.block.exit[0] === 'yield'
     ? { ...result.block, exit: ['yield', [result.block.exit[1].length === 1 ? result.block.exit[1][0] : ['array', result.block.exit[1]], ref(result.memo)]] } : result.block
 
-/** Establish eager operands before later demand prefixes. @type {(input: readonly Value[], context: _Context) => _Task<_Values>} */
+/** Establish eager operands before later demand prefixes. @type {(input: readonly Value[], context: _Context) => Task<_Values>} */
 const valuesTask = (input, context) => {
-    /** @type {(index: number, values: List<_Value>, memo: BindingId) => _Task<_Values>} */
+    /** @type {(index: number, values: List<_Value>, memo: BindingId) => Task<_Values>} */
     const each = (index, values, memo) => call(() => {
         if (index !== input.length) {
             return bind(valueTask(input[index], { ...context, memo }), value => each(index + 1, { first: value, tail: values }, value.memo))
@@ -93,7 +64,7 @@ const valuesTask = (input, context) => {
 /**
  * Snapshot established prerequisites at the original lazy declaration. The
  * explicit memo input and pair result leave the source recipe deferred.
- * @type {(index: number, context: _Context) => _Task<FastFunction>}
+ * @type {(index: number, context: _Context) => Task<FastFunction>}
  */
 const recipeFunction = (index, context) => call(() => {
     const source = context.plan.cells[index]
@@ -147,7 +118,7 @@ const conditionalValue = (test, then, otherwise, source) => {
     return { statements: test.statements, value: source, memo: test.memo, usesMemo }
 }
 
-/** Normalize demands inside values while preserving conditional evaluation. @type {(source: Value, context: _Context) => _Task<_Value>} */
+/** Normalize demands inside values while preserving conditional evaluation. @type {(source: Value, context: _Context) => Task<_Value>} */
 const valueTask = (source, context) => call(() => {
     if (source === null || typeof source !== 'object') { return done(plain(source, context)) }
     if (source[0] === 'ref') {
@@ -192,7 +163,7 @@ const valueTask = (source, context) => call(() => {
 /** @type {(exit: Exit) => readonly Value[]} */
 const exitValues = exit => exit[0] === 'yield' ? exit[1] : exit[0] === 'break' || exit[0] === 'continue' ? exit[2] : [exit[0] === 'throw' ? exit[1] : exit[2]]
 
-/** @type {(exit: Exit, context: _Context) => _Task<_Exit>} */
+/** @type {(exit: Exit, context: _Context) => Task<_Exit>} */
 const exitTask = (exit, context) => call(() => {
     if (context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
     const inputs = exitValues(exit)
@@ -210,7 +181,7 @@ const exitTask = (exit, context) => call(() => {
     })
 })
 
-/** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context) => _Task<{ readonly statements: List<Statement>; readonly memo: BindingId; readonly usesMemo: boolean }>} */
+/** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context) => Task<{ readonly statements: List<Statement>; readonly memo: BindingId; readonly usesMemo: boolean }>} */
 const loopTask = (loop, context) => call(() => {
     if (!context.plan.loops.has(loop)) {
         if (freeLoopBindings(loop).some(id => context.aliases.has(id))) { throw 'memo demands in operand-owned or nested loop helpers are not supported yet' }
@@ -240,12 +211,12 @@ const loopTask = (loop, context) => call(() => {
         }))
 })
 
-/** Thread normal-path memo bindings through source statement regions. @type {(block: Block, context: _Context) => _Task<_Block>} */
+/** Thread normal-path memo bindings through source statement regions. @type {(block: Block, context: _Context) => Task<_Block>} */
 const blockTask = (block, context) => {
-    /** @type {(index: number, statements: List<Statement>, memo: BindingId, aliases: ReadonlyMap<BindingId, number>, changed: boolean, usesMemo: boolean) => _Task<_Block>} */
+    /** @type {(index: number, statements: List<Statement>, memo: BindingId, aliases: ReadonlyMap<BindingId, number>, changed: boolean, usesMemo: boolean) => Task<_Block>} */
     const each = (index, statements, memo, aliases, changed, usesMemo) => call(() => {
         const current = /** @type {_Context} */ ({ ...context, memo, aliases })
-        /** @type {(pieces: List<Statement>, nextMemo: BindingId, different: boolean, used: boolean, normal?: boolean, nextAliases?: ReadonlyMap<BindingId, number>) => _Task<_Block>} */
+        /** @type {(pieces: List<Statement>, nextMemo: BindingId, different: boolean, used: boolean, normal?: boolean, nextAliases?: ReadonlyMap<BindingId, number>) => Task<_Block>} */
         const resume = (pieces, nextMemo, different, used, normal = true, nextAliases = aliases) => {
             const next = concat(statements)(pieces)
             return normal ? each(index + 1, next, nextMemo, nextAliases, changed || different, usesMemo || used)
@@ -326,7 +297,7 @@ export const normalizeMemo = (root, externalLazyIds = []) => {
     const memo = binding()
     const recipes = plan.cells.map(cell => binding(cell.binding.index))
     const context = /** @type {_Context} */ ({ plan, aliases: new Map(), recipes, memo, loop: null, operand: false })
-    const result = run(blockTask(root, context))
+    const result = run(blockTask(plan.block, context))
     const initializer = /** @type {Value} */ (['array', plan.cells.map(() => ['array', [false, undefined]])])
     return { statements: [['define', memo, initializer, 'required'], ...result.block.statements], exit: result.block.exit }
 }

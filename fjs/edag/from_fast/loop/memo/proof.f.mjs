@@ -1,6 +1,6 @@
 /**
  * Memo normalization keeps a caller's first-demand value across loop helpers.
- * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
@@ -239,6 +239,105 @@ export const proof = /** @type {const} */ ({
         const dependency = current.statements[0]
         assert(dependency[0] === 'if')
         assertStructurallySame(dependency[2], ['.', ['.', ref(recipe.parameters[0]), 0], 0])
+    },
+    sharedDefinitionOccurrences: () => {
+        const prerequisite = id(0), saved = id(0)
+        const definition = /** @type {Definition} */ (['define', lazy, ['array', [ref(prerequisite)]], 'lazy'])
+        const loop = counting(ref(lazy))
+        const statement = /** @type {Statement} */ (['loop', loop])
+        const source = yielded(['array', [ref(saved), ref(output)]], [
+            ['define', prerequisite, 1, 'required'], definition, statement, ['define', saved, ref(output), 'required'],
+            ['define', prerequisite, 2, 'required'], definition, statement,
+        ])
+        const normalized = normalizeMemo(source)
+        const initial = normalized.statements[0]
+        assert(initial[0] === 'define')
+        assertStructurallySame(initial[2], ['array', [['array', [false, undefined]], ['array', [false, undefined]]]])
+        const recipes = recipesIn(normalized)
+        assertEq(recipes.length, 2)
+        assert(recipes[0][0] !== recipes[1][0])
+        assert(recipes[0][1] !== recipes[1][1])
+        const loops = normalized.statements.flatMap(statement => statement[0] === 'loop' ? [statement[1]] : [])
+        assertEq(loops.length, 2)
+        assert(loops[0].target !== loops[1].target)
+        for (let index = 0; index < loops.length; ++index) {
+            const conditional = loops[index].body.statements[1]
+            assert(conditional[0] === 'if')
+            const demand = conditional[4].statements[0]
+            assert(demand[0] === 'if')
+            assertStructurallySame(demand[2], ['.', ['.', ref(loops[index].parameters[1]), index], 0])
+            const invocation = demand[4].statements[0]
+            assert(invocation[0] === 'define')
+            const call = invocation[2]
+            assert(call instanceof Array && call[0] === '()')
+            const callee = call[1]
+            assert(callee instanceof Array && callee[0] === 'ref')
+            assertEq(callee[1], recipes[index][0])
+        }
+        assertEq(source.statements[1], definition)
+        assertEq(source.statements[5], definition)
+        assertEq(source.statements[2], statement)
+        assertEq(source.statements[6], statement)
+        assertEq(loop.parameters[0], state)
+    },
+    sharedBlockOccurrences: () => {
+        const prerequisite = id(0), regionResult = id(0), saved = id(0)
+        const definition = /** @type {Definition} */ (['define', lazy, ['array', [ref(prerequisite)]], 'lazy'])
+        const loop = counting(ref(lazy))
+        const region = yielded(ref(output), [definition, ['loop', loop]])
+        const statement = /** @type {Statement} */ (['block', [regionResult], region])
+        const source = yielded(['array', [ref(saved), ref(regionResult)]], [
+            ['define', prerequisite, 1, 'required'], statement, ['define', saved, ref(regionResult), 'required'],
+            ['define', prerequisite, 2, 'required'], statement,
+        ])
+        const normalized = normalizeMemo(source)
+        const regions = normalized.statements.flatMap(statement => statement[0] === 'block' ? [statement] : [])
+        assertEq(regions.length, 2)
+        assert(regions[0] !== regions[1])
+        assert(regions[0][2] !== regions[1][2])
+        const first = recipesIn(regions[0][2])
+        const second = recipesIn(regions[1][2])
+        assertEq(first.length, 1)
+        assertEq(second.length, 1)
+        assert(first[0][0] !== second[0][0])
+        assert(first[0][1].target !== second[0][1].target)
+        assertEq(regions[0][1][0], regionResult)
+        assertEq(regions[1][1][0], regionResult)
+        assertEq(source.statements[1], statement)
+        assertEq(source.statements[4], statement)
+        assertEq(statement[2], region)
+    },
+    opaqueDefinitionOccurrence: () => {
+        const second = id(0)
+        const definition = /** @type {Definition} */ (['define', lazy, ['array', [1]], 'lazy'])
+        const initializer = /** @type {Value} */ (['block', yielded(ref(lazy), [definition])])
+        const source = yielded(ref(output), [
+            definition, ['loop', counting(ref(lazy))],
+            ['define', second, initializer, 'lazy'], ['loop', counting(ref(second))],
+        ])
+        const normalized = normalizeMemo(source)
+        const recipes = recipesIn(normalized)
+        assertEq(recipes.length, 2)
+        const recipe = recipes[1][1]
+        assertEq(recipe.captures.length, 0)
+        assertEq(recipe.body.statements.length, 1)
+        const payload = recipe.body.statements[0]
+        assert(payload[0] === 'define')
+        assertEq(payload[2], initializer)
+        assert(initializer instanceof Array && initializer[0] === 'block')
+        assertEq(initializer[1].statements[0], definition)
+        assertEq(source.statements[0], definition)
+    },
+    sharedNoMemoIdentity: () => {
+        const definition = /** @type {Definition} */ (['define', lazy, ['array', [1]], 'lazy'])
+        const loop = counting(7)
+        const region = body(['yield', []], [definition, ['loop', loop]])
+        const statement = /** @type {Statement} */ (['block', [], region])
+        const source = yielded(0, [statement, statement])
+        assertEq(normalizeMemo(source), source)
+        assertEq(source.statements[0], source.statements[1])
+        assertEq(statement[2], region)
+        assertEq(region.statements[0], definition)
     },
     prerequisiteSnapshot: () => {
         const prerequisite = id(0), before = id(0)
@@ -651,7 +750,12 @@ export const proof = /** @type {const} */ ({
             ['define', lazy, ['array', [4]], 'lazy'], pure, local, ['loop', counting(ref(lazy))],
         ])
         const normalized = normalizeMemo(source)
-        assertEq(normalized.statements[2], pure)
+        const unchanged = normalized.statements[2]
+        assert(unchanged[0] === 'block' && pure[0] === 'block')
+        assert(unchanged !== pure)
+        assert(unchanged[2] !== pure[2])
+        assertEq(unchanged[1], pure[1])
+        assertEq(unchanged[2].exit, pure[2].exit)
         const region = normalized.statements[3]
         assert(region[0] === 'block')
         assertEq(region[1].length, 0)
@@ -718,7 +822,12 @@ export const proof = /** @type {const} */ ({
         const original = crossing()
         const source = /** @type {Block} */ ({ ...original, statements: [definition, ...original.statements] })
         const normalized = normalizeMemo(source)
-        assertEq(normalized.statements[1], definition)
+        const unchanged = normalized.statements[1]
+        assert(unchanged[0] === 'define' && definition[0] === 'define')
+        assert(unchanged !== definition)
+        assertEq(unchanged[1], definition[1])
+        assertEq(unchanged[2], definition[2])
+        assertEq(unchanged[3], definition[3])
         const result = evaluate(source)
         assert(result instanceof Array)
         assertEq(result[0], result[1])

@@ -5,6 +5,11 @@ definitions, result blocks and resolved transfers. Source legality, capture
 admission and loop-state selection have already finished. A value block adds
 no function or invocation boundary.
 
+Graph construction, invocation-root reconstruction and memo normalization share
+the [`task`](./task/module.f.mjs) evaluator. Deferred calls and result
+continuations use its explicit stack, keeping deeply nested syntax off the
+host stack without duplicating the evaluator in each pass.
+
 Functions own targeted returns. A block's normal result can have zero, one or
 several values; one stays scalar and the other signatures use an ordered array.
 Required definitions retain initializers that the result reaches only
@@ -76,8 +81,11 @@ lexical values when a later declaration reuses a binding identity. Only the
 exact selected declaration activates a cell alias; earlier Environment reads
 keep their original value. Required definitions, loop parameters/results and
 statement results establish their own bindings, and child aliases do not leak
-into the parent scope. Private plans use declaration identity rather than a
-global binding-to-cell map.
+into the parent scope. Planning gives each statement-region occurrence its own
+declaration and loop objects while preserving binding and target identities.
+Reusing an immutable declaration, block or loop at two lexical positions thus
+keeps their cells separate. Values and ordinary function bodies retain their
+own normalization boundary. Blocks without memo crossings return unchanged.
 
 This extends the memo-bearing graph normalization with one recipe function per
 cell. Public arity, source values and graphs without memo crossings retain their
