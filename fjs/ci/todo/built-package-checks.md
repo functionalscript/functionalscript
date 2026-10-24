@@ -1,165 +1,93 @@
-## built-package-checks. Check the package this commit builds, beside the packed-package check
+## Investigate installed CLI and npm package checks
 
 **Priority:** P3
 **Status:** open
 
 ### Problem
 
-Two CI jobs install `functionalscript` and run it. Both of them install it
-**from the registry**, at a version that is not the commit under review:
+The [six-job CI proposal](./six-ci-jobs.md) temporarily removes the installed
+`fjs` runner check and the npm package-consumer check until a better solution
+is selected. Source tests still exercise the repository's own runner, but do
+not establish that the distributed package installs, exposes its CLI and
+imports, and ships usable declarations in a consumer project.
 
-| job | steps |
-|-----|-------|
-| the two Windows platform jobs (`job` in `../module.f.mjs`, where `o === 'windows'`), through `platformNodeSteps` (`../node/module.f.mjs`) | `npm install -g functionalscript@<version>`, `fjs test` |
+The existing checks also have different subjects. `platformNodeSteps` in
+[`../node/module.f.mjs`](../node/module.f.mjs) installs a pinned published
+FunctionalScript release, then runs it against the current source proofs.
+`packageCheckSteps` in [`../package/module.f.mjs`](../package/module.f.mjs)
+checks a tarball packed from the revision under test. Passing the former does
+not prove the CLI produced by the current revision works.
 
-The four other platform jobs were four more, until they moved into the shared
-Nix shell ([65Z-ci-nix](65z-ci-nix.md)) and lost the pair.
-
-`deno` and `bun` were two more. Both lost their global install and the smoke test it
-fed, for the reason this issue gives: they subjected a shipped release rather than
-the commit under review. Each now runs its own lockfile install and its own coverage
-command and nothing else, so the package check those two used to carry is one this
-issue owes, from the tarball. Deno's `--minimum-dependency-age=0` went with its
-install, as this issue predicted it would.
-
-`node22` was another until it lost `fjs test` and the install feeding it. Those
-were there because Node 22 could not run `node --test`, not to check a package,
-and the job later ran the suite directly. The Node 22/24 jobs are now removed;
-this is migration history, not a current compatibility promise.
-
-`<version>` is `functionalscript` in `../config/module.f.js`, and its comment
-states the intent: a **published release**, deliberately not
-`package.json`'s in-repo version.
-
-So the check runs backwards. It can only fail when an already-shipped CLI stops
-working against this repository's current proofs; a regression in the CLI *this
-commit produces* is invisible until after it is published, and then only on the
-next pull request. The one check that does look at what this commit builds —
-the packed-package check closing `node26` (`../package/module.f.mjs`), which
-installs the tarball `npm pack` writes and type-checks the declarations it
-ships — never runs it.
-
-There is a second problem underneath: a job named for a runtime proves two
-unrelated things, so "where does CI test the package?" has one right answer and
-two other places that also claim to.
+This issue now investigates a replacement. The earlier plan to move package
+checks into the main CI jobs is superseded by the explicit deferral. Its
+rationale and prior installation findings remain available in
+[the prior revision](https://github.com/functionalscript/functionalscript/blob/4da35235c90519104738044ca4b7a9e9f7dea1c1/fjs/ci/todo/built-package-checks.md).
 
 ### Proposal
 
-Two changes, independent in principle and worth doing together:
+Investigate a separate pipeline, potentially in another repository, that
+installs FunctionalScript from `main` and exercises it as a consumer would.
+The repository, trigger and installation method are choices to investigate,
+not an approved implementation design.
 
-**1. Install the package this commit builds.** `node26` already runs `npm pack`,
-into a consumer directory outside the checkout (`consumerDirectory` in
-`../package/module.f.mjs`), and closes with the packed-package check, which
-installs the tarball there as `packed@file:$(echo *.tgz)`. The checks above
-install a tarball this commit packs — `node26`'s, or one their own job packs;
-see platform coverage below — instead of one from the registry. The subject
-becomes the commit under review, which is the only version whose breakage this
-pull request can still prevent.
+Keep the following distinctions explicit:
 
-**2. Put them with the package check.** `fjs/ci/package` owns everything
-whose subject is the built package. Its existing check keeps its deliberate
-outsider's view — every command starts in the consumer directory, neither
-inside the checkout nor above it, so the tarball's declarations are
-type-checked as an outsider sees them, with no repository up the tree to
-resolve into. The new checks need the checkout, because `fjs test` runs this
-repository's proofs with the installed CLI. Same module, a tarball of the same
-commit, different working directories.
+- **Revision:** resolve `main` to an exact commit for each run and report that
+  commit. Checks of `main` give feedback after integration; they do not gate a
+  PR's proposed revision unless explicitly connected to that revision later.
+- **Installation source:** a Git dependency from `main`, an npm tarball packed
+  from that commit, and a published registry version test different delivery
+  paths. Choose which contract the pipeline establishes and verify the actual
+  package lifecycle. Installing source alone must not be reported as checking
+  a published registry artifact.
+- **Consumer environment:** run consumer checks outside the source checkout,
+  with imports and CLI invocation resolving to the installed package. Avoid
+  silently borrowing source files, declarations, dependencies or binaries from
+  the producer checkout.
+- **Coverage:** investigate CLI invocation and `fjs t`, package imports and
+  declarations, and relevant installation behavior across OSes and supported
+  runtimes. Select the useful matrix rather than reproducing every source
+  test on every platform by default.
+- **Feedback:** decide how failures identify the tested commit and reach
+  maintainers, and whether future package checks should gate publication.
 
-#### What falls out
+The current `package.json` emits declarations in `prepack`, so the chosen
+installation path must account for package preparation. The existing
+[consumer validation notes](../packed-consumer-validation.md) describe useful
+isolation and declaration checks to evaluate for reuse.
 
-- **`functionalscript` in `../config/module.f.js` loses its last consumer.** It
-  is now read only by `platformNodeSteps`, which is the row
-  above; `denoSteps` and `bunSteps` stopped reading it, and the removed old-Node jobs
-  stopped when Node 22 lost its global install. The constant, and the manual
-  bump it needs after every release, go away with that row.
-- **Deno's `--minimum-dependency-age=0` is already gone**, for exactly the reason
-  this issue gave: the flag was there to install a package younger than 24 hours
-  from the registry, and a tarball on disk has no dependency age.
-- **Nothing waits on `node26`.** This plan used to give the new jobs
-  `needs: [node26]`, as `package-check` had when it was a separate job, so they
-  could not start before the artifact existed. Measured, that edge was the
-  expensive part: GitHub creates a `needs`-dependent job only when its
-  dependency finishes, so behind a saturated runner queue — an account cap of
-  20 concurrent jobs against 13 jobs per CI run, on 2026-10-01/02 —
-  `package-check` joined the back of the queue and waited a second time, a
-  median of 24 minutes and at most 96, for about 15 seconds of work. Its steps
-  close `node26` now, there is no artifact, and no job orders itself:
-  `jobNeeds` in `../proof.f.mjs` pins that count at 0. So the checks of the
-  built package run where the tarball is packed, in `node26`, or in a job that
-  packs its own — not in a job that waits for one. The runtime jobs gain no
-  ordering either: the selected Node, Deno and Bun checks stay independent.
-- **Nothing checks the last published release any more.** That is the correct
-  trade — a pull request cannot fix a shipped release — but if the check is
-  wanted, it belongs in a scheduled run against `main`, not in per-commit CI.
-  Out of scope here; file it separately if it is missed.
-
-#### Decisions to make first
-
-- **Platform coverage.** The CLI is exercised on the two Windows runners today;
-  the four others stopped when they moved into the shared Nix shell. With no
-  artifact to fan out and no job waiting on `node26`, keeping the matrix means
-  each platform job packs its own tarball, `prepack` and its compiler included;
-  consolidating into `node26`, where the tarball already is, is a reduction, and
-  Windows and macOS are exactly where a CLI's path handling and shebang most
-  plausibly break. Choose, and record the answer here.
-- **What the two Windows jobs keep.** `platformNodeSteps` is *entirely* this
-  check plus `npm ci`. Subtract it and those jobs are Rust-only where Rust is
-  present; say what their Node half becomes, including whether `npm ci` still
-  has a purpose there.
-- ~~**Whether Deno and Bun move too.**~~ Settled by removal rather than by a
-  move: both jobs dropped their smoke halves and kept the parts that test the
-  working tree, so each reads coherently as "this repository under Deno/Bun".
-  What they used to check is owed here, from the tarball, and the question left
-  is only how many package jobs that takes.
-- **How each runtime installs a tarball globally.** `npm install -g ./x.tgz`,
-  `bun install -g ./x.tgz` and Deno's equivalent need checking against the
-  pinned versions rather than assumed; Deno in particular installs from
-  `npm:` specifiers today. Deno 2.8.3 was reported to break `deno run -A npm:functionalscript` when
-  `deno install --frozen` runs first (`package.json … did not exist`), so a Deno
-  check of the tarball must be tried in both orders before one is chosen.
-  Use the exact selected Node, Deno, Bun and TypeScript pins for this work;
-  a historical release passing on current tools does not establish the
-  current release's support contract.
+Removing installed-package checks does not remove the in-repository FJS
+runner used by the Bun and SpiderMonkey suites, change npm publishing, or
+make package correctness an established property of source CI.
 
 ### Tasks
 
-- [ ] Decide the platform-coverage question and record the answer here before
-      any code moves
-- [ ] Decide what the two Windows jobs keep, and whether Deno and Bun move
-- [ ] Confirm the global-install spelling for a local tarball on each runtime
-- [ ] Generate the checks from `fjs/ci/package`, where the tarball is packed —
-      beside `packageCheckSteps` in `node26`, or in a job that packs its own —
-      with no `needs`
-- [ ] Remove the registry install from `platformNodeSteps` (`denoSteps` and
-      `bunSteps` no longer have one)
-- [ ] Delete `functionalscript` from `../config/module.f.js` once nothing reads
-      it — `platformNodeSteps` is the last thing that does
-- [x] Drop Deno's `--minimum-dependency-age=0` with its reason — done when that
-      job's registry install went
-- [x] Consider dropping the `shellHook` field — **no**: the shared shell declares
-      one for `x86_64-linux`, pointing `cargo` at `pkgsi686Linux.stdenv.cc`. Node
-      22's went with its global install, but the field now has a user of the kind
-      it was for. It has since moved from the job to `NixJob.perSystem`, where a
-      hook belongs to the system whose package it names
-- [ ] Update `../proof.f.mjs`: the job count and the per-job assertions;
-      `jobNeeds`'s ordering count stays 0
+- [ ] Record the installation checks disabled by the six-job migration and the
+      coverage they leave deferred.
+- [ ] Compare a separate workflow with a separate consumer repository, including
+      setup time, maintenance and how it obtains the exact `main` revision.
+- [ ] Investigate Git installation from `main`, installing a tarball packed from
+      that revision, and checking a published npm version; state what each proves.
+- [ ] Define a small consumer suite for the installed CLI, imports and emitted
+      declarations, using an isolated consumer environment.
+- [ ] Choose OS/runtime coverage, triggers and failure reporting from the
+      investigation results.
+- [ ] Propose the replacement pipeline for review before implementation and
+      identify when the deferred checks can be restored.
+- [ ] Reconcile the package and integration-testing TODOs with that decision so
+      they describe one installation-testing plan.
 
 ### Related
 
-- [65Z-ci-nix](65z-ci-nix.md) — the shared shell migration; the surviving
-  selected-Node job is free of published-package steps
-- An optional per-package self-test hook — `npm run ci:self-test --if-present`
-  after installing the tarball — was proposed as `667-ci-self-test-script` and
-  deleted: the package-name special case it was filed to replace is gone from
-  the generator. If a package ever needs its own post-install check, it belongs
-  to the checks this issue adds.
-- `npmGlobalInstall` (`../common/module.f.mjs`) — the factory for the
-  `npm install -g` step shape; `fjsGlobalInstall` is one of its two call sites,
-  so removing the registry install here leaves it a single consumer, the
-  publish job's TypeScript install
-- [package-check-unsupported-package-shapes](package-check-unsupported-package-shapes.md)
-  — the sibling issue about what the packed-package check can and cannot see
-- [ci-integration-tests](ci-integration-tests.md) — its integration stage also
-  installs the packed tarball across a platform matrix, planned as an artifact
-  behind a `needs` edge, which the queue finding above prices. Open question:
-  which of the two owns the per-platform install of the tarball.
+- [Six CI jobs](./six-ci-jobs.md) — owns removal from the main CI layout.
+- [Consumer validation](../packed-consumer-validation.md) — existing isolation
+  and declaration-validation behavior to assess for reuse.
+- [Package-check limitations](./package-check-unsupported-package-shapes.md) —
+  existing constraints on the consumer checks.
+- [CI integration tests](./ci-integration-tests.md) — related consumer scenarios
+  whose execution location must follow the replacement decision.
+- [Publishing packages](./publishing-packages.md) — publishing remains separate
+  from this investigation.
+- [npm install](https://docs.npmjs.com/cli/v11/commands/npm-install/) and
+  [npm pack](https://docs.npmjs.com/cli/v11/commands/npm-pack/) — installation
+  sources and package creation.

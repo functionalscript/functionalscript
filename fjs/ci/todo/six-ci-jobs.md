@@ -1,217 +1,157 @@
-## Six CI jobs: one primary, five cross-platform
+## Six CI jobs
 
 **Priority:** P3
-**Status:** wip
+**Status:** open
 
 ### Problem
 
-`gen.ci.yml` runs nine jobs: the six platform jobs (`job` in
-`../module.f.mjs`) and three toolchain jobs (`canonicalJobs`: `deno`, `bun`,
-and `nodeVersionJobs`' `node26`). The WASM checks were a
-separate toolchain job, `wasm`, and are steps of `ubuntu-arm` now.
-`Setup.mergeQueueOnly` can hold the macOS and Windows jobs to the merge queue,
-but `../self/module.f.mjs` passes none, so every pull-request commit starts all
-nine — and even with them held there it would start five — and that costs
-more than the work in them:
+CI separates platform jobs from the Node, Deno and Bun jobs. This repeats
+environment setup and makes a change wait for additional runner assignments.
+The checks have different coverage needs: native Rust depends on OS and CPU,
+pure FunctionalScript needs engine diversity, host JavaScript needs OS and
+runtime coverage, and TypeScript needs one type-check.
 
-- **A pull request waits for many runners.** Four of the jobs run on
-  `ubuntu-26.04-arm`, the congested pool, so a pull request waits for the
-  slowest of four runner assignments there rather than for its work.
-- **Work is repeated.** Each job installs Nix, checks out, and realizes its
-  shell, and `ubuntu-arm`'s `node --test` runs the same suite, on the same
-  system, shell and Node, as `node26`'s `npm run cov`, which adds only
-  coverage on top.
-- **Every toolchain is a required check.** The `main` ruleset names each job,
-  so adding, renaming or folding a toolchain job is a ruleset edit made in
-  step with the pull request that does it.
+The earlier proposal concentrated the canonical checks in `ubuntu-arm`.
+The revised proposal distributes them across the six OS/CPU jobs below.
 
 ### Proposal
 
-Six jobs, split by what they prove. Each runtime uses the one exact accepted
-version in `../config/module.f.js`; historical Node versions and their flakes
-have already been removed. All Nix steps use the shared shell.
+Use the existing platform job names and the exact tool and image pins in
+[`../config/module.f.js`](../config/module.f.js).
 
-1. **`ubuntu-arm`, the primary job** — runs on every pull-request commit and
-   in the merge queue, and runs everything that can run on `aarch64-linux`:
-   `tsc` and `npm start compile`, the selected Node with coverage,
-   Deno, Bun, SpiderMonkey, Rust native and every WASM target with both WASM
-   runtimes, the generated-file drift check, and the packed-package check.
-2. **Five cross-platform jobs** — `ubuntu-intel`, `macos-intel`, `macos-arm`,
-   `windows-intel`, `windows-arm` — check that FunctionalScript works on each
-   platform: the suite, which exercises host adapters such as `fjs/effects/node`
-   whose behaviour differs by OS, and each platform's native Rust, the part
-   whose build depends on the target. `ubuntu-intel` keeps the 32-bit Linux
-   checks, which only the `x86_64-linux` shell can carry.
+| Job | Rust targets | Pure FJS | JS effects and host adapters | TypeScript |
+| --- | --- | --- | --- | --- |
+| `macos-intel` | Native x86-64 | — | — | — |
+| `macos-arm` | Native ARM64 | — | Node, Deno, Bun | — |
+| `ubuntu-intel` | Native x86-64 and Linux i686 | Node coverage; Bun and SpiderMonkey tests | — | — |
+| `ubuntu-arm` | Native ARM64 and existing WASM targets | — | Node, Deno, Bun | `tsc` |
+| `windows-intel` | Native x86-64 and Windows i686 | — | — | — |
+| `windows-arm` | Native ARM64 | — | Node, Deno, Bun | — |
 
-The five run in the merge queue only when `Setup.mergeQueue` is `true`, by
-carrying `if: github.event_name == 'merge_group'`; otherwise they run on every
-pull-request commit too. The default is `false`, because a project without a
-merge queue would never run them: the built-in `fjs ci` passes nothing, and
-`../self/module.f.mjs` passes `true`.
+The i686 entries are additional targets executed on the corresponding x86-64
+runner; they do not require additional jobs or a 32-bit host OS.
 
-The job keeps the name `ubuntu-arm` so the ruleset gains no new name. The
-primary keeps every toolchain a pull request is gated on today except the
-`x86_64-linux` shell — its native Rust and the 32-bit target — which moves to
-the queue with `ubuntu-intel`.
+#### Test runners
 
-#### Measured cost
+- Pure FJS covers V8 through Node, JavaScriptCore through Bun, and SpiderMonkey
+  through its shell. Node uses its native test runner for coverage because
+  `fjs t` has no coverage support. Bun and SpiderMonkey use the repository's
+  own runner from the checked-out revision.
+- JS effects and host adapters use each runtime's native test runner:
+  `node --test`, `deno test` and `bun test`, with the suite's required options
+  and permissions. Each runs on Linux, macOS and Windows.
+- Type checking runs once, on Linux ARM64.
 
-Measured over the CI runs of 2026-10-08, with `main` between `0b5f6fdf4` and
-`bb2648dbb`. Most of those runs predate `f7b42b9de` (#2688), when macOS and
-Windows still ran on every pull request. These measurements also predate
-removing Node 22 and Node 24. Keep them as evidence of the former layout;
-remeasure serial time, runner waits, disk use and runner-minutes for the
-selected-version layout before treating any estimate as a prediction:
+Define the test selection explicitly when splitting the suites. Every authored
+FJS proof must remain in each engine's FJS suite, and every applicable host
+proof must remain in each OS/runtime JS suite. Reuse the existing test
+discovery and adapters rather than copying tests for each runner. Engine
+coverage alone does not establish browser DOM or browser-integration coverage.
 
-- When ARM waits were longest, dozens of this repository's own ARM jobs were
-  queued ahead while only a handful ran: the congestion is this repository's
-  own backlog.
-- The primary job runs serially for about 21 minutes. At those commits the
-  critical path, `node26`, was about 6.5 minutes, so feedback with idle runners
-  is about three times slower. Under that day's congestion the median pull
-  request would finish sooner than then — about 36 minutes against 45 — if its
-  one runner wait is as short as that day's first ARM job's; as long as a
-  typical ARM job's, it is no better.
-- Runner-minutes per pull-request commit fall by about a quarter, counting
-  `ubuntu-intel` moving to the queue. Most of the primary job's time is five
-  test suites, each in one process, so combining them saves the repeated setup
-  and the duplicate `node --test` rather than the suites themselves.
-- A merge-queue run's critical path, without runner waits, goes from
-  `macos-intel`'s about 9 minutes to the primary's about 21, which lowers how
-  many entries the queue can merge in an hour.
+This deliberately covers native Rust on every listed OS/CPU pair and JS effects
+on every listed OS/runtime pair. It does not claim every JS runtime on both
+CPU architectures. Verify that the ARM jobs install native ARM64 runtimes.
 
-#### Constraints the generator has to meet
+#### Deferred installation checks
 
-- **Step order inside one job.** The version checks are the job's first
-  commands, all of them, as `nixVersionChecks` in `../proof.f.mjs` requires:
-  `npm ci`, `deno install` and `cargo test` run project code on a runtime no
-  check has confirmed yet otherwise. `tsc` comes before `npm pack`, whose
-  `prepack` writes declarations beside the sources. `npm pack` packs files
-  matching `files` even when they are ignored, so it runs before any non-Node
-  step can write into the checkout. The drift check comes after every step that
-  writes to the tree — it is the last word on the tree. `nodeExtra`'s injected
-  steps come after the drift check, as they ran in a job without one, and
-  `setup-node` with the packed-package check comes last, because `setup-node`
-  changes `PATH` for every step after it.
-- **One checkout, several installers.** The selected Node runs `npm ci`
-  directly before its suite in the shared shell, and Deno and Bun each install
-  directly before their own suite.
-  The proof that `deno` and `bun` run no `npm ci` cannot move to a job that
-  runs it; that property stays pinned by the exact command lists in
-  `../deno/proof.f.mjs` and `../bun/proof.f.mjs`.
-- **One Nix installer.** Each tool's steps (`denoSteps`, `bunSteps`,
-  `node26Steps`, `shellPlatformSteps`) carry
-  their own `nixInstall`, and `toSteps` does not merge duplicates. They have to
-  split into version checks and commands before one job can carry them all.
-- **One shared shell.** The primary enters `gen.nix/` a step at a time.
-  There are no per-job shell selectors or flake ids to migrate.
-  `nixCoverage` must continue to prove that every Nix-backed job uses the
-  shared shell and Windows stays outside it.
-- **Failures stop the job.** The first red step skips everything after it, and
-  `stepSchema` models no step-level `if`. Order the fast gates first —
-  `cargo fmt`, `tsc`, `npm start compile` — so the common failures show early;
-  the drift check cannot join them.
-- **The run limit.** Remeasure the primary's serial time against `jobTimeout`
-  in `../config/module.f.js` after removing the historical Node suites. Give
-  the primary a suitable limit of its own if needed; the five and
-  `publish-npm` keep `jobTimeout`, so a hung shell build still frees its runner.
-  The merge queue's status check timeout has to cover the primary's run plus a
-  runner wait.
-- **Proofs keyed on job ids.** `matrixShape` counts nine jobs. An assertion
-  that a removed job does *not* run something would pass because the job is
-  gone, so each moves to the primary rather than being deleted with it, keyed
-  on the wrapped command where it compares a whole `run` line — as the
-  Wasmtime threads guard is since it moved, having compared against the bare
-  `cargo` command, which no wrapped step could equal.
-- **What a project's pull requests run.** The primary's Node 26 suite is
-  `npm run cov`. That is this repository's `node --test` with coverage, and so
-  is the one `../README.md` documents, but for any project using `fjs ci`,
-  `cov` becomes the only Node 26 suite its pull requests run.
-- **Disk.** One `ubuntu-arm` runner holds every toolchain closure, the
-  `target/` directory for native and every WASM target, and the dependency
-  installs of three package managers. Measure it on a trial run first.
-- **Intel Linux on pull requests.** With `ubuntu-intel` in the queue, no
-  pull-request commit builds the `x86_64-linux` shell, runs the suite or native
-  Rust on it, or runs the 32-bit checks; a failure there shows only as a
-  merge-queue eviction. WASM still checks a 32-bit pointer width on every
-  commit.
+Remove the installed `fjs` check and the npm package-consumer check from this
+CI layout until a better solution is selected. This defers installation and
+distribution testing; it does not remove the in-repository runner used for
+the Bun and SpiderMonkey FJS suites or the compiler checks.
 
-#### Alternative
+Track the replacement in
+[installed CLI and npm package checks](./built-package-checks.md), including
+the option of a separate pipeline in another repository installing from
+`main`. Publishing the npm package remains a separate concern.
 
-Hold all six platform jobs to the merge queue and keep the toolchain jobs
-parallel, giving `ubuntu-arm`'s WASM checks back a job of their own, now
-with the native Rust. Pull requests keep the primary's gate spread over the
-selected Node, Deno, Bun and ARM native/WASM jobs, and keep the parallel floor. Those four names
-stay required checks and every commit still waits for four ARM runners.
-Remeasure the load reduction against the new baseline; the old measurement
-included the deleted Node suites. That former layout estimated an ARM-load
-reduction of about a fifth; preserve it as historical evidence, not as a
-prediction for the current four-job alternative.
+#### Existing checks to preserve
+
+Moving checks into the six jobs must preserve checks other than the installation
+checks explicitly deferred above:
+
+- Native and i686 Rust tests and Clippy, including the existing debug/release
+  checks and warnings policy; `cargo fmt -- --check` once.
+- The existing WASM targets and their configured execution coverage. State
+  each target and runtime explicitly: compiling a target is not the same as
+  executing its tests. Do not assume that selecting the Wasmer Cargo config
+  makes every target use Wasmer; unoverridden runners inherit the default
+  Cargo config.
+- `npm start compile`, which checks authored `.f.js` with this revision's
+  compiler, and SpiderMonkey's existing compile check alongside its tests.
+- Generation and the generated-file drift check, including generation needed
+  by the WASM demos. Run the drift comparison after the relevant steps that
+  write into that checkout.
+
+Assign the platform-independent compile and generation steps within the Linux
+jobs when implementing the split. Their placement can follow measured job
+duration; it does not require an additional job.
+
+#### Migration constraints
+
+- Keep each command separately reportable as required by
+  [AGENTS.md](../../../AGENTS.md#7-continuous-integration).
+- Share environment setup within each job. Check the selected runtime versions
+  before running project code and preserve the existing direct-tool setup for
+  platforms without the shared Nix shell.
+- Update generated-workflow proofs when removing the standalone runtime jobs.
+  A proof about a removed job must move to its new owner rather than pass
+  vacuously because the job disappeared.
+- Update [Smart CI](../cache/README.md) classification and cache identities to
+  reflect the new suites, platforms, runtimes and runners. A cached pass for a
+  different check must not satisfy a newly assigned check.
+- Coordinate required-status-check changes with the workflow migration.
+  Removed job names must stop being required before the switching PR enters
+  the merge queue, so the queue does not wait for checks that no longer exist.
+- Preserve the current trigger policy during this consolidation. The former
+  proposal's separate idea of making five jobs merge-queue-only is not adopted
+  by this allocation; any trigger-policy change needs its own decision.
+- Measure runner waits, serial duration, disk use and runner-minutes after the
+  redistribution. Set suitable job timeouts from those results. Six jobs alone
+  do not establish a faster critical path.
 
 ### Tasks
 
-- [x] Fold `wasm` into `ubuntu-arm`: its runtime checks after Node's, `cargo
-      fmt` before the native checks, the WASM targets after them, and its
-      proofs re-keyed; `wasmJobId` removed.
-- [ ] Split each tool's steps into version checks and commands, so one job can
-      carry them all under one `nixInstall`.
-- [ ] Build the primary job on `ubuntu-arm` in the order above, dropping its
-      plain `node --test`.
-- [ ] Replace `Setup.mergeQueueOnly` with `Setup.mergeQueue`, and declare the
-      break: `Setup` loses `mergeQueueOnly`, and the workflow `fjs ci` writes
-      loses the `deno`, `bun` and `node26` jobs, so a
-      project that requires any of them as a status check removes it before
-      regenerating, in the order the ruleset task gives. Any job-id export that
-      no longer names a job goes into the same declaration.
-- [ ] Give the primary a run limit of its own; rework the `jobTimeout` proof
-      and the comments that say every job takes `jobTimeout`.
-- [ ] Preserve `nixCoverage`'s shared-shell and off-Nix Windows coverage.
-- [ ] Re-key every proof on a removed job id; update `matrixShape`.
-- [ ] Measure the primary's serial time, runner waits, runner-minutes and disk
-      use on a trial run of the selected-version layout.
-- [ ] Migrate the ruleset: remove `deno`, `bun` and `node26` from the
-      required checks **before** the switching pull request enters the merge queue. In the other order, the queue waits for
-      checks nothing reports until its status check timeout ejects every
-      entry.
-- [ ] Rewrite every document that names a removed job or the per-OS
-      `mergeQueueOnly`: the root [AGENTS.md](../../../AGENTS.md) and
-      [CONTRIBUTING.md](../../../CONTRIBUTING.md),
-      [fjs/AGENTS.md](../../AGENTS.md),
-      [the compiler's README](../../compiler/README.md),
-      [../README.md](../README.md), [../nix/README.md](../nix/README.md),
-      [packed-consumer-validation](../packed-consumer-validation.md), the
-      generator's JSDoc that counts or names jobs (`devNixJob`, `canonicalJobs`,
-      `../config/module.f.js`), and the `todo/`s that cite them.
-- [ ] Rewrite the rules of
-      [ci-package-aware-deno-and-bun-steps](./ci-package-aware-deno-and-bun-steps.md)
-      for the primary's Deno and Bun steps instead of job keys.
+- [x] Fold the former standalone WASM job into `ubuntu-arm`.
+- [ ] Define separate FJS and host-JS suite selection using existing discovery.
+- [ ] Restructure runtime steps so platform jobs share setup without duplicate
+      installers or standalone Node, Deno and Bun jobs.
+- [ ] Assign the suites to the six jobs in the table; keep native and i686 Rust
+      coverage and the existing WASM checks.
+- [ ] Retain compile validation, formatting and generation/drift checks in the
+      six jobs.
+- [ ] Remove installed-CLI and npm package-consumer checks from this CI layout;
+      retain the replacement investigation in `built-package-checks.md`.
+- [ ] Update workflow proofs and Smart CI cache classification for the new
+      check ownership.
+- [ ] Measure the resulting jobs and adjust timeouts where needed.
+- [ ] Coordinate removal of obsolete required-check names before switching the
+      merge-queue workflow.
+- [ ] Update CI documentation and related TODOs to describe the new allocation
+      and the intentional package-testing gap.
+
+### Earlier measurements
+
+The earlier plan and measurements are preserved in
+[the prior revision](https://github.com/functionalscript/functionalscript/blob/4da35235c90519104738044ca4b7a9e9f7dea1c1/fjs/ci/todo/six-ci-jobs.md).
+They measured 2026-10-08 runs between `0b5f6fdf4` and `bb2648dbb`, before
+historical Node suites were removed. Concentrating the checks in one ARM job
+then estimated about 21 minutes of serial work against a roughly 6.5-minute
+parallel critical path. Those figures motivated measuring runner waits as
+well as execution time; they are not predictions for this revised allocation.
 
 ### Related
 
-- [ci-integration-tests](./ci-integration-tests.md) — the same shape with a
-  different matrix: its integration stage runs the packed package's scenarios
-  per platform and calls per-platform unit tests unimportant. The five jobs
-  here run the suite and native Rust, and are where its scenarios would run.
-- [built-package-checks](./built-package-checks.md) — the five cross-platform
-  jobs are where its per-platform checks would run; its platform-coverage
-  question stays open.
-- [ci-package-aware-deno-and-bun-steps](./ci-package-aware-deno-and-bun-steps.md)
-  — omits the `deno` and `bun` job keys; after this, it omits their steps.
-- [`_migratedJobChecks`](../nix/testlib.f.mjs) — its checks read each tool's
-  step list, which survives the split; `installsNixOnly` goes with the
-  per-tool `nixInstall`, and the rest apply to the split command lists.
-- [ci-generator-audience](./ci-generator-audience.md) — this changes what
-  `fjs ci` writes for every project: its job ids, the `Setup` default, and
-  which suite a pull request runs.
-- [65z-ci-nix](./65z-ci-nix.md) — its job-count argument for having no `dev`
-  job changes: on a pull request only the primary enters the shell.
-- [wasmtime-threads-cell-until-47](./wasmtime-threads-cell-until-47.md) —
-  decides the threads cell whose guard moves to the primary.
-- [096-ci-caching](./096-ci-caching.md) — one runner realizes the shells per
-  pull-request commit instead of five; the merge queue still realizes them
-  per job.
-- [Smart CI](../cache/README.md) — skips checks whose inputs passed before,
-  which is what brings the serial time back down.
-- [`../spidermonkey/module.f.mjs`](../spidermonkey/module.f.mjs) — already
-  puts SpiderMonkey's steps in `ubuntu-arm` rather than a job of its own, for
-  the reason this issue gives.
+- [Installed CLI and npm package checks](./built-package-checks.md) — replacement
+  investigation for the checks temporarily removed here.
+- [CI integration tests](./ci-integration-tests.md) — consumer scenarios to
+  reconcile with the installation-check investigation.
+- [Package-aware Deno and Bun steps](./ci-package-aware-deno-and-bun-steps.md) —
+  adapt its conditions to steps within platform jobs.
+- [CI generator audience](./ci-generator-audience.md) — clarify which changes
+  belong to this repository's configuration and which affect `fjs ci` users.
+- [CI caching](./096-ci-caching.md) and [Smart CI](../cache/README.md) — preserve
+  check identities and measure setup costs after redistribution.
+- [Wasmtime threads](./wasmtime-threads-cell-until-47.md) — existing WASM runtime
+  coverage decision, independent of the six-job allocation.
+- [Nix alternatives](./investigate-mise-pixi.md) — investigate environment
+  tooling independently; this allocation does not select a replacement.
