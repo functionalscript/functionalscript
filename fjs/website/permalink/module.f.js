@@ -8,13 +8,19 @@
 /** @type {readonly string[]} */
 export const reservedIds = ['demo', 'emergent-testing', 'directory-drawer', 'drawer-title']
 
+/** @type {Element} */
+const linkIcon = ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
+    ['path', { d: 'M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71' }],
+    ['path', { d: 'M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71' }],
+]
+
 /** A native anchor without JavaScript; a copy control once the runtime binds.
  * @type {(id: string, label: string) => Element}
  */
 export const permalink = (id, label) => ['span', { 'data-permalink': '' },
-    ['a', { href: `#${id}`, 'aria-label': `Link to ${label}` }, '#'],
-    ['button', { type: 'button', hidden: '', 'data-copy-fragment': id, 'aria-label': `Copy link to ${label}` },
-        'Copy link',
+    ['a', { href: `#${id}`, 'aria-label': `Link to ${label}` }, linkIcon],
+    ['button', { type: 'button', hidden: '', 'data-copy-fragment': id, 'aria-label': `Copy link to ${label}`, title: 'Copy link' },
+        linkIcon,
         ['span', { 'data-copy-status': '', 'aria-live': 'polite' }],
     ],
 ]

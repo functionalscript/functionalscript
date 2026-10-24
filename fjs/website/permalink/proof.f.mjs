@@ -6,7 +6,12 @@ export const proof = /** @type {const} */ ({
     control: () => {
         assertStructurallySame(reservedIds, ['demo', 'emergent-testing', 'directory-drawer', 'drawer-title'])
         const html = htmlToString(permalink('ast', 'AST'))
-        assertEq(html, '<!DOCTYPE html><span data-permalink=""><a href="#ast" aria-label="Link to AST">#</a><button type="button" hidden="" data-copy-fragment="ast" aria-label="Copy link to AST">Copy link<span data-copy-status="" aria-live="polite"></span></button></span>')
+        assert(html.includes('<a href="#ast" aria-label="Link to AST"><svg '))
+        assert(html.includes('hidden="" data-copy-fragment="ast" aria-label="Copy link to AST" title="Copy link"><svg '))
+        assertEq(html.split('<svg ').length - 1, 2)
+        assertEq(html.split('aria-hidden="true"').length - 1, 2)
+        assert(html.includes('<span data-copy-status="" aria-live="polite"></span>'))
+        assert(!html.includes('>Copy link<'))
     },
     heading: () => {
         const html = htmlToString(linkedHeading(3, 'a-b', 'A & B', ['A & ', ['code', 'B']]))
