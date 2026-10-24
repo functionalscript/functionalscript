@@ -69,7 +69,7 @@ We plan to remove the `fjs` runner and NPM package check from CI until we have a
 
 ## Related TODOs
 
-- [ ] `fjs t` should support only `.f.mjs` and `.f.js` files.
+- [ ] `fjs t` should support only `.f.mjs` and `.f.js` files. Soon, I hope, we will run `fjs` from Rust and its `import` effect will not be able to load JS modules.
 - [ ] three test engine runners:
   1. [X] run FJS and JS files. It's `all.test.mjs`
   2. [ ] run FJS files only. `fjs-only.mjs` ?
