@@ -23,6 +23,7 @@ import { browserOperationMap } from '../effects/browser/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
+import { scopeIds, scopeMarker, eventNameMarker } from './demo/control_ids/module.f.mjs'
 import { editOf } from './demo/mirror/module.f.mjs'
 import { dragAxisAttributes, dragValue } from './demo/module.f.mjs'
 
@@ -110,6 +111,14 @@ const busy = (root, working, note = null) => {
 const fields = root =>
     /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[name]')))
 
+/** Native radio names are instance-scoped; demo events keep their names.
+ * @type {(field: HTMLInputElement) => string}
+ */
+const fieldName = field => field.type === 'radio' ? field.getAttribute(eventNameMarker) ?? field.name : field.name
+
+/** @type {(root: Element) => (view: HtmlElement) => HtmlElement} */
+const scopeView = root => scopeIds(root.getAttribute(scopeMarker) ?? root.getAttribute(demoMarker) ?? 'demo')
+
 /**
  * The first field under the section named `name`, or `null` for none.
  *
@@ -121,7 +130,7 @@ const fields = root =>
  *
  * @type {(root: Element, name: string) => HTMLInputElement | null}
  */
-const byName = (root, name) => fields(root).find(el => el.name === name) ?? null
+const byName = (root, name) => fields(root).find(el => fieldName(el) === name) ?? null
 
 /**
  * Remembers one kind of the reader's doing across a render: captures it from
@@ -134,7 +143,7 @@ const byName = (root, name) => fields(root).find(el => el.name === name) ?? null
 const remember = ({ capture, restore }) => root => {
     const kept = fields(root).flatMap(el => {
         const v = capture(el)
-        return v === null ? [] : [{ name: el.name, v }]
+        return v === null ? [] : [{ name: fieldName(el), v }]
     })
     return () => {
         for (const { name, v } of kept) {
@@ -432,6 +441,7 @@ const lessMotion = root =>
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => (event: DemoEvent) => void}
  */
 const stepper = (root, demo) => {
+    const scoped = scopeView(root)
     let state = demo.init
     /** @type {Promise<void>} */
     let queue = Promise.resolve()
@@ -462,7 +472,7 @@ const stepper = (root, demo) => {
                 }
                 state = unwrapState(await run(demo.update(state)(event)))
                 if (pending === 1) {
-                    render(root, demo.view(state))
+                    render(root, scoped(demo.view(state)))
                     const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
                     incremental = next !== null
                     if (next !== null) {
@@ -529,7 +539,7 @@ export const startDemo = async root => {
         // could not render the demo into.
         const prerendered = root.firstElementChild !== null
         const edits = prerendered ? fields(root).filter(edited) : []
-        if (!prerendered) { render(root, demo.view(demo.init)) }
+        if (!prerendered) { render(root, scopeView(root)(demo.view(demo.init))) }
         // A scroll does not bubble, so it is heard in the capture phase.
         root.addEventListener('scroll', e => {
             const target = /** @type {Element} */ (e.target)
@@ -538,7 +548,7 @@ export const startDemo = async root => {
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
             echo(target)
-            step({ kind: 'input', name: target.name, value: valueOf(target) })
+            step({ kind: 'input', name: fieldName(target), value: valueOf(target) })
         })
         // A click is how a demo is *asked* for work rather than told about
         // typing: a benchmark starts when a reader says so. So only a named
@@ -622,7 +632,7 @@ export const startDemo = async root => {
         step({ kind: 'start' })
         for (const field of edits) {
             echo(field)
-            step({ kind: 'input', name: field.name, value: valueOf(field) })
+            step({ kind: 'input', name: fieldName(field), value: valueOf(field) })
         }
     } catch (cause) {
         fail(root, cause)

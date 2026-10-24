@@ -41,9 +41,9 @@ Generated module pages expose `#demo` and `#emergent-testing` targets. README
 headings keep their GitHub-style IDs, including numeric suffixes for repeated
 headings. The page reserves `demo`, `emergent-testing`, `directory-drawer`, and
 `drawer-title`; a conflicting README heading gets the first available numeric
-suffix. Empty heading slugs start at `section`. Heading text is unchanged. Existing collisions between documentation headings
-and demo control IDs are tracked separately in
-[control-id-collisions](./demo/todo/control-id-collisions.md).
+suffix. Empty heading slugs start at `section`. Heading text is unchanged. Demo IDs and local references use a separate,
+per-instance namespace at prerender and runtime; see
+[DOM identifiers](./demo/README.md#dom-identifiers-and-repeated-instances).
 
 A native permalink beside each documentation or main section heading works
 without JavaScript. Once the shared fragment runtime binds, a keyboard-accessible
