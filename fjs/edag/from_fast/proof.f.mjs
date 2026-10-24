@@ -61,6 +61,20 @@ const nestedCounting = depth => {
     }
 }
 
+/** @type {(condition: Value, value: Value, normal?: readonly Value[], owner?: FastFunction['target']) => Loop} */
+const returningLoop = (condition, value, normal = [], owner = target) => {
+    const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    return {
+        target: loopTarget, parameters: [], initial: [], results: normal.map(() => id(0)),
+        body: body(['break', loopTarget, normal], [
+            ['if', [], condition, body(['return', owner, value]), body(['break', loopTarget, normal])],
+        ]),
+    }
+}
+
+/** @type {(fn: FastFunction, args?: readonly Value[]) => Exp} */
+const calledFunction = (fn, args = []) => fromFast(result(['()', ['function', fn], args]))
+
 /** @type {(initial?: Value, limit?: Value) => Loop} */
 const counting = (initial = 0, limit = 3) => {
     const state = id(10)
@@ -647,6 +661,217 @@ export const proof = {
         assert(value[3] !== value[5])
         assert(value[5] !== value[7])
     },
+    loopReturnsFromIterations: () => {
+        const count = id(0), output = id(0), failed = id(0)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        for (const stop of [0, 3]) {
+            const loop = /** @type {Loop} */ ({
+                target: loopTarget, parameters: [count], initial: [0], results: [output],
+                body: body(['break', loopTarget, [ref(count)]], [
+                    ['if', [], ['===', ref(count), stop], body(['return', target, ['+', ref(count), 100]]), body(['yield', []])],
+                    ['if', [], ['<', ref(count), 3], body(['continue', loopTarget, [['+', ref(count), 1]]]), body(['yield', []])],
+                ]),
+            })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [['loop', loop], ['define', failed, ['.', null, 'x'], 'required']]),
+            })
+            assertEq(evaluate(calledFunction(fn)), stop + 100)
+        }
+    },
+    loopReturnsSequentially: () => {
+        const choice = id(0), failed = id(0)
+        const first = returningLoop(ref(choice), 11)
+        const second = returningLoop(true, 22)
+        const neverEntered = summing(['.', null, 'x'])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [choice], rest: null, self: null, captures: [],
+            body: body(['return', target, 99], [
+                ['loop', first], ['loop', second], ['loop', neverEntered], ['define', failed, ['.', null, 'x'], 'required'],
+            ]),
+        })
+        assertEq(evaluate(calledFunction(fn, [true])), 11)
+        assertEq(evaluate(calledFunction(fn, [false])), 22)
+    },
+    loopReturnNormalSignatures: () => {
+        const choice = id(0), followed = id(0)
+        for (const length of [0, 1, 3]) {
+            const values = Array.from({ length }, (_, index) => index + 4)
+            const loop = returningLoop(ref(choice), 7, values)
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [choice], rest: null, self: null, captures: [],
+                body: body(['return', target, ['array', [ref(followed), ref(followed)]]], [
+                    ['loop', loop], ['define', followed, ['array', loop.results.map(ref)], 'required'],
+                ]),
+            })
+            assertEq(evaluate(calledFunction(fn, [true])), 7)
+            const value = evaluate(calledFunction(fn, [false]))
+            assert(value instanceof Array)
+            assertEq(value[0], value[1])
+            assertStructurallySame(value[0], values)
+        }
+    },
+    loopReturnsThroughStatementRegions: () => {
+        const choice = id(0), selected = id(0), output = id(0)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loop = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [], initial: [], results: [output],
+            body: body(['break', loopTarget, [ref(selected)]], [
+                ['block', [selected], body(['yield', [5]], [
+                    ['if', [], ['block', result(ref(choice))], body(['yield', []]), body(['return', target, 7])],
+                ])],
+            ]),
+        })
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [choice], rest: null, self: null, captures: [],
+            body: body(['return', target, ['+', ref(output), 10]], [['loop', loop]]),
+        })
+        assertEq(evaluate(calledFunction(fn, [false])), 7)
+        assertEq(evaluate(calledFunction(fn, [true])), 15)
+    },
+    loopReturnsThroughNestedHelpers: () => {
+        const count = id(0), outerResult = id(0), failed = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        for (const depth of [2, 3]) {
+            let inner = returningLoop(['===', ref(count), 1], ['array', [ref(count), 5]])
+            for (let level = 2; level < depth; ++level) {
+                const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+                inner = /** @type {Loop} */ ({
+                    target: loopTarget, parameters: [], initial: [], results: [],
+                    body: body(['break', loopTarget, []], [['loop', inner]]),
+                })
+            }
+            const outer = /** @type {Loop} */ ({
+                target: outerTarget, parameters: [count], initial: [0], results: [outerResult],
+                body: body(['continue', outerTarget, [['+', ref(count), 1]]], [['loop', inner]]),
+            })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [['loop', outer], ['define', failed, ['.', null, 'x'], 'required']]),
+            })
+            assertStructurallySame(evaluate(calledFunction(fn)), [1, 5])
+        }
+    },
+    loopReturnsKeepSourceFunctionOwnership: () => {
+        const nestedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const failed = id(0)
+        const nestedLoop = returningLoop(true, 8, [], nestedTarget)
+        const nested = /** @type {FastFunction} */ ({
+            target: nestedTarget, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', nestedTarget, 99], [['loop', nestedLoop], ['define', failed, ['.', null, 'x'], 'required']]),
+        })
+        const loop = returningLoop(false, 7, [['()', ['function', nested], []]])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, ['+', ref(loop.results[0]), 1]], [['loop', loop]]),
+        })
+        assertEq(evaluate(calledFunction(fn)), 9)
+    },
+    loopReturnTagShapedPayloads: () => {
+        const choice = id(0)
+        for (const tag of ['normal', 'return']) {
+            const payload = /** @type {Value} */ (['array', [tag, ['array', [4]]]])
+            const loop = returningLoop(ref(choice), payload, [payload])
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [choice], rest: null, self: null, captures: [],
+                body: body(['return', target, ['array', [ref(loop.results[0])]]], [['loop', loop]]),
+            })
+            assertStructurallySame(evaluate(calledFunction(fn, [true])), [tag, [4]])
+            assertStructurallySame(evaluate(calledFunction(fn, [false])), [[tag, [4]]])
+        }
+    },
+    loopReturnFailures: () => {
+        const choice = id(0), failed = id(0)
+        const loop = returningLoop(ref(choice), ['.', null, 'x'])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [choice], rest: null, self: null, captures: [],
+            body: body(['return', target, 9], [['loop', loop]]),
+        })
+        assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [true]))))({ args: [] }))
+        assertEq(evaluate(calledFunction(fn, [false])), 9)
+        const throwing = /** @type {Loop} */ ({
+            ...loop, body: body(['break', loop.target, []], [
+                ['if', [], ref(choice), body(['return', target, 7]), body(['throw', 'loop failure'])],
+            ]),
+        })
+        const throws = /** @type {FastFunction} */ ({ ...fn, body: body(['return', target, 9], [['loop', throwing]]) })
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(throws, [false]))))({ args: [] })), 'loop failure')
+        assertEq(evaluate(calledFunction(throws, [true])), 7)
+        const required = /** @type {Loop} */ ({
+            ...loop, body: body(['return', target, 7], [['define', failed, ['.', null, 'x'], 'required']]),
+        })
+        const established = /** @type {FastFunction} */ ({ ...fn, body: body(['return', target, 9], [['loop', required]]) })
+        assertError(memo(assertOk(identityAnalysis(calledFunction(established, [true]))))({ args: [] }))
+    },
+    loopReturnGraph: () => {
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loop = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [], initial: [], results: [],
+            body: body(['return', target, 7]),
+        })
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, 9], [['loop', loop]]),
+        })
+        // The private completion occupies the helper's one result slot.
+        // Only its caller unwraps it into the public function result.
+        const call = /** @type {Exp} */ (['()', ['=>', 1, [], ['[]', [['[]', ['return', 7]]]]], [['[]', []]]])
+        const completion = /** @type {Exp} */ (['.', call, 0])
+        const expected = /** @type {Exp} */ (['=>', 0, [], ['?:',
+            ['===', ['.', completion, 0], 'return'], ['.', completion, 1], 9,
+        ]])
+        const graph = fromFast(result(['function', fn]))
+        assertStructurallySame(assertOk(identityAnalysis(graph)), assertOk(identityAnalysis(expected)))
+        assertEq(evaluate(calledFunction(fn)), 7)
+    },
+    loopReturnRoundTrips: () => {
+        const choice = id(0)
+        const loop = returningLoop(ref(choice), ['array', ['return', 7]], [3, 4])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [choice], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', loop.results.map(ref)]], [['loop', loop]]),
+        })
+        for (const selected of [false, true]) {
+            const first = calledFunction(fn, [selected])
+            const second = fromFast(assertOk(toFast(first)))
+            const third = fromFast(assertOk(toFast(second)))
+            assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+            const expected = selected ? /** @type {const} */ (['return', 7]) : /** @type {const} */ ([3, 4])
+            assertStructurallySame(evaluate(first), expected)
+            assertStructurallySame(evaluate(second), expected)
+            assertStructurallySame(evaluate(third), expected)
+        }
+    },
+    loopReturnCanonicalRootIdentity: () => {
+        const argument = id(0), state = id(0), output = id(0), self = id(0), capture = id(0)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = returningLoop(['===', ref(state), 1], ref(self))
+        const loop = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state], initial: [ref(argument)], results: [output],
+            body: body(['continue', loopTarget, [ref(state)]], [
+                ['if', [], ['<', ref(state), 2],
+                    body(['continue', loopTarget, [['+', ref(state), 1]]], [['loop', inner]]),
+                    body(['break', loopTarget, [ref(state)]]),
+                ],
+            ]),
+        })
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [argument], rest: null, self, captures: [{ binding: capture, value: ['array', [4]] }],
+            body: body(['return', target, ref(output)], [['loop', loop]]),
+        })
+        const graph = fromFast(result(['function', fn]))
+        assert(graph instanceof Array && graph[0] === '=>')
+        assertEq(graph[1], 1)
+        assertEq(graph[2].length, 1)
+        const analysis = assertOk(identityAnalysis(graph))
+        const root = analysis.root
+        assert(root instanceof Array)
+        assert(analysis.nodes.some((node, index) => node[0] === '()' && node[1] instanceof Array
+            && analysis.nodes[node[1][1]][0] === 'self' && analysis.scope[index] === root[1]))
+        const bound = id(0)
+        assertEq(evaluate(fromFast(result(['===', ['()', ref(bound), [0]], ref(bound)], [['define', bound, ['function', fn], 'required']]))), true)
+        assertEq(evaluate(calledFunction(fn, [3])), 3)
+    },
     directRootResult: () => {
         const parameter = id(0)
         const loop = counting(ref(parameter))
@@ -734,6 +959,69 @@ export const proof = {
                 ['define', lazy, ['array', [3]], 'lazy'], ['loop', inner], ...outer.body.statements,
             ])
             fromFast(afterLoop({ ...outer, body: { ...outer.body, statements } }, 7))
+        },
+        loopReturnForeignOwner: () => {
+            const loop = returningLoop(true, 7, [], { ...target })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [['loop', loop]]),
+            })
+            calledFunction(fn)
+        },
+        loopReturnValueOperand: () => {
+            const value = id(0)
+            const loop = returningLoop(false, 7)
+            const operand = /** @type {Loop} */ ({
+                ...loop, body: body(['break', loop.target, []], [
+                    ['define', value, ['block', body(['return', target, 7])], 'required'],
+                ]),
+            })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [['loop', operand]]),
+            })
+            calledFunction(fn)
+        },
+        loopReturnLazyInnerCapture: () => {
+            const lazy = id(0)
+            const inner = returningLoop(true, ref(lazy))
+            const outer = returningLoop(false, 7)
+            const nested = /** @type {Loop} */ ({
+                ...outer, body: body(['break', outer.target, []], [
+                    ['define', lazy, ['array', [3]], 'lazy'], ['loop', inner],
+                ]),
+            })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [['loop', nested]]),
+            })
+            calledFunction(fn)
+        },
+        loopReturnOuterBreak: () => {
+            const outer = returningLoop(false, 7)
+            const inner = returningLoop(true, 8)
+            const escaped = /** @type {Loop} */ ({ ...inner, body: body(['break', outer.target, []], [
+                ['if', [], false, body(['return', target, 8]), body(['yield', []])],
+            ]) })
+            const nested = /** @type {Loop} */ ({ ...outer, body: body(['break', outer.target, []], [['loop', escaped]]) })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [['loop', nested]]),
+            })
+            calledFunction(fn)
+        },
+        loopReturnOuterContinue: () => {
+            const outer = returningLoop(false, 7)
+            const inner = returningLoop(true, 8)
+            const escaped = /** @type {Loop} */ ({ ...inner, body: body(['continue', outer.target, []], [
+                ['if', [], false, body(['return', target, 8]), body(['yield', []])],
+            ]) })
+            const nested = /** @type {Loop} */ ({ ...outer, body: body(['break', outer.target, []], [['loop', escaped]]) })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [['loop', nested]]),
+            })
+            calledFunction(fn)
         },
         unboundLoopCapture: () => {
             const loop = counting(0, ref(id(0)))

@@ -10,7 +10,7 @@ import { toData } from '../../../value/to_unknown/module.f.mjs'
 import { toFast } from '../../../to_fast/module.f.mjs'
 import { fromFast } from '../../module.f.mjs'
 import { rootLoopOf } from '../module.f.mjs'
-import { directInvocationRoot, invocationRootOf } from './module.f.mjs'
+import { directInvocationRoot, invocationRootOf, terminalFunction } from './module.f.mjs'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -25,6 +25,8 @@ const a = id(0), b = id(1), x = id(2), y = id(3), output = id(4), alias = id(5),
 const loopOf = (region, parameters = [x, y]) => ({ target: loopTarget, parameters, initial: parameters.map((_, i) => ref([a, b][i])), results: [output], body: region })
 /** @type {(loop: Loop) => FastFunction} */
 const root = loop => ({ target, parameters: [a, b], rest: null, self: null, captures: [], body: body(['return', target, ref(output)], [['loop', loop]]) })
+/** @type {(region: Block) => FastFunction} */
+const ordinary = region => ({ target, parameters: [a, b], rest: null, self: null, captures: [], body: region })
 /** @type {(length: number) => FastFunction} */
 const fixedRoot = length => {
     const parameters = Array.from({ length }, () => id(0))
@@ -58,6 +60,69 @@ const evaluate = (fn, args) => {
 }
 
 export const proof = {
+    terminalFunctionSignatures: () => {
+        const none = terminalFunction(ordinary(body(['yield', []])))
+        const one = terminalFunction(ordinary(body(['yield', [7]])))
+        const many = terminalFunction(ordinary(body(['yield', [1, 2]])))
+        assertStructurallySame(none.body.exit, ['return', target, ['array', []]])
+        assertStructurallySame(one.body.exit, ['return', target, 7])
+        assertStructurallySame(many.body.exit, ['return', target, ['array', [1, 2]]])
+        assertStructurallySame(assertOk(evaluate(none, [0, 0])), [])
+        assertEq(assertOk(evaluate(one, [0, 0])), 7)
+        assertStructurallySame(assertOk(evaluate(many, [0, 0])), [1, 2])
+        const failed = terminalFunction(ordinary(body(['throw', 'failure'])))
+        assertEq(assertError(evaluate(failed, [0, 0])), 'failure')
+    },
+    terminalFunctionReturns: () => {
+        const local = id(0)
+        const region = body(['yield', [ref(b)]], [
+            ['if', [], ref(a), body(['return', target, 11]), body(['yield', []])],
+        ])
+        const fn = ordinary(body(['return', target, ['+', ref(local), 1]], [['block', [local], region]]))
+        const normalized = terminalFunction(fn)
+        assertEq(assertOk(evaluate(normalized, [true, 4])), 11)
+        assertEq(assertOk(evaluate(normalized, [false, 4])), 5)
+        const fail = id(0)
+        const both = terminalFunction(ordinary(body(['return', target, 0], [
+            ['if', [], ref(a), body(['return', target, 3]), body(['return', target, 4])],
+            ['define', fail, ['.', null, 'x'], 'required'],
+        ])))
+        assertEq(assertOk(evaluate(both, [true, 0])), 3)
+        assertEq(assertOk(evaluate(both, [false, 0])), 4)
+    },
+    terminalFunctionMetadataAndValues: () => {
+        const captured = id(0), rest = id(0), local = id(0)
+        const nestedTarget = /** @type {const} */ ({ kind: 'function', index: target.index })
+        const nested = /** @type {Value} */ (['function', {
+            target: nestedTarget, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', nestedTarget, 9]),
+        }])
+        const definition = /** @type {Statement} */ (['define', local, nested, 'required'])
+        const fn = /** @type {FastFunction} */ ({
+            ...ordinary(body(['return', target, ['()', ref(local), []]], [definition])),
+            self, rest, captures: [{ binding: captured, value: ['array', [1]] }],
+        })
+        const normalized = terminalFunction(fn)
+        assertEq(normalized.target, fn.target)
+        assertEq(normalized.parameters, fn.parameters)
+        assertEq(normalized.rest, rest)
+        assertEq(normalized.self, self)
+        assertEq(normalized.captures, fn.captures)
+        assertEq(normalized.body.statements[0], definition)
+        assertEq(assertOk(evaluate(normalized, [0, 0])), 9)
+        const operand = /** @type {Statement} */ (['define', local, ['block', body(['return', target, 5])], 'required'])
+        assertEq(terminalFunction(ordinary(body(['return', target, ref(local)], [operand]))).body.statements[0], operand)
+    },
+    terminalFunctionDeepStatements: () => {
+        /** @type {Block} */
+        let nested = body(['return', target, ref(a)])
+        for (let depth = 0; depth < 20_000; ++depth) {
+            nested = body(['yield', []], [['block', [], nested]])
+        }
+        const normalized = terminalFunction(ordinary(nested))
+        assertStructurallySame(normalized.body, body(['return', target, ref(a)]))
+        assertEq(assertOk(evaluate(normalized, [7, 0])), 7)
+    },
     layout: () => {
         const loop = loopOf(body(['break', loopTarget, [ref(x)]]))
         const fn = root(loop)
@@ -348,6 +413,8 @@ export const proof = {
         assertStructurallySame(conditional, ['arg', 0])
     },
     throw: {
+        terminalFunctionReturnOwner: () => { terminalFunction(ordinary(body(['return', { ...target }, 0]))) },
+        terminalFunctionLoopOwner: () => { terminalFunction(ordinary(body(['continue', loopTarget, [0]]))) },
         fixedArityLimit: () => { graph(fixedRoot(17)) },
         loopBodyYieldZero: () => { const loop = { ...loopOf(body(['yield', []])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
         loopBodyYieldOne: () => { const loop = { ...loopOf(body(['yield', [3]])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },

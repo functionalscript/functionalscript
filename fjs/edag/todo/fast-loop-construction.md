@@ -1,11 +1,9 @@
 ## Construct EDAG from structured FAST loops
 
 **Priority:** P2
-**Status:** wip — scalar construction, fixed-input roots and nested normal-exit
-aggregate helpers are implemented; escaping completions and shared
-lazy demand-state transport remain in E
-**Current increment:** propagate enclosing-function returns through statement-level
-loop helpers, retaining direct canonical root results and self calls.
+**Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers and
+statement-level function returns are implemented; outer-loop transfers,
+operand completions and shared lazy demand-state transport remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -122,6 +120,22 @@ encoding of the resolved loop identity within the owning function, not a
 printed name or the identity's presentation index. FAST, admission and
 serializers know only their own loop/result/return constructs.
 
+Statement-level enclosing-function returns are implemented by the function-local
+[`loop/returns`](../from_fast/loop/returns/module.f.mjs) normalization. A
+return-capable nonroot loop receives one internal completion-result binding;
+the existing aggregate helper carries that slot in its result array. Caller
+dispatch binds the original normal results or returns the payload to the source
+function. Parent helpers encode that dispatch in turn, without invoking an
+enclosing helper. Normal-only loops and canonical invocation roots retain their
+previous paths. A root's inner returning helpers can introduce dispatch, while
+its terminal public result and direct self calls remain unwrapped.
+
+The shared terminal statement resolver handles changed nonroot function bodies.
+Ordinary nested function bodies and value operands are not traversed by this
+normalization. Payload computations remain ordinary evaluations; their broader
+tail-call eligibility belongs to F. Outer-loop break/continue completions and
+value-operand completions remain open.
+
 A caller resumes after the loop for normal completion. A source-function
 return propagates through enclosing generated helpers until its owning
 function returns the payload. A break or continue targeting an enclosing loop
@@ -143,7 +157,7 @@ sixteen fixed parameters, no rest binding and one opaque public result, while
 keeping the established scalar shape first. Its contract lives in
 [`from_fast/loop/root`](../from_fast/loop/root/README.md). This is part of E;
 normal-exit general helpers, including nested helpers, are also implemented.
-Escaping transfers, operand control and rest transitions remain open below.
+Outer-loop transfers, operand control and rest transitions remain open below.
 
 The current fixed-input root constructor shares the suffix of wholly normal
 result regions. A region with nonlocal exits can still reconstruct the suffix
@@ -268,9 +282,11 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Extend normal-exit helper construction to nested execution regions.
       Each reached inner entry is fresh for its outer iteration; normal results
       return to the caller before its following work or transition.
-- [ ] Implement normal results and enclosing-function completion propagation.
+- [x] Implement normal results and statement-level enclosing-function completion propagation.
       Cover several breaks, nested returns, source nested-function returns,
       completion-shaped user values and failures.
+- [ ] Extend function-return completion handling to value operands, preserving
+      their lookup, spread and evaluation boundaries below.
 - [ ] Propagate resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.

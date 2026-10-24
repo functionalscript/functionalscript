@@ -27,8 +27,18 @@ helper/result wrapper. The existing scalar path remains first.
 Nested loop statements remain at their reached execution point for ordinary
 graph construction to build their own helpers. This resolver does not rewrite
 the inner body's transfers as outer transitions. Normal inner results return
-to the caller before it continues its work. Escaping inner returns and transfers
-remain refused until completion propagation is implemented.
+to the caller before it continues its work. The function-local return pass can
+insert caller dispatches for enclosing-function returns, which this resolver
+handles without wrapping the root's public results or self calls. Escaping
+break/continue transfers remain later work.
+
+`terminalFunction` shares the statement resolver with ordinary functions whose
+loop-completion dispatches introduce early returns. It preserves the function's
+target, parameters, rest binding, captures and self. Only a selected normal
+result region resumes its following statements; a targeted return supplies
+the function result directly. Normal one-value yields remain scalar, and zero
+or multiple values use their ordered array. The resolver does not cross value
+operands or ordinary nested function bodies.
 
 Normalized loop bodies require an explicit `continue`, `break`, owning
 `return` or failure on every reached path. `yield` supplies an inner result

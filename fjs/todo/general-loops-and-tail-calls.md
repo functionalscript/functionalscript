@@ -112,8 +112,8 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
 - [ ] **E — General graph construction.** Complete the loop-construction owner
       using explicit FAST inputs/results; no source-mutability analysis here.
       Fixed-input invocation roots and nested normal-exit aggregate helpers are
-      implemented; escaping completions, operand control and shared memo
-      transport remain open.
+      implemented, along with statement-level function-return propagation;
+      outer-loop transfers, operand control and shared memo transport remain open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.
