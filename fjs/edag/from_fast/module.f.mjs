@@ -21,6 +21,7 @@ import { freeLoopBindings } from './control/module.f.mjs'
 import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
+import { normalizeMemo } from './loop/memo/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 
@@ -277,9 +278,12 @@ const lowerValues = (input, context) => {
 /** @type {(fn: FastFunction, context: Context) => Task<Lowered>} */
 const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
-    const originalScalar = rootLoopOf(source)
-    const originalRoot = originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(source)
-    const normalized = completeTransfers(source, originalRoot)
+    const memoized = normalizeMemo(source.body)
+    /** @type {FastFunction} */
+    const prepared = memoized === source.body ? source : { ...source, body: memoized }
+    const originalScalar = rootLoopOf(prepared)
+    const originalRoot = originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(prepared)
+    const normalized = completeTransfers(prepared, originalRoot)
     const scalar = rootLoopOf(normalized)
     const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(normalized)
     const fn = matched !== null ? directInvocationRoot(normalized, matched) : normalized
@@ -379,10 +383,12 @@ const conditional = (condition, then, otherwise, context, normalize = false) => 
     bind(regionTask(then, context, normalize), a => bind(regionTask(otherwise, context, normalize), b =>
         done({ exp: ['?:', test.exp, anchored(a), anchored(b)], anchors: test.anchors })))))
 
-/** Operand regions normalize local loops; statement regions are already complete. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
+/** Operand regions normalize local memo state and loops; statement regions are already complete. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
 const regionTask = (block, context, normalize = false) => call(() => {
     if (block.exit[0] !== 'yield' && block.exit[0] !== 'throw') { throw 'nonlocal transfers in value regions require structured completion lowering' }
-    const normalized = normalize ? completeBlockTransfers(block) : block
+    const memoized = normalize ? normalizeMemo(block) : block
+    if (memoized !== block && context.transfer.kind !== 'default') { throw 'memo normalization requires the default transfer owner' }
+    const normalized = normalize ? completeBlockTransfers(memoized) : block
     const local = normalize ? { ...context,
         functionTarget: null,
         summaries: normalized === block ? context.summaries : new Map([...context.summaries, ...summaries(['block', normalized], context.summaries)]),
@@ -514,8 +520,9 @@ const controlTask = (block, context, expected) => call(() => {
 
 /** @type {(block: Block, context: Context) => Task<Lowered>} */
 const blockTask = (block, context) => call(() => {
-    const { required, reached } = blockSummary(block, context)
-    if (context.functionTarget !== null && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionHasControl(statement, context))) {
+    const { required, reached, normal, returns } = blockSummary(block, context)
+    const canControl = context.functionTarget !== null || context.transfer.kind === 'default' && !normal && !returns
+    if (canControl && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionHasControl(statement, context))) {
         return bind(controlTask(block, context, null), flow => bind(emitControl(flow, values => anchored(resultsValue(values)), anchored), exp => done(plain(exp))))
     }
     /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<Lowered>} */
@@ -561,7 +568,9 @@ export const lowerValue = (root, environment, transfer) => run(valueTask(root, c
  * @type {(block: Block, environment?: Environment, transfer?: Transfer) => Lowered}
  */
 export const lowerBlock = (block, environment = [], transfer) => {
-    const normalized = completeBlockTransfers(block)
+    const memoized = normalizeMemo(block)
+    if (memoized !== block && transfer !== undefined) { throw 'memo normalization requires the default transfer owner' }
+    const normalized = completeBlockTransfers(memoized)
     return run(blockTask(normalized, contextFor(['block', normalized], environment, transfer)))
 }
 

@@ -1,0 +1,297 @@
+/**
+ * Carry caller-owned lazy values through normal-exit loop helpers.
+ * Private memo cells record readiness separately from their source payload.
+ * Generated loops transport packets without changing a source loop's declared
+ * input/result signature. Ordinary function bodies retain their own owner.
+ *
+ * @module
+ *
+ * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { List } from '../../../../types/list/types.ts'
+ * @import { _Block, _Context, _Exit, _Frame, _Task, _Value, _Values } from './private.ts'
+ */
+
+import { concat, toArray } from '../../../../types/list/module.f.mjs'
+import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
+import { freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
+import { memoCells } from './cells/module.f.mjs'
+
+/** @type {(index?: number) => BindingId} */
+const binding = (index = 0) => ({ index })
+/** @type {(id: BindingId) => Value} */
+const ref = id => ['ref', id]
+/** @type {<T>(value: T) => _Task<T>} */
+const done = value => ({ kind: 'done', value })
+/** @type {<T>(run: () => _Task<T>) => _Task<T>} */
+const call = run => ({ kind: 'call', run })
+/**
+ * @template T, U
+ * @param {_Task<T>} first
+ * @param {(value: T) => _Task<U>} next
+ * @returns {_Task<U>}
+ */
+const bind = (first, next) => ({ kind: 'bind', first, next: value => next(/** @type {T} */ (value)) })
+/**
+ * @template T
+ * @param {_Task<T>} input
+ * @returns {T}
+ */
+const run = input => {
+    /** @type {_Task<unknown>} */
+    let task = input
+    /** @type {_Frame | null} */
+    let frames = null
+    while (true) {
+        if (task.kind === 'call') { task = task.run(); continue }
+        if (task.kind === 'bind') { frames = { next: task.next, tail: frames }; task = task.first; continue }
+        if (frames === null) { return /** @type {T} */ (task.value) }
+        const frame = /** @type {_Frame} */ (frames)
+        frames = frame.tail
+        task = frame.next(task.value)
+    }
+}
+
+/** @type {(value: Value, context: _Context) => _Value} */
+const plain = (value, context) => ({ statements: null, value, memo: context.memo, usesMemo: false })
+
+/** A successful normal region returns its current memo vector to the caller. @type {(result: _Block) => Block} */
+const memoResult = result => result.normal && result.block.exit[0] === 'yield'
+    ? { ...result.block, exit: ['yield', [...result.block.exit[1], ref(result.memo)]] } : result.block
+
+/** An operand's zero/many normal results are one array payload. @type {(result: _Block) => Block} */
+const valueMemoResult = result => result.normal && result.block.exit[0] === 'yield'
+    ? { ...result.block, exit: ['yield', [result.block.exit[1].length === 1 ? result.block.exit[1][0] : ['array', result.block.exit[1]], ref(result.memo)]] } : result.block
+
+/** Establish eager operands before later demand prefixes. @type {(input: readonly Value[], context: _Context) => _Task<_Values>} */
+const valuesTask = (input, context) => {
+    /** @type {(index: number, values: List<_Value>, memo: BindingId) => _Task<_Values>} */
+    const each = (index, values, memo) => call(() => {
+        if (index !== input.length) {
+            return bind(valueTask(input[index], { ...context, memo }), value => each(index + 1, { first: value, tail: values }, value.memo))
+        }
+        const parts = toArray(values).toReversed()
+        const lifted = parts.some(part => part.statements !== null)
+        /** @type {List<Statement>} */
+        let statements = null
+        /** @type {List<Value>} */
+        let stable = null
+        for (const part of parts) {
+            statements = concat(statements)(part.statements)
+            if (lifted) {
+                const id = binding()
+                statements = concat(statements)([['define', id, part.value, 'required']])
+                stable = { first: ref(id), tail: stable }
+            } else { stable = { first: part.value, tail: stable } }
+        }
+        return done({ statements, values: toArray(stable).toReversed(), memo, usesMemo: parts.some(part => part.usesMemo) })
+    })
+    return each(0, null, context.memo)
+}
+
+/** One first demand establishes the cell; all later demands reuse its payload. @type {(index: number, context: _Context) => _Value} */
+const demand = (index, context) => {
+    const value = binding()
+    const memo = binding()
+    const initialized = binding()
+    const source = context.plan.cells[index]
+    const cell = /** @type {Value} */ (['.', ref(context.memo), index])
+    const updated = /** @type {Value} */ (['array', context.plan.cells.map((_, slot) => slot === index
+        ? ['array', [true, ref(initialized)]] : ['.', ref(context.memo), slot])])
+    return {
+        statements: [['if', [value, memo], ['.', cell, 0],
+            { statements: [], exit: ['yield', [['.', cell, 1], ref(context.memo)]] },
+            { statements: [['define', initialized, source.initializer, 'required']], exit: ['yield', [ref(initialized), updated]] },
+        ]],
+        value: ref(value), memo, usesMemo: true,
+    }
+}
+
+/** @type {(operator: Operator<Value>) => boolean} */
+const guarded = operator => operator[0] === '?.' || operator[0] === '?.()' || operator[0] === '.' && operator.length === 4
+    || operator[0] === '()' && operator[1] instanceof Array && operator[1][0] === '.'
+/** @type {(operator: Operator<Value>) => boolean} */
+const spreads = operator => operator[0] === 'array' ? operator[1].some(item => item instanceof Array && item[0] === '...')
+    : operator[0] === 'object' ? operator[1].some(entry => entry[0] === '...')
+        : operator[0] === '()' && operator[2].some(item => item instanceof Array && item[0] === '...')
+
+/** @type {(test: _Value, then: _Block, otherwise: _Block, source: Value) => _Value} */
+const conditionalValue = (test, then, otherwise, source) => {
+    const usesMemo = test.usesMemo || then.usesMemo || otherwise.usesMemo
+    if (then.normal && then.memo !== test.memo || otherwise.normal && otherwise.memo !== test.memo) {
+        const value = binding()
+        const memo = binding()
+        return { statements: concat(test.statements)([['if', [value, memo], test.value, valueMemoResult(then), valueMemoResult(otherwise)]]), value: ref(value), memo, usesMemo }
+    }
+    return { statements: test.statements, value: source, memo: test.memo, usesMemo }
+}
+
+/** Normalize demands inside values while preserving conditional evaluation. @type {(source: Value, context: _Context) => _Task<_Value>} */
+const valueTask = (source, context) => call(() => {
+    if (source === null || typeof source !== 'object') { return done(plain(source, context)) }
+    if (source[0] === 'ref') {
+        const index = context.aliases.get(source[1])
+        return done(index === undefined ? plain(source, context) : demand(index, context))
+    }
+    if (source[0] === 'function') {
+        return bind(valuesTask(source[1].captures.map(capture => capture.value), context), values => {
+            if (values.values.every((value, i) => value === source[1].captures[i].value)) { return done({ ...plain(source, context), memo: values.memo, statements: values.statements, usesMemo: values.usesMemo }) }
+            const fn = /** @type {FastFunction} */ ({ ...source[1], captures: source[1].captures.map((capture, i) => ({ binding: capture.binding, value: values.values[i] })) })
+            return done({ statements: values.statements, value: ['function', fn], memo: values.memo, usesMemo: values.usesMemo })
+        })
+    }
+    if (source[0] === 'block') {
+        return bind(blockTask(source[1], { ...context, operand: true }), result => {
+            if (result.normal && result.memo !== context.memo) {
+                const value = binding()
+                const memo = binding()
+                return done(/** @type {_Value} */ ({ statements: [['block', [value, memo], valueMemoResult(result)]], value: ref(value), memo, usesMemo: result.usesMemo }))
+            }
+            return done(/** @type {_Value} */ ({ statements: null, value: result.block === source[1] ? source : ['block', result.block], memo: context.memo, usesMemo: result.usesMemo }))
+        })
+    }
+    if (source[0] === 'if' || source[0] === '?:') {
+        const then = source[0] === 'if' ? source[2] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[2]]] })
+        const otherwise = source[0] === 'if' ? source[3] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[3]]] })
+        return bind(valueTask(source[1], context), test =>
+            bind(blockTask(then, { ...context, memo: test.memo, operand: true }), a =>
+                bind(blockTask(otherwise, { ...context, memo: test.memo, operand: true }), b => {
+                    const original = test.value === source[1] && a.block === then && b.block === otherwise ? source : /** @type {Value} */ (['if', test.value, a.block, b.block])
+                    return done(conditionalValue(test, a, b, original))
+                })))
+    }
+    const operands = operatorOperands(source)
+    return bind(valuesTask(operands, context), values => {
+        if (values.usesMemo && (guarded(source) || spreads(source))) { throw 'memo demands across optional, member-call or spread operands are not supported yet' }
+        const unchanged = values.values.every((value, i) => value === operands[i])
+        return done({ statements: values.statements, value: unchanged ? source : mapOperator((_, index) => values.values[index])(source), memo: values.memo, usesMemo: values.usesMemo })
+    })
+})
+
+/** @type {(exit: Exit) => readonly Value[]} */
+const exitValues = exit => exit[0] === 'yield' ? exit[1] : exit[0] === 'break' || exit[0] === 'continue' ? exit[2] : [exit[0] === 'throw' ? exit[1] : exit[2]]
+
+/** @type {(exit: Exit, context: _Context) => _Task<_Exit>} */
+const exitTask = (exit, context) => call(() => {
+    if (context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
+    const inputs = exitValues(exit)
+    return bind(valuesTask(inputs, context), values => {
+        /** @type {Exit} */
+        let mapped = exit
+        if (context.loop !== null && (exit[0] === 'break' || exit[0] === 'continue') && exit[1] === context.loop.source) {
+            mapped = [exit[0], context.loop.target, [['array', values.values], ref(values.memo)]]
+        } else if (!values.values.every((value, i) => value === inputs[i])) {
+            mapped = exit[0] === 'yield' ? ['yield', values.values]
+                : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values.values]
+                    : exit[0] === 'throw' ? ['throw', values.values[0]] : ['return', exit[1], values.values[0]]
+        }
+        return done({ statements: values.statements, exit: mapped, memo: values.memo, normal: exit[0] === 'yield', usesMemo: values.usesMemo })
+    })
+})
+
+/** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context) => _Task<{ readonly statements: List<Statement>; readonly memo: BindingId; readonly usesMemo: boolean }>} */
+const loopTask = (loop, context) => call(() => {
+    if (!context.plan.loops.has(loop)) {
+        if (freeLoopBindings(loop).some(id => context.aliases.has(id))) { throw 'memo demands in operand-owned or nested loop helpers are not supported yet' }
+        return bind(valuesTask(loop.initial, context), initial => done({
+            statements: concat(initial.statements)([['loop', initial.values.every((value, i) => value === loop.initial[i]) ? loop : { ...loop, initial: initial.values }]]),
+            memo: initial.memo, usesMemo: initial.usesMemo,
+        }))
+    }
+    const state = binding(loop.target.index)
+    const memo = binding(loop.target.index)
+    const result = binding(loop.target.index)
+    const outputMemo = binding(loop.target.index)
+    const target = /** @type {const} */ ({ kind: 'loop', index: loop.target.index })
+    return bind(valuesTask(loop.initial, context), initial =>
+        bind(blockTask(loop.body, { ...context, memo, loop: { source: loop.target, target }, operand: false }), body => {
+            const internal = /** @type {Loop} */ ({
+                target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: [result, outputMemo],
+                body: { statements: [
+                    ...loop.parameters.map((id, i) => /** @type {Statement} */ (['define', id, ['.', ref(state), i], 'required'])),
+                    ...body.block.statements,
+                ], exit: body.block.exit },
+            })
+            return done({ statements: concat(initial.statements)([
+                ['loop', internal],
+                ...loop.results.map((id, i) => /** @type {Statement} */ (['define', id, ['.', ref(result), i], 'required'])),
+            ]), memo: outputMemo, usesMemo: true })
+        }))
+})
+
+/** Thread normal-path memo bindings through source statement regions. @type {(block: Block, context: _Context) => _Task<_Block>} */
+const blockTask = (block, context) => {
+    /** @type {(index: number, statements: List<Statement>, memo: BindingId, aliases: ReadonlyMap<BindingId, number>, changed: boolean, usesMemo: boolean) => _Task<_Block>} */
+    const each = (index, statements, memo, aliases, changed, usesMemo) => call(() => {
+        const current = /** @type {_Context} */ ({ ...context, memo, aliases })
+        /** @type {(pieces: List<Statement>, nextMemo: BindingId, different: boolean, used: boolean, normal?: boolean, nextAliases?: ReadonlyMap<BindingId, number>) => _Task<_Block>} */
+        const resume = (pieces, nextMemo, different, used, normal = true, nextAliases = aliases) => {
+            const next = concat(statements)(pieces)
+            return normal ? each(index + 1, next, nextMemo, nextAliases, changed || different, usesMemo || used)
+                : done({ block: { statements: toArray(next), exit: block.exit }, memo: nextMemo, normal: false, usesMemo: usesMemo || used })
+        }
+        if (index === block.statements.length) {
+            return bind(exitTask(block.exit, current), exit => done({
+                block: changed || exit.exit !== block.exit || exit.statements !== null ? { statements: toArray(concat(statements)(exit.statements)), exit: exit.exit } : block,
+                memo: exit.memo, normal: exit.normal, usesMemo: usesMemo || exit.usesMemo,
+            }))
+        }
+        const statement = block.statements[index]
+        if (statement[0] === 'define') {
+            if (statement[3] === 'lazy') {
+                if (aliases.has(statement[1])) { return resume(null, memo, true, false) }
+                const initializer = statement[2]
+                const root = initializer instanceof Array && initializer[0] === 'ref' ? aliases.get(initializer[1]) : undefined
+                if (root !== undefined) { return resume(null, memo, true, false, true, new Map([...aliases, [statement[1], root]])) }
+                if (freeBindings({ statements: [], exit: ['yield', [initializer]] }).some(id => aliases.has(id))) {
+                    throw 'computed lazy memo dependencies require their own demand cells'
+                }
+                return resume([statement], memo, false, false)
+            }
+            return bind(valueTask(statement[2], current), value => resume(concat(value.statements)([
+                value.value === statement[2] ? statement : ['define', statement[1], value.value, statement[3]],
+            ]), value.memo, value.value !== statement[2] || value.statements !== null, value.usesMemo))
+        }
+        if (statement[0] === 'loop') {
+            return bind(loopTask(statement[1], current), loop => resume(loop.statements, loop.memo, context.plan.loops.has(statement[1]) || loop.usesMemo, loop.usesMemo))
+        }
+        if (statement[0] === 'block') {
+            return bind(blockTask(statement[2], current), result => {
+                if (result.normal && result.memo !== memo) {
+                    const nextMemo = binding()
+                    return resume([['block', [...statement[1], nextMemo], memoResult(result)]], nextMemo, true, result.usesMemo)
+                }
+                return resume([result.block === statement[2] ? statement : ['block', statement[1], result.block]], memo,
+                    result.block !== statement[2], result.usesMemo, result.normal)
+            })
+        }
+        return bind(valueTask(statement[2], current), test =>
+            bind(blockTask(statement[3], { ...current, memo: test.memo }), then =>
+                bind(blockTask(statement[4], { ...current, memo: test.memo }), otherwise => {
+                    const threaded = then.normal && then.memo !== test.memo || otherwise.normal && otherwise.memo !== test.memo
+                    const nextMemo = threaded ? binding() : test.memo
+                    const mapped = /** @type {Statement} */ (threaded
+                        ? ['if', [...statement[1], nextMemo], test.value, memoResult(then), memoResult(otherwise)]
+                        : test.value === statement[2] && then.block === statement[3] && otherwise.block === statement[4] ? statement
+                            : ['if', statement[1], test.value, then.block, otherwise.block])
+                    return resume(concat(test.statements)([mapped]), nextMemo, mapped !== statement || test.statements !== null,
+                        test.usesMemo || then.usesMemo || otherwise.usesMemo, then.normal || otherwise.normal)
+                })))
+    })
+    return each(0, null, context.memo, context.aliases, false, false)
+}
+
+/**
+ * Normalize only local lazy values that actually cross a statement-loop helper.
+ * The original block identity is returned when no such cells exist. Generated
+ * required cells make repeated normalization a no-op.
+ * @type {(root: Block) => Block}
+ */
+export const normalizeMemo = root => {
+    const plan = memoCells(root)
+    if (plan === null) { return root }
+    const memo = binding()
+    const context = /** @type {_Context} */ ({ plan, aliases: plan.aliases, memo, loop: null, operand: false })
+    const result = run(blockTask(root, context))
+    const initializer = /** @type {Value} */ (['array', plan.cells.map(() => ['array', [false, undefined]])])
+    return { statements: [['define', memo, initializer, 'required'], ...result.block.statements], exit: result.block.exit }
+}

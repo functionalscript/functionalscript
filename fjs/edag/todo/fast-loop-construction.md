@@ -1,9 +1,9 @@
 ## Construct EDAG from structured FAST loops
 
 **Priority:** P2
-**Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers and
-statement-level function returns and outer-loop transfers are implemented;
-operand completions and shared lazy demand-state transport remain in E
+**Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers,
+statement-level transfers and normal-exit caller memo transport are implemented;
+operand completions and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -101,6 +101,22 @@ The general internal state/result packages include this bookkeeping. The
 existing scalar graph remains unchanged where no such demand state crosses
 the helper boundary. Pin the memo-bearing graph normalization and stable
 cell ordering with its first implementation.
+
+The first normal-exit increment uses a lexical `loop/memo` pass before
+completion lowering. Caller-owned deferred roots and their direct lazy aliases
+share cells ordered by definition. A fresh private loop carries
+`[userStateArray, memoVector]` and returns `[userResultsArray, memoVector]`;
+required projections preserve the original loop binding identities. Original
+source loop signatures and public function metadata stay unchanged, and blocks
+without a crossing deferred binding keep their existing graph path.
+
+The admitted recipes depend only on established values. Conditional demands,
+normal continues/breaks, sequential helpers and following caller reads carry
+the selected memo state. Dependent lazy recipes, iteration-local cells,
+nested memo boundaries and escaping completions remain following increments.
+Stateful member-call/optional/spread operands retain explicit refusals until their
+evaluation boundary is owned below. External lazy environments have no AST
+recipe for this pass and keep the existing refusal.
 
 ### Enclosing-function returns
 
@@ -320,13 +336,14 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.
-- [ ] Thread shared lazy demand state through helpers, conditional demands,
-      continues and completions. Cover skipped failures, identity reused across
-      iterations and following code, sequential/nested loops, and fresh
-      iteration-local cells without changing public loop signatures.
-      The next increment implements caller-owned cells across normal-exit
-      helpers and their caller; nested memo boundaries and escaping completions
-      follow separately.
+- [x] Share caller-owned lazy cells across normal-exit helpers and their caller.
+      Cover conditional and zero-iteration demand, aliases, sequential helpers,
+      simultaneous state/memo transitions, skipped failures and shared identity
+      across iterations/following code. Keep no-memo graphs and public loop
+      signatures unchanged.
+- [ ] Extend shared demand state to dependent lazy recipes, statement-loop-local
+      cells, nested memo boundaries and escaping completions. Preserve fresh
+      iteration lifetimes and transport selected updates through every completion.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
 - [x] Share normal continuations in noncanonical helper callers at graph
