@@ -32,6 +32,7 @@ export type Summary = {
     readonly references: readonly BindingId[]
     readonly required: readonly BindingId[]
     readonly reached: readonly BindingId[]
+    readonly entry: readonly BindingId[]
     readonly returns: boolean
     readonly normal: boolean
 }

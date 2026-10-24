@@ -107,7 +107,11 @@ required prefix work. Within graph control, required definitions and loop calls
 retain an anchor at their original entry even when a later normal path reads
 their results: an earlier return must not skip that evaluation. References keep
 the same expression identity, so the anchor and later reads share one result.
-This can retain a redundant anchor compared with ordinary result-only lowering.
+Dependencies reached by the eager entry prefix, including the first condition,
+need no separate anchor. This retains established guard-read sharing across
+graph conversions. Values read only by a branch or a later normal continuation
+remain anchored. This conservative rule can retain redundant anchors compared
+with ordinary result-only lowering.
 Regions whose paths all throw also end graph control immediately, without
 lowering their unreachable continuation.
 

@@ -159,7 +159,7 @@ const closure = (relations, roots) => {
 /** @type {(node: Node, parts: readonly Summary[]) => Summary} */
 const summary = (node, parts) => {
     /** @type {Summary} */
-    const empty = { references: [], required: [], reached: [], returns: false, normal: true }
+    const empty = { references: [], required: [], reached: [], entry: [], returns: false, normal: true }
     if (node[0] === 'value') {
         const value = node[1]
         if (!(value instanceof Array)) { return empty }
@@ -172,6 +172,9 @@ const summary = (node, parts) => {
     let relations = []
     /** @type {readonly BindingId[]} */
     let required = []
+    /** @type {readonly BindingId[]} */
+    let entry = []
+    let entering = true
     let position = 0
     let active = 0
     let returns = false
@@ -182,21 +185,31 @@ const summary = (node, parts) => {
         const part = parts[position]
         if (statement[0] === 'define') {
             relations = [...relations, [statement[1], part.references]]
-            if (statement[3] === 'required') { required = [...required, ...part.references] }
+            if (statement[3] === 'required') {
+                required = [...required, ...part.references]
+                if (entering) { entry = [...entry, ...part.references] }
+            }
             ++position
         } else if (statement[0] === 'block') {
             required = [...required, ...part.references]
+            if (entering) { entry = [...entry, ...part.entry.filter(binding => part.references.includes(binding))] }
+            entering = false
             returns = returns || part.returns
             normal = part.normal
             ++position
         } else if (statement[0] === 'if') {
             required = [...required, ...part.references]
+            if (entering) { entry = [...entry, ...part.references] }
+            entering = false
             returns = returns || parts[position + 1].returns || parts[position + 2].returns
             normal = parts[position + 1].normal || parts[position + 2].normal
             position += 3
         } else {
             const length = statement[1].initial.length
-            required = [...required, ...parts.slice(position, position + length).flatMap(part => part.references), ...freeLoopBindings(statement[1])]
+            /** @type {readonly BindingId[]} */
+            const references = [...parts.slice(position, position + length).flatMap(part => part.references), ...freeLoopBindings(statement[1])]
+            required = [...required, ...references]
+            if (entering) { entry = [...entry, ...references] }
             position += length + 1
         }
     }
@@ -207,6 +220,7 @@ const summary = (node, parts) => {
         references: reached.filter(id => !local.has(id)),
         required: node[1].statements.slice(0, active).flatMap(statement => statement[0] === 'define' && statement[3] === 'required' && !reached.includes(statement[1]) ? [statement[1]] : []),
         reached,
+        entry: closure(relations, [...entry, ...(entering ? exits.flatMap(part => part.references) : [])]),
         returns: returns || (normal && node[1].exit[0] === 'return'),
         normal: normal && node[1].exit[0] === 'yield',
     }
@@ -399,7 +413,7 @@ const transferTask = (exit, context) => call(() => {
 /** Bind ordered results without changing their established identity. @type {(bindings: readonly BindingId[], exp: Exp) => Environment} */
 const resultBindings = (bindings, exp) => bindings.map((binding, i) => [binding, bindings.length === 1 ? exp : ['.', exp, i]])
 
-/** Shared definition establishment; control paths retain every required initializer at entry. @type {(statement: Definition, context: Context, required: readonly BindingId[], eager?: boolean) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>} */
+/** Shared definition establishment; control paths anchor initializers outside their eager entry dependencies. @type {(statement: Definition, context: Context, required: readonly BindingId[], eager?: boolean) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>} */
 const definitionTask = (statement, context, required, eager = false) => bind(valueTask(statement[2], context), value => {
     const initializer = statement[2]
     const deferred = statement[3] === 'lazy' && initializer !== null && typeof initializer === 'object'
@@ -455,7 +469,7 @@ const controlRegion = (statement, context) => statement[0] === 'block' ? control
  * @type {(block: Block, context: Context, expected: number | null) => Task<_Control>}
  */
 const controlTask = (block, context, expected) => call(() => {
-    const { required, reached } = blockSummary(block, context)
+    const { required, reached, entry } = blockSummary(block, context)
     /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<_Control>} */
     const each = (index, scope, anchors) => call(() => {
         /** @type {Context} */
@@ -472,11 +486,11 @@ const controlTask = (block, context, expected) => call(() => {
         }
         const statement = block.statements[index]
         if (statement[0] === 'define') {
-            return bind(definitionTask(statement, current, required, true), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
+            return bind(definitionTask(statement, current, required, !entry.includes(statement[1])), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
         }
         if (statement[0] === 'loop') {
             return bind(loopTask(statement[1], current), ({ value, bindings }) => each(index + 1, scopeOf(bindings, scope),
-                { head: anchors, tail: loopAnchors(statement[1], value, reached, true) }))
+                { head: anchors, tail: loopAnchors(statement[1], value, reached, !statement[1].results.some(binding => entry.includes(binding))) }))
         }
         if (!regionHasControl(statement, current)) {
             const task = statement[0] === 'block' ? regionTask(statement[2], current)
