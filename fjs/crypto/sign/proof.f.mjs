@@ -72,6 +72,11 @@ const input = (state, name, value) => next(state, { kind: 'input', name, value }
 /** @type {(state: DemoState) => string} */
 const view = state => htmlToString(demo.view(state))
 
+/** Extract Bob's OpenSSL section for snapshot comparisons.
+ * @type {(state: DemoState) => string}
+ */
+const opensslSection = state => view(state).split('Run in Bash')[1].split('Why nonce reuse')[0]
+
 export const proof = {
     bits2int: () => {
         assertEq(all(7n).bits2int(vec(5n)(0b10100n)), 0b101n, new Error("fail"))
@@ -754,10 +759,9 @@ export const proof = {
             assert(html.includes('openssl dgst -sha256 -verify'))
             assert(!html.includes('BEGIN PRIVATE KEY'))
             // Compare the whole OpenSSL section after editing both workspaces.
-            const section = (/** @type {DemoState} */ state) => view(state).split('Run in Bash')[1].split('Why nonce reuse')[0]
             const changed = input(input(input(delivered, 'message', 'new draft'), 'curve', 'P-521 (secp521r1)'), 'eve-message', 'new interception')
-            assertEq(section(changed), section(delivered))
-            assertEq(section(click(changed, 'send')), section(delivered))
+            assertEq(opensslSection(changed), opensslSection(delivered))
+            assertEq(opensslSection(click(changed, 'send')), opensslSection(delivered))
             const nul = click(click({ ...demo.init, message: 'a\u0000b' }, 'send'), 'forward')
             assert(view(nul).includes('POSIX shell arguments cannot contain NUL'))
             assert(!view(nul).includes('Copy OpenSSL command'))

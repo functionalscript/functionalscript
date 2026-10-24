@@ -305,6 +305,9 @@ const eveView = eve => {
     ]
 }
 
+const zeroUnusedBits = vec8(0n)
+const uncompressedPointMarker = vec8(0x04n)
+
 /** DER SubjectPublicKeyInfo, with an uncompressed SEC 1 point. Each
  * coordinate occupies the field width, including leading zero octets.
  * @type {(c: DemoCurve, key: Point2D) => string}
@@ -312,7 +315,7 @@ const eveView = eve => {
 const publicKeyPem = (c, [x, y]) => {
     const coordinate = vec(BigInt(Math.ceil(c.coordinateDigits / 2)) * 8n)
     // BIT STRING: zero unused bits, then the uncompressed-point marker.
-    const point = encodeRaw([0x03n, listToVec([vec8(0n), vec8(0x04n), coordinate(x), coordinate(y)])])
+    const point = encodeRaw([0x03n, listToVec([zeroUnusedBits, uncompressedPointMarker, coordinate(x), coordinate(y)])])
     const spki = encode([constructedSequence, [
         [constructedSequence, [
             [objectIdentifier, [1n, 2n, 840n, 10045n, 2n, 1n]],
