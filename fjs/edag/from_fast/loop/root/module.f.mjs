@@ -37,7 +37,8 @@ export const invocationRootOf = fn => {
 
 /**
  * Regions containing only normal yields or graph failures keep their original
- * statements. A suffix after normal ifs is constructed once, not once per arm.
+ * statements, including nested loops constructed by their own helper owner.
+ * A suffix after normal ifs is constructed once, not once per arm.
  * One immutable postorder worklist also bounds deeply nested region analysis.
  * @type {(root: Block) => ReadonlyMap<Block, boolean>}
  */
@@ -56,7 +57,7 @@ const ordinaryBlocks = root => {
             work = children.reduceRight((tail, block) => ({ first: /** @type {Visit} */ (['enter', block]), tail }), /** @type {Link<Visit>} */ ({ first: ['finish', visit[1], children], tail: work }))
             continue
         }
-        let ordinary = (visit[1].exit[0] === 'yield' || visit[1].exit[0] === 'throw') && !visit[1].statements.some(statement => statement[0] === 'loop')
+        let ordinary = visit[1].exit[0] === 'yield' || visit[1].exit[0] === 'throw'
         for (const _ of visit[2]) {
             const child = /** @type {Link<boolean>} */ (results)
             ordinary = child.first && ordinary
@@ -69,7 +70,7 @@ const ordinaryBlocks = root => {
 }
 
 /** @type {(statement: Statement, owner: Owner) => boolean} */
-const ordinaryStatement = (statement, owner) => statement[0] === 'define' || (statement[0] === 'block' ? owner.ordinary.get(statement[2]) === true
+const ordinaryStatement = (statement, owner) => statement[0] === 'define' || statement[0] === 'loop' || (statement[0] === 'block' ? owner.ordinary.get(statement[2]) === true
     : statement[0] === 'if' && owner.ordinary.get(statement[3]) === true && owner.ordinary.get(statement[4]) === true)
 
 /** @type {(block: TerminalBlock) => Task} */
@@ -123,7 +124,6 @@ const blockTask = (block, owner, normal) => {
         if (position !== index) { return before(block.statements.slice(index, position), each(position)) }
         if (index !== block.statements.length) {
             const statement = block.statements[index]
-            if (statement[0] === 'loop') { throw 'nested loop construction requires the structured helper owner' }
             const region = /** @type {Extract<Statement, readonly ['block' | 'if', ...unknown[]]>} */ (statement)
             /** @type {Normal} */
             const resume = values => {

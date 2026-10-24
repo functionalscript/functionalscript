@@ -32,8 +32,11 @@ are not limited by the function fixed-parameter limit. Each continue packages
 all next values before the recursive call. Each break returns an ordered result
 array, including zero or one result; the caller projects the declared results
 and resumes after the loop. Input and result signatures are independent.
-Sequential loops and loops in either conditional region retain their original
-entry point. A skipped region establishes neither entry values nor captures.
+Sequential loops, loops in either conditional region and nested normal-exit
+loops retain their original entry point. A skipped region establishes neither
+entry values nor captures. An inner loop gets a new helper entry each reached
+outer iteration, returns its results to its caller, and the caller resumes its
+own following work and transitions.
 Only already-established free values may cross the helper boundary; a lazy
 free binding is refused until shared demand-state transport is implemented.
 
@@ -42,10 +45,14 @@ invocation loops, then the existing root resolver and ordinary function
 constructor produce their graphs. A helper's graph uses one array argument,
 direct self calls with the next state array, and direct result arrays, without
 completion tags. The loop call is shared by all result projections and remains
-required even when no result is used. A general helper's first EDAG -> FAST ->
-EDAG conversion may split a non-minting state-slot property read across
-conditional arms; subsequent conversions stabilize. Existing scalar exact-graph
-cases retain their shape.
+required even when no result is used. Aggregate state-slot reads are required
+definitions at iteration entry, allowing inner helpers to capture established
+outer values. Otherwise-unused slots retain required read anchors. These reads
+use the already-evaluated internal state array and introduce no source
+evaluation. This extends the aggregate-helper graph normalization from the
+previous lazy slot reads; the state/result order and existing scalar exact-graph
+cases remain unchanged. General helper round trips preserve their documented
+sharing normalization and repeated conversions stabilize.
 
 A canonical scalar invocation loop reuses its enclosing function. Its body
 contains only aliases of established arguments, captures or self before the
@@ -104,12 +111,12 @@ contract. Existing source round trips retain
 their analysis-normalized comparison, including the documented lazy-region
 splits and redundant-anchor normalization.
 
-These increments do not complete epic E. Nested helper construction,
-enclosing-function completions, nonlocal exits inside value operands,
+These increments do not complete epic E. Enclosing-function completions,
+transfers to enclosing loops, nonlocal exits inside value operands,
 rest invocation reconstruction and lazy demand state crossing a generated
 helper boundary remain explicit E/F work. Unsupported forms are refused
-explicitly. Nested statement loops and transfers escaping a normal-exit helper
-remain refused, as do loop-body normal yields. A true lazy free
+explicitly. Transfers escaping a normal-exit helper remain refused, as do
+loop-body normal yields. A true lazy free
 binding is not eagerly captured by either helper constructor. The
 [loop construction proposal](../todo/fast-loop-construction.md) records the
 completion and memo-state contracts for that extension.

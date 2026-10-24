@@ -248,6 +248,26 @@ export const proof = {
         assertEq(invocationRootOf(root(loop)), loop)
         assertStructurallySame(assertOk(evaluate(root(loop), [0, null])), [2, 1, 9])
     },
+    nestedNormalLoops: () => {
+        const state = id(0), result = id(0), selected = id(0)
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: loopTarget.index })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [state], initial: [ref(x)], results: [result],
+            body: body(['break', innerTarget, [['+', ref(state), ref(y)]]]),
+        })
+        const statement = /** @type {Statement} */ (['loop', inner])
+        const outer = loopOf(body(['break', loopTarget, [['array', [ref(result), ref(x), ref(y)]]]], [statement]))
+        const fn = root(outer)
+        assertEq(invocationRootOf(fn), outer)
+        const normalized = directInvocationRoot(fn, outer)
+        assertEq(normalized.body.statements[2], statement)
+        assertStructurallySame(assertOk(evaluate(fn, [2, 3])), [5, 2, 3])
+        const conditional = loopOf(body(['break', loopTarget, [ref(selected)]], [
+            ['if', [selected], ref(x), body(['yield', [ref(result)]], [statement]), body(['yield', [9]])],
+        ]))
+        assertEq(assertOk(evaluate(root(conditional), [2, 3])), 5)
+        assertEq(assertOk(evaluate(root(conditional), [0, 3])), 9)
+    },
     partialAbruptRegions: () => {
         const value = id(30)
         const partial = body(['yield', [3]], [['if', [], ref(y), body(['return', target, 7]), body(['yield', []])]])
@@ -331,7 +351,6 @@ export const proof = {
         fixedArityLimit: () => { graph(fixedRoot(17)) },
         loopBodyYieldZero: () => { const loop = { ...loopOf(body(['yield', []])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
         loopBodyYieldOne: () => { const loop = { ...loopOf(body(['yield', [3]])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
-        nestedLoop: () => { const inner = loopOf(body(['break', loopTarget, [0]])); directInvocationRoot(root(inner), { ...inner, body: body(['break', loopTarget, [0]], [['loop', inner]]) }) },
         resultArity: () => { const loop = loopOf(body(['break', loopTarget, []])); directInvocationRoot(root(loop), loop) },
         transitionArity: () => { const loop = loopOf(body(['continue', loopTarget, [0]])); directInvocationRoot(root(loop), loop) },
         regionArity: () => { const loop = loopOf(body(['break', loopTarget, [0]], [['block', [alias], body(['yield', []], [['if', [], true, body(['return', target, 0]), body(['yield', []])]])]])); directInvocationRoot(root(loop), loop) },

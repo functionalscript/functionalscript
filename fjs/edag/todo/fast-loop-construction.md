@@ -1,11 +1,9 @@
 ## Construct EDAG from structured FAST loops
 
 **Priority:** P2
-**Status:** wip — scalar construction, fixed-input roots and normal-exit
-aggregate helpers are implemented; nested helpers, completions and shared
+**Status:** wip — scalar construction, fixed-input roots and nested normal-exit
+aggregate helpers are implemented; escaping completions and shared
 lazy demand-state transport remain in E
-**Current increment:** normal-exit nested helpers, with inner entry and captures
-at their reached execution point and a return to their caller before it resumes.
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -142,8 +140,8 @@ The fixed-input increment implements direct reconstruction for zero through
 sixteen fixed parameters, no rest binding and one opaque public result, while
 keeping the established scalar shape first. Its contract lives in
 [`from_fast/loop/root`](../from_fast/loop/root/README.md). This is part of E;
-normal-exit general helpers are also implemented. Nested helpers/transfers,
-operand control and rest transitions remain open below.
+normal-exit general helpers, including nested helpers, are also implemented.
+Escaping transfers, operand control and rest transitions remain open below.
 
 The current fixed-input root constructor shares the suffix of wholly normal
 result regions. A region with nonlocal exits can still reconstruct the suffix
@@ -258,11 +256,16 @@ their documented normalization. Repeated conversions must stabilize.
       fixed-parameter limit. State and result arrays follow the declared order;
       the scalar shape remains first. The common root resolver constructs the
       packed invocation loop, and the caller shares one call across projections.
-      First-pass conversion may split non-minting state-slot property reads
-      across conditional arms; repeated conversions stabilize.
+      Generated state-slot reads are established at iteration entry, including
+      required anchors for unused slots of the already-evaluated internal state
+      array. This extends the earlier lazy-slot graph normalization so nested
+      helpers capture established iteration values. Scalar graphs are unchanged;
+      repeated conversions stabilize.
 - [x] Preserve sequential and conditional execution regions, including
       unevaluated setup in an unselected branch.
-- [ ] Extend helper construction to nested execution regions.
+- [x] Extend normal-exit helper construction to nested execution regions.
+      Each reached inner entry is fresh for its outer iteration; normal results
+      return to the caller before its following work or transition.
 - [ ] Implement normal results and enclosing-function completion propagation.
       Cover several breaks, nested returns, source nested-function returns,
       completion-shaped user values and failures.

@@ -11,9 +11,9 @@ changed input order and following result processing do not qualify.
 The body must read invocation inputs through the loop's iteration bindings.
 Original function parameters and their transitive prefix aliases retain entry
 values in normalized FAST, so a free body reference to one of them prevents
-root reuse. The same check protects the established scalar path. Existing
-scalar helper construction can capture the original value where supported;
-other retained-entry forms are refused until general helper construction exists.
+root reuse. The same check protects the established scalar path. Scalar and
+aggregate helper construction capture retained entry values where root reuse
+would replace them on a subsequent invocation.
 Capture/self aliases remain stable, and ordinary nested functions expose only
 their capture values to this check. No cross-iteration stability analysis runs.
 
@@ -23,6 +23,12 @@ function; breaks and owner returns become its direct public result. Other
 function boundaries remain ordinary functions. Inputs and results are opaque:
 the pass never guesses a private protocol from array contents or adds another
 helper/result wrapper. The existing scalar path remains first.
+
+Nested loop statements remain at their reached execution point for ordinary
+graph construction to build their own helpers. This resolver does not rewrite
+the inner body's transfers as outer transitions. Normal inner results return
+to the caller before it continues its work. Escaping inner returns and transfers
+remain refused until completion propagation is implemented.
 
 Normalized loop bodies require an explicit `continue`, `break`, owning
 `return` or failure on every reached path. `yield` supplies an inner result
@@ -38,7 +44,7 @@ conditional-arm boundaries, avoiding repeated copying while nested blocks
 unwind. Body prefixes retain their required/lazy modes, lexical order and
 statement identities. A region with nonlocal exits
 can still copy the suffix into multiple normal exits; repeated joins can grow
-exponentially. That performance limitation, nested helper composition and
+exponentially. That performance limitation, escaping helper completions and
 nonlocal operand control remain in the
 [open loop-construction task](../../../todo/fast-loop-construction.md), alongside
 the rest/default/spread invocation work coordinated with tail-call analysis.

@@ -93,8 +93,8 @@ export const proof = {
         assertStructurallySame(packed.initial, [['ref', helper.parameters[0]]])
         assertStructurallySame(helper.body.exit, ['return', helper.target, ['ref', packed.results[0]]])
         assertStructurallySame(packed.body.statements.slice(0, 2), [
-            ['define', state, ['.', ['ref', packed.parameters[0]], 0], 'lazy'],
-            ['define', alias, ['.', ['ref', packed.parameters[0]], 1], 'lazy'],
+            ['define', state, ['.', ['ref', packed.parameters[0]], 0], 'required'],
+            ['define', alias, ['.', ['ref', packed.parameters[0]], 1], 'required'],
         ])
         assertEq(packed.body.statements[2], definition)
         assertStructurallySame(packed.body.exit, ['break', loopTarget, [['array', [['ref', local], ['ref', alias]]]]])
