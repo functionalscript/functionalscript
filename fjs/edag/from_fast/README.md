@@ -54,18 +54,32 @@ previous lazy slot reads; the state/result order and existing scalar exact-graph
 cases remain unchanged. General helper round trips preserve their documented
 sharing normalization and repeated conversions stabilize.
 
-[`loop/returns`](./loop/returns/module.f.mjs) carries statement-level returns
-from a helper to the owning source function. Only return-capable nonroot loops
-gain a private completion result: `["normal", resultValues]` for a normal break
-or `["return", value]` for an enclosing-function return. The completion occupies
-one loop-result slot, carried by the existing aggregate helper result array.
-The caller dispatches this private value: normal completion binds the original
-results and resumes; return completion exits the source function. Nested helpers
-return completions to their caller before the caller propagates them. Arrays
-with the same shape supplied as source values remain payloads.
+[`loop/completions`](./loop/completions/module.f.mjs) carries statement-level
+returns and outer-loop transfers through helpers. Only nonroot loops with
+escaping control gain a private completion result: `["normal", resultValues]`,
+`["return", value]`, `["break", targetId, resultValues]`, or
+`["continue", targetId, nextValues]`. The completion occupies one loop-result
+slot, carried by the existing aggregate helper result array. Normal completion
+binds the original results and resumes; return completion exits the owning
+source function. An outer-loop transfer returns to callers until its target
+owner performs its own break or continue. Intermediate helpers never invoke an
+enclosing helper. Arrays with the same shape supplied as source values remain
+payloads.
 
-Normalization traverses statement regions in one source function, preserving
-ordinary nested function boundaries and leaving value operands opaque. Changed
+Target IDs follow lexical loop introduction order over resolved identities in
+each function or standalone/local block normalization scope. Values and ordinary
+nested functions are opaque to that inventory. Equal debug indices remain
+distinct, and only actual lexical ancestors can receive transfer completions.
+Caller dispatch reads the target's original result/parameter signature before
+helper packing or completion wrapping; all next values are established before
+the target's state changes. Original result bindings are declared once by the
+outer dispatch, with additional cases in zero-result statement regions.
+
+`completeTransfers` traverses a source function's statement regions before
+helper construction. `completeBlockTransfers` handles standalone blocks without
+inventing a source-function owner. Operand blocks normalize their own local
+loops on entry; transfers to targets outside that operand remain refused.
+Already-normalized statement regions skip a repeated pass. Changed
 nonroot function bodies use the shared terminal statement resolver to turn
 early-return dispatch into ordinary conditional results. Normal-only helpers
 retain their previous graph path. Canonical invocation roots are exempt from
@@ -131,12 +145,11 @@ contract. Existing source round trips retain
 their analysis-normalized comparison, including the documented lazy-region
 splits and redundant-anchor normalization.
 
-These increments do not complete epic E. Transfers to enclosing loops,
-nonlocal exits inside value operands,
+These increments do not complete epic E. Nonlocal exits across value operands,
 rest invocation reconstruction and lazy demand state crossing a generated
 helper boundary remain explicit E/F work. Unsupported forms are refused
-explicitly. Break/continue transfers escaping a helper remain refused, as do
-foreign function-return targets and loop-body normal yields. Standalone block
+explicitly. Foreign or nonlexical loop targets remain refused, as do foreign
+function-return targets and loop-body normal yields. Standalone block
 construction has no source function to own helper returns. A true lazy free
 binding is not eagerly captured by either helper constructor. The
 [loop construction proposal](../todo/fast-loop-construction.md) records the

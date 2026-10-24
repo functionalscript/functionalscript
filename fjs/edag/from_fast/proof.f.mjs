@@ -872,6 +872,226 @@ export const proof = {
         assertEq(evaluate(fromFast(result(['===', ['()', ref(bound), [0]], ref(bound)], [['define', bound, ['function', fn], 'required']]))), true)
         assertEq(evaluate(calledFunction(fn, [3])), 3)
     },
+    nestedOuterContinueScalarState: () => {
+        const state = id(0), output = id(0), failed = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [],
+            body: body(['continue', outerTarget, [['+', ref(state), 1]]]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [state], initial: [0], results: [output],
+            body: body(['continue', outerTarget, [ref(state)]], [
+                ['if', [], ['<', ref(state), 4], body(['continue', outerTarget, [ref(state)]], [
+                    ['loop', inner], ['define', failed, ['.', null, 'x'], 'required'],
+                ]), body(['break', outerTarget, [ref(state)]])],
+            ]),
+        })
+        assertEq(evaluate(fromFast(afterLoop(outer, ref(output)))), 4)
+        const region = afterLoop(outer, ref(output))
+        assertEq(evaluate(anchored(lowerValue(['block', region], []))), 4)
+        assertEq(evaluate(anchored(lowerValue(['if', true, region, result(7)], []))), 4)
+        assertEq(evaluate(anchored(lowerValue(['if', false, result(8), region], []))), 4)
+        const next = counting(ref(output), 6)
+        assertStructurallySame(evaluate(fromFast(result(['array', [ref(output), ref(next.results[0])]], [
+            ['loop', outer], ['loop', next],
+        ]))), [4, 6])
+    },
+    nestedOuterContinueSimultaneousState: () => {
+        const count = id(0), left = id(0), right = id(0), total = id(0)
+        const first = id(0), second = id(0), sum = id(0), failed = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [],
+            body: body(['continue', outerTarget, [['+', ref(count), 1], ref(right), ref(left), ['+', ref(total), ref(count)]]]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [count, left, right, total], initial: [0, 1, 2, 10], results: [first, second, sum],
+            body: body(['continue', outerTarget, [ref(count), ref(left), ref(right), ref(total)]], [
+                ['if', [], ['<', ref(count), 3], body(['continue', outerTarget, [ref(count), ref(left), ref(right), ref(total)]], [
+                    ['loop', inner], ['define', failed, ['.', null, 'x'], 'required'],
+                ]), body(['break', outerTarget, [ref(left), ref(right), ref(total)]])],
+            ]),
+        })
+        assertStructurallySame(evaluate(fromFast(afterLoop(outer, ['array', outer.results.map(ref)]))), [2, 1, 13])
+    },
+    nestedOuterBreakResultSignatures: () => {
+        const state = id(0), failed = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        for (const length of [0, 1, 3]) {
+            const outputs = Array.from({ length }, () => id(0))
+            const values = outputs.map((_, index) => /** @type {Value} */ (['array', [index === 0 ? 'continue' : 'break', index]]))
+            const inner = /** @type {Loop} */ ({
+                target: innerTarget, parameters: [], initial: [], results: [],
+                body: body(['break', outerTarget, values]),
+            })
+            const outer = /** @type {Loop} */ ({
+                target: outerTarget, parameters: [state], initial: [5], results: outputs,
+                body: body(['continue', outerTarget, [ref(state)]], [['loop', inner], ['define', failed, ['.', null, 'x'], 'required']]),
+            })
+            const expected = outputs.map((_, index) => /** @type {const} */ ([index === 0 ? 'continue' : 'break', index]))
+            assertStructurallySame(evaluate(fromFast(afterLoop(outer, ['array', outputs.map(ref)]))), expected)
+            assertStructurallySame(evaluate(anchored(lowerValue(['block', afterLoop(outer, ['array', outputs.map(ref)])], []))), expected)
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, ['array', outputs.map(ref)]], [['loop', outer]]),
+            })
+            assertStructurallySame(evaluate(calledFunction(fn)), expected)
+        }
+    },
+    nestedOuterTransferTargetIdentity: () => {
+        const count = id(0), total = id(0), middleState = id(0), middleResult = id(0), output = id(0), failed = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const middleTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [],
+            body: body(['break', innerTarget, []], [
+                ['if', [], ['===', ref(middleState), ref(count)], body(['continue', middleTarget, [['+', ref(middleState), 1]]]), body(['yield', []])],
+                ['if', [], ['===', ref(count), 0], body(['continue', outerTarget, [['+', ref(count), 1], ['+', ref(total), 10]]]), body(['yield', []])],
+                ['if', [], ['===', ref(count), 1], body(['break', middleTarget, [['+', ref(middleState), 5]]]), body(['break', outerTarget, [['+', ref(total), 100]]])],
+            ]),
+        })
+        const middle = /** @type {Loop} */ ({
+            target: middleTarget, parameters: [middleState], initial: [ref(count)], results: [middleResult],
+            body: body(['continue', middleTarget, [ref(middleState)]], [
+                ['if', [], ['<', ref(middleState), ['+', ref(count), 2]], body(['continue', middleTarget, [ref(middleState)]], [
+                    ['loop', inner], ['define', failed, ['.', null, 'x'], 'required'],
+                ]), body(['break', middleTarget, [99]])],
+            ]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [count, total], initial: [0, 0], results: [output],
+            body: body(['continue', outerTarget, [ref(count), ref(total)]], [
+                ['if', [], ['<', ref(count), 3], body(['continue', outerTarget, [['+', ref(count), 1], ['+', ref(total), ref(middleResult)]]], [
+                    ['loop', middle],
+                ]), body(['break', outerTarget, [ref(total)]])],
+            ]),
+        })
+        const first = fromFast(afterLoop(outer, ref(output)))
+        const second = fromFast(assertOk(toFast(first)))
+        const third = fromFast(assertOk(toFast(second)))
+        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+        assertEq(evaluate(first), 117)
+        assertEq(evaluate(second), 117)
+        assertEq(evaluate(third), 117)
+    },
+    nestedOuterMixedCompletions: () => {
+        const mode = id(0), state = id(0), innerResult = id(0), output = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [innerResult],
+            body: body(['break', innerTarget, [['+', ref(state), 10]]], [
+                ['if', [], ['===', ref(mode), 0], body(['return', target, ['array', ['return', 7]]]), body(['yield', []])],
+                ['if', [], ['===', ref(mode), 1], body(['break', outerTarget, [['array', ['normal', 8]]]]), body(['yield', []])],
+                ['if', [], ['===', ref(mode), 2], body(['continue', outerTarget, [['+', ref(state), 1]]]), body(['yield', []])],
+            ]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [state], initial: [0], results: [output],
+            body: body(['continue', outerTarget, [ref(state)]], [
+                ['if', [], ['<', ref(state), 2], body(['break', outerTarget, [ref(innerResult)]], [['loop', inner]]), body(['break', outerTarget, [99]])],
+            ]),
+        })
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [mode], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', [ref(output), ref(output)]]], [['loop', outer]]),
+        })
+        assertStructurallySame(evaluate(calledFunction(fn, [0])), ['return', 7])
+        const broken = evaluate(calledFunction(fn, [1]))
+        assert(broken instanceof Array)
+        assertEq(broken[0], broken[1])
+        assertStructurallySame(broken[0], ['normal', 8])
+        assertStructurallySame(evaluate(calledFunction(fn, [2])), [99, 99])
+        assertStructurallySame(evaluate(calledFunction(fn, [3])), [10, 10])
+    },
+    nestedOuterUnselectedTransfers: () => {
+        const state = id(0), output = id(0), innerResult = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [innerResult],
+            body: body(['break', innerTarget, [3]], [
+                ['if', [], false, body(['break', outerTarget, [['.', null, 'x']]]), body(['yield', []])],
+                ['if', [], true, body(['break', innerTarget, [3]]), body(['continue', outerTarget, [['.', null, 'x']]])],
+            ]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [state], initial: [0], results: [output],
+            body: body(['break', outerTarget, [['+', ref(innerResult), 1]]], [['loop', inner]]),
+        })
+        assertEq(evaluate(fromFast(afterLoop(outer, ref(output)))), 4)
+    },
+    nestedOuterIterationLifetimes: () => {
+        const count = id(0), saved = id(0), output = id(0), object = id(0), captured = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const fnTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const closure = /** @type {Value} */ (['function', {
+            target: fnTarget, parameters: [], rest: null, self: null,
+            captures: [{ binding: captured, value: ref(object) }], body: body(['return', fnTarget, ref(captured)]),
+        }])
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [],
+            body: body(['continue', outerTarget, [['+', ref(count), 1], ['array', [
+                ['...', ref(saved)], ['array', [closure, ref(object), ref(object)]],
+            ]]]], [['define', object, ['array', [ref(count)]], 'required']]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [count, saved], initial: [0, ['array', []]], results: [output],
+            body: body(['continue', outerTarget, [ref(count), ref(saved)]], [
+                ['if', [], ['<', ref(count), 3], body(['continue', outerTarget, [ref(count), ref(saved)]], [['loop', inner]]), body(['break', outerTarget, [ref(saved)]])],
+            ]),
+        })
+        /** @type {(iteration: number, slot: number) => Value} */
+        const entry = (iteration, slot) => ['.', ['.', ref(output), iteration], slot]
+        const value = evaluate(fromFast(afterLoop(outer, ['array', [
+            ['()', entry(0, 0), []], ['()', entry(1, 0), []], entry(0, 1), entry(0, 2), entry(1, 1), entry(2, 1),
+        ]])))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[0], [1], [0], [0], [1], [2]])
+        assertEq(value[0], value[2])
+        assertEq(value[0], value[3])
+        assertEq(value[1], value[4])
+        assert(value[2] !== value[4])
+        assert(value[4] !== value[5])
+    },
+    nestedOuterCanonicalRoot: () => {
+        const argument = id(0), state = id(0), output = id(0), self = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [],
+            body: body(['break', outerTarget, [ref(self)]], [
+                ['if', [], ['<', ref(state), 3], body(['continue', outerTarget, [['+', ref(state), 1]]]), body(['yield', []])],
+            ]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [state], initial: [ref(argument)], results: [output],
+            body: body(['continue', outerTarget, [ref(state)]], [
+                ['if', [], ['<', ref(state), 4], body(['continue', outerTarget, [ref(state)]], [['loop', inner]]), body(['break', outerTarget, [ref(state)]])],
+            ]),
+        })
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [argument], rest: null, self, captures: [],
+            body: body(['return', target, ref(output)], [['loop', outer]]),
+        })
+        const graph = fromFast(result(['function', fn]))
+        assert(graph instanceof Array && graph[0] === '=>')
+        assertEq(graph[1], 1)
+        const analysis = assertOk(identityAnalysis(graph))
+        const root = analysis.root
+        assert(root instanceof Array)
+        assert(analysis.nodes.some((node, index) => node[0] === '()' && node[1] instanceof Array
+            && analysis.nodes[node[1][1]][0] === 'self' && analysis.scope[index] === root[1]))
+        const bound = id(0)
+        assertEq(evaluate(fromFast(result(['===', ['()', ref(bound), [0]], ref(bound)], [['define', bound, ['function', fn], 'required']]))), true)
+        assertEq(evaluate(calledFunction(fn, [7])), 7)
+    },
     directRootResult: () => {
         const parameter = id(0)
         const loop = counting(ref(parameter))
@@ -933,18 +1153,6 @@ export const proof = {
             const loop = summing()
             fromFast(afterLoop({ ...loop, body: body(['continue', { ...loop.target }, [1, 2]]) }, 7))
         },
-        nestedLoopOuterBreak: () => {
-            const outer = summing()
-            const inner = summing()
-            const escaped = /** @type {Loop} */ ({ ...inner, body: body(['break', outer.target, [1, 2]]) })
-            fromFast(afterLoop({ ...outer, body: { ...outer.body, statements: [['loop', escaped], ...outer.body.statements] } }, 7))
-        },
-        nestedLoopOuterContinue: () => {
-            const outer = summing()
-            const inner = summing()
-            const escaped = /** @type {Loop} */ ({ ...inner, body: body(['continue', outer.target, [1, 2]]) })
-            fromFast(afterLoop({ ...outer, body: { ...outer.body, statements: [['loop', escaped], ...outer.body.statements] } }, 7))
-        },
         nestedLoopOuterReturn: () => {
             const outer = summing()
             const inner = summing()
@@ -997,31 +1205,48 @@ export const proof = {
             })
             calledFunction(fn)
         },
-        loopReturnOuterBreak: () => {
-            const outer = returningLoop(false, 7)
-            const inner = returningLoop(true, 8)
-            const escaped = /** @type {Loop} */ ({ ...inner, body: body(['break', outer.target, []], [
-                ['if', [], false, body(['return', target, 8]), body(['yield', []])],
-            ]) })
-            const nested = /** @type {Loop} */ ({ ...outer, body: body(['break', outer.target, []], [['loop', escaped]]) })
-            const fn = /** @type {FastFunction} */ ({
-                target, parameters: [], rest: null, self: null, captures: [],
-                body: body(['return', target, 9], [['loop', nested]]),
+        nestedOuterSiblingTarget: () => {
+            const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const firstTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const secondTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const first = /** @type {Loop} */ ({
+                target: firstTarget, parameters: [], initial: [], results: [], body: body(['continue', secondTarget, []]),
             })
-            calledFunction(fn)
+            const second = /** @type {Loop} */ ({
+                target: secondTarget, parameters: [], initial: [], results: [], body: body(['break', secondTarget, []]),
+            })
+            const outer = /** @type {Loop} */ ({
+                target: outerTarget, parameters: [], initial: [], results: [], body: body(['break', outerTarget, []], [['loop', first], ['loop', second]]),
+            })
+            fromFast(afterLoop(outer, 7))
         },
-        loopReturnOuterContinue: () => {
-            const outer = returningLoop(false, 7)
-            const inner = returningLoop(true, 8)
-            const escaped = /** @type {Loop} */ ({ ...inner, body: body(['continue', outer.target, []], [
-                ['if', [], false, body(['return', target, 8]), body(['yield', []])],
-            ]) })
-            const nested = /** @type {Loop} */ ({ ...outer, body: body(['break', outer.target, []], [['loop', escaped]]) })
-            const fn = /** @type {FastFunction} */ ({
-                target, parameters: [], rest: null, self: null, captures: [],
-                body: body(['return', target, 9], [['loop', nested]]),
+        nestedOuterCrossFunction: () => {
+            const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const fnTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+            const inner = /** @type {Loop} */ ({
+                target: innerTarget, parameters: [], initial: [], results: [], body: body(['break', outerTarget, []]),
             })
-            calledFunction(fn)
+            const fn = /** @type {FastFunction} */ ({
+                target: fnTarget, parameters: [], rest: null, self: null, captures: [], body: body(['return', fnTarget, 9], [['loop', inner]]),
+            })
+            const value = id(0)
+            const outer = /** @type {Loop} */ ({
+                target: outerTarget, parameters: [], initial: [], results: [],
+                body: body(['break', outerTarget, []], [['define', value, ['()', ['function', fn], []], 'required']]),
+            })
+            fromFast(afterLoop(outer, 7))
+        },
+        nestedOuterOperandBoundary: () => {
+            const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const state = id(0), output = id(0), value = id(0)
+            const outer = /** @type {Loop} */ ({
+                target: outerTarget, parameters: [state], initial: [0], results: [output],
+                body: body(['break', outerTarget, [ref(state)]], [
+                    ['define', value, ['block', body(['continue', outerTarget, [1]])], 'required'],
+                ]),
+            })
+            fromFast(afterLoop(outer, ref(output)))
         },
         unboundLoopCapture: () => {
             const loop = counting(0, ref(id(0)))
