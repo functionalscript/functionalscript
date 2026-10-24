@@ -312,14 +312,14 @@ const uncompressedPointMarker = vec8(0x04n)
  * coordinate occupies the field width, including leading zero octets.
  * @type {(c: DemoCurve, key: Point2D) => string}
  */
-const publicKeyPem = (c, [x, y]) => {
-    const coordinate = vec(BigInt(Math.ceil(c.coordinateDigits / 2)) * 8n)
+const publicKeyPem = ({ coordinateDigits, oid }, [x, y]) => {
+    const coordinate = vec(BigInt(Math.ceil(coordinateDigits / 2)) * 8n)
     // BIT STRING: zero unused bits, then the uncompressed-point marker.
     const point = encodeRaw([0x03n, listToVec([zeroUnusedBits, uncompressedPointMarker, coordinate(x), coordinate(y)])])
     const spki = encode([constructedSequence, [
         [constructedSequence, [
             [objectIdentifier, [1n, 2n, 840n, 10045n, 2n, 1n]],
-            [objectIdentifier, c.oid],
+            [objectIdentifier, oid],
         ]],
         point,
     ]])
