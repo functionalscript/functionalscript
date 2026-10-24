@@ -41,7 +41,7 @@
 
 import { sandbox } from '../../../effects/common/module.f.mjs'
 import { fetchText, instantiate, jsHeapSize } from '../../../effects/browser/module.f.mjs'
-import { errorMessage, history, historyStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.mjs'
+import { errorMessage, history, historyStep, mapStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
@@ -155,14 +155,17 @@ const jsHeap = (before, after) => before === null || after === null ? null : { b
  *
  * @type {(program: Sample['program']) => Effect<Sandbox | JsHeapSize, Result<JsRun, string>, never>}
  */
-export const runJs = program => step(heapSize, before => resultStep(sandbox(() => jsPerform(program)), r => {
-    const t = timed(/** @type {Result<SandboxResult<readonly [Vec, Result<unknown, unknown>]>, IoChannel>} */ (r))
-    return step(heapSize, after => {
+export const runJs = program => {
+    const before = history(heapSize)
+    const ran = historyStep(before, () => resultMapStep(sandbox(() => jsPerform(program)), r =>
+        ok(timed(/** @type {Result<SandboxResult<readonly [Vec, Result<unknown, unknown>]>, IoChannel>} */ (r)))))
+    const after = historyStep(ran, () => heapSize)
+    return mapStep(after, ([after, t, before]) => {
         /** @type {Result<JsRun, string>} */
         const run = t[0] === 'error' ? t : ok({ output: jsText(t[1].value), time: t[1].time, heap: jsHeap(before, after) })
-        return pureOk(run)
+        return run
     })
-}))
+}
 
 /**
  * Loads the sample with its export, untimed, as the JavaScript run's module
@@ -192,17 +195,19 @@ export const runWasm = name => ({ exports }) => {
     const output = value => value < 0
         ? error('the sample threw')
         : decode(Array.from({ length: value }, (_, i) => /** @type {(i: number) => number} */ (outputByte)(i)))
-    const ran = step(loaded, () => {
-        const before = live.buffer.byteLength
-        return resultMapStep(sandbox(() => /** @type {() => number} */ (runSample)()), r => {
-            const t = timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
-            const after = live.buffer.byteLength
-            /** @type {Result<WasmRun, string>} */
-            const run = t[0] === 'error' ? t : ok({ run: { output: output(t[1].value), time: t[1].time }, memory: after, growth: after - before })
-            return ok(run)
-        })
+    // The size before is read inside the sandbox, just before the call: the
+    // one property read is all the timed interval gains.
+    const ran = step(loaded, () => sandbox(() => /** @type {const} */ ([live.buffer.byteLength, /** @type {() => number} */ (runSample)()])))
+    return resultMapStep(ran, r => {
+        /** @type {Result<{ readonly value: readonly [number, number], readonly time: number }, string>} */
+        const t = r[0] === 'error' && typeof r[1] === 'string'
+            ? error(r[1])
+            : timed(/** @type {Result<SandboxResult<readonly [number, number]>, IoChannel>} */ (r))
+        const after = live.buffer.byteLength
+        /** @type {Result<WasmRun, string>} */
+        const run = t[0] === 'error' ? t : ok({ run: { output: output(t[1].value[1]), time: t[1].time }, memory: after, growth: after - t[1].value[0] })
+        return ok(run)
     })
-    return resultMapStep(ran, r => ok(r[0] === 'error' ? error(r[1]) : r[1]))
 }
 
 /**
