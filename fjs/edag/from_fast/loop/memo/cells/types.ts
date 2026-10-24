@@ -9,6 +9,7 @@ export type MemoCell = {
 }
 
 export type MemoPlan = {
+    /** Caller-owned dependency closure, ordered by source definitions. */
     readonly cells: readonly MemoCell[]
     /** Declaration identity selects roots and aliases before lexical activation. */
     readonly definitions: ReadonlyMap<Definition, number>

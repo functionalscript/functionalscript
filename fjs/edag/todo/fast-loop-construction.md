@@ -119,10 +119,19 @@ private recipe function per cell to the memo-bearing normalization while
 retaining the no-memo exact graph domain. External lazy provenance follows
 aliases and is refused before a recipe helper could capture it eagerly.
 
-The admitted recipes depend only on established values. Conditional demands,
-normal continues/breaks, sequential helpers and following caller reads carry
-the selected memo state. Dependent lazy recipes, iteration-local cells,
-nested memo boundaries and escaping completions remain following increments.
+Caller-owned dependent recipes join the same cell vector through transitive
+prerequisite/dependent closure, in source definition order. Their conditional
+demands carry only the selected dependency updates. A newly initialized cell is
+installed into the recipe's returned vector, preserving prerequisite identity
+for later iterations, sequential helpers and caller reads.
+
+Capturing established prerequisites and earlier recipe functions does not
+initialize source lazy values. Shared recipe functions prevent
+conditional dependency DAGs from being recursively copied at each demand;
+full-vector replacement retains its ordinary slot-copying cost.
+
+Recipe-local computed lazy dependents, iteration-local cells, nested memo
+boundaries and escaping completions remain following increments.
 Stateful member-call/optional/spread operands retain explicit refusals until their
 evaluation boundary is owned below. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
@@ -350,12 +359,12 @@ their documented normalization. Repeated conversions must stabilize.
       simultaneous state/memo transitions, skipped failures and shared identity
       across iterations/following code. Keep no-memo graphs and public loop
       signatures unchanged.
-- [ ] Extend shared demand state to dependent lazy recipes, statement-loop-local
-      cells, nested memo boundaries and escaping completions. Preserve fresh
-      iteration lifetimes and transport selected updates through every completion.
-      The next increment admits caller-owned recipe dependencies, preserving
-      transitive first demands and conditional dependency updates within the
-      existing normal-exit helper transport.
+- [x] Share caller-owned dependent lazy recipes through normal-exit helpers.
+      Preserve transitive/conditional demands, shared prerequisite identity,
+      caller-only dependents and bounded construction of recipe DAGs.
+- [ ] Extend shared demand state to recipe-local computed dependents,
+      statement-loop-local cells, nested memo boundaries and escaping completions.
+      Preserve fresh iteration lifetimes and selected updates through every completion.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
 - [x] Share normal continuations in noncanonical helper callers at graph

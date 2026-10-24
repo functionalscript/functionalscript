@@ -1,8 +1,9 @@
 /**
  * Select caller-owned lazy recipes before graph construction loses their
  * lexical definitions. Values keep their own loop-normalization boundary;
- * ordinary function bodies remain opaque. Cell order follows definitions,
- * and lazy reference aliases share their root's cell.
+ * ordinary function bodies remain opaque. Deferred prerequisites and computed
+ * dependents share the same caller-owned vector, in definition order; lazy
+ * reference aliases share their root's cell.
  *
  * @module
  *
@@ -23,6 +24,25 @@ const dependencies = (value, scope) => freeBindings({ statements: [], exit: ['yi
         const root = scope.get(binding)
         return root === undefined || root === null ? [] : [root]
     }).filter((root, i, roots) => roots.indexOf(root) === i)
+
+/**
+ * Keep recipes on both sides of a selected dependency in the same vector.
+ * Prerequisites preserve shared first demand; dependents cannot retain reads
+ * of definitions replaced by cells. Filtering the lexical inventory keeps
+ * slots stable regardless of which root first crosses a helper.
+ * @type {(roots: readonly _Root[], crossing: readonly _Root[]) => readonly _Root[]}
+ */
+const dependencyClosure = (roots, crossing) => {
+    let selected = crossing
+    while (true) {
+        const selectedRoots = new Set(selected)
+        const prerequisites = new Set(selected.flatMap(cell => cell.dependencies))
+        const expanded = roots.filter(root => selectedRoots.has(root) || prerequisites.has(root)
+            || root.dependencies.some(dependency => selectedRoots.has(dependency)))
+        if (expanded.length === selected.length) { return selected }
+        selected = expanded
+    }
+}
 
 /**
  * Nested ordinary loops may retain their own transfers. Crossing any helper
@@ -50,7 +70,8 @@ const normalTransfers = loop => {
  * Plan only definitions whose deferred identity crosses a statement helper.
  * Primitives and reads of established values retain the existing no-memo
  * classification. External lazy entries retain unavailable provenance through
- * aliases. Declaration rows keep lexical shadows distinct from earlier reads.
+ * aliases and recipes. Declaration rows keep lexical shadows distinct from
+ * earlier reads; selected external entries cannot become eager captures.
  * Unsupported lifetimes are refused before any recipe moves.
  * @type {(block: Block, externalLazyIds?: readonly BindingId[]) => MemoPlan | null}
  */
@@ -109,16 +130,12 @@ export const memoCells = (block, externalLazyIds = []) => {
         pending = children.reduceRight((tail, block) => ({ first: { block, index: 0, scope, ancestors }, tail }), /** @type {Link<_Visit> | null} */ (rest))
     }
     if (inventory.length === 0) { return null }
-    const cells = roots.filter(root => inventory.some(info => info.roots.includes(root)))
-    const recipes = cells.map(({ binding, source, dependencies }) => {
+    const cells = dependencyClosure(roots, roots.filter(root => inventory.some(info => info.roots.includes(root))))
+    const recipes = cells.map(({ binding, source }) => {
         if (source === null) { throw 'external lazy memo prerequisites require an owned initializer recipe' }
         if (source.insideLoop) { throw 'iteration-local memo cells require nested demand-state lowering' }
-        if (dependencies.length !== 0) { throw 'memo initializer dependencies require shared recipe lowering' }
         return { binding, initializer: source.definition[2], definition: source.definition }
     })
-    if (roots.some(root => root.dependencies.some(dependency => cells.includes(dependency)))) {
-        throw 'lazy computed memo dependents require shared recipe lowering'
-    }
     for (const info of inventory) {
         if (info.ancestors !== null) { throw 'nested memo helper boundaries require shared demand-state lowering' }
         normalTransfers(info.loop)

@@ -73,6 +73,173 @@ export const proof = /** @type {const} */ ({
         assertEq(result[0], result[1])
         assertStructurallySame(result[0], [])
     },
+    dependentReadyVector: () => {
+        const dependent = id(0)
+        const source = yielded(['array', [ref(output), ref(lazy), ref(dependent)]], [
+            ['define', lazy, ['array', [1]], 'lazy'],
+            ['define', dependent, ['array', [ref(lazy)]], 'lazy'], ['loop', counting(ref(dependent))],
+        ])
+        const normalized = normalizeMemo(source)
+        const initial = normalized.statements[0]
+        assert(initial[0] === 'define')
+        assertStructurallySame(initial[2], ['array', [['array', [false, undefined]], ['array', [false, undefined]]]])
+        const recipes = recipesIn(normalized)
+        assertEq(recipes.length, 2)
+        const recipe = recipes[1][1]
+        assertEq(recipe.parameters.length, 1)
+        const dependency = recipe.body.statements[0]
+        assert(dependency[0] === 'if')
+        assertStructurallySame(dependency[2], ['.', ['.', ref(recipe.parameters[0]), 0], 0])
+        const statement = normalized.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined && statement[0] === 'loop')
+        const loop = statement[1]
+        const conditional = loop.body.statements[1]
+        assert(conditional[0] === 'if')
+        const demand = conditional[4].statements[0]
+        assert(demand[0] === 'if')
+        assertStructurallySame(demand[2], ['.', ['.', ref(loop.parameters[1]), 1], 0])
+        const invocation = demand[4].statements[0]
+        assert(invocation[0] === 'define')
+        const call = invocation[2]
+        assert(call instanceof Array && call[0] === '()')
+        assertStructurallySame(call[2], [ref(loop.parameters[1])])
+        const exit = recipe.body.exit
+        assert(exit[0] === 'return')
+        assertEq(exit[1], recipe.target)
+        const packet = exit[2]
+        assert(packet instanceof Array && packet[0] === 'array')
+        const updated = packet[1][1]
+        assert(updated instanceof Array && updated[0] === 'array')
+        // Initializing the dependent must retain the vector returned by its
+        // dependency, including that dependency's newly ready cell.
+        assertStructurallySame(updated[1][0], ['.', ref(dependency[1][1]), 0])
+        const retained = updated[1][0]
+        assert(retained instanceof Array && retained[0] === '.')
+        const memoRead = retained[1]
+        assert(memoRead instanceof Array && memoRead[0] === 'ref')
+        assertEq(memoRead[1], dependency[1][1])
+        assert(memoRead[1] !== recipe.parameters[0])
+        assertStructurallySame(updated[1][1], ['array', [true, packet[1][0]]])
+        const result = evaluate(source)
+        assert(result instanceof Array && result[0] instanceof Array)
+        assertEq(result[0], result[2])
+        assertEq(result[0][0], result[1])
+    },
+    transitiveRecipeAliases: () => {
+        const firstAlias = id(0), second = id(0), secondAlias = id(0), third = id(0)
+        const source = yielded(['array', [ref(output), ref(third), ref(second), ref(lazy), ref(firstAlias)]], [
+            ['define', lazy, ['array', [1]], 'lazy'], ['define', firstAlias, ref(lazy), 'lazy'],
+            ['define', second, ['array', [ref(firstAlias)]], 'lazy'], ['define', secondAlias, ref(second), 'lazy'],
+            ['define', third, ['array', [ref(secondAlias), ref(firstAlias)]], 'lazy'], ['loop', counting(ref(third))],
+        ])
+        const normalized = normalizeMemo(source)
+        const initial = normalized.statements[0]
+        assert(initial[0] === 'define')
+        assertStructurallySame(initial[2], ['array', [
+            ['array', [false, undefined]], ['array', [false, undefined]], ['array', [false, undefined]],
+        ]])
+        const result = evaluate(source)
+        assert(result instanceof Array && result[0] instanceof Array && result[2] instanceof Array)
+        assertEq(result[0], result[1])
+        assertEq(result[0][0], result[2])
+        assertEq(result[0][1], result[3])
+        assertEq(result[2][0], result[3])
+        assertEq(result[3], result[4])
+        assertStructurallySame(result[3], [1])
+    },
+    conditionalDiamondGrowth: () => {
+        const sizes = [4, 8, 12].map(length => {
+            const cells = Array.from({ length }, () => id(0))
+            const definitions = cells.map((binding, index) => /** @type {Statement} */ (['define', binding,
+                index === 0 ? ['array', [0]] : ['?:', true, ['array', [ref(cells[index - 1])]], ['array', [ref(cells[index - 1])]]], 'lazy']))
+            const source = yielded(ref(output), [...definitions, ['loop', counting(ref(cells[length - 1]))]])
+            const normalized = normalizeMemo(source)
+            const recipes = recipesIn(normalized)
+            assertEq(recipes.length, length)
+            for (const [, recipe] of recipes) { assertEq(recipe.parameters.length, 1) }
+            return JSON.stringify(normalized).length
+        })
+        // Whole-vector updates grow quadratically; duplicated initializer
+        // diamonds would multiply the previous recipe at every layer.
+        assert(sizes[1] < sizes[0] * 5)
+        assert(sizes[2] < sizes[1] * 3)
+        assert(sizes[2] - sizes[1] <= 2 * (sizes[1] - sizes[0]))
+    },
+    conditionalRecipeDemand: () => {
+        const skipped = id(0), dependent = id(0)
+        for (const selected of [false, true]) {
+            const successful = yielded(['array', [ref(lazy)]])
+            const failed = yielded(ref(skipped))
+            const initializer = /** @type {Value} */ (['if', selected,
+                selected ? successful : failed, selected ? failed : successful,
+            ])
+            const source = yielded(['array', [ref(output), ref(dependent), ref(lazy)]], [
+                ['define', lazy, ['array', [5]], 'lazy'],
+                ['define', skipped, ['block', body(['throw', 'undemanded recipe'])], 'lazy'],
+                ['define', dependent, initializer, 'lazy'], ['loop', counting(ref(dependent))],
+            ])
+            const result = evaluate(source)
+            assert(result instanceof Array && result[0] instanceof Array)
+            assertEq(result[0], result[1])
+            assertEq(result[0][0], result[2])
+            assertStructurallySame(result[2], [5])
+        }
+    },
+    callerOwnedDependent: () => {
+        const dependent = id(0), before = id(0)
+        for (const early of [false, true]) {
+            const source = yielded(['array', [ref(output), ref(dependent), ref(dependent), early ? ref(before) : ref(lazy)]], [
+                ['define', lazy, ['array', [6]], 'lazy'], ['define', dependent, ['array', [ref(lazy)]], 'lazy'],
+                ...(early ? /** @type {readonly Statement[]} */ ([['define', before, ref(dependent), 'required']]) : []),
+                ['loop', counting(ref(lazy))],
+            ])
+            const result = evaluate(source)
+            assert(result instanceof Array && result[1] instanceof Array)
+            assertEq(result[1], result[2])
+            assertEq(result[1][0], result[0])
+            assertEq(result[3], early ? result[1] : result[0])
+            assertStructurallySame(result[0], [6])
+        }
+    },
+    recipeBlockLocalLazy: () => {
+        const dependent = id(0), local = id(0)
+        const initializer = /** @type {Value} */ (['block', yielded(['array', [ref(lazy), ref(local)]], [
+            ['define', local, ['array', [7]], 'lazy'],
+        ])])
+        const source = yielded(['array', [ref(output), ref(dependent), ref(lazy)]], [
+            ['define', lazy, ['array', [6]], 'lazy'], ['define', dependent, initializer, 'lazy'], ['loop', counting(ref(dependent))],
+        ])
+        const result = evaluate(source)
+        assert(result instanceof Array && result[0] instanceof Array)
+        assertEq(result[0], result[1])
+        assertEq(result[0][0], result[2])
+        assertStructurallySame(result[0][1], [7])
+    },
+    deepRecipeDependency: () => {
+        const dependent = id(0)
+        /** @type {Value} */
+        let initializer = ref(lazy)
+        // Two cells keep vector size fixed while twenty thousand recipe
+        // regions exercise the demand trampoline without quadratic packets.
+        for (let depth = 0; depth < 20_000; ++depth) { initializer = ['block', yielded(initializer)] }
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', []], 'lazy'], ['define', dependent, initializer, 'lazy'], ['loop', counting(ref(dependent))],
+        ])
+        const normalized = normalizeMemo(source)
+        const recipes = recipesIn(normalized)
+        assertEq(recipes.length, 2)
+        const recipe = recipes[1][1]
+        let current = recipe.body
+        for (let depth = 0; depth < 20_000; ++depth) {
+            const region = current.statements[0]
+            assert(region[0] === 'block')
+            assertEq(region[1].length, 2)
+            current = region[2]
+        }
+        const dependency = current.statements[0]
+        assert(dependency[0] === 'if')
+        assertStructurallySame(dependency[2], ['.', ['.', ref(recipe.parameters[0]), 0], 0])
+    },
     prerequisiteSnapshot: () => {
         const prerequisite = id(0), before = id(0)
         const source = yielded(['array', [ref(output), ref(before), ref(prerequisite)]], [
@@ -630,6 +797,13 @@ export const proof = /** @type {const} */ ({
         },
         operandComputedLazyDependent: () => {
             normalizeMemo(crossing(['block', body(['yield', [ref(alias)]], [['define', alias, ['array', [ref(lazy)]], 'lazy']])]))
+        },
+        recipeLocalComputedLazyDependent: () => {
+            const dependent = id(0), local = id(0)
+            const initializer = /** @type {Value} */ (['block', yielded(ref(local), [['define', local, ['array', [ref(lazy)]], 'lazy']])])
+            normalizeMemo(yielded(ref(output), [
+                ['define', lazy, ['array', []], 'lazy'], ['define', dependent, initializer, 'lazy'], ['loop', counting(ref(dependent))],
+            ]))
         },
         operandReturn: () => { normalizeMemo(crossing(['block', body(['return', functionTarget, ref(lazy)])])) },
         escapedReturn: () => {
