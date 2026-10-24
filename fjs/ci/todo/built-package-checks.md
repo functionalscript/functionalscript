@@ -1,4 +1,4 @@
-## Investigate installed CLI and npm package checks
+## Create a package test repository
 
 **Priority:** P3
 **Status:** open
@@ -18,23 +18,26 @@ FunctionalScript release, then runs it against the current source proofs.
 checks a tarball packed from the revision under test. Passing the former does
 not prove the CLI produced by the current revision works.
 
-This issue now investigates a replacement. The earlier plan to move package
-checks into the main CI jobs is superseded by the explicit deferral. Its
+The replacement belongs in a separate test repository in a different GitHub
+organization. The earlier plan to move package checks into the main CI jobs
+is superseded by the explicit deferral. Its
 rationale and prior installation findings remain available in
 [the prior revision](https://github.com/functionalscript/functionalscript/blob/4da35235c90519104738044ca4b7a9e9f7dea1c1/fjs/ci/todo/built-package-checks.md).
 
 ### Proposal
 
-Investigate a separate pipeline, potentially in another repository, that
-installs FunctionalScript from `main` and exercises it as a consumer would.
-The repository, trigger and installation method are choices to investigate,
-not an approved implementation design.
+Create a separate repository in a different GitHub organization whose CI
+tests the FunctionalScript package as a consumer would. Its CI can build a
+package from Git, including `main`, or install a package from npm. The separate
+repository and organization are part of the requested plan; their names,
+triggers, installation modes and test matrix remain to be selected.
 
 Keep the following distinctions explicit:
 
-- **Revision:** resolve `main` to an exact commit for each run and report that
-  commit. Checks of `main` give feedback after integration; they do not gate a
-  PR's proposed revision unless explicitly connected to that revision later.
+- **Revision:** for a Git run, resolve the requested ref (including `main`) to
+  an exact commit and report it. For an npm run, report the exact package
+  version. Checks of `main` give feedback after integration; they do not gate
+  a PR's proposed revision unless explicitly connected to that revision later.
 - **Installation source:** a Git dependency from `main`, an npm tarball packed
   from that commit, and a published registry version test different delivery
   paths. Choose which contract the pipeline establishes and verify the actual
@@ -48,32 +51,33 @@ Keep the following distinctions explicit:
   declarations, and relevant installation behavior across OSes and supported
   runtimes. Select the useful matrix rather than reproducing every source
   test on every platform by default.
-- **Feedback:** decide how failures identify the tested commit and reach
-  maintainers, and whether future package checks should gate publication.
+- **Feedback:** decide how failures identify the tested commit or package
+  version and reach maintainers.
 
 The current `package.json` emits declarations in `prepack`, so the chosen
 installation path must account for package preparation. The existing
 [consumer validation notes](../packed-consumer-validation.md) describe useful
 isolation and declaration checks to evaluate for reuse.
 
-Removing installed-package checks does not remove the in-repository FJS
-runner used by the Bun and SpiderMonkey suites, change npm publishing, or
-make package correctness an established property of source CI.
+Packing and releasing npm packages may continue in the source repository.
+Installed-package tests run in the separate test repository. The source CI
+continues to use its own FJS runner for Bun and SpiderMonkey; its source tests
+do not establish package correctness.
 
 ### Tasks
 
 - [ ] Record the installation checks disabled by the six-job migration and the
       coverage they leave deferred.
-- [ ] Compare a separate workflow with a separate consumer repository, including
-      setup time, maintenance and how it obtains the exact `main` revision.
+- [ ] Select the names and create a package-test repository in a different
+      GitHub organization.
 - [ ] Investigate Git installation from `main`, installing a tarball packed from
       that revision, and checking a published npm version; state what each proves.
 - [ ] Define a small consumer suite for the installed CLI, imports and emitted
       declarations, using an isolated consumer environment.
-- [ ] Choose OS/runtime coverage, triggers and failure reporting from the
-      investigation results.
-- [ ] Propose the replacement pipeline for review before implementation and
-      identify when the deferred checks can be restored.
+- [ ] Choose the installation modes, OS/runtime coverage, triggers and failure
+      reporting from the investigation results.
+- [ ] Implement the package-testing pipeline in that repository and verify that
+      it exercises the installed package in an isolated consumer environment.
 - [ ] Reconcile the package and integration-testing TODOs with that decision so
       they describe one installation-testing plan.
 

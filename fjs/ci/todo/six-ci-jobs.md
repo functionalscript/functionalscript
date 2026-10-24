@@ -35,12 +35,30 @@ runner; they do not require additional jobs or a 32-bit host OS.
 
 - Pure FJS covers V8 through Node, JavaScriptCore through Bun, and SpiderMonkey
   through its shell. Node uses its native test runner for coverage because
-  `fjs t` has no coverage support. Bun and SpiderMonkey use the repository's
+  `npm start t` has no coverage support. Bun and SpiderMonkey use the repository's
   own runner from the checked-out revision.
 - JS effects and host adapters use each runtime's native test runner:
   `node --test`, `deno test` and `bun test`, with the suite's required options
   and permissions. Each runs on Linux, macOS and Windows.
 - Type checking runs once, on Linux ARM64.
+
+Separate native-runner entry points select the proof set:
+
+| Entry point | Selected proofs | State |
+| --- | --- | --- |
+| `all.test.mjs` | FJS and host JS | Exists |
+| `fjs-only.mjs` (tentative name) | FJS only | TODO |
+| `js-only.mjs` (tentative name) | Host JS only | TODO |
+
+The repository command `fjs t`, including `npm start t`, must select only
+`.f.mjs` and `.f.js` files. Node's coverage run uses the FJS-only native entry;
+the OS/runtime effect checks use the JS-only native entry. Bun and SpiderMonkey
+continue to run the FJS suite through the repository runner.
+
+[Split FJS and JS runners](../../emergent_testing/todo/split-fjs-and-js-runners.md)
+owns that work. Settle the new filenames against native-runner discovery and
+explicit-selection behavior so a filtered invocation does not also run
+`all.test.mjs`.
 
 Define the test selection explicitly when splitting the suites. Every authored
 FJS proof must remain in each engine's FJS suite, and every applicable host
@@ -52,7 +70,7 @@ This deliberately covers native Rust on every listed OS/CPU pair and JS effects
 on every listed OS/runtime pair. It does not claim every JS runtime on both
 CPU architectures. Verify that the ARM jobs install native ARM64 runtimes.
 
-#### Deferred installation checks
+#### Retiring installation checks
 
 Remove the installed `fjs` check and the npm package-consumer check from this
 CI layout until a better solution is selected. This defers installation and
@@ -61,8 +79,10 @@ the Bun and SpiderMonkey FJS suites or the compiler checks.
 
 Track the replacement in
 [installed CLI and npm package checks](./built-package-checks.md), including
-the option of a separate pipeline in another repository installing from
-`main`. Publishing the npm package remains a separate concern.
+a separate test repository in a different GitHub organization. Its CI can
+test a package built from Git, including `main`, or installed from npm.
+Packing and releasing a package may continue in the source repository;
+testing the installed package is retired from this CI layout.
 
 #### Existing checks to preserve
 
@@ -112,7 +132,11 @@ duration; it does not require an additional job.
 ### Tasks
 
 - [x] Fold the former standalone WASM job into `ubuntu-arm`.
-- [ ] Define separate FJS and host-JS suite selection using existing discovery.
+- [ ] Complete [the runner split](../../emergent_testing/todo/split-fjs-and-js-runners.md):
+      restrict `fjs t` to `.f.mjs` and `.f.js`, and add FJS-only and JS-only
+      native-runner entries alongside the existing combined entry.
+- [ ] Run Node coverage through the FJS-only entry, following
+      [FJS-only coverage](../../emergent_testing/todo/coverage-over-fjs-only.md).
 - [ ] Restructure runtime steps so platform jobs share setup without duplicate
       installers or standalone Node, Deno and Bun jobs.
 - [ ] Assign the suites to the six jobs in the table; keep native and i686 Rust
@@ -120,7 +144,7 @@ duration; it does not require an additional job.
 - [ ] Retain compile validation, formatting and generation/drift checks in the
       six jobs.
 - [ ] Remove installed-CLI and npm package-consumer checks from this CI layout;
-      retain the replacement investigation in `built-package-checks.md`.
+      track the replacement test repository in `built-package-checks.md`.
 - [ ] Update workflow proofs and Smart CI cache classification for the new
       check ownership.
 - [ ] Measure the resulting jobs and adjust timeouts where needed.
@@ -142,7 +166,11 @@ well as execution time; they are not predictions for this revised allocation.
 ### Related
 
 - [Installed CLI and npm package checks](./built-package-checks.md) — replacement
-  investigation for the checks temporarily removed here.
+  in a test repository in a different organization.
+- [Split FJS and JS runners](../../emergent_testing/todo/split-fjs-and-js-runners.md)
+  — the test-selection prerequisite for this allocation.
+- [FJS-only coverage](../../emergent_testing/todo/coverage-over-fjs-only.md) —
+  preserve the coverage requirement using only FJS proofs under Node.
 - [CI integration tests](./ci-integration-tests.md) — consumer scenarios to
   reconcile with the installation-check investigation.
 - [Package-aware Deno and Bun steps](./ci-package-aware-deno-and-bun-steps.md) —
