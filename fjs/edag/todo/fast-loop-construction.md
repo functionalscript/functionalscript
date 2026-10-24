@@ -4,6 +4,8 @@
 **Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers and
 statement-level function returns are implemented; outer-loop transfers,
 operand completions and shared lazy demand-state transport remain in E
+**Current increment:** propagate resolved outer-loop breaks and continues through
+inner helpers, with deterministic function-local target IDs and caller-owned transitions.
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
