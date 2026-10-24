@@ -4,8 +4,6 @@
 **Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers and
 statement-level function returns and outer-loop transfers are implemented;
 operand completions and shared lazy demand-state transport remain in E
-**Current increment:** share normal continuations in noncanonical helper callers
-at graph construction; canonical-root continuation reconstruction remains separate.
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -135,7 +133,14 @@ enclosing helper. Normal-only loops and canonical invocation roots retain their
 previous paths. A root's inner returning helpers can introduce dispatch, while
 its terminal public result and direct self calls remain unwrapped.
 
-The shared terminal statement resolver handles changed nonroot function bodies.
+Graph-level normal/control joins handle noncanonical function bodies, replacing
+the former `loop/root.terminalFunction` expansion. Each normal join binds selected
+region results and constructs one shared following graph; terminal return/self
+call computations stay direct. Prefix/condition expression identities are shared
+between control and normal-result selection. No extra invocation or eager
+terminal completion product is introduced. The owning function target is retained
+for statement regions and reset at operand boundaries. Canonical invocation-root
+reconstruction retains its existing statement resolver for this increment.
 Ordinary nested function bodies and value operands are not traversed by this
 normalization. Payload computations remain ordinary evaluations; their broader
 tail-call eligibility belongs to F. Value-operand completions remain open.
@@ -197,6 +202,12 @@ task or AST object alone still reconstructs the suffix in each branch. A
 continuation function would add an invocation and can create recursive call
 cycles; wrapping returned self calls in eager completion payloads would remove
 their direct tail position. Keep terminal public results and self calls direct.
+
+Noncanonical helper callers now use such graph-level joins rather than expanding
+normal continuations in FAST. Their following graph is constructed once even
+when several normal exits reach it. The canonical-root reproduction above is
+still open; migrate its specialized reconstruction without changing the named
+exact-graph domain in a following increment.
 
 Normalized loop bodies already have explicit transfers and no implicit
 fallthrough. A reached loop-body `yield` violates that precondition and is
@@ -309,6 +320,10 @@ their documented normalization. Repeated conversions must stabilize.
       iteration-local cells without changing public loop signatures.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
+- [x] Share normal continuations in noncanonical helper callers at graph
+      construction, retaining direct terminal values and selected required work.
+- [ ] Extend the graph join to canonical invocation-root reconstruction and
+      close the measured mixed-region suffix-growth case above.
 - [ ] Keep the existing scalar shape; pin deterministic general state/capture
       ordering and stable repeated conversions.
 - [ ] **F integration:** With shared emission, run repeated nested loops without

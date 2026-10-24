@@ -33,13 +33,12 @@ This resolver performs its own targeted break or continue without wrapping the
 root's public results or self calls; intermediate helpers return to their caller
 before that dispatch.
 
-`terminalFunction` shares the statement resolver with ordinary functions whose
-loop-completion dispatches introduce early returns. It preserves the function's
-target, parameters, rest binding, captures and self. Only a selected normal
-result region resumes its following statements; a targeted return supplies
-the function result directly. Normal one-value yields remain scalar, and zero
-or multiple values use their ordered array. The resolver does not cross value
-operands or ordinary nested function bodies.
+Noncanonical function bodies now use the graph constructor's normal/control
+joins directly. The former `terminalFunction` expansion is retired with that
+consumer. This invocation-root resolver keeps its existing reconstruction path;
+its mixed-region continuation-growth case remains open until the root path also
+uses graph-level joins. It does not cross value operands or ordinary nested
+function bodies.
 
 Normalized loop bodies require an explicit `continue`, `break`, owning
 `return` or failure on every reached path. `yield` supplies an inner result
