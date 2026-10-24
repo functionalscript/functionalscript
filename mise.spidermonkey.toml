@@ -1,0 +1,22 @@
+# Opt in with `mise -E spidermonkey install`; see doc/mise-trial/README.md.
+[tools."http:spidermonkey"]
+version = "140.14.0"
+bin_path = "."
+# Publisher checksums are resolved into mise.spidermonkey.lock by `mise lock`.
+checksum_url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/SHA256SUMS"
+
+[tools."http:spidermonkey".platforms]
+linux-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/jsshell/jsshell-linux-x86_64.zip" }
+linux-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/jsshell/jsshell-linux-aarch64.zip" }
+macos-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/jsshell/jsshell-mac.zip" }
+macos-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/jsshell/jsshell-mac.zip" }
+windows-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/jsshell/jsshell-win64.zip" }
+windows-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/jsshell/jsshell-win64-aarch64.zip" }
+
+[env]
+# Mozilla bundles NSPR next to js on Linux, without an RPATH in js. Keep all
+# archive companions in place and expose their directory to the ELF loader.
+LD_LIBRARY_PATH = { value = "{% if os() == 'linux' and tools['http:spidermonkey'] is defined %}{{ tools['http:spidermonkey'].path }}{% if env.LD_LIBRARY_PATH is defined and env.LD_LIBRARY_PATH != '' %}:{{ env.LD_LIBRARY_PATH }}{% endif %}{% else %}{{ env.LD_LIBRARY_PATH | default(value='') }}{% endif %}", tools = true }
+
+[tasks.spidermonkey-test]
+run = "npm run sm t"
