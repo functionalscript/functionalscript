@@ -1,7 +1,7 @@
 ## Investigate mise and Pixi as Nix alternatives
 
 **Priority:** P3
-**Status:** wip — Pixi development-environment trial
+**Status:** wip — pixi CI migration stacked on #3260
 
 ### Problem
 
