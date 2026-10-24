@@ -14,8 +14,8 @@ import { sqrt } from '../../types/prime_field/module.f.mjs'
 import { curve, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
-import { demo, outgoing, parseHexField, received, signed } from './demo.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { demo, nonceReuse, outgoing, parseHexField, received, signed } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
@@ -71,6 +71,11 @@ const click = (state, name) => next(state, { kind: 'click', name })
 const input = (state, name, value) => next(state, { kind: 'input', name, value })
 /** @type {(state: DemoState) => string} */
 const view = state => htmlToString(demo.view(state))
+
+/** Extract Bob's OpenSSL section for snapshot comparisons.
+ * @type {(state: DemoState) => string}
+ */
+const opensslSection = state => view(state).split('Run in Bash')[1].split('Why nonce reuse')[0]
 
 export const proof = {
     bits2int: () => {
@@ -703,6 +708,66 @@ export const proof = {
         signSZero: () => sign(toy4)(sha256)(1n)(utf8("14")),
     },
     demo: {
+        interactiveNonceReuse: () => {
+            const delivered = click(click(demo.init, 'send'), 'forward')
+            const changed = input(input(input(input(delivered, 'reuse-key', 'abc'), 'reuse-nonce', '9'), 'reuse-message1', 'hello'), 'reuse-message2', 'Привіт')
+            assertStructurallySame(changed.reuse, { key: 'abc', nonce: '9', message1: 'hello', message2: 'Привіт' })
+            assertEq(changed.bob, delivered.bob)
+            assertEq(changed.eve, delivered.eve)
+            assertStructurallySame(signed(changed), signed(delivered))
+            const output = unwrap(nonceReuse(changed.reuse))
+            assertEq(unwrap(output.recovered), 0xabcn)
+            const html = view(changed)
+            for (const field of ['reuse-key', 'reuse-nonce', 'reuse-message1', 'reuse-message2']) {
+                assert(html.includes(`name="${field}"`))
+            }
+            assert(html.includes('Matches original demo private key: true.'))
+            assert(html.includes('0000000000000000000000000000000000000000000000000000000000000abc'))
+            const same = input(changed, 'reuse-message2', 'hello')
+            const sameHtml = view(same)
+            assert(sameHtml.includes('denominator is zero'))
+            assert(sameHtml.includes('Copy message 1 signature'))
+            assert(sameHtml.includes('Copy message 2 signature'))
+            assert(!sameHtml.includes('Copy recovered private key'))
+            assert(view(input(changed, 'reuse-nonce', '0')).includes('The shared nonce must be at least 1'))
+            assert(view(input(changed, 'reuse-key', 'xyz')).includes('Enter the demo private key as hexadecimal digits.'))
+        },
+        nonceReuseValidation: () => {
+            for (const [field, value, expected] of [
+                ['key', '', 'demo private key'],
+                ['key', 'f'.repeat(65), 'at most 64'],
+                ['nonce', 'xyz', 'shared nonce'],
+                ['nonce', 'f'.repeat(65), 'at most 64'],
+            ]) {
+                const message = assertError(nonceReuse({ ...demo.init.reuse, [field]: value }))
+                assert(message.includes(expected))
+            }
+            const long = 'a'.repeat(Number(maxLengthBytes) + 1)
+            for (const field of ['message1', 'message2']) {
+                const message = assertError(nonceReuse({ ...demo.init.reuse, [field]: long }))
+                assert(message.includes('Each message must be at most'))
+            }
+            assertEq(unwrap(nonceReuse({ ...demo.init.reuse, message1: '' })).recovered[0], 'ok')
+        },
+        opensslSnapshot: () => {
+            const sent = click(demo.init, 'send')
+            assert(!view(sent).includes('Copy OpenSSL command'))
+            const delivered = click(sent, 'forward')
+            const html = view(delivered)
+            assert(html.includes('Copy OpenSSL command'))
+            assert(html.includes('BEGIN PUBLIC KEY'))
+            assert(html.includes('openssl dgst -sha256 -verify'))
+            assert(!html.includes('BEGIN PRIVATE KEY'))
+            // Compare the whole OpenSSL section after editing both workspaces.
+            const changed = input(input(input(delivered, 'message', 'new draft'), 'curve', 'P-521 (secp521r1)'), 'eve-message', 'new interception')
+            assertEq(opensslSection(changed), opensslSection(delivered))
+            assertEq(opensslSection(click(changed, 'send')), opensslSection(delivered))
+            const nul = click(click({ ...demo.init, message: 'a\u0000b' }, 'send'), 'forward')
+            assert(view(nul).includes('POSIX shell arguments cannot contain NUL'))
+            assert(!view(nul).includes('Copy OpenSSL command'))
+            assert(html.includes('Why nonce reuse reveals the private key'))
+            assert(html.includes('0000000000000000000000000000000000000000000000000000000012345678'))
+        },
         init: () => {
             const signature = unwrap(signed(demo.init))
             assertEq(signature.r, 0xefd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716n)

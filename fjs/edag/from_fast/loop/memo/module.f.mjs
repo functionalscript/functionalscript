@@ -20,6 +20,8 @@ import { memoCells } from './cells/module.f.mjs'
 const binding = (index = 0) => ({ index })
 /** @type {(id: BindingId) => Value} */
 const ref = id => ['ref', id]
+/** A source binder shadows only this region's active aliases. @type {(aliases: ReadonlyMap<BindingId, number>, bindings: readonly BindingId[]) => ReadonlyMap<BindingId, number>} */
+const withoutAliases = (aliases, bindings) => new Map([...aliases].filter(([id]) => !bindings.includes(id)))
 /** @type {<T>(value: T) => _Task<T>} */
 const done = value => ({ kind: 'done', value })
 /** @type {<T>(run: () => _Task<T>) => _Task<T>} */
@@ -88,19 +90,39 @@ const valuesTask = (input, context) => {
     return each(0, null, context.memo)
 }
 
-/** One first demand establishes the cell; all later demands reuse its payload. @type {(index: number, context: _Context) => _Value} */
+/**
+ * Snapshot established prerequisites at the original lazy declaration. The
+ * explicit memo input and pair result leave the source recipe deferred.
+ * @type {(index: number, context: _Context) => _Task<FastFunction>}
+ */
+const recipeFunction = (index, context) => call(() => {
+    const source = context.plan.cells[index]
+    const memo = binding(source.binding.index)
+    const initialized = binding(source.binding.index)
+    const target = /** @type {const} */ ({ kind: 'function', index: source.binding.index })
+    return bind(valueTask(source.initializer, { ...context, memo, loop: null, operand: false }), recipe => {
+        const updated = /** @type {Value} */ (['array', context.plan.cells.map((_, slot) => slot === index
+            ? ['array', [true, ref(initialized)]] : ['.', ref(recipe.memo), slot])])
+        const body = /** @type {Block} */ ({
+            statements: toArray(concat(recipe.statements)([['define', initialized, recipe.value, 'required']])),
+            exit: ['return', target, ['array', [ref(initialized), updated]]],
+        })
+        return done({ target, parameters: [memo], rest: null, self: null,
+            captures: freeBindings(body, [memo]).map(id => ({ binding: id, value: ref(id) })), body })
+    })
+})
+
+/** One first demand invokes the declaration's recipe; hits reuse its payload. @type {(index: number, context: _Context) => _Value} */
 const demand = (index, context) => {
     const value = binding()
     const memo = binding()
     const initialized = binding()
-    const source = context.plan.cells[index]
     const cell = /** @type {Value} */ (['.', ref(context.memo), index])
-    const updated = /** @type {Value} */ (['array', context.plan.cells.map((_, slot) => slot === index
-        ? ['array', [true, ref(initialized)]] : ['.', ref(context.memo), slot])])
     return {
         statements: [['if', [value, memo], ['.', cell, 0],
             { statements: [], exit: ['yield', [['.', cell, 1], ref(context.memo)]] },
-            { statements: [['define', initialized, source.initializer, 'required']], exit: ['yield', [ref(initialized), updated]] },
+            { statements: [['define', initialized, ['()', ref(context.recipes[index]), [ref(context.memo)]], 'required']],
+                exit: ['yield', [['.', ref(initialized), 0], ['.', ref(initialized), 1]]] },
         ]],
         value: ref(value), memo, usesMemo: true,
     }
@@ -203,7 +225,7 @@ const loopTask = (loop, context) => call(() => {
     const outputMemo = binding(loop.target.index)
     const target = /** @type {const} */ ({ kind: 'loop', index: loop.target.index })
     return bind(valuesTask(loop.initial, context), initial =>
-        bind(blockTask(loop.body, { ...context, memo, loop: { source: loop.target, target }, operand: false }), body => {
+        bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), memo, loop: { source: loop.target, target }, operand: false }), body => {
             const internal = /** @type {Loop} */ ({
                 target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: [result, outputMemo],
                 body: { statements: [
@@ -237,31 +259,42 @@ const blockTask = (block, context) => {
         }
         const statement = block.statements[index]
         if (statement[0] === 'define') {
+            const shadowed = withoutAliases(aliases, [statement[1]])
             if (statement[3] === 'lazy') {
-                if (aliases.has(statement[1])) { return resume(null, memo, true, false) }
+                const selected = context.plan.definitions.get(statement)
+                if (selected !== undefined) {
+                    const active = new Map([...shadowed, [statement[1], selected]])
+                    if (context.plan.cells[selected].definition === statement) {
+                        return bind(recipeFunction(selected, current), fn => resume(
+                            [['define', context.recipes[selected], ['function', fn], 'required']], memo, true, false, true, active))
+                    }
+                    return resume(null, memo, true, false, true, active)
+                }
                 const initializer = statement[2]
                 const root = initializer instanceof Array && initializer[0] === 'ref' ? aliases.get(initializer[1]) : undefined
-                if (root !== undefined) { return resume(null, memo, true, false, true, new Map([...aliases, [statement[1], root]])) }
+                if (root !== undefined) { return resume(null, memo, true, false, true, new Map([...shadowed, [statement[1], root]])) }
                 if (freeBindings({ statements: [], exit: ['yield', [initializer]] }).some(id => aliases.has(id))) {
                     throw 'computed lazy memo dependencies require their own demand cells'
                 }
-                return resume([statement], memo, false, false)
+                return resume([statement], memo, false, false, true, shadowed)
             }
             return bind(valueTask(statement[2], current), value => resume(concat(value.statements)([
                 value.value === statement[2] ? statement : ['define', statement[1], value.value, statement[3]],
-            ]), value.memo, value.value !== statement[2] || value.statements !== null, value.usesMemo))
+            ]), value.memo, value.value !== statement[2] || value.statements !== null, value.usesMemo, true, shadowed))
         }
         if (statement[0] === 'loop') {
-            return bind(loopTask(statement[1], current), loop => resume(loop.statements, loop.memo, context.plan.loops.has(statement[1]) || loop.usesMemo, loop.usesMemo))
+            return bind(loopTask(statement[1], current), loop => resume(loop.statements, loop.memo,
+                context.plan.loops.has(statement[1]) || loop.usesMemo, loop.usesMemo, true, withoutAliases(aliases, statement[1].results)))
         }
         if (statement[0] === 'block') {
             return bind(blockTask(statement[2], current), result => {
                 if (result.normal && result.memo !== memo) {
                     const nextMemo = binding()
-                    return resume([['block', [...statement[1], nextMemo], memoResult(result)]], nextMemo, true, result.usesMemo)
+                    return resume([['block', [...statement[1], nextMemo], memoResult(result)]], nextMemo, true, result.usesMemo,
+                        true, withoutAliases(aliases, statement[1]))
                 }
                 return resume([result.block === statement[2] ? statement : ['block', statement[1], result.block]], memo,
-                    result.block !== statement[2], result.usesMemo, result.normal)
+                    result.block !== statement[2], result.usesMemo, result.normal, withoutAliases(aliases, statement[1]))
             })
         }
         return bind(valueTask(statement[2], current), test =>
@@ -274,7 +307,7 @@ const blockTask = (block, context) => {
                         : test.value === statement[2] && then.block === statement[3] && otherwise.block === statement[4] ? statement
                             : ['if', statement[1], test.value, then.block, otherwise.block])
                     return resume(concat(test.statements)([mapped]), nextMemo, mapped !== statement || test.statements !== null,
-                        test.usesMemo || then.usesMemo || otherwise.usesMemo, then.normal || otherwise.normal)
+                        test.usesMemo || then.usesMemo || otherwise.usesMemo, then.normal || otherwise.normal, withoutAliases(aliases, statement[1]))
                 })))
     })
     return each(0, null, context.memo, context.aliases, false, false)
@@ -283,14 +316,16 @@ const blockTask = (block, context) => {
 /**
  * Normalize only local lazy values that actually cross a statement-loop helper.
  * The original block identity is returned when no such cells exist. Generated
- * required cells make repeated normalization a no-op.
- * @type {(root: Block) => Block}
+ * required cells make repeated normalization a no-op. External lazy bindings
+ * have no available recipe and remain explicit admission boundaries.
+ * @type {(root: Block, externalLazyIds?: readonly BindingId[]) => Block}
  */
-export const normalizeMemo = root => {
-    const plan = memoCells(root)
+export const normalizeMemo = (root, externalLazyIds = []) => {
+    const plan = memoCells(root, externalLazyIds)
     if (plan === null) { return root }
     const memo = binding()
-    const context = /** @type {_Context} */ ({ plan, aliases: plan.aliases, memo, loop: null, operand: false })
+    const recipes = plan.cells.map(cell => binding(cell.binding.index))
+    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), recipes, memo, loop: null, operand: false })
     const result = run(blockTask(root, context))
     const initializer = /** @type {Value} */ (['array', plan.cells.map(() => ['array', [false, undefined]])])
     return { statements: [['define', memo, initializer, 'required'], ...result.block.statements], exit: result.block.exit }

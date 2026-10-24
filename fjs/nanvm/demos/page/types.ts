@@ -69,11 +69,13 @@ export type JsRun = Run & {
 /**
  * The WASM run, and the module's linear memory size after it, in bytes:
  * the size so far, since linear memory never shrinks, and every sample the
- * page has loaded shares it.
+ * page has loaded shares it. `growth` is how much of it the run itself
+ * added, from just before `run_sample` to just after.
  */
 export type WasmRun = {
     readonly run: Run
     readonly memory: number
+    readonly growth: number
 }
 
 /** Both runs of one press of Run, or why one could not happen. */

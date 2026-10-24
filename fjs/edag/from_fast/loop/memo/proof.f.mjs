@@ -1,6 +1,6 @@
 /**
  * Memo normalization keeps a caller's first-demand value across loop helpers.
- * @import { BindingId, Block, Exit, Loop, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
@@ -42,6 +42,10 @@ const crossing = (value = ref(lazy), recipe = ['array', []]) => yielded(['array'
 /** @type {(block: Block) => unknown} */
 const evaluate = block => assertOk(toData(assertOk(memo(assertOk(identityAnalysis(fromFast(normalizeMemo(block)))))({ args: [] }))))
 
+/** @type {(block: Block) => readonly (readonly [BindingId, FastFunction])[]} */
+const recipesIn = block => block.statements.flatMap(statement => statement[0] === 'define'
+    && statement[2] instanceof Array && statement[2][0] === 'function' ? [/** @type {const} */ ([statement[1], statement[2][1]])] : [])
+
 export const proof = /** @type {const} */ ({
     unchanged: () => {
         const empty = yielded(1)
@@ -69,6 +73,139 @@ export const proof = /** @type {const} */ ({
         assertEq(result[0], result[1])
         assertStructurallySame(result[0], [])
     },
+    prerequisiteSnapshot: () => {
+        const prerequisite = id(0), before = id(0)
+        const source = yielded(['array', [ref(output), ref(before), ref(prerequisite)]], [
+            ['define', prerequisite, ['array', [1]], 'required'], ['define', before, ref(prerequisite), 'required'],
+            ['define', lazy, ['array', [ref(prerequisite)]], 'lazy'],
+            ['define', prerequisite, ['array', [2]], 'required'], ['loop', counting(ref(lazy))],
+        ])
+        const result = evaluate(source)
+        assert(result instanceof Array && result[0] instanceof Array)
+        assertEq(result[0][0], result[1])
+        assert(result[1] !== result[2])
+        assertStructurallySame(result[1], [1])
+        assertStructurallySame(result[2], [2])
+    },
+    selectedDeclarationActivation: () => {
+        const before = id(0)
+        const source = yielded(['array', [ref(before), ref(output), ref(lazy)]], [
+            ['define', lazy, 10, 'required'], ['define', before, ref(lazy), 'required'],
+            ['define', lazy, ['array', [20]], 'lazy'], ['loop', counting(ref(lazy))],
+        ])
+        const result = evaluate(source)
+        assert(result instanceof Array)
+        assertEq(result[0], 10)
+        assertEq(result[1], result[2])
+        assertStructurallySame(result[1], [20])
+        const initializerShadow = yielded(ref(output), [
+            ['define', lazy, 9, 'required'], ['define', lazy, ['array', [ref(lazy)]], 'lazy'], ['loop', counting(ref(lazy))],
+        ])
+        assertStructurallySame(evaluate(initializerShadow), [9])
+    },
+    aliasDeclarationActivation: () => {
+        const before = id(0), saved = id(0)
+        const source = yielded(['array', [ref(before), ref(output), ref(saved), ref(alias), ref(lazy)]], [
+            ['define', lazy, ['array', [5]], 'lazy'], ['define', alias, 10, 'required'], ['define', before, ref(alias), 'required'],
+            ['define', alias, ref(lazy), 'lazy'], ['loop', counting(ref(alias))],
+            ['define', saved, ref(alias), 'required'], ['define', alias, 21, 'required'],
+        ])
+        const result = evaluate(source)
+        assert(result instanceof Array)
+        assertEq(result[0], 10)
+        assertEq(result[1], result[2])
+        assertEq(result[1], result[4])
+        assertEq(result[3], 21)
+        assertStructurallySame(result[1], [5])
+    },
+    requiredAndLazyShadows: () => {
+        for (const mode of /** @type {const} */ (['required', 'lazy'])) {
+            const source = yielded(['array', [ref(output), ref(lazy)]], [
+                ['define', lazy, ['array', [5]], 'lazy'], ['loop', counting(ref(lazy))], ['define', lazy, ['array', [9]], mode],
+            ])
+            const result = evaluate(source)
+            assert(result instanceof Array)
+            assert(result[0] !== result[1])
+            assertStructurallySame(result[0], [5])
+            assertStructurallySame(result[1], [9])
+        }
+        const initializer = yielded(['array', [ref(output), ref(lazy)]], [
+            ['define', lazy, ['array', [5]], 'lazy'], ['loop', counting(ref(lazy))],
+            ['define', lazy, ['array', [ref(lazy)]], 'required'],
+        ])
+        const result = evaluate(initializer)
+        assert(result instanceof Array && result[1] instanceof Array)
+        assertEq(result[1][0], result[0])
+    },
+    regionResultShadows: () => {
+        const block = yielded(['array', [ref(output), ref(lazy)]], [
+            ['define', lazy, ['array', [5]], 'lazy'], ['loop', counting(ref(lazy))],
+            ['block', [lazy], yielded(['.', ref(lazy), 0])],
+        ])
+        const result = evaluate(block)
+        assert(result instanceof Array)
+        assertStructurallySame(result[0], [5])
+        assertEq(result[1], 5)
+        for (const selected of [false, true]) {
+            const source = yielded(['array', [ref(output), ref(lazy)]], [
+                ['define', lazy, ['array', [5]], 'lazy'], ['loop', counting(ref(lazy))],
+                ['if', [lazy], selected, yielded(['+', ['.', ref(lazy), 0], 1]), yielded(['+', ['.', ref(lazy), 0], 2])],
+            ])
+            const value = evaluate(source)
+            assert(value instanceof Array)
+            assertStructurallySame(value[0], [5])
+            assertEq(value[1], selected ? 6 : 7)
+        }
+    },
+    branchShadowRestoration: () => {
+        const branchResult = id(0)
+        for (const selected of [false, true]) {
+            const source = yielded(['array', [ref(output), ref(branchResult), ref(lazy)]], [
+                ['define', lazy, ['array', [5]], 'lazy'], ['loop', counting(ref(lazy))],
+                ['if', [branchResult], selected,
+                    yielded(ref(lazy), [['define', lazy, 9, 'required']]), yielded(ref(lazy))],
+            ])
+            const result = evaluate(source)
+            assert(result instanceof Array)
+            assertEq(result[0], result[2])
+            assertEq(result[1], selected ? 9 : result[0])
+        }
+        const source = yielded(['array', [ref(output), ref(branchResult), ref(lazy)]], [
+            ['define', lazy, ['array', [5]], 'lazy'], ['loop', counting(ref(lazy))],
+            ['block', [branchResult], yielded(ref(lazy), [['define', lazy, 9, 'required']])],
+        ])
+        const result = evaluate(source)
+        assert(result instanceof Array)
+        assertEq(result[0], result[2])
+        assertEq(result[1], 9)
+    },
+    loopBindingShadows: () => {
+        const second = id(0), secondOutput = id(0)
+        const secondTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const selected = /** @type {Loop} */ ({
+            target: secondTarget, parameters: [lazy], initial: [9], results: [secondOutput],
+            body: body(['break', secondTarget, [['array', [ref(lazy), ref(second)]]]]),
+        })
+        const source = yielded(['array', [ref(output), ref(secondOutput), ref(lazy), ref(second)]], [
+            ['define', lazy, ['array', [5]], 'lazy'], ['define', second, ['array', [7]], 'lazy'],
+            ['loop', counting(ref(lazy))], ['loop', selected],
+        ])
+        const result = evaluate(source)
+        assert(result instanceof Array && result[1] instanceof Array)
+        assertEq(result[0], result[2])
+        assertEq(result[1][0], 9)
+        assertEq(result[1][1], result[3])
+        const neutral = /** @type {Loop} */ ({
+            target: secondTarget, parameters: [], initial: [], results: [lazy], body: body(['break', secondTarget, [11]]),
+        })
+        const resultShadow = yielded(['array', [ref(output), ref(lazy)]], [
+            ['define', lazy, ['array', [5]], 'lazy'], ['loop', counting(ref(lazy))], ['loop', neutral],
+        ])
+        const value = evaluate(resultShadow)
+        assert(value instanceof Array)
+        assertStructurallySame(value[0], [5])
+        assertEq(value[1], 11)
+    },
     aliasIdentity: () => {
         const source = yielded(['array', [ref(output), ref(alias), ref(lazy)]], [
             ['define', lazy, ['array', [3]], 'lazy'], ['define', alias, ref(lazy), 'lazy'], ['loop', counting(ref(alias))],
@@ -91,6 +228,19 @@ export const proof = /** @type {const} */ ({
         assert(initial[0] === 'define')
         assertEq(initial[3], 'required')
         assertStructurallySame(initial[2], ['array', [['array', [false, undefined]], ['array', [false, undefined]]]])
+        const recipes = recipesIn(normalized)
+        assertEq(recipes.length, 2)
+        for (const [, recipe] of recipes) { assertEq(recipe.parameters.length, 1) }
+        const recipe = recipes[1][1]
+        const returned = recipe.body.exit
+        assert(returned[0] === 'return')
+        assertEq(returned[1], recipe.target)
+        const packet = returned[2]
+        assert(packet instanceof Array && packet[0] === 'array')
+        const ready = packet[1][1]
+        assert(ready instanceof Array && ready[0] === 'array')
+        assertStructurallySame(ready[1][0], ['.', ref(recipe.parameters[0]), 0])
+        assertStructurallySame(ready[1][1], ['array', [true, packet[1][0]]])
         const loops = normalized.statements.flatMap(statement => statement[0] === 'loop' ? [statement[1]] : [])
         assertEq(loops.length, 1)
         const carried = loops[0]
@@ -103,6 +253,18 @@ export const proof = /** @type {const} */ ({
         assertEq(unpacked[1], state)
         assertEq(unpacked[3], 'required')
         assertStructurallySame(unpacked[2], ['.', ref(carried.parameters[0]), 0])
+        const conditional = carried.body.statements[1]
+        assert(conditional[0] === 'if')
+        const demand = conditional[4].statements[0]
+        assert(demand[0] === 'if')
+        const invocation = demand[4].statements[0]
+        assert(invocation[0] === 'define')
+        const call = invocation[2]
+        assert(call instanceof Array && call[0] === '()')
+        const callee = call[1]
+        assert(callee instanceof Array && callee[0] === 'ref')
+        assertEq(callee[1], recipes[1][0])
+        assertStructurallySame(call[2], [ref(carried.parameters[1])])
         const projection = normalized.statements.find(statement => statement[0] === 'define' && statement[1] === output)
         assert(projection !== undefined && projection[0] === 'define')
         assertEq(projection[3], 'required')
@@ -322,8 +484,8 @@ export const proof = /** @type {const} */ ({
             ['define', lazy, ['array', [4]], 'lazy'], pure, local, ['loop', counting(ref(lazy))],
         ])
         const normalized = normalizeMemo(source)
-        assertEq(normalized.statements[1], pure)
-        const region = normalized.statements[2]
+        assertEq(normalized.statements[2], pure)
+        const region = normalized.statements[3]
         assert(region[0] === 'block')
         assertEq(region[1].length, 0)
         assertEq(region[2].statements.length, 0)
@@ -425,7 +587,7 @@ export const proof = /** @type {const} */ ({
         for (let depth = 0; depth < 20_000; ++depth) { region = body(['yield', []], [['block', [], region]]) }
         const source = yielded(0, [['define', lazy, ['array', []], 'lazy'], ['block', [], region]])
         const normalized = normalizeMemo(source)
-        const outer = normalized.statements[1]
+        const outer = normalized.statements[2]
         assert(outer[0] === 'block')
         assertEq(outer[1].length, 1)
         let current = outer[2]
