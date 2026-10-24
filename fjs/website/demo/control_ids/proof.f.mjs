@@ -54,6 +54,22 @@ export const proof = /** @type {const} */ ({
         assert(html.includes('type="text" name="text"'))
         assert(html.includes('name="run"'))
     },
+    caseInsensitiveRadios: () => {
+        /** @type {Element} */
+        const view = ['div',
+            ['INPUT', { type: 'Radio', name: 'mode', value: 'x' }],
+            ['Input', { type: 'RADIO', name: 'mode', value: 'y' }],
+            ['INPUT', { name: 'text' }],
+        ]
+        const first = htmlToString(scopeIds('first')(view))
+        const second = htmlToString(scopeIds('second')(view))
+        assertEq(first.split('name="demo-control:5:first:mode"').length - 1, 2)
+        assertEq(second.split('name="demo-control:6:second:mode"').length - 1, 2)
+        assertEq(first.split('data-demo-event-name="mode"').length - 1, 2)
+        assert(first.includes('name="text"'))
+        assert(!first.includes(' name="mode"'))
+        assert(!second.includes(' name="mode"'))
+    },
     instancesAndViews: () => {
         /** @type {Element} */
         const initial = ['input', { id: 'same', name: 'same' }]

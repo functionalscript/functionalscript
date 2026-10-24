@@ -72,7 +72,7 @@ export const scopeIds = scope => {
         const element = value => {
             const [tag, attributes, children] = parseElement(value)
             const { type, name } = attributes
-            const radio = tag === 'input' && type === 'radio' && name !== undefined
+            const radio = tag.toLowerCase() === 'input' && type?.toLowerCase() === 'radio' && name !== undefined
             return [tag, {
                 ...fromEntries(definedEntries(attributes).map(attribute)),
                 ...(radio ? { name: scoped(name), [eventNameMarker]: name } : {}),
