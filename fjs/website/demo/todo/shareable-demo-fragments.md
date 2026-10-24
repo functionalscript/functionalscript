@@ -91,7 +91,7 @@ outside this proposal.
       browser runtime. Keep demo update/view logic independent of browser APIs.
 - [ ] Add the shared "Copy demo link" button and clear feedback, including
       malformed links, unavailable clipboard access, and oversized input.
-- [ ] Integrate with [section fragments](../../todo/url-fragments.md) so a
+- [ ] Integrate with [section fragments](../../README.md#section-links) so a
       shared link reveals Demo and scrolls after restoration.
 - [ ] Migrate existing demos, including text demos and demos with several
       controls; retain explicit Run actions where required.
@@ -109,7 +109,7 @@ outside this proposal.
 
 ### Related
 
-- [Link to page sections with URL fragments](../../todo/url-fragments.md)
+- [Section links](../../README.md#section-links)
   — supplies the Demo target and navigation behavior.
 - [`examplePicker`](../examples/module.f.js) — derives example selection
   from source text rather than storing a second selection value.

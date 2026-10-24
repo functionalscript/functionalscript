@@ -35,6 +35,34 @@ that issue's concern, for automated runners. Module pages do not depend on it,
 and moving the site under such a root would break every fetch they make — so
 the two are separate, and this one is not quietly migrated into the other.
 
+## Section links
+
+Generated module pages expose `#demo` and `#emergent-testing` targets. README
+headings keep their GitHub-style IDs, including numeric suffixes for repeated
+headings. The page reserves `demo`, `emergent-testing`, `directory-drawer`, and
+`drawer-title`; a conflicting README heading gets the first available numeric
+suffix. Empty heading slugs start at `section`. Heading text is unchanged. Existing collisions between documentation headings
+and demo control IDs are tracked separately in
+[control-id-collisions](./demo/todo/control-id-collisions.md).
+
+A native permalink beside each documentation or main section heading works
+without JavaScript. Once the shared fragment runtime binds, a keyboard-accessible
+**Copy link** button replaces that fallback. It copies the current page URL with
+the heading fragment, reports clipboard success or failure, and leaves both the
+address bar and section's open state alone. Controls sit outside the heading's
+accessible name.
+
+Initial fragment navigation, hash changes, back/forward navigation, and repeated
+links to the current fragment open collapsed ancestors before scrolling. Encoded
+IDs are decoded once; malformed escapes and missing targets leave the page
+usable. Navigating to Emergent Testing never presses Run or starts tests.
+
+`#demo:` is reserved for the separate
+[demo-state sharing proposal](./demo/todo/shareable-demo-fragments.md). This
+navigation layer reveals Demo for that namespace; restoring an example or custom
+state is still future work. Its restoration runtime can call `revealFragment`
+after rendering to scroll using the final layout.
+
 ## CLI reference
 
 `/cli/` is the standalone **FunctionalScript CLI** reference, linked as **CLI**

@@ -513,6 +513,17 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
    renders exactly the word above. */
 [data-demo-working]::after { content: "Working…" attr(data-demo-working); display: block; margin-top: .5rem }
 [data-demo-working] button { cursor: default }
+/* Heading links preserve native anchors until clipboard controls are bound. */
+[data-linked-heading] { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin: 1.5rem 0 .75rem }
+[data-linked-heading] > :is(h2,h3,h4,h5,h6) { margin: 0; min-width: 0 }
+[data-permalink] { display: inline-flex; vertical-align: middle; margin-left: .5rem; font-size: .75rem; font-weight: normal }
+[data-permalink] > button { position: relative; padding: .15rem .4rem; color: var(--muted); border: 1px solid var(--border); border-radius: .3rem; background: transparent; cursor: pointer; font: inherit }
+[data-permalink] > button:focus-visible, [data-permalink] > a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
+[data-permalink] [hidden] { display: none }
+[data-permalink] > button[data-copy-feedback="copied"] { color: var(--pass) }
+[data-permalink] > button[data-copy-feedback] > [data-copy-status] { left: 0; right: auto }
+[id] { scroll-margin-top: 1rem }
+
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
 /* The summary holds the section's h2, so a screen reader lists every section
    among the page's headings. The h2 is inline and takes the summary's own
