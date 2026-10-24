@@ -3,7 +3,9 @@
  * Only aliases precede the loop; each loop input is one current invocation input.
  * The loop's internal array values remain opaque, including helper protocols.
  * This owner resolves tail statement transfers without changing value lowering.
- * Nonroot helpers and nonlocal value operands have separate construction owners.
+ * The same statement resolver can finish a noncanonical function after helper
+ * completion dispatch has introduced early returns. Value operands retain their
+ * own graph-construction boundary.
  *
  * @module
  * @import { Block, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
@@ -141,7 +143,7 @@ const blockTask = (block, owner, normal) => {
             return done({ statements: [], exit })
         }
         if (exit[0] === 'throw') { return done({ statements: [], exit }) }
-        if (exit[1] !== owner.loop.target) { throw 'a root loop transfer must name its owning loop' }
+        if (owner.loop === null || exit[1] !== owner.loop.target) { throw 'a loop transfer must name its owning loop' }
         if (exit[0] === 'break') { return returned(exit[2], owner) }
         if (exit[2].length !== owner.fn.parameters.length) { throw 'invalid canonical invocation transition signature' }
         return returned([['()', owner.self, exit[2]]], owner)
@@ -157,7 +159,7 @@ const blockTask = (block, owner, normal) => {
  */
 export const directInvocationRoot = (fn, loop) => {
     const self = fn.self ?? { index: fn.target.index }
-    const owner = { fn, loop, ordinary: ordinaryBlocks(loop.body), self: /** @type {Value} */ (['ref', self]) }
+    const owner = /** @type {Owner} */ ({ fn, loop, ordinary: ordinaryBlocks(loop.body), self: ['ref', self] })
     const aliases = loop.parameters.map((binding, i) => /** @type {Statement} */ (['define', binding, loop.initial[i], 'lazy']))
     const prefix = fn.body.statements.slice(0, -1).map(statement => {
         const alias = /** @type {Extract<Statement, readonly ['define', ...unknown[]]>} */ (statement)
@@ -165,4 +167,17 @@ export const directInvocationRoot = (fn, loop) => {
     })
     const result = run(before([...prefix, ...aliases], blockTask(loop.body, owner, () => { throw 'a normalized loop body requires an explicit transfer' })))
     return { ...fn, self, body: { statements: toArray(result.statements), exit: result.exit } }
+}
+
+/**
+ * Finish statement-level early returns in an ordinary function. Normal result
+ * regions keep their own scopes; only the selected normal path resumes the
+ * following statements. Ordinary nested functions and value operands remain
+ * opaque. Invocation metadata and self identity are preserved unchanged.
+ * @type {(fn: FastFunction) => FastFunction}
+ */
+export const terminalFunction = fn => {
+    const owner = /** @type {Owner} */ ({ fn, loop: null, self: null, ordinary: ordinaryBlocks(fn.body) })
+    const result = run(blockTask(fn.body, owner, values => returned([values.length === 1 ? values[0] : ['array', values]], owner)))
+    return { ...fn, body: { statements: toArray(result.statements), exit: result.exit } }
 }

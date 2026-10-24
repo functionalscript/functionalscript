@@ -19,7 +19,8 @@ import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { freeLoopBindings } from './control/module.f.mjs'
 import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
-import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
+import { directInvocationRoot, invocationRootOf, terminalFunction } from './loop/root/module.f.mjs'
+import { completeReturns } from './loop/returns/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 
@@ -250,9 +251,13 @@ const lowerValues = (input, context) => {
 /** @type {(fn: FastFunction, context: Context) => Task<Lowered>} */
 const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
-    const scalar = rootLoopOf(source)
-    const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(source)
-    const fn = matched === null ? source : directInvocationRoot(source, matched)
+    const originalScalar = rootLoopOf(source)
+    const originalRoot = originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(source)
+    const normalized = completeReturns(source, originalRoot)
+    const scalar = rootLoopOf(normalized)
+    const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(normalized)
+    const fn = matched !== null ? directInvocationRoot(normalized, matched)
+        : normalized === source ? source : terminalFunction(normalized)
     return bind(lowerValues(fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
         const candidates = captures.map(capture => capture.exp).filter(exp => exp instanceof Array)
         const slots = candidates.filter((node, i) => candidates.findIndex(other => sameCapture(other, node)) === i)
@@ -266,7 +271,8 @@ const functionValue = (source, context) => call(() => {
                 captures[i].exp instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (captures[i].exp)))] : captures[i].exp,
             ])),
         ]
-        const local = { ...context, summaries: matched === null ? context.summaries : new Map([...context.summaries, ...summaries(['block', fn.body], context.summaries)]), scope: scopeOf(inner), transfer: /** @type {ExitOwner} */ ({ kind: 'default' }) }
+        /** @type {Context} */
+        const local = { ...context, summaries: fn === source ? context.summaries : new Map([...context.summaries, ...summaries(['block', fn.body], context.summaries)]), scope: scopeOf(inner), transfer: { kind: 'default' } }
         const root = rootLoopOf(fn)
         return bind(root === null ? blockTask(fn.body, local) : scalarRoot(fn, root, local), body =>
             done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: floated(captures) }))

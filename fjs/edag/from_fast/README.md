@@ -54,6 +54,26 @@ previous lazy slot reads; the state/result order and existing scalar exact-graph
 cases remain unchanged. General helper round trips preserve their documented
 sharing normalization and repeated conversions stabilize.
 
+[`loop/returns`](./loop/returns/module.f.mjs) carries statement-level returns
+from a helper to the owning source function. Only return-capable nonroot loops
+gain a private completion result: `["normal", resultValues]` for a normal break
+or `["return", value]` for an enclosing-function return. The completion occupies
+one loop-result slot, carried by the existing aggregate helper result array.
+The caller dispatches this private value: normal completion binds the original
+results and resumes; return completion exits the source function. Nested helpers
+return completions to their caller before the caller propagates them. Arrays
+with the same shape supplied as source values remain payloads.
+
+Normalization traverses statement regions in one source function, preserving
+ordinary nested function boundaries and leaving value operands opaque. Changed
+nonroot function bodies use the shared terminal statement resolver to turn
+early-return dispatch into ordinary conditional results. Normal-only helpers
+retain their previous graph path. Canonical invocation roots are exempt from
+completion wrapping, so terminal public results and self calls stay direct;
+their inner helpers can still return to the owning source function. Return
+payload computations remain ordinary evaluations; broader tail-call eligibility
+belongs to milestone F. Throws and failures use the existing failure channel.
+
 A canonical scalar invocation loop reuses its enclosing function. Its body
 contains only aliases of established arguments, captures or self before the
 loop, then a direct return of the loop's single result. Capture and self aliases
@@ -111,12 +131,13 @@ contract. Existing source round trips retain
 their analysis-normalized comparison, including the documented lazy-region
 splits and redundant-anchor normalization.
 
-These increments do not complete epic E. Enclosing-function completions,
-transfers to enclosing loops, nonlocal exits inside value operands,
+These increments do not complete epic E. Transfers to enclosing loops,
+nonlocal exits inside value operands,
 rest invocation reconstruction and lazy demand state crossing a generated
 helper boundary remain explicit E/F work. Unsupported forms are refused
-explicitly. Transfers escaping a normal-exit helper remain refused, as do
-loop-body normal yields. A true lazy free
+explicitly. Break/continue transfers escaping a helper remain refused, as do
+foreign function-return targets and loop-body normal yields. Standalone block
+construction has no source function to own helper returns. A true lazy free
 binding is not eagerly captured by either helper constructor. The
 [loop construction proposal](../todo/fast-loop-construction.md) records the
 completion and memo-state contracts for that extension.
