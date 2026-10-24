@@ -179,12 +179,13 @@ these steps, without `cargo clean --doc`, which a fresh checkout does not need
 
 Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
 script: it installs what the build image lacks, then runs
-`npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes
+the WASM demo build, `npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes
 the Rust API reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
 the script is what keeps its steps in the repository, where they are reviewed
 and have a history. `npm run website` stays the generator alone: a checkout
-builds the site with it exactly as before, and only the deploy carries the
-installs. The dashboard's command falls back to `npm run website` where the
+first builds the WASM assets with
+`sh ./gen.nix/run sh ./nanvm/demos/gen.build.sh`, then runs `npm run website`.
+Only the deploy carries the installs. The dashboard's command falls back to `npm run website` where the
 script is absent ([Configure Cloudflare](#configure-cloudflare)), so a branch
 from before the script keeps its preview.
 

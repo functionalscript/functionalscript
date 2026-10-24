@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { demoSection, directoryLayout, footer, header, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
@@ -54,6 +54,12 @@ const issue = name => ({ name, status: 'open', priority: 'P3' })
 const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], readme: [], demo: null, api: null, apiIndex: null }
 
 export const proof = {
+    issueNameOrder: () => assertEq(issueOrder(issue('z.md'), issue('a.md')), 1),
+    fileHref: () => {
+        assertEq(fileHref(null)('nanvm/demos/wasm')('hello.wat'), '/nanvm/demos/wasm/hello.wat')
+        assertEq(fileHref(commit)('nanvm/demos/wasm')('hello.wat'), '/nanvm/demos/wasm/hello.wat')
+        assertEq(fileHref(commit)('nanvm/demos/wasm-old')('hello.wat'), `${repository}/blob/${commit}/nanvm/demos/wasm-old/hello.wat`)
+    },
     /**
      * **Every page closes with the funding links**, separated by text so they
      * read as a list without the stylesheet, each marked as leaving the site.
@@ -250,6 +256,11 @@ export const proof = {
          * this site is neither.
          */
         atCommit: {
+            // Cloudflare builds know their commit, but these assets exist only
+            // on the deployed site. Source files still link to GitHub below.
+            generatedWasm: () => assertEq(
+                sectionsAtCommit({ ...empty, path: 'nanvm/demos/wasm', files: ['nanvm_demos.wasm', 'hello.wat'] }),
+                contents('<li><a href="/nanvm/demos/wasm/nanvm_demos.wasm" data-kind="file">nanvm_demos.wasm</a></li><li><a href="/nanvm/demos/wasm/hello.wat" data-kind="file">hello.wat</a></li>')),
             files: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
                 contents(`<li><a href="${repository}/blob/${commit}/fjs/types/list/module.f.mjs" data-kind="file">module.f.mjs</a></li>`)),
