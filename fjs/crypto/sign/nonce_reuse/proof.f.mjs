@@ -11,7 +11,7 @@ const reuseP256 = reuse(secp256r1)(sha256)
 /** @type {readonly [Vec, Vec]} */
 const messages = [utf8('sample'), utf8('test')]
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     recovery: () => {
         for (const key of [1n, 0x1234_5678n, secp256r1.nf.p - 1n]) {
             for (const k of [1n, 7n, secp256r1.nf.p - 1n]) {
@@ -52,4 +52,4 @@ export const proof = {
         assert(assertError(sign(1n, 2n, [utf8('14'), utf8('0')])).includes('s = 0'))
         assert(assertError(sign(1n, 2n, [utf8('0'), utf8('14')])).includes('s = 0'))
     },
-}
+})
