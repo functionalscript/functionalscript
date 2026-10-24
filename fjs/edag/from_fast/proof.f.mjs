@@ -44,6 +44,23 @@ const summing = (initial = 0, limit = 3) => {
     }
 }
 
+/** @type {(depth: number) => Loop} */
+const nestedCounting = depth => {
+    const count = id(0), total = id(0), output = id(0)
+    const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    const inner = depth === 1 ? null : nestedCounting(depth - 1)
+    const amount = inner === null ? 1 : ref(inner.results[0])
+    return {
+        target, parameters: [count, total], initial: [0, 0], results: [output],
+        body: body(['continue', target, [ref(count), ref(total)]], [
+            ['if', [], ['<', ref(count), 2],
+                body(['continue', target, [['+', ref(count), 1], ['+', ref(total), amount]]], inner === null ? [] : [['loop', inner]]),
+                body(['break', target, [ref(total)]]),
+            ],
+        ]),
+    }
+}
+
 /** @type {(initial?: Value, limit?: Value) => Loop} */
 const counting = (initial = 0, limit = 3) => {
     const state = id(10)
@@ -340,14 +357,21 @@ export const proof = {
         const graph = fromFast(afterLoop(loop, ref(output)))
         assertStructurallySame(assertOk(identityAnalysis(graph)), assertOk(identityAnalysis(expected)))
         assertEq(evaluate(graph), 3)
+        const unused = /** @type {Loop} */ ({ ...loop, body: body(['break', target, [ref(left)]]) })
+        const withAnchor = /** @type {Exp} */ (['.', ['()', ['=>', 1, [], [',', [
+            ['.', argument, 1], ['[]', [['.', argument, 0]]],
+        ]]], [['[]', [1, 2]]]], 0])
+        const unusedGraph = fromFast(afterLoop(unused, ref(output)))
+        assertStructurallySame(assertOk(identityAnalysis(unusedGraph)), assertOk(identityAnalysis(withAnchor)))
+        assertEq(evaluate(unusedGraph), 1)
     },
     generalLoopRoundTrips: () => {
         const loop = summing()
         const first = fromFast(afterLoop(loop, ['array', loop.results.map(ref)]))
         const second = fromFast(assertOk(toFast(first)))
         const third = fromFast(assertOk(toFast(second)))
-        // Non-minting state-slot reads can split across conditional arms on
-        // the first conversion; subsequent conversions stabilize.
+        // Established state-slot reads retain their sharing across conversions.
+        assertStructurallySame(assertOk(identityAnalysis(second)), assertOk(identityAnalysis(first)))
         assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
         assertStructurallySame(evaluate(first), [13, 3])
         assertStructurallySame(evaluate(second), [13, 3])
@@ -478,6 +502,151 @@ export const proof = {
         assertEq(evaluate(fromFast(afterLoop(loop, ref(output)))), 1)
         assertEq(evaluate(fromFast(afterLoop({ ...loop, initial: [2] }, ref(output)))), 7)
     },
+    nestedLoopEntryAndCaptures: () => {
+        const outerCount = id(0), outerTotal = id(0), output = id(0)
+        const innerCount = id(0), innerTotal = id(0), innerResult = id(0)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [innerCount, innerTotal], initial: [0, 0], results: [innerResult],
+            body: body(['continue', innerTarget, [ref(innerCount), ref(innerTotal)]], [
+                ['if', [], ['<', ref(innerCount), ['+', ref(outerCount), 1]],
+                    body(['continue', innerTarget, [['+', ref(innerCount), 1], ['+', ref(innerTotal), ref(outerCount)]]]),
+                    body(['break', innerTarget, [ref(innerTotal)]]),
+                ],
+            ]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [outerCount, outerTotal], initial: [0, 0], results: [output],
+            body: body(['continue', outerTarget, [ref(outerCount), ref(outerTotal)]], [
+                ['if', [], ['<', ref(outerCount), 3],
+                    body(['continue', outerTarget, [['+', ref(outerCount), 1], ['+', ref(outerTotal), ref(innerResult)]]], [['loop', inner]]),
+                    body(['break', outerTarget, [ref(outerTotal)]]),
+                ],
+            ]),
+        })
+        // Inner entries are (0, 0) for each outer iteration: 0 + 2 + 6.
+        assertEq(evaluate(fromFast(afterLoop(outer, ref(output)))), 8)
+    },
+    nestedLoopDepthAndRoundTrips: () => {
+        for (const depth of [2, 3]) {
+            const loop = nestedCounting(depth)
+            const first = fromFast(afterLoop(loop, ref(loop.results[0])))
+            const second = fromFast(assertOk(toFast(first)))
+            const third = fromFast(assertOk(toFast(second)))
+            assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+            assertEq(evaluate(first), 2 ** depth)
+            assertEq(evaluate(second), 2 ** depth)
+            assertEq(evaluate(third), 2 ** depth)
+        }
+    },
+    nestedLoopSequentialResults: () => {
+        const count = id(0), total = id(0), output = id(0)
+        const first = summing(0, 2)
+        const second = summing(ref(first.results[1]), 4)
+        const followed = id(0)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const outer = /** @type {Loop} */ ({
+            target, parameters: [count, total], initial: [0, 0], results: [output],
+            body: body(['continue', target, [ref(count), ref(total)]], [
+                ['if', [], ['<', ref(count), 3], body(['continue', target, [
+                    ['+', ref(count), 1], ['+', ref(total), ref(followed)],
+                ]], [
+                    ['loop', first], ['loop', second],
+                    ['define', followed, ['+', ['+', ref(first.results[0]), ref(second.results[0])], 100], 'required'],
+                ]), body(['break', target, [ref(total)]])],
+            ]),
+        })
+        assertEq(evaluate(fromFast(afterLoop(outer, ref(output)))), 378)
+        const shared = id(0), completed = id(0)
+        const joined = /** @type {Loop} */ ({
+            target, parameters: [], initial: [], results: [completed],
+            body: body(['break', target, [['array', [ref(shared), ref(shared)]]]], [
+                ['loop', first], ['loop', second],
+                ['define', shared, ['array', [ref(first.results[0]), ref(second.results[0])]], 'required'],
+            ]),
+        })
+        const value = evaluate(fromFast(afterLoop(joined, ref(completed))))
+        assert(value instanceof Array)
+        assertEq(value[0], value[1])
+        assertStructurallySame(value[0], [11, 15])
+    },
+    nestedLoopConditionalSetup: () => {
+        const limit = id(0), output = id(0)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const initialFailure = summing(['.', null, 'x'])
+        const captureFailure = summing(0, ['.', ref(limit), 0])
+        const outer = /** @type {Loop} */ ({
+            target, parameters: [], initial: [], results: [output],
+            body: body(['break', target, [7]], [
+                ['if', [], false, body(['yield', []], [['loop', initialFailure]]), body(['yield', []])],
+                ['if', [], true, body(['yield', []]), body(['yield', []], [
+                    ['define', limit, ['.', null, 'x'], 'required'], ['loop', captureFailure],
+                ])],
+            ]),
+        })
+        assertEq(evaluate(fromFast(afterLoop(outer, ref(output)))), 7)
+    },
+    nestedLoopZeroResultEvaluation: () => {
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const output = id(0), failure = id(0)
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [],
+            body: body(['break', innerTarget, []], [['define', failure, ['.', null, 'x'], 'required']]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target, parameters: [], initial: [], results: [output],
+            body: body(['break', target, [7]], [['loop', inner]]),
+        })
+        assertError(memo(assertOk(identityAnalysis(fromFast(afterLoop(outer, ref(output))))))({ args: [] }))
+        const normal = /** @type {Loop} */ ({ ...inner, body: body(['break', innerTarget, []]) })
+        assertEq(evaluate(fromFast(afterLoop({ ...outer, body: body(['break', target, [7]], [['loop', normal]]) }, ref(output)))), 7)
+    },
+    nestedLoopIterationLifetimes: () => {
+        const count = id(0), saved = id(0), output = id(0)
+        const innerCount = id(0), savedFunction = id(0), savedObject = id(0)
+        const fnResult = id(0), objectResult = id(0), objectAlias = id(0)
+        const capturedOuter = id(0), capturedInner = id(0)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const fnTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const closure = /** @type {Value} */ (['function', {
+            target: fnTarget, parameters: [], rest: null, self: null,
+            captures: [{ binding: capturedOuter, value: ref(count) }, { binding: capturedInner, value: ref(innerCount) }],
+            body: body(['return', fnTarget, ['array', [ref(capturedOuter), ref(capturedInner)]]]),
+        }])
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [innerCount, savedFunction, savedObject], initial: [0, null, null], results: [fnResult, objectResult, objectAlias],
+            body: body(['continue', innerTarget, [ref(innerCount), ref(savedFunction), ref(savedObject)]], [
+                ['if', [], ['<', ref(innerCount), 2],
+                    body(['continue', innerTarget, [['+', ref(innerCount), 1], closure, ['array', [ref(count), ref(innerCount)]]]]),
+                    body(['break', innerTarget, [ref(savedFunction), ref(savedObject), ref(savedObject)]]),
+                ],
+            ]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target, parameters: [count, saved], initial: [0, ['array', []]], results: [output],
+            body: body(['continue', target, [ref(count), ref(saved)]], [
+                ['if', [], ['<', ref(count), 3],
+                    body(['continue', target, [['+', ref(count), 1], ['array', [
+                        ['...', ref(saved)], ['array', [ref(fnResult), ref(objectResult), ref(objectAlias)]],
+                    ]]]], [['loop', inner]]), body(['break', target, [ref(saved)]])],
+            ]),
+        })
+        /** @type {(iteration: number, slot: number) => Value} */
+        const entry = (iteration, slot) => ['.', ['.', ref(output), iteration], slot]
+        const value = evaluate(fromFast(afterLoop(outer, ['array', [
+            ['()', entry(0, 0), []], ['()', entry(1, 0), []], ['()', entry(2, 0), []],
+            entry(0, 1), entry(0, 2), entry(1, 1), entry(1, 2), entry(2, 1),
+        ]])))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[0, 1], [1, 1], [2, 1], [0, 1], [0, 1], [1, 1], [1, 1], [2, 1]])
+        assertEq(value[3], value[4])
+        assertEq(value[5], value[6])
+        assert(value[3] !== value[5])
+        assert(value[5] !== value[7])
+    },
     directRootResult: () => {
         const parameter = id(0)
         const loop = counting(ref(parameter))
@@ -539,10 +708,32 @@ export const proof = {
             const loop = summing()
             fromFast(afterLoop({ ...loop, body: body(['continue', { ...loop.target }, [1, 2]]) }, 7))
         },
-        generalLoopNestedStatement: () => {
-            const loop = summing()
+        nestedLoopOuterBreak: () => {
+            const outer = summing()
             const inner = summing()
-            fromFast(afterLoop({ ...loop, body: { ...loop.body, statements: [['loop', inner], ...loop.body.statements] } }, 7))
+            const escaped = /** @type {Loop} */ ({ ...inner, body: body(['break', outer.target, [1, 2]]) })
+            fromFast(afterLoop({ ...outer, body: { ...outer.body, statements: [['loop', escaped], ...outer.body.statements] } }, 7))
+        },
+        nestedLoopOuterContinue: () => {
+            const outer = summing()
+            const inner = summing()
+            const escaped = /** @type {Loop} */ ({ ...inner, body: body(['continue', outer.target, [1, 2]]) })
+            fromFast(afterLoop({ ...outer, body: { ...outer.body, statements: [['loop', escaped], ...outer.body.statements] } }, 7))
+        },
+        nestedLoopOuterReturn: () => {
+            const outer = summing()
+            const inner = summing()
+            const escaped = /** @type {Loop} */ ({ ...inner, body: body(['return', target, 1]) })
+            fromFast(afterLoop({ ...outer, body: { ...outer.body, statements: [['loop', escaped], ...outer.body.statements] } }, 7))
+        },
+        nestedLoopLazyCapture: () => {
+            const outer = summing()
+            const lazy = id(0)
+            const inner = summing(0, ref(lazy))
+            const statements = /** @type {readonly Statement[]} */ ([
+                ['define', lazy, ['array', [3]], 'lazy'], ['loop', inner], ...outer.body.statements,
+            ])
+            fromFast(afterLoop({ ...outer, body: { ...outer.body, statements } }, 7))
         },
         unboundLoopCapture: () => {
             const loop = counting(0, ref(id(0)))

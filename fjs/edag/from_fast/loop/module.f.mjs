@@ -20,9 +20,9 @@ import { freeLoopBindings } from '../control/module.f.mjs'
 
 /**
  * Pack owning statement transfers without crossing value operands or ordinary
- * function boundaries. The root resolver retains its existing refusals for
- * nested loops and escaping transfers. An explicit postorder worklist keeps
- * deeply nested statement regions off the host stack.
+ * function boundaries or into nested loops, which have their own helper owner.
+ * Escaping transfers still require completion lowering. An explicit postorder
+ * worklist keeps deeply nested statement regions off the host stack.
  * @type {(loop: Loop) => Block}
  */
 const aggregateBody = loop => {
@@ -154,7 +154,9 @@ export const scalarHelper = loop => {
  * arity. Its canonical invocation loop uses the ordinary root resolver. Each
  * continue packages simultaneous next values; each break packages the declared
  * results, including zero or one. Source bindings and helper identities remain
- * separate even when their presentation indices coincide.
+ * separate even when their presentation indices coincide. State-slot reads are
+ * established at iteration entry, so nested helpers capture the current values
+ * without turning a source lazy initializer into an eager capture.
  * @type {(loop: Loop) => FastFunction}
  */
 export const aggregateHelper = loop => {
@@ -177,7 +179,7 @@ export const aggregateHelper = loop => {
                 results: [result],
                 body: {
                     statements: [
-                        ...loop.parameters.map((binding, i) => /** @type {Statement} */ (['define', binding, ['.', ['ref', state], i], 'lazy'])),
+                        ...loop.parameters.map((binding, i) => /** @type {Statement} */ (['define', binding, ['.', ['ref', state], i], 'required'])),
                         ...body.statements,
                     ],
                     exit: body.exit,
