@@ -101,6 +101,16 @@ Joins operate only in an owning function's statement regions. Operand regions
 reset that owner and continue to refuse nonlocal exits; standalone blocks do not
 invent a source function. Normal-only regions keep their established lowering.
 
+Statement summaries track whether a normal path reaches the next statement.
+Dependencies from an unreachable suffix or final exit do not justify dropping
+required prefix work. Within graph control, required definitions and loop calls
+retain an anchor at their original entry even when a later normal path reads
+their results: an earlier return must not skip that evaluation. References keep
+the same expression identity, so the anchor and later reads share one result.
+This can retain a redundant anchor compared with ordinary result-only lowering.
+Regions whose paths all throw also end graph control immediately, without
+lowering their unreachable continuation.
+
 A canonical scalar invocation loop reuses its enclosing function. Its body
 contains only aliases of established arguments, captures or self before the
 loop, then a direct return of the loop's single result. Capture and self aliases
