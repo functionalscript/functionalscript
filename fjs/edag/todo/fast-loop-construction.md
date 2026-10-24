@@ -344,6 +344,9 @@ their documented normalization. Repeated conversions must stabilize.
 - [ ] Extend shared demand state to dependent lazy recipes, statement-loop-local
       cells, nested memo boundaries and escaping completions. Preserve fresh
       iteration lifetimes and transport selected updates through every completion.
+      The next increment admits caller-owned recipe dependencies, preserving
+      transitive first demands and conditional dependency updates within the
+      existing normal-exit helper transport.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
 - [x] Share normal continuations in noncanonical helper callers at graph
