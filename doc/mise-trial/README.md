@@ -2,9 +2,10 @@
 
 This is the mise trial for
 [`fjs/ci/todo/investigate-mise-pixi.md`](../../fjs/ci/todo/investigate-mise-pixi.md).
-It provides an opt-in environment alongside `./dev.sh`. The existing Nix shell,
-devcontainer, generated CI, and release workflows remain the supported setup.
-No migration has been selected.
+It provides a development environment alongside the existing Nix shell and
+devcontainer. The stacked [CI trial](CI.md) switches this branch's generated
+repository CI to mise while retaining the publishing workflow and optional
+local Nix entry points. The final adoption decision remains open.
 
 ## Start
 

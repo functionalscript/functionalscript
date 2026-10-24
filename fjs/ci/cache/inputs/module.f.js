@@ -20,6 +20,7 @@ const workspace = /** @type {const} */ ([
 /** @type {readonly string[]} */
 const sharedFiles = [
     '.gitattributes', '.gitignore', '.node-version', 'dev.sh',
+    'mise.toml', 'mise.lock', 'mise.spidermonkey.toml', 'mise.spidermonkey.lock',
 ]
 
 // These paths describe tooling or site assets that the cached checks do not
@@ -29,13 +30,14 @@ const excludedFiles = [
     '.assetsignore', '.github/FUNDING.yml', '.github/dependabot.yml',
     'LICENSE', 'favicon.ico', 'funding.json', 'wrangler.jsonc',
     'fjs/website/favicon.svg',
-    // Opt-in development trial; the default cached checks still run in Nix.
-    'mise.toml', 'mise.lock', 'mise.spidermonkey.toml', 'mise.spidermonkey.lock',
 ]
+
+/** Environment manifests and npm sidecars affect every tool-backed check. */
+const shared = (/** @type {string} */ path) => sharedFiles.includes(path) || path.startsWith('.mise/locks/')
 
 /** The JavaScript rung a path contributes to, independently of Rust. */
 const javascript = (/** @type {string} */ path) => {
-    if (sharedFiles.includes(path) || path === 'package.json' || path === 'deno.json'
+    if (shared(path) || path === 'package.json' || path === 'deno.json'
         || path === 'fjs/module.mjs' || path === 'fjs/spidermonkey.mjs'
         || path === 'fjs/types/result/module.mjs'
         || path.split('/').some(p => p.startsWith('gen.'))
@@ -60,14 +62,13 @@ export const select = path => {
     if (ci && (path.endsWith('.md') || path.split('/').includes('todo'))) { return [] }
     const js = javascript(path)
     const rust = path === 'Cargo.toml' || path === 'Cargo.lock' || path.startsWith('.cargo/')
-        || workspace.some(p => path.startsWith(p)) || sharedFiles.includes(path)
+        || workspace.some(p => path.startsWith(p)) || shared(path)
         || ci
     if (js !== null) { return rust ? [js, 'rust'] : [js] }
     if (rust) { return ['rust'] }
     const excluded = path.endsWith('.md') || path.split('/').includes('todo')
         || path.startsWith('changelog/') || path.startsWith('doc/')
         || path.startsWith('.claude/') || path.startsWith('.devcontainer/')
-        || path.startsWith('.mise/locks/')
         || excludedFiles.includes(path)
     return excluded ? [] : null
 }
