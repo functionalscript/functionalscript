@@ -4,6 +4,8 @@
 **Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers and
 statement-level function returns and outer-loop transfers are implemented;
 operand completions and shared lazy demand-state transport remain in E
+**Current increment:** share normal continuations in noncanonical helper callers
+at graph construction; canonical-root continuation reconstruction remains separate.
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
