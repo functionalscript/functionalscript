@@ -837,11 +837,10 @@ export const proof = {
         // Only its caller unwraps it into the public function result.
         const call = /** @type {Exp} */ (['()', ['=>', 1, [], ['[]', [['[]', ['return', 7]]]]], [['[]', []]]])
         const completion = /** @type {Exp} */ (['.', call, 0])
-        // Graph control retains the required call at its establishment. The
-        // completion test reads that same call identity, without invoking twice.
-        const expected = /** @type {Exp} */ (['=>', 0, [], [',', [call, ['?:',
+        // The eager completion test already establishes the required call.
+        const expected = /** @type {Exp} */ (['=>', 0, [], ['?:',
             ['===', ['.', completion, 0], 'return'], ['.', completion, 1], 9,
-        ]]]])
+        ]])
         const graph = fromFast(result(['function', fn]))
         assertStructurallySame(assertOk(identityAnalysis(graph)), assertOk(identityAnalysis(expected)))
         assertEq(evaluate(calledFunction(fn)), 7)
@@ -1244,6 +1243,27 @@ export const proof = {
         assertStructurallySame(evaluate(calledFunction(fn, [true, false])), [3, 4])
         assertStructurallySame(evaluate(calledFunction(fn, [false, false])), [3, 5])
         assertEq(evaluate(calledFunction(fn, [true, true])), 7)
+    },
+    sharedFunctionJoinGuardDependencies: () => {
+        const state = id(0), first = id(0), second = id(0), alias = id(0)
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [state], rest: null, self: null, captures: [],
+            body: body(['return', target, 9], [
+                ['define', first, ['.', ref(state), 0], 'required'],
+                ['define', second, ['.', ref(state), 1], 'required'],
+                ['define', alias, ref(first), 'lazy'],
+                ['if', [], ['<', ref(alias), 3], body(['return', target, ref(first)]), body(['return', target, ref(second)])],
+            ]),
+        })
+        const argument = /** @type {Exp} */ (['arg', 0])
+        const left = /** @type {Exp} */ (['.', argument, 0])
+        const right = /** @type {Exp} */ (['.', argument, 1])
+        const expected = /** @type {Exp} */ (['=>', 1, [], [',', [right, ['?:', ['<', left, 3], left, right]]]])
+        const graph = fromFast(result(['function', fn]))
+        assertStructurallySame(assertOk(identityAnalysis(graph)), assertOk(identityAnalysis(expected)))
+        assertStructurallySame(assertOk(identityAnalysis(fromFast(assertOk(toFast(graph))))), assertOk(identityAnalysis(graph)))
+        assertEq(evaluate(calledFunction(fn, [['array', [1, 2]]])), 1)
+        assertEq(evaluate(calledFunction(fn, [['array', [5, 6]]])), 6)
     },
     sharedFunctionJoinRequiredPrefixes: () => {
         const selected = id(0), operation = id(0), established = id(0), dead = id(0)
