@@ -324,6 +324,9 @@ their documented normalization. Repeated conversions must stabilize.
       continues and completions. Cover skipped failures, identity reused across
       iterations and following code, sequential/nested loops, and fresh
       iteration-local cells without changing public loop signatures.
+      The next increment implements caller-owned cells across normal-exit
+      helpers and their caller; nested memo boundaries and escaping completions
+      follow separately.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
 - [x] Share normal continuations in noncanonical helper callers at graph
