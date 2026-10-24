@@ -87,6 +87,11 @@ Reusing an immutable declaration, block or loop at two lexical positions thus
 keeps their cells separate. Values and ordinary function bodies retain their
 own normalization boundary. Blocks without memo crossings return unchanged.
 
+Occurrence preparation stops after a statement region with no normal path.
+Its unreachable suffix and exit do not contribute memo dependencies or transfer
+admission checks. Both conditional arms remain represented; a normal arm keeps
+the following statements reachable, without evaluating constant conditions.
+
 This extends the memo-bearing graph normalization with one recipe function per
 cell. Public arity, source values and graphs without memo crossings retain their
 contracts. The constructor supplies effective external lazy identities before

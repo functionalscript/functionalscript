@@ -11,7 +11,7 @@
  * @import { Link } from '../../../private.ts'
  * @import { Task } from '../../../task/types.ts'
  * @import { MemoPlan } from './types.ts'
- * @import { _LoopInfo, _Root, _Scope, _TransferVisit, _Visit } from './private.ts'
+ * @import { _LoopInfo, _Occurrence, _Root, _Scope, _TransferVisit, _Visit } from './private.ts'
  */
 
 import { freeBindings, freeLoopBindings } from '../../../control/module.f.mjs'
@@ -21,26 +21,33 @@ import { bind, call, done, run } from '../../../task/module.f.mjs'
 /**
  * A shared syntax container still has one declaration per reached occurrence.
  * Give statement regions distinct planning identities without changing values,
- * binding/target identities or source signatures. Operand regions and function
- * bodies retain their own normalization boundary.
- * @type {(block: Block) => Task<Block>}
+ * binding/target identities or source signatures. Terminal statement regions
+ * end the active prefix; their following statements and exit are unreachable.
+ * Operand regions and function bodies retain their own normalization boundary.
+ * @type {(block: Block) => Task<_Occurrence>}
  */
 const occurrenceBlock = block => {
-    /** @type {(index: number, statements: List<Statement>) => Task<Block>} */
+    /** @type {(index: number, statements: List<Statement>) => Task<_Occurrence>} */
     const each = (index, statements) => call(() => {
-        if (index === block.statements.length) { return done({ statements: toArray(statements).toReversed(), exit: block.exit }) }
+        if (index === block.statements.length) {
+            return done({ block: { statements: toArray(statements).toReversed(), exit: block.exit }, normal: block.exit[0] === 'yield' })
+        }
         const statement = block.statements[index]
-        /** @type {(mapped: Statement) => Task<Block>} */
-        const append = mapped => each(index + 1, { first: mapped, tail: statements })
+        /** @type {(mapped: Statement, normal?: boolean) => Task<_Occurrence>} */
+        const append = (mapped, normal = true) => {
+            const next = /** @type {List<Statement>} */ ({ first: mapped, tail: statements })
+            return normal ? each(index + 1, next)
+                : done({ block: { statements: toArray(next).toReversed(), exit: ['yield', []] }, normal: false })
+        }
         if (statement[0] === 'define') { return append(['define', statement[1], statement[2], statement[3]]) }
         if (statement[0] === 'loop') {
-            return bind(occurrenceBlock(statement[1].body), body => append(['loop', { ...statement[1], body }]))
+            return bind(occurrenceBlock(statement[1].body), body => append(['loop', { ...statement[1], body: body.block }]))
         }
         if (statement[0] === 'block') {
-            return bind(occurrenceBlock(statement[2]), body => append(['block', statement[1], body]))
+            return bind(occurrenceBlock(statement[2]), body => append(['block', statement[1], body.block], body.normal))
         }
         return bind(occurrenceBlock(statement[3]), then => bind(occurrenceBlock(statement[4]), otherwise =>
-            append(['if', statement[1], statement[2], then, otherwise])))
+            append(['if', statement[1], statement[2], then.block, otherwise.block], then.normal || otherwise.normal)))
     })
     return each(0, null)
 }
@@ -86,7 +93,7 @@ const normalTransfers = loop => {
  * @type {(block: Block, externalLazyIds?: readonly BindingId[]) => MemoPlan | null}
  */
 export const memoCells = (block, externalLazyIds = []) => {
-    const prepared = run(occurrenceBlock(block))
+    const prepared = run(occurrenceBlock(block)).block
     /** @type {readonly _Root[]} */
     const external = externalLazyIds.map(binding => ({ binding, source: null, dependencies: [] }))
     /** @type {Link<_Visit> | null} */

@@ -11,6 +11,63 @@ import { toFast } from '../../../../to_fast/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _afterLoop as afterLoop, _body as body, _summing as summing, _calledFunction as calledFunction, _counting as counting, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../proof.f.mjs'
 
 export const proof = /** @type {const} */ ({
+    loopMemoTerminalReturnsIgnoreUnsupportedSuffix: () => {
+        const selected = id(0), prerequisite = id(0), dependent = id(0)
+        const source = collectingMemo(ref(dependent))
+        const loop = /** @type {Loop} */ ({ ...source, body: body(['return', target, ref(dependent)]) })
+        for (const wrapped of /** @type {const} */ ([false, true])) {
+            const terminal = /** @type {Statement} */ (wrapped
+                ? ['block', [], body(['return', target, ['?:', ref(selected), 7, 8]])]
+                : ['if', [], ref(selected), body(['return', target, 7]), body(['return', target, 8])])
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [selected], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [
+                    terminal,
+                    ['define', prerequisite, ['array', [4]], 'lazy'],
+                    ['define', dependent, ref(prerequisite), 'lazy'],
+                    ['loop', loop],
+                ]),
+            })
+            assertEq(evaluate(calledFunction(fn, [true])), 7)
+            assertEq(evaluate(calledFunction(fn, [false])), 8)
+        }
+    },
+    loopMemoTerminalThrowsIgnoreUnsupportedSuffix: () => {
+        const prerequisite = id(0), dependent = id(0)
+        const loop = collectingMemo(ref(dependent))
+        for (const selected of /** @type {const} */ ([false, true])) {
+            const terminal = /** @type {Statement} */ (['if', [], selected,
+                body(['throw', 'selected terminal']), body(['throw', 'other terminal']),
+            ])
+            for (const wrapped of /** @type {const} */ ([false, true])) {
+                const region = wrapped ? /** @type {Statement} */ (['block', [], body(['yield', []], [terminal])]) : terminal
+                const graph = fromFast(result(9, [
+                    ['define', prerequisite, ['array', [4]], 'lazy'],
+                    ['define', dependent, ['array', [ref(prerequisite)]], 'lazy'],
+                    region, ['loop', loop],
+                ]))
+                assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), selected ? 'selected terminal' : 'other terminal')
+            }
+        }
+    },
+    loopMemoTerminalHelperSkipsNestedSuffix: () => {
+        const lazy = id(0), output = id(0)
+        const inner = collectingMemo(ref(lazy))
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loop = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [], initial: [], results: [output],
+            body: body(['break', loopTarget, [['.', null, 'dead exit']]], [
+                ['block', [], body(['break', loopTarget, [ref(lazy)]])],
+                ['loop', inner],
+            ]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(output), ref(lazy)]], [
+            ['define', lazy, ['array', [4]], 'lazy'], ['loop', loop],
+        ])))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[4], [4]])
+        assertEq(value[0], value[1])
+    },
     loopMemoSkippedDemands: () => {
         const lazy = id(0)
         const loop = collectingMemo(ref(lazy), 3, false)
@@ -399,5 +456,22 @@ export const proof = /** @type {const} */ ({
             ])))
             assertStructurallySame(value, [[4], statement[0] === 'block' ? 7 : statement[2] ? 8 : 9])
         }
+    },
+    throw: {
+        loopMemoReachableUnsupportedSuffix: () => {
+            const selected = id(0), prerequisite = id(0), dependent = id(0)
+            const source = collectingMemo(ref(dependent))
+            const loop = /** @type {Loop} */ ({ ...source, body: body(['return', target, ref(dependent)]) })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [selected], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [
+                    ['if', [], ref(selected), body(['return', target, 7]), body(['yield', []])],
+                    ['define', prerequisite, ['array', [4]], 'lazy'],
+                    ['define', dependent, ref(prerequisite), 'lazy'],
+                    ['loop', loop],
+                ]),
+            })
+            calledFunction(fn, [true])
+        },
     },
 })
