@@ -184,7 +184,8 @@ export const proof = {
         /** @type {(heap: JsHeap | null, growth: number) => Runs} */
         const runs = (heap, growth) => ({ js: ok({ output: ok(''), time: 1, heap }), wasm: ok({ run: { output: ok(''), time: 1 }, memory: 0x2_0000, growth }) })
         assertEq(memoryRatio(runs({ before: 1000, after: 3000 }, 5000)), '2.5×')
-        assertEq(memoryRatio(runs({ before: 1000, after: 3000 }, 0)), '0.0×')
+        // Linear memory that did not grow was reused, not unused.
+        assertEq(memoryRatio(runs({ before: 1000, after: 3000 }, 0)), 'Not available')
         // No heap: no line at all.
         assertEq(memoryRatio(runs(null, 5000)), null)
         // A heap a collection shrank, or that did not move, gives no comparison.

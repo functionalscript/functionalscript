@@ -38,8 +38,9 @@ bottom:
      linear memory size, and how much of it the run added. Where both
      growths are measured, the comparison shows the WASM one as a multiple
      of the JavaScript one, as it does the times; "Not available" unless
-     both runs wrote the same output, or where the heap did not grow, since a
-     garbage collection during the run can shrink it. A figure the browser
+     both runs wrote the same output, where the heap did not grow, since a
+     garbage collection during the run can shrink it, or where the linear
+     memory did not grow, since the allocator reusing memory is not a zero. A figure the browser
      does not report is left out, never a guessed value
      ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 

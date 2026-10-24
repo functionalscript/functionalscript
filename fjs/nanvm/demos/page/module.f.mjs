@@ -274,14 +274,16 @@ const sameOutput = (js, wasm) => js.output[0] === 'ok' && wasm.run.output[0] ===
  * browser does not report the heap, which every browser but Chromium does
  * not, or where the JavaScript run failed, which leaves no reading to say
  * whether it does: the page leaves the line out. "Not available" unless
- * both runs wrote the same output, or where the heap did not grow, since a
- * heap a garbage collection shrank during the run gives no comparison.
+ * both runs wrote the same output, where the heap did not grow, since a
+ * heap a garbage collection shrank during the run gives no comparison, or
+ * where the linear memory did not grow, which only says the allocator reused
+ * memory it had, not that the run used none.
  *
  * @type {(runs: Runs) => string | null}
  */
 export const memoryRatio = ({ js, wasm }) => js[0] === 'error' || js[1].heap === null
     ? null
-    : wasm[0] === 'ok' && sameOutput(js[1], wasm[1]) && js[1].heap.after > js[1].heap.before
+    : wasm[0] === 'ok' && sameOutput(js[1], wasm[1]) && js[1].heap.after > js[1].heap.before && wasm[1].growth > 0
         ? `${(wasm[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
         : 'Not available'
 
