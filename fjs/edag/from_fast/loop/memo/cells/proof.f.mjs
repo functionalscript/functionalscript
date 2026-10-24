@@ -59,6 +59,83 @@ export const proof = /** @type {const} */ ({
         ])), null)
         assertEq(memoCells(containing(reading(alias), [['define', alias, ['ref', known], 'lazy']])), null)
     },
+    deadMemoHelpers: () => {
+        const unsupported = loopOf(body([], ['return', functionTarget, ['ref', a]]))
+        const terminalBlock = /** @type {Statement} */ (['block', [], body([], ['throw', 'stopped'])])
+        const terminalIf = /** @type {Statement} */ (['if', [], ['ref', known],
+            body([], ['return', functionTarget, 1]), body([], ['throw', 'stopped'])])
+        for (const terminal of [terminalBlock, terminalIf]) {
+            const source = body([
+                ['define', a, ['array', []], 'lazy'], terminal, ['loop', unsupported],
+            ], ['continue', innerTarget, [['ref', b]]])
+            assertEq(memoCells(source, [b]), null)
+        }
+    },
+    activePlanPrunesDeadLoopSuffix: () => {
+        const inner = reading(a, innerTarget)
+        const sourceLoop = loopOf(body([
+            ['define', known, ['ref', a], 'required'],
+            ['block', [], body([], ['throw', 'stopped'])],
+            ['loop', inner],
+        ], ['continue', innerTarget, [['ref', b]]]))
+        const plan = planned(containing(sourceLoop), [b])
+        const loop = loopsOf(plan.block)[0]
+        assertEq(plan.cells.length, 1)
+        assertEq(plan.cells[0].binding, a)
+        assertEq(plan.loops.size, 1)
+        assertEq(loop.body.statements.length, 2)
+        assertEq(loopsOf(loop.body).length, 0)
+        assertStructurallySame(loop.body.exit, ['yield', []])
+        const terminal = loop.body.statements[1]
+        assert(terminal[0] === 'block')
+        assertStructurallySame(terminal[2].exit, ['throw', 'stopped'])
+    },
+    activePlanPrunesDeadCallerSuffix: () => {
+        const source = body([
+            ['define', a, ['array', []], 'lazy'], ['loop', reading(a)],
+            ['if', [], ['ref', known], body([], ['throw', 'first']), body([], ['throw', 'second'])],
+            ['loop', loopOf(body([], ['return', functionTarget, ['ref', b]]), innerTarget)],
+        ], ['break', innerTarget, [['ref', b]]])
+        const plan = planned(source, [b])
+        assertEq(plan.cells.length, 1)
+        assertEq(plan.loops.size, 1)
+        assertEq(plan.block.statements.length, 3)
+        assertStructurallySame(plan.block.exit, ['yield', []])
+    },
+    mixedConditionalKeepsSuffix: () => {
+        for (const yieldingElse of [false, true]) {
+            const then = yieldingElse ? body([], ['throw', 'stopped']) : body()
+            const otherwise = yieldingElse ? body() : body([], ['throw', 'stopped'])
+            const sourceLoop = loopOf(body([
+                ['if', [], false, then, otherwise],
+                ['define', known, ['ref', a], 'required'],
+            ], ['break', target, [['ref', known]]]))
+            const plan = planned(containing(sourceLoop))
+            const loop = loopsOf(plan.block)[0]
+            assertEq(plan.cells.length, 1)
+            assertEq(loop.body.statements.length, 2)
+            assertEq(loop.body.exit, sourceLoop.body.exit)
+            const conditional = loop.body.statements[0]
+            assert(conditional[0] === 'if')
+            assertEq(conditional[2], false)
+            assertEq(conditional[3].exit, then.exit)
+            assertEq(conditional[4].exit, otherwise.exit)
+        }
+    },
+    loopsKeepPotentialNormalSuffix: () => {
+        const stopped = loopOf(body([], ['throw', 'stopped']), innerTarget)
+        const source = body([
+            ['define', a, ['array', []], 'lazy'], ['loop', stopped], ['loop', reading(a)],
+        ])
+        const plan = planned(source)
+        const loops = loopsOf(plan.block)
+        assertEq(loops.length, 2)
+        assertEq(plan.block.statements.length, 3)
+        assertEq(plan.loops.size, 1)
+        assertEq(plan.loops.has(loops[0]), false)
+        assertEq(plan.loops.has(loops[1]), true)
+        assertEq(plan.block.exit, source.exit)
+    },
     unusedExternal: () => {
         assertEq(memoCells(body(), [known]), null)
         assertEq(memoCells(body([
@@ -392,6 +469,12 @@ export const proof = /** @type {const} */ ({
         assert([...plan.loops][0] !== loop)
     },
     throw: {
+        reachableForeignAfterMixedConditional: () => memoCells(containing(loopOf(body([
+            ['if', [], false, body(), body([], ['throw', 'stopped'])],
+        ], ['continue', innerTarget, [['ref', a]]])))),
+        reachableForeignAfterYieldingBlock: () => memoCells(containing(loopOf(body([
+            ['block', [], body()],
+        ], ['break', innerTarget, [['ref', a]]])))),
         externalDirect: () => memoCells(containing(reading(known), []), [known]),
         externalAliasChain: () => memoCells(containing(reading(alias), [
             ['define', a, ['ref', known], 'lazy'], ['define', alias, ['ref', a], 'lazy'],

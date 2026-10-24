@@ -15,6 +15,8 @@ export type _Root = {
 
 export type _Scope = ReadonlyMap<BindingId, _Root | null>
 
+export type _Occurrence = { readonly block: Block; readonly normal: boolean }
+
 export type _Visit = {
     readonly block: Block
     readonly index: number
