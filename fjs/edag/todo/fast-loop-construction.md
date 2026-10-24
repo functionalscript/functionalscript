@@ -4,6 +4,8 @@
 **Status:** wip — scalar construction, fixed-input roots and nested normal-exit
 aggregate helpers are implemented; escaping completions and shared
 lazy demand-state transport remain in E
+**Current increment:** propagate enclosing-function returns through statement-level
+loop helpers, retaining direct canonical root results and self calls.
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
