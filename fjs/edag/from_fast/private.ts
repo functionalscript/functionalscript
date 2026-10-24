@@ -33,6 +33,7 @@ export type Summary = {
     readonly required: readonly BindingId[]
     readonly reached: readonly BindingId[]
     readonly returns: boolean
+    readonly normal: boolean
 }
 
 export type Summaries = ReadonlyMap<Node[1], Summary>

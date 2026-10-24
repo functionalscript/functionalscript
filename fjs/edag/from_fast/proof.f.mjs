@@ -837,9 +837,11 @@ export const proof = {
         // Only its caller unwraps it into the public function result.
         const call = /** @type {Exp} */ (['()', ['=>', 1, [], ['[]', [['[]', ['return', 7]]]]], [['[]', []]]])
         const completion = /** @type {Exp} */ (['.', call, 0])
-        const expected = /** @type {Exp} */ (['=>', 0, [], ['?:',
+        // Graph control retains the required call at its establishment. The
+        // completion test reads that same call identity, without invoking twice.
+        const expected = /** @type {Exp} */ (['=>', 0, [], [',', [call, ['?:',
             ['===', ['.', completion, 0], 'return'], ['.', completion, 1], 9,
-        ]])
+        ]]]])
         const graph = fromFast(result(['function', fn]))
         assertStructurallySame(assertOk(identityAnalysis(graph)), assertOk(identityAnalysis(expected)))
         assertEq(evaluate(calledFunction(fn)), 7)
@@ -1242,6 +1244,71 @@ export const proof = {
         assertStructurallySame(evaluate(calledFunction(fn, [true, false])), [3, 4])
         assertStructurallySame(evaluate(calledFunction(fn, [false, false])), [3, 5])
         assertEq(evaluate(calledFunction(fn, [true, true])), 7)
+    },
+    sharedFunctionJoinRequiredPrefixes: () => {
+        const selected = id(0), operation = id(0), established = id(0), dead = id(0)
+        const failed = /** @type {Value} */ (['function', {
+            target, parameters: [], rest: null, self: null, captures: [], body: body(['throw', 'required prefix']),
+        }])
+        const succeeded = /** @type {Value} */ (['function', {
+            target, parameters: [], rest: null, self: null, captures: [], body: body(['return', target, ['array', [5]]]),
+        }])
+        for (const partial of [false, true]) {
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [selected, operation], rest: null, self: null, captures: [],
+                body: body(['return', target, ['array', [ref(established), ref(established)]]], [
+                    ['define', established, ['()', ref(operation), []], 'required'],
+                    ['if', [], ref(selected), body(['return', target, 3]), body(partial ? ['yield', []] : ['return', target, 4])],
+                ]),
+            })
+            for (const choice of [false, true]) {
+                assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [choice, failed]))))({ args: [] })), 'required prefix')
+                const evaluated = evaluate(calledFunction(fn, [choice, succeeded]))
+                if (choice || !partial) { assertEq(evaluated, choice ? 3 : 4) }
+                else {
+                    assert(evaluated instanceof Array)
+                    assertEq(evaluated[0], evaluated[1])
+                    assertStructurallySame(evaluated[0], [5])
+                }
+            }
+            const skipped = /** @type {FastFunction} */ ({ ...fn, body: body(['return', target, 9], [
+                ...fn.body.statements,
+                ['define', dead, ['array', [ref(established)]], 'required'],
+            ]) })
+            assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(skipped, [true, failed]))))({ args: [] })), 'required prefix')
+            assertEq(evaluate(calledFunction(skipped, [true, succeeded])), 3)
+        }
+    },
+    sharedFunctionJoinRequiredLoopPrefix: () => {
+        const selected = id(0)
+        const loop = summing(['block', body(['throw', 'required loop'])])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: body(['return', target, ref(loop.results[0])], [
+                ['loop', loop],
+                ['if', [], ref(selected), body(['return', target, 3]), body(['yield', []])],
+            ]),
+        })
+        for (const choice of [false, true]) {
+            assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [choice]))))({ args: [] })), 'required loop')
+        }
+    },
+    sharedFunctionJoinTerminalThrows: () => {
+        const selected = id(0), missing = id(0)
+        const thrown = /** @type {Block} */ (body(['throw', 'selected throw']))
+        const region = /** @type {Block} */ (body(['return', target, ref(missing)], [
+            ['block', [], thrown],
+            ['define', missing, ref(id(0)), 'required'],
+        ]))
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: body(['return', target, ref(missing)], [
+                ['if', [], ref(selected), region, body(['throw', 'other throw'])],
+            ]),
+        })
+        for (const choice of [false, true]) {
+            assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [choice]))))({ args: [] })), choice ? 'selected throw' : 'other throw')
+        }
     },
     sharedFunctionJoinTerminalSelfCall: () => {
         const count = id(0), value = id(0), rest = id(0), self = id(0), captured = id(0), normal = id(0)

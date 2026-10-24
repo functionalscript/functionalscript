@@ -159,7 +159,7 @@ const closure = (relations, roots) => {
 /** @type {(node: Node, parts: readonly Summary[]) => Summary} */
 const summary = (node, parts) => {
     /** @type {Summary} */
-    const empty = { references: [], required: [], reached: [], returns: false }
+    const empty = { references: [], required: [], reached: [], returns: false, normal: true }
     if (node[0] === 'value') {
         const value = node[1]
         if (!(value instanceof Array)) { return empty }
@@ -173,8 +173,12 @@ const summary = (node, parts) => {
     /** @type {readonly BindingId[]} */
     let required = []
     let position = 0
-    let returns = node[1].exit[0] === 'return'
+    let active = 0
+    let returns = false
+    let normal = true
     for (const statement of node[1].statements) {
+        if (!normal) { break }
+        ++active
         const part = parts[position]
         if (statement[0] === 'define') {
             relations = [...relations, [statement[1], part.references]]
@@ -183,10 +187,12 @@ const summary = (node, parts) => {
         } else if (statement[0] === 'block') {
             required = [...required, ...part.references]
             returns = returns || part.returns
+            normal = part.normal
             ++position
         } else if (statement[0] === 'if') {
             required = [...required, ...part.references]
             returns = returns || parts[position + 1].returns || parts[position + 2].returns
+            normal = parts[position + 1].normal || parts[position + 2].normal
             position += 3
         } else {
             const length = statement[1].initial.length
@@ -194,13 +200,15 @@ const summary = (node, parts) => {
             position += length + 1
         }
     }
-    const reached = closure(relations, [...parts.slice(position).flatMap(part => part.references), ...required])
+    const exits = parts.slice(parts.length - exitValues(node[1].exit).length)
+    const reached = closure(relations, [...(normal ? exits.flatMap(part => part.references) : []), ...required])
     const local = new Set(relations.map(([binding]) => binding))
     return {
         references: reached.filter(id => !local.has(id)),
-        required: node[1].statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'required' && !reached.includes(statement[1]) ? [statement[1]] : []),
+        required: node[1].statements.slice(0, active).flatMap(statement => statement[0] === 'define' && statement[3] === 'required' && !reached.includes(statement[1]) ? [statement[1]] : []),
         reached,
-        returns,
+        returns: returns || (normal && node[1].exit[0] === 'return'),
+        normal: normal && node[1].exit[0] === 'yield',
     }
 }
 
@@ -391,22 +399,29 @@ const transferTask = (exit, context) => call(() => {
 /** Bind ordered results without changing their established identity. @type {(bindings: readonly BindingId[], exp: Exp) => Environment} */
 const resultBindings = (bindings, exp) => bindings.map((binding, i) => [binding, bindings.length === 1 ? exp : ['.', exp, i]])
 
-/** Shared definition establishment for ordinary regions and control joins. @type {(statement: Definition, context: Context, required: readonly BindingId[]) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>} */
-const definitionTask = (statement, context, required) => bind(valueTask(statement[2], context), value => {
+/** Shared definition establishment; control paths retain every required initializer at entry. @type {(statement: Definition, context: Context, required: readonly BindingId[], eager?: boolean) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>} */
+const definitionTask = (statement, context, required, eager = false) => bind(valueTask(statement[2], context), value => {
     const initializer = statement[2]
     const deferred = statement[3] === 'lazy' && initializer !== null && typeof initializer === 'object'
         && (initializer[0] !== 'ref' || lazyBinding(context.scope, initializer[1]))
     const scope = scopeOf([deferred ? [statement[1], anchored(value), 'lazy'] : [statement[1], statement[3] === 'lazy' ? anchored(value) : value.exp]], context.scope)
-    const anchors = statement[3] === 'required' ? [...value.anchors, ...(required.includes(statement[1]) ? [value.exp] : [])] : []
+    const anchors = statement[3] === 'required' ? [...value.anchors, ...(eager || required.includes(statement[1]) ? [value.exp] : [])] : []
     return done({ scope, anchors })
 })
 
-/** @type {(loop: Loop, value: Lowered, reached: readonly BindingId[]) => readonly Exp[]} */
-const loopAnchors = (loop, value, reached) => [...value.anchors, ...(!loop.results.some(binding => reached.includes(binding)) ? [value.exp] : [])]
+/** @type {(loop: Loop, value: Lowered, reached: readonly BindingId[], eager?: boolean) => readonly Exp[]} */
+const loopAnchors = (loop, value, reached, eager = false) => [...value.anchors, ...(eager || !loop.results.some(binding => reached.includes(binding)) ? [value.exp] : [])]
 
 /** @type {(statement: Extract<Statement, readonly ['block' | 'if', ...unknown[]]>, context: Context) => boolean} */
-const regionReturns = (statement, context) => statement[0] === 'block' ? blockSummary(statement[2], context).returns
-    : blockSummary(statement[3], context).returns || blockSummary(statement[4], context).returns
+const regionHasControl = (statement, context) => {
+    if (statement[0] === 'block') {
+        const part = blockSummary(statement[2], context)
+        return part.returns || !part.normal
+    }
+    const then = blockSummary(statement[3], context)
+    const otherwise = blockSummary(statement[4], context)
+    return then.returns || otherwise.returns || !(then.normal || otherwise.normal)
+}
 
 /** Prefix nodes carry the original expression identities into both projections. @type {(anchors: readonly Exp[], next: _Control) => _Control} */
 const controlPrefix = (anchors, next) => anchors.length === 0 ? next : { normal: next.normal, node: { kind: 'prefix', anchors, next } }
@@ -457,13 +472,13 @@ const controlTask = (block, context, expected) => call(() => {
         }
         const statement = block.statements[index]
         if (statement[0] === 'define') {
-            return bind(definitionTask(statement, current, required), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
+            return bind(definitionTask(statement, current, required, true), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
         }
         if (statement[0] === 'loop') {
             return bind(loopTask(statement[1], current), ({ value, bindings }) => each(index + 1, scopeOf(bindings, scope),
-                { head: anchors, tail: loopAnchors(statement[1], value, reached) }))
+                { head: anchors, tail: loopAnchors(statement[1], value, reached, true) }))
         }
-        if (!regionReturns(statement, current)) {
+        if (!regionHasControl(statement, current)) {
             const task = statement[0] === 'block' ? regionTask(statement[2], current)
                 : conditional(statement[2], statement[3], statement[4], current)
             return bind(task, value => each(index + 1, scopeOf(resultBindings(statement[1], value.exp), scope),
@@ -486,7 +501,7 @@ const controlTask = (block, context, expected) => call(() => {
 /** @type {(block: Block, context: Context) => Task<Lowered>} */
 const blockTask = (block, context) => call(() => {
     const { required, reached } = blockSummary(block, context)
-    if (context.functionTarget !== null && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionReturns(statement, context))) {
+    if (context.functionTarget !== null && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionHasControl(statement, context))) {
         return bind(controlTask(block, context, null), flow => bind(emitControl(flow, values => anchored(resultsValue(values)), anchored), exp => done(plain(exp))))
     }
     /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<Lowered>} */
