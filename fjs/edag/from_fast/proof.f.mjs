@@ -6,6 +6,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { anchored, fromFast, lowerBlock, lowerValue } from './module.f.mjs'
+import { completeTransfers } from './loop/completions/module.f.mjs'
 import { identityAnalysis } from '../analysis/module.f.mjs'
 import { memo } from '../memo/module.f.mjs'
 import { toFast } from '../to_fast/module.f.mjs'
@@ -74,6 +75,25 @@ const returningLoop = (condition, value, normal = [], owner = target) => {
 
 /** @type {(fn: FastFunction, args?: readonly Value[]) => Exp} */
 const calledFunction = (fn, args = []) => fromFast(result(['()', ['function', fn], args]))
+
+/** @type {(length: number) => FastFunction} */
+const mixedJoinFunction = length => {
+    const selected = id(0), stopA = id(0), stopB = id(0), operation = id(0), early = id(0)
+    const made = id(0), allocation = id(0)
+    const loop = returningLoop(ref(early), 77)
+    const repeated = Array.from({ length }, () => /** @type {Statement} */ (['if', [], ref(selected),
+        body(['yield', []], [['if', [], ref(stopA), body(['return', target, 50]), body(['yield', []])]]),
+        body(['yield', []], [['if', [], ref(stopB), body(['return', target, 60]), body(['yield', []])]]),
+    ]))
+    return {
+        target, parameters: [selected, stopA, stopB, operation, early], rest: null, self: null, captures: [],
+        body: body(['return', target, ['array', [ref(allocation), ref(allocation), ref(made)]]], [
+            ['loop', loop], ...repeated,
+            ['define', made, ['()', ref(operation), []], 'required'],
+            ['define', allocation, ['array', [ref(made)]], 'required'],
+        ]),
+    }
+}
 
 /** @type {(initial?: Value, limit?: Value) => Loop} */
 const counting = (initial = 0, limit = 3) => {
@@ -1092,6 +1112,214 @@ export const proof = {
         assertEq(evaluate(fromFast(result(['===', ['()', ref(bound), [0]], ref(bound)], [['define', bound, ['function', fn], 'required']]))), true)
         assertEq(evaluate(calledFunction(fn, [7])), 7)
     },
+    sharedFunctionJoinGrowth: () => {
+        const factoryTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const factory = /** @type {Value} */ (['function', {
+            target: factoryTarget, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', factoryTarget, ['array', [4]]]),
+        }])
+        const sizes = [4, 8, 12].map(length => {
+            const fn = mixedJoinFunction(length)
+            const normalized = completeTransfers(fn, null)
+            assert(normalized !== fn)
+            const graph = fromFast(result(['function', fn]))
+            const analysis = assertOk(identityAnalysis(graph))
+            const root = analysis.root
+            assert(root instanceof Array)
+            const calls = analysis.nodes.flatMap((node, index) => node[0] === '()' && node[1] instanceof Array
+                && analysis.nodes[node[1][1]][0] === 'arg' && analysis.nodes[node[1][1]][1] === 3
+                && analysis.scope[index] === root[1] ? [index] : [])
+            assertEq(calls.length, 1)
+            const allocations = analysis.nodes.flatMap((node, index) => node[0] === '[]' && node[1].length === 1
+                && node[1][0] instanceof Array && node[1][0][0] === '#' && node[1][0][1] === calls[0] ? [index] : [])
+            assertEq(allocations.length, 1)
+            assertEq(analysis.scope[allocations[0]], root[1])
+            assert(analysis.shared.includes(allocations[0]))
+            // The original function and its real loop helper are the only functions.
+            assertEq(analysis.nodes.filter(node => node[0] === '=>').length, 2)
+            assert(analysis.nodes.length < length * 40 + 40)
+            const value = evaluate(calledFunction(fn, [true, false, false, factory, false]))
+            assert(value instanceof Array)
+            assertEq(value[0], value[1])
+            assert(value[0] instanceof Array)
+            assertEq(value[0][0], value[2])
+            assertStructurallySame(value, [[[4]], [[4]], [4]])
+            return { nodes: analysis.nodes.length, fast: JSON.stringify(normalized).length }
+        })
+        assert(sizes[2].nodes - sizes[1].nodes <= sizes[1].nodes - sizes[0].nodes)
+        assert(sizes[2].fast - sizes[1].fast <= sizes[1].fast - sizes[0].fast)
+    },
+    sharedFunctionJoinSelectedReturns: () => {
+        const fn = mixedJoinFunction(8)
+        const failedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const failed = /** @type {Value} */ (['function', {
+            target: failedTarget, parameters: [], rest: null, self: null, captures: [], body: body(['throw', 'suffix reached']),
+        }])
+        assertEq(evaluate(calledFunction(fn, [true, true, false, failed, false])), 50)
+        assertEq(evaluate(calledFunction(fn, [false, false, true, failed, false])), 60)
+        assertEq(evaluate(calledFunction(fn, [true, false, false, failed, true])), 77)
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [false, false, false, failed, false]))))({ args: [] })), 'suffix reached')
+        const selected = id(0), unreachable = id(0)
+        const terminal = /** @type {FastFunction} */ ({
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: body(['return', target, 0], [
+                ['if', [], ref(selected), body(['return', target, 3]), body(['return', target, 4])],
+                ['define', unreachable, ['.', null, 'x'], 'required'],
+            ]),
+        })
+        assertEq(evaluate(calledFunction(terminal, [true])), 3)
+        assertEq(evaluate(calledFunction(terminal, [false])), 4)
+    },
+    sharedFunctionJoinNormalSignatures: () => {
+        const selected = id(0), stop = id(0), followed = id(0)
+        for (const length of [0, 1, 3]) {
+            const bindings = Array.from({ length }, () => id(0))
+            const left = bindings.map((_, index) => index + 4)
+            const right = bindings.map((_, index) => index + 8)
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [selected, stop], rest: null, self: null, captures: [],
+                body: body(['return', target, ['array', [ref(followed), ref(followed)]]], [
+                    ['if', bindings, ref(selected),
+                        body(['yield', left], [['if', [], ref(stop), body(['return', target, 77]), body(['yield', []])]]),
+                        body(['yield', right], [['if', [], ref(stop), body(['return', target, 88]), body(['yield', []])]]),
+                    ],
+                    ['define', followed, ['array', bindings.map(ref)], 'required'],
+                ]),
+            })
+            for (const branch of [false, true]) {
+                assertEq(evaluate(calledFunction(fn, [branch, true])), branch ? 77 : 88)
+                const value = evaluate(calledFunction(fn, [branch, false]))
+                assert(value instanceof Array)
+                assertEq(value[0], value[1])
+                assertStructurallySame(value[0], branch ? left : right)
+            }
+            const yielded = /** @type {FastFunction} */ ({ ...fn, body: body(['yield', left], [
+                ['if', [], ref(stop), body(['return', target, 99]), body(['yield', []])],
+            ]) })
+            assertStructurallySame(evaluate(calledFunction(yielded, [false, false])), length === 1 ? left[0] : left)
+            assertEq(evaluate(calledFunction(yielded, [false, true])), 99)
+        }
+        const thrown = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [], body: body(['throw', 'failure']),
+        })
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(thrown))))({ args: [] })), 'failure')
+    },
+    sharedFunctionJoinEvaluationRegions: () => {
+        const selected = id(0), stop = id(0), lazy = id(0), failed = id(0)
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [selected, stop], rest: null, self: null, captures: [],
+            body: body(['return', target, 9], [
+                ['if', [], ref(selected), body(['yield', []], [
+                    ['define', lazy, ['block', body(['throw', 'lazy'])], 'lazy'],
+                    ['if', [], ref(stop), body(['return', target, 7]), body(['yield', []])],
+                ]), body(['return', target, 8], [['define', failed, ['block', body(['throw', 'prefix'])], 'required']])],
+            ]),
+        })
+        assertEq(evaluate(calledFunction(fn, [true, true])), 7)
+        assertEq(evaluate(calledFunction(fn, [true, false])), 9)
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [false, true]))))({ args: [] })), 'prefix')
+        const condition = /** @type {Value} */ (['block', result(true, [['define', failed, ['block', body(['throw', 'condition'])], 'required']])])
+        const tested = /** @type {FastFunction} */ ({ ...fn, body: body(['return', target, 9], [
+            ['if', [], condition, body(['return', target, 7]), body(['yield', []])],
+        ]) })
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(tested, [true, true]))))({ args: [] })), 'condition')
+        const prefixed = /** @type {FastFunction} */ ({ ...fn, body: body(['return', target, 9], [
+            ['define', failed, ['block', body(['throw', 'entry'])], 'required'],
+            ['if', [], true, body(['return', target, 7]), body(['yield', []])],
+        ]) })
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(prefixed, [true, true]))))({ args: [] })), 'entry')
+    },
+    sharedFunctionJoinOrdinaryRegions: () => {
+        const selected = id(0), stop = id(0), first = id(0), second = id(0)
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [selected, stop], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', [ref(first), ref(second)]]], [
+                ['block', [first], body(['yield', [3]])],
+                ['if', [second], ref(selected), body(['yield', [['+', ref(first), 1]]]), body(['yield', [['+', ref(first), 2]]])],
+                ['if', [], ref(stop), body(['return', target, 7]), body(['yield', []])],
+            ]),
+        })
+        assertStructurallySame(evaluate(calledFunction(fn, [true, false])), [3, 4])
+        assertStructurallySame(evaluate(calledFunction(fn, [false, false])), [3, 5])
+        assertEq(evaluate(calledFunction(fn, [true, true])), 7)
+    },
+    sharedFunctionJoinTerminalSelfCall: () => {
+        const count = id(0), value = id(0), rest = id(0), self = id(0), captured = id(0), normal = id(0)
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [count, value], rest, self,
+            captures: [{ binding: captured, value: ['array', ['capture']] }],
+            body: body(['return', target, ['array', [ref(normal), ref(captured), ref(rest)]]], [
+                ['block', [normal], body(['yield', [ref(value)]], [
+                    ['if', [], ['>', ref(count), 0], body(['return', target, ['()', ref(self), [
+                        ['-', ref(count), 1], ['+', ref(value), 1], ref(captured), 42,
+                    ]]]), body(['yield', []])],
+                ])],
+            ]),
+        })
+        const graph = fromFast(result(['function', fn]))
+        assert(graph instanceof Array && graph[0] === '=>')
+        assertEq(graph[1], 2)
+        assertEq(graph[2].length, 1)
+        const analysis = assertOk(identityAnalysis(graph))
+        const root = analysis.root
+        assert(root instanceof Array)
+        const calls = analysis.nodes.flatMap((node, index) => node[0] === '()' && node[1] instanceof Array
+            && analysis.nodes[node[1][1]][0] === 'self' && analysis.scope[index] === root[1] ? [index] : [])
+        assertEq(calls.length, 1)
+        const call = analysis.nodes[calls[0]]
+        assert(call[0] === '()')
+        assertEq(call[2].length, 4)
+        assert(analysis.nodes.some(node => node[0] === '?:' && ((node[2] instanceof Array && node[2][1] === calls[0])
+            || (node[3] instanceof Array && node[3][1] === calls[0]))))
+        assert(!analysis.nodes.some(node => node[0] === '[]' && node[1].some(item => item instanceof Array && item[0] === '#' && item[1] === calls[0])))
+        assertEq(analysis.nodes.filter(node => node[0] === '=>').length, 1)
+        const evaluated = evaluate(calledFunction(fn, [1, 5, 99]))
+        assert(evaluated instanceof Array && evaluated[2] instanceof Array)
+        assertStructurallySame(evaluated, [6, ['capture'], [['capture'], 42]])
+        assertEq(evaluated[1], evaluated[2][0])
+    },
+    sharedFunctionJoinNestedFunction: () => {
+        const selected = id(0), nestedValue = id(0)
+        const nestedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const nested = /** @type {Value} */ (['function', {
+            target: nestedTarget, parameters: [], rest: null, self: null, captures: [], body: body(['return', nestedTarget, 9]),
+        }])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: body(['return', target, ['()', ref(nestedValue), []]], [
+                ['if', [], ref(selected), body(['return', target, 11]), body(['yield', []])],
+                ['define', nestedValue, nested, 'required'],
+            ]),
+        })
+        assertEq(evaluate(calledFunction(fn, [true])), 11)
+        assertEq(evaluate(calledFunction(fn, [false])), 9)
+        const first = calledFunction(fn, [false])
+        const second = fromFast(assertOk(toFast(first)))
+        const third = fromFast(assertOk(toFast(second)))
+        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+        assertEq(evaluate(third), 9)
+    },
+    sharedFunctionJoinDeepStatements: () => {
+        /** @type {Block} */
+        let nested = body(['yield', []])
+        for (let depth = 0; depth < 20_000; ++depth) {
+            nested = body(['yield', []], [['if', [], false, body(['return', target, 9]), nested]])
+        }
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, 7], [['block', [], nested]]),
+        })
+        const graph = fromFast(result(['function', fn]))
+        assert(graph instanceof Array && graph[0] === '=>')
+        let exp = graph[3]
+        for (let depth = 0; depth < 20_000; ++depth) {
+            assert(exp instanceof Array && exp[0] === '?:')
+            assertEq(exp[1], false)
+            assertEq(exp[2], 9)
+            exp = exp[3]
+        }
+        assertEq(exp, 7)
+    },
     directRootResult: () => {
         const parameter = id(0)
         const loop = counting(ref(parameter))
@@ -1247,6 +1475,51 @@ export const proof = {
                 ]),
             })
             fromFast(afterLoop(outer, ref(output)))
+        },
+        sharedFunctionJoinForeignReturn: () => {
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 7], [['if', [], true, body(['return', { ...target }, 9]), body(['yield', []])]]),
+            })
+            calledFunction(fn)
+        },
+        sharedFunctionJoinForeignExit: () => {
+            const selected = id(0)
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [selected], rest: null, self: null, captures: [],
+                body: body(['return', { ...target }, 9], [
+                    ['if', [], ref(selected), body(['return', target, 7]), body(['yield', []])],
+                ]),
+            })
+            calledFunction(fn, [false])
+        },
+        sharedFunctionJoinRawLoopTransfer: () => {
+            const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['continue', loopTarget, []]),
+            })
+            calledFunction(fn)
+        },
+        sharedFunctionJoinNestedOperandReturn: () => {
+            const value = id(0)
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 7], [['define', value, ['block', body(['yield', [1]], [
+                    ['if', [], true, body(['return', target, 9]), body(['yield', []])],
+                ])], 'required']]),
+            })
+            calledFunction(fn)
+        },
+        sharedFunctionJoinResultArity: () => {
+            const output = id(0)
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 7], [['block', [output], body(['yield', []], [
+                    ['if', [], false, body(['return', target, 9]), body(['yield', []])],
+                ])]]),
+            })
+            calledFunction(fn)
         },
         unboundLoopCapture: () => {
             const loop = counting(0, ref(id(0)))
