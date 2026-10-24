@@ -1011,13 +1011,15 @@ export const proof = {
          */
         marksAnEdge: () => {
             const html = htmlToString(graphSvg({
+                trace: true,
                 nodes: [
                     { id: 0, kind: 'a', label: 'root', rank: 0 },
                     { id: 1, kind: 'a', label: 'leaf', rank: 1 },
                 ],
                 edges: [{ from: 0, to: 1, label: 'x', kind: 'lazy' }],
             }))
-            assert(html.includes('data-graph-edge-kind="lazy"'), html)
+            assertEq(occurrences('data-graph-edge-kind="lazy"')(html), 2)
+            assert(html.includes('data-graph-trace="" marker-end="url(#graph-trace-arrow)" data-graph-edge-kind="lazy"'), html)
         },
         // An edge a demo does not mark says nothing, rather than saying
         // "ordinary" in an attribute every graph would then carry.
