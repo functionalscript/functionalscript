@@ -14,6 +14,10 @@ runtime coverage, and TypeScript needs one type-check.
 The earlier proposal concentrated the canonical checks in `ubuntu-arm`.
 The revised proposal distributes them across the six OS/CPU jobs below.
 
+The original proposal is preserved in
+[six-job-proposal.md](../six-job-proposal.md), with spelling and grammar
+corrections only.
+
 ### Proposal
 
 Use the existing platform job names and the exact tool and image pins in
