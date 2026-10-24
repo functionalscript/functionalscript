@@ -439,18 +439,20 @@ export const nonceReuse = draft => {
  * @type {(result: ReturnType<typeof nonceReuse>) => readonly Node[]}
  */
 const nonceReuseOutput = result => {
-    if (result[0] === 'error') { return [refusal(result[1])] }
-    const { q, key, signatures, recovered } = result[1]
+    const [tag, value] = result
+    if (tag === 'error') { return [refusal(value)] }
+    const { q, key, signatures, recovered } = value
+    const [recoveredTag, recoveredValue] = recovered
     return [
         caption('Curve order q, hex:'), codeBlock(nonceScalar(q), 'Copy nonce reuse curve order'),
         ...signatures.flatMap(({ h, r, s }, i) => [
             caption(`Message ${i + 1}: h = bits2int(SHA-256(message)) mod q. Values in hex:`),
             codeBlock(`h = ${nonceScalar(h)}\nr = ${nonceScalar(r)}\ns = ${nonceScalar(s)}`, `Copy message ${i + 1} signature`),
         ]),
-        ...(recovered[0] === 'error' ? [refusal(recovered[1])] : [
+        ...(recoveredTag === 'error' ? [refusal(recoveredValue)] : [
             caption('Recovered private key x, hex:'),
-            codeBlock(nonceScalar(recovered[1]), 'Copy recovered private key'),
-            paragraph(`Matches original demo private key: ${recovered[1] === key}.`),
+            codeBlock(nonceScalar(recoveredValue), 'Copy recovered private key'),
+            paragraph(`Matches original demo private key: ${recoveredValue === key}.`),
         ]),
     ]
 }
