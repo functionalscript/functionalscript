@@ -49,6 +49,8 @@ import { pureOk } from '../../effects/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
+const { listToVec } = msb
+
 /** A named curve, bound once.
  * @type {(name: string, curve: Curve, oid: readonly bigint[]) => DemoCurve}
  */
@@ -310,7 +312,7 @@ const eveView = eve => {
 const publicKeyPem = (c, [x, y]) => {
     const coordinate = vec(BigInt(Math.ceil(c.coordinateDigits / 2)) * 8n)
     // BIT STRING: zero unused bits, then the uncompressed-point marker.
-    const point = encodeRaw([0x03n, msb.listToVec([vec8(0n), vec8(0x04n), coordinate(x), coordinate(y)])])
+    const point = encodeRaw([0x03n, listToVec([vec8(0n), vec8(0x04n), coordinate(x), coordinate(y)])])
     const spki = encode([constructedSequence, [
         [constructedSequence, [
             [objectIdentifier, [1n, 2n, 840n, 10045n, 2n, 1n]],
@@ -416,14 +418,16 @@ const stageHeader = (title, role) => ['header', { [signStageHeaderMarker]: '' },
 
 const reuseP256 = reuse(secp256r1)(sha256)
 const nonceScalar = encodeScalar(64)
+const parseDemoKey = parseHexField('the demo private key', 64)
+const parseSharedNonce = parseHexField('the shared nonce', 64)
 
 /** Validate the independent nonce experiment before signing.
  * @type {(draft: DemoNonceReuse) => ReturnType<typeof reuseP256>}
  */
 export const nonceReuse = draft => {
-    const key = parseHexField('the demo private key', 64)(draft.key)
+    const key = parseDemoKey(draft.key)
     if (key[0] === 'error') { return key }
-    const nonce = parseHexField('the shared nonce', 64)(draft.nonce)
+    const nonce = parseSharedNonce(draft.nonce)
     if (nonce[0] === 'error') { return nonce }
     const first = tryUtf8(draft.message1)
     const second = tryUtf8(draft.message2)
