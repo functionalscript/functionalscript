@@ -1,7 +1,7 @@
 ## Investigate mise and Pixi as Nix alternatives
 
 **Priority:** P3
-**Status:** open
+**Status:** wip — mise development-environment trial
 
 ### Problem
 
