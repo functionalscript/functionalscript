@@ -2,15 +2,17 @@
  * Canonical invocation loops reuse the ordinary function and its public result.
  * Only aliases precede the loop; each loop input is one current invocation input.
  * The loop's internal array values remain opaque, including helper protocols.
- * This owner resolves tail statement transfers without changing value lowering.
+ * This owner resolves tail statement transfers while preserving their regions
+ * for the graph constructor's shared normal/control joins.
  * Nonroot helpers and nonlocal value operands have separate construction owners.
  *
  * @module
- * @import { Block, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
- * @import { Frame, Link, Normal, Owner, Task, TerminalBlock, Visit } from './private.ts'
+ * @import { Block, Exit, Function as FastFunction, Loop, Statement } from '../../../../js/ast/types.ts'
+ * @import { List } from '../../../../types/list/types.ts'
+ * @import { _Frame, _Owner, _Result, _Task } from './private.ts'
  */
 
-import { concat, iterable, toArray } from '../../../../types/list/module.f.mjs'
+import { toArray } from '../../../../types/list/module.f.mjs'
 import { maxLength } from '../../../../types/function/length/module.f.mjs'
 import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
 
@@ -35,118 +37,75 @@ export const invocationRootOf = fn => {
         && !readsEntryParameters(loop, aliases) ? loop : null
 }
 
-/**
- * Regions containing only normal yields or graph failures keep their original
- * statements, including nested loops constructed by their own helper owner.
- * A suffix after normal ifs is constructed once, not once per arm.
- * One immutable postorder worklist also bounds deeply nested region analysis.
- * @type {(root: Block) => ReadonlyMap<Block, boolean>}
- */
-const ordinaryBlocks = root => {
-    /** @type {Link<Visit> | null} */
-    let work = { first: ['enter', root], tail: null }
-    /** @type {Link<boolean> | null} */
-    let results = null
-    /** @type {Link<readonly [Block, boolean]> | null} */
-    let entries = null
-    while (work !== null) {
-        const visit = /** @type {Visit} */ (work.first)
-        work = work.tail
-        if (visit[0] === 'enter') {
-            const children = /** @type {readonly Block[]} */ (visit[1].statements.flatMap(statement => statement[0] === 'block' ? [statement[2]] : statement[0] === 'if' ? [statement[3], statement[4]] : []))
-            work = children.reduceRight((tail, block) => ({ first: /** @type {Visit} */ (['enter', block]), tail }), /** @type {Link<Visit>} */ ({ first: ['finish', visit[1], children], tail: work }))
-            continue
-        }
-        let ordinary = visit[1].exit[0] === 'yield' || visit[1].exit[0] === 'throw'
-        for (const _ of visit[2]) {
-            const child = /** @type {Link<boolean>} */ (results)
-            ordinary = child.first && ordinary
-            results = child.tail
-        }
-        results = { first: ordinary, tail: results }
-        entries = { first: [visit[1], ordinary], tail: entries }
-    }
-    return new Map(iterable(entries))
-}
-
-/** @type {(statement: Statement, owner: Owner) => boolean} */
-const ordinaryStatement = (statement, owner) => statement[0] === 'define' || statement[0] === 'loop' || (statement[0] === 'block' ? owner.ordinary.get(statement[2]) === true
-    : statement[0] === 'if' && owner.ordinary.get(statement[3]) === true && owner.ordinary.get(statement[4]) === true)
-
-/** @type {(block: TerminalBlock) => Task} */
-const done = block => ({ kind: 'done', block })
-/** @type {(run: () => Task) => Task} */
+/** @type {(value: _Result) => _Task} */
+const done = value => ({ kind: 'done', value })
+/** @type {(run: () => _Task) => _Task} */
 const call = run => ({ kind: 'call', run })
-/** @type {(first: Task, next: (block: TerminalBlock) => Task) => Task} */
+/** @type {(first: _Task, next: (value: _Result) => _Task) => _Task} */
 const bind = (first, next) => ({ kind: 'bind', first, next })
-/** @type {(input: Task) => TerminalBlock} */
+/** @type {(input: _Task) => _Result} */
 const run = input => {
     let task = input
-    /** @type {Frame | null} */
+    /** @type {_Frame | null} */
     let frames = null
     while (true) {
         if (task.kind === 'call') { task = task.run(); continue }
         if (task.kind === 'bind') { frames = { next: task.next, rest: frames }; task = task.first; continue }
-        if (frames === null) { return task.block }
-        const frame = /** @type {Frame} */ (frames)
+        if (frames === null) { return task.value }
+        const frame = /** @type {_Frame} */ (frames)
         frames = frame.rest
-        task = frame.next(task.block)
+        task = frame.next(task.value)
     }
 }
 
-/** Keep prefixes as immutable segments until a public FAST block is needed. @type {(statements: readonly Statement[], result: Task) => Task} */
-const before = (statements, result) => bind(result, block => done({ ...block, statements: concat(statements)(block.statements) }))
-
-/** The owning public return becomes a conditional arm's normal value. @type {(block: TerminalBlock) => Block} */
-const arm = block => {
-    const statements = toArray(block.statements)
-    const exit = block.exit
-    if (exit[0] === 'throw') { return { statements, exit } }
-    return { statements, exit: ['yield', [exit[2]]] }
-}
-
-/** @type {(values: readonly Value[], owner: Owner) => Task} */
-const returned = (values, owner) => {
-    if (values.length !== 1) { throw 'an invocation loop has one whole public result' }
-    return done({ statements: [], exit: ['return', owner.fn.target, values[0]] })
-}
+/** Finish a region from reverse-collected statements. @type {(statements: List<Statement>, exit: Exit, normal: boolean) => _Task} */
+const finished = (statements, exit, normal) => done({ block: { statements: toArray(statements).toReversed(), exit }, normal })
 
 /**
- * Continue has the actual invocation signature. It becomes the direct ordinary
- * self call; no private completion or memo product is added around its result.
- * @type {(block: Block, owner: Owner, normal: Normal) => Task}
+ * Rewrite reached exits without substituting the following statements into
+ * normal leaves. Nested loops and values retain their own owner. A region with
+ * no normal path ends this walk before unreachable statements or exits.
+ * `null` marks the root body, where a reached yield is invalid.
+ * @type {(block: Block, owner: _Owner, expected: number | null) => _Task}
  */
-const blockTask = (block, owner, normal) => {
-    /** @type {(index: number) => Task} */
-    const each = index => call(() => {
-        let position = index
-        while (position !== block.statements.length && ordinaryStatement(block.statements[position], owner)) { ++position }
-        if (position !== index) { return before(block.statements.slice(index, position), each(position)) }
+const blockTask = (block, owner, expected) => {
+    /** @type {(index: number, statements: List<Statement>) => _Task} */
+    const each = (index, statements) => call(() => {
         if (index !== block.statements.length) {
             const statement = block.statements[index]
-            const region = /** @type {Extract<Statement, readonly ['block' | 'if', ...unknown[]]>} */ (statement)
-            /** @type {Normal} */
-            const resume = values => {
-                if (values.length !== region[1].length) { throw 'invalid canonical region result signature' }
-                return before(region[1].map((binding, i) => ['define', binding, values[i], 'required']), each(index + 1))
+            if (statement[0] === 'define' || statement[0] === 'loop') { return each(index + 1, { first: statement, tail: statements }) }
+            /** @type {(mapped: Statement, normal: boolean) => _Task} */
+            const resume = (mapped, normal) => {
+                const next = /** @type {List<Statement>} */ ({ first: mapped, tail: statements })
+                return normal ? each(index + 1, next) : finished(next, block.exit, false)
             }
-            if (region[0] === 'block') { return blockTask(region[2], owner, resume) }
-            return bind(blockTask(region[3], owner, resume), then => bind(blockTask(region[4], owner, resume), otherwise =>
-                returned([['if', region[2], arm(then), arm(otherwise)]], owner)))
+            if (statement[0] === 'block') {
+                return bind(blockTask(statement[2], owner, statement[1].length), result => resume(['block', statement[1], result.block], result.normal))
+            }
+            return bind(blockTask(statement[3], owner, statement[1].length), then =>
+                bind(blockTask(statement[4], owner, statement[1].length), otherwise =>
+                    resume(['if', statement[1], statement[2], then.block, otherwise.block], then.normal || otherwise.normal)))
         }
         const exit = block.exit
-        if (exit[0] === 'yield') { return normal(exit[1]) }
+        if (exit[0] === 'yield') {
+            if (expected === null) { throw 'a normalized loop body requires an explicit transfer' }
+            if (exit[1].length !== expected) { throw 'invalid canonical region result signature' }
+            return finished(statements, exit, true)
+        }
         if (exit[0] === 'return') {
             if (exit[1] !== owner.fn.target) { throw 'a root return must name its owning function' }
-            return done({ statements: [], exit })
+            return finished(statements, exit, false)
         }
-        if (exit[0] === 'throw') { return done({ statements: [], exit }) }
+        if (exit[0] === 'throw') { return finished(statements, exit, false) }
         if (exit[1] !== owner.loop.target) { throw 'a loop transfer must name its owning loop' }
-        if (exit[0] === 'break') { return returned(exit[2], owner) }
+        if (exit[0] === 'break') {
+            if (exit[2].length !== 1) { throw 'an invocation loop has one whole public result' }
+            return finished(statements, ['return', owner.fn.target, exit[2][0]], false)
+        }
         if (exit[2].length !== owner.fn.parameters.length) { throw 'invalid canonical invocation transition signature' }
-        return returned([['()', owner.self, exit[2]]], owner)
+        return finished(statements, ['return', owner.fn.target, ['()', owner.self, exit[2]]], false)
     })
-    return each(0)
+    return each(0, null)
 }
 
 /**
@@ -157,12 +116,12 @@ const blockTask = (block, owner, normal) => {
  */
 export const directInvocationRoot = (fn, loop) => {
     const self = fn.self ?? { index: fn.target.index }
-    const owner = /** @type {Owner} */ ({ fn, loop, ordinary: ordinaryBlocks(loop.body), self: ['ref', self] })
+    const owner = /** @type {_Owner} */ ({ fn, loop, self: ['ref', self] })
     const aliases = loop.parameters.map((binding, i) => /** @type {Statement} */ (['define', binding, loop.initial[i], 'lazy']))
     const prefix = fn.body.statements.slice(0, -1).map(statement => {
         const alias = /** @type {Extract<Statement, readonly ['define', ...unknown[]]>} */ (statement)
         return /** @type {Statement} */ (['define', alias[1], alias[2], 'lazy'])
     })
-    const result = run(before([...prefix, ...aliases], blockTask(loop.body, owner, () => { throw 'a normalized loop body requires an explicit transfer' })))
-    return { ...fn, self, body: { statements: toArray(result.statements), exit: result.exit } }
+    const result = run(blockTask(loop.body, owner, null)).block
+    return { ...fn, self, body: { statements: [...prefix, ...aliases, ...result.statements], exit: result.exit } }
 }

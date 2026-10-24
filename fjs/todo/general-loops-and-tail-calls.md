@@ -113,8 +113,8 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       using explicit FAST inputs/results; no source-mutability analysis here.
       Fixed-input invocation roots and nested normal-exit aggregate helpers are
       implemented, along with statement-level function returns and outer-loop
-      transfers. Noncanonical helper callers share normal continuations at graph
-      construction; canonical-root joins, operand control and shared memo
+      transfers. Helper callers and canonical invocation roots share normal
+      continuations at graph construction; operand control and shared memo
       transport remain open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the

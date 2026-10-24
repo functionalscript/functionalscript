@@ -1,6 +1,6 @@
 /**
  * Canonical roots retain the invocation ABI and one opaque public result.
- * @import { BindingId, Block, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { Exp } from '../../../types.ts'
  */
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
@@ -276,6 +276,41 @@ export const proof = {
         assertEq(assertOk(evaluate(root(loop), [true, true])), 7)
         assertEq(assertOk(evaluate(root(loop), [false, true])), 4)
     },
+    unreachableRootExits: () => {
+        const endings = /** @type {readonly Exit[]} */ ([
+            ['yield', []],
+            ['continue', { ...loopTarget }, []],
+            ['break', loopTarget, []],
+            ['return', { ...target }, 0],
+        ])
+        for (const exit of endings) {
+            const loop = loopOf(body(exit, [
+                ['block', [], body(['break', loopTarget, [6]])],
+                ['block', [alias], body(['yield', []])],
+            ]))
+            const normalized = directInvocationRoot(root(loop), loop)
+            assertEq(normalized.body.statements.length, 3)
+            assertEq(normalized.body.exit, exit)
+            assertEq(assertOk(evaluate(root(loop), [0, 0])), 6)
+        }
+    },
+    throwOnlyRegions: () => {
+        const direct = loopOf(body(['continue', loopTarget, [ref(x), ref(y)]], [
+            ['block', [], body(['throw', 'block'])],
+        ]))
+        assertEq(assertError(evaluate(root(direct), [0, 0])), 'block')
+        const selected = loopOf(body(['yield', []], [
+            ['if', [], ref(x), body(['throw', 'then']), body(['throw', 'otherwise'])],
+        ]))
+        assertEq(assertError(evaluate(root(selected), [true, 0])), 'then')
+        assertEq(assertError(evaluate(root(selected), [false, 0])), 'otherwise')
+        const required = id(0)
+        const prefix = loopOf(body(['break', loopTarget, [ref(required)]], [
+            ['define', required, ['block', body(['throw', 'prefix'])], 'required'],
+            ['block', [], body(['throw', 'block'])],
+        ]))
+        assertEq(assertError(evaluate(root(prefix), [0, 0])), 'prefix')
+    },
     deepPrefixChain: () => {
         const bindings = Array.from({ length: 20_000 }, (_, index) => id(index + 100))
         const allocation = /** @type {Value} */ (['array', []])
@@ -289,10 +324,19 @@ export const proof = {
         const loop = loopOf(nested)
         // Isolate prefix construction from the separate free-binding inventory.
         const normalized = directInvocationRoot(root(loop), loop)
-        const { statements, exit } = normalized.body
-        assertEq(statements.length, definitions.length + 2)
+        const { statements } = normalized.body
+        assertEq(statements.length, 4)
         assertStructurallySame(statements.slice(0, 2), [['define', x, ref(a), 'lazy'], ['define', y, ref(b), 'lazy']])
-        definitions.forEach((definition, index) => assertEq(statements[index + 2], definition))
+        /** @type {Block} */
+        let region = { ...normalized.body, statements: statements.slice(2) }
+        for (const definition of definitions) {
+            assertEq(region.statements[0], definition)
+            const statement = region.statements[1]
+            assert(statement[0] === 'block')
+            region = statement[2]
+        }
+        assertEq(region.statements.length, 0)
+        const { exit } = region
         assert(exit[0] === 'return')
         assertEq(exit[1], target)
         assertEq(exit[2], value)
@@ -351,6 +395,10 @@ export const proof = {
         fixedArityLimit: () => { graph(fixedRoot(17)) },
         loopBodyYieldZero: () => { const loop = { ...loopOf(body(['yield', []])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
         loopBodyYieldOne: () => { const loop = { ...loopOf(body(['yield', [3]])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
+        loopBodyYieldAfterNormalRegion: () => {
+            const loop = loopOf(body(['yield', []], [['block', [], body(['yield', []])]]))
+            directInvocationRoot(root(loop), loop)
+        },
         resultArity: () => { const loop = loopOf(body(['break', loopTarget, []])); directInvocationRoot(root(loop), loop) },
         transitionArity: () => { const loop = loopOf(body(['continue', loopTarget, [0]])); directInvocationRoot(root(loop), loop) },
         regionArity: () => { const loop = loopOf(body(['break', loopTarget, [0]], [['block', [alias], body(['yield', []], [['if', [], true, body(['return', target, 0]), body(['yield', []])]])]])); directInvocationRoot(root(loop), loop) },

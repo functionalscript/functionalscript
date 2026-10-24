@@ -79,13 +79,13 @@ outer dispatch, with additional cases in zero-result statement regions.
 helper construction. `completeBlockTransfers` handles standalone blocks without
 inventing a source-function owner. Operand blocks normalize their own local
 loops on entry; transfers to targets outside that operand remain refused.
-Already-normalized statement regions skip a repeated pass. Noncanonical
-function bodies use graph-level normal/control joins for mixed statement
-regions. A join binds one selected normal result and constructs its following
-graph once, sharing that exact expression across normal exits. Prefix and
-condition expression identities are retained in both result selection and
-control selection. Terminal returns and self calls stay direct; no continuation
-function or eager terminal-payload envelope is introduced. Zero-result joins
+Already-normalized statement regions skip a repeated pass. Function bodies,
+including reconstructed canonical invocation roots, use graph-level normal/control
+joins for mixed statement regions. A join binds one selected normal result and
+constructs its following graph once, sharing that exact expression across normal
+exits. Prefix and condition expression identities are retained in both result
+selection and control selection. Terminal returns and self calls stay direct;
+no continuation function or eager terminal-payload envelope is introduced. Zero-result joins
 need no result selector, and nonzero joins retain required result evaluation
 even when a result is unused. Normal-only helpers
 retain their previous graph path. Canonical invocation roots are exempt from
@@ -94,9 +94,9 @@ their inner helpers can still return to the owning source function. Return
 payload computations remain ordinary evaluations; broader tail-call eligibility
 belongs to milestone F. Throws and failures use the existing failure channel.
 
-The graph join replaces the former `loop/root.terminalFunction` expansion for
-helper callers. Canonical invocation-root reconstruction still uses its existing
-statement resolver and retains the separately tracked continuation-growth case.
+The graph join replaces the former continuation expansion for helper callers
+and canonical invocation roots. The root resolver preserves statement regions
+and rewrites only its owning transfers before ordinary graph construction.
 Joins operate only in an owning function's statement regions. Operand regions
 reset that owner and continue to refuse nonlocal exits; standalone blocks do not
 invent a source function. Normal-only regions keep their established lowering.

@@ -7,6 +7,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { anchored, fromFast, lowerBlock, lowerValue } from './module.f.mjs'
 import { completeTransfers } from './loop/completions/module.f.mjs'
+import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { identityAnalysis } from '../analysis/module.f.mjs'
 import { memo } from '../memo/module.f.mjs'
 import { toFast } from '../to_fast/module.f.mjs'
@@ -92,6 +93,33 @@ const mixedJoinFunction = length => {
             ['define', made, ['()', ref(operation), []], 'required'],
             ['define', allocation, ['array', [ref(made)]], 'required'],
         ]),
+    }
+}
+
+/** @type {(length: number) => FastFunction} */
+const rootJoinFunction = length => {
+    const parameters = Array.from({ length: 7 }, () => id(0))
+    const count = id(0), selected = id(0), stopA = id(0), stopB = id(0), operation = id(0), left = id(0), right = id(0)
+    const captured = id(0), self = id(0), output = id(0), made = id(0), allocation = id(0)
+    const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    const repeated = Array.from({ length }, () => /** @type {Statement} */ (['if', [], ref(selected),
+        body(['yield', []], [['if', [], ref(stopA), body(['return', target, 50]), body(['yield', []])]]),
+        body(['yield', []], [['if', [], ref(stopB), body(['return', target, 60]), body(['yield', []])]]),
+    ]))
+    const loop = /** @type {Loop} */ ({
+        target: loopTarget, parameters: [count, selected, stopA, stopB, operation, left, right], initial: parameters.map(ref), results: [output],
+        body: body(['break', loopTarget, [['array', [ref(allocation), ref(allocation), ref(made), ref(captured)]]]], [
+            ['if', [], ['>', ref(count), 0], body(['continue', loopTarget, [
+                ['-', ref(count), 1], ref(selected), ref(stopA), ref(stopB), ref(operation), ref(right), ['+', ref(left), ref(right)],
+            ]]), body(['yield', []])],
+            ...repeated,
+            ['define', made, ['()', ref(operation), [ref(captured), ref(left), ref(right)]], 'required'],
+            ['define', allocation, ['array', [ref(made), ref(captured)]], 'required'],
+        ]),
+    })
+    return {
+        target, parameters, rest: null, self, captures: [{ binding: captured, value: ['array', ['capture']] }],
+        body: body(['return', target, ref(output)], [['loop', loop]]),
     }
 }
 
@@ -1406,6 +1434,125 @@ export const proof = {
             exp = exp[3]
         }
         assertEq(exp, 7)
+    },
+    sharedRootJoinGrowth: () => {
+        const factoryTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const args = Array.from({ length: 3 }, () => id(0))
+        const factory = /** @type {Value} */ (['function', {
+            target: factoryTarget, parameters: args, rest: null, self: null, captures: [],
+            body: body(['return', factoryTarget, ['array', args.map(ref)]]),
+        }])
+        const sizes = [4, 8, 12].map(length => {
+            const fn = rootJoinFunction(length)
+            const loop = invocationRootOf(fn)
+            assert(loop !== null)
+            const normalized = directInvocationRoot(fn, loop)
+            const graph = fromFast(result(['function', fn]))
+            assert(graph instanceof Array && graph[0] === '=>')
+            assertEq(graph[1], 7)
+            assertEq(graph[2].length, 1)
+            const analysis = assertOk(identityAnalysis(graph))
+            const root = analysis.root
+            assert(root instanceof Array)
+            const calls = analysis.nodes.flatMap((node, index) => node[0] === '()' && node[1] instanceof Array
+                && analysis.nodes[node[1][1]][0] === 'arg' && analysis.nodes[node[1][1]][1] === 4
+                && analysis.scope[index] === root[1] ? [index] : [])
+            assertEq(calls.length, 1)
+            const allocations = analysis.nodes.flatMap((node, index) => node[0] === '[]' && node[1].length === 2
+                && node[1][0] instanceof Array && node[1][0][0] === '#' && node[1][0][1] === calls[0] ? [index] : [])
+            assertEq(allocations.length, 1)
+            assertEq(analysis.scope[allocations[0]], root[1])
+            assert(analysis.shared.includes(allocations[0]))
+            const results = analysis.nodes.flatMap((node, index) => node[0] === '[]' && node[1].length === 4
+                && node[1][0] instanceof Array && node[1][0][0] === '#' && node[1][0][1] === allocations[0]
+                && node[1][1] instanceof Array && node[1][1][0] === '#' && node[1][1][1] === allocations[0] ? [index] : [])
+            assertEq(results.length, 1)
+            const requiredResults = analysis.nodes.flatMap((node, index) => {
+                if (node[0] !== ',') { return [] }
+                const last = node[1].at(-1)
+                return last instanceof Array && last[0] === '#' && last[1] === results[0] ? [index] : []
+            })
+            assert(analysis.nodes.some(node => node[0] === '?:' && ((node[2] instanceof Array && (node[2][1] === results[0] || requiredResults.includes(node[2][1])))
+                || (node[3] instanceof Array && (node[3][1] === results[0] || requiredResults.includes(node[3][1]))))))
+            assert(!analysis.nodes.some(node => node[0] === '[]' && node[1].some(item => item instanceof Array && item[0] === '#' && item[1] === results[0])))
+            const selfCalls = analysis.nodes.flatMap((node, index) => node[0] === '()' && node[1] instanceof Array
+                && analysis.nodes[node[1][1]][0] === 'self' && analysis.scope[index] === root[1] ? [index] : [])
+            assertEq(selfCalls.length, 1)
+            const call = analysis.nodes[selfCalls[0]]
+            assert(call[0] === '()')
+            assertEq(call[2].length, 7)
+            assert(analysis.nodes.some(node => node[0] === '?:' && ((node[2] instanceof Array && node[2][1] === selfCalls[0])
+                || (node[3] instanceof Array && node[3][1] === selfCalls[0]))))
+            assert(!analysis.nodes.some(node => node[0] === '[]' && node[1].some(item => item instanceof Array && item[0] === '#' && item[1] === selfCalls[0])))
+            assertEq(analysis.nodes.filter(node => node[0] === '=>').length, 1)
+            assert(analysis.nodes.length < length * 40 + 80)
+            const value = evaluate(calledFunction(fn, [1, true, false, false, factory, 1, 2]))
+            assert(value instanceof Array && value[0] instanceof Array && value[2] instanceof Array)
+            assertEq(value[0], value[1])
+            assertEq(value[0][0], value[2])
+            assertEq(value[0][1], value[3])
+            assertEq(value[2][0], value[3])
+            assertStructurallySame(value[2], [['capture'], 2, 3])
+            return { nodes: analysis.nodes.length, fast: JSON.stringify(normalized).length }
+        })
+        assert(sizes[2].nodes - sizes[1].nodes <= sizes[1].nodes - sizes[0].nodes)
+        assert(sizes[2].fast - sizes[1].fast <= sizes[1].fast - sizes[0].fast)
+    },
+    sharedRootJoinSelectedReturns: () => {
+        const fn = rootJoinFunction(8)
+        const failedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const failed = /** @type {Value} */ (['function', {
+            target: failedTarget, parameters: [], rest: null, self: null, captures: [], body: body(['throw', 'suffix reached']),
+        }])
+        assertEq(evaluate(calledFunction(fn, [0, true, true, false, failed, 1, 2])), 50)
+        assertEq(evaluate(calledFunction(fn, [1, false, false, true, failed, 1, 2])), 60)
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [0, false, true, false, failed, 1, 2]))))({ args: [] })), 'suffix reached')
+        const captureFailure = /** @type {FastFunction} */ ({
+            ...fn, captures: fn.captures.map(capture => ({ binding: capture.binding, value: /** @type {Value} */ (['.', null, 'x']) })),
+        })
+        assertError(memo(assertOk(identityAnalysis(calledFunction(captureFailure, [0, true, true, false, failed, 1, 2]))))({ args: [] }))
+        const factoryTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const args = Array.from({ length: 3 }, () => id(0))
+        const factory = /** @type {Value} */ (['function', {
+            target: factoryTarget, parameters: args, rest: null, self: null, captures: [], body: body(['return', factoryTarget, ['array', args.map(ref)]]),
+        }])
+        const value = evaluate(calledFunction(fn, [2, false, true, false, factory, 1, 2]))
+        assert(value instanceof Array)
+        assertStructurallySame(value[2], [['capture'], 3, 5])
+        const first = calledFunction(fn, [1, true, false, true, factory, 1, 2])
+        const second = fromFast(assertOk(toFast(first)))
+        const third = fromFast(assertOk(toFast(second)))
+        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+        const repeated = evaluate(third)
+        assert(repeated instanceof Array)
+        assertStructurallySame(repeated[2], [['capture'], 2, 3])
+    },
+    sharedRootJoinNormalSignatures: () => {
+        const argument = id(0), stop = id(0), selected = id(0), state = id(0), stopState = id(0), selectedState = id(0), output = id(0)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        for (const length of [0, 1, 3]) {
+            const bindings = Array.from({ length }, () => id(0))
+            const left = bindings.map((_, index) => /** @type {Value} */ (['+', ref(state), index]))
+            const right = bindings.map((_, index) => /** @type {Value} */ (['+', ref(state), index + 10]))
+            const loop = /** @type {Loop} */ ({
+                target: loopTarget, parameters: [state, stopState, selectedState], initial: [ref(argument), ref(stop), ref(selected)], results: [output],
+                body: body(['break', loopTarget, [['array', bindings.map(ref)]]], [
+                    ['if', bindings, ref(selectedState),
+                        body(['yield', left], [['if', [], ref(stopState), body(['return', target, 77]), body(['yield', []])]]),
+                        body(['yield', right], [['if', [], ref(stopState), body(['return', target, 88]), body(['yield', []])]]),
+                    ],
+                ]),
+            })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [argument, stop, selected], rest: null, self: null, captures: [],
+                body: body(['return', target, ref(output)], [['loop', loop]]),
+            })
+            assert(invocationRootOf(fn) !== null)
+            for (const branch of [false, true]) {
+                assertEq(evaluate(calledFunction(fn, [4, true, branch])), branch ? 77 : 88)
+                assertStructurallySame(evaluate(calledFunction(fn, [4, false, branch])), bindings.map((_, index) => 4 + index + (branch ? 0 : 10)))
+            }
+        }
     },
     directRootResult: () => {
         const parameter = id(0)
