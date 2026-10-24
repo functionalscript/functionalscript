@@ -20,7 +20,7 @@ import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { freeLoopBindings } from './control/module.f.mjs'
 import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf, terminalFunction } from './loop/root/module.f.mjs'
-import { completeReturns } from './loop/returns/module.f.mjs'
+import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 
@@ -253,7 +253,7 @@ const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
     const originalScalar = rootLoopOf(source)
     const originalRoot = originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(source)
-    const normalized = completeReturns(source, originalRoot)
+    const normalized = completeTransfers(source, originalRoot)
     const scalar = rootLoopOf(normalized)
     const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(normalized)
     const fn = matched !== null ? directInvocationRoot(normalized, matched)
@@ -344,20 +344,24 @@ const valueTask = (root, context) => call(() => {
     if (root === null || typeof root !== 'object') { return done(plain(root)) }
     if (root[0] === 'ref') { return done(plain(lookup(context.scope, root[1]))) }
     if (root[0] === 'function') { return functionValue(root[1], context) }
-    if (root[0] === 'block') { return regionTask(root[1], context) }
-    if (root[0] === 'if') { return conditional(root[1], root[2], root[3], context) }
+    if (root[0] === 'block') { return regionTask(root[1], context, true) }
+    if (root[0] === 'if') { return conditional(root[1], root[2], root[3], context, true) }
     return bind(lowerValues(operatorOperands(root), context), values => done(combined(root, values)))
 })
 
-/** @type {(condition: Value, then: Block, otherwise: Block, context: Context) => Task<Lowered>} */
-const conditional = (condition, then, otherwise, context) => call(() => bind(valueTask(condition, context), test =>
-    bind(regionTask(then, context), a => bind(regionTask(otherwise, context), b =>
+/** @type {(condition: Value, then: Block, otherwise: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
+const conditional = (condition, then, otherwise, context, normalize = false) => call(() => bind(valueTask(condition, context), test =>
+    bind(regionTask(then, context, normalize), a => bind(regionTask(otherwise, context, normalize), b =>
         done({ exp: ['?:', test.exp, anchored(a), anchored(b)], anchors: test.anchors })))))
 
-/** Baseline value regions have normal results or fail; nonlocal exits follow in E. @type {(block: Block, context: Context) => Task<Lowered>} */
-const regionTask = (block, context) => call(() => {
+/** Operand regions normalize local loops; statement regions are already complete. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
+const regionTask = (block, context, normalize = false) => call(() => {
     if (block.exit[0] !== 'yield' && block.exit[0] !== 'throw') { throw 'nonlocal transfers in value regions require structured completion lowering' }
-    return blockTask(block, context)
+    const normalized = normalize ? completeBlockTransfers(block) : block
+    const local = normalized === block ? context : { ...context,
+        summaries: new Map([...context.summaries, ...summaries(['block', normalized], context.summaries)]),
+    }
+    return blockTask(normalized, local)
 })
 
 /** One result stays scalar; other signatures use their declared order. @type {(values: readonly Lowered[]) => Lowered} */
@@ -434,7 +438,10 @@ export const lowerValue = (root, environment, transfer) => run(valueTask(root, c
  * identity without establishing an extra evaluation themselves.
  * @type {(block: Block, environment?: Environment, transfer?: Transfer) => Lowered}
  */
-export const lowerBlock = (block, environment = [], transfer) => run(blockTask(block, contextFor(['block', block], environment, transfer)))
+export const lowerBlock = (block, environment = [], transfer) => {
+    const normalized = completeBlockTransfers(block)
+    return run(blockTask(normalized, contextFor(['block', normalized], environment, transfer)))
+}
 
 /** The graph at a normalized FAST block's result boundary. @type {(block: Block, environment?: Environment) => Exp} */
 export const fromFast = (block, environment = []) => anchored(lowerBlock(block, environment))
