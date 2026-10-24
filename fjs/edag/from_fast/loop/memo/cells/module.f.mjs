@@ -6,13 +6,44 @@
  *
  * @module
  *
- * @import { BindingId, Block, Definition, Loop, Value } from '../../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
+ * @import { List } from '../../../../../types/list/types.ts'
  * @import { Link } from '../../../private.ts'
+ * @import { Task } from '../../../task/types.ts'
  * @import { MemoPlan } from './types.ts'
  * @import { _LoopInfo, _Root, _Scope, _TransferVisit, _Visit } from './private.ts'
  */
 
 import { freeBindings, freeLoopBindings } from '../../../control/module.f.mjs'
+import { toArray } from '../../../../../types/list/module.f.mjs'
+import { bind, call, done, run } from '../../../task/module.f.mjs'
+
+/**
+ * A shared syntax container still has one declaration per reached occurrence.
+ * Give statement regions distinct planning identities without changing values,
+ * binding/target identities or source signatures. Operand regions and function
+ * bodies retain their own normalization boundary.
+ * @type {(block: Block) => Task<Block>}
+ */
+const occurrenceBlock = block => {
+    /** @type {(index: number, statements: List<Statement>) => Task<Block>} */
+    const each = (index, statements) => call(() => {
+        if (index === block.statements.length) { return done({ statements: toArray(statements).toReversed(), exit: block.exit }) }
+        const statement = block.statements[index]
+        /** @type {(mapped: Statement) => Task<Block>} */
+        const append = mapped => each(index + 1, { first: mapped, tail: statements })
+        if (statement[0] === 'define') { return append(['define', statement[1], statement[2], statement[3]]) }
+        if (statement[0] === 'loop') {
+            return bind(occurrenceBlock(statement[1].body), body => append(['loop', { ...statement[1], body }]))
+        }
+        if (statement[0] === 'block') {
+            return bind(occurrenceBlock(statement[2]), body => append(['block', statement[1], body]))
+        }
+        return bind(occurrenceBlock(statement[3]), then => bind(occurrenceBlock(statement[4]), otherwise =>
+            append(['if', statement[1], statement[2], then, otherwise])))
+    })
+    return each(0, null)
+}
 
 /** Established values shadow any enclosing deferred entry. @type {(scope: _Scope, bindings: readonly BindingId[]) => _Scope} */
 const established = (scope, bindings) => new Map([...scope, ...bindings.map(binding => /** @type {const} */ ([binding, null]))])
@@ -55,10 +86,11 @@ const normalTransfers = loop => {
  * @type {(block: Block, externalLazyIds?: readonly BindingId[]) => MemoPlan | null}
  */
 export const memoCells = (block, externalLazyIds = []) => {
+    const prepared = run(occurrenceBlock(block))
     /** @type {readonly _Root[]} */
     const external = externalLazyIds.map(binding => ({ binding, source: null, dependencies: [] }))
     /** @type {Link<_Visit> | null} */
-    let pending = { first: { block, index: 0, scope: new Map(external.map(root => [root.binding, root])), ancestors: null }, tail: null }
+    let pending = { first: { block: prepared, index: 0, scope: new Map(external.map(root => [root.binding, root])), ancestors: null }, tail: null }
     /** @type {readonly _Root[]} */
     let roots = external
     /** @type {readonly (readonly [Definition, _Root])[]} */
@@ -124,6 +156,7 @@ export const memoCells = (block, externalLazyIds = []) => {
         normalTransfers(info.loop)
     }
     return {
+        block: prepared,
         cells: recipes,
         definitions: new Map(definitions.flatMap(([definition, root]) => {
             const index = cells.indexOf(root)

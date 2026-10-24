@@ -4,12 +4,6 @@ import type { BindingId, Block, Exit, LoopTarget, Statement, Value } from '../..
 import type { List } from '../../../../types/list/types.ts'
 import type { MemoPlan } from './cells/types.ts'
 
-export type _Task<T> =
-    | { readonly kind: 'done'; readonly value: T }
-    | { readonly kind: 'call'; readonly run: () => _Task<T> }
-    | { readonly kind: 'bind'; readonly first: _Task<unknown>; readonly next: (value: unknown) => _Task<T> }
-
-export type _Frame = { readonly next: (value: unknown) => _Task<unknown>; readonly tail: _Frame | null }
 export type _LoopOwner = { readonly source: LoopTarget; readonly target: LoopTarget }
 export type _Context = { readonly plan: MemoPlan; readonly aliases: ReadonlyMap<BindingId, number>; readonly recipes: readonly BindingId[]; readonly memo: BindingId; readonly loop: _LoopOwner | null; readonly operand: boolean }
 export type _Value = { readonly statements: List<Statement>; readonly value: Value; readonly memo: BindingId; readonly usesMemo: boolean }

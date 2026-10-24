@@ -9,12 +9,14 @@
  * @module
  * @import { Block, Exit, Function as FastFunction, Loop, Statement } from '../../../../js/ast/types.ts'
  * @import { List } from '../../../../types/list/types.ts'
- * @import { _Frame, _Owner, _Result, _Task } from './private.ts'
+ * @import { _Owner, _Result } from './private.ts'
+ * @import { Task } from '../../task/types.ts'
  */
 
 import { toArray } from '../../../../types/list/module.f.mjs'
 import { maxLength } from '../../../../types/function/length/module.f.mjs'
 import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
+import { bind, call, done, run } from '../../task/module.f.mjs'
 
 /**
  * A fixed invocation layout with its whole public result returned directly.
@@ -37,28 +39,7 @@ export const invocationRootOf = fn => {
         && !readsEntryParameters(loop, aliases) ? loop : null
 }
 
-/** @type {(value: _Result) => _Task} */
-const done = value => ({ kind: 'done', value })
-/** @type {(run: () => _Task) => _Task} */
-const call = run => ({ kind: 'call', run })
-/** @type {(first: _Task, next: (value: _Result) => _Task) => _Task} */
-const bind = (first, next) => ({ kind: 'bind', first, next })
-/** @type {(input: _Task) => _Result} */
-const run = input => {
-    let task = input
-    /** @type {_Frame | null} */
-    let frames = null
-    while (true) {
-        if (task.kind === 'call') { task = task.run(); continue }
-        if (task.kind === 'bind') { frames = { next: task.next, rest: frames }; task = task.first; continue }
-        if (frames === null) { return task.value }
-        const frame = /** @type {_Frame} */ (frames)
-        frames = frame.rest
-        task = frame.next(task.value)
-    }
-}
-
-/** Finish a region from reverse-collected statements. @type {(statements: List<Statement>, exit: Exit, normal: boolean) => _Task} */
+/** Finish a region from reverse-collected statements. @type {(statements: List<Statement>, exit: Exit, normal: boolean) => Task<_Result>} */
 const finished = (statements, exit, normal) => done({ block: { statements: toArray(statements).toReversed(), exit }, normal })
 
 /**
@@ -66,15 +47,15 @@ const finished = (statements, exit, normal) => done({ block: { statements: toArr
  * normal leaves. Nested loops and values retain their own owner. A region with
  * no normal path ends this walk before unreachable statements or exits.
  * `null` marks the root body, where a reached yield is invalid.
- * @type {(block: Block, owner: _Owner, expected: number | null) => _Task}
+ * @type {(block: Block, owner: _Owner, expected: number | null) => Task<_Result>}
  */
 const blockTask = (block, owner, expected) => {
-    /** @type {(index: number, statements: List<Statement>) => _Task} */
+    /** @type {(index: number, statements: List<Statement>) => Task<_Result>} */
     const each = (index, statements) => call(() => {
         if (index !== block.statements.length) {
             const statement = block.statements[index]
             if (statement[0] === 'define' || statement[0] === 'loop') { return each(index + 1, { first: statement, tail: statements }) }
-            /** @type {(mapped: Statement, normal: boolean) => _Task} */
+            /** @type {(mapped: Statement, normal: boolean) => Task<_Result>} */
             const resume = (mapped, normal) => {
                 const next = /** @type {List<Statement>} */ ({ first: mapped, tail: statements })
                 return normal ? each(index + 1, next) : finished(next, block.exit, false)

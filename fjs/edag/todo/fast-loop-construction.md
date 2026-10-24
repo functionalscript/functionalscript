@@ -118,6 +118,9 @@ definitions and region/loop binders establish their own values. This adds one
 private recipe function per cell to the memo-bearing normalization while
 retaining the no-memo exact graph domain. External lazy provenance follows
 aliases and is refused before a recipe helper could capture it eagerly.
+Statement-region occurrences have distinct planning identities even when the
+input reuses an immutable declaration, block or loop object; source bindings
+and targets retain their identities.
 
 The admitted recipes depend only on established values. Conditional demands,
 normal continues/breaks, sequential helpers and following caller reads carry

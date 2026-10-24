@@ -9,7 +9,8 @@
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
- * @import { Binding, Context, ExitOwner, Link, Node, Scope, Summaries, Summary, Task, Visit, _Control } from './private.ts'
+ * @import { Binding, Context, ExitOwner, Link, Node, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
+ * @import { Task } from './task/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
@@ -22,43 +23,9 @@ import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
 import { normalizeMemo } from './loop/memo/module.f.mjs'
+import { bind, call, done, run } from './task/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
-
-/** @type {<T>(value: T) => Task<T>} */
-const done = value => ({ kind: 'done', value })
-
-/** @type {<T>(run: () => Task<T>) => Task<T>} */
-const call = run => ({ kind: 'call', run })
-
-/**
- * @template T, U
- * @param {Task<T>} first
- * @param {(value: T) => Task<U>} next
- * @returns {Task<U>}
- */
-const bind = (first, next) => ({ kind: 'bind', first, next: value => next(/** @type {T} */ (value)) })
-
-/**
- * @template T
- * @param {Task<T>} input
- * @returns {T}
- */
-const run = input => {
-    /** @type {Task<unknown>} */
-    let task = input
-    /** @type {Link<(value: unknown) => Task<unknown>> | null} */
-    let stack = null
-    while (true) {
-        if (task.kind === 'call') { task = task.run(); continue }
-        if (task.kind === 'bind') { stack = { first: task.next, tail: stack }; task = task.first; continue }
-        if (stack === null) { return /** @type {T} */ (task.value) }
-        /** @type {Link<(value: unknown) => Task<unknown>>} */
-        const frame = stack
-        stack = frame.tail
-        task = frame.first(task.value)
-    }
-}
 
 /** @type {<T>(items: readonly T[], tail: Link<T> | null) => Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
