@@ -357,6 +357,11 @@ the source view rests on.
       other quote content inside it. Landed with
       [2460](../../../../../spec/todo/2460-js-string-literals.md), JSON's
       escapes plus `\'`; the escape rule below widens it.
+- [ ] Take the two rules this grammar restates from `ebnf/lib/json` as
+      parameters it exports: `optionFloatSuffix` differs from JSON's only in
+      its digits rule, and the single-quoted string is JSON's `string` with
+      the delimiter and escape swapped — `floatSuffix(digits)` and
+      `quoted(delimiter, escape)`, JSON defining its own as the instances.
 - [ ] One escape rule for that string, **the listed escapes, otherwise the
       character itself**, plus line continuation — ECMAScript's rule, which
       covers `\'`, `` \` ``, `\$` and every case nobody has thought of, where a
