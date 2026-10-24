@@ -169,8 +169,9 @@ export const runJs = program => step(heapSize, before => resultStep(sandbox(() =
  * was imported before it; then times `run_sample` alone, and reads back what
  * the sample wrote, one byte at a time. Each export answers `-1` for a
  * sample that threw, and `run_sample` otherwise the byte count.
- * The memory's size is read after the run, from its current buffer: a
- * memory that grows detaches the buffer it had, whose size then reads `0`.
+ * The memory's size is read just before the run and after it, each time from
+ * its current buffer: a memory that grows detaches the buffer it had, whose
+ * size then reads `0`.
  *
  * @type {(name: string) => (instance: WasmInstance) => Effect<Sandbox, Result<WasmRun, string>, never>}
  */
@@ -187,20 +188,21 @@ export const runWasm = name => ({ exports }) => {
         const t = timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
         return pure(t[0] === 'error' ? t : t[1].value < 0 ? error('the sample threw while loading') : ok(null))
     })
-    const ran = step(loaded, () => sandbox(() => /** @type {() => number} */ (runSample)()))
-    return resultMapStep(ran, r => {
-        /** @type {Result<{ readonly value: number, readonly time: number }, string>} */
-        const t = r[0] === 'error' && typeof r[1] === 'string'
-            ? error(r[1])
-            : timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
-        /** @type {(value: number) => Result<string, string>} */
-        const output = value => value < 0
-            ? error('the sample threw')
-            : decode(Array.from({ length: value }, (_, i) => /** @type {(i: number) => number} */ (outputByte)(i)))
-        /** @type {Result<WasmRun, string>} */
-        const run = t[0] === 'error' ? t : ok({ run: { output: output(t[1].value), time: t[1].time }, memory: live.buffer.byteLength })
-        return ok(run)
+    /** @type {(value: number) => Result<string, string>} */
+    const output = value => value < 0
+        ? error('the sample threw')
+        : decode(Array.from({ length: value }, (_, i) => /** @type {(i: number) => number} */ (outputByte)(i)))
+    const ran = step(loaded, () => {
+        const before = live.buffer.byteLength
+        return resultMapStep(sandbox(() => /** @type {() => number} */ (runSample)()), r => {
+            const t = timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
+            const after = live.buffer.byteLength
+            /** @type {Result<WasmRun, string>} */
+            const run = t[0] === 'error' ? t : ok({ run: { output: output(t[1].value), time: t[1].time }, memory: after, growth: after - before })
+            return ok(run)
+        })
     })
+    return resultMapStep(ran, r => ok(r[0] === 'error' ? error(r[1]) : r[1]))
 }
 
 /**
@@ -253,18 +255,40 @@ const outputView = output => output[0] === 'ok'
  * @type {(runs: Runs) => string}
  */
 export const ratio = ({ js, wasm }) => js[0] === 'ok' && wasm[0] === 'ok'
-    && js[1].output[0] === 'ok' && wasm[1].run.output[0] === 'ok'
-    && js[1].output[1] === wasm[1].run.output[1] && js[1].time > 0
+    && sameOutput(js[1], wasm[1]) && js[1].time > 0
     ? `${(wasm[1].run.time / js[1].time).toFixed(1)}×`
     : 'Not available'
+
+/** Whether both runs wrote the same output, and so did the same work. @type {(js: JsRun, wasm: WasmRun) => boolean} */
+const sameOutput = (js, wasm) => js.output[0] === 'ok' && wasm.run.output[0] === 'ok' && js.output[1] === wasm.run.output[1]
+
+/**
+ * How many times as much memory the WebAssembly run added as the JavaScript
+ * one, as {@link ratio} compares their times: the linear memory the run
+ * added against the change in the page's JavaScript heap. `null` where the
+ * browser does not report the heap, which every browser but Chromium does
+ * not, so the page leaves the line out; "Not available" unless both runs
+ * wrote the same output, or where the heap did not grow, since a heap a
+ * garbage collection shrank during the run gives no comparison.
+ *
+ * @type {(runs: Runs) => string | null}
+ */
+export const memoryRatio = ({ js, wasm }) => js[0] === 'ok' && js[1].heap === null
+    ? null
+    : js[0] === 'ok' && wasm[0] === 'ok' && js[1].heap !== null
+        && sameOutput(js[1], wasm[1]) && js[1].heap.after > js[1].heap.before
+        ? `${(wasm[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
+        : 'Not available'
+
+/** A change in memory, signed. @type {(bytes: number) => string} */
+export const signedBytes = bytes => `${bytes < 0 ? '-' : '+'}${Math.abs(bytes)} bytes`
 
 /**
  * How the heap changed across the run, signed, and the two readings.
  *
  * @type {(heap: JsHeap) => string}
  */
-export const heapChange = ({ before, after }) =>
-    `${after < before ? '-' : '+'}${Math.abs(after - before)} bytes, ${before} → ${after}`
+export const heapChange = ({ before, after }) => `${signedBytes(after - before)}, ${before} → ${after}`
 
 /**
  * The change in the JavaScript heap across the run, where the browser reports
@@ -292,6 +316,7 @@ const runsDetail = ({ js, wasm }) => [
             ...outputView(wasm[1].run.output),
             stat('Running time', milliseconds(wasm[1].run.time)),
             stat('Linear memory of the module so far', `${wasm[1].memory} bytes`),
+            stat('Linear memory added by the run', signedBytes(wasm[1].growth)),
         ]
         : [refusal(wasm[1])]),
 ]
@@ -301,7 +326,13 @@ const runsView = runs => [
     ...runsDetail(runs),
     ['h3', {}, 'Comparison'],
     stat('WebAssembly running time, as a multiple of the JavaScript one', ratio(runs)),
+    ...memoryView(memoryRatio(runs)),
 ]
+
+/** @type {(ratio: string | null) => readonly Node[]} */
+const memoryView = ratio => ratio === null
+    ? []
+    : [stat('Memory the WebAssembly run added, as a multiple of the JavaScript heap’s growth (Chromium)', ratio)]
 
 /**
  * How long the module took to arrive and start, once it has.

@@ -10,7 +10,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Runs, Sample, State } from './types.ts'
+ * @import { JsHeap, Runs, Sample, State } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -18,7 +18,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, heapChange, init, jsOutput, load, milliseconds, ratio, runBoth, runJs, runWasm, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
+import { buildDirectory, decode, heapChange, init, memoryRatio, signedBytes, jsOutput, load, milliseconds, ratio, runBoth, runJs, runWasm, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.mjs'
 
 /** @type {(text: string) => Sample['program']} */
 const writes = text => () => ({
@@ -140,7 +140,7 @@ export const proof = {
     runWasm: () => {
         assertStructurallySame(
             perform(page({}, null))(runWasm('hi')(instance([0x68, 0x69]))),
-            ok({ run: { output: ok('hi'), time: 1 }, memory: 0x1_0000 }))
+            ok({ run: { output: ok('hi'), time: 1 }, memory: 0x1_0000, growth: 0 }))
         const threw = perform(page({}, null))(runWasm('hi')(instance(null)))
         assert(threw[0] === 'ok')
         assertStructurallySame(threw[1].run.output, error('the sample threw'))
@@ -169,16 +169,37 @@ export const proof = {
     milliseconds: () => assertEq(milliseconds(1.54), '1.5 ms'),
     ratio: () => {
         /** @type {(js: number, wasm: number) => Runs} */
-        const runs = (js, wasm) => ({ js: ok({ output: ok(''), time: js, heap: null }), wasm: ok({ run: { output: ok(''), time: wasm }, memory: 0 }) })
+        const runs = (js, wasm) => ({ js: ok({ output: ok(''), time: js, heap: null }), wasm: ok({ run: { output: ok(''), time: wasm }, memory: 0, growth: 0 }) })
         assertEq(ratio(runs(4, 10)), '2.5×')
         // A JavaScript time the clock reads as `0`, and a run that failed.
         assertEq(ratio(runs(0, 10)), 'Not available')
         assertEq(ratio({ ...runs(4, 10), wasm: error('no wasm') }), 'Not available')
         // A run whose output failed: the program failed, or wrote no UTF-8.
         assertEq(ratio({ ...runs(4, 10), js: ok({ output: error('the program failed: x'), time: 4, heap: null }) }), 'Not available')
-        assertEq(ratio({ ...runs(4, 10), wasm: ok({ run: { output: error('the sample threw'), time: 10 }, memory: 0 }) }), 'Not available')
+        assertEq(ratio({ ...runs(4, 10), wasm: ok({ run: { output: error('the sample threw'), time: 10 }, memory: 0, growth: 0 }) }), 'Not available')
         // Outputs that differ.
-        assertEq(ratio({ ...runs(4, 10), wasm: ok({ run: { output: ok('other'), time: 10 }, memory: 0 }) }), 'Not available')
+        assertEq(ratio({ ...runs(4, 10), wasm: ok({ run: { output: ok('other'), time: 10 }, memory: 0, growth: 0 }) }), 'Not available')
+    },
+    memoryRatio: () => {
+        /** @type {(heap: JsHeap | null, growth: number) => Runs} */
+        const runs = (heap, growth) => ({ js: ok({ output: ok(''), time: 1, heap }), wasm: ok({ run: { output: ok(''), time: 1 }, memory: 0x2_0000, growth }) })
+        assertEq(memoryRatio(runs({ before: 1000, after: 3000 }, 5000)), '2.5×')
+        assertEq(memoryRatio(runs({ before: 1000, after: 3000 }, 0)), '0.0×')
+        // No heap: no line at all.
+        assertEq(memoryRatio(runs(null, 5000)), null)
+        // A heap a collection shrank, or that did not move, gives no comparison.
+        assertEq(memoryRatio(runs({ before: 3000, after: 1000 }, 5000)), 'Not available')
+        assertEq(memoryRatio(runs({ before: 1000, after: 1000 }, 5000)), 'Not available')
+        // Runs that failed, or wrote different outputs.
+        const grown = runs({ before: 1000, after: 3000 }, 5000)
+        assertEq(memoryRatio({ ...grown, wasm: error('no wasm') }), 'Not available')
+        assertEq(memoryRatio({ ...grown, js: error('no js') }), 'Not available')
+        assertEq(memoryRatio({ ...grown, wasm: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
+    },
+    signedBytes: () => {
+        assertEq(signedBytes(65536), '+65536 bytes')
+        assertEq(signedBytes(-1), '-1 bytes')
+        assertEq(signedBytes(0), '+0 bytes')
     },
     view: () => {
         // Before loading: no startup and no runs.
@@ -192,15 +213,19 @@ export const proof = {
         assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('Running time: 1.0 ms'))
         assert(shown.includes('Linear memory of the module so far: 65536 bytes'))
+        assert(shown.includes('Linear memory added by the run: +0 bytes'))
+        // The heap did not grow in this mock, so there is no comparison.
+        assert(shown.includes('Memory the WebAssembly run added, as a multiple of the JavaScript heap’s growth (Chromium): Not available'))
         assert(shown.includes('Change in the whole page’s JavaScript heap across the run (Chromium): +0 bytes, 1024 → 1024'))
         // No heap line where the browser does not report it.
         const noHeap = text(view('hi')(perform(page({}, null, 'ok', null))(runBoth(hi)(ready))))
         assert(!noHeap.includes('JavaScript heap'))
+        assert(!noHeap.includes('Memory the WebAssembly run added'))
         assert(!noHeap.includes('Not available') && !noHeap.includes('Memory: '))
         assertEq(heapChange({ before: 1024, after: 512 }), '-512 bytes, 1024 → 512')
         assert(shown.includes('WebAssembly running time, as a multiple of the JavaScript one: 1.0×'))
         assert(shown.includes('pub fn module() {}'))
-        const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0, heap: null }), wasm: ok({ run: { output: error('the sample threw'), time: 0 }, memory: 0 }) } }))
+        const empty = text(view('hi')({ ...ready, runs: { js: ok({ output: ok(''), time: 0, heap: null }), wasm: ok({ run: { output: error('the sample threw'), time: 0 }, memory: 0, growth: 0 }) } }))
         assert(empty.includes('(empty)'))
         assert(empty.includes('the sample threw'))
         // Runs that could not happen, and files that did not arrive.

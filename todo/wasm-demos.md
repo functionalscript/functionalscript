@@ -31,13 +31,16 @@ bottom:
      interval holds no import, fetch, compile or instantiation. The WASM
      module's startup (fetch, compile and instantiate) is shown on its own
      line, labelled as startup, never added to its running time;
-   - memory, each figure labelled with what it measures, and not set side by
-     side as a comparison: the two are different quantities. For the
+   - memory, each figure labelled with what it measures. For the
      JavaScript run, the change in `performance.memory`'s heap across the
      run, where the browser reports it (Chromium only); that heap is the
      whole page's, so the label says so. For the WASM run, the module's
-     linear memory size. A figure the browser does not report is left out,
-     never a guessed value
+     linear memory size, and how much of it the run added. Where both
+     growths are measured, the comparison shows the WASM one as a multiple
+     of the JavaScript one, as it does the times; "Not available" unless
+     both runs wrote the same output, or where the heap did not grow, since a
+     garbage collection during the run can shrink it. A figure the browser
+     does not report is left out, never a guessed value
      ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 The audience is newcomers first and talks or pitches second, so the page
@@ -116,7 +119,7 @@ built:
     nested inside it.
   - `let` needs a JSDoc type for TypeScript where its tuple mixes `number`
     and `bigint`; a gap of the type check, not of the compiler.
-- **Not yet:** the JavaScript memory figure, and the sample's use of `log` and `utf8`, which
+- **Not yet:** the sample's use of `log` and `utf8`, which
   `fjs compile` cannot compile yet, so the sample builds its `write` command
   by hand.
 
@@ -143,7 +146,8 @@ alternative.
 - [x] Build the demo page: source, disassembly, Run button and stats, with
       one sample, `hello`.
 - [x] Print the WAT in the deployment build.
-- [ ] Report the JavaScript run's memory, where the browser measures it.
+- [x] Report the JavaScript run's memory, where the browser measures it,
+      and compare it with the WASM run's.
 - [x] Add a sorting sample, `sort`, to compare the two routes' running time.
 - [x] Add a sample that computes without allocating, `collatz`.
 - [ ] Find where the WebAssembly route's time goes on `collatz`, which
