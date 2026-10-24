@@ -1,7 +1,7 @@
 ## Link to page sections with URL fragments
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -23,10 +23,15 @@ Emergent Testing starts collapsed, so scrolling alone does not reveal it.
   fragment navigation and browser back/forward behavior. An absent target
   leaves the page usable; revealing Emergent Testing does not run tests.
 - Offer accessible permalink controls beside section and documentation
-  headings so readers can discover and share their URLs.
+  headings so readers can discover and share their URLs. Provide a keyboard-
+  accessible Copy link button using the shared clipboard feedback, with a
+  native anchor fallback when JavaScript is unavailable.
 - Resolve IDs across the whole page, including collisions between README
   headings and reserved section IDs. Preserve existing documentation links
-  wherever possible; specify the collision rule before implementation.
+  wherever possible. Reserve `demo` and `emergent-testing` for page sections;
+  allocate colliding README heading IDs using the existing numeric-suffix rule.
+  README heading text stays unchanged; only conflicting IDs change. Empty
+  heading slugs use `section` before suffix allocation.
 - Reserve `#demo:` for encoded demo inputs, such as
   `/fjs/compiler/#demo:example=hex-escape`, which selects Hex escape in the
   example dropdown before scrolling to Demo. Distinguish this namespace from
