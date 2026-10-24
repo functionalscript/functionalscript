@@ -113,12 +113,6 @@
           }
         },
         {
-          "run": "sh ./gen.nix/run bash -e -c \"$FJS_CI_RUN\"",
-          "env": {
-            "FJS_CI_RUN": "git add -A && git diff --cached --exit-code"
-          }
-        },
-        {
           "run": "npm start ci publish",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {

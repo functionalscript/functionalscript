@@ -142,3 +142,6 @@ index.html
 !.claude/settings.json
 !.claude/hooks/
 
+
+# Website WebAssembly build artifacts
+/nanvm/demos/wasm/

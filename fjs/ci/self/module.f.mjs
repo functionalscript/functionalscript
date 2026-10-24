@@ -38,18 +38,14 @@ export const packageConsumer = {
 }
 
 /**
- * The WASM demo pages' module and its WAT, rebuilt where they were built to be
- * reproduced — Intel Linux, in the shared shell with the pinned Rust — and
- * compared with what is committed in `nanvm/demos/wasm/`, which the site
- * serves as it is. A stale or hand-edited file fails here, as a stale
- * generated one fails `npm run gen`'s drift check.
+ * Builds the WASM demos on Intel Linux with the pinned Rust. The assets are
+ * ignored build outputs; a successful build validates their generation.
  *
  * @type {(o: Os, a: Architecture) => readonly MetaStep[]}
  */
 export const nodeExtra = (o, a) => o === 'ubuntu' && a === 'intel'
     ? [
         test({ run: `sh ./${buildScriptPath}` }),
-        test({ run: 'git add -A && git diff --cached --exit-code' }),
     ]
     : []
 

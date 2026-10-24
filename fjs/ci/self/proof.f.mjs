@@ -41,10 +41,10 @@ export const proof = {
             workflowOf(ci({ nodeExtra, packageConsumer, smart: true })))
     },
     // The rebuild runs on Intel Linux alone, where the module is reproduced,
-    // and the drift check follows it.
+    // and succeeds without comparing ignored build artifacts.
     rebuildsTheWasmDemos: () => {
         assertEq(JSON.stringify(nodeExtra('ubuntu', 'intel').map(s => s.type === 'rust' ? '' : s.step.run)),
-            JSON.stringify(['sh ./nanvm/demos/gen.build.sh', 'git add -A && git diff --cached --exit-code']))
+            JSON.stringify(['sh ./nanvm/demos/gen.build.sh']))
         for (const [o, a] of /** @type {const} */ ([['ubuntu', 'arm'], ['macos', 'intel'], ['macos', 'arm'], ['windows', 'intel'], ['windows', 'arm']])) {
             assertEq(nodeExtra(o, a).length, 0)
         }
