@@ -34,6 +34,20 @@ manager across all supported platforms.
 These PRs are independent opt-in alternatives for Stage 1 feedback. Neither
 selects the production manager or completes the six-platform investigation.
 
+### Stacked CI alternatives
+
+At the owner's request, the development trials have separate CI migration PRs:
+[mise #3261](https://github.com/functionalscript/functionalscript/pull/3261) on
+#3259, and [Pixi #3262](https://github.com/functionalscript/functionalscript/pull/3262)
+on #3260. This branch selects Pixi for all nine repository CI jobs, including
+all six native platforms, while preserving the existing check commands and
+cache contracts. Rustup and verified upstream archives supplement missing
+Conda tool/target coverage. See [Pixi CI migration notes](../../../doc/pixi-trial/README.md#ci-migration).
+
+These are alternatives for evaluation, not a final adoption decision or proof
+of six-host runtime success. The generic `fjs ci` default remains self-contained,
+and local Nix entry points remain optional. Benchmarks and final selection stay open.
+
 ### Trial version policy
 
 For these opt-in trials, the task owner allows tool versions available from

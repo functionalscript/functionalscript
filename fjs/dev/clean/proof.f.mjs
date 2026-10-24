@@ -3,17 +3,20 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { nodeProgramOptions, virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { utf8 } from '../../text/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { clean, generatedFiles, isGenerated, main } from './module.f.mjs'
 
 /** @type {Dir} */
 const root = {
     'gen.matrix.md': [],
+    'gen.nix': { 'flake.lock': [utf8('committed optional lock')], 'flake.nix': [] },
     'matrix.md': [],
     'generate': { 'module.f.mjs': [] },
     'regen.md': [],
     'src': {
         'gen.operators.rs': [],
+        'gen.nix': { 'flake.lock': [] },
         'main.rs': [],
         'gen.fixtures': { 'a.rs': [], '.hidden': [], 'deep': { 'b.rs': [] } },
     },
@@ -33,9 +36,11 @@ export const proof = {
         assertEq(unwrap(result).toSorted().join(','), [
             './.github/workflows/gen.ci.yml',
             './gen.matrix.md',
+            './gen.nix/flake.nix',
             './src/gen.fixtures/.hidden',
             './src/gen.fixtures/a.rs',
             './src/gen.fixtures/deep/b.rs',
+            './src/gen.nix/flake.lock',
             './src/gen.operators.rs',
         ].join(','))
     },
@@ -52,9 +57,10 @@ export const proof = {
         assertEq(result[0], 'ok')
         assertStructurallySame(state.root, {
             'matrix.md': [],
+            'gen.nix': { 'flake.lock': [utf8('committed optional lock')] },
             'generate': { 'module.f.mjs': [] },
             'regen.md': [],
-            'src': { 'main.rs': [], 'gen.fixtures': { 'deep': {} } },
+            'src': { 'main.rs': [], 'gen.fixtures': { 'deep': {} }, 'gen.nix': {} },
             '.git': { 'gen.pack': [] },
             '.github': { 'FUNDING.yml': [], 'workflows': {} },
             'node_modules': { 'gen.js': [] },

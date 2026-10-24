@@ -1,5 +1,16 @@
 # Continuous integration workflow generator
 
+This branch opts this repository's `self` generator into the Pixi CI adapter
+(`Setup.environment: 'pixi'`). All six native platform jobs and the three
+canonical jobs use the committed `ci` profile; Rust cross targets and two
+uncommon runtimes have explicit upstream supplements. See
+[the trial's CI migration notes](../../doc/pixi-trial/README.md#ci-migration).
+The generic public `fjs ci` command retains its self-contained generated Nix
+environment, so projects without this repository's Pixi files keep working.
+The Nix sections below describe that generic behavior and the optional legacy
+development shell, not this branch's active repository CI.
+
+
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflows for this repository. Running the generator writes
 `.github/workflows/gen.ci.yml` with the latest matrix of jobs and steps and
@@ -115,13 +126,13 @@ ordinary `fjs ci` generator leaves this repository-specific cache disabled.
    running `fjs ci` here writes the packed-package check without the consumer
    steps.
    Run this directly: its integrated clean removes generated files before
-   rewriting them and regenerating the shared lock through real Nix. A
+   rewriting them and preserving the committed optional Nix lock. A
    standalone `gen:clean` would first remove the lock needed to enter the shell.
 3. Commit the updated `.github/workflows/gen.ci.yml`,
    `.github/workflows/gen.npm-publish.yml`, `gen.nix/flake.nix`,
    `gen.nix/flake.lock`, `gen.nix/run` and `gen.nix/lock-update.sh` if changed,
-   including deletions of obsolete output. Failed lock generation leaves
-   generation incomplete; retain a successfully regenerated shared lock.
+   including deletions of obsolete output. Refresh the optional Nix lock with
+   `npm run lock-update:nix` when its input pins change.
 
 The generator is idempotent — rerunning it without modifying the source produces the
 same files. It never runs Nix itself, so it stays Windows-compatible: the flakes are
@@ -205,10 +216,9 @@ writes one: `nix flake lock` is a real Nix command. Without a committed lock
 every `nix develop` would compute one, find it differed from nothing, and say
 so — which used to cost two more `--quiet`s and, with them, every Nix warning
 of any kind. Instead the generator writes `gen.nix/lock-update.sh`, which locks
-the shared flake, and this repository's `gen` ends by running it, after
-`gen:clean` has emptied `gen.nix/`, so the locks are regenerated from nothing
-and covered by the drift check; `gen` needs Nix for that, and does not run on
-Windows for now. See "Expected package scripts" below and
+the shared flake. Ordinary `gen` preserves the committed lock across cleanup
+without running Nix. Explicit `npm run lock-update:nix` refreshes that optional
+legacy development environment when its pins change. See
 [nix/README.md](./nix/README.md).
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
@@ -375,11 +385,9 @@ reflects the generator being reviewed, not the pinned published release.
 why it cannot be the thing that writes `flake.lock`. It writes
 `gen.nix/lock-update.sh` instead, alongside the flakes: the script locks the shared
 flake from its pinned revision, through real Nix, into the directory
-`gen:clean` has just emptied. This repository runs that script as the last step of `gen`, so a committed lock that
-differs from what the pinned revision produces fails the drift check like any
-other stale generated file — at the cost that `gen` needs Nix and does not run
-on Windows for now. A project that keeps `gen` Nix-free keeps its locks out of
-the check, and a maintainer runs the script by hand when a pin moves.
+`gen:clean` has just emptied. This repository's ordinary `gen` preserves the
+committed optional lock instead of invoking that script; maintainers explicitly
+run `npm run lock-update:nix` when a legacy flake input moves.
 
 Keep `tsc` passing independently because the generated CI runs it as its own
 step before coverage and package creation. Keep `test` as the fast local

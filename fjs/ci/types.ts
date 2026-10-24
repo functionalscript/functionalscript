@@ -23,6 +23,8 @@ export type PackageConsumer = {
 }
 
 export type Setup = {
+    /** Repository-only opt-in; requires committed root pixi.toml and pixi.lock. */
+    readonly environment?: 'pixi',
     readonly nodeExtra: (os: Os, architecture: Architecture) => readonly MetaStep[],
     /** Cache this repository's successful check groups by their committed inputs. */
     readonly smart?: boolean,

@@ -330,11 +330,12 @@ Nix flakes, `fjs/nanvm`'s Rust test data, a `nanvm-harness` fixture. `gen` is
 one program, [`fjs/dev/gen/module.f.mjs`](./fjs/dev/gen/module.f.mjs): its
 `generators` list is every generator in the order regeneration needs, the
 reason for each position beside it, and a new generated output is a new entry
-there. It needs Node and Nix: its last step runs the generated
-`gen.nix/lock-update.sh` on the terminal, which locks each flake from its
-pinned commit after the cleanup below emptied `gen.nix/`, so on Windows it
-runs where Nix does: in WSL2 or a container. The dependency lockfiles it never
-touches.
+there. It needs Node; ordinary generation preserves the committed optional
+`gen.nix/flake.lock` across cleanup without resolving it through Nix. On this
+Pixi CI branch, `pixi run --locked --environment ci npm run gen` runs natively
+on all supported hosts. The optional Nix development shell remains available;
+when its input pins change, run `npm run lock-update:nix` with Nix installed and
+commit the resulting lock. Other dependency lockfiles are untouched by `gen`.
 
 `gen` starts by deleting every generated output — the same module as
 `npm run gen:clean`, `fjs/dev/clean` — so regeneration starts from nothing: an output no
@@ -384,8 +385,8 @@ renames it updates its trusted publisher on npm as well
 ([fjs/ci/README.md](./fjs/ci/README.md#the-publishing-workflow)). The
 dependency lockfiles are not generated outputs: `npm run lock-update`
 refreshes them, not `gen`. The `flake.lock` files are: `gen:clean` deletes
-them with the rest of `gen.nix/`, and `gen.nix/lock-update.sh` writes them
-back from the pinned commits.
+the other outputs under `gen.nix/` while preserving its optional committed
+lock. `npm run lock-update:nix` explicitly resolves that lock from input pins.
 
 ### Updating dependencies
 
@@ -401,8 +402,8 @@ npm run lock-update
 ```
 
 This is a maintainer action, not something to run after an ordinary source
-change — `gen` above covers that, the `flake.lock` files included. It requires
-Node, Deno, Bun, Cargo, and Nix all installed: it runs `gen` first, then
+change — `gen` above covers ordinary generated output. It requires
+Node, Deno, Bun and Cargo installed: it runs `gen` first, then
 refreshes `package-lock.json`, `deno.lock`, `bun.lock`, `Cargo.lock` and
 `.devcontainer/devcontainer-lock.json` — see
 [`nix/README.md`](./fjs/ci/nix/README.md). The last one pins the devcontainer's

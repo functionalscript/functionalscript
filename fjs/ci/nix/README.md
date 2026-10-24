@@ -1,20 +1,19 @@
 # Nix environments
 
-One reproducible toolchain, shared by developers and CI, so that what passes on
-your machine is what passes on the runners — except Intel macOS and the two
-Windows platform jobs, which install their tools directly, the publishing workflow, on the Node `setup-node` installs, and
-the packed-package check that closes `node26`, which installs the published
-tarball as a consumer would.
+The legacy developer shell and the generic `fjs ci` generator use this
+Nix environment. This branch's repository CI instead selects Pixi; see
+[Pixi CI](../../../doc/pixi-trial/README.md) for that migration. Nix is not installed or
+invoked by the repository CI workflow, including ordinary regeneration.
 
-[`dev.sh`](../../../dev.sh) opens the shell, or runs the one command given to
-it; [`gen.nix/run`](../../../gen.nix/run) is the generated form of the latter,
-and is what a CI step runs, through `sh`.
+[`dev.sh`](../../../dev.sh) opens the local Nix shell or runs one command in
+it. [`gen.nix/run`](../../../gen.nix/run) remains the generic workflow's
+wrapper. The flake carries the supported runtime/compiler/WASM tool pins;
+this alternative CI's actual versions are recorded in its migration guide.
 
-Everything the project builds and tests with lives in the shell
-[`gen.nix/flake.nix`](../../../gen.nix/flake.nix) defines — the runtimes, the compilers, the WASM
-tooling. It is not a convenience assembled alongside CI: every CI job but the
-exceptions named above runs its commands inside this very shell, so it cannot
-drift from them.
+Ordinary `npm run gen` retains the committed `gen.nix/flake.lock` without
+resolving it. After changing Nix input pins, explicitly run
+`sh gen.nix/lock-update.sh` in a Nix-enabled environment and commit the new
+lock. Standalone `npm run gen:clean` preserves that package-manager lock.
 
 Everything else a job needs is here, including what only one platform can have.
 The shell is not identical on every system — `x86_64-linux` carries a 32-bit

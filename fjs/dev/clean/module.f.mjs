@@ -1,8 +1,12 @@
 /**
  * `npm run gen:clean`: deletes every generated file — a file whose name starts
  * with `gen.`, and every file inside a directory whose name does — so the drift
- * check regenerates from nothing and a stale output shows up as a deletion
+ * check regenerates deterministic outputs from nothing and stale output shows up as a deletion
  * ([CONTRIBUTING.md](../../../CONTRIBUTING.md#naming-generated-files)).
+ *
+ * `gen.nix/flake.lock` is the one preserved input: the optional legacy Nix
+ * environment refreshes it explicitly, outside ordinary generation. Cleanup
+ * must preserve it even when `gen:clean` runs separately from `gen`.
  *
  * Directories stay, emptied: `rm` removes files only, and git tracks no empty
  * directory, so the drift check cannot see one. Outside a generated directory,
@@ -36,7 +40,8 @@ export const isGenerated = name => name.startsWith('gen.')
  * @type {(path: string, entry: Dirent) => 'take' | 'descend' | 'skip'}
  */
 const classify = (path, { name, isDirectory }) =>
-    path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
+    path === 'gen.nix/flake.lock' ? 'skip'
+    : path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
     : isDirectory && (name === '.github' || !isThirdParty(name)) ? 'descend'
     : 'skip'
 

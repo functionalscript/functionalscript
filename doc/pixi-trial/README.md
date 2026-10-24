@@ -2,8 +2,9 @@
 
 This opt-in prototype addresses
 [`fjs/ci/todo/investigate-mise-pixi.md`](../../fjs/ci/todo/investigate-mise-pixi.md).
-It leaves `dev.sh`, the devcontainer, generated CI and the supported project
-pins unchanged. The trial deliberately uses versions available in conda-forge's
+The developer trial retains `dev.sh`, the devcontainer and the supported
+project pins. This stacked follow-up opts the repository CI into Pixi as
+described in [CI migration](#ci-migration). The trial deliberately uses versions available in conda-forge's
 public binary channel, as authorized for this experiment. It is not evidence
 that every tool, target or host has reached parity with Nix.
 
@@ -155,3 +156,44 @@ Validation on Linux x64: the default, runtime and isolated SpiderMonkey library
 environments solve from conda-forge with all declared platforms in the lock;
 execution and compatibility results are recorded in the PR description. The
 other native hosts and VS Code integration still need developer feedback.
+
+
+## CI migration
+
+This follow-up to the developer trial selects Pixi for this repository's
+nine generated CI jobs, including Linux/macOS/Windows on x64 and ARM64. It
+preserves the original checks: native Rust debug/release tests and Clippy;
+Linux and Windows x86 targets; ARM Linux formatting, all four WASM target
+command sets, SpiderMonkey compile and proofs; Node source/coverage, packed
+consumer checks and generation drift; and the Deno/Bun coverage jobs.
+Production publishing keeps its independent Node, registry and provenance setup.
+The generic `fjs ci` command retains its generated Nix environment; only this
+repository's self-generation opts into `Setup.environment: 'pixi'`.
+
+The separate locked `ci` environment supplies Node 26.12.1 and TypeScript 6.0.2
+on all six native hosts. ARM Linux additionally gets cached Deno 2.8.3, Bun
+1.4.2 and Wasmer 7.5.0. Unlike the developer profile, CI deliberately installs
+Rust 1.99.1 through the pinned Rust toolchain action, with rustfmt, Clippy and
+the original per-host cross targets. This keeps Rust and its target libraries
+consistent while Pixi's channel lacks the supported patch release. Linux x64
+adds the host GCC multilib/libc packages for i686 linking; Windows runners
+supply their native MSVC toolchain and SDK. Native Windows retains the published
+FJS bootstrap and its original checks.
+
+Conda-forge's SpiderMonkey package has no shell, and the Wasmtime Python
+package is not the required CLI. Separate Linux installer steps download the
+upstream Wasmtime 45.0.2 and SpiderMonkey 140.14.0 archives into
+`.pixi/ci-tools`; the CI environment exposes their executables and SpiderMonkey
+companion libraries. The installer verifies Wasmtime against recorded release
+archive hashes and SpiderMonkey against Mozilla's versioned SHA-256 manifest.
+These are explicit hybrid supplements, not packages covered by `pixi.lock`.
+The Mozilla network destination is unavailable in this execution environment,
+so a successful six-host GitHub run is still required before adoption.
+
+Smart CI recognizes Pixi setup, wrapper commands and supplemental tool
+prerequisites. The committed manifest, lock and installer source invalidate
+affected cached checks. Ordinary `npm run gen` preserves the committed optional
+Nix lock without executing Nix; `npm run lock-update:nix` refreshes that legacy
+environment explicitly. The Nix development entry point remains available.
+Neither trial has been selected for final adoption, and comparable cold/warm
+CI benchmarks and developer feedback remain TODO work.

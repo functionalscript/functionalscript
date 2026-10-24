@@ -44,6 +44,7 @@ export const stepSchema = /** @type {const} */ ({
     id: or(option, string),
     if: or(option, string),
     run: or(option, string),
+    shell: or(option, string),
     uses: or(option, string),
     with: or(option, record(string)),
     // Environment for one step. The generator writes it in exactly one

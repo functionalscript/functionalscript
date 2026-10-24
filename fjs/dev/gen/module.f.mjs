@@ -2,8 +2,8 @@
  * `npm run gen`: every generated output of this repository regenerated from
  * nothing, as one program. {@link generators} is the regeneration, in the
  * order it needs, with the reason for each position beside it; a new generated
- * output is a new entry there and nothing else. The lock script that ends it
- * is {@link lock}.
+ * output is a new entry there and nothing else. The optional Nix lock is
+ * preserved as input; updating it is the explicit `gen.nix/lock-update.sh` command.
  *
  * A program rather than the shell chain `package.json` used to hold: a chain
  * names each generator a second time by path, cannot say why its order is
@@ -44,8 +44,8 @@ export const generators = [
     // deletion, and a generator that needs a previous output, its own or
     // another's, fails.
     clean,
-    // The CI workflows and shared Nix flake. Writes `gen.nix/`, which the lock
-    // step at the end locks, so it must precede that step.
+    // The CI workflows and optional shared Nix flake. Cleanup preserves its
+    // committed lock; ordinary generation never resolves it.
     ci,
     // The NaNVM Rust test corpus, methods table and values fixture, from the
     // shared test data.
@@ -106,5 +106,11 @@ export const lock = resultStep(
         return code
     })
 
-/** @type {NodeProgram} */
-export const main = options => step(sequence(generators)(options), () => lock)
+/**
+ * Ordinary generation performs no package-manager resolution. Cleanup preserves
+ * an existing optional Nix lock, and generation also works without one.
+ * Update that environment's pins with `sh ./gen.nix/lock-update.sh` explicitly.
+ *
+ * @type {NodeProgram}
+ */
+export const main = sequence(generators)

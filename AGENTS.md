@@ -15,8 +15,8 @@ at once ([SESSION.md](./doc/SESSION.md#claim-the-task)).
 Develop inside the Nix shell `./dev.sh` opens on Linux and ARM macOS, or use
 the same tools installed in the devcontainer. Use the pinned tools directly on
 Intel macOS or bare Windows
-([§2](#2-environment-and-running-tests)). The shell carries every tool below
-at the version CI uses.
+([§2](#2-environment-and-running-tests)). The local shell carries the supported tool pins. This branch's CI manager
+and any cached-version deviations are described in §2.
 
 **Check what the change touches, not the whole tree.** CI runs every suite on
 every platform ([§7](#7-continuous-integration)) and gates the merge; a session
@@ -167,16 +167,15 @@ explain the value better than either literal spelling.
 
 Install [Nix](https://nixos.org/download/) and work inside the repository's
 shell. `gen.nix/` is a flake carrying every tool the project builds and tests
-with — Node, TypeScript, Rust with its WASM targets, Deno, Bun, the WASM
-runtimes — at the versions CI uses. Every CI job runs inside this very shell, so
-what passes in it is what passes there, except the Intel macOS and two Windows
-platform jobs, which install their tools directly, and the publishing workflow,
-which runs on the Node
-`setup-node` installs. The packed-package check that closes `node26` stays out
-of it too, by design: it installs the published tarball with `setup-node`'s
-Node and npm, as a consumer would. On supported Nix platforms, do not install
-those tools by hand or pick their versions; use the shell or the devcontainer's
-profile, generated from the same tool definitions.
+with — Node, TypeScript, Rust with its WASM targets, Deno, Bun, and the WASM
+runtimes. This branch's repository CI uses Pixi on all six native hosts;
+see [Pixi CI](doc/pixi-trial/README.md) for its tool versions, prerequisites and
+supplemental installations. The generic `fjs ci` generator retains its Nix
+setup unless a caller explicitly selects this repository's environment.
+The publishing workflow and isolated packed-package consumer still use
+`setup-node`. The legacy Nix shell and devcontainer remain available for local
+work. On supported Nix platforms, use that shell or the devcontainer profile
+when validating against the supported tool pins.
 Intel macOS uses the same pins
 directly; see [CONTRIBUTING.md](./CONTRIBUTING.md#direct-tools-on-intel-macos).
 
@@ -188,7 +187,7 @@ is needed; additional support after release remains subject to demand.
 
 ```bash
 ./dev.sh                      # an interactive shell
-./dev.sh <command>            # one command in it; CI steps run the generated sh ./gen.nix/run <command>
+./dev.sh <command>            # one command in the legacy local Nix environment
 ```
 
 In a Codex session, verify Node before starting work in a user-trusted
@@ -376,6 +375,8 @@ something to compare, and `sudo apt-get update && sudo apt-get install -y …`
 refreshes indices the install then reads — split, the update's exit status
 reports nothing anyone acts on.
 
+Repository CI invokes one `pixi` environment command per step.
+The following Nix behavior applies to the generic generator and legacy local shell.
 Repeating a wrapper per step costs nothing that matters. Entering a Nix
 development shell re-runs that shell's `shellHook`, so a job-local environment
 is re-established for every step instead of being exported across them.

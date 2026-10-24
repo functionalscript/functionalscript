@@ -38,7 +38,7 @@ export const proof = {
     isCiWithTheConsumer: () => {
         assertEq(
             workflowOf(main()),
-            workflowOf(ci({ nodeExtra: () => [], packageConsumer, smart: true })))
+            workflowOf(ci({ nodeExtra: () => [], packageConsumer, smart: true, environment: 'pixi' })))
     },
     // Website-only assets are built by Cloudflare, outside the Node CI job.
     leavesWasmToCloudflare: () => {

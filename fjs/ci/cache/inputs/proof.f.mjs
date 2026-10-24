@@ -47,7 +47,8 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(select('.github/workflows/gen.ci.yml'), ['fjs', 'rust'])
         assertStructurallySame(select('fjs/ci/cache/module.f.mjs'), ['fjs', 'rust'])
         assertStructurallySame(select('fjs/ci/cache/types.ts'), ['ts', 'rust'])
-        for (const path of ['.gitattributes', '.gitignore', '.node-version', 'dev.sh']) {
+        for (const path of ['.gitattributes', '.gitignore', '.node-version', 'dev.sh', 'pixi.toml', 'pixi.lock',
+            'fjs/ci/pixi/install-supplements.sh']) {
             assertStructurallySame(select(path), ['fjs', 'rust'])
         }
     },
@@ -56,8 +57,7 @@ export const proof = /** @type {const} */ ({
             'changelog/next.txt', 'doc/diagram.svg', '.claude/settings.json',
             '.devcontainer/Dockerfile', '.assetsignore', '.github/FUNDING.yml',
             '.github/dependabot.yml', 'LICENSE', 'favicon.ico', 'funding.json',
-            'wrangler.jsonc', 'fjs/website/favicon.svg',
-            'pixi.toml', 'pixi.lock']) {
+            'wrangler.jsonc', 'fjs/website/favicon.svg']) {
             assertStructurallySame(select(path), [])
         }
     },

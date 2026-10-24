@@ -55,6 +55,51 @@ export const proof = /** @type {const} */ ({
             assertOk(parse(platformSchema)(expected))
         }
     },
+    /** Pixi wrapper commands and manager installation enter each check contract. */
+    pixi: () => {
+        const manager = { uses: 'prefix-dev/setup-pixi@v0.11.2' }
+        const environment = { run: 'pixi install --locked --environment ci' }
+        const node = { run: 'pixi run --locked --environment ci node --version' }
+        const javascript = { run: 'pixi run --locked --environment ci node --test' }
+        const rust = { run: 'pixi run --locked --environment ci cargo test' }
+        const source = job([uses('actions/checkout'), manager, environment, node, javascript, rust])
+        assertStructurallySame(checks('ubuntu-intel', source), [
+            { id: 'suite', rung: 'js', steps: [manager, environment, node, javascript] },
+            { id: 'rust', rung: 'rust', steps: [manager, environment, node, rust] },
+        ])
+        const result = cached(source.steps, 'ubuntu-intel')
+        const condition = "steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-rust != 'true'"
+        assertEq(result.steps.find(step => step.uses === manager.uses)?.if, condition)
+        assertEq(stepWith(result, environment.run).if, condition)
+        assertEq(stepWith(result, javascript.run).if, "steps.init.outputs.hit-suite != 'true'")
+        assertEq(stepWith(result, rust.run).if, "steps.init.outputs.hit-rust != 'true'")
+        const uncached = cached([...source.steps, { run: 'pixi run --locked --environment ci npm run gen' }], 'ubuntu-intel')
+        assertEq(uncached.steps.find(step => step.uses === manager.uses)?.if, undefined)
+        assertEq(stepWith(uncached, environment.run).if, undefined)
+        assertEq(stepWith(uncached, node.run).if, undefined)
+    },
+    /** Supplements are prerequisites of the checks that actually execute them. */
+    pixiSupplements: () => {
+        const prefix = 'pixi run --locked --environment ci '
+        const wasm = { run: `${prefix}sh fjs/ci/pixi/install-supplements.sh wasmtime 45.0.2` }
+        const spider = { run: `${prefix}sh fjs/ci/pixi/install-supplements.sh spidermonkey 140.14.0` }
+        const multilib = { run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386' }
+        const rust = { run: `${prefix}cargo test` }
+        const spiderCompile = { run: `${prefix}npm run sm c` }
+        const spiderSuite = { run: `${prefix}npm run sm t` }
+        assertStructurallySame(checks('ubuntu-arm', job([wasm, spider, multilib, rust, spiderCompile, spiderSuite])), [
+            { id: 'rust', rung: 'rust', steps: [wasm, multilib, rust] },
+            { id: 'spidermonkey-compile', rung: 'fjs', steps: [spider, spiderCompile] },
+            { id: 'spidermonkey-suite', rung: 'js', steps: [spider, spiderSuite] },
+        ])
+        const injected = {
+            run: `${prefix}bash -e -c "$FJS_CI_RUN"`,
+            env: { FJS_CI_RUN: 'cargo test --release' },
+        }
+        assertStructurallySame(checks('ubuntu-arm', job([wasm, injected])), [
+            { id: 'rust', rung: 'rust', steps: [wasm, injected] },
+        ])
+    },
     /** Commands and shared prerequisites keep their original execution order. */
     checks: () => {
         const source = job([uses('actions/checkout'), nix, nodeVersion, tscVersion, install, tsc, compile, coverage, pack, consumer])

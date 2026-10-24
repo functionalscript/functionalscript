@@ -19,7 +19,8 @@ const workspace = /** @type {const} */ ([
 // These files control checkout or the shell that executes every check.
 /** @type {readonly string[]} */
 const sharedFiles = [
-    '.gitattributes', '.gitignore', '.node-version', 'dev.sh',
+    '.gitattributes', '.gitignore', '.node-version', 'dev.sh', 'pixi.toml', 'pixi.lock',
+    'fjs/ci/pixi/install-supplements.sh',
 ]
 
 // These paths describe tooling or site assets that the cached checks do not
@@ -29,8 +30,6 @@ const excludedFiles = [
     '.assetsignore', '.github/FUNDING.yml', '.github/dependabot.yml',
     'LICENSE', 'favicon.ico', 'funding.json', 'wrangler.jsonc',
     'fjs/website/favicon.svg',
-    // Opt-in development trial; the default cached checks still run in Nix.
-    'pixi.toml', 'pixi.lock',
 ]
 
 /** The JavaScript rung a path contributes to, independently of Rust. */

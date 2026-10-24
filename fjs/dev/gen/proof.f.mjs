@@ -10,8 +10,8 @@
  * @import { Unknown } from '../../media/datajs/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.js'
-import { ioError } from '../../effects/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { ioError, step } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { errorExit, exitCode, exitStep, log, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'
@@ -87,6 +87,7 @@ const specSamples = samples
  * @type {Dir}
  */
 const root = {
+    'gen.nix': { 'flake.lock': [utf8('committed optional Nix lock')] },
     'spec': {
         ...specSamples,
         'datajs': {
@@ -183,14 +184,33 @@ export const proof = {
         },
     },
     main: {
-        // Every generator against a filesystem holding what it reads, then
-        // the lock step: exit `0`, the outputs written, the script started
-        // exactly once and last — the flakes it locks are there by then.
+        withoutOptionalLock: () => {
+            const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
+            const sources = Object.fromEntries(Object.entries(root).filter(([name]) => name !== 'gen.nix'))
+            const [state, code] = run({ ...emptyState, root: sources })(main(defaultNodeProgramOptions))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(spawned(), 0)
+        },
+        standaloneCleanThenGenerate: () => {
+            const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
+            const cleanThenGenerate = step(clean(defaultNodeProgramOptions), () => main(defaultNodeProgramOptions))
+            const [state, code] = run({ ...emptyState, root })(cleanThenGenerate)
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(spawned(), 0)
+            const nix = state.root['gen.nix']
+            assert(typeof nix === 'object' && !(nix instanceof Array))
+            assertStructurallySame(nix['flake.lock'], [utf8('committed optional Nix lock')])
+        },
+        // Every generator against its sources. The optional lock survives cleanup
+        // unchanged, and generation never launches Nix or any subprocess.
         regenerates: () => {
             const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
             const [state, code] = run({ ...emptyState, root })(main(defaultNodeProgramOptions))
             assertEq(exitCode(code), 0, state.stderr)
-            assertEq(spawned(), 1)
+            assertEq(spawned(), 0)
+            const nix = state.root['gen.nix']
+            assert(typeof nix === 'object' && !(nix instanceof Array))
+            assertStructurallySame(nix['flake.lock'], [utf8('committed optional Nix lock')])
             const github = state.root['.github']
             assert(typeof github === 'object' && !(github instanceof Array))
             assert('workflows' in github)
@@ -205,7 +225,7 @@ export const proof = {
         // the lock script is never started.
         stopsAtAFailedGenerator: () => {
             const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
-            const [state, code] = run(emptyState)(main(defaultNodeProgramOptions))
+            const [state, code] = run({ ...emptyState, root: { 'gen.nix': root['gen.nix'] } })(main(defaultNodeProgramOptions))
             assertEq(exitCode(code), 1)
             assertEq(spawned(), 0)
             assert(state.stderr.includes('fjs/js/runtime/module.f.js'), state.stderr)

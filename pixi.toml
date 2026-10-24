@@ -25,6 +25,7 @@ platforms = ["linux-x64", "macos-x64"]
 [feature.spidermonkey.dependencies]
 spidermonkey = "==91.13.0"
 [environments]
+ci = { features = ["ci"], no-default-feature = true }
 default = []
 runtimes = ["runtimes"]
 spidermonkey-libs = { features = ["spidermonkey"], no-default-feature = true }
@@ -57,3 +58,18 @@ bun-version = "bun --version"
 wasmer-version = "wasmer --version"
 test-deno = "deno run --allow-all ./fjs/module.mjs test"
 test-bun = "bun ./fjs/module.mjs test"
+
+# CI takes Node and the compiler from Pixi on every native platform. Rustup
+# supplies the supported Rust release with cross targets; see doc/pixi-trial.
+[feature.ci.dependencies]
+nodejs = "==26.12.1"
+typescript = "==6.0.2"
+
+[feature.ci.target.linux-aarch64.dependencies]
+deno = "==2.8.3"
+bun = "==1.4.2"
+wasmer = "==7.5.0"
+
+[feature.ci.target.unix.activation.env]
+PATH = "$PIXI_PROJECT_ROOT/.pixi/ci-tools/bin:$PATH"
+LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/ci-tools/spidermonkey:$LD_LIBRARY_PATH"
