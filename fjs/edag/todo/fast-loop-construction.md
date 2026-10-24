@@ -324,6 +324,9 @@ their documented normalization. Repeated conversions must stabilize.
       construction, retaining direct terminal values and selected required work.
 - [ ] Extend the graph join to canonical invocation-root reconstruction and
       close the measured mixed-region suffix-growth case above.
+      The next stacked increment preserves statement regions for the graph
+      owner's shared joins, while retaining direct root results/self calls,
+      invocation metadata and exact existing graph fixtures.
 - [ ] Keep the existing scalar shape; pin deterministic general state/capture
       ordering and stable repeated conversions.
 - [ ] **F integration:** With shared emission, run repeated nested loops without
