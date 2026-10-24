@@ -425,14 +425,14 @@ const parseSharedNonce = parseHexField('the shared nonce', 64)
  * @type {(draft: DemoNonceReuse) => ReturnType<typeof reuseP256>}
  */
 export const nonceReuse = draft => {
-    const key = parseDemoKey(draft.key)
-    if (key[0] === 'error') { return key }
-    const nonce = parseSharedNonce(draft.nonce)
-    if (nonce[0] === 'error') { return nonce }
+    const [keyTag, key] = parseDemoKey(draft.key)
+    if (keyTag === 'error') { return error(key) }
+    const [nonceTag, nonce] = parseSharedNonce(draft.nonce)
+    if (nonceTag === 'error') { return error(nonce) }
     const first = tryUtf8(draft.message1)
     const second = tryUtf8(draft.message2)
     if (first === null || second === null) { return error(`Each message must be at most ${maxLengthBytes} UTF-8 bytes.`) }
-    return reuseP256(key[1], nonce[1], [first, second])
+    return reuseP256(key, nonce, [first, second])
 }
 
 /** Public signature scalars remain visible when equal hashes prevent recovery.
