@@ -453,7 +453,7 @@ export const proof = {
             ]),
         })
         assertEq(evaluate(fromFast(afterLoop(loop, ref(output)))), 6)
-        const thrown = { ...loop, body: body(['throw', 'loop failure']) }
+        const thrown = /** @type {Loop} */ ({ ...loop, body: body(['throw', 'loop failure']) })
         assertEq(assertError(memo(assertOk(identityAnalysis(fromFast(afterLoop(thrown, 7)))))({ args: [] })), 'loop failure')
     },
     generalLoopCapturesAndIdentity: () => {
@@ -478,7 +478,7 @@ export const proof = {
             target: nested, parameters: [parameter], rest: null, self: null, captures: [],
             body: body(['return', nested, ref(parameter)]),
         }])
-        const called = { ...loop, body: body(['break', target, [['()', own, [9]]]]) }
+        const called = /** @type {Loop} */ ({ ...loop, body: body(['break', target, [['()', own, [9]]]]) })
         assertEq(evaluate(fromFast(afterLoop(called, ref(output)))), 9)
     },
     generalLoopIterationCaptures: () => {
