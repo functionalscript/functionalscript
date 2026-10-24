@@ -38,7 +38,7 @@ conditional-arm boundaries, avoiding repeated copying while nested blocks
 unwind. Body prefixes retain their required/lazy modes, lexical order and
 statement identities. A region with nonlocal exits
 can still copy the suffix into multiple normal exits; repeated joins can grow
-exponentially. That performance limitation, general helper composition and
+exponentially. That performance limitation, nested helper composition and
 nonlocal operand control remain in the
 [open loop-construction task](../../../todo/fast-loop-construction.md), alongside
 the rest/default/spread invocation work coordinated with tail-call analysis.

@@ -1,10 +1,9 @@
 ## Construct EDAG from structured FAST loops
 
 **Priority:** P2
-**Status:** wip — scalar construction and fixed-input root reconstruction
-are implemented; general helpers and completions remain in E
-**Current increment:** general nonroot helpers with aggregate state/results and
-normal exits; sequential and conditional placement, preserving scalar graphs.
+**Status:** wip — scalar construction, fixed-input roots and normal-exit
+aggregate helpers are implemented; nested helpers, completions and shared
+lazy demand-state transport remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -141,8 +140,8 @@ The fixed-input increment implements direct reconstruction for zero through
 sixteen fixed parameters, no rest binding and one opaque public result, while
 keeping the established scalar shape first. Its contract lives in
 [`from_fast/loop/root`](../from_fast/loop/root/README.md). This is part of E;
-general helpers, nested transfers, operand control and rest transitions remain
-open below.
+normal-exit general helpers are also implemented. Nested helpers/transfers,
+operand control and rest transitions remain open below.
 
 The current fixed-input root constructor shares the suffix of wholly normal
 result regions. A region with nonlocal exits can still reconstruct the suffix
@@ -252,11 +251,16 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] **B:** Preserve the existing scalar construction and implement scalar
       root-loop reconstruction required by C. Pin its exact-graph domain and
       any explicit normalization before migrating output.
-- [ ] **E, after D:** Construct general helpers using explicit loop signatures.
+- [x] **E, after D:** Construct normal-exit general helpers using explicit loop signatures.
       Cover different input and output arities and state beyond the source
-      fixed-parameter limit.
-- [ ] Preserve sequential, conditional and nested execution regions, including
+      fixed-parameter limit. State and result arrays follow the declared order;
+      the scalar shape remains first. The common root resolver constructs the
+      packed invocation loop, and the caller shares one call across projections.
+      First-pass conversion may split non-minting state-slot property reads
+      across conditional arms; repeated conversions stabilize.
+- [x] Preserve sequential and conditional execution regions, including
       unevaluated setup in an unselected branch.
+- [ ] Extend helper construction to nested execution regions.
 - [ ] Implement normal results and enclosing-function completion propagation.
       Cover several breaks, nested returns, source nested-function returns,
       completion-shaped user values and failures.

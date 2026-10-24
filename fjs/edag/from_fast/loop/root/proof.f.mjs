@@ -204,6 +204,19 @@ export const proof = {
         assertEq(rootLoopOf(singleFn), null)
         assertEq(invocationRootOf(singleFn), null)
     },
+    retainedEntryHelperFallback: () => {
+        for (const fn of [
+            retainedEntryRoot(ref(a)),
+            retainedEntryRoot(ref(again), entryAliases),
+            retainedEntryRoot(['block', body(['yield', [ref(a)]])]),
+            retainedEntryRoot(['()', capturedValue(ref(again)), []], entryAliases),
+        ]) {
+            assertEq(assertOk(evaluate(fn, [0, 9])), 0)
+            assertEq(assertOk(evaluate(fn, [1, 9])), 1)
+        }
+        const loop = { ...loopOf(body(['break', loopTarget, [ref(a)]])), parameters: [x], initial: [ref(a)] }
+        assertEq(assertOk(evaluate({ ...root(loop), parameters: [a] }, [7])), 7)
+    },
     scalarRetainedEntryFallback: () => {
         for (const [value, prefix] of /** @type {readonly (readonly [Value, readonly Statement[]])[]} */ ([[ref(a), []], [ref(again), entryAliases]])) {
             const loop = { ...loopOf(body(['continue', loopTarget, [ref(x)]], [
@@ -315,16 +328,6 @@ export const proof = {
         assertStructurallySame(conditional, ['arg', 0])
     },
     throw: {
-        retainedEntryParameter: () => { graph(retainedEntryRoot(ref(a))) },
-        retainedEntryAlias: () => { graph(retainedEntryRoot(ref(again), entryAliases)) },
-        retainedEntryRegion: () => { graph(retainedEntryRoot(['block', body(['yield', [ref(a)]])])) },
-        retainedEntryCapture: () => { graph(retainedEntryRoot(['()', capturedValue(ref(again)), []], entryAliases)) },
-        retainedEntrySingleInput: () => {
-            const loop = { ...loopOf(body(['break', loopTarget, [ref(a)]])), parameters: [x], initial: [ref(a)] }
-            const fn = { ...root(loop), parameters: [a] }
-            graph(fn)
-        },
-
         fixedArityLimit: () => { graph(fixedRoot(17)) },
         loopBodyYieldZero: () => { const loop = { ...loopOf(body(['yield', []])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
         loopBodyYieldOne: () => { const loop = { ...loopOf(body(['yield', [3]])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },

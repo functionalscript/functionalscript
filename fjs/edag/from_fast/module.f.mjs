@@ -18,9 +18,10 @@ import { iterable, toArray } from '../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { freeLoopBindings } from './control/module.f.mjs'
-import { rootLoopOf, scalarHelper } from './loop/module.f.mjs'
+import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
+import { maxLength } from '../../types/function/length/module.f.mjs'
 
 /** @type {<T>(value: T) => Task<T>} */
 const done = value => ({ kind: 'done', value })
@@ -248,6 +249,7 @@ const lowerValues = (input, context) => {
 
 /** @type {(fn: FastFunction, context: Context) => Task<Lowered>} */
 const functionValue = (source, context) => call(() => {
+    if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
     const scalar = rootLoopOf(source)
     const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(source)
     const fn = matched === null ? source : directInvocationRoot(source, matched)
@@ -291,13 +293,16 @@ const scalarRoot = (fn, loop, context) => call(() => {
     return aliases(0, context.scope)
 })
 
-/** Existing scalar helpers capture already-established immutable values. @type {(loop: Loop, context: Context) => Task<Lowered>} */
-const scalarLoop = (loop, context) => call(() => {
-    if (scalarLoopOf(loop) === null) { throw 'general structured loop construction is not connected yet' }
+/** Helpers capture established values; lazy demand transport remains separate. @type {(loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment }>} */
+const loopTask = (loop, context) => call(() => {
+    const scalar = scalarLoopOf(loop) !== null
     const free = freeLoopBindings(loop)
     if (free.some(binding => lazyBinding(context.scope, binding))) { throw 'lazy free loop bindings require shared demand-state lowering' }
-    return bind(functionValue(scalarHelper(loop), context), fn => bind(valueTask(loop.initial[0], context), initial =>
-        done({ exp: ['()', fn.exp, [initial.exp]], anchors: [...fn.anchors, ...initial.anchors] })))
+    return bind(functionValue(scalar ? scalarHelper(loop) : aggregateHelper(loop), context), fn =>
+        bind(valueTask(scalar ? loop.initial[0] : ['array', loop.initial], context), initial => {
+            const value = { exp: /** @type {Exp} */ (['()', fn.exp, [initial.exp]]), anchors: [...fn.anchors, ...initial.anchors] }
+            return done({ value, bindings: loop.results.map((binding, i) => [binding, scalar ? value.exp : ['.', value.exp, i]]) })
+        }))
 })
 /** @type {(source: Operator<Value>, values: readonly Lowered[]) => Lowered} */
 const combined = (source, values) => {
@@ -392,9 +397,9 @@ const blockTask = (block, context) => call(() => {
             })
         }
         if (statement[0] === 'loop') {
-            return bind(scalarLoop(statement[1], current), value => each(index + 1,
-                scopeOf([[statement[1].results[0], value.exp]], scope),
-                { head: anchors, tail: [...value.anchors, ...(!reached.includes(statement[1].results[0]) ? [value.exp] : [])] }))
+            return bind(loopTask(statement[1], current), ({ value, bindings }) => each(index + 1,
+                scopeOf(bindings, scope),
+                { head: anchors, tail: [...value.anchors, ...(!statement[1].results.some(binding => reached.includes(binding)) ? [value.exp] : [])] }))
         }
         const task = statement[0] === 'block' ? regionTask(statement[2], current)
             : conditional(statement[2], statement[3], statement[4], current)
