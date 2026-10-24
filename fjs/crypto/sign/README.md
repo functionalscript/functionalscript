@@ -158,6 +158,25 @@ Parsed signature scalars, including zero and out-of-range values, reach the
 actual verifier so Bob can show rejection. A changed signature is not assumed
 invalid: ECDSA also admits `(r, q-s)` for the same key and message.
 
+After **Forward to Bob**, a copyable Bash/OpenSSL command checks Bob's last
+received message and DER signature with Alice's saved trusted public key,
+encoded as a PEM SubjectPublicKeyInfo. The selected curve is carried by the
+key's named-curve OID. Later Alice or Eve edits do not change this command;
+forwarding another packet does. Eve's replacement key never replaces the trusted
+key in the command. Shell arguments are quoted literally; a message containing
+NUL cannot be represented as a shell argument, so its command is refused.
+
+A separate **Why nonce reuse reveals the private key** section deliberately
+signs `sample` and `test` on P-256/SHA-256 with the same fixed `k = 7`. It
+shows the message hashes, signatures, and recovered demo private key:
+
+`x = (s1·h2 − s2·h1) / (r·(s2 − s1)) mod q`.
+
+This needs distinct hashes modulo `q` and a nonzero denominator. Repeating the
+same deterministic signature for the same message alone supplies no independent
+second equation. The deliberately broken signer is separate from Alice's
+RFC 6979 exchange; its fixed demo key and nonce are never used by that exchange.
+
 ### Proof
 
 Scalar equalities below are modulo `q`, the order of `G`.
