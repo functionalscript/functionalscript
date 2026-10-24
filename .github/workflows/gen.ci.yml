@@ -43,10 +43,12 @@
           }
         },
         {
-          "uses": "cachix/install-nix-action@v31.11.2"
+          "uses": "cachix/install-nix-action@v31.11.2",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\""
+          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\"",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
           "run": "sh ./gen.nix/run npm ci",
@@ -105,12 +107,6 @@
             "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
           },
           "continue-on-error": true
-        },
-        {
-          "run": "sh ./gen.nix/run bash -e -c \"$FJS_CI_RUN\"",
-          "env": {
-            "FJS_CI_RUN": "sh ./nanvm/demos/gen.build.sh"
-          }
         },
         {
           "run": "npm start ci publish",

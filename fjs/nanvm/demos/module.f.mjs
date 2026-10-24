@@ -10,7 +10,7 @@
  * `nanvm/demos/gen.build.sh`: `nanvm-demos` built for `wasm32`, and
  * `nanvm-demos-publish` copying it into `nanvm/demos/wasm/` with each
  * sample's WAT beside it. The website deploy builds these ignored assets
- * before generating pages, and CI checks the build on Intel Linux. The script
+ * before generating pages. The script
  * requires the pinned Rust so local builds use the same compiler as deploys.
  *
  * Invoked from `gen`, so the drift check fails when a committed `.rs` is

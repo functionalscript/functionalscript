@@ -57,7 +57,7 @@ output:
 - **The `.wasm` and its WAT are built during website deployment**, in
   ignored `nanvm/demos/wasm/`. `nanvm/demos/gen.build.sh`, generated with
   the samples' Rust by [`fjs/nanvm/demos`](../fjs/nanvm/demos/module.f.mjs),
-  builds them with the pinned Rust. CI checks generation on Intel Linux.
+  builds them with the pinned Rust during the Cloudflare build.
   Local website builds run this script in the shared shell first.
 - **The page fetches** the `.wasm` and the WAT by the paths the build script
   writes them to, as module pages already load files from the served

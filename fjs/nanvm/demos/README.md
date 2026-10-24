@@ -40,6 +40,6 @@ are on the [Undecided](../../../spec/undecided/README.md) page.
 - `nanvm/demos/gen.build.sh`, which `npm run gen` writes, builds the
   `nanvm-demos` crate for `wasm32` into `nanvm/demos/wasm/` and prints each
   sample's WAT beside it. Both are ignored build artifacts. Cloudflare builds
-  them before generating the website; CI checks the build on Intel Linux.
+  them before generating the website.
   For a local website build, first run
   `sh ./gen.nix/run sh ./nanvm/demos/gen.build.sh`, then `npm run website`.
