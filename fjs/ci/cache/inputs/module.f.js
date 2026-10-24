@@ -29,6 +29,8 @@ const excludedFiles = [
     '.assetsignore', '.github/FUNDING.yml', '.github/dependabot.yml',
     'LICENSE', 'favicon.ico', 'funding.json', 'wrangler.jsonc',
     'fjs/website/favicon.svg',
+    // Opt-in development trial; the default cached checks still run in Nix.
+    'pixi.toml', 'pixi.lock',
 ]
 
 /** The JavaScript rung a path contributes to, independently of Rust. */

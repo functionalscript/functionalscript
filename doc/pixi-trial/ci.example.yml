@@ -1,0 +1,29 @@
+# Manual trial only. Copy to .github/workflows/pixi-trial.yml on a trial branch.
+name: Pixi development environment trial
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-26.04, ubuntu-26.04-arm, macos-26-intel, macos-26, windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: prefix-dev/setup-pixi@v0.11.2
+        with:
+          pixi-version: v0.83.0
+          run-install: false
+          cache: true
+      - run: pixi install --locked
+      - run: pixi run --locked node-version
+      - run: pixi run --locked typescript-version
+      - run: pixi run --locked rust-version
+      - run: pixi run --locked clippy-version
+      - run: pixi run --locked rustfmt-version
+      - run: pixi run --locked js-deps
+      - run: pixi run --locked typecheck
+      - run: pixi run --locked rust-test

@@ -1,0 +1,59 @@
+[workspace]
+name = "fjs-cached-pixi-trial"
+channels = ["https://conda.anaconda.org/conda-forge"]
+platforms = [
+    { name = "linux-x64", platform = "linux-64", glibc = "2.34" },
+    { name = "linux-arm64", platform = "linux-aarch64", glibc = "2.34" },
+    { name = "macos-x64", platform = "osx-64", macos = "15.0" },
+    { name = "macos-arm64", platform = "osx-arm64", macos = "15.0" },
+    "win-64", "win-arm64",
+]
+requires-pixi = "==0.83.0"
+[dependencies]
+nodejs = "==26.12.1"
+rust = "==1.99.0"
+typescript = "==6.0.2"
+
+[feature.runtimes]
+platforms = ["linux-x64", "linux-arm64", "macos-x64", "macos-arm64", "win-64"]
+[feature.runtimes.dependencies]
+deno = "==2.8.3"
+bun = "==1.4.2"
+wasmer = "==7.5.0"
+[feature.spidermonkey]
+platforms = ["linux-x64", "macos-x64"]
+[feature.spidermonkey.dependencies]
+spidermonkey = "==91.13.0"
+[environments]
+default = []
+runtimes = ["runtimes"]
+spidermonkey-libs = { features = ["spidermonkey"], no-default-feature = true }
+
+# Cargo otherwise searches ~/.cargo/bin before PATH for subcommands, which can
+# silently select rustup's cargo-fmt/cargo-clippy instead of the packaged ones.
+[target.unix.activation.env]
+CARGO_HOME = "$PIXI_PROJECT_ROOT/.pixi/cargo"
+[target.win.activation.env]
+CARGO_HOME = "%PIXI_PROJECT_ROOT%\\.pixi\\cargo"
+
+[tasks]
+js-deps = "npm ci"
+node-version = "node --version"
+typescript-version = "tsc --version"
+rust-version = "rustc --version"
+clippy-version = "cargo clippy --version"
+rustfmt-version = "cargo fmt --version"
+versions = { depends-on = ["node-version", "typescript-version", "rust-version", "clippy-version", "rustfmt-version"] }
+typecheck = "tsc"
+test = "npm start test"
+rust-test = "cargo test -p nanvm-lib"
+rust-test-release = "cargo test -p nanvm-lib --release"
+rust-clippy = "cargo clippy -p nanvm-lib -- -D warnings"
+rust-fmt = "cargo fmt -- --check"
+
+[feature.runtimes.tasks]
+deno-version = "deno --version"
+bun-version = "bun --version"
+wasmer-version = "wasmer --version"
+test-deno = "deno run --allow-all ./fjs/module.mjs test"
+test-bun = "bun ./fjs/module.mjs test"
