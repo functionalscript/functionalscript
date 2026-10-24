@@ -267,16 +267,16 @@ const sameOutput = (js, wasm) => js.output[0] === 'ok' && wasm.run.output[0] ===
  * one, as {@link ratio} compares their times: the linear memory the run
  * added against the change in the page's JavaScript heap. `null` where the
  * browser does not report the heap, which every browser but Chromium does
- * not, so the page leaves the line out; "Not available" unless both runs
- * wrote the same output, or where the heap did not grow, since a heap a
- * garbage collection shrank during the run gives no comparison.
+ * not, or where the JavaScript run failed, which leaves no reading to say
+ * whether it does: the page leaves the line out. "Not available" unless
+ * both runs wrote the same output, or where the heap did not grow, since a
+ * heap a garbage collection shrank during the run gives no comparison.
  *
  * @type {(runs: Runs) => string | null}
  */
-export const memoryRatio = ({ js, wasm }) => js[0] === 'ok' && js[1].heap === null
+export const memoryRatio = ({ js, wasm }) => js[0] === 'error' || js[1].heap === null
     ? null
-    : js[0] === 'ok' && wasm[0] === 'ok' && js[1].heap !== null
-        && sameOutput(js[1], wasm[1]) && js[1].heap.after > js[1].heap.before
+    : wasm[0] === 'ok' && sameOutput(js[1], wasm[1]) && js[1].heap.after > js[1].heap.before
         ? `${(wasm[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
         : 'Not available'
 

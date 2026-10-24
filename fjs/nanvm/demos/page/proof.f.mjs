@@ -193,7 +193,8 @@ export const proof = {
         // Runs that failed, or wrote different outputs.
         const grown = runs({ before: 1000, after: 3000 }, 5000)
         assertEq(memoryRatio({ ...grown, wasm: error('no wasm') }), 'Not available')
-        assertEq(memoryRatio({ ...grown, js: error('no js') }), 'Not available')
+        // A JavaScript run that failed leaves no reading, in any browser.
+        assertEq(memoryRatio({ ...grown, js: error('no js') }), null)
         assertEq(memoryRatio({ ...grown, wasm: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
     },
     signedBytes: () => {
