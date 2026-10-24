@@ -55,9 +55,9 @@ const instance = (bytes, loads = true) => ({
 
 /** What a mock export answers to stand for a throw. */
 const throws = {}
-/** A thunk's answer as `sandbox` reports it: a throw where the mock export, or one in a tuple the thunk answers, stands for one. @type {(value: unknown) => Result<unknown, unknown>} */
+
 /** A thunk's answer as `sandbox` reports it. @type {(value: unknown) => Result<unknown, unknown>} */
-const thrown = value => value === throws || (Array.isArray(value) && value.includes(throws)) ? error('boom') : ok(value)
+const thrown = value => value === throws ? error('boom') : ok(value)
 
 /**
  * The page's operations. A path in `files` is a text, `wasm` is the module,

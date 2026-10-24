@@ -195,17 +195,17 @@ export const runWasm = name => ({ exports }) => {
     const output = value => value < 0
         ? error('the sample threw')
         : decode(Array.from({ length: value }, (_, i) => /** @type {(i: number) => number} */ (outputByte)(i)))
-    // The size before is read inside the sandbox, just before the call: the
-    // one property read is all the timed interval gains.
-    const ran = step(loaded, () => sandbox(() => /** @type {const} */ ([live.buffer.byteLength, /** @type {() => number} */ (runSample)()])))
-    return resultMapStep(ran, r => {
-        /** @type {Result<{ readonly value: readonly [number, number], readonly time: number }, string>} */
-        const t = r[0] === 'error' && typeof r[1] === 'string'
-            ? error(r[1])
-            : timed(/** @type {Result<SandboxResult<readonly [number, number]>, IoChannel>} */ (r))
+    // Each size is read outside the sandbox, so the timed interval holds
+    // `run_sample` alone.
+    const before = history(step(loaded, () => pureOk(live.buffer.byteLength)))
+    const ran = historyStep(before, () => resultMapStep(sandbox(() => /** @type {() => number} */ (runSample)()), r => ok(r)))
+    return resultMapStep(ran, h => {
+        if (h[0] === 'error') { return ok(error(h[1])) }
+        const [r, before] = h[1]
+        const t = timed(/** @type {Result<SandboxResult<number>, IoChannel>} */ (r))
         const after = live.buffer.byteLength
         /** @type {Result<WasmRun, string>} */
-        const run = t[0] === 'error' ? t : ok({ run: { output: output(t[1].value[1]), time: t[1].time }, memory: after, growth: after - t[1].value[0] })
+        const run = t[0] === 'error' ? t : ok({ run: { output: output(t[1].value), time: t[1].time }, memory: after, growth: after - before })
         return ok(run)
     })
 }
