@@ -33,6 +33,7 @@
  * @import { Issue } from '../issue/types.ts'
  */
 
+import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'
 import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
@@ -377,7 +378,8 @@ export const playgroundDir = 'fjs/website/playground'
 
 /**
  * A file in a directory, as a reader opens it: on GitHub at `commit`, or
- * root-relative on this site when there is no commit to link.
+ * root-relative on this site when there is no commit to link. Generated
+ * WASM assets stay on this site because they are absent from Git.
  *
  * Only the links a person follows go through here. A page's proofs and its
  * demo are imported by the browser from this site, and pointing those at
@@ -387,7 +389,7 @@ export const playgroundDir = 'fjs/website/playground'
  */
 export const fileHref = commit => path => name => {
     const file = urlPath(path === '.' ? name : `${path}/${name}`)
-    return commit === null ? `/${file}` : `${repository}/blob/${commit}/${file}`
+    return commit === null || path === wasmDirectory ? `/${file}` : `${repository}/blob/${commit}/${file}`
 }
 
 /**

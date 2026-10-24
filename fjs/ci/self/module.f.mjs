@@ -8,13 +8,10 @@
  *
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
- * @import { Architecture, MetaStep, Os } from '../common/types.ts'
  * @import { PackageConsumer } from '../types.ts'
  */
 
 import { ci } from '../module.f.mjs'
-import { test } from '../common/module.f.mjs'
-import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
 
 /**
  * What the packed-package check asks of this repository's tarball as a clean
@@ -38,31 +35,15 @@ export const packageConsumer = {
 }
 
 /**
- * The WASM demo pages' module and its WAT, rebuilt where they were built to be
- * reproduced — Intel Linux, in the shared shell with the pinned Rust — and
- * compared with what is committed in `nanvm/demos/wasm/`, which the site
- * serves as it is. A stale or hand-edited file fails here, as a stale
- * generated one fails `npm run gen`'s drift check.
- *
- * @type {(o: Os, a: Architecture) => readonly MetaStep[]}
- */
-export const nodeExtra = (o, a) => o === 'ubuntu' && a === 'intel'
-    ? [
-        test({ run: `sh ./${buildScriptPath}` }),
-        test({ run: 'git add -A && git diff --cached --exit-code' }),
-    ]
-    : []
-
-/**
- * The workflows and flakes this repository commits: the WASM demos' rebuild
- * ({@link nodeExtra}), and its own module as the packed package's consumer. Every platform runs on
+ * The workflows and flakes this repository commits, with its own module as
+ * the packed package's consumer. Every platform runs on
  * every pull request: a macOS or Windows failure found only in the merge queue
  * is found after review, by the queue's eviction.
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
 export const main = () => ci({
-    nodeExtra,
+    nodeExtra: () => [],
     packageConsumer,
     smart: true,
 })

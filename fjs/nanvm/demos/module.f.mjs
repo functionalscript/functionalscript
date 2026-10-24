@@ -9,11 +9,9 @@
  * **And the script that builds the module the pages load**,
  * `nanvm/demos/gen.build.sh`: `nanvm-demos` built for `wasm32`, and
  * `nanvm-demos-publish` copying it into `nanvm/demos/wasm/` with each
- * sample's WAT beside it. Its output is committed, so building the site
- * takes no Rust; CI runs the script on Intel Linux and fails when the
- * committed files differ from what it built. The build is reproducible only
- * with the pinned Rust, so the script refuses any other `rustc` rather than
- * writing a module that would differ for that reason alone.
+ * sample's WAT beside it. The website deploy builds these ignored assets
+ * before generating pages. The script
+ * requires the pinned Rust so local builds use the same compiler as deploys.
  *
  * Invoked from `gen`, so the drift check fails when a committed `.rs` is
  * stale. The samples are listed, not found by a walk, in
