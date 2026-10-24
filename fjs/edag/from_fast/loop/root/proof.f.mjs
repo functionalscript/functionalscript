@@ -214,7 +214,7 @@ export const proof = {
             assertEq(assertOk(evaluate(fn, [0, 9])), 0)
             assertEq(assertOk(evaluate(fn, [1, 9])), 1)
         }
-        const loop = { ...loopOf(body(['break', loopTarget, [ref(a)]])), parameters: [x], initial: [ref(a)] }
+        const loop = /** @type {Loop} */ ({ ...loopOf(body(['break', loopTarget, [ref(a)]])), parameters: [x], initial: [ref(a)] })
         assertEq(assertOk(evaluate({ ...root(loop), parameters: [a] }, [7])), 7)
     },
     scalarRetainedEntryFallback: () => {

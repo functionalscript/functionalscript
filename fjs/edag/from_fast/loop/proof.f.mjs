@@ -66,7 +66,9 @@ export const proof = {
     aggregateHelper: () => {
         // Presentation indices deliberately coincide; the state, invocation
         // input, result and captures keep separate resolved identities.
-        const first = { index: 0 }, second = { index: 0 }, local = { index: 0 }
+        const first = /** @type {const} */ ({ index: 0 })
+        const second = /** @type {const} */ ({ index: 0 })
+        const local = /** @type {const} */ ({ index: 0 })
         const definition = /** @type {const} */ (['define', local, ['array', [['ref', second], ['ref', state], ['ref', first], ['ref', second]]], 'required'])
         const source = /** @type {Loop} */ ({ ...loop, parameters: [state, alias], initial: [1, 2], results: [result, other],
             body: { statements: [definition], exit: ['break', loopTarget, [['ref', local], ['ref', alias]]] } })
@@ -80,7 +82,7 @@ export const proof = {
         assertEq(packed.target, loopTarget)
         assertEq(packed.parameters.length, 1)
         assertEq(packed.results.length, 1)
-        const identities = [helper.parameters[0], packed.parameters[0], packed.results[0]]
+        const identities = /** @type {const} */ ([helper.parameters[0], packed.parameters[0], packed.results[0]])
         assertEq(new Set(identities).size, 3)
         for (const identity of identities) {
             assertEq(identity.index, loopTarget.index)
@@ -106,8 +108,8 @@ export const proof = {
         // Every normal result is an aggregate, including zero and one result;
         // the state and result signatures are independent.
         for (const values of /** @type {readonly (readonly Value[])[]} */ ([[], [7], [1, ['array', [2]], 3]])) {
-            const source = { ...loop, parameters: [], initial: [], results: values.map((_, index) => ({ index })),
-                body: { statements: [], exit: /** @type {Block['exit']} */ (['break', loopTarget, values]) } }
+            const source = /** @type {Loop} */ ({ ...loop, parameters: [], initial: [], results: values.map((_, index) => ({ index })),
+                body: { statements: [], exit: ['break', loopTarget, values] } })
             const helper = aggregateHelper(source)
             const packed = rootLoopOf(helper)
             assert(packed !== null)
@@ -134,14 +136,14 @@ export const proof = {
         assertStructurallySame(nested.exit, ['break', loopTarget, [['array', []]]])
     },
     aggregateStatementRegions: () => {
-        const local = { index: 5 }
+        const local = /** @type {const} */ ({ index: 5 })
         const nestedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
         const nested = /** @type {Value} */ (['function', { target: nestedTarget, parameters: [], rest: null, self: null, captures: [],
             body: { statements: [], exit: ['return', nestedTarget, 9] } }])
         const definition = /** @type {const} */ (['define', local, nested, 'required'])
         const yielded = /** @type {Block['exit']} */ (['yield', []])
         const thrown = /** @type {Block['exit']} */ (['throw', 'failure'])
-        const inner = { ...loop, target: /** @type {const} */ ({ kind: 'loop', index: 0 }) }
+        const inner = /** @type {Loop} */ ({ ...loop, target: { kind: 'loop', index: 0 } })
         const innerStatement = /** @type {const} */ (['loop', inner])
         const source = /** @type {Loop} */ ({ ...loop, body: {
             statements: [definition,
