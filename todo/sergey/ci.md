@@ -60,10 +60,10 @@
 
 All JS testing are using runtime-native runners.
 
-## Missing
+## Retiring
 
 - installed `fjs` runner.
-- NPM package runner.
+- NPM package runner. We may still pack and release a package but we will not test it in the CI.
 
 We plan to remove the `fjs` runner and NPM package check from CI until we have a better solution. We should create a TODO for that. We may have a separate pipeline to check NPM package in another repository with installation from `main`.
 
