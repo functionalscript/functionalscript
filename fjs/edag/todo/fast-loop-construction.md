@@ -2,10 +2,8 @@
 
 **Priority:** P2
 **Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers and
-statement-level function returns are implemented; outer-loop transfers,
+statement-level function returns and outer-loop transfers are implemented;
 operand completions and shared lazy demand-state transport remain in E
-**Current increment:** propagate resolved outer-loop breaks and continues through
-inner helpers, with deterministic function-local target IDs and caller-owned transitions.
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -118,16 +116,19 @@ enclosing loop, use the internal completion forms:
 ```
 
 These forms are private to this conversion. `targetId` is a deterministic
-encoding of the resolved loop identity within the owning function, not a
-printed name or the identity's presentation index. FAST, admission and
+encoding of the resolved loop identity in the owning function's statement
+inventory, not a printed name or the identity's presentation index. Standalone
+blocks and operand-local blocks use their own lexical inventory; a transfer
+cannot cross an opaque operand or ordinary function boundary. FAST, admission and
 serializers know only their own loop/result/return constructs.
 
-Statement-level enclosing-function returns are implemented by the function-local
-[`loop/returns`](../from_fast/loop/returns/module.f.mjs) normalization. A
-return-capable nonroot loop receives one internal completion-result binding;
+Statement-level enclosing returns and outer-loop transfers use
+[`loop/completions`](../from_fast/loop/completions/module.f.mjs) normalization. A
+nonroot loop with escaping control receives one internal completion-result binding;
 the existing aggregate helper carries that slot in its result array. Caller
-dispatch binds the original normal results or returns the payload to the source
-function. Parent helpers encode that dispatch in turn, without invoking an
+dispatch binds the original normal results, returns the payload to the source
+function, or emits the resolved targeted break/continue. Parent helpers encode
+only dispatches that still escape their loop, without invoking an
 enclosing helper. Normal-only loops and canonical invocation roots retain their
 previous paths. A root's inner returning helpers can introduce dispatch, while
 its terminal public result and direct self calls remain unwrapped.
@@ -135,8 +136,16 @@ its terminal public result and direct self calls remain unwrapped.
 The shared terminal statement resolver handles changed nonroot function bodies.
 Ordinary nested function bodies and value operands are not traversed by this
 normalization. Payload computations remain ordinary evaluations; their broader
-tail-call eligibility belongs to F. Outer-loop break/continue completions and
-value-operand completions remain open.
+tail-call eligibility belongs to F. Value-operand completions remain open.
+
+Loop IDs follow lexical introduction order within each normalization scope,
+independently of debug indices. Dispatch uses original target result/parameter
+signatures before helper packing and declares original result bindings once.
+Standalone block normalization runs before helper construction too; operand
+regions normalize local loops on entry, while statement regions reuse the
+already-completed pass. True foreign or nonlexical targets remain raw for the
+existing owner checks to refuse. Return-only completion graphs retain their
+previous shape.
 
 A caller resumes after the loop for normal completion. A source-function
 return propagates through enclosing generated helpers until its owning
@@ -159,7 +168,7 @@ sixteen fixed parameters, no rest binding and one opaque public result, while
 keeping the established scalar shape first. Its contract lives in
 [`from_fast/loop/root`](../from_fast/loop/root/README.md). This is part of E;
 normal-exit general helpers, including nested helpers, are also implemented.
-Outer-loop transfers, operand control and rest transitions remain open below.
+Operand control and rest transitions remain open below.
 
 The current fixed-input root constructor shares the suffix of wholly normal
 result regions. A region with nonlocal exits can still reconstruct the suffix
@@ -289,7 +298,7 @@ their documented normalization. Repeated conversions must stabilize.
       completion-shaped user values and failures.
 - [ ] Extend function-return completion handling to value operands, preserving
       their lookup, spread and evaluation boundaries below.
-- [ ] Propagate resolved breaks and continues through inner helpers to their
+- [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.
 - [ ] Thread shared lazy demand state through helpers, conditional demands,
