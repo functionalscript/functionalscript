@@ -33,12 +33,12 @@ This resolver performs its own targeted break or continue without wrapping the
 root's public results or self calls; intermediate helpers return to their caller
 before that dispatch.
 
-Noncanonical function bodies now use the graph constructor's normal/control
-joins directly. The former `terminalFunction` expansion is retired with that
-consumer. This invocation-root resolver keeps its existing reconstruction path;
-its mixed-region continuation-growth case remains open until the root path also
-uses graph-level joins. It does not cross value operands or ordinary nested
-function bodies.
+The resolver preserves statement result regions for the graph constructor's
+normal/control joins. Each normal join binds selected results and constructs
+one following graph, shared across normal exits. Terminal public results and
+self calls remain direct. No continuation function or eager terminal-payload
+envelope is introduced. The resolver does not cross value operands or ordinary
+nested function bodies.
 
 Normalized loop bodies require an explicit `continue`, `break`, owning
 `return` or failure on every reached path. `yield` supplies an inner result
@@ -46,15 +46,9 @@ region; it is not a loop-body transfer. The constructor refuses a loop body
 that reaches `yield`, regardless of its payload. Prepared target loops are a
 later representation and do not define normalized fallthrough semantics.
 
-Wholly normal regions remain on the existing constructor path without copying
-the following suffix per arm. An immutable summary and continuation worklist
-keep terminal statement depth off the host stack. Prefixes accumulate as
-immutable statement segments and become arrays only at function-body or
-conditional-arm boundaries, avoiding repeated copying while nested blocks
-unwind. Body prefixes retain their required/lazy modes, lexical order and
-statement identities. A region with nonlocal exits
-can still copy the suffix into multiple normal exits; repeated joins can grow
-exponentially. That performance limitation, escaping helper completions and
-nonlocal operand control remain in the
-[open loop-construction task](../../../todo/fast-loop-construction.md), alongside
+Wholly normal regions retain their established graph path. An immutable
+continuation worklist rewrites statement transfers without copying their
+following suffix or consuming host stack with statement depth. Body prefixes
+retain their required/lazy modes and lexical order. Nonlocal operand control
+remains in the [open loop-construction task](../../../todo/fast-loop-construction.md), alongside
 the rest/default/spread invocation work coordinated with tail-call analysis.
