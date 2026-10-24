@@ -84,6 +84,7 @@ export type DemoState = DemoDraft & {
  * generator, and the hexadecimal widths of its scalars and coordinates.
  */
 export type DemoCurve = {
+    readonly oid: readonly bigint[]
     readonly name: string
     readonly curve: Curve
     readonly sign: (hf: Sha2) => (x: bigint) => (m: Vec) => _Signature

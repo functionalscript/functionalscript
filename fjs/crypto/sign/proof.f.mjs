@@ -703,6 +703,26 @@ export const proof = {
         signSZero: () => sign(toy4)(sha256)(1n)(utf8("14")),
     },
     demo: {
+        opensslSnapshot: () => {
+            const sent = click(demo.init, 'send')
+            assert(!view(sent).includes('Copy OpenSSL command'))
+            const delivered = click(sent, 'forward')
+            const html = view(delivered)
+            assert(html.includes('Copy OpenSSL command'))
+            assert(html.includes('BEGIN PUBLIC KEY'))
+            assert(html.includes('openssl dgst -sha256 -verify'))
+            assert(!html.includes('BEGIN PRIVATE KEY'))
+            // Compare the whole OpenSSL section after editing both workspaces.
+            const section = (/** @type {DemoState} */ state) => view(state).split('Run in Bash')[1].split('Why nonce reuse')[0]
+            const changed = input(input(input(delivered, 'message', 'new draft'), 'curve', 'P-521 (secp521r1)'), 'eve-message', 'new interception')
+            assertEq(section(changed), section(delivered))
+            assertEq(section(click(changed, 'send')), section(delivered))
+            const nul = click(click({ ...demo.init, message: 'a\u0000b' }, 'send'), 'forward')
+            assert(view(nul).includes('POSIX shell arguments cannot contain NUL'))
+            assert(!view(nul).includes('Copy OpenSSL command'))
+            assert(html.includes('Why nonce reuse reveals the private key'))
+            assert(html.includes('0000000000000000000000000000000000000000000000000000000012345678'))
+        },
         init: () => {
             const signature = unwrap(signed(demo.init))
             assertEq(signature.r, 0xefd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716n)
