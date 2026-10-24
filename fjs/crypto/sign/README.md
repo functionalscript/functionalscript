@@ -166,16 +166,21 @@ forwarding another packet does. Eve's replacement key never replaces the trusted
 key in the command. Shell arguments are quoted literally; a message containing
 NUL cannot be represented as a shell argument, so its command is refused.
 
-A separate **Why nonce reuse reveals the private key** section deliberately
-signs `sample` and `test` on P-256/SHA-256 with the same fixed `k = 7`. It
-shows the message hashes, signatures, and recovered demo private key:
+A separate **Why nonce reuse reveals the private key** section lets readers edit
+two messages, a demo private key, and one shared nonce. P-256/SHA-256 stays fixed.
+It starts with `sample`, `test`, and `k = 7`; editing any input recalculates both
+hashes, signatures, and the recovered demo private key:
 
 `x = (s1·h2 − s2·h1) / (r·(s2 − s1)) mod q`.
 
 This needs distinct hashes modulo `q` and a nonzero denominator. Repeating the
 same deterministic signature for the same message alone supplies no independent
-second equation. The deliberately broken signer is separate from Alice's
-RFC 6979 exchange; its fixed demo key and nonce are never used by that exchange.
+second equation. Equal hashes leave both signatures visible with an explanation
+of the zero recovery denominator; malformed hex, oversized messages, invalid
+scalar ranges, and zero signature scalars are refused. The section reports whether
+the recovered key matches the entered demo key. Its state is independent of
+Alice, Eve, and Bob. The deliberately broken signer is separate from Alice's
+RFC 6979 exchange; its demo inputs are never used by that exchange.
 
 ### Proof
 

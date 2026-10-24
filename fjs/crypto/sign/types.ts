@@ -77,6 +77,15 @@ export type DemoReceived = {
 export type DemoState = DemoDraft & {
     readonly eve: DemoIntercepted | null
     readonly bob: DemoReceived | null
+    readonly reuse: DemoNonceReuse
+}
+
+/** Editable inputs for the independent P-256/SHA-256 nonce experiment. */
+export type DemoNonceReuse = {
+    readonly key: string
+    readonly nonce: string
+    readonly message1: string
+    readonly message2: string
 }
 
 /**

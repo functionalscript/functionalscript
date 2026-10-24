@@ -13,7 +13,7 @@
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Curve, Point2D } from '../secp/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { DemoCurve, DemoSigned, DemoState, DemoDraft, DemoPacket, DemoIntercepted, DemoAttack, DemoReceived } from './types.ts'
+ * @import { DemoCurve, DemoSigned, DemoState, DemoDraft, DemoPacket, DemoIntercepted, DemoAttack, DemoReceived, DemoNonceReuse } from './types.ts'
  */
 
 import { secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
@@ -41,7 +41,8 @@ import { tryUtf8 } from '../../text/module.f.mjs'
 import { encode, encodeRaw, constructedSequence, integer, objectIdentifier } from '../../asn.1/module.f.mjs'
 import { encode as base64 } from '../../basen/base64/module.f.mjs'
 import { msb, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
-import { example as nonceReuseExample } from './nonce_reuse/module.f.mjs'
+import { reuse } from './nonce_reuse/module.f.mjs'
+import { sha256 } from '../sha2/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
@@ -179,6 +180,10 @@ const aliceInput = (state, name, value) =>
  */
 const update = state => event => {
     if (event.kind === 'input') {
+        if (event.name === 'reuse-key') { return pureOk({ ...state, reuse: { ...state.reuse, key: event.value } }) }
+        if (event.name === 'reuse-nonce') { return pureOk({ ...state, reuse: { ...state.reuse, nonce: event.value } }) }
+        if (event.name === 'reuse-message1') { return pureOk({ ...state, reuse: { ...state.reuse, message1: event.value } }) }
+        if (event.name === 'reuse-message2') { return pureOk({ ...state, reuse: { ...state.reuse, message2: event.value } }) }
         const eve = state.eve
         if (eve !== null) {
             if (event.name === 'attack') {
@@ -409,24 +414,58 @@ const exchangeScheme = ['figure', { [signSchemeMarker]: '', 'aria-label': 'ECDSA
 /** @type {(title: string, role: string) => Element} */
 const stageHeader = (title, role) => ['header', { [signStageHeaderMarker]: '' }, ['h3', title], ['span', { [signRoleMarker]: '' }, role]]
 
-/** A separate, deliberately broken signer; never part of Alice's exchange. */
-const reused = nonceReuseExample()
+const reuseP256 = reuse(secp256r1)(sha256)
 const nonceScalar = encodeScalar(64)
-/** @type {Element} */
-const nonceReuseView = ['section',
+
+/** Validate the independent nonce experiment before signing.
+ * @type {(draft: DemoNonceReuse) => ReturnType<typeof reuseP256>}
+ */
+export const nonceReuse = draft => {
+    const key = parseHexField('the demo private key', 64)(draft.key)
+    if (key[0] === 'error') { return key }
+    const nonce = parseHexField('the shared nonce', 64)(draft.nonce)
+    if (nonce[0] === 'error') { return nonce }
+    const first = tryUtf8(draft.message1)
+    const second = tryUtf8(draft.message2)
+    if (first === null || second === null) { return error(`Each message must be at most ${maxLengthBytes} UTF-8 bytes.`) }
+    return reuseP256(key[1], nonce[1], [first, second])
+}
+
+/** Public signature scalars remain visible when equal hashes prevent recovery.
+ * @type {(result: ReturnType<typeof nonceReuse>) => readonly Node[]}
+ */
+const nonceReuseOutput = result => {
+    if (result[0] === 'error') { return [refusal(result[1])] }
+    const { q, key, signatures, recovered } = result[1]
+    return [
+        caption('Curve order q, hex:'), codeBlock(nonceScalar(q), 'Copy nonce reuse curve order'),
+        ...signatures.flatMap(({ h, r, s }, i) => [
+            caption(`Message ${i + 1}: h = bits2int(SHA-256(message)) mod q. Values in hex:`),
+            codeBlock(`h = ${nonceScalar(h)}\nr = ${nonceScalar(r)}\ns = ${nonceScalar(s)}`, `Copy message ${i + 1} signature`),
+        ]),
+        ...(recovered[0] === 'error' ? [refusal(recovered[1])] : [
+            caption('Recovered private key x, hex:'),
+            codeBlock(nonceScalar(recovered[1]), 'Copy recovered private key'),
+            paragraph(`Matches original demo private key: ${recovered[1] === key}.`),
+        ]),
+    ]
+}
+
+/** An interactive, deliberately broken signer, separate from Alice's exchange.
+ * @type {(draft: DemoNonceReuse) => Element}
+ */
+const nonceReuseView = draft => ['section',
     ['h3', 'Why nonce reuse reveals the private key'],
-    paragraph('Separate P-256 / SHA-256 example with demo-only values. This deliberately broken signer uses k = 7 for both sample and test. Alice’s signer above uses RFC 6979 instead.'),
-    codeBlock(`q = ${nonceScalar(reused.q)}\nx = ${nonceScalar(reused.key)}\nk = ${nonceScalar(reused.k)}`, 'Copy nonce reuse inputs'),
-    ...reused.messages.flatMap(({ message, h, r, s }) => [
-        caption(`Message: ${message}; h = bits2int(SHA-256(message)) mod q. Values in hex:`),
-        codeBlock(`h = ${nonceScalar(h)}\nr = ${nonceScalar(r)}\ns = ${nonceScalar(s)}`, `Copy ${message} signature`),
-    ]),
+    paragraph('Experiment with two messages signed using one shared nonce. P-256 / SHA-256 stays fixed in this section. Change any input to recalculate both signatures and recover the private key from their public scalars.'),
+    inputField({ name: 'reuse-key', label: 'Demo-only private key x, hex' }, draft.key),
+    inputField({ name: 'reuse-nonce', label: 'Shared nonce k for both messages, hex' }, draft.nonce),
+    textField({ name: 'reuse-message1', label: 'Message 1 (UTF-8)', rows: 2 }, draft.message1),
+    textField({ name: 'reuse-message2', label: 'Message 2 (UTF-8)', rows: 2 }, draft.message2),
     paragraph('The same k gives the same r. From s₁k = h₁ + rx and s₂k = h₂ + rx, eliminate k to recover x using only the two signatures and message hashes. All scalar arithmetic is modulo q.'),
     codeBlock('x = (s1·h2 − s2·h1) / (r·(s2 − s1)) mod q', 'Copy key recovery formula'),
-    caption('Recovered private key x, hex:'),
-    codeBlock(nonceScalar(reused.recovered), 'Copy recovered private key'),
-    paragraph('The recovered key equals the original demo private key; both signatures verify under its public key. Recovery needs distinct hashes modulo q and a nonzero denominator. Repeating the same message and signature alone does not provide these two independent equations.'),
-    paragraph('Keep k secret and never reuse it across different message hashes. RFC 6979 derives k from the private key and message; signing the same message again deterministically is safe.'),
+    ...nonceReuseOutput(nonceReuse(draft)),
+    paragraph('Recovery needs distinct hashes modulo q and a nonzero denominator. Try making both messages identical to see why repeating one signature does not provide two independent equations.'),
+    paragraph('Keep k secret and never reuse it across different message hashes. Alice’s signer above uses RFC 6979 to derive k from the private key and message; signing the same message again deterministically is safe.'),
 ]
 
 /** @type {Demo<DemoState, DemoEvent>} */
@@ -438,6 +477,7 @@ export const demo = {
         message: 'sample',
         eve: null,
         bob: null,
+        reuse: { key: '12345678', nonce: '7', message1: 'sample', message2: 'test' },
     },
     update,
     view: state => {
@@ -458,7 +498,7 @@ export const demo = {
             ],
             ['section', { [signStageMarker]: 'eve' }, stageHeader('Eve — Intercept & Attack', 'Interceptor'), ...eveView(state.eve)],
             ['section', { [signStageMarker]: 'bob' }, stageHeader('Bob — Receive & Verify', 'Verifier'), ...bobView(state.bob)],
-            nonceReuseView,
+            nonceReuseView(state.reuse),
         ]
     },
 }
