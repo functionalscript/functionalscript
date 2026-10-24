@@ -1,7 +1,7 @@
 ## MVP Roadmap
 
 **Priority:** P1
-**Status:** open
+**Status:** wip — the MVP is reached; the self-hosting milestone remains
 
 ### Problem
 
