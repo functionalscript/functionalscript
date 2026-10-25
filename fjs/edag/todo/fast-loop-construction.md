@@ -446,6 +446,8 @@ their documented normalization. Repeated conversions must stabilize.
       literal constructor metadata and normal Boolean results.
 - [x] Lift owning returns through ordinary statement-result yield operands,
       preserving result binding identities, arity and evaluation order.
+- [ ] Record the member-resolution guard choice and its evaluation contract,
+      receiver preservation, lookup cost and implementation evidence gates.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
