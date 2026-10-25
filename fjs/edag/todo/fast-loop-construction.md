@@ -382,6 +382,9 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Give lazy cells declared inside loop iterations fresh declaration
       lifetimes. Share reached values with nested helpers and same-iteration
       reads while retaining caller-owned state.
+- [ ] Give computed lazy bindings inside initializers recipe-owned cells.
+      Preserve local sharing, skipped demands and fresh local lifetimes when
+      an owning initializer is evaluated again.
 - [ ] Extend shared demand state to recipe-local computed dependents
       and escaping completions.
       Preserve fresh iteration lifetimes and selected updates through every completion.
