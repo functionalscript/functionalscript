@@ -1,7 +1,7 @@
 /** URL/history and clipboard effects for the pure demo sharing contract.
  * @module
  * @import { Demo, DemoEvent } from './demo/types.ts'
- * @import { DemoController } from './private.ts'
+ * @import { DemoController } from './demo/sharing/types.ts'
  */
 import { decodeFragment, encodeFragment, restoreInputs } from './demo/sharing/module.f.mjs'
 import { copy } from './copy-runtime.mjs'

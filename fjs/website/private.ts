@@ -92,14 +92,3 @@ export type _FieldMemory<V> = {
     readonly capture: (el: HTMLElement) => V | null
     readonly restore: (el: HTMLElement, v: V) => void
 }
-
-export type RestoreDisposition = 'apply' | 'edited' | 'navigated'
-
-/** State access for the shared URL boundary; replacements are queued atomically. */
-export type DemoController = {
-    readonly step: (event: import('./demo/types.ts').DemoEvent) => void
-    readonly read: () => any
-    readonly busy: () => boolean
-    readonly revision: () => number
-    readonly replace: (state: any, after: () => void, current: () => RestoreDisposition, initialize?: boolean) => void
-}

@@ -439,7 +439,7 @@ const lessMotion = root =>
  * events cancel the scheduled turn, and automatic updates keep controls
  * available so a Stop button can interrupt the work.
  *
- * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => import('./private.ts').DemoController}
+ * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => import('./demo/sharing/types.ts').DemoController}
  */
 const stepper = (root, demo) => {
     const scoped = scopeView(root)

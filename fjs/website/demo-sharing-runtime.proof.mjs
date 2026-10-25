@@ -62,7 +62,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         read: () => state,
         busy: () => busy,
         revision: () => revision,
-        replace: (/** @type {any} */ next, /** @type {() => void} */ after, /** @type {() => import('./private.ts').RestoreDisposition} */ current, /** @type {boolean} */ initialize = false) => pending.push({ next, after, current, initialize }),
+        replace: (/** @type {any} */ next, /** @type {() => void} */ after, /** @type {() => import('./demo/sharing/types.ts').RestoreDisposition} */ current, /** @type {boolean} */ initialize = false) => pending.push({ next, after, current, initialize }),
     }
     return {
         root, demo, view, controls, document, button, status, feedback, copied, pending, details, windowEvents,

@@ -22,3 +22,14 @@ export type Fragment =
     | { readonly kind: 'defaults' }
     | { readonly kind: 'example', readonly id: string }
     | { readonly kind: 'state', readonly inputs: Inputs }
+
+export type RestoreDisposition = 'apply' | 'edited' | 'navigated'
+
+/** State access for the shared URL boundary; replacements are queued atomically. */
+export type DemoController = {
+    readonly step: (event: import('../types.ts').DemoEvent) => void
+    readonly read: () => any
+    readonly busy: () => boolean
+    readonly revision: () => number
+    readonly replace: (state: any, after: () => void, current: () => RestoreDisposition, initialize?: boolean) => void
+}
