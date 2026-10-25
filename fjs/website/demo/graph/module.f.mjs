@@ -874,6 +874,9 @@ const routesOf = placed => {
  * Plan from the original geometry, then widen each affected gap by one lane
  * per steep leg. Vertical bends sit after return descents and before return
  * ascents, leaving the original gap's clearance before every arrowhead.
+ * Ordered downward runs take lanes from right to left; upward runs take
+ * them from left to right. Their horizontal entries then do not cut across
+ * neighbouring vertical runs. Ties use destination height and edge identity.
  * Nodes and skip-rank lanes move together; their heights never change.
  *
  * @type {(placed: _Placed) => _Placed}
@@ -883,8 +886,10 @@ const forwardBendsOf = placed => {
     const steep = routes.filter(r => r.edge.back !== true).flatMap(route => route.points.slice(1).flatMap((b, i) => {
         const a = route.points[i]
         return max(b[1] - a[1], a[1] - b[1]) > b[0] - a[0]
-            ? [{ index: route.index, segment: i + 1, rank: placed.ends.indexOf(a[0]) + 1, start: a[0] }] : []
-    }))
+            ? [{ index: route.index, segment: i + 1, rank: placed.ends.indexOf(a[0]) + 1, start: a[0],
+                sourceY: a[1], targetY: b[1], direction: b[1] > a[1] ? 1 : -1 }] : []
+    })).toSorted((a, b) => a.rank - b.rank || a.direction - b.direction
+        || a.direction * (b.sourceY - a.sourceY || b.targetY - a.targetY) || a.index - b.index)
     if (steep.length === 0) { return placed }
     const extra = placed.ends.map((_, rank) => laneSize * steep.filter(b => b.rank <= rank).length)
     const rankOf = new Map(placed.nodes.map(n => [n.id, n.rank]))

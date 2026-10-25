@@ -19,6 +19,17 @@ const routes = html => html.split('" data-graph-edge=""').slice(0, -1)
 /** Original connection identities represented by each return hit segment. @type {(html: string) => readonly (readonly number[])[]} */
 const memberships = html => html.split('data-graph-members="').slice(1).map(after => after.slice(0, after.indexOf('"')).split(' ').map(Number))
 
+/** Signed side of a line. @type {(a: readonly number[], b: readonly number[], p: readonly number[]) => number} */
+const side = (a, b, p) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+
+/** Proper intersections, excluding shared endpoints and coincident entries. @type {(paths: readonly (readonly (readonly number[])[])[]) => number} */
+const pathCrossings = paths => paths.reduce((sum, path, i) => sum + paths.slice(i + 1).reduce((count, other) => count
+    + path.slice(1).reduce((n, b, j) => n + other.slice(1).filter((d, k) => {
+        const a = path[j]
+        const c = other[k]
+        return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0
+    }).length, 0), 0), 0)
+
 /**
  * Three ranks, one node each, and an edge `r` from the root that skips the
  * middle one — the smallest graph that needs a lane.
@@ -422,6 +433,60 @@ export const proof = {
             }
             assertEq(new Set(paths.slice(0, 3).map(points => points[1][0])).size, 3)
             assertEq(paths[3].length, 2, 'the shallow connection remains direct')
+            assertEq(_crossings(g), 0)
+        },
+        downwardFanOut: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [0, 1, 2, 3, 4].map(id => ({ id, kind: 'n', label: `${id}`, rank: id === 0 ? 0 : 1 })),
+                edges: [
+                    { from: 0, to: 1, label: 'cycle' }, { from: 1, to: 0, label: 'self', back: true },
+                    { from: 0, to: 2, label: 'first' }, { from: 0, to: 3, label: 'second' }, { from: 0, to: 4, label: 'third' },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            const paths = routes(html).slice(1, 4).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
+            assert(paths.every(path => path.length === 4), 'three downward elbows')
+            assertEq(pathCrossings(paths), 0)
+            assert(paths[0][1][0] > paths[1][1][0] && paths[1][1][0] > paths[2][1][0], 'higher destinations take lanes farther right')
+            assertEq(_crossings(g), 0)
+            assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
+        },
+        upwardFanOut: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: Array.from({ length: 8 }, (_, id) => ({ id, kind: 'n', label: `${id}`, rank: id === 0 ? 0 : id < 5 ? 1 : 2 })),
+                edges: [
+                    { from: 0, to: 1, label: 'spacer' }, { from: 0, to: 2, label: 'first' },
+                    { from: 0, to: 3, label: 'second' }, { from: 0, to: 4, label: 'third' },
+                    { from: 0, to: 5, label: 'shared' },
+                    { from: 2, to: 5, label: 'next' }, { from: 3, to: 6, label: 'next' }, { from: 4, to: 7, label: 'next' },
+                    ...Array.from({ length: 20 }, (_, i) => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
+                ],
+            }
+            const paths = routes(htmlToString(graphSvg(g))).slice(5).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
+            assertEq(paths.length, 3)
+            assert(paths.every(path => path.length >= 4), 'three upward elbows')
+            assertEq(pathCrossings(paths), 0)
+            const bends = paths.map(path => path[path.length - 3][0])
+            assert(bends[0] < bends[1] && bends[1] < bends[2], 'higher sources take lanes farther left')
+            assertEq(_crossings(g), 0)
+        },
+        sameCornerFanOut: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [0, 1, 2].map(id => ({ id, kind: 'n', label: `${id}`, rank: id === 0 ? 0 : 1 })),
+                edges: [
+                    { from: 0, to: 1, label: '', corner: 'bottom' },
+                    { from: 0, to: 1, label: '', corner: 'bottom' },
+                    { from: 0, to: 2, label: '', corner: 'bottom' },
+                    ...Array.from({ length: 10 }, (_, i) => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
+                ],
+            }
+            const paths = routes(htmlToString(graphSvg(g))).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
+            assert(paths.every(path => path.length === 4), 'equal origins retain separate elbow lanes')
+            assertEq(new Set(paths.map(path => path[1][0])).size, 3)
+            assertEq(pathCrossings(paths), 0)
             assertEq(_crossings(g), 0)
         },
         forwardAngleThreshold: () => {
