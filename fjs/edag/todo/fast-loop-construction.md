@@ -399,6 +399,8 @@ their documented normalization. Repeated conversions must stabilize.
       completion-shaped user values and failures.
 - [x] Handle owning-function returns in plain value blocks and conditionals
       used as required initializers or function-return payloads.
+- [ ] Lift owning returns through eager unary/binary operands, conditional
+      tests and plain call callees/arguments, retaining required prefixes.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
