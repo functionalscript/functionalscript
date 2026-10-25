@@ -1,6 +1,7 @@
 /**
  * Cell plans retain source recipes and resolved identity, select only true
- * deferred crossings, and refuse lifetimes beyond the normal helper slice.
+ * deferred dependency closures, and refuse lifetimes beyond the normal helper
+ * slice.
  *
  * @import { BindingId, Block, Definition, Exit, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
  * @import { MemoPlan } from './types.ts'
@@ -334,6 +335,78 @@ export const proof = /** @type {const} */ ({
         assertEq(loops[1].target, second.target)
         assertStructurallySame(memoCells(source), plan)
     },
+    dependentPrerequisites: () => {
+        const initializer = /** @type {Value} */ (['array', [['ref', alias], ['ref', a]]])
+        const loop = reading(b)
+        const source = containing(loop, [
+            ['define', a, ['array', []], 'lazy'], ['define', alias, ['ref', a], 'lazy'],
+            ['define', b, initializer, 'lazy'],
+        ])
+        const plan = planned(source)
+        const definitions = definitionsOf(plan.block)
+        assertEq(plan.cells.length, 2)
+        assertEq(plan.cells[0].binding, a)
+        assertEq(plan.cells[1].binding, b)
+        assertEq(plan.cells[1].initializer, initializer)
+        assertEq(plan.cells[0].definition, definitions[0])
+        assertEq(plan.cells[1].definition, definitions[2])
+        assertEq(plan.definitions.get(definitions[0]), 0)
+        assertEq(plan.definitions.get(definitions[1]), 0)
+        assertEq(plan.definitions.get(definitions[2]), 1)
+        assertEq(plan.loops.size, 1)
+        assertEq(plan.loops.has(loopsOf(plan.block)[0]), true)
+        assertEq([...plan.loops][0].target, loop.target)
+    },
+    computedDependents: () => {
+        const third = /** @type {const} */ ({ index: 0 })
+        const fourth = /** @type {const} */ ({ index: 0 })
+        const unused = /** @type {const} */ ({ index: 0 })
+        const loop = reading(a)
+        const source = containing(loop, [
+            ['define', a, ['array', []], 'lazy'],
+            ['define', b, ['array', []], 'lazy'],
+            ['define', alias, ['ref', b], 'lazy'],
+            ['define', third, ['array', [['ref', a], ['ref', alias]]], 'lazy'],
+            ['define', fourth, ['array', [['ref', third]]], 'lazy'],
+            ['define', unused, ['array', []], 'lazy'],
+        ])
+        const plan = planned(source)
+        const definitions = definitionsOf(plan.block)
+        assertEq(plan.cells.length, 4)
+        for (const [index, binding] of [a, b, third, fourth].entries()) {
+            assertEq(plan.cells[index].binding, binding)
+            assertEq(plan.definitions.get(plan.cells[index].definition), index)
+        }
+        assertEq(plan.definitions.get(definitions[2]), 1)
+        assertEq(plan.definitions.has(definitions[5]), false)
+        assertEq(plan.loops.size, 1)
+        assertEq(plan.loops.has(loopsOf(plan.block)[0]), true)
+        assertEq([...plan.loops][0].target, loop.target)
+        const again = planned(source)
+        for (const [index, cell] of plan.cells.entries()) {
+            assertEq(again.cells[index].binding, cell.binding)
+            assertEq(again.cells[index].initializer, cell.initializer)
+        }
+    },
+    branchOwnedDependents: () => {
+        const local = /** @type {const} */ ({ index: 0 })
+        const loop = reading(a)
+        const source = body([
+            ['define', a, ['array', []], 'lazy'],
+            ['if', [], false, body([
+                ['define', local, 8, 'required'],
+                ['define', b, ['array', [['ref', a], ['ref', local]]], 'lazy'],
+            ]), body()],
+            ['loop', loop],
+        ])
+        const plan = planned(source)
+        assertEq(plan.cells.length, 2)
+        assertEq(plan.cells[0].binding, a)
+        assertEq(plan.cells[1].binding, b)
+        assertEq(plan.definitions.size, 2)
+        assertEq(plan.definitions.get(plan.cells[0].definition), 0)
+        assertEq(plan.definitions.get(plan.cells[1].definition), 1)
+    },
     statementScopes: () => {
         const first = reading(a)
         const second = reading(b, innerTarget)
@@ -413,19 +486,15 @@ export const proof = /** @type {const} */ ({
         externalComputedPrerequisite: () => memoCells(containing(reading(b), [
             ['define', a, ['array', [['ref', known]]], 'lazy'], ['define', b, ['array', [['ref', a]]], 'lazy'],
         ]), [known]),
-        dependentRecipe: () => memoCells(containing(reading(b), [
-            ['define', a, ['array', []], 'lazy'], ['define', alias, ['ref', a], 'lazy'],
-            ['define', b, ['array', [['ref', alias], ['ref', a]]], 'lazy'],
-        ])),
-        computedDependent: () => memoCells(containing(reading(a), [
-            ['define', a, ['array', []], 'lazy'], ['define', b, ['array', [['ref', a]]], 'lazy'],
-        ])),
         iterationLocal: () => {
             const inner = reading(a, innerTarget)
             return memoCells(body([['loop', loopOf(body([
                 ['define', a, ['array', []], 'lazy'], ['loop', inner],
             ], ['break', target, [0]]))]]))
         },
+        iterationLocalDependent: () => memoCells(containing(loopOf(body([
+            ['define', b, ['array', [['ref', a]]], 'lazy'],
+        ], ['break', target, [['ref', a]]])))),
         nestedBoundary: () => {
             const inner = reading(a, innerTarget)
             return memoCells(containing(loopOf(body([['loop', inner]], ['break', target, [0]]))))

@@ -1648,6 +1648,27 @@ export const proof = {
             const loop = collectingMemo(ref(lazy))
             fromFast(afterLoop(loop, ref(loop.results[0])), [[lazy, ['[]', [4]], 'lazy']])
         },
+        loopMemoExternalLazyPrerequisite: () => {
+            const external = id(0), prerequisite = id(0), dependent = id(0)
+            const loop = collectingMemo(ref(dependent), 2)
+            const block = result(7, [
+                ['define', prerequisite, ['array', [ref(external)]], 'lazy'],
+                ['define', dependent, ['array', [ref(prerequisite)]], 'lazy'], ['loop', loop],
+            ])
+            fromFast(block, [[external, ['[]', [4]], 'lazy']])
+        },
+        loopMemoLazyEnvironmentPrecedence: () => {
+            const external = id(0), dependent = id(0)
+            const loop = collectingMemo(ref(dependent), 2)
+            const block = result(7, [['define', dependent, ['array', [ref(external)]], 'lazy'], ['loop', loop]])
+            fromFast(block, [[external, ['[]', [4]], 'lazy'], [external, ['[]', [9]]]])
+        },
+        loopMemoOperandLazyPrerequisite: () => {
+            const external = id(0), dependent = id(0)
+            const loop = collectingMemo(ref(dependent), 2)
+            const local = result(7, [['define', dependent, ['array', [ref(external)]], 'lazy'], ['loop', loop]])
+            fromFast(result(['block', local], [['define', external, ['array', [4]], 'lazy']]))
+        },
         loopMemoOperandOwnerCrossing: () => {
             const lazy = id(0)
             const loop = collectingMemo(ref(lazy), 3, false)
@@ -1664,13 +1685,6 @@ export const proof = {
             const loop = collectingMemo(ref(lazy), 2)
             const block = result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]])
             lowerValue(['block', block], [], () => ({ exp: 7, anchors: [] }))
-        },
-        loopMemoDependentRecipe: () => {
-            const first = id(0), second = id(0)
-            const loop = collectingMemo(ref(second))
-            fromFast(result(7, [
-                ['define', first, ['array', [4]], 'lazy'], ['define', second, ['array', [ref(first)]], 'lazy'], ['loop', loop],
-            ]))
         },
         loopMemoDelayedIterationRecipe: () => {
             const lazy = id(0), delayed = id(0)

@@ -11,6 +11,7 @@ export type MemoCell = {
 export type MemoPlan = {
     /** Statement occurrences have distinct identities; value operands are opaque. */
     readonly block: Block
+    /** Caller-owned dependency closure, ordered by source definitions. */
     readonly cells: readonly MemoCell[]
     /** Declaration identity selects roots and aliases before lexical activation. */
     readonly definitions: ReadonlyMap<Definition, number>

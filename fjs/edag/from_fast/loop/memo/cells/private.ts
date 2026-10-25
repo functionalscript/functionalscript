@@ -1,4 +1,4 @@
-/** Lexical snapshots for the first shared memo boundary. @module */
+/** Lexical snapshots and deferred dependency edges for shared memo cells. @module */
 
 import type { BindingId, Block, Definition, Loop } from '../../../../../js/ast/types.ts'
 import type { Link } from '../../../private.ts'

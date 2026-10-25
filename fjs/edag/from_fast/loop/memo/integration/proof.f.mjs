@@ -1,10 +1,12 @@
 /**
  * @import { Function as FastFunction, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
  * @import { Exp } from '../../../../types.ts'
+ * @import { Environment } from '../../../types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../../asserts/module.f.js'
 import { anchored, fromFast, lowerValue } from '../../../module.f.mjs'
+import { normalizeMemo } from '../module.f.mjs'
 import { identityAnalysis } from '../../../../analysis/module.f.mjs'
 import { memo } from '../../../../memo/module.f.mjs'
 import { toFast } from '../../../../to_fast/module.f.mjs'
@@ -455,6 +457,236 @@ export const proof = /** @type {const} */ ({
                 ['define', lazy, ['array', [4]], 'lazy'], ['loop', witness], statement,
             ])))
             assertStructurallySame(value, [[4], statement[0] === 'block' ? 7 : statement[2] ? 8 : 9])
+        }
+    },
+    loopMemoDependentRecipeIdentity: () => {
+        const first = id(0), second = id(0)
+        const loop = collectingMemo(ref(second), 2)
+        const value = evaluate(fromFast(result(['array', [
+            collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ref(first), ref(second),
+        ]], [
+            ['define', first, ['array', [4]], 'lazy'], ['define', second, ['array', [ref(first)]], 'lazy'], ['loop', loop],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array)
+        assertStructurallySame(value, [[[4]], [[4]], [4], [[4]]])
+        assertEq(value[0], value[1])
+        assertEq(value[0], value[3])
+        assertEq(value[0][0], value[2])
+    },
+    loopMemoDependentChain: () => {
+        const first = id(0), second = id(0), third = id(0)
+        const loop = collectingMemo(ref(third), 2)
+        const value = evaluate(fromFast(result(['array', [collectedMemo(ref(loop.results[0])), ref(third), ref(second), ref(first)]], [
+            ['define', first, ['array', [4]], 'lazy'],
+            ['define', second, ['array', [ref(first)]], 'lazy'],
+            ['define', third, ['array', [ref(second)]], 'lazy'], ['loop', loop],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[2] instanceof Array)
+        assertStructurallySame(value, [[[[4]]], [[[4]]], [[4]], [4]])
+        assertEq(value[0], value[1])
+        assertEq(value[0][0], value[2])
+        assertEq(value[2][0], value[3])
+    },
+    loopMemoDependentDiamond: () => {
+        const shared = id(0), left = id(0), right = id(0), joined = id(0)
+        const loop = collectingMemo(ref(joined), 2)
+        const block = result(['array', [collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ref(shared), ref(left), ref(right), ref(joined)]], [
+            ['define', shared, ['array', [4]], 'lazy'],
+            ['define', left, ['array', [ref(shared), 'left']], 'lazy'],
+            ['define', right, ['array', [ref(shared), 'right']], 'lazy'],
+            ['define', joined, ['array', [ref(right), ref(left)]], 'lazy'], ['loop', loop],
+        ])
+        const value = evaluate(fromFast(block))
+        assert(value instanceof Array && value[0] instanceof Array && value[3] instanceof Array && value[4] instanceof Array)
+        assertStructurallySame(value[0], [[[4], 'right'], [[4], 'left']])
+        assertEq(value[0], value[1])
+        assertEq(value[0], value[5])
+        assertEq(value[0][0], value[4])
+        assertEq(value[0][1], value[3])
+        assertEq(value[3][0], value[2])
+        assertEq(value[4][0], value[2])
+        assert(value[3] !== value[4])
+        const second = fromFast(assertOk(toFast(fromFast(block))))
+        const third = fromFast(assertOk(toFast(second)))
+        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+        const repeated = evaluate(third)
+        assert(repeated instanceof Array && repeated[3] instanceof Array && repeated[4] instanceof Array)
+        assertEq(repeated[3][0], repeated[4][0])
+    },
+    loopMemoDependentConditionalFailure: () => {
+        const choice = id(0), dependency = id(0), dependent = id(0)
+        const loop = collectingMemo(ref(dependent), 2)
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [choice], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', [collectedMemo(ref(loop.results[0])), ref(dependent)]]], [
+                ['define', dependency, ['block', body(['throw', 'dependency'])], 'lazy'],
+                ['define', dependent, ['if', ref(choice), result(ref(dependency)), result(['array', [7]])], 'lazy'],
+                ['loop', loop],
+            ]),
+        })
+        const skipped = evaluate(calledFunction(fn, [false]))
+        assert(skipped instanceof Array)
+        assertStructurallySame(skipped, [[7], [7]])
+        assertEq(skipped[0], skipped[1])
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [true]))))({ args: [] })), 'dependency')
+        const following = /** @type {FastFunction} */ ({ ...fn, body: { ...fn.body, exit: ['return', target, ref(dependency)] } })
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(following, [false]))))({ args: [] })), 'dependency')
+    },
+    loopMemoDependentCallerDemand: () => {
+        const dependency = id(0), dependent = id(0), before = id(0)
+        for (const dependencyFirst of [false, true]) {
+            const loop = collectingMemo(['array', [ref(dependency), ref(dependent)]], 2)
+            const value = evaluate(fromFast(result(['array', [
+                ref(before), collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ref(dependency), ref(dependent),
+            ]], [
+                ['define', dependency, ['array', [4]], 'lazy'],
+                ['define', dependent, ['array', [ref(dependency)]], 'lazy'],
+                ['define', before, dependencyFirst ? ref(dependency) : ref(dependent), 'required'], ['loop', loop],
+            ])))
+            assert(value instanceof Array && value[1] instanceof Array && value[2] instanceof Array && value[4] instanceof Array)
+            assertEq(value[1][0], value[3])
+            assertEq(value[1][1], value[4])
+            assertEq(value[2][0], value[3])
+            assertEq(value[2][1], value[4])
+            assertEq(value[4][0], value[3])
+            assertEq(value[0], dependencyFirst ? value[3] : value[4])
+            assertStructurallySame(value[4], [[4]])
+        }
+    },
+    loopMemoDependentSequentialAliases: () => {
+        const dependency = id(0), dependencyAlias = id(0), dependent = id(0), dependentAlias = id(0)
+        for (const firstDemand of [false, true]) {
+            const first = collectingMemo(ref(dependencyAlias), 2, firstDemand)
+            const second = collectingMemo(ref(dependentAlias), 2)
+            const value = evaluate(fromFast(result(['array', [
+                collectedMemo(ref(first.results[0])), collectedMemo(ref(second.results[0]), 1), collectedMemo(ref(second.results[0])),
+                ref(dependency), ref(dependencyAlias), ref(dependent), ref(dependentAlias),
+            ]], [
+                ['define', dependency, ['array', [4]], 'lazy'], ['define', dependencyAlias, ref(dependency), 'lazy'],
+                ['define', dependent, ['array', [ref(dependencyAlias)]], 'lazy'], ['define', dependentAlias, ref(dependent), 'lazy'],
+                ['loop', first], ['loop', second],
+            ])))
+            assert(value instanceof Array && value[1] instanceof Array)
+            assertEq(value[1], value[2])
+            assertEq(value[1], value[5])
+            assertEq(value[1], value[6])
+            assertEq(value[1][0], value[3])
+            assertEq(value[3], value[4])
+            if (firstDemand) { assertEq(value[0], value[3]) } else { assertEq(value[0], null) }
+            assertStructurallySame(value[1], [[4]])
+        }
+    },
+    loopMemoComputedCallerDependent: () => {
+        const dependency = id(0), dependent = id(0)
+        const loop = collectingMemo(ref(dependency), 2)
+        const definition = /** @type {Statement} */ (['define', dependent, ['array', [ref(dependency)]], 'lazy'])
+        for (const afterLoop of [false, true]) {
+            const statements = afterLoop ? /** @type {readonly Statement[]} */ ([['loop', loop], definition])
+                : /** @type {readonly Statement[]} */ ([definition, ['loop', loop]])
+            const value = evaluate(fromFast(result(['array', [collectedMemo(ref(loop.results[0])), ref(dependency), ref(dependent), ref(dependent)]], [
+                ['define', dependency, ['array', [4]], 'lazy'], ...statements,
+            ])))
+            assert(value instanceof Array && value[2] instanceof Array)
+            assertStructurallySame(value, [[4], [4], [[4]], [[4]]])
+            assertEq(value[0], value[1])
+            assertEq(value[2], value[3])
+            assertEq(value[2][0], value[0])
+        }
+        const failing = /** @type {readonly Statement[]} */ ([
+            ['define', dependency, ['array', [4]], 'lazy'],
+            ['define', dependent, ['array', [ref(dependency), ['.', null, 'x']]], 'lazy'], ['loop', loop],
+        ])
+        assertStructurallySame(evaluate(fromFast(result(ref(dependency), failing))), [4])
+        assertError(memo(assertOk(identityAnalysis(fromFast(result(ref(dependent), failing)))))({ args: [] }))
+    },
+    loopMemoDependentFreshInvocations: () => {
+        const dependency = id(0), dependent = id(0), fnBinding = id(0), first = id(0), second = id(0)
+        const loop = collectingMemo(ref(dependent), 2)
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', [ref(dependency), ref(dependent), collectedMemo(ref(loop.results[0]))]]], [
+                ['define', dependency, ['array', [4]], 'lazy'],
+                ['define', dependent, ['array', [ref(dependency)]], 'lazy'], ['loop', loop],
+            ]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(first), ref(second)]], [
+            ['define', fnBinding, ['function', fn], 'required'],
+            ['define', first, ['()', ref(fnBinding), []], 'required'], ['define', second, ['()', ref(fnBinding), []], 'required'],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array)
+        const left = value[0], right = value[1]
+        assert(left[1] instanceof Array && right[1] instanceof Array)
+        assertStructurallySame(value, [[[4], [[4]], [[4]]], [[4], [[4]], [[4]]]])
+        assertEq(left[1], left[2])
+        assertEq(left[1][0], left[0])
+        assertEq(right[1], right[2])
+        assertEq(right[1][0], right[0])
+        assert(left[0] !== right[0])
+        assert(left[1] !== right[1])
+    },
+    loopMemoDependentRecipeGrowth: () => {
+        const choice = id(0)
+        const sizes = [4, 8, 12].map(length => {
+            const cells = Array.from({ length }, () => id(0))
+            const definitions = cells.map((binding, index) => /** @type {Statement} */ (['define', binding,
+                index === 0 ? ['array', [0]] : ['?:', ref(choice),
+                    ['array', [ref(cells[index - 1]), 'left']], ['array', [ref(cells[index - 1]), 'right']],
+                ], 'lazy']))
+            const loop = collectingMemo(ref(cells[length - 1]), 1)
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [choice], rest: null, self: null, captures: [],
+                body: body(['return', target, ['array', [collectedMemo(ref(loop.results[0])), ref(cells[length - 1]), ref(cells[0])]]], [
+                    ...definitions, ['loop', loop],
+                ]),
+            })
+            const normalized = normalizeMemo(fn.body)
+            const recipes = normalized.statements.flatMap(statement => statement[0] === 'define'
+                && statement[2] instanceof Array && statement[2][0] === 'function' ? [statement[2][1]] : [])
+            assertEq(recipes.length, length)
+            for (const recipe of recipes) { assertEq(recipe.parameters.length, 1) }
+            const analysis = assertOk(identityAnalysis(fromFast(result(['function', fn]))))
+            // One caller, one normal loop helper, and one shared recipe per cell.
+            assertEq(analysis.nodes.filter(node => node[0] === '=>').length, length + 2)
+            for (const selected of [false, true]) {
+                const value = evaluate(calledFunction(fn, [selected]))
+                assert(value instanceof Array)
+                assertEq(value[0], value[1])
+                let current = value[0]
+                for (let level = length - 1; level > 0; --level) {
+                    assert(current instanceof Array)
+                    assertEq(current[1], selected ? 'left' : 'right')
+                    current = current[0]
+                }
+                assertEq(current, value[2])
+                assertStructurallySame(current, [0])
+            }
+            return { nodes: analysis.nodes.length, fast: JSON.stringify(normalized).length }
+        })
+        // Copying the full memo vector costs quadratic transport. Shared
+        // recipe definitions prevent recursive duplication of the prerequisites.
+        assert(sizes[1].nodes < sizes[0].nodes * 5)
+        assert(sizes[2].nodes < sizes[1].nodes * 3)
+        assert(sizes[2].nodes - sizes[1].nodes <= 2 * (sizes[1].nodes - sizes[0].nodes))
+        assert(sizes[1].fast < sizes[0].fast * 5)
+        assert(sizes[2].fast < sizes[1].fast * 3)
+        assert(sizes[2].fast - sizes[1].fast <= 2 * (sizes[1].fast - sizes[0].fast))
+    },
+    loopMemoEstablishedEnvironmentPrerequisite: () => {
+        const external = id(0), dependent = id(0)
+        const supplied = /** @type {Exp} */ (['[]', [4]])
+        const environments = /** @type {readonly Environment[]} */ ([
+            [[external, supplied]],
+            [[external, supplied], [external, ['[]', [9]], 'lazy']],
+        ])
+        const loop = collectingMemo(ref(dependent), 2)
+        const block = result(['array', [collectedMemo(ref(loop.results[0])), ref(external)]], [
+            ['define', dependent, ['array', [ref(external)]], 'lazy'], ['loop', loop],
+        ])
+        for (const environment of environments) {
+            const value = evaluate(fromFast(block, environment))
+            assert(value instanceof Array && value[0] instanceof Array)
+            assertStructurallySame(value, [[[4]], [4]])
+            assertEq(value[0][0], value[1])
         }
     },
     throw: {

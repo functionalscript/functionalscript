@@ -107,8 +107,20 @@ and memo state together. Original loop signatures, public function arity and
 source results stay unchanged. The existing aggregate helper constructs the
 private loop; no runtime cell mutation or new AST schema is needed.
 
-This first increment admits recipes with established prerequisites and direct
-lazy aliases. Computed lazy dependents, iteration-local or nested memo
+Caller-owned recipes may depend on other caller-owned lazy values. The cell
+inventory closes over both prerequisites and computed dependents, keeping
+definition order. A demand follows only the dependencies selected by the recipe;
+the new ready cell is installed in the recipe's returned vector, preserving all
+dependency updates. Later helper/caller reads reuse the same established values.
+
+A recipe function's captures contain established prerequisites and earlier
+recipe functions; creating it does not evaluate a lazy payload. A miss invokes
+that shared recipe, while a hit returns the stored value and incoming vector.
+This avoids repeated expansion of conditional dependency diamonds. Full-vector
+replacement still copies the cell slots; the growth proofs account for that
+transport cost.
+
+Recipe-local computed lazy dependents, iteration-local or nested memo
 boundaries, escaping helper completions and stateful member-call/optional/spread
 operands retain explicit refusals. Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
