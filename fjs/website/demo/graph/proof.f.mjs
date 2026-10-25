@@ -398,6 +398,46 @@ export const proof = {
             assertEq(_crossings(g), 0)
             assertEq(routes(htmlToString(graphSvg(g))).length, 4)
         },
+        steepForwardArrows: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: `${id}`, rank: id === 0 ? 0 : id === 3 ? 2 : 1 })),
+                edges: [
+                    { from: 0, to: 1, label: 'first' },
+                    { from: 0, to: 2, label: 'second' }, { from: 0, to: 2, label: 'third' },
+                    { from: 1, to: 3, label: 'target' }, { from: 2, to: 3, label: 'target' },
+                    ...Array.from({ length: 20 }, (_, i) => ({ from: 1, to: { inline: `${i}` }, label: `${i}` })),
+                ],
+            }
+            const paths = routes(htmlToString(graphSvg(g))).map(path => path.slice(1).split(' L').map(point => point.split(',').map(Number)))
+            // Both downward and upward steep legs have horizontal exits
+            // and entries, with a vertical section entirely in the gap.
+            for (const i of [0, 1, 2, 4]) {
+                const [a, b, c, d] = paths[i].slice(-4)
+                assert(paths[i].length >= 4, 'a narrow source may first extend to its column edge')
+                assertEq(a[1], b[1])
+                assertEq(b[0], c[0])
+                assertEq(c[1], d[1])
+                assert(a[0] < b[0] && c[0] < d[0], 'horizontal runs point right')
+            }
+            assertEq(new Set(paths.slice(0, 3).map(points => points[1][0])).size, 3)
+            assertEq(paths[3].length, 2, 'the shallow connection remains direct')
+            assertEq(_crossings(g), 0)
+        },
+        forwardAngleThreshold: () => {
+            for (const [rows, points] of [[2, 2], [3, 4]]) {
+                /** @type {Graph} */
+                const g = {
+                    nodes: [{ id: 0, kind: 'n', label: 'source', rank: 0 }, { id: 1, kind: 'n', label: 'target', rank: 1 }],
+                    edges: [
+                        ...Array.from({ length: rows }, (_, i) => ({ from: 0, to: { inline: `${i}` }, label: `${i}` })),
+                        { from: 0, to: 1, label: 'next' }, { from: 1, to: 0, label: 'self', back: true },
+                    ],
+                }
+                assertEq(routes(htmlToString(graphSvg(g)))[0].split(' L').length, points)
+                assertEq(_crossings(g), 0)
+            }
+        },
         // Native focus makes click and keyboard selection trace the same
         // complete route as hover. Outlines cover only source ports and
         // destination title blocks, including a self edge's distinct cells.
@@ -959,7 +999,7 @@ export const proof = {
                 ],
             }
             const html = htmlToString(graphSvg(g))
-            assertStructurallySame(routes(html).map(route => route.slice(route.lastIndexOf('L'))), ['L122,70', 'L122,70', 'L122,30', 'L122,30', 'L122,120'])
+            assertStructurallySame(routes(html).map(route => route.slice(route.lastIndexOf('L'))), ['L142,70', 'L142,70', 'L142,30', 'L142,30', 'L142,120'])
             assertEq(_crossings(g), 0)
             assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
             // Moving the last target's source port up pools all three
@@ -1008,9 +1048,9 @@ export const proof = {
             /** @type {(x: number, y: number) => boolean} */
             const box = (x, y) => html.includes(`<rect x="${x}" y="${y}" width="50" height="26" rx="4" data-graph-node=""`)
             // The leaves, 40px apart: 26px each and a 14px gap.
-            assert([10, 50, 90, 130].every(y => box(190, y)), html)
+            assert([10, 50, 90, 130].every(y => box(200, y)), html)
             // Each parent centred on its leaves: (10 + 76 - 26) / 2.
-            assert(box(100, 30) && box(100, 110), html)
+            assert(box(110, 30) && box(110, 110), html)
             // The root centred on the parents: (30 + 136 - 26) / 2.
             assert(box(10, 70), html)
             assertEq(_crossings(tree), 0)
@@ -1056,7 +1096,7 @@ export const proof = {
                 edges: [[0, 1], [0, 2], [1, 3], [2, 3]].map(([from, to]) => ({ from, to, label: '', corner: /** @type {const} */ ('top') })),
             }))
             assert(html.includes('<rect x="10" y="10" width="50" height="26" rx="4" data-graph-node=""'), html)
-            assert(html.includes('<rect x="190" y="10" width="50" height="26" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="200" y="10" width="50" height="26" rx="4" data-graph-node=""'), html)
         },
         noEdgeCrossesABox: () => {
             assertEq(_crossings(skipLevel), 0)
@@ -1161,8 +1201,8 @@ export const proof = {
             const e = { from: 0, to: 2, label: 'e' }
             const middle = [{ from: 0, to: 1, label: 'm' }, { from: 1, to: 2, label: 'x' }]
             const html = htmlToString(graphSvg({ nodes, edges: [e, ...middle, e] }))
-            assert(html.includes('d="M74,20 L114,15 L171,15 L211,23"'), html)
-            assert(html.includes('d="M74,60 L114,39 L171,39 L211,23"'), html)
+            assert(html.includes('d="M74,20 L114,15 L171,15 L221,23"'), html)
+            assert(html.includes('d="M74,60 L114,39 L171,39 L221,23"'), html)
             assertEq(html, htmlToString(graphSvg({ nodes, edges: [{ ...e }, ...middle, { ...e }] })))
         },
         /**
@@ -1242,8 +1282,8 @@ export const proof = {
             assert(html.includes('<rect x="154" y="30" width="24" height="20" data-graph-port="">'), html)
             assert(html.includes('<rect x="178" y="30" width="24" height="20" data-graph-value="" data-graph-value-ref="">'), html)
             assert(html.includes('<rect x="114" y="64" width="78" height="20" rx="4" data-graph-node=""'), html)
-            assert(html.includes('d="M202,40 L242,23"'), html)
-            assert(html.includes('d="M192,74 L202,74 L242,23"'), html)
+            assert(html.includes('d="M202,40 L252,23"'), html)
+            assert(html.includes('d="M192,74 L202,74 L212,74 L212,23 L252,23"'), html)
             assertEq(_crossings(g), 0)
         },
         /**

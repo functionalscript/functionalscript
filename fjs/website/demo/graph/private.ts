@@ -142,6 +142,8 @@ export type _Placed = {
     readonly backs: ReadonlyMap<number, _BackLane>
     /** Local return baseline by destination identity. */
     readonly bottoms: ReadonlyMap<number, number>
+    /** Vertical bend x by original edge index and route segment index. */
+    readonly bends: ReadonlyMap<string, number>
 }
 
 /** A point of an edge's route. */

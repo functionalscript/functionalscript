@@ -795,6 +795,7 @@ const layout = left => nodes => (edges, center) => {
         lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
         ends: placedColumns.map(column => column.end),
         backs: backLanesOf(backRanks),
+        bends: new Map(),
         bottoms: new Map(backRanks.map(({ target }) => {
             const group = groupOf(target)
             return [target, groupTops[group] + groups[group].height + laneSize * (groups[group].targets.indexOf(target) + 1)]
@@ -819,6 +820,9 @@ const layout = left => nodes => (edges, center) => {
  * its source and destination columns. Returns to the same node share their
  * baseline, ascent, and entry; their descents join when sources share a rank.
  * Local bands reserve this space before any unrelated node is placed.
+ * Forward legs steeper than 45 degrees use a horizontal exit, a vertical
+ * bend in the column gap, and a horizontal entry. `forwardBendsOf` reserves
+ * a distinct vertical lane for each such leg before routes are drawn.
  *
  * @type {(placed: _Placed) => readonly _Route[]}
  */
@@ -857,8 +861,44 @@ const routesOf = placed => {
             }).flat(),
             [to.x, middle],
         ]
-        return [{ edge: port.edge, index: port.index, to: target, points }]
+        const drawn = back !== undefined ? points : points.flatMap((point, i) => {
+            const bend = placed.bends.get(`${port.index}:${i}`)
+            return bend === undefined ? [point] : [/** @type {_Point} */ ([bend, points[i - 1][1]]), /** @type {_Point} */ ([bend, point[1]]), point]
+        })
+        return [{ edge: port.edge, index: port.index, to: target, points: drawn }]
     }))
+}
+
+/**
+ * Give forward legs steeper than 45 degrees horizontal exits and entries.
+ * Plan from the original geometry, then widen each affected gap by one lane
+ * per steep leg. Vertical bends sit after return descents and before return
+ * ascents, leaving the original gap's clearance before every arrowhead.
+ * Nodes and skip-rank lanes move together; their heights never change.
+ *
+ * @type {(placed: _Placed) => _Placed}
+ */
+const forwardBendsOf = placed => {
+    const routes = routesOf(placed)
+    const steep = routes.filter(r => r.edge.back !== true).flatMap(route => route.points.slice(1).flatMap((b, i) => {
+        const a = route.points[i]
+        return max(b[1] - a[1], a[1] - b[1]) > b[0] - a[0]
+            ? [{ index: route.index, segment: i + 1, rank: placed.ends.indexOf(a[0]) + 1, start: a[0] }] : []
+    }))
+    if (steep.length === 0) { return placed }
+    const extra = placed.ends.map((_, rank) => laneSize * steep.filter(b => b.rank <= rank).length)
+    const rankOf = new Map(placed.nodes.map(n => [n.id, n.rank]))
+    const bends = new Map(steep.map((bend, i) => {
+        const descents = new Set(routes.filter(r => r.edge.back === true && rankOf.get(r.edge.from) === bend.rank - 1).map(r => r.to)).size
+        const slot = steep.slice(0, i).filter(b => b.rank === bend.rank).length
+        return [`${bend.index}:${bend.segment}`, bend.start + extra[bend.rank - 1] + laneSize * (descents + slot + 1)]
+    }))
+    return {
+        ...placed, bends,
+        nodes: placed.nodes.map(n => ({ ...n, x: n.x + extra[n.rank] })),
+        lanes: placed.lanes.map(lane => ({ ...lane, left: lane.left + extra[lane.rank], right: lane.right + extra[lane.rank] })),
+        ends: placed.ends.map((end, rank) => end + extra[rank]),
+    }
 }
 
 /**
@@ -968,7 +1008,7 @@ const placedOf = ({ nodes, edges, entries = [], centerColumns = false }) => {
         groups.some(([, rows]) => rows < 1)
         || groups.reduce((n, [, rows]) => n + rows, 0) !== edges.filter(e => e.from === id && e.corner === undefined).length))
     if (misgrouped !== undefined) { throw `graph: node ${misgrouped.id}'s groups do not take its rows, at least one each` }
-    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, centerColumns)
+    return forwardBendsOf(layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges, centerColumns))
 }
 
 /**
