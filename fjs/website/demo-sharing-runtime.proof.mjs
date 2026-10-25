@@ -1,7 +1,7 @@
 /** Host-boundary proofs for URL navigation, queued restoration and clipboard UI. */
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startDemoSharing } from './demo-sharing-runtime.mjs'
-import { textSharing, recordSharing, encodeQuery, decodeQuery } from './demo/sharing/module.f.mjs'
+import { textSharing, recordSharing, encodeQuery, decodeQuery, defaultsOf } from './demo/sharing/module.f.mjs'
 
 /** @type {(sharing?: any, hash?: string) => any} */
 const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'first'], ['Second', 'second', 'second']]), hash = '?example=second#demo') => {
@@ -25,7 +25,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     let revision = 0
     let restores = 0
     let scrolls = 0
-    let state = sharing.restore(Object.fromEntries(Object.entries(sharing.fields).map(([name, field]) => [name, /** @type {any} */ (field).default])))
+    let state = sharing.restore(defaultsOf(sharing.fields))
     const details = { tagName: 'DETAILS', open: false, parentElement: null }
     const target = { parentElement: details, scrollIntoView: () => { scrolls++ } }
     /** @type {any} */
@@ -209,6 +209,10 @@ export const proof = {
         extra.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? {} : extra.button
         extra.start()
         assertEq(extra.hidden, true)
+        const sparse = fixture(recordSharing({}, { absent: undefined }), '#demo')
+        sparse.start(); sparse.flush()
+        assertEq(sparse.button.disabled, true)
+        assertEq(sparse.sectionButton.hidden, false)
         const noWindow = fixture(); noWindow.document.defaultView = null; noWindow.start()
         assertEq(noWindow.hidden, true)
         const implicitScope = fixture()

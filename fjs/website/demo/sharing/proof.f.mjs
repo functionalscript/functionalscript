@@ -7,7 +7,7 @@ import { pureOk } from '../../../effects/module.f.mjs'
 
 /** @type {Fields} */
 const fields = { text: { default: 'hello' }, choice: { default: 'one', choices: ['one', 'two'] }, checked: { default: true }, empty: { default: '' }, amount: { default: 3 } }
-const initial = { ...defaultsOf(fields), output: 'not an input' }
+const initial = /** @type {const} */ ({ ...defaultsOf(fields), output: 'not an input' })
 const sharing = recordSharing(initial, fields, {}, [{ id: 'hello&雪', inputs: { text: 'example' } }])
 /** @type {(search: string, contract?: Sharing<any>) => import('../../../types/result/types.ts').Result<Inputs, string>} */
 const restore = (search, contract = sharing) => {
@@ -25,6 +25,7 @@ const roundtrip = inputs => {
 }
 export const proof = {
     roundtrip: () => {
+        /** @type {Inputs} */
         const inputs = { text: 'Hello 🌍 % & = +\n\u0000', choice: 'two', checked: false, empty: '', amount: -2.5 }
         assertStructurallySame(roundtrip(inputs), inputs)
         assertStructurallySame(roundtrip({}), defaultsOf(fields))
@@ -62,7 +63,7 @@ export const proof = {
         assertEq(restore('?example=retired', contract)[0], 'error')
         assertStructurallySame(encodeQuery(contract, { example: 'second', text: 'B' }), ['ok', '?example=second#demo'])
         assertStructurallySame(encodeQuery(contract, { example: 'second', text: 'custom' }), ['ok', '?example=second&text=custom#demo'])
-        const collision = { ...contract, examples: [{ id: 'alias', inputs: { example: 'second', text: 'B' } }] }
+        const collision = /** @type {const} */ ({ ...contract, examples: [{ id: 'alias', inputs: { example: 'second', text: 'B' } }] })
         assertStructurallySame(encodeQuery(collision, { example: 'second', text: 'B' }), ['ok', '?example=second&text=B#demo'])
         const ordinary = recordSharing({ example: 'value' }, { example: { default: 'value' } })
         assertStructurallySame(restore('?example=other', ordinary), ['ok', { example: 'other' }])
@@ -72,12 +73,25 @@ export const proof = {
             assertEq(validateInputs(fields, inputs)[0], 'error')
             assertEq(encodeQuery(sharing, inputs)[0], 'error')
         }
-        const constrained = { ...sharing, validate: (/** @type {Inputs} */ inputs) => inputs.choice === 'two' ? 'Incompatible input set' : null }
+        const constrained = /** @type {const} */ ({ ...sharing, validate: (/** @type {Inputs} */ inputs) => inputs.choice === 'two' ? 'Incompatible input set' : null })
         assertEq(restore('?choice=two', constrained)[0], 'error')
         assertEq(encodeQuery(constrained, { choice: 'two' })[0], 'error')
         assertEq(restore('', constrained)[0], 'ok')
-        const badExample = { ...sharing, examples: [{ id: 'bad', inputs: { unknown: 'x' } }] }
+        const badExample = /** @type {const} */ ({ ...sharing, examples: [{ id: 'bad', inputs: { unknown: 'x' } }] })
         assertEq(restore('?example=bad', badExample)[0], 'error')
+    },
+    sparseMaps: () => {
+        assertStructurallySame(defaultsOf({ ...fields, omitted: undefined }), defaultsOf(fields))
+        assertStructurallySame(validateInputs(fields, { text: undefined }), ['ok', defaultsOf(fields)])
+        assertEq(validateInputs({ text: undefined }, { text: 'supplied' })[0], 'error')
+        const missingField = /** @type {const} */ ({ ...sharing, fields: { text: undefined } })
+        assertEq(restore('?text=supplied', missingField)[0], 'error')
+        assertStructurallySame(encodeQuery(sharing, { text: undefined }), ['ok', '#demo'])
+        const mapped = recordSharing({ text: 'current' }, { text: { default: '' }, omitted: undefined }, { text: undefined })
+        assertStructurallySame(mapped.read({ text: 'current' }), { text: 'current' })
+        assertStructurallySame(mapped.restore({ text: undefined }), { text: 'current' })
+        const prototypeName = withInputs({ init: { constructor: 'a' }, update: state => () => pureOk(state), view: () => ['div'] }, ['constructor'], { constructor: undefined })
+        assertStructurallySame(assertNotNullish(prototypeName.sharing).fields, { constructor: { default: 'a' } })
     },
     sizeLimit: () => {
         assertEq(queryLimit, 16_384)

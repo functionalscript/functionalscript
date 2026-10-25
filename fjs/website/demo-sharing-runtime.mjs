@@ -4,6 +4,7 @@
  * @import { DemoController } from './demo/sharing/types.ts'
  */
 import { decodeQuery, encodeQuery, restoreInputs } from './demo/sharing/module.f.mjs'
+import { definedEntries } from '../types/object/module.f.mjs'
 import { copy } from './copy-runtime.mjs'
 import { revealFragment } from './fragment-runtime.mjs'
 import { scopeMarker } from './demo/control_ids/module.f.mjs'
@@ -76,7 +77,7 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         const hash = encodeURIComponent(sectionButton.getAttribute('data-copy-demo-section') ?? 'demo')
         void copy(sectionButton, `${view.location.origin}${view.location.pathname}#${hash}`)
     })
-    button.disabled = Object.keys(sharing.fields).length === 0
+    button.disabled = definedEntries(sharing.fields).length === 0
     if (button.disabled) { button.title = 'This demo has no inputs' }
     button.addEventListener('click', event => {
         event.preventDefault()
