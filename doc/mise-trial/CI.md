@@ -52,3 +52,8 @@ mise baseline established in the parent trial. The actual six GitHub runner
 executions, SpiderMonkey install, i686/native SDK linking, WASM runtime execution,
 cache behavior and comparable cold/warm timings still need the PR's CI results.
 These are trial results to collect before choosing an alternative for adoption.
+
+Mozilla lists each archive as jsshell/<filename> in SHA256SUMS. The HTTP
+backend checksum expression selects that full relative path; basename-only
+matching failed in the initial GitHub run. A local manifest fixture checks
+that an unrelated archive digest is not selected.
