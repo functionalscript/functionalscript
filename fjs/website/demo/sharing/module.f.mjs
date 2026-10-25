@@ -99,13 +99,13 @@ export const restoreInputs = (sharing, fragment) => {
 }
 /** @type {(a: Inputs, b: Inputs) => boolean} */
 const same = (a, b) => keys(a).length === keys(b).length && entries(a).every(([name, value]) => Object.hasOwn(b, name) && b[name] === value)
-/** Choose an example only for a complete match; all other inputs use v1 JSON.
+/** Defaults use #demo; changed inputs use a complete example match or v1 JSON.
  * @type {<S>(sharing: Sharing<S>, inputs: Inputs) => Result<string, string>}
  */
 export const encodeFragment = (sharing, inputs) => {
     const valid = checked(sharing, inputs)
     if (valid[0] === 'error') { return valid }
-    if (keys(sharing.fields).length === 0) { return ok('#demo') }
+    if (same(valid[1], defaultsOf(sharing.fields))) { return ok('#demo') }
     const example = sharing.examples.find(e => same(valid[1], { ...defaultsOf(sharing.fields), ...e.inputs }))
     if (example !== undefined) {
         const hash = `#demo:example=${escaped(example.id)}`
@@ -155,8 +155,7 @@ export const withInputs = (demo, names, choices = {}, examples = []) => {
  * @type {Element}
  */
 export const earlyInputCapture = ['script', {}, "document.addEventListener('input', event => { const root = event.target instanceof Element ? event.target.closest('[data-demo]') : null; if (root) root.setAttribute('data-demo-input-edited', String(Number(root.getAttribute('data-demo-input-edited') ?? 0) + 1)) }, true)"]
-/** Progressive controls live outside the patchable demo root. @type {() => Element} */
-export const sharingControls = () => ['div', { 'data-demo-sharing': '', hidden: '' },
-    ['button', { type: 'button', 'data-copy-demo': '', 'aria-label': 'Copy demo link', title: 'Share inputs; results and action history are not included' }, 'Copy demo link', ['span', { 'data-copy-status': '', 'aria-live': 'polite' }]],
-    ['p', { 'data-demo-link-status': '', role: 'status', hidden: '' }],
-]
+/** Feedback sits below the heading and stays visible when Demo is folded.
+ * @type {() => Element}
+ */
+export const sharingStatus = () => ['span', { 'data-demo-link-status': '', role: 'status', hidden: '' }]

@@ -14,13 +14,12 @@ import { demoMarker } from './style/module.f.js'
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>, controller: DemoController, startupEdited: boolean) => void}
  */
 export const startDemoSharing = (root, demo, controller, startupEdited) => {
-    const controls = root.nextElementSibling
+    const section = root.parentElement
+    const button = /** @type {HTMLButtonElement | null | undefined} */ (section?.querySelector(':scope > summary button[data-copy-demo]'))
     const view = root.ownerDocument.defaultView
-    if (!controls?.hasAttribute('data-demo-sharing') || !view || started.has(root)) { return }
+    if (!button || section?.querySelector(':scope > [data-demo]') !== root || !view || started.has(root)) { return }
     started.add(root)
-    /** @type {HTMLButtonElement} */
-    const button = /** @type {HTMLButtonElement} */ (controls.querySelector('[data-copy-demo]'))
-    const status = /** @type {HTMLElement | null} */ (controls.querySelector('[data-demo-link-status]'))
+    const status = /** @type {HTMLElement | null} */ (section?.querySelector(':scope > summary > [data-demo-link-status]') ?? null)
     /** @type {(message: string) => void} */
     const report = message => { if (status) { status.textContent = message; status.hidden = message === '' } }
     const sharing = demo.sharing ?? { fields: {}, examples: [], read: () => ({}), restore: () => demo.init }
@@ -61,6 +60,7 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
     }
     button.addEventListener('click', event => {
         event.preventDefault()
+        event.stopPropagation()
         if (controller.busy()) { report('Wait for the demo inputs to finish updating, then copy the link.'); return }
         const encoded = encodeFragment(sharing, sharing.read(controller.read()))
         if (encoded[0] === 'error') { report(encoded[1]); return }
@@ -68,7 +68,9 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         const url = `${view.location.origin}${view.location.pathname}${encoded[1]}`
         void copy(button, url)
     })
-    controls.removeAttribute('hidden')
+    button.hidden = false
+    const fallback = button.parentElement?.querySelector('a')
+    if (fallback) { /** @type {HTMLAnchorElement} */ (fallback).hidden = true }
 }
 /** @type {WeakSet<Element>} */
 const started = new WeakSet()

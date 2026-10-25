@@ -3,7 +3,7 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { encode } from '../../../basen/base64/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { fragmentLimit, defaultsOf, validateInputs, decodeFragment, restoreInputs, encodeFragment, textSharing, recordSharing, withInputs, sharingControls, earlyInputCapture } from './module.f.mjs'
+import { fragmentLimit, defaultsOf, validateInputs, decodeFragment, restoreInputs, encodeFragment, textSharing, recordSharing, withInputs, sharingStatus, earlyInputCapture } from './module.f.mjs'
 import { pureOk } from '../../../effects/module.f.mjs'
 
 /** @type {(json: string) => string} */
@@ -11,7 +11,7 @@ const raw = json => `#demo:state=${assertNotNullish(encode(utf8(json))).replaceA
 /** @type {Fields} */
 const fields = { text: { default: 'hello' }, choice: { default: 'one', choices: ['one', 'two'] }, checked: { default: true }, empty: { default: '' } }
 const initial = { text: 'hello', choice: 'one', checked: true, empty: '', output: 'not an input' }
-const sharing = recordSharing(initial, fields, {}, [{ id: 'hello&雪', inputs: defaultsOf(fields) }])
+const sharing = recordSharing(initial, fields, {}, [{ id: 'hello&雪', inputs: { ...defaultsOf(fields), text: 'example' } }])
 /** @type {(inputs: Inputs) => Inputs} */
 const roundtrip = inputs => {
     const encoded = encodeFragment(sharing, inputs)
@@ -27,7 +27,8 @@ export const proof = {
         const inputs = { text: 'Hello 🌍 % & = +\n\u0000', choice: 'two', checked: false, empty: '' }
         assertStructurallySame(roundtrip(inputs), inputs)
         assertStructurallySame(roundtrip({}), defaultsOf(fields))
-        const encoded = encodeFragment(sharing, defaultsOf(fields))
+        assertStructurallySame(encodeFragment(sharing, defaultsOf(fields)), ['ok', '#demo'])
+        const encoded = encodeFragment(sharing, { ...defaultsOf(fields), text: 'example' })
         assertStructurallySame(encoded, ['ok', '#demo:example=hello%26%E9%9B%AA'])
         assert(encodeFragment(sharing, { ...defaultsOf(fields), checked: false })[1].startsWith('#demo:state='))
     },
@@ -72,8 +73,8 @@ export const proof = {
         const id = 'a'.repeat(fragmentLimit - prefix.length)
         assertEq(decodeFragment(prefix + id)[0], 'ok')
         assertEq(decodeFragment(prefix + id + 'a')[0], 'error')
-        assertEq(encodeFragment(textSharing('source', 'a', [['A', 'a', id]]), { source: 'a' })[0], 'ok')
-        assertEq(encodeFragment(textSharing('source', 'a', [['A', 'a', id + 'a']]), { source: 'a' })[0], 'error')
+        assertEq(encodeFragment(textSharing('source', 'b', [['A', 'a', id]]), { source: 'a' })[0], 'ok')
+        assertEq(encodeFragment(textSharing('source', 'b', [['A', 'a', id + 'a']]), { source: 'a' })[0], 'error')
         for (const text of ['a'.repeat(fragmentLimit + 1), 'a'.repeat(13_000), '🌍'.repeat(5_000)]) {
             assertEq(encodeFragment(sharing, { text })[0], 'error')
         }
@@ -96,9 +97,9 @@ export const proof = {
         const contract = assertNotNullish(demo.sharing)
         assertStructurallySame(contract.read(demo.init), { text: '', flag: false, choice: 'a' })
         assertEq(contract.restore({ text: 'x', flag: true, choice: 'b' }).result, null)
-        const html = htmlToString(sharingControls())
-        assert(html.includes('data-demo-sharing="" hidden=""'))
-        assert(html.includes('Copy demo link'))
+        const html = htmlToString(sharingStatus())
+        assert(html.includes('data-demo-link-status=""'))
+        assert(html.includes('hidden=""'))
         assert(html.includes('role="status"'))
         assert(htmlToString(earlyInputCapture).includes('data-demo-input-edited'))
     },

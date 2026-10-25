@@ -47,12 +47,14 @@ default and, when choices are declared, match a choice. Missing fields use the
 same declared defaults regardless of the other supplied values. A demo can
 also validate relationships between fields, such as selecting the second
 schema of an RTTI lesson that only has one. Any error leaves the current
-inputs and outputs intact and is reported beside Copy demo link.
+inputs and outputs intact and is reported beneath the Demo heading.
 
 An example supplies all the inputs it changes; declared defaults supply the
-rest. Copy uses an example link only when the entire normalized input set
-matches that example. Otherwise it exports all declared inputs as v1 state.
-A demo with no inputs copies its plain `#demo` URL. Copy preserves the page's
+rest. The copy-link icon beside Demo copies `#demo` when all inputs equal
+their declared defaults, including when those defaults match an example.
+Changed inputs use an example link when the entire normalized input set
+matches that example; otherwise they export all declared inputs as v1 state.
+A demo with no inputs also copies its plain `#demo` URL. Copy preserves the page's
 origin and path, omits query parameters, and never changes the address bar.
 Typing does not change the URL either.
 

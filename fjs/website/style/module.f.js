@@ -523,8 +523,7 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
 [data-permalink] > button:focus-visible, [data-permalink] > a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
 [data-permalink] [hidden] { display: none }
 [data-permalink] > button[data-copy-feedback="copied"] { color: var(--pass) }
-[data-permalink] > button[data-copy-feedback] > [data-copy-status],
-[data-demo-sharing] > button[data-copy-feedback] > [data-copy-status] { position: fixed; left: 50%; right: auto; top: auto; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); white-space: normal; text-align: center; z-index: 10 }
+[data-permalink] > button[data-copy-feedback] > [data-copy-status] { position: fixed; left: 50%; right: auto; top: auto; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); white-space: normal; text-align: center; z-index: 10 }
 [id] { scroll-margin-top: 1rem }
 
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
@@ -897,8 +896,7 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-code-block] > button:hover:enabled { background: transparent; color: var(--text) }
 [data-code-block] > button:focus-visible { outline: 2px solid var(--value); outline-offset: 2px }
 [data-code-block] > button > svg { width: 20px; height: 20px }
-[data-demo-sharing] { margin-top: 1rem; overflow-wrap: anywhere }
-[data-demo-sharing] > button { position: relative }
+[data-demo-link-status]:not([hidden]) { display: block; margin-top: .5rem; overflow-wrap: anywhere; color: var(--muted); font-size: .875rem; font-weight: normal; line-height: 1.5 }
 [data-copy-status] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
 [data-code-block] > button > [data-copy-check] { display: none }
 [data-code-block] > button[data-copy-feedback="copied"], [data-code-block] > button[data-copy-feedback="copied"]:hover:enabled { color: var(--pass) }

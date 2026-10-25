@@ -37,7 +37,8 @@ the two are separate, and this one is not quietly migrated into the other.
 
 ## Shareable demo links
 
-Every demo exposes Copy demo link through the shared runtime. Example links
+Every demo uses the copy-link icon beside its Demo heading to copy its inputs.
+Default inputs copy `#demo`. Example links
 such as `/fjs/compiler/#demo:example=hex-escape` restore a stable example;
 custom inputs use `#demo:state=BASE64URL_JSON`. Restore validates all inputs
 before replacing state and never presses action buttons. The encoded fragment

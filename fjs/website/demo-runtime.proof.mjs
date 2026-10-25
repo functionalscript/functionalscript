@@ -538,7 +538,7 @@ export const demo = {
 }
 `)
 
-/** Generated sibling controls and a controllable hashchange source for the
+/** Generated heading controls and a controllable hashchange source for the
  * actual demo controller, using the same DOM stand-in as the other proofs.
  * @type {(d: ReturnType<typeof dom>, hash?: string) => { status: { textContent: string }, navigate: (hash: string) => void }}
  */
@@ -552,9 +552,10 @@ const shared = (d, hash = '#documentation') => {
     view.requestAnimationFrame = (/** @type {() => void} */ callback) => callback()
     doc.getElementById = () => null
     const status = { textContent: '' }
-    d.root.nextElementSibling = {
-        hasAttribute: () => true, removeAttribute: () => {},
-        querySelector: (/** @type {string} */ selector) => selector === '[data-demo-link-status]' ? status : { addEventListener() {} },
+    const button = { hidden: true, addEventListener() {} }
+    d.root.parentElement = {
+        querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? d.root
+            : selector.includes('button[data-copy-demo]') ? button : status,
     }
     return { status, navigate: next => { view.location.hash = next; listeners.forEach(f => f()) } }
 }

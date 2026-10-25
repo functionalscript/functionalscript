@@ -19,7 +19,6 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     const attributes = new Map()
     const feedback = { textContent: '' }
     const status = { textContent: '' }
-    let hidden = true
     let busy = false
     let revision = 0
     let restores = 0
@@ -40,7 +39,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     document.defaultView = view
     /** @type {any} */
     const button = {
-        ownerDocument: document,
+        ownerDocument: document, hidden: true,
         addEventListener: (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => buttonEvents.set(name, listener),
         querySelector: () => feedback,
         setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => attributes.set(name, value),
@@ -48,13 +47,11 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     }
     /** @type {any} */
     const controls = {
-        hasAttribute: (/** @type {string} */ name) => name === 'data-demo-sharing',
-        querySelector: (/** @type {string} */ selector) => selector === '[data-copy-demo]' ? button : status,
-        removeAttribute: () => { hidden = false },
+        querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? root : selector.includes('button[data-copy-demo]') ? button : status,
     }
     /** @type {any} */
     const root = {
-        nextElementSibling: controls, ownerDocument: document,
+        parentElement: controls, ownerDocument: document,
         getAttribute: () => '/demo.f.mjs',
         addEventListener: (/** @type {string} */ name, /** @type {() => void} */ listener) => rootEvents.set(name, [...rootEvents.get(name) ?? [], listener]),
     }
@@ -69,14 +66,14 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     }
     return {
         root, demo, view, controls, document, button, status, feedback, copied, pending, details, windowEvents,
-        get hidden() { return hidden }, get restores() { return restores }, get state() { return state }, get scrolls() { return scrolls },
+        get hidden() { return button.hidden }, get restores() { return restores }, get state() { return state }, get scrolls() { return scrolls },
         start: (edited = false) => startDemoSharing(root, demo, controller, edited),
         flush: () => { for (const item of pending.splice(0)) { if (item.current() === 'apply') { state = item.next; restores++; item.after() } } },
         hash: (/** @type {string} */ next) => { view.location.hash = next; windowEvents.get('hashchange')?.forEach(f => f()) },
         input: () => { revision += 1 },
         busy: (/** @type {boolean} */ value) => { busy = value },
         stateTo: (/** @type {any} */ value) => { state = value },
-        click: async () => { buttonEvents.get('click')?.({ preventDefault() {} }); for (let i = 0; i < 5; i++) { await Promise.resolve() } },
+        click: async () => { buttonEvents.get('click')?.({ preventDefault() {}, stopPropagation() {} }); for (let i = 0; i < 5; i++) { await Promise.resolve() } },
     }
 }
 export const proof = {
@@ -111,7 +108,7 @@ export const proof = {
             assert(f.status.textContent !== '')
             assertStructurallySame(f.state, { text: 'default', choice: 'a', checked: true })
         }
-        const invalid = encodeFragment(textSharing('unknown', 'x'), { unknown: 'x' })
+        const invalid = encodeFragment(textSharing('unknown', 'default'), { unknown: 'x' })
         assert(invalid[0] === 'ok')
         const f = fixture(sharing, invalid[1])
         f.start(); f.flush()
@@ -173,8 +170,12 @@ export const proof = {
         assertEq(f.feedback.textContent, 'Copy failed')
     },
     absentAndSecondaryControls: async () => {
-        const absent = fixture(); absent.root.nextElementSibling = null; absent.start()
+        const absent = fixture(); absent.root.parentElement = null; absent.start()
         assertEq(absent.pending.length, 0)
+        const extra = fixture()
+        extra.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? {} : extra.button
+        extra.start()
+        assertEq(extra.hidden, true)
         const noWindow = fixture(); noWindow.document.defaultView = null; noWindow.start()
         assertEq(noWindow.hidden, true)
         const implicitScope = fixture()
@@ -186,9 +187,9 @@ export const proof = {
         secondary.start(); secondary.flush()
         assertEq(secondary.restores, 0)
         await secondary.click()
-        assertEq(secondary.copied[0], 'https://example.com/demo/#demo:example=first')
+        assertEq(secondary.copied[0], 'https://example.com/demo/#demo')
         const noStatus = fixture(undefined, '#demo:example=retired')
-        noStatus.controls.querySelector = (/** @type {string} */ selector) => selector === '[data-copy-demo]' ? noStatus.button : null
+        noStatus.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? noStatus.root : selector.includes('button[data-copy-demo]') ? noStatus.button : null
         noStatus.start()
         assertEq(noStatus.pending.length, 0)
     },

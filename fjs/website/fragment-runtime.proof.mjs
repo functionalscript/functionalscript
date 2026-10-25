@@ -30,6 +30,23 @@ const fixture = (fragment, id) => {
 }
 
 export const proof = /** @type {const} */ ({
+    demoControlWaitsForState: () => {
+        const { doc } = fixture('', 'demo')
+        const fallback = { hidden: false }
+        const demo = { hidden: true, hasAttribute: () => true }
+        const heading = { hidden: true, hasAttribute: () => false, parentElement: { querySelector: () => fallback } }
+        doc.querySelectorAll = () => [demo, heading]
+        /** @type {((event: any) => void) | undefined} */
+        let click
+        doc.addEventListener = (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => { if (name === 'click') { click = listener } }
+        class Target { closest() { return demo } }
+        doc.defaultView.Element = Target
+        startFragments(doc)
+        assertEq(demo.hidden, true)
+        assertEq(heading.hidden, false)
+        assertEq(fallback.hidden, true)
+        click?.({ target: new Target(), preventDefault() { throw 'Demo copy belongs to the state runtime' } })
+    },
     nestedEncodedTarget: () => {
         const { doc, outer, inner, scrolls } = fixture('#%E4%B8%AD%E6%96%87', '中文')
         revealFragment(doc)
