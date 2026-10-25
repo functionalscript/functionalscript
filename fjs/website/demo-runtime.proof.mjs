@@ -555,7 +555,7 @@ const shared = (d, hash = '#documentation') => {
     const button = { hidden: true, addEventListener() {} }
     d.root.parentElement = {
         querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? d.root
-            : selector.includes('button[data-copy-demo]') ? button : status,
+            : selector.includes('button[data-copy-demo]') || selector.includes('button[data-copy-demo-section]') ? button : status,
     }
     return { status, navigate: next => { view.location.hash = next; listeners.forEach(f => f()) } }
 }

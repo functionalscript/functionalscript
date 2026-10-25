@@ -13,6 +13,8 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     const buttonEvents = new Map()
     /** @type {string[]} */
     const copied = []
+    /** @type {Map<string, (event: any) => void>} */
+    const sectionEvents = new Map()
     /** @type {any[]} */
     const pending = []
     /** @type {Map<string, string>} */
@@ -45,9 +47,10 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => attributes.set(name, value),
         removeAttribute: (/** @type {string} */ name) => attributes.delete(name),
     }
+    const sectionButton = { ...button, getAttribute: () => 'demo', addEventListener: (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => sectionEvents.set(name, listener) }
     /** @type {any} */
     const controls = {
-        querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? root : selector.includes('button[data-copy-demo]') ? button : status,
+        querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? root : selector.includes('button[data-copy-demo]') ? button : selector.includes('button[data-copy-demo-section]') ? sectionButton : status,
     }
     /** @type {any} */
     const root = {
@@ -65,7 +68,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         replace: (/** @type {any} */ next, /** @type {() => void} */ after, /** @type {() => import('./demo/sharing/types.ts').RestoreDisposition} */ current, /** @type {boolean} */ initialize = false) => pending.push({ next, after, current, initialize }),
     }
     return {
-        root, demo, view, controls, document, button, status, feedback, copied, pending, details, windowEvents,
+        root, demo, view, controls, document, button, sectionButton, status, feedback, copied, pending, details, windowEvents,
         get hidden() { return button.hidden }, get restores() { return restores }, get state() { return state }, get scrolls() { return scrolls },
         start: (edited = false) => startDemoSharing(root, demo, controller, edited),
         flush: () => { for (const item of pending.splice(0)) { if (item.current() === 'apply') { state = item.next; restores++; item.after() } } },
@@ -73,7 +76,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         input: () => { revision += 1 },
         busy: (/** @type {boolean} */ value) => { busy = value },
         stateTo: (/** @type {any} */ value) => { state = value },
-        click: async () => { buttonEvents.get('click')?.({ preventDefault() {}, stopPropagation() {} }); for (let i = 0; i < 5; i++) { await Promise.resolve() } },
+        click: async (section = false) => { (section ? sectionEvents : buttonEvents).get('click')?.({ preventDefault() {}, stopPropagation() {} }); for (let i = 0; i < 5; i++) { await Promise.resolve() } },
     }
 }
 export const proof = {
@@ -158,8 +161,19 @@ export const proof = {
         assertStructurallySame(decodeFragment(hash), ['ok', { kind: 'state', inputs: { source: 'Custom 🌍\n' } }])
         const empty = fixture(undefined, '#documentation')
         empty.demo.sharing = undefined
-        empty.start(); await empty.click()
+        empty.start(); assertEq(empty.button.disabled, true); assertEq(empty.sectionButton.hidden, false); await empty.click(true)
         assertEq(empty.copied[0], 'https://example.com/demo/#demo')
+    },
+    sectionLinkIgnoresInputs: async () => {
+        const f = fixture()
+        f.start(); f.flush()
+        f.busy(true); await f.click(true)
+        assertEq(f.copied[0], 'https://example.com/demo/#demo')
+        f.busy(false); f.stateTo('x'.repeat(20_000)); await f.click(true)
+        assertEq(f.copied[1], 'https://example.com/demo/#demo')
+        f.sectionButton.getAttribute = () => 'demo-section:3:two'
+        await f.click(true)
+        assertEq(f.copied[2], 'https://example.com/demo/#demo-section%3A3%3Atwo')
     },
     copyFailures: async () => {
         const f = fixture(undefined, '#documentation')
@@ -194,7 +208,7 @@ export const proof = {
         await secondary.click()
         assertEq(secondary.copied[0], 'https://example.com/demo/#demo')
         const noStatus = fixture(undefined, '#demo:example=retired')
-        noStatus.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? noStatus.root : selector.includes('button[data-copy-demo]') ? noStatus.button : null
+        noStatus.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? noStatus.root : selector.includes('button[data-copy-demo]') ? noStatus.button : selector.includes('button[data-copy-demo-section]') ? noStatus.sectionButton : null
         noStatus.start()
         assertEq(noStatus.pending.length, 0)
     },

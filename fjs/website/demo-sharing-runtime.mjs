@@ -16,8 +16,9 @@ import { demoMarker } from './style/module.f.js'
 export const startDemoSharing = (root, demo, controller, startupEdited) => {
     const section = root.parentElement
     const button = /** @type {HTMLButtonElement | null | undefined} */ (section?.querySelector(':scope > summary button[data-copy-demo]'))
+    const sectionButton = /** @type {HTMLButtonElement | null | undefined} */ (section?.querySelector(':scope > summary button[data-copy-demo-section]'))
     const view = root.ownerDocument.defaultView
-    if (!button || section?.querySelector(':scope > [data-demo]') !== root || !view || started.has(root)) { return }
+    if (!button || !sectionButton || section?.querySelector(':scope > [data-demo]') !== root || !view || started.has(root)) { return }
     started.add(root)
     const status = /** @type {HTMLElement | null} */ (section?.querySelector(':scope > summary > [data-demo-link-status]') ?? null)
     /** @type {(message: string) => void} */
@@ -58,6 +59,15 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         view.addEventListener('hashchange', () => restore())
         restore(true)
     }
+    sectionButton.addEventListener('click', event => {
+        event.preventDefault()
+        event.stopPropagation()
+        report('')
+        const hash = encodeURIComponent(sectionButton.getAttribute('data-copy-demo-section') ?? 'demo')
+        void copy(sectionButton, `${view.location.origin}${view.location.pathname}#${hash}`)
+    })
+    button.disabled = Object.keys(sharing.fields).length === 0
+    if (button.disabled) { button.title = 'This demo has no inputs' }
     button.addEventListener('click', event => {
         event.preventDefault()
         event.stopPropagation()
@@ -68,6 +78,7 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         const url = `${view.location.origin}${view.location.pathname}${encoded[1]}`
         void copy(button, url)
     })
+    sectionButton.hidden = false
     button.hidden = false
     const fallback = button.parentElement?.querySelector('a')
     if (fallback) { /** @type {HTMLAnchorElement} */ (fallback).hidden = true }

@@ -50,11 +50,21 @@ schema of an RTTI lesson that only has one. Any error leaves the current
 inputs and outputs intact and is reported beneath the Demo heading.
 
 An example supplies all the inputs it changes; declared defaults supply the
-rest. The copy-link icon beside Demo copies `#demo` when all inputs equal
-their declared defaults, including when those defaults match an example.
-Changed inputs use an example link when the entire normalized input set
-matches that example; otherwise they export all declared inputs as v1 state.
-A demo with no inputs also copies its plain `#demo` URL. Copy preserves the page's
+rest. Two copy-link icons beside Demo have separate actions:
+
+- The plain chain, **Copy section link**, always copies the section target
+  (`#demo` for the primary demo), even while inputs update or exceed the
+  sharing limit.
+- The chain with a dot, **Copy link with inputs**, copies `#demo` when all
+  inputs equal their declared defaults, including when those defaults match
+  an example. Changed inputs use an example link when the entire normalized
+  input set matches that example; otherwise they export all declared inputs
+  as v1 state. This action is disabled for demos without inputs. The dot
+  identifies this action; it does not indicate unsaved changes.
+
+Both buttons have distinct tooltips and accessible labels. Copy feedback
+stays visible when Demo is folded. Without JavaScript, the native section
+anchor remains available. Copy preserves the page's
 origin and path, omits query parameters, and never changes the address bar.
 Typing does not change the URL either.
 

@@ -524,6 +524,8 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
 [data-permalink] [hidden] { display: none }
 [data-permalink] > button[data-copy-feedback="copied"] { color: var(--pass) }
 [data-permalink] > button[data-copy-feedback] > [data-copy-status] { position: fixed; left: 50%; right: auto; top: auto; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); white-space: normal; text-align: center; z-index: 10 }
+[data-permalink]:has(> [data-copy-demo-section]) { gap: .25rem }
+[data-permalink] > button:disabled { opacity: .45; cursor: default }
 [id] { scroll-margin-top: 1rem }
 
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
