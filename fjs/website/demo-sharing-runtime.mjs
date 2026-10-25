@@ -16,8 +16,11 @@ import { demoMarker } from './style/module.f.js'
 export const startDemoSharing = (root, demo, controller, startupEdited) => {
     const section = root.parentElement
     const button = /** @type {HTMLButtonElement | null | undefined} */ (section?.querySelector(':scope > summary button[data-copy-demo]'))
+    const menu = /** @type {HTMLElement | null | undefined} */ (button?.parentElement?.querySelector('[data-demo-link-menu]'))
+    const sectionButton = menu?.querySelector('[data-copy-demo-section]')
+    const inputsButton = /** @type {HTMLButtonElement | null | undefined} */ (menu?.querySelector('[data-copy-demo-inputs]'))
     const view = root.ownerDocument.defaultView
-    if (!button || section?.querySelector(':scope > [data-demo]') !== root || !view || started.has(root)) { return }
+    if (!button || !menu || !sectionButton || !inputsButton || section?.querySelector(':scope > [data-demo]') !== root || !view || started.has(root)) { return }
     started.add(root)
     const status = /** @type {HTMLElement | null} */ (section?.querySelector(':scope > summary > [data-demo-link-status]') ?? null)
     /** @type {(message: string) => void} */
@@ -58,16 +61,43 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         view.addEventListener('hashchange', () => restore())
         restore(true)
     }
-    button.addEventListener('click', event => {
+    // Restoration also works when a browser keeps the native section anchor.
+    if (typeof menu.hidePopover !== 'function') { return }
+    // The native invoker provides Escape, outside-click dismissal, Tab order,
+    // and focus restoration. Prevent clicks reaching the section disclosure.
+    button.addEventListener('click', event => event.stopPropagation())
+    menu.addEventListener('click', event => event.stopPropagation())
+    menu.addEventListener('toggle', event => {
+        if (event.newState !== 'open') { return }
+        const anchor = button.getBoundingClientRect()
+        const bounds = menu.getBoundingClientRect()
+        menu.style.left = `${Math.max(16, Math.min(anchor.left, view.innerWidth - bounds.width - 16))}px`
+        menu.style.top = `${Math.max(16, anchor.bottom + bounds.height + 6 <= view.innerHeight
+            ? anchor.bottom + 6 : anchor.top - bounds.height - 6)}px`
+    })
+    /** @type {(hash: string) => void} */
+    const copyLink = hash => {
+        menu.hidePopover()
+        button.focus()
+        report('')
+        void copy(button, `${view.location.origin}${view.location.pathname}${hash}`)
+    }
+    sectionButton.addEventListener('click', event => {
         event.preventDefault()
         event.stopPropagation()
-        if (controller.busy()) { report('Wait for the demo inputs to finish updating, then copy the link.'); return }
-        const encoded = encodeFragment(sharing, sharing.read(controller.read()))
-        if (encoded[0] === 'error') { report(encoded[1]); return }
-        report('')
-        const url = `${view.location.origin}${view.location.pathname}${encoded[1]}`
-        void copy(button, url)
+        copyLink(`#${encodeURIComponent(button.getAttribute('data-copy-fragment') ?? 'demo')}`)
     })
+    inputsButton.disabled = Object.keys(sharing.fields).length === 0
+    if (inputsButton.disabled) { inputsButton.title = 'This demo has no inputs' }
+    inputsButton.addEventListener('click', event => {
+        event.preventDefault()
+        event.stopPropagation()
+        if (controller.busy()) { menu.hidePopover(); button.focus(); report('Wait for the demo inputs to finish updating, then copy the link.'); return }
+        const encoded = encodeFragment(sharing, sharing.read(controller.read()))
+        if (encoded[0] === 'error') { menu.hidePopover(); button.focus(); report(encoded[1]); return }
+        copyLink(encoded[1])
+    })
+    menu.hidden = false
     button.hidden = false
     const fallback = button.parentElement?.querySelector('a')
     if (fallback) { /** @type {HTMLAnchorElement} */ (fallback).hidden = true }

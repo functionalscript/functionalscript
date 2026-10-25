@@ -17,13 +17,23 @@ const linkIcon = ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentC
 /** A native anchor without JavaScript; a copy control once the runtime binds.
  * @type {(id: string, label: string, demo?: boolean) => Element}
  */
-export const permalink = (id, label, demo = false) => ['span', { 'data-permalink': '' },
-    ['a', { href: `#${id}`, 'aria-label': `Link to ${label}` }, linkIcon],
-    ['button', { type: 'button', hidden: '', 'data-copy-fragment': id, ...(demo ? { 'data-copy-demo': '' } : {}), 'aria-label': `Copy link to ${label}`, title: 'Copy link' },
-        linkIcon,
-        ['span', { 'data-copy-status': '', 'aria-live': 'polite' }],
-    ],
-]
+export const permalink = (id, label, demo = false) => {
+    const menuId = `copy-demo-link:${id.length}:${id}`
+    return ['span', { 'data-permalink': '' },
+        ['a', { href: `#${id}`, 'aria-label': `Link to ${label}` }, linkIcon],
+        ['button', { type: 'button', hidden: '', 'data-copy-fragment': id,
+            ...(demo ? { 'data-copy-demo': '', popovertarget: menuId, 'aria-label': 'Copy demo link options', title: 'Copy demo link options' }
+                : { 'aria-label': `Copy link to ${label}`, title: 'Copy link' }) },
+            linkIcon,
+            ...(demo ? [/** @type {Element} */ (['svg', { 'data-demo-link-chevron': '', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'aria-hidden': 'true' }, ['path', { d: 'm6 9 6 6 6-6' }]])] : []),
+            ['span', { 'data-copy-status': '', 'aria-live': 'polite' }],
+        ],
+        ...(demo ? [/** @type {Element} */ (['span', { id: menuId, hidden: '', popover: 'auto', 'data-demo-link-menu': '', role: 'group', 'aria-label': 'Copy demo link' },
+            ['button', { type: 'button', 'data-copy-demo-section': '' }, ['strong', 'Copy section link'], ['small', 'Link to Demo without inputs']],
+            ['button', { type: 'button', 'data-copy-demo-inputs': '' }, ['strong', 'Copy link with inputs'], ['small', 'Include the current example or custom inputs']],
+        ])] : []),
+    ]
+}
 
 /** Keep the controls beside the heading, outside its accessible name.
  * @type {(level: number, id: string, label: string, content: readonly Node[]) => Element}

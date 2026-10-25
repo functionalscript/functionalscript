@@ -552,7 +552,9 @@ const shared = (d, hash = '#documentation') => {
     view.requestAnimationFrame = (/** @type {() => void} */ callback) => callback()
     doc.getElementById = () => null
     const status = { textContent: '' }
-    const button = { hidden: true, addEventListener() {} }
+    const action = { addEventListener() {}, disabled: false }
+    const menu = { hidden: true, hidePopover() {}, addEventListener() {}, querySelector: () => action }
+    const button = { hidden: true, addEventListener() {}, parentElement: { querySelector: (/** @type {string} */ selector) => selector === '[data-demo-link-menu]' ? menu : null } }
     d.root.parentElement = {
         querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? d.root
             : selector.includes('button[data-copy-demo]') ? button : status,

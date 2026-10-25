@@ -16,8 +16,13 @@ export const proof = /** @type {const} */ ({
     demoControl: () => {
         const html = htmlToString(permalink('demo', 'Demo', true))
         assert(html.includes('data-copy-fragment="demo" data-copy-demo=""'))
-        assertEq(html.split('<svg ').length - 1, 2)
-        assert(html.includes('aria-label="Copy link to Demo"'))
+        assertEq(html.split('<svg ').length - 1, 3)
+        assert(html.includes('aria-label="Copy demo link options"'))
+        assert(html.includes('popovertarget="copy-demo-link:4:demo"'))
+        assert(html.includes('id="copy-demo-link:4:demo" hidden="" popover="auto"'))
+        assert(html.includes('Copy section link'))
+        assert(html.includes('Copy link with inputs'))
+        assert(!htmlToString(permalink('emergent-testing', 'Testing')).includes('data-demo-link-menu'))
     },
     heading: () => {
         const html = htmlToString(linkedHeading(3, 'a-b', 'A & B', ['A & ', ['code', 'B']]))

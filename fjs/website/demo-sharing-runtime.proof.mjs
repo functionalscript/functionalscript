@@ -13,6 +13,12 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     const buttonEvents = new Map()
     /** @type {string[]} */
     const copied = []
+    /** @type {Map<string, (event: any) => void>} */
+    const inputEvents = new Map()
+    /** @type {Map<string, (event: any) => void>} */
+    const sectionEvents = new Map()
+    /** @type {Map<string, (event: any) => void>} */
+    const menuEvents = new Map()
     /** @type {any[]} */
     const pending = []
     /** @type {Map<string, string>} */
@@ -40,11 +46,23 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     /** @type {any} */
     const button = {
         ownerDocument: document, hidden: true,
+        getAttribute: () => 'demo', focus: () => {},
+        getBoundingClientRect: () => ({ left: 100, top: 100, bottom: 132 }),
         addEventListener: (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => buttonEvents.set(name, listener),
         querySelector: () => feedback,
         setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => attributes.set(name, value),
         removeAttribute: (/** @type {string} */ name) => attributes.delete(name),
     }
+    const inputsButton = { disabled: false, title: '', addEventListener: (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => inputEvents.set(name, listener) }
+    const sectionButton = { addEventListener: (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => sectionEvents.set(name, listener) }
+    const menu = {
+        hidden: true, style: { left: '', top: '' }, hidePopover() {},
+        getBoundingClientRect: () => ({ width: 330, height: 160 }),
+        addEventListener: (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => menuEvents.set(name, listener),
+        querySelector: (/** @type {string} */ selector) => selector === '[data-copy-demo-section]' ? sectionButton : inputsButton,
+    }
+    button.parentElement = { querySelector: (/** @type {string} */ selector) => selector === '[data-demo-link-menu]' ? menu : { hidden: false } }
+    view.innerWidth = 800; view.innerHeight = 600
     /** @type {any} */
     const controls = {
         querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? root : selector.includes('button[data-copy-demo]') ? button : status,
@@ -65,7 +83,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         replace: (/** @type {any} */ next, /** @type {() => void} */ after, /** @type {() => import('./demo/sharing/types.ts').RestoreDisposition} */ current, /** @type {boolean} */ initialize = false) => pending.push({ next, after, current, initialize }),
     }
     return {
-        root, demo, view, controls, document, button, status, feedback, copied, pending, details, windowEvents,
+        root, demo, view, controls, document, button, status, feedback, copied, pending, details, windowEvents, inputsButton, menu, menuEvents, buttonEvents,
         get hidden() { return button.hidden }, get restores() { return restores }, get state() { return state }, get scrolls() { return scrolls },
         start: (edited = false) => startDemoSharing(root, demo, controller, edited),
         flush: () => { for (const item of pending.splice(0)) { if (item.current() === 'apply') { state = item.next; restores++; item.after() } } },
@@ -73,7 +91,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         input: () => { revision += 1 },
         busy: (/** @type {boolean} */ value) => { busy = value },
         stateTo: (/** @type {any} */ value) => { state = value },
-        click: async () => { buttonEvents.get('click')?.({ preventDefault() {}, stopPropagation() {} }); for (let i = 0; i < 5; i++) { await Promise.resolve() } },
+        click: async (section = false) => { (section ? sectionEvents : inputEvents).get('click')?.({ preventDefault() {}, stopPropagation() {} }); for (let i = 0; i < 5; i++) { await Promise.resolve() } },
     }
 }
 export const proof = {
@@ -158,8 +176,32 @@ export const proof = {
         assertStructurallySame(decodeFragment(hash), ['ok', { kind: 'state', inputs: { source: 'Custom 🌍\n' } }])
         const empty = fixture(undefined, '#documentation')
         empty.demo.sharing = undefined
-        empty.start(); await empty.click()
+        empty.start(); assertEq(empty.inputsButton.disabled, true); await empty.click(true)
         assertEq(empty.copied[0], 'https://example.com/demo/#demo')
+    },
+    explicitMenuActions: async () => {
+        const f = fixture()
+        f.start(); f.flush()
+        f.buttonEvents.get('click')?.({ stopPropagation() {}, preventDefault() { throw 'Keep native popover invocation' } })
+        assertEq(f.copied.length, 0)
+        f.busy(true)
+        await f.click(true)
+        assertEq(f.copied[0], 'https://example.com/demo/#demo')
+        f.busy(false); f.stateTo('x'.repeat(20_000))
+        await f.click(true)
+        assertEq(f.copied[1], 'https://example.com/demo/#demo')
+        f.button.getAttribute = () => 'demo-section:6:second'
+        await f.click(true)
+        assertEq(f.copied[2], 'https://example.com/demo/#demo-section%3A6%3Asecond')
+        f.menuEvents.get('toggle')?.({ newState: 'closed' })
+        assertEq(f.menu.style.left, '')
+        f.menuEvents.get('toggle')?.({ newState: 'open' })
+        assertEq(f.menu.style.left, '100px')
+        assertEq(f.menu.style.top, '138px')
+        f.view.innerWidth = 390; f.view.innerHeight = 250
+        f.menuEvents.get('toggle')?.({ newState: 'open' })
+        assertEq(f.menu.style.left, '44px')
+        assertEq(f.menu.style.top, '16px')
     },
     copyFailures: async () => {
         const f = fixture(undefined, '#documentation')
@@ -181,6 +223,11 @@ export const proof = {
         extra.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? {} : extra.button
         extra.start()
         assertEq(extra.hidden, true)
+        const unsupported = fixture()
+        unsupported.menu.hidePopover = undefined
+        unsupported.start(); unsupported.flush()
+        assertEq(unsupported.hidden, true)
+        assertEq(unsupported.state, 'second')
         const noWindow = fixture(); noWindow.document.defaultView = null; noWindow.start()
         assertEq(noWindow.hidden, true)
         const implicitScope = fixture()

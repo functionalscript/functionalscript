@@ -524,6 +524,17 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
 [data-permalink] [hidden] { display: none }
 [data-permalink] > button[data-copy-feedback="copied"] { color: var(--pass) }
 [data-permalink] > button[data-copy-feedback] > [data-copy-status] { position: fixed; left: 50%; right: auto; top: auto; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); white-space: normal; text-align: center; z-index: 10 }
+/* Native popovers keep the actions outside the disclosure's clipping. */
+[data-permalink] > button[data-copy-demo] { width: 2.75rem; gap: .125rem }
+[data-permalink] [data-demo-link-chevron] { width: .625rem; height: .625rem }
+[data-demo-link-menu] { box-sizing: border-box; position: fixed; inset: auto; left: 1rem; top: 1rem; margin: 0; width: min(21rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: .3125rem; border: 1px solid var(--border); border-radius: .4375rem; background: var(--bg); color: var(--text); box-shadow: 0 5px 20px #0002; font: inherit; font-size: .875rem; text-align: left }
+[data-demo-link-menu] > button { display: block; width: 100%; padding: .875rem .8125rem; border: 0; border-radius: .25rem; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer }
+[data-demo-link-menu] > button:first-child { border-bottom: 1px solid var(--border) }
+[data-demo-link-menu] > button:hover:enabled, [data-demo-link-menu] > button:focus-visible { background: var(--panel) }
+[data-demo-link-menu] > button:focus-visible { outline: 2px solid var(--value); outline-offset: -2px }
+[data-demo-link-menu] > button:disabled { opacity: .55; cursor: default }
+[data-demo-link-menu] strong, [data-demo-link-menu] small { display: block }
+[data-demo-link-menu] small { margin-top: .375rem; color: var(--muted); font-size: .75rem; line-height: 1.5 }
 [id] { scroll-margin-top: 1rem }
 
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
