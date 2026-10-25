@@ -368,7 +368,7 @@ and negative graph fixtures rather than introducing a second heuristic.
 its normalized FAST back does not add a wrapper. Physical prepared FAST is
 not the input to `from_fast`.
 
-### Pending member-resolution decision
+### Member-resolution decision
 
 Lifting argument control must preserve the lookup boundary. In
 `null.f(argument-block-returning-7)`, lookup fails before that successful
@@ -377,25 +377,157 @@ arguments before callable validation. A nullish optional receiver skips its
 key and arguments. A plain property read cannot express the optional-call
 guard for native methods: it may yield undefined where a member call exists.
 
-The proposed minimal extension is `['memberPresent', receiver, key]`, returning
-the existing member-call guard's Boolean result or ordinary lookup failure.
-It must reuse the operation kernel's own/native/runtime resolution, including
-key coercion and null-receiver failure. An own null/undefined field is absent;
-an own noncallable nonnull value is present and fails only when invoked after
-its arguments. Native and runtime members use the existing guard, with no
-second method inventory. Normal optional-chain regions decide whether the
-query itself is reached. Bare optional calls need only their callee's nullish
-test. The proposed tag remains absent from the current canonical schema.
+Choose the minimal internal query `['memberPresent', receiver, key]` for E.
+It returns the existing optional-member-call guard's Boolean result or the
+lookup failure. A true result permits argument evaluation; callable validation
+belongs to the subsequent call. This design increment records the choice;
+the tag is still absent from the implemented schema and lowering.
 
-This query would precede the existing member call after selected argument
-control. With pure lookup, repeating resolution preserves language outcomes;
-the straightforward query plus ordinary call performs three runtime `dot`
-lookups where the existing optional call performs two. That cost is explicit.
-The alternative is a first-class resolved-member value and invocation form,
-which avoid that repeated lookup but require a larger value/schema/runtime
-contract. The owner decision is pending; neither alternative is provisionally
-admitted. Full E must settle this boundary and common preparation's matching
-receiver/callee handling before its normalized contract is complete.
+The alternative is a first-class resolved-member value plus an invocation
+form. It could retain one resolution across argument control, but would add a
+value kind, identity and invocation contracts to the schema, runtime and
+consumers. The Boolean query reuses the current member-call representation and
+accepts repeated pure resolution. Revisit that choice only with evidence that
+its lookup cost warrants the larger contract.
+
+#### Query contract
+
+Use the existing EDAG `Index` and FAST `Key<V>` vocabulary: a string or number
+literal, or an explicit `['Number', value]` key. Reuse schema `index`,
+`mapKey`/`keyOperands` and graph-key conversion. Property-name admission remains
+the same as for member access; this query introduces no arbitrary value-key
+conversion or additional admitted names.
+
+Evaluate the receiver, then the key and its existing numeric conversion, then
+resolve the member. An ordinary nullish receiver therefore fails after a
+reached computed key; a returning key skips lookup. A receiver-optional region
+must guard the key and query outside this operation. When lifting, establish
+the computed key and its conversion in a required snapshot and reuse the
+established primitive key in the query and call.
+Computed keys retain the existing `['Number', ['ref', binding]]` wrapper around
+the established number; a bare binding reference is not an `Index`/`Key`.
+
+Derive one shared resolver from
+[`operations.property`](../operations/module.f.mjs) and reuse it for the
+existing call and the query:
+
+1. Perform [`read`](../value/property/module.f.mjs) first and propagate its
+   failure, including nullish-receiver and static-function `length` failures.
+   The operation spells the already-converted string/number key with `String`.
+2. Retain exact stored-object own-property presence, even for a stored undefined
+   value. An own field suppresses native/runtime fallback.
+3. With no stored own field and an admitted built-in name, use the existing
+   [`hasMethod`](../value/method/module.f.mjs) guard. Otherwise answer whether
+   the read value is nonnullish. Reuse the current method inventory.
+
+| Resolved case | Query outcome |
+| --- | --- |
+| Stored own null or undefined, including under a native method name | False; the own field shadows fallback. |
+| Stored own nonnullish value, including `0`, `false` or a function | True; no callable check yet. |
+| Nonnullish indexed value or ordinary `length` property | True, even when the name is not admitted as a method. |
+| Missing field with no admitted native/runtime method | False. |
+| Admitted native implementation with no runtime override | True after the existing runtime-resolution step. |
+| Admitted runtime-only method with no implementation | False. |
+| Runtime resolution for an admitted method answers any value other than represented undefined | The existing runtime guard is true, including for null or a noncallable value. |
+| Property read or runtime resolution fails | Propagate that failure before arguments. |
+
+The runtime guard's test is the existing `hasMethod` contract, which differs
+from the nullish test on a stored own value. The query may execute the lookup
+provider and receiver-stage method body; it evaluates no call arguments and
+invokes no resolved argument-stage callable or native method.
+
+#### Control and receiver preservation
+
+For an ordinary member call, require the query before lifting arguments and
+discard its Boolean result. False still reaches the arguments and the
+subsequent ordinary call. Thus a successful argument return can bypass a
+missing/noncallable callee, while a lookup failure cannot disappear behind it.
+
+For an optional member call, place arguments and invocation only in the true
+branch of the query. A receiver-optional guard encloses key evaluation, the
+query and those arguments. Preserve the original receiver/key member-call
+form on the normal path so native dispatch and runtime receiver binding stay
+intact. Bare optional calls use their evaluated callee's nullish test.
+
+Keep the existing chain state and skip continuation, including `|?.()` regions
+and `|!()` boundaries. A skipped region skips its own keys and arguments;
+a later forced call outside that region still reaches its arguments. Common
+construction/preparation owns this control flow; target writers spell the
+prepared query and call. Retain required prefixes, exact transfer owners,
+selected memo updates and captured value identities through every path.
+
+#### Accepted lookup cost
+
+Repeated resolution is valid under the existing pure runtime contract. In the
+current JavaScript operation kernel, a reached admitted built-in call with a
+callable runtime `dot` and normally completed arguments performs two `dot`
+invocations. A query followed by the retained ordinary call performs three:
+the query, preargument call resolution and invocation resolution.
+
+That is a conditional cost example. Stored own fields and ordinary indexed
+reads use no `dot`; a false optional query skips replay; an argument return
+stops after the query; and no callable runtime `dot` means no actual `dot`
+invocation. Replaying a read can also repeat other lookup work, such as
+`runtime.static` when reading a static function's `length`. These counts
+exclude argument and selected-member body work. Counts can differ by backend;
+they describe cost, not semantic counters programs or proofs may observe.
+
+#### Backend reconciliation
+
+The chosen query contract above comes from the JavaScript operation kernel;
+existing backend helpers are reuse points, not evidence of full agreement.
+Current NaNVM [`Member::body`](../../../nanvm/lib/src/vm/lambda/member.rs)
+treats a runtime null answer as absent, whereas JavaScript's `hasMethod` treats
+every answer other than represented undefined as present. The canonical runtime
+normally answers a function or undefined; custom-runtime fixtures must pin the
+chosen behavior too. NaNVM's ordinary
+[`PropertyLambda::end_call`](../../../nanvm/lib/src/vm/lambda/mod.rs) evaluates
+arguments before the runtime body lookup, while the JavaScript kernel resolves
+the runtime callee before arguments.
+NaNVM's missing-own-property guard also consults the runtime before its native
+table, whereas the JavaScript kernel consults it only for admitted method names.
+
+Reuse the existing member machinery while reconciling admitted-name filtering,
+runtime presence and failure timing for the new query and retained call path.
+Verify the absent-runtime/native-fallback cases each executor supports.
+Cross-backend fixtures must pass before admitting the query or lifting member arguments;
+using the current Rust nullish helper unchanged is insufficient evidence.
+
+#### Implementation and evidence gates
+
+First add the query end to end: closed schema/types, index admission,
+analysis/identity and content hashing, FAST operand mapping, both graph
+conversions, represented evaluation, common preparation, JavaScript and Rust
+emission, and NaNVM/runtime support. Reuse and align the current Rust member
+resolver/guard under the contract above; preserve runtime capture/bootstrap
+requirements in all targets.
+Pin the query's distinct shape and stable round trips while retaining existing
+canonical forms. Only then enable completion/memo lifting at member and
+optional-call boundaries with the control rules above.
+
+Use internal FAST value regions for returning operands in these fixtures:
+
+| Evidence | Required distinction |
+| --- | --- |
+| Null receiver versus a noncallable member before a later successful argument return | Lookup failure versus that exact returned payload. |
+| Nullish optional receiver with a failing or returning computed key | Key, query and arguments are skipped. |
+| Own null/undefined shadowing a native name; own `0` or `length` | False guard skips arguments; true guard reaches arguments before callable failure. |
+| Native method whose plain property read is undefined | The guard finds the implementation and preserves its receiver. |
+| Static-function `length` requiring a missing or failing runtime body | The full property read retains its failure before arguments. |
+| Runtime-only method bound, absent or failing; runtime override versus an own field | Existing guard result and own/runtime/native precedence, including noncallable runtime answers. |
+| Returning computed key or argument | Preserve the reached conversion/prefix and payload identity; skip remaining work. |
+| Continued optional regions and a closed `|!()` boundary | Preserve selected skips and later forced-call argument evaluation. |
+| Caller, iteration and initializer memo cells plus returned closures | Preserve selected updates, aliases, receiver captures and fresh invocation lifetimes. |
+| Invalid query tag/arity/key encoding and repeated graph conversions | Closed admission, metadata/sharing and stable canonical round trips. |
+
+Run the admitted corpus through represented executors, emitted JavaScript and
+Rust/NaNVM, including lookup failures and selected/skipped control paths. Run
+scoped FunctionalScript proofs with full coverage, type-check, self-compile,
+run the required Rust checks and check affected demos. Failure fixtures pair
+one reached failure with a later successful return. Cases where both paths
+fail do not pin a diagnostic; pure callback counts are not semantic observations.
+
+### Spread boundary
 
 Expand an earlier array/call spread before a later value operand can return or
 transfer. Snapshotting only the spread operand does not preserve a failing
@@ -446,6 +578,12 @@ their documented normalization. Repeated conversions must stabilize.
       literal constructor metadata and normal Boolean results.
 - [x] Lift owning returns through ordinary statement-result yield operands,
       preserving result binding identities, arity and evaluation order.
+- [x] Record the member-resolution guard choice and its evaluation contract,
+      receiver preservation, lookup cost and implementation evidence gates.
+- [ ] Add `memberPresent` end to end using the shared member resolver and
+      existing index vocabulary before enabling member-argument lifting.
+- [ ] Lift owning returns through member and optional-call operands using the
+      query, retained receivers and existing chain-region boundaries.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
