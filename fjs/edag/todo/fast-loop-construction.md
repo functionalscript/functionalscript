@@ -156,7 +156,19 @@ normalization evaluates the return payload with the current cells, then the
 existing completion pass propagates that payload through enclosing helpers.
 The function exits with its source value; normal helper exits still carry the
 memo vector for following work. Standalone and operand regions do not inherit
-function ownership. Outer-loop transfers remain a following increment.
+function ownership.
+
+Statement-level outer-loop breaks and continues use the same private
+`[userValuesArray, memoVector]` transfer payload as owning exits. Lexical source
+targets map to their exact private loop targets; the existing completion pass
+relays the pair until that target supplies results or starts its next iteration.
+Control-only helpers escaping to selected ancestors join the transport plan,
+including intermediate helpers with no memo reads. Newly selected targets can
+require further control helpers, so selection closes over those escape paths.
+Payload evaluation supplies the latest vector before every transfer. Continued
+iterations retain caller and enclosing-iteration cells and reset their own local
+lifetimes at reached declarations. Foreign targets and operand escapes remain
+refused.
 Stateful member-call/optional/spread operands retain explicit refusals until their
 evaluation boundary is owned below. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
@@ -398,7 +410,7 @@ their documented normalization. Repeated conversions must stabilize.
       an owning initializer is evaluated again.
 - [x] Return from memo-bearing statement helpers to the owning source function.
       Preserve demanded payload identity, normal-path updates and skipped failures.
-- [ ] Carry shared demand state through outer-loop breaks and continues.
+- [x] Carry shared demand state through outer-loop breaks and continues.
       Preserve fresh iteration lifetimes and selected updates through every completion.
       Track exact ancestor targets and control-only intermediate helpers.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of

@@ -731,6 +731,89 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.loops.has(loopsOf(plan.block)[0]), true)
         assertEq([...plan.loops][0].target, loop.target)
     },
+    ancestorTransfers: () => {
+        for (const kind of /** @type {const} */ (['break', 'continue'])) {
+            const inner = loopOf(body([], [kind, target, [['ref', a]]]), innerTarget)
+            const plan = planned(containing(loopOf(body([['loop', inner]], ['break', target, [0]]))))
+            const outer = loopsOf(plan.block)[0]
+            const nested = loopsOf(outer.body)[0]
+            assertEq(plan.cells.length, 1)
+            assertEq(plan.loops.size, 2)
+            assertEq([...plan.loops][0], outer)
+            assertEq([...plan.loops][1], nested)
+            assertEq(nested.body.exit, inner.body.exit)
+        }
+    },
+    neutralTransferClosure: () => {
+        const firstTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const secondTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const first = loopOf(body([], ['continue', target, []]), firstTarget)
+        const second = loopOf(body([], ['continue', innerTarget, []]), secondTarget)
+        const middle = loopOf(body([
+            ['if', [], ['ref', known], body([['loop', first]]), body([['loop', second]])],
+        ], ['break', innerTarget, [0]]), innerTarget)
+        const plan = planned(containing(loopOf(body([
+            ['define', known, ['ref', a], 'required'], ['loop', middle],
+        ], ['break', target, [0]]))))
+        const outer = loopsOf(plan.block)[0]
+        const parent = loopsOf(outer.body)[0]
+        const conditional = parent.body.statements[0]
+        assert(conditional[0] === 'if')
+        const left = loopsOf(conditional[3])[0], right = loopsOf(conditional[4])[0]
+        assertEq(plan.cells.length, 1)
+        assertEq(plan.loops.size, 4)
+        assertEq([...plan.loops][0], outer)
+        assertEq([...plan.loops][1], parent)
+        assertEq([...plan.loops][2], left)
+        assertEq([...plan.loops][3], right)
+        assertEq(left.target, firstTarget)
+        assertEq(right.target, secondTarget)
+    },
+    neutralTransfersToUnselectedOwners: () => {
+        const leafTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const leaf = loopOf(body([], ['break', innerTarget, [0]]), leafTarget)
+        const middle = loopOf(body([['loop', leaf]], ['break', innerTarget, [0]]), innerTarget)
+        const source = loopOf(body([
+            ['define', known, ['ref', a], 'required'], ['loop', middle],
+        ], ['break', target, [0]]))
+        const plan = planned(containing(source))
+        const outer = loopsOf(plan.block)[0]
+        assertEq(plan.loops.size, 1)
+        assertEq([...plan.loops][0], outer)
+        assertEq(plan.loops.has(loopsOf(outer.body)[0]), false)
+        const returning = loopOf(body([], ['return', functionTarget, 7]), innerTarget)
+        const returned = planned(containing(loopOf(body([
+            ['define', known, ['ref', a], 'required'], ['loop', returning],
+        ], ['break', target, [0]]))), [], functionTarget)
+        assertEq(returned.loops.size, 1)
+    },
+    sharedLoopTargetsKeepLexicalSelection: () => {
+        const shared = reading(a, innerTarget)
+        const laterTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const first = loopOf(body([['loop', shared]], ['break', target, [0]]))
+        const second = loopOf(body([
+            ['define', a, 7, 'required'], ['loop', shared],
+        ], ['break', laterTarget, [0]]), laterTarget)
+        const source = body([
+            ['define', a, ['array', []], 'lazy'], ['loop', first], ['loop', second],
+        ], ['continue', laterTarget, []])
+        const plan = planned(source)
+        const loops = loopsOf(plan.block)
+        const selected = loopsOf(loops[0].body)[0]
+        const ordinary = loopsOf(loops[1].body)[0]
+        assert(selected !== ordinary)
+        assertEq(selected.target, ordinary.target)
+        assertEq(plan.loops.size, 2)
+        assertEq([...plan.loops][0], loops[0])
+        assertEq([...plan.loops][1], selected)
+        assertEq(plan.loops.has(ordinary), false)
+        assertEq(plan.block.exit, source.exit)
+    },
+    controlOnlyWithoutMemo: () => {
+        const inner = loopOf(body([], ['continue', target, []]), innerTarget)
+        assertEq(memoCells(body([['loop', loopOf(body([['loop', inner]], ['break', target, [0]]))]])), null)
+        assertEq(memoCells(body([['loop', loopOf(body([], ['return', functionTarget, 0]))]])), null)
+    },
     deepStatementRegions: () => {
         const loop = reading(a)
         /** @type {Block} */
@@ -989,22 +1072,27 @@ export const proof = /** @type {const} */ ({
         nestedMemoReturn: () => memoCells(containing(loopOf(body([
             ['loop', loopOf(body([], ['return', functionTarget, ['ref', a]]), innerTarget)],
         ], ['break', target, [0]])))),
-        nestedMemoAncestorBreak: () => memoCells(containing(loopOf(body([
-            ['loop', loopOf(body([], ['break', target, [['ref', a]]]), innerTarget)],
-        ], ['break', target, [0]]))), [], functionTarget),
-        nestedMemoAncestorContinue: () => memoCells(containing(loopOf(body([
-            ['loop', loopOf(body([], ['continue', target, [['ref', a]]]), innerTarget)],
-        ], ['break', target, [0]]))), [], functionTarget),
         enclosingReturn: () => memoCells(containing(loopOf(body([], ['return', functionTarget, ['ref', a]])))),
         foreignBreak: () => memoCells(containing(loopOf(body([], ['break', innerTarget, [['ref', a]]])))),
         foreignContinue: () => memoCells(containing(loopOf(body([], ['continue', innerTarget, [['ref', a]]])))),
-        nestedAncestorBreak: () => memoCells(containing(loopOf(body([
+        neutralForeignBreak: () => {
+            const foreign = /** @type {const} */ ({ kind: 'loop', index: target.index })
+            return memoCells(containing(loopOf(body([
+                ['define', known, ['ref', a], 'required'],
+                ['loop', loopOf(body([], ['break', foreign, []]), innerTarget)],
+            ], ['break', target, [0]]))))
+        },
+        neutralSiblingContinue: () => {
+            const sibling = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            return memoCells(containing(loopOf(body([
+                ['define', known, ['ref', a], 'required'],
+                ['loop', loopOf(body([], ['break', sibling, [0]]), sibling)],
+                ['loop', loopOf(body([], ['continue', sibling, []]), innerTarget)],
+            ], ['break', target, [0]]))))
+        },
+        neutralForeignReturn: () => memoCells(containing(loopOf(body([
             ['define', known, ['ref', a], 'required'],
-            ['loop', loopOf(body([], ['break', target, []]), innerTarget)],
-        ], ['break', target, [0]])))),
-        nestedAncestorContinue: () => memoCells(containing(loopOf(body([
-            ['define', known, ['ref', a], 'required'],
-            ['loop', loopOf(body([], ['continue', target, []]), innerTarget)],
+            ['loop', loopOf(body([], ['return', functionTarget, 0]), innerTarget)],
         ], ['break', target, [0]])))),
     },
 })

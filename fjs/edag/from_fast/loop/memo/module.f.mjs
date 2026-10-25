@@ -1,5 +1,5 @@
 /**
- * Carry caller-owned lazy values through normal-exit loop helpers.
+ * Carry shared lazy values through loop helpers and enclosing-loop transfers.
  * Private memo cells record readiness separately from their source payload.
  * Generated loops transport packets without changing a source loop's declared
  * input/result signature. Ordinary function bodies retain their own owner.
@@ -87,7 +87,7 @@ const recipeFunction = (index, context) => call(() => {
         ...context.plan.cells.map((_, slot) => /** @type {Value} */ (['.', ref(memo), slot])),
         ...locals.map(() => /** @type {Value} */ (['array', [false, undefined]])),
     ]], 'required']]
-    return bind(valueTask(owned.value, { ...context, plan: owned.layout, recipes, memo: localMemo, loop: null, operand: false }), recipe => {
+    return bind(valueTask(owned.value, { ...context, plan: owned.layout, recipes, memo: localMemo, owners: null, operand: false }), recipe => {
         const updated = withCell(context.plan, recipe.memo, index, ['array', [true, ref(initialized)]])
         const body = /** @type {Block} */ ({
             statements: [...prefix, ...toArray(concat(recipe.statements)([['define', initialized, recipe.value, 'required']]))],
@@ -192,13 +192,13 @@ const exitTask = (exit, context) => call(() => {
     const inputs = exitValues(exit)
     return bind(valuesTask(inputs, context), values => {
         /** @type {Exit} */
-        let mapped = exit
-        if (context.loop !== null && (exit[0] === 'break' || exit[0] === 'continue') && exit[1] === context.loop.source) {
-            mapped = [exit[0], context.loop.target, [['array', values.values], ref(values.memo)]]
-        } else if (!values.values.every((value, i) => value === inputs[i])) {
-            mapped = exit[0] === 'yield' ? ['yield', values.values]
+        let mapped = values.values.every((value, i) => value === inputs[i]) ? exit
+            : exit[0] === 'yield' ? ['yield', values.values]
                 : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values.values]
                     : exit[0] === 'throw' ? ['throw', values.values[0]] : ['return', exit[1], values.values[0]]
+        if (exit[0] === 'break' || exit[0] === 'continue') {
+            const owner = toArray(context.owners).find(owner => owner.source === exit[1])
+            if (owner !== undefined) { mapped = [exit[0], owner.target, [['array', values.values], ref(values.memo)]] }
         }
         return done({ statements: values.statements, exit: mapped, memo: values.memo, normal: exit[0] === 'yield', usesMemo: values.usesMemo })
     })
@@ -219,7 +219,7 @@ const loopTask = (loop, context) => call(() => {
     const outputMemo = binding(loop.target.index)
     const target = /** @type {const} */ ({ kind: 'loop', index: loop.target.index })
     return bind(valuesTask(loop.initial, context), initial =>
-        bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), memo, loop: { source: loop.target, target }, operand: false }), body => {
+        bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), memo, owners: { first: { source: loop.target, target }, tail: context.owners }, operand: false }), body => {
             const internal = /** @type {Loop} */ ({
                 target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: [result, outputMemo],
                 body: { statements: [
@@ -324,7 +324,7 @@ export const normalizeMemo = (root, externalLazyIds = [], functionTarget = null)
     if (plan === null) { return root }
     const memo = binding()
     const recipes = plan.cells.map(cell => ({ binding: binding(cell.binding.index), width: plan.cells.length }))
-    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), recipes, memo, loop: null, operand: false })
+    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), recipes, memo, owners: null, operand: false })
     const result = run(blockTask(plan.block, context))
     const initializer = /** @type {Value} */ (['array', plan.cells.map(() => ['array', [false, undefined]])])
     return { statements: [['define', memo, initializer, 'required'], ...result.block.statements], exit: result.block.exit }

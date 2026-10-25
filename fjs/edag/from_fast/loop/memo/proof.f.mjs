@@ -1,6 +1,6 @@
 /**
  * Memo normalization keeps a caller's first-demand value across loop helpers.
- * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, LoopTarget, Statement, Value } from '../../../../js/ast/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
@@ -59,6 +59,25 @@ const readyCells = fn => {
         // TypeScript does not exclude the readonly spread tuple after this guard.
         return /** @type {Value} */ (cell)
     })
+}
+
+/** @type {(exit: Exit, kind: 'break' | 'continue', target: LoopTarget, values: readonly BindingId[], memo: BindingId) => void} */
+const loopPacket = (exit, kind, target, values, memo) => {
+    assert(exit[0] === 'break' || exit[0] === 'continue')
+    assertEq(exit[0], kind)
+    assertEq(exit[1], target)
+    assertEq(exit[2].length, 2)
+    const packet = exit[2][0]
+    assert(packet instanceof Array && packet[0] === 'array')
+    assertEq(packet[1].length, values.length)
+    for (const [index, binding] of values.entries()) {
+        const value = packet[1][index]
+        assert(value instanceof Array && value[0] === 'ref')
+        assertEq(value[1], binding)
+    }
+    const current = exit[2][1]
+    assert(current instanceof Array && current[0] === 'ref')
+    assertEq(current[1], memo)
 }
 
 export const proof = /** @type {const} */ ({
@@ -962,6 +981,162 @@ export const proof = /** @type {const} */ ({
         assert(outputMemo instanceof Array && outputMemo[0] === 'ref')
         assertEq(outputMemo[1], carriedInner.results[1])
     },
+    ancestorTransferPackets: () => {
+        const second = id(0), secondOutput = id(0), middleFirst = id(0), middleSecond = id(0)
+        const middleOutput = id(0), middleOtherOutput = id(0), innerOutput = id(0), demanded = id(0)
+        const middleTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [innerOutput],
+            body: body(['yield', []], [
+                ['define', demanded, ref(lazy), 'required'],
+                ['if', [], true, body(['continue', loopTarget, [ref(second), ref(state)]]), body(['yield', []], [
+                    ['if', [], true, body(['break', middleTarget, [ref(middleSecond), ref(middleFirst)]]),
+                        body(['break', innerTarget, [ref(demanded)]])],
+                ])],
+            ]),
+        })
+        const middle = /** @type {Loop} */ ({
+            target: middleTarget, parameters: [middleFirst, middleSecond], initial: [3, 4], results: [middleOutput, middleOtherOutput],
+            body: body(['break', middleTarget, [ref(middleFirst), ref(middleSecond)]], [['loop', inner]]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state, second], initial: [1, 2], results: [output, secondOutput],
+            body: body(['break', loopTarget, [ref(middleOutput), ref(middleOtherOutput)]], [['loop', middle]]),
+        })
+        const source = yielded(0, [['define', lazy, ['array', [5]], 'lazy'], ['loop', outer]])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const statement = normalized.statements[2]
+        assert(statement[0] === 'loop')
+        const carriedOuter = statement[1]
+        const middleStatement = carriedOuter.body.statements[2]
+        assert(middleStatement[0] === 'loop')
+        const carriedMiddle = middleStatement[1]
+        const innerStatement = carriedMiddle.body.statements[2]
+        assert(innerStatement[0] === 'loop')
+        const carriedInner = innerStatement[1]
+        for (const loop of /** @type {const} */ ([carriedOuter, carriedMiddle, carriedInner])) {
+            assertEq(loop.parameters.length, 2)
+            assertEq(loop.results.length, 2)
+        }
+        assert(carriedOuter.target !== outer.target)
+        assert(carriedMiddle.target !== middle.target)
+        assert(carriedInner.target !== inner.target)
+        const demand = carriedInner.body.statements[0]
+        assert(demand[0] === 'if')
+        const conditional = carriedInner.body.statements[2]
+        assert(conditional[0] === 'if')
+        loopPacket(conditional[3].exit, 'continue', carriedOuter.target, [second, state], demand[1][1])
+        const cases = conditional[4].statements[0]
+        assert(cases[0] === 'if')
+        loopPacket(cases[3].exit, 'break', carriedMiddle.target, [middleSecond, middleFirst], demand[1][1])
+        loopPacket(cases[4].exit, 'break', carriedInner.target, [demanded], demand[1][1])
+        loopPacket(carriedMiddle.body.exit, 'break', carriedMiddle.target, [middleFirst, middleSecond], carriedInner.results[1])
+        loopPacket(carriedOuter.body.exit, 'break', carriedOuter.target, [middleOutput, middleOtherOutput], carriedMiddle.results[1])
+        assertEq(outer.parameters[0], state)
+        assertEq(outer.parameters[1], second)
+        assertEq(outer.results[0], output)
+        assertEq(outer.results[1], secondOutput)
+        assertEq(middle.target, middleTarget)
+        assertEq(inner.target, innerTarget)
+    },
+    ancestorTransferSignatures: () => {
+        for (const arity of /** @type {const} */ ([0, 2])) {
+            const parameters = Array.from({ length: arity }, () => id(0))
+            const results = Array.from({ length: arity }, () => id(0))
+            const demanded = id(0)
+            const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const inner = /** @type {Loop} */ ({
+                target: innerTarget, parameters: [], initial: [], results: [],
+                body: body(['yield', []], [
+                    ['define', demanded, ref(lazy), 'required'],
+                    ['if', [], true, body(['continue', loopTarget, parameters.toReversed().map(ref)]),
+                        body(['break', loopTarget, parameters.map(ref)])],
+                ]),
+            })
+            const outer = /** @type {Loop} */ ({
+                target: loopTarget, parameters, initial: parameters.map((_, index) => index + 1), results,
+                body: body(['break', loopTarget, parameters.map(ref)], [['loop', inner]]),
+            })
+            const source = yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', outer]])
+            const normalized = normalizeMemo(source)
+            assertEq(normalizeMemo(normalized), normalized)
+            const statement = normalized.statements[2]
+            assert(statement[0] === 'loop')
+            const carriedOuter = statement[1]
+            const statePacket = carriedOuter.initial[0]
+            assert(statePacket instanceof Array && statePacket[0] === 'array')
+            assertEq(statePacket[1].length, arity)
+            const nested = carriedOuter.body.statements[arity]
+            assert(nested[0] === 'loop')
+            const carriedInner = nested[1]
+            const demand = carriedInner.body.statements[0]
+            assert(demand[0] === 'if')
+            const conditional = carriedInner.body.statements[2]
+            assert(conditional[0] === 'if')
+            loopPacket(conditional[3].exit, 'continue', carriedOuter.target, parameters.toReversed(), demand[1][1])
+            loopPacket(conditional[4].exit, 'break', carriedOuter.target, parameters, demand[1][1])
+            assertEq(outer.parameters, parameters)
+            assertEq(outer.results, results)
+            assertEq(outer.initial.length, arity)
+        }
+    },
+    neutralAncestorTransferClosure: () => {
+        const observed = id(0)
+        const middleTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const firstTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const secondTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const first = /** @type {Loop} */ ({
+            target: firstTarget, parameters: [], initial: [], results: [], body: body(['continue', loopTarget, [ref(state)]]),
+        })
+        const second = /** @type {Loop} */ ({
+            target: secondTarget, parameters: [], initial: [], results: [], body: body(['continue', middleTarget, []]),
+        })
+        const middle = /** @type {Loop} */ ({
+            target: middleTarget, parameters: [], initial: [], results: [],
+            body: body(['break', middleTarget, []], [
+                ['if', [], true, body(['yield', []], [['loop', first]]), body(['yield', []], [['loop', second]])],
+            ]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state], initial: [0], results: [output],
+            body: body(['break', loopTarget, [ref(state)]], [['define', observed, ref(lazy), 'required'], ['loop', middle]]),
+        })
+        const source = yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', outer]])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const statement = normalized.statements[2]
+        assert(statement[0] === 'loop')
+        const carriedOuter = statement[1]
+        const demand = carriedOuter.body.statements[1]
+        assert(demand[0] === 'if')
+        const middleStatement = carriedOuter.body.statements[3]
+        assert(middleStatement[0] === 'loop')
+        const carriedMiddle = middleStatement[1]
+        const middleMemo = carriedMiddle.initial[1]
+        assert(middleMemo instanceof Array && middleMemo[0] === 'ref')
+        assertEq(middleMemo[1], demand[1][1])
+        const conditional = carriedMiddle.body.statements[0]
+        assert(conditional[0] === 'if')
+        assertEq(conditional[1].length, 1)
+        const firstStatement = conditional[3].statements[0]
+        const secondStatement = conditional[4].statements[0]
+        assert(firstStatement[0] === 'loop' && secondStatement[0] === 'loop')
+        const carriedFirst = firstStatement[1]
+        const carriedSecond = secondStatement[1]
+        for (const loop of /** @type {const} */ ([carriedMiddle, carriedFirst, carriedSecond])) {
+            assertEq(loop.parameters.length, 2)
+            assertEq(loop.results.length, 2)
+        }
+        loopPacket(carriedFirst.body.exit, 'continue', carriedOuter.target, [state], carriedFirst.parameters[1])
+        loopPacket(carriedSecond.body.exit, 'continue', carriedMiddle.target, [], carriedSecond.parameters[1])
+        loopPacket(carriedMiddle.body.exit, 'break', carriedMiddle.target, [], conditional[1][0])
+        loopPacket(carriedOuter.body.exit, 'break', carriedOuter.target, [state], carriedMiddle.results[1])
+        assertEq(first.parameters.length, 0)
+        assertEq(second.results.length, 0)
+        assertEq(middle.target, middleTarget)
+    },
     localDeclarationResetLayout: () => {
         const local = id(0), localAlias = id(0), prerequisite = id(0), innerOutput = id(0), regionOutput = id(0)
         const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
@@ -1610,6 +1785,23 @@ export const proof = /** @type {const} */ ({
             const loop = /** @type {Loop} */ ({ ...counting(ref(lazy)), body: body(['return', foreign, ref(lazy)]) })
             normalizeMemo(yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', loop]]), [], functionTarget)
         },
+        foreignLoopBreak: () => {
+            const foreign = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const observed = id(0)
+            const loop = /** @type {Loop} */ ({ ...counting(0), body: body(['break', foreign, []], [['define', observed, ref(lazy), 'required']]) })
+            normalizeMemo(yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', loop]]))
+        },
+        siblingLoopContinue: () => {
+            const siblingTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const observed = id(0)
+            const sibling = /** @type {Loop} */ ({
+                target: siblingTarget, parameters: [], initial: [], results: [], body: body(['break', siblingTarget, []]),
+            })
+            const loop = /** @type {Loop} */ ({ ...counting(0), body: body(['continue', siblingTarget, []], [['define', observed, ref(lazy), 'required']]) })
+            normalizeMemo(yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', sibling], ['loop', loop]]))
+        },
+        operandLoopBreak: () => { normalizeMemo(crossing(['block', body(['break', loopTarget, [ref(lazy)]])])) },
+        operandLoopContinue: () => { normalizeMemo(crossing(['block', body(['continue', loopTarget, [ref(lazy)]])])) },
         escapedReturn: () => {
             const loop = /** @type {Loop} */ ({ ...counting(ref(lazy)), body: body(['return', functionTarget, ref(lazy)]) })
             normalizeMemo(yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', loop]]))
