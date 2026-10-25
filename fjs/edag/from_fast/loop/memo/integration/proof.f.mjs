@@ -12,7 +12,224 @@ import { memo } from '../../../../memo/module.f.mjs'
 import { toFast } from '../../../../to_fast/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _afterLoop as afterLoop, _body as body, _summing as summing, _calledFunction as calledFunction, _counting as counting, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../proof.f.mjs'
 
+/** Run a fresh inner entry on each selected outer iteration, retaining its history. @type {(inner: Loop, limit?: Value, selected?: Value, value?: Value) => Loop} */
+const collectingInnerMemo = (inner, limit = 2, selected = true, value = ref(inner.results[0])) => {
+    const count = id(0), saved = id(0), output = id(0), chosen = id(0)
+    const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    return {
+        target: loopTarget, parameters: [count, saved], initial: [0, null], results: [output],
+        body: body(['continue', loopTarget, [ref(count), ref(saved)]], [
+            ['if', [], ['<', ref(count), limit],
+                body(['continue', loopTarget, [['+', ref(count), 1], ['array', [ref(saved), ref(chosen)]]]], [
+                    ['if', [chosen], selected, afterLoop(inner, value), result(null)],
+                ]),
+                body(['break', loopTarget, [ref(saved)]]),
+            ],
+        ]),
+    }
+}
+
 export const proof = /** @type {const} */ ({
+    loopMemoNestedIdentityAndRoundTrip: () => {
+        const lazy = id(0)
+        const inner = collectingMemo(ref(lazy), 2)
+        const outer = collectingInnerMemo(inner)
+        const first = collectedMemo(ref(outer.results[0]), 1), second = collectedMemo(ref(outer.results[0]))
+        const block = result(['array', [
+            collectedMemo(first, 1), collectedMemo(first), collectedMemo(second, 1), collectedMemo(second), ref(lazy), first, second,
+        ]], [['define', lazy, ['array', [4]], 'lazy'], ['loop', outer]])
+        const graph = fromFast(block)
+        const value = evaluate(graph)
+        assert(value instanceof Array)
+        assertStructurallySame(value.slice(0, 5), [[4], [4], [4], [4], [4]])
+        for (const observed of value.slice(0, 5)) { assertEq(observed, value[0]) }
+        assert(value[5] !== value[6])
+        const secondGraph = fromFast(assertOk(toFast(graph)))
+        const thirdGraph = fromFast(assertOk(toFast(secondGraph)))
+        assertStructurallySame(assertOk(identityAnalysis(thirdGraph)), assertOk(identityAnalysis(secondGraph)))
+        const repeated = evaluate(thirdGraph)
+        assert(repeated instanceof Array)
+        for (const observed of repeated.slice(0, 5)) { assertEq(observed, repeated[0]) }
+    },
+    loopMemoNestedThreeLevelsFreshInvocations: () => {
+        const lazy = id(0), fnBinding = id(0), first = id(0), second = id(0)
+        const inner = collectingMemo(ref(lazy), 2)
+        const middle = collectingInnerMemo(inner)
+        const outer = collectingInnerMemo(middle)
+        const deepest = collectedMemo(collectedMemo(collectedMemo(ref(outer.results[0]))))
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', [deepest, ref(lazy)]]], [
+                ['define', lazy, ['array', [4]], 'lazy'], ['loop', outer],
+            ]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(first), ref(second)]], [
+            ['define', fnBinding, ['function', fn], 'required'],
+            ['define', first, ['()', ref(fnBinding), []], 'required'],
+            ['define', second, ['()', ref(fnBinding), []], 'required'],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array)
+        assertStructurallySame(value, [[[4], [4]], [[4], [4]]])
+        assertEq(value[0][0], value[0][1])
+        assertEq(value[1][0], value[1][1])
+        assert(value[0][0] !== value[1][0])
+    },
+    loopMemoNestedSkippedAndZeroIterations: () => {
+        const lazy = id(0)
+        for (const outerLimit of /** @type {const} */ ([0, 2])) {
+            for (const innerLimit of /** @type {const} */ ([0, 2])) {
+                for (const selected of /** @type {const} */ ([false, true])) {
+                    const inner = collectingMemo(ref(lazy), innerLimit)
+                    const outer = collectingInnerMemo(inner, outerLimit, selected)
+                    const statements = /** @type {readonly Statement[]} */ ([
+                        ['define', lazy, ['block', body(['throw', 'nested recipe'])], 'lazy'], ['loop', outer],
+                    ])
+                    const graph = fromFast(result(7, statements))
+                    if (outerLimit !== 0 && innerLimit !== 0 && selected) {
+                        assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 'nested recipe')
+                    } else { assertEq(evaluate(graph), 7) }
+                    const following = fromFast(result(ref(lazy), statements))
+                    assertEq(assertError(memo(assertOk(identityAnalysis(following)))({ args: [] })), 'nested recipe')
+                }
+            }
+        }
+    },
+    loopMemoNestedDependentDiamond: () => {
+        const shared = id(0), left = id(0), right = id(0), joined = id(0), wrapped = id(0)
+        const inner = collectingMemo(ref(wrapped), 2)
+        const outer = collectingInnerMemo(inner, 2, true, ['array', [ref(inner.results[0]), ref(wrapped)]])
+        const last = collectedMemo(ref(outer.results[0]))
+        const innerHistory = /** @type {Value} */ (['.', last, 0])
+        const value = evaluate(fromFast(result(['array', [
+            collectedMemo(innerHistory), ['.', last, 1], ref(wrapped), ref(joined), ref(shared), ref(left), ref(right),
+        ]], [
+            ['define', shared, ['array', [4]], 'lazy'],
+            ['define', left, ['array', [ref(shared), 'left']], 'lazy'],
+            ['define', right, ['array', [ref(shared), 'right']], 'lazy'],
+            ['define', joined, ['array', [ref(right), ref(left)]], 'lazy'],
+            ['define', wrapped, ['array', [ref(joined)]], 'lazy'], ['loop', outer],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[3] instanceof Array && value[5] instanceof Array && value[6] instanceof Array)
+        assertStructurallySame(value[0], [[[[4], 'right'], [[4], 'left']]])
+        assertEq(value[0], value[1])
+        assertEq(value[0], value[2])
+        assertEq(value[0][0], value[3])
+        assertEq(value[3][0], value[6])
+        assertEq(value[3][1], value[5])
+        assertEq(value[5][0], value[4])
+        assertEq(value[6][0], value[4])
+        assert(value[5] !== value[6])
+    },
+    loopMemoNestedConditionalDependencyAndSetup: () => {
+        const choice = id(0), dependency = id(0), dependent = id(0)
+        const inner = collectingMemo(ref(dependent), 2)
+        const outer = collectingInnerMemo(inner)
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [choice], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', [collectedMemo(collectedMemo(ref(outer.results[0]))), ref(dependent)]]], [
+                ['define', dependency, ['block', body(['throw', 'nested dependency'])], 'lazy'],
+                ['define', dependent, ['if', ref(choice), result(ref(dependency)), result(['array', [7]])], 'lazy'],
+                ['loop', outer],
+            ]),
+        })
+        const skipped = evaluate(calledFunction(fn, [false]))
+        assert(skipped instanceof Array)
+        assertStructurallySame(skipped, [[7], [7]])
+        assertEq(skipped[0], skipped[1])
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [true]))))({ args: [] })), 'nested dependency')
+        const following = /** @type {FastFunction} */ ({ ...fn, body: { ...fn.body, exit: ['return', target, ref(dependency)] } })
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(following, [false]))))({ args: [] })), 'nested dependency')
+        const badEntry = /** @type {Loop} */ ({ ...inner, initial: [['block', body(['throw', 'inner setup'])], null] })
+        for (const selected of /** @type {const} */ ([false, true])) {
+            const entered = collectingInnerMemo(badEntry, 2, selected)
+            const graph = fromFast(result(9, [
+                ['define', dependent, ['array', [7]], 'lazy'], ['loop', entered],
+            ]))
+            if (selected) { assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 'inner setup') }
+            else { assertEq(evaluate(graph), 9) }
+        }
+    },
+    loopMemoNestedSimultaneousOuterState: () => {
+        const lazy = id(0), count = id(0), left = id(0), right = id(0), total = id(0), saved = id(0)
+        const outputs = Array.from({ length: 5 }, () => id(0))
+        const inner = collectingMemo(ref(lazy), 2)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [count, left, right, total, saved], initial: [0, 1, 2, 10, null], results: outputs,
+            body: body(['continue', loopTarget, [ref(count), ref(left), ref(right), ref(total), ref(saved)]], [
+                ['if', [], ['<', ref(count), 3], body(['continue', loopTarget, [
+                    ['+', ref(count), 1], ref(right), ref(left), ['+', ref(total), ref(left)],
+                    ['array', [collectedMemo(ref(inner.results[0])), ref(lazy)]],
+                ]], [['loop', inner]]), body(['break', loopTarget, [ref(count), ref(left), ref(right), ref(total), ref(saved)]])],
+            ]),
+        })
+        const value = evaluate(fromFast(result(['array', [...outputs.map(ref), ref(lazy)]], [
+            ['define', lazy, ['array', [4]], 'lazy'], ['loop', outer],
+        ])))
+        assert(value instanceof Array && value[4] instanceof Array)
+        assertStructurallySame(value, [3, 2, 1, 14, [[4], [4]], [4]])
+        assertEq(value[4][0], value[4][1])
+        assertEq(value[4][0], value[5])
+    },
+    loopMemoNestedSequentialHelpers: () => {
+        const dependency = id(0), dependent = id(0), count = id(0), saved = id(0), output = id(0)
+        const first = collectingMemo(ref(dependency), 1), second = collectingMemo(ref(dependent), 1)
+        const following = collectingMemo(ref(dependent), 1)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [count, saved], initial: [0, null], results: [output],
+            body: body(['continue', loopTarget, [ref(count), ref(saved)]], [
+                ['if', [], ['<', ref(count), 2], body(['continue', loopTarget, [
+                    ['+', ref(count), 1], ['array', [collectedMemo(ref(first.results[0])), collectedMemo(ref(second.results[0]))]],
+                ]], [['loop', first], ['loop', second]]), body(['break', loopTarget, [ref(saved)]])],
+            ]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(output), collectedMemo(ref(following.results[0])), ref(dependency), ref(dependent)]], [
+            ['define', dependency, ['array', [4]], 'lazy'],
+            ['define', dependent, ['array', [ref(dependency)]], 'lazy'], ['loop', outer], ['loop', following],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[3] instanceof Array)
+        assertStructurallySame(value, [[[4], [[4]]], [[4]], [4], [[4]]])
+        assertEq(value[0][0], value[2])
+        assertEq(value[0][1], value[1])
+        assertEq(value[1], value[3])
+        assertEq(value[3][0], value[2])
+    },
+    loopMemoNestedLexicalAliasBinders: () => {
+        const lazy = id(0), alias = id(0), count = id(0), saved = id(0), output = id(0), finalAlias = id(0)
+        const inner = collectingMemo(['array', [ref(lazy), ref(alias)]], 1)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [count, alias, saved], initial: [0, 7, null], results: [output, finalAlias],
+            body: body(['continue', loopTarget, [ref(count), ref(alias), ref(saved)]], [
+                ['if', [], ['<', ref(count), 2], body(['continue', loopTarget, [
+                    ['+', ref(count), 1], ref(alias), ['array', [ref(saved), collectedMemo(ref(inner.results[0]))]],
+                ]], [['loop', inner], ['block', [alias], body(['yield', [9]])]]), body(['break', loopTarget, [ref(saved), ref(alias)]])],
+            ]),
+        })
+        const value = evaluate(fromFast(result(['array', [collectedMemo(ref(output), 1), collectedMemo(ref(output)), ref(finalAlias), ref(alias), ref(lazy)]], [
+            ['define', lazy, ['array', [4]], 'lazy'], ['define', alias, ref(lazy), 'lazy'], ['loop', outer],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array)
+        assertStructurallySame(value, [[[4], 7], [[4], 9], 9, [4], [4]])
+        assertEq(value[0][0], value[1][0])
+        assertEq(value[0][0], value[3])
+        assertEq(value[3], value[4])
+    },
+    loopMemoNestedZeroResultRequiredDemand: () => {
+        const lazy = id(0), observed = id(0)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [], initial: [], results: [],
+            body: body(['break', loopTarget, []], [['define', observed, ref(lazy), 'required']]),
+        })
+        const outer = collectingInnerMemo(inner, 2, true, 7)
+        assertEq(evaluate(fromFast(result(9, [['define', lazy, ['array', [4]], 'lazy'], ['loop', outer]]))), 9)
+        const failed = fromFast(result(9, [
+            ['define', lazy, ['block', body(['throw', 'required nested demand'])], 'lazy'], ['loop', outer],
+        ]))
+        assertEq(assertError(memo(assertOk(identityAnalysis(failed)))({ args: [] })), 'required nested demand')
+    },
     loopMemoTerminalReturnsIgnoreUnsupportedSuffix: () => {
         const selected = id(0), prerequisite = id(0), dependent = id(0)
         const source = collectingMemo(ref(dependent))
