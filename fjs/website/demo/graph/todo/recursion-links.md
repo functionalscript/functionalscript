@@ -80,8 +80,8 @@ review; spacing and local routes should already make membership clear.
 
 ### Tasks
 
-- [ ] Define component membership and placement in the shared renderer, with
-  examples for both EDAG recursion and RTTI recursive schemas.
+- [ ] Identify the nodes in each cycle and arrange them together, keeping
+  unrelated nodes outside. Check this with EDAG and RTTI examples.
 - [ ] Route recursion within component regions and bundle returns by target,
   retaining original edge identities and source-port tracing.
 - [ ] Implement segment-aware union highlighting and preserve individual
