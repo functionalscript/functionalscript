@@ -146,7 +146,22 @@ Memo-bearing statement helpers may return to their exact enclosing source
 function. Return payloads demand the current cells before completion lowering
 propagates the source value through nested helpers. Normal exits still carry
 the updated vector for following work; a function return needs no resumable
-vector. Standalone and operand regions do not inherit function ownership.
+vector. Standalone blocks do not invent function ownership.
+
+At source-function entry, [`operands`](./operands/module.f.mjs) lifts owning
+returns in direct plain value blocks and conditionals used as required
+initializers or return payloads. Within an exposed region, a single yielded
+value can expose another such region. Statement blocks and conditionals bind
+the normal value before its consumer; terminal returns skip that consumer and
+following work. Zero/many normal results retain their existing array packing.
+The lift runs before memo and loop-completion normalization, so reached lazy
+demands and normal-path updates use the same state transport. No-return input
+retains its existing graph path and syntax identity.
+
+Conditional tests, multi-result yield operands, lazy initializers, function
+captures and arbitrary operator operands retain their evaluation boundaries.
+Loop transfers cannot escape a lifted operand's own loop scope. Ordinary
+nested functions are normalized at their own function entry.
 
 Statement-level breaks and continues to enclosing loops carry their latest
 memo vector with the target's user results or next state. A lexical owner chain
@@ -287,7 +302,7 @@ contract. Existing source round trips retain
 their analysis-normalized comparison, including the documented lazy-region
 splits and redundant-anchor normalization.
 
-These increments do not complete epic E. Nonlocal exits across value operands,
+These increments do not complete epic E. Remaining value-operand exits,
 rest invocation reconstruction and broader lazy demand-state lifetimes remain
 explicit E/F work. Unsupported forms are refused
 explicitly. Foreign or nonlexical loop targets remain refused, as do foreign
