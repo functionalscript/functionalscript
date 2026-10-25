@@ -35,15 +35,14 @@ export const spiderMonkeyDevelop = command => `mise -E spidermonkey exec -- ${co
 
 /** @import { Job, Jobs, Step } from '../common/types.ts' */
 
-const nixPrefix = /** @type {const} */ ('sh ./gen.nix/run ')
+import { commandPrefix } from '../environment/module.f.mjs'
 
 /** @type {(step: Step, action: string) => boolean} */
 const action = (step, name) => step.uses?.startsWith(`${name}@`) === true
 
 /** Setup-node remains only where the packed consumer deliberately leaves the environment. */
 /** @type {(step: Step) => boolean} */
-const replacedSetup = step => action(step, 'cachix/install-nix-action')
-    || action(step, 'dtolnay/rust-toolchain')
+const replacedSetup = step => action(step, 'dtolnay/rust-toolchain')
     || action(step, 'actions/setup-node') && step.with?.['package-manager-cache'] !== 'false'
 
 /**
@@ -57,7 +56,7 @@ const migratedStep = step => {
     if (run === undefined || step['working-directory'] !== undefined) { return step }
     const spiderMonkey = run.includes('js --version') || run.includes('npm run sm ')
     const prefix = spiderMonkey ? spiderMonkeyDevelop('') : miseDevelop('')
-    const translated = run.replaceAll(nixPrefix, prefix)
+    const translated = run.replaceAll(commandPrefix, prefix)
         .replaceAll('$(node --version)', '$(mise exec -- node --version)')
         // Upstream Wasmtime adds its build id; compare the configured version.
         .replaceAll('wasmtime --version)', "wasmtime --version | cut -d' ' -f1,2)")
@@ -76,8 +75,7 @@ const migratedStep = step => {
 }
 
 /**
- * The repository-only migration. Generic `fjs ci` still emits its complete
- * standalone Nix setup; callers select mise only with their own manifests.
+ * CI execution using the checkout's committed tool manifest and lock.
  * @type {(jobs: Jobs, rust: boolean) => Jobs}
  */
 export const miseJobs = (jobs, rust) => Object.fromEntries(definedEntries(jobs).map(([id, job]) => {

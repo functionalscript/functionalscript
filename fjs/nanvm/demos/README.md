@@ -42,4 +42,4 @@ are on the [Undecided](../../../spec/undecided/README.md) page.
   sample's WAT beside it. Both are ignored build artifacts. Cloudflare builds
   them before generating the website.
   For a local website build, first run
-  `sh ./gen.nix/run sh ./nanvm/demos/gen.build.sh`, then `npm run website`.
+  `./dev.sh sh ./nanvm/demos/gen.build.sh`, then `npm run website`.

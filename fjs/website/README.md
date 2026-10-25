@@ -16,7 +16,7 @@ it does it that way, is in its own JSDoc.
 the directory it describes, and `.gitignore` keeps `index.html` and the
 `_`-prefixed files out of the tree.
 
-The one build that does not run in the repository's Nix shell is this one.
+The one build that does not run in the repository's development environment is this one.
 Cloudflare's Workers Builds generates the site on its own image and takes
 its Node version from [`.node-version`](../../.node-version) at the repository
 root — the file exists for that reader alone, and nothing else in the
@@ -212,7 +212,7 @@ the Rust API reference ([the Rust API reference](#the-rust-api-reference)). The 
 the script is what keeps its steps in the repository, where they are reviewed
 and have a history. `npm run website` stays the generator alone: a checkout
 first builds the WASM assets with
-`sh ./gen.nix/run sh ./nanvm/demos/gen.build.sh`, then runs `npm run website`.
+`./dev.sh sh ./nanvm/demos/gen.build.sh`, then runs `npm run website`.
 Only the deploy carries the installs. The dashboard's command falls back to `npm run website` where the
 script is absent ([Configure Cloudflare](#configure-cloudflare)), so a branch
 from before the script keeps its preview.
@@ -222,8 +222,7 @@ Rust, and the script installs one with `rustup`'s installer, at exactly `rust`
 from [`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one
 constant the shared shell and the platform matrix also take. The script is
 generated from that constant by
-[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), as `gen.nix/flake.nix`
-is, so the version is written in the script in full, a bump of the pin is a
+[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), so the version is written in the script in full, a bump of the pin is a
 diff the drift check guards, and nothing in the dashboard names a version
 that could drift. The toolchain goes into the build container's home, and
 its `cargo` is on the script's `PATH`. `target/`, which `cargo doc` writes
@@ -231,14 +230,12 @@ beside the docs, is in [`.assetsignore`](../../.assetsignore) and never
 served.
 
 Installing Rust in the build was chosen over the alternative, building and
-deploying from CI in the Nix shell with `wrangler`, for what it keeps:
+deploying from CI in the development environment with `wrangler`, for what it keeps:
 Cloudflare builds every branch and gives each its preview URL, and no
 Cloudflare token goes to GitHub. The alternative would have one environment
 for everything, but would move branch previews into the generated workflow
 and leave a fork's pull request, which gets no secrets, without one. The
-build image cannot hold the shell itself: it ships no Nix, a build runs
-unprivileged and cannot create `/nix`, and the shell's closure would be
-fetched whole on every deploy against a twenty-minute limit. What this
+build installs only the tools it needs within the deployment time limit. What this
 choice costs is `rustup`'s download and install on every deploy. The repository owner approved the script's
 invocation of `curl`, `rustup`'s installer, `npm` and `cargo`
 ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).

@@ -1,7 +1,7 @@
 import { shellSpiderMonkeyCommands, shellSpiderMonkeyVersionSteps } from './module.f.mjs'
 import { spidermonkey } from '../config/module.f.js'
-import { nixDevelop } from '../nix/module.f.mjs'
-import { _runs } from '../nix/testlib.f.mjs'
+import { environmentCommand } from '../environment/module.f.mjs'
+import { toSteps } from '../common/module.f.mjs'
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {
@@ -9,8 +9,8 @@ export const proof = {
     // developer runs: the compile check, then the suite.
     ubuntuArm: () => {
         assertStructurallySame(
-            _runs(shellSpiderMonkeyVersionSteps('ubuntu', 'arm')),
-            [`test "$(${nixDevelop('js --version')})" = "JavaScript-C${spidermonkey.version}"`])
+            toSteps(shellSpiderMonkeyVersionSteps('ubuntu', 'arm')).flatMap(step => step.run === undefined ? [] : [step.run]),
+            [`test "$(${environmentCommand('js --version')})" = "JavaScript-C${spidermonkey.version}"`])
         assertStructurallySame(shellSpiderMonkeyCommands('ubuntu', 'arm'), ['npm run sm c', 'npm run sm t'])
     },
     // Every other platform runs nothing for SpiderMonkey: one job is enough,

@@ -239,8 +239,7 @@ supplying one.
 
 **CI generation is not stable for third-party consumption**, so its breaking
 entries owe no migration at all
-([README.md](./README.md#entries)). `fjs/ci` and the `NixJob`, `MetaStep` and
-Nix-expression shapes it generates from are this repository's build machinery;
+([README.md](./README.md#entries)). `fjs/ci` and its `Setup` and `MetaStep` configuration shapes are this repository's build machinery;
 they are recorded because contributors read the notes, not because anyone is
 invited to build against them.
 
@@ -276,7 +275,7 @@ version command in `./dev.sh` in a worktree at the `gitHead`
 
 Compare their output with the record. Check the passing CI version assertions
 for that commit on each platform too, including `setup-node` and clean packed
-consumers outside Nix. A mismatch is recorded as what shipped and fixed for the
+consumers outside the repository environment. A mismatch is recorded as what shipped and fixed for the
 next release through
 [the version-update acceptance procedure](../fjs/ci/update-versions.md); it is
 not another supported version to add to the record.

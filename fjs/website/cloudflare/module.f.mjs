@@ -9,8 +9,7 @@
  * **Generated rather than written**, because of the version in it. The
  * toolchain it installs is {@link rust} from `fjs/ci/config` — the constant
  * the shared shell and the platform matrix also take. Written out in full, a
- * bump of the pin is a diff in this script that the drift check guards, as it
- * is in `gen.nix/flake.nix`; read at run time, nothing committed would say
+ * bump of the pin is a diff in this script that the drift check guards, rather than reading it at build time; otherwise nothing committed would say
  * which Rust the site is built with.
  *
  * @module
@@ -25,7 +24,7 @@ import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStyleshee
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 
 /**
- * The generated directory, beside `gen.nix/` at the repository root, where
+ * The generated directory at the repository root, where
  * `wrangler.jsonc`, `.assetsignore` and `.node-version` already are for
  * Cloudflare's sake.
  *
@@ -83,8 +82,7 @@ npm run website
 `
 
 /**
- * Writes the script. No mode is set: Cloudflare runs it through `sh`, as CI
- * runs `gen.nix/run`, and the effects layer sets none.
+ * Writes the script. No mode is set: Cloudflare runs it through `sh`.
  *
  * @type {Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */

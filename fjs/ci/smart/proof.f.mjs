@@ -188,21 +188,6 @@ export const proof = /** @type {const} */ ({
             assertEq(source.steps.filter(step => step.run === 'npm start ci report suite').length, 1)
         }
     },
-    /** Generic smart CI callers may still select the Nix environment. */
-    nixEnvironment: () => {
-        const nix = uses('cachix/install-nix-action')
-        const nixSuite = /** @type {const} */ ({ run: 'sh ./gen.nix/run node --test' })
-        const source = cached([nix, nixSuite])
-        assertEq(source.steps.find(step => step.uses === nix.uses)?.if, "steps.init.outputs.hit-suite != 'true'")
-        assertEq(stepWith(source, nixSuite.run).if, "steps.init.outputs.hit-suite != 'true'")
-        assertStructurallySame(checks('node26', job([nix, nixSuite])), [
-            { id: 'suite', rung: 'js', steps: [nix, nixSuite] },
-        ])
-        const generator = /** @type {const} */ ({ run: 'sh ./gen.nix/run npm run gen' })
-        const uncached = cached([nix, nixSuite, generator])
-        assertEq(uncached.steps.find(step => step.uses === nix.uses)?.if, undefined)
-        assertEq(stepWith(uncached, generator.run).if, undefined)
-    },
     /** An unclassified operation runs and certifies nothing. */
     unknown: () => {
         const source = cached([{ run: 'custom-command' }, {}])
