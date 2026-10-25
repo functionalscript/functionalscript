@@ -115,7 +115,7 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       implemented, along with statement-level function returns and outer-loop
       transfers. Helper callers and canonical invocation roots share normal
       continuations at graph construction. Caller-owned lazy cells and dependent
-      recipes cross normal-exit helpers; operand control and broader memo
+      recipes cross nested normal-exit helpers; operand control and broader memo
       lifetimes remain open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the

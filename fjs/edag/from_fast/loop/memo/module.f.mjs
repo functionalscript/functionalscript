@@ -184,7 +184,7 @@ const exitTask = (exit, context) => call(() => {
 /** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context) => Task<{ readonly statements: List<Statement>; readonly memo: BindingId; readonly usesMemo: boolean }>} */
 const loopTask = (loop, context) => call(() => {
     if (!context.plan.loops.has(loop)) {
-        if (freeLoopBindings(loop).some(id => context.aliases.has(id))) { throw 'memo demands in operand-owned or nested loop helpers are not supported yet' }
+        if (freeLoopBindings(loop).some(id => context.aliases.has(id))) { throw 'memo demands in operand-owned loop helpers are not supported yet' }
         return bind(valuesTask(loop.initial, context), initial => done({
             statements: concat(initial.statements)([['loop', initial.values.every((value, i) => value === loop.initial[i]) ? loop : { ...loop, initial: initial.values }]]),
             memo: initial.memo, usesMemo: initial.usesMemo,

@@ -407,6 +407,99 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.definitions.get(plan.cells[0].definition), 0)
         assertEq(plan.definitions.get(plan.cells[1].definition), 1)
     },
+    nestedCallerCells: () => {
+        for (const depth of [2, 3]) {
+            const targets = Array.from({ length: depth }, () => /** @type {const} */ ({ kind: 'loop', index: 0 }))
+            let sourceLoop = reading(b, targets[depth - 1])
+            for (let index = depth - 2; index >= 0; --index) {
+                sourceLoop = loopOf(body([['loop', sourceLoop]], ['break', targets[index], [0]]), targets[index])
+            }
+            const plan = planned(containing(sourceLoop, [
+                ['define', a, ['array', []], 'lazy'], ['define', b, ['array', [['ref', a]]], 'lazy'],
+            ]))
+            const definitions = definitionsOf(plan.block)
+            assertEq(plan.cells.length, 2)
+            assertEq(plan.cells[0].binding, a)
+            assertEq(plan.cells[1].binding, b)
+            assertEq(plan.definitions.get(definitions[0]), 0)
+            assertEq(plan.definitions.get(definitions[1]), 1)
+            assertEq(plan.loops.size, depth)
+            const selected = [...plan.loops]
+            let loop = loopsOf(plan.block)[0]
+            for (let index = 0; index < depth; ++index) {
+                assertEq(loop, selected[index])
+                assertEq(loop.target, targets[index])
+                if (index + 1 !== depth) { loop = loopsOf(loop.body)[0] }
+            }
+        }
+    },
+    nestedSiblingCellOrder: () => {
+        const secondTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const first = reading(b, innerTarget)
+        const second = reading(a, secondTarget)
+        const outer = loopOf(body([['loop', first], ['loop', second]], ['break', target, [0]]))
+        const plan = planned(containing(outer, [
+            ['define', a, ['array', [1]], 'lazy'], ['define', b, ['array', [2]], 'lazy'],
+        ]))
+        const definitions = definitionsOf(plan.block)
+        const parent = loopsOf(plan.block)[0]
+        const children = loopsOf(parent.body)
+        assertEq(plan.cells.length, 2)
+        assertEq(plan.cells[0].binding, a)
+        assertEq(plan.cells[1].binding, b)
+        assertEq(plan.definitions.get(definitions[0]), 0)
+        assertEq(plan.definitions.get(definitions[1]), 1)
+        assertEq(plan.loops.size, 3)
+        assertEq([...plan.loops][0], parent)
+        assertEq([...plan.loops][1], children[0])
+        assertEq([...plan.loops][2], children[1])
+        assertEq(children[0].target, first.target)
+        assertEq(children[1].target, second.target)
+    },
+    nestedConditionalAliases: () => {
+        const otherwiseTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const outer = loopOf(body([
+            ['if', [], ['ref', known],
+                body([['define', alias, ['ref', b], 'lazy'], ['loop', reading(alias, innerTarget)]]),
+                body([['define', alias, ['ref', a], 'lazy'], ['loop', reading(alias, otherwiseTarget)]])],
+        ], ['break', target, [0]]))
+        const plan = planned(containing(outer, [
+            ['define', a, ['array', [1]], 'lazy'], ['define', b, ['array', [2]], 'lazy'],
+        ]))
+        const parent = loopsOf(plan.block)[0]
+        const conditional = parent.body.statements[0]
+        assert(conditional[0] === 'if')
+        assertEq(plan.cells.length, 2)
+        assertEq(plan.cells[0].binding, a)
+        assertEq(plan.cells[1].binding, b)
+        assertEq(plan.definitions.size, 4)
+        assertEq(plan.definitions.get(definitionsOf(conditional[3])[0]), 1)
+        assertEq(plan.definitions.get(definitionsOf(conditional[4])[0]), 0)
+        assertEq(plan.loops.size, 3)
+        assertEq(plan.loops.has(parent), true)
+        assertEq(plan.loops.has(loopsOf(conditional[3])[0]), true)
+        assertEq(plan.loops.has(loopsOf(conditional[4])[0]), true)
+    },
+    nestedInitialDemands: () => {
+        for (const readsCaller of [false, true]) {
+            const inner = /** @type {Loop} */ ({
+                target: innerTarget, parameters: [known], initial: [['ref', a]], results: [result],
+                body: body([], ['break', innerTarget, [['array', [['ref', known], ...(readsCaller ? [/** @type {Value} */ (['ref', a])] : [])]]]]),
+            })
+            const outer = loopOf(body([['loop', inner]], ['break', target, [0]]))
+            const plan = planned(containing(outer))
+            const parent = loopsOf(plan.block)[0]
+            const child = loopsOf(parent.body)[0]
+            assertEq(plan.cells.length, 1)
+            assertEq(plan.cells[0].binding, a)
+            assertEq(plan.definitions.get(plan.cells[0].definition), 0)
+            assertEq(plan.loops.size, readsCaller ? 2 : 1)
+            assertEq(plan.loops.has(parent), true)
+            assertEq(plan.loops.has(child), readsCaller)
+            assertEq(child.initial, inner.initial)
+            assertEq(child.parameters, inner.parameters)
+        }
+    },
     statementScopes: () => {
         const first = reading(a)
         const second = reading(b, innerTarget)
@@ -495,10 +588,21 @@ export const proof = /** @type {const} */ ({
         iterationLocalDependent: () => memoCells(containing(loopOf(body([
             ['define', b, ['array', [['ref', a]]], 'lazy'],
         ], ['break', target, [['ref', a]]])))),
-        nestedBoundary: () => {
-            const inner = reading(a, innerTarget)
-            return memoCells(containing(loopOf(body([['loop', inner]], ['break', target, [0]]))))
-        },
+        iterationLocalWithCallerPrerequisite: () => memoCells(body([
+            ['define', known, 7, 'required'],
+            ['loop', loopOf(body([
+                ['define', a, ['array', [['ref', known]]], 'lazy'], ['loop', reading(a, innerTarget)],
+            ], ['break', target, [0]]))],
+        ])),
+        nestedMemoReturn: () => memoCells(containing(loopOf(body([
+            ['loop', loopOf(body([], ['return', functionTarget, ['ref', a]]), innerTarget)],
+        ], ['break', target, [0]])))),
+        nestedMemoAncestorBreak: () => memoCells(containing(loopOf(body([
+            ['loop', loopOf(body([], ['break', target, [['ref', a]]]), innerTarget)],
+        ], ['break', target, [0]])))),
+        nestedMemoAncestorContinue: () => memoCells(containing(loopOf(body([
+            ['loop', loopOf(body([], ['continue', target, [['ref', a]]]), innerTarget)],
+        ], ['break', target, [0]])))),
         enclosingReturn: () => memoCells(containing(loopOf(body([], ['return', functionTarget, ['ref', a]])))),
         foreignBreak: () => memoCells(containing(loopOf(body([], ['break', innerTarget, [['ref', a]]])))),
         foreignContinue: () => memoCells(containing(loopOf(body([], ['continue', innerTarget, [['ref', a]]])))),

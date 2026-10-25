@@ -1703,15 +1703,6 @@ export const proof = {
             })
             calledFunction(fn)
         },
-        loopMemoNestedBoundary: () => {
-            const lazy = id(0)
-            const inner = collectingMemo(ref(lazy))
-            const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
-            const outer = /** @type {Loop} */ ({
-                target: outerTarget, parameters: [], initial: [], results: [], body: body(['break', outerTarget, []], [['loop', inner]]),
-            })
-            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', outer]]))
-        },
         loopMemoMemberArgumentDemand: () => {
             const lazy = id(0)
             const loop = collectingMemo(['.', null, 'x', ['|()', [ref(lazy)]]])

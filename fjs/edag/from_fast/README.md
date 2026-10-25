@@ -120,8 +120,14 @@ This avoids repeated expansion of conditional dependency diamonds. Full-vector
 replacement still copies the cell slots; the growth proofs account for that
 transport cost.
 
-Recipe-local computed lazy dependents, iteration-local or nested memo
-boundaries, escaping helper completions and stateful member-call/optional/spread
+Nested statement-loop helpers carry the same caller-owned vector at every
+selected boundary. Inner results return their updates before outer transitions
+or following caller demands. Later inner entries reuse those owning cells;
+skipped inner or outer loops leave recipes deferred. Inner entry expressions
+use the current outer vector even when the inner body needs no memo state.
+
+Recipe-local computed lazy dependents, iteration-local cells,
+escaping helper completions and stateful member-call/optional/spread
 operands retain explicit refusals. Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
 External lazy environments without an AST recipe retain the existing refusal.
