@@ -198,6 +198,7 @@ export const spidermonkey = /** @type {const} */ ({
 // `` `${name}@${actions[name]}` ``.
 // Note: dtolnay/rust-toolchain value is a Rust version, not an action version.
 export const actions = /** @type {const} */({
+    'jdx/mise-action': 'v3',
     // https://github.com/marketplace/actions/checkout
     'actions/checkout': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-node-js-environment

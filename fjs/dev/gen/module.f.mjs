@@ -1,9 +1,9 @@
 /**
  * `npm run gen`: every generated output of this repository regenerated from
- * nothing, as one program. {@link generators} is the regeneration, in the
+ * source, as one program. {@link generators} is the regeneration, in the
  * order it needs, with the reason for each position beside it; a new generated
- * output is a new entry there and nothing else. The lock script that ends it
- * is {@link lock}.
+ * output is a new entry there and nothing else. Regeneration invokes no Nix
+ * subprocess; {@link lock} remains a separate legacy dependency-update API.
  *
  * A program rather than the shell chain `package.json` used to hold: a chain
  * names each generator a second time by path, cannot say why its order is
@@ -39,13 +39,13 @@ import { main as cloudflare } from '../../website/cloudflare/module.f.mjs'
  * @type {readonly NodeProgram[]}
  */
 export const generators = [
-    // Cleanup first: every `gen.*` deleted, so regeneration starts from
+    // Cleanup first: generated sources deleted (legacy flake.lock preserved), so regeneration starts from
     // nothing — an output no generator writes any more shows up as a
     // deletion, and a generator that needs a previous output, its own or
     // another's, fails.
     clean,
-    // The CI workflows and shared Nix flake. Writes `gen.nix/`, which the lock
-    // step at the end locks, so it must precede that step.
+    // CI workflows and the optional local Nix environment. Its dependency
+    // lock is refreshed explicitly, not during source generation in CI.
     ci,
     // The NaNVM Rust test corpus, methods table and values fixture, from the
     // shared test data.
@@ -89,7 +89,7 @@ export const lockEnded = ([tag, value]) => {
 }
 
 /**
- * The last step: the generated lock script, which locks the shared flake from its
+ * Explicit dependency-update API: the generated legacy lock script, which locks the shared flake from its
  * pinned commit, run on this process's terminal so that what Nix prints
  * reaches the reader as it is printed and in order. A `spawn` rather than an
  * `exec` for exactly that — `exec` buffers both streams until the child exits
@@ -107,4 +107,4 @@ export const lock = resultStep(
     })
 
 /** @type {NodeProgram} */
-export const main = options => step(sequence(generators)(options), () => lock)
+export const main = sequence(generators)

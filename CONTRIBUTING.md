@@ -80,6 +80,11 @@ latest, which is not the compiler CI runs.
 
 ### The Nix shell
 
+On the mise CI trial branch, repository CI uses the root mise manifests on all
+six native platforms. See [the CI trial notes](./doc/mise-trial/CI.md).
+The Nix shell and devcontainer remain available for local development; their
+system-library setup differs from the mise runner prerequisites.
+
 `gen.nix/` is a development environment carrying every tool in that table at
 the versions CI uses. It is not a convenience built alongside CI: every job runs
 its commands inside this very shell, so what passes here is what passes there,
@@ -131,8 +136,8 @@ full shared toolchain on the slow Intel runner. Intel macOS contributors and
 agents install the tools needed for their work from the [Requirements](#requirements)
 table at the exact versions in `fjs/ci/config/module.f.js`; type-checking and
 package generation also need the pinned TypeScript compiler. Run the normal
-check commands directly. `npm run gen` requires Nix and must run on a supported
-platform, or in the Linux devcontainer.
+check commands directly. `npm run gen` requires Node and runs without Nix;
+refreshing the optional legacy flake lock still requires Nix.
 
 One build runs outside it: Cloudflare's Workers Builds generates the website on
 its own image and reads its Node version from `.node-version`, which is why that
@@ -330,19 +335,14 @@ Nix flakes, `fjs/nanvm`'s Rust test data, a `nanvm-harness` fixture. `gen` is
 one program, [`fjs/dev/gen/module.f.mjs`](./fjs/dev/gen/module.f.mjs): its
 `generators` list is every generator in the order regeneration needs, the
 reason for each position beside it, and a new generated output is a new entry
-there. It needs Node and Nix: its last step runs the generated
-`gen.nix/lock-update.sh` on the terminal, which locks each flake from its
-pinned commit after the cleanup below emptied `gen.nix/`, so on Windows it
-runs where Nix does: in WSL2 or a container. The dependency lockfiles it never
-touches.
+there. It needs Node; the mise CI trial runs it without Nix. The optional
+legacy Nix environment remains generated, but its committed `gen.nix/flake.lock`
+is preserved as a dependency lock. Refresh it explicitly through
+`npm run lock-update` after changing the Nix pins.
 
-`gen` starts by deleting every generated output — the same module as
-`npm run gen:clean`, `fjs/dev/clean` — so regeneration starts from nothing: an output no
-generator writes any more shows up as a deletion, and a generator that needs
-a previous output — its own or another's — fails. The `flake.lock` files are
-held to the same standard by the lock script `gen` ends with: deleted, then
-locked again from the pinned commit, so a committed lock is byte-identical to
-what that commit produces from nothing. CI's drift check runs `gen` and then
+`gen` starts by deleting generated outputs through `fjs/dev/clean`, except that
+legacy dependency lock. An output no generator writes any more shows up as a
+deletion, and every source generator runs again. CI's drift check runs `gen` and then
 `git add -A && git diff --cached --exit-code`; run the same two commands to
 see what CI will. The cleanup lives in `gen` rather than in its own CI step
 because the workflow `fjs ci` generates is shared with downstream projects,
@@ -382,10 +382,10 @@ prefix, since GitHub reads any name in `.github/workflows/`; npm trusted
 publishing is bound to `gen.npm-publish.yml`'s exact name, so a project that
 renames it updates its trusted publisher on npm as well
 ([fjs/ci/README.md](./fjs/ci/README.md#the-publishing-workflow)). The
-dependency lockfiles are not generated outputs: `npm run lock-update`
-refreshes them, not `gen`. The `flake.lock` files are: `gen:clean` deletes
-them with the rest of `gen.nix/`, and `gen.nix/lock-update.sh` writes them
-back from the pinned commits.
+dependency lockfiles are refreshed by `npm run lock-update`, not `gen`.
+The legacy `gen.nix/flake.lock` is also preserved during cleanup, so keeping
+the optional Nix development environment does not make CI regeneration
+depend on Nix.
 
 ### Updating dependencies
 

@@ -1,6 +1,6 @@
 /**
- * Proofs for the regeneration program: its order, its stopping, and its lock
- * step, run against the virtual filesystem with the subprocess slice answered
+ * Proofs for source regeneration and the separate legacy lock-update API,
+ * run against the virtual filesystem with the subprocess slice answered
  * as each proof says.
  *
  * @import { Child, ExitStatus, NodeOp, NodeProgram } from '../../effects/node/types.ts'
@@ -109,8 +109,7 @@ const root = {
 const says = s => () => exitStep(log(s))
 
 export const proof = {
-    // The order is the design's: cleanup, then the generators, the one that
-    // writes the flakes before the lock step that reads them.
+    // Source regeneration has a stable order; dependency updates are separate.
     generators: () => {
         assertEq(generators.length, 7)
         assert(generators[0] === clean)
@@ -183,14 +182,13 @@ export const proof = {
         },
     },
     main: {
-        // Every generator against a filesystem holding what it reads, then
-        // the lock step: exit `0`, the outputs written, the script started
-        // exactly once and last — the flakes it locks are there by then.
+        // Every source generator runs, outputs are written, and dependency
+        // locking starts no subprocess during CI regeneration.
         regenerates: () => {
             const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
             const [state, code] = run({ ...emptyState, root })(main(defaultNodeProgramOptions))
             assertEq(exitCode(code), 0, state.stderr)
-            assertEq(spawned(), 1)
+            assertEq(spawned(), 0)
             const github = state.root['.github']
             assert(typeof github === 'object' && !(github instanceof Array))
             assert('workflows' in github)

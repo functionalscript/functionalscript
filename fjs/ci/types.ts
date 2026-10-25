@@ -23,6 +23,8 @@ export type PackageConsumer = {
 }
 
 export type Setup = {
+    /** Use existing project-owned mise manifests instead of the default generated Nix setup. */
+    readonly environment?: 'mise',
     readonly nodeExtra: (os: Os, architecture: Architecture) => readonly MetaStep[],
     /** Cache this repository's successful check groups by their committed inputs. */
     readonly smart?: boolean,
