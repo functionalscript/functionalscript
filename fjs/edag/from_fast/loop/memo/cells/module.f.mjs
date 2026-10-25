@@ -7,12 +7,12 @@
  *
  * @module
  *
- * @import { BindingId, Block, Definition, Exit, FunctionTarget, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Exit, FunctionTarget, Loop, LoopTarget, Statement, Value } from '../../../../../js/ast/types.ts'
  * @import { List } from '../../../../../types/list/types.ts'
  * @import { Link } from '../../../private.ts'
  * @import { Task } from '../../../task/types.ts'
  * @import { MemoLayout, MemoPlan, RecipePlan } from './types.ts'
- * @import { _LoopInfo, _Occurrence, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _TransferVisit, _Visit } from './private.ts'
+ * @import { _LoopInfo, _Occurrence, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _Transfer, _Visit } from './private.ts'
  */
 
 import { exitValues, freeBindings, freeLoopBindings } from '../../../control/module.f.mjs'
@@ -84,25 +84,66 @@ const dependencyClosure = (roots, crossing) => {
 }
 
 /**
- * Nested ordinary loops retain their own transfers. A source return may
- * cross helpers only when its exact function owner is known; resumable outer
- * loop transfers still require completion-bearing memo state.
- * @type {(loop: Loop, functionTarget: FunctionTarget | null) => void}
+ * Collect transfers owned by this loop's statement regions. Nested loops have
+ * their own inventory rows; operands and ordinary functions retain their owner.
+ * @type {(loop: Loop) => readonly _Transfer[]}
  */
-const normalTransfers = (loop, functionTarget) => {
-    /** @type {Link<_TransferVisit> | null} */
-    let pending = { first: { block: loop.body, loop }, tail: null }
+const loopTransfers = loop => {
+    /** @type {Link<Block> | null} */
+    let pending = { first: loop.body, tail: null }
+    /** @type {List<_Transfer>} */
+    let transfers = null
     while (pending !== null) {
-        const { first: visit, tail } = /** @type {Link<_TransferVisit>} */ (pending)
-        const exit = visit.block.exit
-        if (exit[0] === 'return' && exit[1] !== functionTarget || (exit[0] === 'break' || exit[0] === 'continue') && exit[1] !== visit.loop.target) {
-            throw 'memo helper escaping transfers require completion demand-state lowering'
-        }
-        const children = visit.block.statements.flatMap(statement => statement[0] === 'block'
-            ? [{ block: statement[2], loop: visit.loop }]
-            : statement[0] === 'if' ? [{ block: statement[3], loop: visit.loop }, { block: statement[4], loop: visit.loop }]
-            : statement[0] === 'loop' ? [{ block: statement[1].body, loop: statement[1] }] : [])
+        const { first: block, tail } = /** @type {Link<Block>} */ (pending)
+        const exit = block.exit
+        if (exit[0] === 'return' || exit[0] === 'break' || exit[0] === 'continue') { transfers = { first: exit, tail: transfers } }
+        const children = block.statements.flatMap(statement => statement[0] === 'block' ? [statement[2]]
+            : statement[0] === 'if' ? [statement[3], statement[4]] : [])
         pending = children.reduceRight((tail, first) => ({ first, tail }), tail)
+    }
+    return toArray(transfers).toReversed()
+}
+
+/** Nearest lexical ownership distinguishes shared syntax from sibling targets. @type {(info: _LoopInfo, target: LoopTarget) => Loop | null} */
+const transferLoop = (info, target) => {
+    if (info.loop.target === target) { return info.loop }
+    let ancestors = info.ancestors
+    while (ancestors !== null) {
+        if (ancestors.first.target === target) { return ancestors.first }
+        ancestors = ancestors.tail
+    }
+    return null
+}
+
+/**
+ * A control-only helper escaping a selected ancestor must carry the same
+ * vector. Selecting its intermediates can expose further such targets, so
+ * close that selection before restoring the inventory's lexical order.
+ * @type {(inventory: readonly _LoopInfo[], crossing: readonly _LoopInfo[]) => ReadonlySet<Loop>}
+ */
+const selectedLoops = (inventory, crossing) => {
+    /** @type {ReadonlySet<Loop>} */
+    let selected = new Set(crossing.flatMap(info => [...toArray(info.ancestors), info.loop]))
+    while (true) {
+        const added = inventory.filter(info => !selected.has(info.loop) && info.transfers.some(exit => {
+            if (exit[0] === 'return') { return false }
+            const target = transferLoop(info, exit[1])
+            return target !== null && selected.has(target)
+        }))
+        if (added.length === 0) { return new Set(inventory.filter(info => selected.has(info.loop)).map(info => info.loop)) }
+        selected = new Set([...selected, ...added.flatMap(info => [...toArray(info.ancestors), info.loop])])
+    }
+}
+
+/** Validate only regions reached through memo helpers; raw outer exits stay raw. @type {(inventory: readonly _LoopInfo[], selected: ReadonlySet<Loop>, functionTarget: FunctionTarget | null) => void} */
+const validateTransfers = (inventory, selected, functionTarget) => {
+    for (const info of inventory) {
+        if (!selected.has(info.loop) && !toArray(info.ancestors).some(loop => selected.has(loop))) { continue }
+        for (const exit of info.transfers) {
+            if (exit[0] === 'return' ? exit[1] !== functionTarget : transferLoop(info, exit[1]) === null) {
+                throw 'memo helper transfer must name its lexical owner'
+            }
+        }
     }
 }
 
@@ -158,7 +199,7 @@ export const memoCells = (block, externalLazyIds = [], functionTarget = null) =>
                 const root = scope.get(binding)
                 return root === undefined || root === null ? [] : [root]
             })
-            if (free.length !== 0) { inventory = [...inventory, { loop, roots: free, ancestors }] }
+            inventory = [...inventory, { loop, roots: free, ancestors, transfers: loopTransfers(loop) }]
             pending = {
                 first: { block: loop.body, index: 0, scope: established(scope, loop.parameters), ancestors: { first: loop, tail: ancestors } },
                 tail: { first: { ...next, scope: established(scope, loop.results) }, tail },
@@ -170,17 +211,15 @@ export const memoCells = (block, externalLazyIds = [], functionTarget = null) =>
         const rest = { first: { ...next, scope: established(scope, statement[1]) }, tail }
         pending = children.reduceRight((tail, block) => ({ first: { block, index: 0, scope, ancestors }, tail }), /** @type {Link<_Visit> | null} */ (rest))
     }
-    if (inventory.length === 0) { return null }
-    const cells = dependencyClosure(roots, roots.filter(root => inventory.some(info => info.roots.includes(root))))
+    const crossing = inventory.filter(info => info.roots.length !== 0)
+    if (crossing.length === 0) { return null }
+    const cells = dependencyClosure(roots, roots.filter(root => crossing.some(info => info.roots.includes(root))))
     const recipes = cells.map(({ binding, source }) => {
         if (source === null) { throw 'external lazy memo prerequisites require an owned initializer recipe' }
         return { binding, initializer: source.definition[2], definition: source.definition, iterationLocal: source.insideLoop }
     })
-    // A local recipe is bound inside its owner, so free-loop dependencies
-    // alone need not select that owner. Every enclosing helper transports
-    // the vector that the reached local declaration resets.
-    const loops = new Set(inventory.flatMap(info => [...toArray(info.ancestors).toReversed(), info.loop]))
-    for (const loop of loops) { normalTransfers(loop, functionTarget) }
+    const loops = selectedLoops(inventory, crossing)
+    validateTransfers(inventory, loops, functionTarget)
     return {
         block: prepared,
         cells: recipes,

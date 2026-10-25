@@ -147,8 +147,18 @@ function. Return payloads demand the current cells before completion lowering
 propagates the source value through nested helpers. Normal exits still carry
 the updated vector for following work; a function return needs no resumable
 vector. Standalone and operand regions do not inherit function ownership.
-Outer-loop transfers and stateful member-call/optional/spread
-operands retain explicit refusals. Ordinary nested functions keep their own
+
+Statement-level breaks and continues to enclosing loops carry their latest
+memo vector with the target's user results or next state. A lexical owner chain
+maps source targets to their private transport loops by identity. Control-only
+helpers that escape to a selected ancestor join the same protocol, including
+intermediate helpers with no lazy reads. Completion dispatch relays the packet
+until the target processes its own result or transition. A continue retains
+caller and enclosing-iteration cells; reaching local declarations in the next
+iteration resets only those lifetimes. No helper invokes an enclosing helper.
+
+Stateful member-call/optional/spread operands retain explicit refusals.
+Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
 External lazy environments without an AST recipe retain the existing refusal.
 Value-owned loops normalize their own local recipes; a recipe outside that

@@ -1,4 +1,4 @@
-/** Normal-exit loop memo normalization worklists. @module */
+/** Loop memo normalization worklists. @module */
 
 import type { BindingId, Block, Exit, LoopTarget, Statement, Value } from '../../../../js/ast/types.ts'
 import type { List } from '../../../../types/list/types.ts'
@@ -7,7 +7,7 @@ import type { MemoLayout } from './cells/types.ts'
 export type _LoopOwner = { readonly source: LoopTarget; readonly target: LoopTarget }
 /** Each getter owns a fixed prefix; narrower calls preserve their caller's suffix. */
 export type _Recipe = { readonly binding: BindingId; readonly width: number }
-export type _Context = { readonly plan: MemoLayout; readonly aliases: ReadonlyMap<BindingId, number>; readonly recipes: readonly _Recipe[]; readonly memo: BindingId; readonly loop: _LoopOwner | null; readonly operand: boolean }
+export type _Context = { readonly plan: MemoLayout; readonly aliases: ReadonlyMap<BindingId, number>; readonly recipes: readonly _Recipe[]; readonly memo: BindingId; readonly owners: List<_LoopOwner>; readonly operand: boolean }
 export type _Value = { readonly statements: List<Statement>; readonly value: Value; readonly memo: BindingId; readonly usesMemo: boolean }
 export type _Values = { readonly statements: List<Statement>; readonly values: readonly Value[]; readonly memo: BindingId; readonly usesMemo: boolean }
 export type _Block = { readonly block: Block; readonly memo: BindingId; readonly normal: boolean; readonly usesMemo: boolean }
