@@ -86,6 +86,8 @@ export const proof = {
         assertEq(f.pending[0].initialize, false)
         f.flush()
         assertEq(f.state, 'second')
+        assertEq(f.status.textContent, '')
+        assertEq(f.status.hidden, true)
         assertEq(f.restores, 1)
         assertEq(f.details.open, true)
         assertEq(f.scrolls, 1)
@@ -93,6 +95,7 @@ export const proof = {
         assertEq(f.pending[0].initialize, true)
         f.flush()
         assertEq(f.state, 'first')
+        assertEq(f.status.hidden, true)
         f.hash('#documentation')
         f.flush()
         assertEq(f.restores, 2)
@@ -118,6 +121,8 @@ export const proof = {
         assert(encoded[0] === 'ok')
         f.hash(encoded[1]); f.flush()
         assertStructurallySame(f.state, { text: 'Hello 🌍', choice: 'b', checked: false })
+        assertEq(f.status.textContent, '')
+        assertEq(f.status.hidden, true)
         assertEq(f.restores, 1)
     },
     startupAndLaterEdits: () => {

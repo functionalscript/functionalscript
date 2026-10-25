@@ -41,7 +41,7 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         // Construct the whole state only after every field has passed validation.
         const state = sharing.restore(inputs[1])
         controller.replace(state, () => {
-            report('Demo inputs restored.')
+            report('')
             view.requestAnimationFrame(() => revealFragment(root.ownerDocument))
         }, () => {
             const edited = inputRevision !== controller.revision() || earlyEdits !== root.getAttribute('data-demo-input-edited')
