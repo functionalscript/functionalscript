@@ -248,7 +248,7 @@ const lowerValues = (input, context) => {
 /** @type {(fn: FastFunction, context: Context) => Task<Lowered>} */
 const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
-    const memoized = normalizeMemo(source.body)
+    const memoized = normalizeMemo(source.body, [], source.target)
     /** @type {FastFunction} */
     const prepared = memoized === source.body ? source : { ...source, body: memoized }
     const originalScalar = rootLoopOf(prepared)

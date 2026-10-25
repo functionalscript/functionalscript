@@ -142,7 +142,12 @@ prefix with the caller's unchanged local suffix, so ready siblings survive an
 outer dependency's first demand. Returning trims the local extension while
 retaining parent updates and the identities of returned or captured payloads.
 
-Escaping helper completions and stateful member-call/optional/spread
+Memo-bearing statement helpers may return to their exact enclosing source
+function. Return payloads demand the current cells before completion lowering
+propagates the source value through nested helpers. Normal exits still carry
+the updated vector for following work; a function return needs no resumable
+vector. Standalone and operand regions do not inherit function ownership.
+Outer-loop transfers and stateful member-call/optional/spread
 operands retain explicit refusals. Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
 External lazy environments without an AST recipe retain the existing refusal.

@@ -115,8 +115,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       implemented, along with statement-level function returns and outer-loop
       transfers. Helper callers and canonical invocation roots share normal
       continuations at graph construction. Memo cells preserve caller, iteration
-      and initializer lifetimes through nested normal-exit helpers; operand
-      control and escaping memo completions remain open.
+      and initializer lifetimes through nested normal-exit helpers and owning
+      source-function returns; operand control and outer-loop memo transfers
+      remain open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

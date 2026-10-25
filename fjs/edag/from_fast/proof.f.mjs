@@ -1677,9 +1677,9 @@ export const proof = {
             const block = result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]])
             lowerValue(['block', block], [], () => ({ exp: 7, anchors: [] }))
         },
-        loopMemoEscapingReturn: () => {
+        loopMemoForeignReturn: () => {
             const lazy = id(0)
-            const loop = returningLoop(false, ref(lazy), [7])
+            const loop = returningLoop(false, ref(lazy), [7], { ...target })
             const fn = /** @type {FastFunction} */ ({
                 target, parameters: [], rest: null, self: null, captures: [],
                 body: body(['return', target, 9], [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]),
@@ -1723,9 +1723,9 @@ export const proof = {
             })
             calledFunction(fn)
         },
-        loopReturnLazyInnerCapture: () => {
+        loopReturnLazyInnerForeignOwner: () => {
             const lazy = id(0)
-            const inner = returningLoop(true, ref(lazy))
+            const inner = returningLoop(true, ref(lazy), [], { ...target })
             const outer = returningLoop(false, 7)
             const nested = /** @type {Loop} */ ({
                 ...outer, body: body(['break', outer.target, []], [

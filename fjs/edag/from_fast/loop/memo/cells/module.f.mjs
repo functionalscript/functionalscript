@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { BindingId, Block, Definition, Exit, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Exit, FunctionTarget, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
  * @import { List } from '../../../../../types/list/types.ts'
  * @import { Link } from '../../../private.ts'
  * @import { Task } from '../../../task/types.ts'
@@ -84,17 +84,18 @@ const dependencyClosure = (roots, crossing) => {
 }
 
 /**
- * Nested ordinary loops may retain their own transfers. Crossing any helper
- * exit requires the later completion-bearing memo protocol.
- * @type {(loop: Loop) => void}
+ * Nested ordinary loops retain their own transfers. A source return may
+ * cross helpers only when its exact function owner is known; resumable outer
+ * loop transfers still require completion-bearing memo state.
+ * @type {(loop: Loop, functionTarget: FunctionTarget | null) => void}
  */
-const normalTransfers = loop => {
+const normalTransfers = (loop, functionTarget) => {
     /** @type {Link<_TransferVisit> | null} */
     let pending = { first: { block: loop.body, loop }, tail: null }
     while (pending !== null) {
         const { first: visit, tail } = /** @type {Link<_TransferVisit>} */ (pending)
         const exit = visit.block.exit
-        if (exit[0] === 'return' || (exit[0] === 'break' || exit[0] === 'continue') && exit[1] !== visit.loop.target) {
+        if (exit[0] === 'return' && exit[1] !== functionTarget || (exit[0] === 'break' || exit[0] === 'continue') && exit[1] !== visit.loop.target) {
             throw 'memo helper escaping transfers require completion demand-state lowering'
         }
         const children = visit.block.statements.flatMap(statement => statement[0] === 'block'
@@ -112,9 +113,9 @@ const normalTransfers = loop => {
  * aliases and recipes. Declaration rows keep lexical shadows distinct from
  * earlier reads; selected external entries cannot become eager captures.
  * Unsupported lifetimes are refused before any recipe moves.
- * @type {(block: Block, externalLazyIds?: readonly BindingId[]) => MemoPlan | null}
+ * @type {(block: Block, externalLazyIds?: readonly BindingId[], functionTarget?: FunctionTarget | null) => MemoPlan | null}
  */
-export const memoCells = (block, externalLazyIds = []) => {
+export const memoCells = (block, externalLazyIds = [], functionTarget = null) => {
     const prepared = run(occurrenceBlock(block)).block
     /** @type {readonly _Root[]} */
     const external = externalLazyIds.map(binding => ({ binding, source: null, dependencies: [] }))
@@ -179,7 +180,7 @@ export const memoCells = (block, externalLazyIds = []) => {
     // alone need not select that owner. Every enclosing helper transports
     // the vector that the reached local declaration resets.
     const loops = new Set(inventory.flatMap(info => [...toArray(info.ancestors).toReversed(), info.loop]))
-    for (const loop of loops) { normalTransfers(loop) }
+    for (const loop of loops) { normalTransfers(loop, functionTarget) }
     return {
         block: prepared,
         cells: recipes,
