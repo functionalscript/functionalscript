@@ -166,11 +166,15 @@ terminal owning returns skip the consumer and suffix. The lift runs before memo
 and loop-completion lowering, preserving their shared identity and state rules.
 No-return inputs retain their existing syntax identity.
 
-Eager unary/binary operands, plain spread-free call callees/arguments and value
-or statement conditional tests can lift through the same regions. Earlier
-operands become required snapshots before a later region can return; only the
-normal path applies the operation or call. Callee evaluation precedes arguments,
-while callable validation follows them. A terminal guard skips both arms.
+Eager unary/binary operands, `instanceof` values, plain spread-free call
+callees/arguments and value or statement conditional tests can lift through
+the same regions. Earlier operands become required snapshots before a later
+region can return; only the normal path applies the operation or call. Callee
+evaluation precedes arguments, while callable validation follows them. A
+terminal guard skips both arms.
+The `instanceof` constructor remains literal metadata: only its value operand
+is evaluated. A returning operand skips the check; normal completion retains
+the Boolean result.
 Required callee snapshots can introduce redundant anchors in the new eager-call
 graph domain: its mixed recursive fixture has 24 then 22 nodes and stabilizes
 by the third graph conversion. Every intermediate preserves arity, captures,
@@ -192,9 +196,9 @@ Only normal completion builds the object from established string keys and
 values, retaining duplicate-key and enumeration rules, `__proto__` as data and
 value identities. No-return inputs retain their original object syntax.
 Plain-call admission retains member/native callee provenance through wrappers
-and comma results. `instanceof`, ordinary multiple-binding yield
-operands, lazy initializers, captures, member/native calls, optional forms and
-spreads remain separate boundaries. A loop transfer cannot escape the operand's
+and comma results. Ordinary multiple-binding yield operands, lazy initializers,
+captures, member/native calls, optional forms and spreads remain separate
+boundaries. A loop transfer cannot escape the operand's
 locally owned loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
@@ -433,6 +437,8 @@ their documented normalization. Repeated conversions must stabilize.
       and multiple normal-yield values in admitted value regions.
 - [x] Lift owning returns through non-spread object keys and values, performing
       key conversion before each property value and preserving object identity.
+- [x] Lift owning returns through the `instanceof` value operand, preserving
+      literal constructor metadata and normal Boolean results.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their

@@ -34,7 +34,7 @@ export const proof = /** @type {const} */ ({
             ['block', body(['throw', 7])],
             ['if', true, yielded([3]), body(['throw', 7])], ['?:', true, 1, 2],
             ['+', 1], ['+', 1, 2], ['()', ref(value), []],
-            ['instanceof', ['block', returned(3)], 'Array'],
+            ['instanceof', ref(value), 'Array'],
             ['object', []], ['object', [[':', 'x', ref(value)]]],
             ['object', [['...', ['object', []]], [':', 'x', ['block', returned(3)]]]],
             ['object', [[':', ['block', returned(3)], 1], ['...', ['object', []]]]],
@@ -296,6 +296,65 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(region.exit, ['yield', [[tag, ref(snapshot[1]), ref(operand[1][0])]]])
         }
     },
+    instanceofOperands: () => {
+        const value = id(), condition = id(), output = id(), after = id(), before = id()
+        const prefix = /** @type {Statement} */ (['define', before, 4, 'required'])
+        const operands = /** @type {readonly Value[]} */ ([
+            ['block', yielded([ref(value)], [prefix, ['if', [], ref(condition), returned(7), yielded([])]])],
+            ['if', ref(condition), returned(7), yielded([ref(value)])],
+        ])
+        for (const operand of operands) {
+            const expression = /** @type {Value} */ (['instanceof', operand, 'Array'])
+            const source = returned(expression)
+            const result = liftReturns(source, owner)
+            const region = blockOf(result.statements[0])
+            assertEq(region.statements.length, 1)
+            const input = region.statements[0]
+            assert(input[0] === 'block' || input[0] === 'if')
+            assertStructurallySame(region.exit, ['yield', [['instanceof', ref(input[1][0]), 'Array']]])
+            assert(region.exit[0] === 'yield')
+            const check = region.exit[1][0]
+            assert(check instanceof Array && check[0] === 'instanceof')
+            const read = check[1]
+            assert(read instanceof Array && read[0] === 'ref')
+            assertEq(read[1], input[1][0])
+            assertEq(liftReturns(result, owner), result)
+            const suffix = /** @type {Statement} */ (['define', after, ref(output), 'required'])
+            const required = body(['return', owner, ref(after)], [['define', output, expression, 'required'], suffix])
+            const normalized = liftReturns(required, owner)
+            const initialized = normalized.statements[0]
+            assert(initialized[0] === 'block')
+            assertEq(initialized[1][0], output)
+            assertEq(normalized.statements[1], suffix)
+            assertEq(liftReturns(normalized, owner), normalized)
+        }
+        for (const operand of /** @type {readonly Value[]} */ ([null, 0, ['array', []], ['object', []], ['block', yielded([ref(value)])]])) {
+            const source = returned(['instanceof', operand, 'Array'])
+            assertEq(liftReturns(source, owner), source)
+        }
+        const payload = /** @type {Value} */ (['array', [4]])
+        const terminal = liftReturns(returned(['instanceof', ['block', returned(payload)], 'Array']), owner)
+        const check = blockOf(terminal.statements[0])
+        assertEq(check.statements.length, 1)
+        assertStructurallySame(blockOf(check.statements[0]).exit, ['return', owner, payload])
+        assertStructurallySame(check.exit, ['yield', []])
+        assertStructurallySame(terminal.exit, ['yield', []])
+    },
+    instanceofCallee: () => {
+        const value = id(), condition = id()
+        const operand = /** @type {Value} */ (['if', ref(condition), returned(7), yielded([ref(value)])])
+        const source = returned(['()', ['instanceof', operand, 'Array'], [['block', returned(8)]]])
+        const result = liftReturns(source, owner)
+        const call = blockOf(result.statements[0])
+        assertEq(call.statements.length, 2)
+        const check = blockOf(call.statements[0])
+        const input = check.statements[0]
+        assert(input[0] === 'if')
+        assertStructurallySame(check.exit, ['yield', [['instanceof', ref(input[1][0]), 'Array']]])
+        assertStructurallySame(call.exit, ['yield', []])
+        assertStructurallySame(result.exit, ['yield', []])
+        assertEq(liftReturns(result, owner), result)
+    },
     rawLogicalOperators: () => {
         const output = id()
         const cases = /** @type {const} */ ([
@@ -487,7 +546,7 @@ export const proof = /** @type {const} */ ({
     deepEagerChain: () => {
         /** @type {Value} */
         let value = ['block', returned(7)]
-        for (let depth = 0; depth < 20_000; ++depth) { value = ['!', value] }
+        for (let depth = 0; depth < 20_000; ++depth) { value = depth % 2 === 0 ? ['!', value] : ['instanceof', value, 'Array'] }
         const result = liftReturns(returned(value), owner)
         let current = result
         for (let depth = 0; depth < 20_001; ++depth) {
@@ -527,6 +586,16 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(blockOf(current.statements[0]).exit, ['return', owner, 7])
     },
     throw: {
+        instanceofForeignReturn: () => liftReturns(returned(['instanceof', ['block', body(['return', other, 7])], 'Array']), owner),
+        instanceofEnclosingLoopEscape: () => {
+            const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const value = id()
+            return liftReturns(body(['return', owner, 7], [
+                ['loop', { target, parameters: [], initial: [], results: [], body: body(['break', target, []], [
+                    ['define', value, ['instanceof', ['block', body(['continue', target, []])], 'Array'], 'required'],
+                ]) }],
+            ]), owner)
+        },
         foreignReturn: () => liftReturns(returned(['block', body(['return', other, 3])]), owner),
         foreignConditionalReturn: () => liftReturns(returned(['if', true, body(['return', other, 3]), yielded([7])]), owner),
         enclosingLoopEscape: () => {
