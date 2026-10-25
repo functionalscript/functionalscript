@@ -6,7 +6,7 @@
  *
  * @module
  *
- * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Exit, Function as FastFunction, FunctionTarget, Loop, Operator, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { List } from '../../../../types/list/types.ts'
  * @import { MemoLayout } from './cells/types.ts'
  * @import { _Block, _Context, _Exit, _Recipe, _Value, _Values } from './private.ts'
@@ -315,11 +315,12 @@ const blockTask = (block, context) => {
  * Normalize only local lazy values that actually cross a statement-loop helper.
  * The original block identity is returned when no such cells exist. Generated
  * required cells make repeated normalization a no-op. External lazy bindings
- * have no available recipe and remain explicit admission boundaries.
- * @type {(root: Block, externalLazyIds?: readonly BindingId[]) => Block}
+ * have no available recipe and remain explicit admission boundaries. Only a
+ * source function supplies the owner for returns across statement helpers.
+ * @type {(root: Block, externalLazyIds?: readonly BindingId[], functionTarget?: FunctionTarget | null) => Block}
  */
-export const normalizeMemo = (root, externalLazyIds = []) => {
-    const plan = memoCells(root, externalLazyIds)
+export const normalizeMemo = (root, externalLazyIds = [], functionTarget = null) => {
+    const plan = memoCells(root, externalLazyIds, functionTarget)
     if (plan === null) { return root }
     const memo = binding()
     const recipes = plan.cells.map(cell => ({ binding: binding(cell.binding.index), width: plan.cells.length }))

@@ -1,5 +1,5 @@
 /**
- * @import { BindingId, Function as FastFunction, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Function as FastFunction, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
  * @import { Exp } from '../../../../types.ts'
  * @import { Environment } from '../../../types.ts'
  */
@@ -42,7 +42,235 @@ const localPairRecipe = (local, initializer) => ['block', result(['array', [ref(
     ['define', local, initializer, 'lazy'],
 ])]
 
+/** @type {(makeBody: (target: Loop['target']) => Block, results?: readonly BindingId[]) => Loop} */
+const exitMemoLoop = (makeBody, results = []) => {
+    const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    return { target: loopTarget, parameters: [], initial: [], results, body: makeBody(loopTarget) }
+}
+
 export const proof = /** @type {const} */ ({
+    loopMemoReturnNestedIdentity: () => {
+        const caller = id(0), dependent = id(0), dead = id(0)
+        const inner = exitMemoLoop(loopTarget => body(['break', loopTarget, []], [
+            ['if', [], true, body(['return', target, ['array', [ref(dependent), ref(dependent), ref(caller)]]]), body(['yield', []])],
+        ]))
+        const outer = exitMemoLoop(loopTarget => body(['break', loopTarget, []], [['loop', inner]]))
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, 9], [
+                ['define', caller, ['array', [4]], 'lazy'], ['define', dependent, ['array', [ref(caller)]], 'lazy'],
+                ['loop', outer], ['define', dead, ['block', body(['throw', 'unreachable nested suffix'])], 'required'],
+            ]),
+        })
+        const value = evaluate(calledFunction(fn))
+        assert(value instanceof Array && value[0] instanceof Array)
+        assertStructurallySame(value, [[[4]], [[4]], [4]])
+        assertEq(value[0], value[1])
+        assertEq(value[0][0], value[2])
+    },
+    loopMemoReturnFirstLastAndNormalIterations: () => {
+        const stop = id(0), caller = id(0), dependent = id(0), count = id(0), saved = id(0), output = id(0), observed = id(0)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loop = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [count, saved], initial: [0, null], results: [output],
+            body: body(['continue', loopTarget, [ref(count), ref(saved)]], [
+                ['if', [], ['<', ref(count), 3], body(['continue', loopTarget, [['+', ref(count), 1], ref(dependent)]], [
+                    ['define', observed, ref(dependent), 'required'],
+                    ['if', [], ['===', ref(count), ref(stop)],
+                        body(['return', target, ['array', [ref(dependent), ref(dependent), ref(caller), ref(count), 'returned']]]), body(['yield', []])],
+                ]), body(['break', loopTarget, [ref(saved)]])],
+            ]),
+        })
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [stop], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', [ref(output), ref(dependent), ref(caller), 3, 'normal']]], [
+                ['define', caller, ['array', [4]], 'lazy'], ['define', dependent, ['array', [ref(caller)]], 'lazy'], ['loop', loop],
+            ]),
+        })
+        for (const stopAt of /** @type {const} */ ([0, 2, 99])) {
+            const value = evaluate(calledFunction(fn, [stopAt]))
+            assert(value instanceof Array && value[0] instanceof Array)
+            assertEq(value[0], value[1])
+            assertEq(value[0][0], value[2])
+            assertEq(value[3], stopAt === 99 ? 3 : stopAt)
+            assertEq(value[4], stopAt === 99 ? 'normal' : 'returned')
+        }
+    },
+    loopMemoReturnCapturedLocalLifetimes: () => {
+        const caller = id(0), local = id(0), selected = id(0), recipeLocal = id(0), captured = id(0)
+        const factoryBinding = id(0), firstFn = id(0), secondFn = id(0), first = id(0), repeated = id(0), second = id(0)
+        const userTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const userFn = /** @type {FastFunction} */ ({
+            target: userTarget, parameters: [], rest: null, self: null, captures: [{ binding: captured, value: ref(selected) }],
+            body: body(['return', userTarget, ['array', [ref(captured), ref(captured)]]]),
+        })
+        const inner = exitMemoLoop(loopTarget => body(['break', loopTarget, []], [
+            ['if', [], ['===', ['.', ref(local), 1], 1], body(['return', target, ['function', userFn]]), body(['yield', []])],
+        ]))
+        const outer = collectingInnerMemo(inner, 3, true, ref(selected), index => [
+            ['define', local, ['array', [ref(caller), index]], 'lazy'],
+            ['define', selected, localPairRecipe(recipeLocal, ['array', [ref(local)]]), 'lazy'],
+        ])
+        const factory = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, null], [['define', caller, ['array', ['caller']], 'lazy'], ['loop', outer]]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(first), ref(repeated), ref(second)]], [
+            ['define', factoryBinding, ['function', factory], 'required'],
+            ['define', firstFn, ['()', ref(factoryBinding), []], 'required'], ['define', secondFn, ['()', ref(factoryBinding), []], 'required'],
+            ['define', first, ['()', ref(firstFn), []], 'required'], ['define', repeated, ['()', ref(firstFn), []], 'required'],
+            ['define', second, ['()', ref(secondFn), []], 'required'],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array && value[2] instanceof Array)
+        assertEq(value[0][0], value[0][1])
+        assertEq(value[0][0], value[1][0])
+        assertEq(value[2][0], value[2][1])
+        const left = value[0][0], right = value[2][0]
+        assert(left instanceof Array && right instanceof Array && left[0] instanceof Array && right[0] instanceof Array
+            && left[0][0] instanceof Array && right[0][0] instanceof Array)
+        assertEq(left[0], left[1])
+        assertEq(right[0], right[1])
+        assertStructurallySame(left[0][0], [['caller'], 1])
+        assertStructurallySame(right[0][0], [['caller'], 1])
+        assert(left !== right && left[0] !== right[0] && left[0][0] !== right[0][0])
+    },
+    loopMemoReturnSelectedAndSkippedRecipes: () => {
+        const selected = id(0), caller = id(0), output = id(0)
+        const loop = exitMemoLoop(loopTarget => body(['break', loopTarget, []], [
+            ['if', [], ref(selected), body(['return', target, ['array', [ref(caller), ref(caller)]]]), body(['yield', []])],
+        ]))
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: body(['return', target, 7], [['define', caller, ['block', body(['throw', 'selected return recipe'])], 'lazy'], ['loop', loop]]),
+        })
+        assertEq(evaluate(calledFunction(fn, [false])), 7)
+        assertEq(assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [true]))))({ args: [] })), 'selected return recipe')
+        const literalFalse = exitMemoLoop(loopTarget => body(['break', loopTarget, [7]], [
+            ['if', [], false, body(['return', target, ref(caller)]), body(['break', loopTarget, [7]])],
+        ]), [output])
+        const skipped = /** @type {FastFunction} */ ({ ...fn, parameters: [], body: body(['return', target, 9], [
+            fn.body.statements[0], ['loop', literalFalse],
+        ]) })
+        assertEq(evaluate(calledFunction(skipped)), 9)
+        const local = id(0)
+        const innerTrue = exitMemoLoop(loopTarget => body(['break', loopTarget, []], [
+            ['if', [], true, body(['return', target, ref(local)]), body(['yield', []])],
+        ]))
+        const outer = exitMemoLoop(loopTarget => body(['break', loopTarget, []], [
+            ['define', local, ['array', [3]], 'lazy'], ['loop', innerTrue],
+        ]))
+        const returned = /** @type {FastFunction} */ ({ ...fn, parameters: [], body: body(['return', target, 9], [['loop', outer]]) })
+        assertStructurallySame(evaluate(calledFunction(returned)), [3])
+    },
+    loopMemoReturnRequiredPrefixes: () => {
+        const selected = id(0), caller = id(0), prefix = id(0), suffix = id(0)
+        for (const fails of /** @type {const} */ ([false, true])) {
+            const loop = exitMemoLoop(loopTarget => body(['break', loopTarget, []], [
+                ['define', prefix, fails ? ['block', body(['throw', 'required return prefix'])] : ['array', [4]], 'required'],
+                ['if', [], ref(selected), body(['return', target, ref(caller)]), body(['return', target, 7])],
+                ['define', suffix, ['block', body(['throw', 'unreachable helper suffix'])], 'required'],
+            ]))
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [selected], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [
+                    ['define', caller, ['block', body(['throw', 'unused return recipe'])], 'lazy'], ['loop', loop],
+                    ['define', suffix, ['block', body(['throw', 'unreachable caller suffix'])], 'required'],
+                ]),
+            })
+            const graph = calledFunction(fn, [false])
+            if (fails) { assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 'required return prefix') }
+            else { assertEq(evaluate(graph), 7) }
+        }
+    },
+    loopMemoReturnSequentialState: () => {
+        const selected = id(0), caller = id(0), dependent = id(0), output = id(0), allocation = id(0)
+        const first = collectingMemo(ref(dependent), 2)
+        const second = exitMemoLoop(loopTarget => body(['break', loopTarget, [['array', [ref(dependent), ref(caller)]]]], [
+            ['if', [], ref(selected), body(['return', target, ['array', [collectedMemo(ref(first.results[0])), ref(dependent), ref(caller)]]]), body(['yield', []])],
+        ]), [output])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', [ref(allocation), ref(allocation), ref(dependent), ref(caller)]]], [
+                ['define', caller, ['array', [4]], 'lazy'], ['define', dependent, ['array', [ref(caller)]], 'lazy'],
+                ['loop', first], ['loop', second], ['define', allocation, ['array', [ref(output), ref(dependent)]], 'required'],
+            ]),
+        })
+        const returned = evaluate(calledFunction(fn, [true]))
+        assert(returned instanceof Array && returned[0] instanceof Array)
+        assertEq(returned[0], returned[1])
+        assertEq(returned[0][0], returned[2])
+        const normal = evaluate(calledFunction(fn, [false]))
+        assert(normal instanceof Array && normal[0] instanceof Array && normal[0][0] instanceof Array && normal[2] instanceof Array)
+        assertEq(normal[0], normal[1])
+        assertEq(normal[0][0][0], normal[2])
+        assertEq(normal[0][0][1], normal[3])
+        assertEq(normal[0][1], normal[2])
+        assertEq(normal[2][0], normal[3])
+    },
+    loopMemoReturnTagPayloadsAndResultArities: () => {
+        const selected = id(0), caller = id(0), payload = id(0)
+        for (const tag of /** @type {const} */ (['normal', 'return'])) {
+            for (const normalValues of /** @type {readonly (readonly Value[])[]} */ ([[], [0], [1, 2, 3]])) {
+                const outputs = normalValues.map(() => id(0))
+                const loop = exitMemoLoop(loopTarget => body(['break', loopTarget, normalValues], [
+                    ['if', [], ref(selected), body(['return', target, ref(payload)]), body(['yield', []])],
+                ]), outputs)
+                const fn = /** @type {FastFunction} */ ({
+                    target, parameters: [selected], rest: null, self: null, captures: [],
+                    body: body(['return', target, ['array', [['array', outputs.map(ref)], ref(payload), ref(caller)]]], [
+                        ['define', caller, ['array', [4]], 'lazy'], ['define', payload, ['array', [tag, ['array', [ref(caller)]]]], 'lazy'], ['loop', loop],
+                    ]),
+                })
+                assertStructurallySame(evaluate(calledFunction(fn, [true])), [tag, [[4]]])
+                const normal = evaluate(calledFunction(fn, [false]))
+                assert(normal instanceof Array && normal[1] instanceof Array && normal[1][1] instanceof Array)
+                assertStructurallySame(normal[0], normalValues)
+                assertEq(normal[1][0], tag)
+                assertEq(normal[1][1][0], normal[2])
+            }
+        }
+    },
+    loopMemoReturnMetadataAndRoundTrip: () => {
+        const again = id(0), argument = id(0), rest = id(0), captured = id(0), self = id(0), caller = id(0), selected = id(0), local = id(0)
+        const loop = exitMemoLoop(loopTarget => body(['break', loopTarget, []], [
+            ['if', [], ref(again), body(['return', target, ['()', ref(self), [false, ['+', ref(argument), 1], 99]]]),
+                body(['return', target, ['array', [ref(selected), ref(selected), ref(caller), ref(rest), ref(captured)]]])],
+        ]))
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [again, argument], rest, self, captures: [{ binding: captured, value: ['array', [4]] }],
+            body: body(['return', target, 9], [
+                ['define', caller, ['array', [ref(captured), ref(argument)]], 'lazy'],
+                ['define', selected, localPairRecipe(local, ['array', [ref(caller), ref(rest)]]), 'lazy'], ['loop', loop],
+            ]),
+        })
+        const graph = fromFast(result(['function', fn]))
+        assert(graph instanceof Array && graph[0] === '=>')
+        assertEq(graph[1], 2)
+        assertEq(graph[2].length, 1)
+        assert(assertOk(identityAnalysis(graph)).nodes.some(node => node[0] === 'self'))
+        const value = evaluate(calledFunction(fn, [false, 5, 7, 8]))
+        assert(value instanceof Array && value[0] instanceof Array && value[0][0] instanceof Array && value[2] instanceof Array)
+        assertEq(value[0], value[1])
+        assertEq(value[0][0], value[0][1])
+        assertEq(value[0][0][0], value[2])
+        assertEq(value[0][0][1], value[3])
+        assertEq(value[2][0], value[4])
+        assertStructurallySame(value[2], [[4], 5])
+        assertStructurallySame(value[3], [7, 8])
+        const recurred = evaluate(calledFunction(fn, [true, 5, 7, 8]))
+        assert(recurred instanceof Array)
+        assertStructurallySame(recurred[2], [[4], 6])
+        assertStructurallySame(recurred[3], [99])
+        const second = fromFast(assertOk(toFast(graph)))
+        const third = fromFast(assertOk(toFast(second)))
+        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+        const call = /** @type {Exp} */ (['()', third, [false, 5, 7, 8]])
+        const repeated = evaluate(call)
+        assert(repeated instanceof Array && repeated[0] instanceof Array && repeated[0][0] instanceof Array)
+        assertEq(repeated[0], repeated[1])
+        assertEq(repeated[0][0], repeated[0][1])
+        assertEq(repeated[0][0][0], repeated[2])
+    },
     loopMemoRecipeLocalIdentity: () => {
         const caller = id(0), selected = id(0), local = id(0)
         const loop = collectingMemo(ref(selected), 2)
@@ -653,7 +881,8 @@ export const proof = /** @type {const} */ ({
     loopMemoTerminalReturnsIgnoreUnsupportedSuffix: () => {
         const selected = id(0), prerequisite = id(0), dependent = id(0)
         const source = collectingMemo(ref(dependent))
-        const loop = /** @type {Loop} */ ({ ...source, body: body(['return', target, ref(dependent)]) })
+        const foreign = /** @type {const} */ ({ ...target })
+        const loop = /** @type {Loop} */ ({ ...source, body: body(['return', foreign, ref(dependent)]) })
         for (const wrapped of /** @type {const} */ ([false, true])) {
             const terminal = /** @type {Statement} */ (wrapped
                 ? ['block', [], body(['return', target, ['?:', ref(selected), 7, 8]])]
@@ -1327,6 +1556,41 @@ export const proof = /** @type {const} */ ({
         }
     },
     throw: {
+        loopMemoReturnWithoutOwner: () => {
+            const caller = id(0)
+            const loop = exitMemoLoop(() => body(['return', target, ref(caller)]))
+            fromFast(result(7, [['define', caller, ['array', [4]], 'lazy'], ['loop', loop]]))
+        },
+        loopMemoReturnAncestorBreak: () => {
+            const caller = id(0), output = id(0)
+            const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const inner = exitMemoLoop(() => body(['break', outerTarget, [ref(caller)]]))
+            const outer = /** @type {Loop} */ ({
+                target: outerTarget, parameters: [], initial: [], results: [output],
+                body: body(['break', outerTarget, [null]], [['loop', inner]]),
+            })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, ref(output)], [['define', caller, ['array', [4]], 'lazy'], ['loop', outer]]),
+            })
+            calledFunction(fn)
+        },
+        loopMemoReturnAncestorContinue: () => {
+            const caller = id(0), count = id(0), output = id(0), observed = id(0)
+            const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const inner = exitMemoLoop(() => body(['continue', outerTarget, [['+', ref(count), 1]]], [['define', observed, ref(caller), 'required']]))
+            const outer = /** @type {Loop} */ ({
+                target: outerTarget, parameters: [count], initial: [0], results: [output],
+                body: body(['break', outerTarget, [ref(count)]], [
+                    ['if', [], ['<', ref(count), 1], body(['break', outerTarget, [null]], [['loop', inner]]), body(['yield', []])],
+                ]),
+            })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, ref(output)], [['define', caller, ['array', [4]], 'lazy'], ['loop', outer]]),
+            })
+            calledFunction(fn)
+        },
         loopMemoRecipeLocalOperandLoop: () => {
             const caller = id(0), selected = id(0), local = id(0)
             const inner = collectingMemo(ref(local), 2), outer = collectingMemo(ref(selected), 2)
@@ -1351,23 +1615,11 @@ export const proof = /** @type {const} */ ({
             })
             calledFunction(fn)
         },
-        loopMemoIterationLocalEscapingReturn: () => {
-            const local = id(0)
-            const inner = collectingMemo(ref(local), 2)
-            const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
-            const outer = /** @type {Loop} */ ({
-                target: loopTarget, parameters: [], initial: [], results: [],
-                body: body(['return', target, 9], [['define', local, ['array', [4]], 'lazy'], ['loop', inner]]),
-            })
-            const fn = /** @type {FastFunction} */ ({
-                target, parameters: [], rest: null, self: null, captures: [], body: body(['return', target, 7], [['loop', outer]]),
-            })
-            calledFunction(fn)
-        },
-        loopMemoReachableUnsupportedSuffix: () => {
+        loopMemoReachableForeignReturnSuffix: () => {
             const selected = id(0), prerequisite = id(0), dependent = id(0)
             const source = collectingMemo(ref(dependent))
-            const loop = /** @type {Loop} */ ({ ...source, body: body(['return', target, ref(dependent)]) })
+            const foreign = /** @type {const} */ ({ ...target })
+            const loop = /** @type {Loop} */ ({ ...source, body: body(['return', foreign, ref(dependent)]) })
             const fn = /** @type {FastFunction} */ ({
                 target, parameters: [selected], rest: null, self: null, captures: [],
                 body: body(['return', target, 9], [

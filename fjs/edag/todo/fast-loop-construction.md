@@ -83,8 +83,10 @@ initialization uses the existing failure channel and never supplies a ready
 cell. Conditional regions update only the selected arm's state.
 
 Internal continues carry next user state and memo state simultaneously.
-Normal and escaping helper completions carry the updated memo vector back to
-the caller, which retains it for subsequent demands and sequential loops.
+Normal helper completions and resumable outer-loop transfers carry the updated
+memo vector back to the caller for subsequent demands and sequential loops.
+Source-function returns demand their payload before propagating it; the owning
+function exits without resuming memo state.
 Nested helpers receive the same owning cells and return their updates to
 their caller; no generated helper directly invokes an enclosing helper.
 The declared normalized loop input and result signatures remain unchanged.
@@ -149,7 +151,12 @@ Each initializer call appends fresh local cells, with getters created at their
 reached declarations. Narrower dependency calls receive only their prefix and
 merge returned updates with the caller's local suffix. A getter returns its
 parent width, retaining dependency updates and any returned payload identities.
-Escaping memo completions remain a following increment.
+Statement helpers may return to the exact enclosing source function. Memo
+normalization evaluates the return payload with the current cells, then the
+existing completion pass propagates that payload through enclosing helpers.
+The function exits with its source value; normal helper exits still carry the
+memo vector for following work. Standalone and operand regions do not inherit
+function ownership. Outer-loop transfers remain a following increment.
 Stateful member-call/optional/spread operands retain explicit refusals until their
 evaluation boundary is owned below. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
@@ -389,7 +396,7 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Give computed lazy bindings inside initializers recipe-owned cells.
       Preserve local sharing, skipped demands and fresh local lifetimes when
       an owning initializer is evaluated again.
-- [ ] Return from memo-bearing statement helpers to the owning source function.
+- [x] Return from memo-bearing statement helpers to the owning source function.
       Preserve demanded payload identity, normal-path updates and skipped failures.
 - [ ] Carry shared demand state through outer-loop breaks and continues.
       Preserve fresh iteration lifetimes and selected updates through every completion.
