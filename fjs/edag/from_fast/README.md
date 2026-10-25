@@ -6,7 +6,7 @@ admission and loop-state selection have already finished. A value block adds
 no function or invocation boundary.
 
 Graph construction, invocation-root reconstruction and memo normalization share
-the [`task`](./task/module.f.mjs) evaluator. Deferred calls and result
+the shared FAST [`task`](../../js/ast/task/module.f.mjs) evaluator. Deferred calls and result
 continuations use its explicit stack, keeping deeply nested syntax off the
 host stack without duplicating the evaluator in each pass.
 
@@ -148,7 +148,7 @@ propagates the source value through nested helpers. Normal exits still carry
 the updated vector for following work; a function return needs no resumable
 vector. Standalone blocks do not invent function ownership.
 
-At source-function entry, [`operands`](./operands/module.f.mjs) lifts owning
+At source-function entry, the shared FAST [`returns`](../../js/ast/returns/module.f.mjs) pass lifts owning
 returns in direct plain value blocks and conditionals used as required
 initializers or return payloads. Within an exposed region, a single yielded
 value can expose another such region. Statement blocks and conditionals bind
@@ -202,8 +202,8 @@ retains every reached key conversion and property value. Normal completion
 constructs the object from established string keys and values, preserving
 duplicate keys, enumeration order, `__proto__` as data and value identity.
 
-Lazy initializers, captures, member/native callees, optional forms and spreads
-retain their evaluation boundaries. Plain-call admission preserves callee
+Lazy initializers, captures, wrapped member/native callees and spreads retain
+their evaluation boundaries. Plain-call admission preserves callee
 provenance through wrapper regions and comma results.
 Loop transfers cannot escape a lifted operand's own loop scope. Ordinary
 nested functions are normalized at their own function entry.
@@ -217,12 +217,15 @@ until the target processes its own result or transition. A continue retains
 caller and enclosing-iteration cells; reaching local declarations in the next
 iteration resets only those lifetimes. No helper invokes an enclosing helper.
 
-Stateful member-call/optional/spread operands retain explicit refusals.
-The [member-resolution decision](../todo/fast-loop-construction.md#member-resolution-decision)
-specifies the shared `memberPresent` guard. The internal query is supported
-through schema, graph conversion, represented evaluation, common preparation
-and JavaScript/Rust output. Completion lifting through member and optional-call
-operands remains the next construction step.
+Member and optional-call operands use the same return-lifting pass as common
+target preparation. Required receiver and numeric-key snapshots precede the
+`memberPresent` query, which preserves lookup failures before arguments.
+Ordinary calls discard the Boolean; optional calls use it to select their
+argument region. Normal completion retains receiver/key member-call syntax.
+Optional receiver guards enclose keys, lookup and arguments. Closed `|!()`
+boundaries retain argument evaluation outside a skipped optional region.
+Selected lazy demands and normal-path memo updates follow those regions.
+Spreads and broader demand-only guarded forms retain their existing refusals.
 Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
 External lazy environments without an AST recipe retain the existing refusal.

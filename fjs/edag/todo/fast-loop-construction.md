@@ -4,8 +4,8 @@
 **Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers,
 statement-level transfers and normal-exit caller memo transport are implemented;
 the end-to-end `memberPresent` query is implemented;
-member/optional-call completion lifting is in progress;
-broader operand and memo lifetimes remain in E
+member/optional-call completion lifting is implemented;
+remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -204,9 +204,10 @@ Only normal completion builds the object from established string keys and
 values, retaining duplicate-key and enumeration rules, `__proto__` as data and
 value identities. No-return inputs retain their original object syntax.
 Plain-call admission retains member/native callee provenance through wrappers
-and comma results. Lazy initializers, captures, member/native calls, optional
-forms and spreads remain separate boundaries. A loop transfer cannot escape
-the operand's locally owned loop chain.
+and comma results. Member and optional-call operands use the shared FAST return
+normalizer and the member-resolution protocol below. Lazy initializers,
+captures, native bare callees and spreads remain separate boundaries. A loop
+transfer cannot escape the operand's locally owned loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
 `[userValuesArray, memoVector]` transfer payload as owning exits. Lexical source
@@ -219,8 +220,8 @@ Payload evaluation supplies the latest vector before every transfer. Continued
 iterations retain caller and enclosing-iteration cells and reset their own local
 lifetimes at reached declarations. Foreign targets and operand escapes remain
 refused.
-Stateful member-call/optional/spread operands retain explicit refusals until their
-evaluation boundary is owned below. External lazy environments have no AST
+Demand-only guarded operands that are not exposed by return lifting and spread
+operands retain their existing refusals. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
 
 ### Enclosing-function returns
@@ -383,8 +384,8 @@ Choose the minimal internal query `['memberPresent', receiver, key]` for E.
 It returns the existing optional-member-call guard's Boolean result or the
 lookup failure. A true result permits argument evaluation; callable validation
 belongs to the subsequent call. The internal query is implemented across
-schema, graph conversion, evaluation and target output. Member-argument
-completion lifting remains a separate step.
+schema, graph conversion, evaluation and target output. The shared FAST return
+pass uses it to lift owning returns through member and optional-call operands.
 
 The alternative is a first-class resolved-member value plus an invocation
 form. It could retain one resolution across argument control, but would add a
@@ -458,6 +459,15 @@ a later forced call outside that region still reaches its arguments. Common
 construction/preparation owns this control flow; target writers spell the
 prepared query and call. Retain required prefixes, exact transfer owners,
 selected memo updates and captured value identities through every path.
+
+The shared `js/ast/returns` pass runs before graph memo/completion lowering and
+at physical preparation's member boundary. A terminal forced call joins outside
+optional guards so its arguments are sequenced once. A live member carries its
+receiver and established key through ordinary block results alongside a live
+flag; a skipped member carries placeholders that the false flag leaves unread.
+This is internal control transport, not a resolved-member runtime value.
+Prefix blocks nest without copying the remaining suffix. No-return inputs
+retain their original syntax identities.
 
 #### Accepted lookup cost
 
@@ -584,7 +594,7 @@ their documented normalization. Repeated conversions must stabilize.
       receiver preservation, lookup cost and implementation evidence gates.
 - [x] Add `memberPresent` end to end using the shared member resolver and
       existing index vocabulary before enabling member-argument lifting.
-- [ ] Lift owning returns through member and optional-call operands using the
+- [x] Lift owning returns through member and optional-call operands using the
       query, retained receivers and existing chain-region boundaries.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
