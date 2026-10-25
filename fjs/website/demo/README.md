@@ -184,7 +184,7 @@ option metadata. Labels and the events demos receive stay unchanged.
 Stable IDs are used by [shareable demo inputs](./sharing/README.md).
 The copy-link icon beside the Demo heading copies `#demo` for default inputs.
 Changed inputs export a matching example or the complete
-custom input set. Every new demo with editable inputs must declare the
+custom input set as individual query parameters. Every new demo with editable inputs must declare the
 [sharing contract](./sharing/README.md#authoring); `textDemo` does this
 automatically. A demo without editable inputs may omit it and copies `#demo`.
 Restoration validates the entire set and constructs one state, preserving

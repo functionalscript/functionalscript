@@ -11,7 +11,7 @@ export const revealFragment = doc => {
     if (!hash || hash === '#') return
     let id
     try {
-        id = hash.startsWith('#demo:') ? 'demo' : decodeURIComponent(hash.slice(1))
+        id = decodeURIComponent(hash.slice(1))
     } catch {
         // An invalid percent escape is an absent target, not a broken page.
         return

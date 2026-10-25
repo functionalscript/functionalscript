@@ -547,8 +547,8 @@ const shared = (d, hash = '#documentation') => {
     const listeners = []
     const doc = d.root.ownerDocument
     const view = doc.defaultView
-    view.location = { hash, origin: 'https://example.com', pathname: '/demo/' }
-    view.addEventListener = (/** @type {string} */ name, /** @type {() => void} */ listener) => { if (name === 'hashchange') { listeners.push(listener) } }
+    view.location = new URL(hash, 'https://example.com/demo/')
+    view.addEventListener = (/** @type {string} */ name, /** @type {() => void} */ listener) => { if (name === 'popstate') { listeners.push(listener) } }
     view.requestAnimationFrame = (/** @type {() => void} */ callback) => callback()
     doc.getElementById = () => null
     const status = { textContent: '' }
@@ -557,7 +557,7 @@ const shared = (d, hash = '#documentation') => {
         querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? d.root
             : selector.includes('button[data-copy-demo]') ? button : status,
     }
-    return { status, navigate: next => { view.location.hash = next; listeners.forEach(f => f()) } }
+    return { status, navigate: next => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; listeners.forEach(f => f()) } }
 }
 
 const sharedModule = moduleUrl(`
@@ -577,7 +577,7 @@ export const demo = {
 }
 `)
 /** @type {(inputs: Record<string, string>) => string} */
-const sharedHash = inputs => '#demo:state=' + btoa(JSON.stringify({ v: 1, inputs })).replaceAll('=', '').replaceAll('+', '-').replaceAll('/', '_')
+const sharedHash = inputs => '?' + new URLSearchParams(inputs).toString() + '#demo'
 
 export const proof = {
     atomicSharing: async () => {
@@ -598,7 +598,7 @@ export const proof = {
         await startDemo(d.root)
         await settle()
         links.navigate(sharedHash({ left: 'X', right: 'Y' }))
-        links.navigate('#documentation')
+        links.navigate(sharedHash({ left: 'X', right: 'Y' }).replace('#demo', '#documentation'))
         for (let i = 0; i < 50 && !d.root.innerHTML.includes('A|B|2'); i++) { await new Promise(resolve => setTimeout(resolve, 10)) }
         assert(d.root.innerHTML.includes('A|B|2'), d.root.innerHTML)
         assert(!d.rendered.some((/** @type {string} */ html) => html.includes('X|Y|')))

@@ -1,5 +1,5 @@
 /** Input-only demo sharing. Outputs and action history never enter a link. */
-export type InputValue = string | boolean
+export type InputValue = string | number | boolean
 export type InputName<S> = { [K in keyof S]: S[K] extends InputValue ? K : never }[keyof S] & string
 export type Inputs = { readonly [name: string]: InputValue }
 export type InputField = {
@@ -18,10 +18,9 @@ export type Sharing<State> = {
     /** Receives a complete, validated input set; replace state in one operation. */
     readonly restore: (inputs: Inputs) => State
 }
-export type Fragment =
+export type Query =
     | { readonly kind: 'defaults' }
-    | { readonly kind: 'example', readonly id: string }
-    | { readonly kind: 'state', readonly inputs: Inputs }
+    | { readonly kind: 'inputs', readonly values: Readonly<Record<string, string>> }
 
 export type RestoreDisposition = 'apply' | 'edited' | 'navigated'
 
