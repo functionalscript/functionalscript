@@ -433,6 +433,8 @@ their documented normalization. Repeated conversions must stabilize.
       and multiple normal-yield values in admitted value regions.
 - [x] Lift owning returns through non-spread object keys and values, performing
       key conversion before each property value and preserving object identity.
+- [ ] Lift owning returns through the `instanceof` value operand, preserving
+      literal constructor metadata and normal Boolean results.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
