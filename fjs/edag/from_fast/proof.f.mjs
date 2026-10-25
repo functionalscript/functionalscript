@@ -123,6 +123,28 @@ const rootJoinFunction = length => {
     }
 }
 
+/** @type {(value: Value, limit?: Value, selected?: Value) => Loop} */
+const collectingMemo = (value, limit = 3, selected = true) => {
+    const count = id(0), saved = id(0), output = id(0)
+    const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    return {
+        target: loopTarget, parameters: [count, saved], initial: [0, null], results: [output],
+        body: body(['continue', loopTarget, [ref(count), ref(saved)]], [
+            ['if', [], ['<', ref(count), limit],
+                body(['continue', loopTarget, [['+', ref(count), 1], ['array', [ref(saved), ['?:', selected, value, null]]]]]),
+                body(['break', loopTarget, [ref(saved)]]),
+            ],
+        ]),
+    }
+}
+
+/** @type {(value: Value, ago?: number) => Value} */
+const collectedMemo = (value, ago = 0) => {
+    let previous = value
+    for (let index = 0; index < ago; ++index) { previous = ['.', previous, 0] }
+    return ['.', previous, 1]
+}
+
 /** @type {(initial?: Value, limit?: Value) => Loop} */
 const counting = (initial = 0, limit = 3) => {
     const state = id(10)
@@ -147,6 +169,8 @@ const returned = (exit, environment) => {
     assert(exit[0] === 'return')
     return lowerValue(exit[2], environment)
 }
+
+export { id as _id, ref as _ref, result as _result, target as _target, afterLoop as _afterLoop, body as _body, summing as _summing, calledFunction as _calledFunction, counting as _counting, evaluate as _evaluate, collectingMemo as _collectingMemo, collectedMemo as _collectedMemo }
 
 export const proof = {
     deepRegions: () => {
@@ -1596,17 +1620,6 @@ export const proof = {
         },
         statementReturn: () => { fromFast(result(1, [['if', [], true, { statements: [], exit: ['return', target, 1] }, result(2)]])) },
         loop: () => { fromFast(result(1, [['loop', { target: { kind: 'loop', index: 0 }, parameters: [], initial: [], results: [], body: result(1) }]])) },
-        lazyLoopCapture: () => {
-            const limit = id(0)
-            const alias = id(1)
-            const loop = counting(0, ref(alias))
-            fromFast(result(ref(loop.results[0]), [['define', limit, ['.', null, 'x'], 'lazy'], ['define', alias, ref(limit), 'lazy'], ['loop', loop]]))
-        },
-        lazyGeneralLoopCapture: () => {
-            const limit = id(0)
-            const loop = summing(0, ref(limit))
-            fromFast(result(ref(loop.results[0]), [['define', limit, ['.', null, 'x'], 'lazy'], ['loop', loop]]))
-        },
         generalLoopReturn: () => {
             const loop = summing()
             fromFast(afterLoop({ ...loop, body: body(['return', target, 1]) }, 7))
@@ -1629,6 +1642,76 @@ export const proof = {
                 ['define', lazy, ['array', [3]], 'lazy'], ['loop', inner], ...outer.body.statements,
             ])
             fromFast(afterLoop({ ...outer, body: { ...outer.body, statements } }, 7))
+        },
+        loopMemoExternalLazyEnvironment: () => {
+            const lazy = id(0)
+            const loop = collectingMemo(ref(lazy))
+            fromFast(afterLoop(loop, ref(loop.results[0])), [[lazy, ['[]', [4]], 'lazy']])
+        },
+        loopMemoOperandOwnerCrossing: () => {
+            const lazy = id(0)
+            const loop = collectingMemo(ref(lazy), 3, false)
+            fromFast(result(['if', false, afterLoop(loop, 1), result(8)], [['define', lazy, ['.', null, 'x'], 'lazy']]))
+        },
+        loopMemoCustomBlockTransfer: () => {
+            const lazy = id(0)
+            const loop = collectingMemo(ref(lazy), 2)
+            const block = result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]])
+            lowerBlock(block, [], () => ({ exp: 7, anchors: [] }))
+        },
+        loopMemoCustomValueTransfer: () => {
+            const lazy = id(0)
+            const loop = collectingMemo(ref(lazy), 2)
+            const block = result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]])
+            lowerValue(['block', block], [], () => ({ exp: 7, anchors: [] }))
+        },
+        loopMemoDependentRecipe: () => {
+            const first = id(0), second = id(0)
+            const loop = collectingMemo(ref(second))
+            fromFast(result(7, [
+                ['define', first, ['array', [4]], 'lazy'], ['define', second, ['array', [ref(first)]], 'lazy'], ['loop', loop],
+            ]))
+        },
+        loopMemoDelayedIterationRecipe: () => {
+            const lazy = id(0), delayed = id(0)
+            const loop = collectingMemo(ref(delayed))
+            const modified = /** @type {Loop} */ ({ ...loop, body: {
+                ...loop.body, statements: [['define', delayed, ['array', [ref(lazy)]], 'lazy'], ...loop.body.statements],
+            } })
+            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', modified]]))
+        },
+        loopMemoEscapingReturn: () => {
+            const lazy = id(0)
+            const loop = returningLoop(false, ref(lazy), [7])
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: body(['return', target, 9], [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]),
+            })
+            calledFunction(fn)
+        },
+        loopMemoNestedBoundary: () => {
+            const lazy = id(0)
+            const inner = collectingMemo(ref(lazy))
+            const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const outer = /** @type {Loop} */ ({
+                target: outerTarget, parameters: [], initial: [], results: [], body: body(['break', outerTarget, []], [['loop', inner]]),
+            })
+            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', outer]]))
+        },
+        loopMemoMemberArgumentDemand: () => {
+            const lazy = id(0)
+            const loop = collectingMemo(['.', null, 'x', ['|()', [ref(lazy)]]])
+            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
+        },
+        loopMemoOptionalArgumentDemand: () => {
+            const lazy = id(0)
+            const loop = collectingMemo(['?.()', null, [ref(lazy)]])
+            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
+        },
+        loopMemoSpreadDemand: () => {
+            const lazy = id(0)
+            const loop = collectingMemo(['array', [['...', ref(lazy)]]])
+            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
         },
         loopReturnForeignOwner: () => {
             const loop = returningLoop(true, 7, [], { ...target })

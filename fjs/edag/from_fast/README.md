@@ -5,6 +5,11 @@ definitions, result blocks and resolved transfers. Source legality, capture
 admission and loop-state selection have already finished. A value block adds
 no function or invocation boundary.
 
+Graph construction, invocation-root reconstruction and memo normalization share
+the [`task`](./task/module.f.mjs) evaluator. Deferred calls and result
+continuations use its explicit stack, keeping deeply nested syntax off the
+host stack without duplicating the evaluator in each pass.
+
 Functions own targeted returns. A block's normal result can have zero, one or
 several values; one stays scalar and the other signatures use an ordered array.
 Required definitions retain initializers that the result reaches only
@@ -37,8 +42,8 @@ loops retain their original entry point. A skipped region establishes neither
 entry values nor captures. An inner loop gets a new helper entry each reached
 outer iteration, returns its results to its caller, and the caller resumes its
 own following work and transitions.
-Only already-established free values may cross the helper boundary; a lazy
-free binding is refused until shared demand-state transport is implemented.
+Already-established free values cross the helper boundary as ordinary captures.
+Caller-owned lazy values use the normal-exit memo transport described below.
 
 [`loop`](./loop/module.f.mjs) builds these helpers as normalized single-input
 invocation loops, then the existing root resolver and ordinary function
@@ -53,6 +58,68 @@ evaluation. This extends the aggregate-helper graph normalization from the
 previous lazy slot reads; the state/result order and existing scalar exact-graph
 cases remain unchanged. General helper round trips preserve their documented
 sharing normalization and repeated conversions stabilize.
+
+[`loop/memo`](./loop/memo/module.f.mjs) preserves caller-owned lazy identity
+across normal-exit helpers. Its lexical inventory selects deferred recipes used
+free by a statement loop; direct lazy reference aliases share the original
+cell. Cells follow definition order, independently of debug indices or demand
+order. Primitive definitions and reads of established bindings keep their
+existing classification.
+
+Each internal cell contains an initialized flag and a value. A demand either
+reads the ready value or evaluates the original recipe and returns an updated
+memo vector. Conditional regions return only the selected arm's updates.
+Following iterations, sequential helpers and caller reads reuse that vector;
+another owning invocation starts with fresh cells. A skipped demand does not
+evaluate the recipe, including when the loop takes zero iterations. Failure
+uses the existing failure channel and produces no ready cell.
+
+Each selected lazy declaration defines one private recipe function. It captures
+established prerequisites at that declaration, accepts the current memo vector,
+and returns the payload with its ready cell. This keeps the initializer's
+lexical values when a later declaration reuses a binding identity. Only the
+exact selected declaration activates a cell alias; earlier Environment reads
+keep their original value. Required definitions, loop parameters/results and
+statement results establish their own bindings, and child aliases do not leak
+into the parent scope. Planning gives each statement-region occurrence its own
+declaration and loop objects while preserving binding and target identities.
+Reusing an immutable declaration, block or loop at two lexical positions thus
+keeps their cells separate. Values and ordinary function bodies retain their
+own normalization boundary. Blocks without memo crossings return unchanged.
+
+Occurrence preparation stops after a statement region with no normal path.
+Its unreachable suffix and exit do not contribute memo dependencies or transfer
+admission checks. Both conditional arms remain represented; a normal arm keeps
+the following statements reachable, without evaluating constant conditions.
+
+This extends the memo-bearing graph normalization with one recipe function per
+cell. Public arity, source values and graphs without memo crossings retain their
+contracts. The constructor supplies effective external lazy identities before
+recipe captures are built; unavailable recipes and their lazy aliases remain
+refused. Required aliases establish their values normally. A separate list of
+lazy scope entries avoids scanning established bindings at each value region.
+
+The pass replaces a selected loop with a fresh private loop whose inputs are
+the user-state array and memo vector and whose results are the user-result
+array and updated memo vector. Required projections establish the original
+parameter/result bindings. Own continues and breaks package the user values
+and memo state together. Original loop signatures, public function arity and
+source results stay unchanged. The existing aggregate helper constructs the
+private loop; no runtime cell mutation or new AST schema is needed.
+
+This first increment admits recipes with established prerequisites and direct
+lazy aliases. Computed lazy dependents, iteration-local or nested memo
+boundaries, escaping helper completions and stateful member-call/optional/spread
+operands retain explicit refusals. Ordinary nested functions keep their own
+bodies; their explicit capture values are evaluated at function creation.
+External lazy environments without an AST recipe retain the existing refusal.
+Value-owned loops normalize their own local recipes; a recipe outside that
+operand still requires later transport across the operand boundary. Memo-bearing
+standalone/operand blocks require default transfer semantics; custom transfer
+callbacks retain their existing no-memo behavior.
+Blocks without a crossing deferred binding retain their identity and previous
+graph construction. Memo normalization runs before completion lowering and
+root matching at each owning block boundary.
 
 [`loop/completions`](./loop/completions/module.f.mjs) carries statement-level
 returns and outer-loop transfers through helpers. Only nonroot loops with
@@ -173,11 +240,11 @@ their analysis-normalized comparison, including the documented lazy-region
 splits and redundant-anchor normalization.
 
 These increments do not complete epic E. Nonlocal exits across value operands,
-rest invocation reconstruction and lazy demand state crossing a generated
-helper boundary remain explicit E/F work. Unsupported forms are refused
+rest invocation reconstruction and broader lazy demand-state lifetimes remain
+explicit E/F work. Unsupported forms are refused
 explicitly. Foreign or nonlexical loop targets remain refused, as do foreign
 function-return targets and loop-body normal yields. Standalone block
-construction has no source function to own helper returns. A true lazy free
-binding is not eagerly captured by either helper constructor. The
+construction has no source function to own helper returns. A deferred free
+binding is never eagerly captured to construct a helper. The
 [loop construction proposal](../todo/fast-loop-construction.md) records the
 completion and memo-state contracts for that extension.

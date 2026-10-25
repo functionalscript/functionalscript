@@ -10,15 +10,11 @@ export type Binding = Environment[number]
 
 export type Link<T> = { readonly first: T; readonly tail: Link<T> | null }
 
-export type Task<T> =
-    | { readonly kind: 'done'; readonly value: T }
-    | { readonly kind: 'call'; readonly run: () => Task<T> }
-    | { readonly kind: 'bind'; readonly first: Task<unknown>; readonly next: (value: unknown) => Task<T> }
-
 /** New lexical chunks override enclosing bindings; entries retain transfer order. */
 export type Scope = {
     readonly index: Stack<ReadonlyMap<BindingId, Binding>>
     readonly entries: List<Binding>
+    readonly lazy: List<BindingId>
 }
 
 export type ExitOwner =

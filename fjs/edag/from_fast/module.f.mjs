@@ -9,7 +9,8 @@
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
- * @import { Binding, Context, ExitOwner, Link, Node, Scope, Summaries, Summary, Task, Visit, _Control } from './private.ts'
+ * @import { Binding, Context, ExitOwner, Link, Node, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
+ * @import { Task } from './task/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
@@ -21,43 +22,10 @@ import { freeLoopBindings } from './control/module.f.mjs'
 import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
+import { normalizeMemo } from './loop/memo/module.f.mjs'
+import { bind, call, done, run } from './task/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
-
-/** @type {<T>(value: T) => Task<T>} */
-const done = value => ({ kind: 'done', value })
-
-/** @type {<T>(run: () => Task<T>) => Task<T>} */
-const call = run => ({ kind: 'call', run })
-
-/**
- * @template T, U
- * @param {Task<T>} first
- * @param {(value: T) => Task<U>} next
- * @returns {Task<U>}
- */
-const bind = (first, next) => ({ kind: 'bind', first, next: value => next(/** @type {T} */ (value)) })
-
-/**
- * @template T
- * @param {Task<T>} input
- * @returns {T}
- */
-const run = input => {
-    /** @type {Task<unknown>} */
-    let task = input
-    /** @type {Link<(value: unknown) => Task<unknown>> | null} */
-    let stack = null
-    while (true) {
-        if (task.kind === 'call') { task = task.run(); continue }
-        if (task.kind === 'bind') { stack = { first: task.next, tail: stack }; task = task.first; continue }
-        if (stack === null) { return /** @type {T} */ (task.value) }
-        /** @type {Link<(value: unknown) => Task<unknown>>} */
-        const frame = stack
-        stack = frame.tail
-        task = frame.first(task.value)
-    }
-}
 
 /** @type {<T>(items: readonly T[], tail: Link<T> | null) => Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -89,13 +57,18 @@ const mergeIndex = earlier => later => new Map([...earlier, ...later])
 const appendIndex = step(mergeIndex)
 
 /** @type {Scope} */
-const emptyScope = { index: null, entries: null }
+const emptyScope = { index: null, entries: null, lazy: null }
 
 /** A new chunk overrides older chunks; its first duplicate remains its value. @type {(environment: Environment, parent?: Scope) => Scope} */
-const scopeOf = (environment, parent = emptyScope) => ({
-    index: appendIndex(new Map(environment.toReversed().map(entry => /** @type {const} */ ([entry[0], entry]))))(parent.index),
-    entries: { head: parent.entries, tail: environment },
-})
+const scopeOf = (environment, parent = emptyScope) => {
+    /** @type {readonly BindingId[]} */
+    const lazy = environment.flatMap(([id, , mode]) => mode === 'lazy' ? [id] : [])
+    return {
+        index: appendIndex(new Map(environment.toReversed().map(entry => /** @type {const} */ ([entry[0], entry]))))(parent.index),
+        entries: { head: parent.entries, tail: environment },
+        lazy: lazy.length === 0 ? parent.lazy : { head: parent.lazy, tail: lazy },
+    }
+}
 
 /** @type {(scope: Scope, binding: BindingId) => Exp} */
 const lookup = (scope, binding) => assertNotNullish(bindingOf(scope, binding), 'unbound FAST value')[1]
@@ -105,6 +78,9 @@ const environmentOf = scope => toArray(scope.entries)
 
 /** @type {(scope: Scope, binding: BindingId) => boolean} */
 const lazyBinding = (scope, binding) => bindingOf(scope, binding)?.[2] === 'lazy'
+
+/** Deferred values whose initializer recipes belong to an enclosing owner. @type {(scope: Scope) => readonly BindingId[]} */
+const lazyBindings = scope => [...new Set(toArray(scope.lazy).filter(id => lazyBinding(scope, id)))]
 
 /** @type {(m: ExpOp, n: ExpOp) => boolean} */
 const sameCapture = (m, n) => m === n || (['arg', 'rest', 'frame', 'self'].includes(m[0]) && m.length === n.length && m.every((x, i) => x === n[i]))
@@ -277,9 +253,12 @@ const lowerValues = (input, context) => {
 /** @type {(fn: FastFunction, context: Context) => Task<Lowered>} */
 const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
-    const originalScalar = rootLoopOf(source)
-    const originalRoot = originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(source)
-    const normalized = completeTransfers(source, originalRoot)
+    const memoized = normalizeMemo(source.body)
+    /** @type {FastFunction} */
+    const prepared = memoized === source.body ? source : { ...source, body: memoized }
+    const originalScalar = rootLoopOf(prepared)
+    const originalRoot = originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(prepared)
+    const normalized = completeTransfers(prepared, originalRoot)
     const scalar = rootLoopOf(normalized)
     const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(normalized)
     const fn = matched !== null ? directInvocationRoot(normalized, matched) : normalized
@@ -324,11 +303,9 @@ const scalarRoot = (fn, loop, context) => call(() => {
     return aliases(0, context.scope)
 })
 
-/** Helpers capture established values; lazy demand transport remains separate. @type {(loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment }>} */
+/** Memo admission leaves only established values to capture. @type {(loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment }>} */
 const loopTask = (loop, context) => call(() => {
     const scalar = scalarLoopOf(loop) !== null
-    const free = freeLoopBindings(loop)
-    if (free.some(binding => lazyBinding(context.scope, binding))) { throw 'lazy free loop bindings require shared demand-state lowering' }
     return bind(functionValue(scalar ? scalarHelper(loop) : aggregateHelper(loop), context), fn =>
         bind(valueTask(scalar ? loop.initial[0] : ['array', loop.initial], context), initial => {
             /** @type {Lowered} */
@@ -379,10 +356,12 @@ const conditional = (condition, then, otherwise, context, normalize = false) => 
     bind(regionTask(then, context, normalize), a => bind(regionTask(otherwise, context, normalize), b =>
         done({ exp: ['?:', test.exp, anchored(a), anchored(b)], anchors: test.anchors })))))
 
-/** Operand regions normalize local loops; statement regions are already complete. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
+/** Operand regions normalize local memo state and loops; statement regions are already complete. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
 const regionTask = (block, context, normalize = false) => call(() => {
     if (block.exit[0] !== 'yield' && block.exit[0] !== 'throw') { throw 'nonlocal transfers in value regions require structured completion lowering' }
-    const normalized = normalize ? completeBlockTransfers(block) : block
+    const memoized = normalize ? normalizeMemo(block, lazyBindings(context.scope)) : block
+    if (memoized !== block && context.transfer.kind !== 'default') { throw 'memo normalization requires the default transfer owner' }
+    const normalized = normalize ? completeBlockTransfers(memoized) : block
     const local = normalize ? { ...context,
         functionTarget: null,
         summaries: normalized === block ? context.summaries : new Map([...context.summaries, ...summaries(['block', normalized], context.summaries)]),
@@ -514,8 +493,9 @@ const controlTask = (block, context, expected) => call(() => {
 
 /** @type {(block: Block, context: Context) => Task<Lowered>} */
 const blockTask = (block, context) => call(() => {
-    const { required, reached } = blockSummary(block, context)
-    if (context.functionTarget !== null && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionHasControl(statement, context))) {
+    const { required, reached, normal, returns } = blockSummary(block, context)
+    const canControl = context.functionTarget !== null || context.transfer.kind === 'default' && !normal && !returns
+    if (canControl && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionHasControl(statement, context))) {
         return bind(controlTask(block, context, null), flow => bind(emitControl(flow, values => anchored(resultsValue(values)), anchored), exp => done(plain(exp))))
     }
     /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<Lowered>} */
@@ -561,7 +541,9 @@ export const lowerValue = (root, environment, transfer) => run(valueTask(root, c
  * @type {(block: Block, environment?: Environment, transfer?: Transfer) => Lowered}
  */
 export const lowerBlock = (block, environment = [], transfer) => {
-    const normalized = completeBlockTransfers(block)
+    const memoized = normalizeMemo(block, lazyBindings(scopeOf(environment)))
+    if (memoized !== block && transfer !== undefined) { throw 'memo normalization requires the default transfer owner' }
+    const normalized = completeBlockTransfers(memoized)
     return run(blockTask(normalized, contextFor(['block', normalized], environment, transfer)))
 }
 
