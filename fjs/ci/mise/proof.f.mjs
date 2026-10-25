@@ -27,6 +27,15 @@ const source = {
 }
 
 export const proof = {
+    callerTextIsPreserved: () => {
+        for (const script of ['printenv FOO', 'echo "env ready"', 'echo "$(env node --version)"']) {
+            const migrated = miseJobs({ 'windows-arm': { ...source, steps: [
+                { uses: 'actions/checkout@v1' }, { run: script },
+            ] } }, false)
+            const step = migrated['windows-arm']?.steps.find(step => step.env?.FJS_CI_RUN === script)
+            assertEq(step?.run, miseDevelop('bash -e -c "$FJS_CI_RUN"'))
+        }
+    },
     wrapper: () => {
         assertEq(miseDevelop('node --version'), 'mise exec -- node --version')
         assertEq(spiderMonkeyDevelop('js --version'), 'mise -E spidermonkey exec -- js --version')

@@ -37,3 +37,7 @@ runs outside that environment, under `runner.temp`, with its own `setup-node`.
 Publishing retains its separate `setup-node` workflow and npm provenance.
 See [platform setup](../../doc/mise-trial/README.md) and
 [CI details](../../doc/mise-trial/CI.md).
+
+The separate `Devcontainer` workflow builds the container and runs its
+`postCreateCommand` through `devcontainers/ci`, then verifies Node, TypeScript
+and repository type-checking. It runs when container or tool inputs change.

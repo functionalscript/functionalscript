@@ -154,10 +154,10 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
         ? [
             ...(rust ? rustPlatformSteps(o, a) : []),
             ...platformNodeSteps(functionalscript),
-            ...nodeExtra,
+            ...nodeExtra.map(inShell),
         ]
         : o === 'macos' && a === 'intel'
-            ? [...intelMacSteps(rust), ...nodeExtra]
+            ? [...intelMacSteps(rust), ...nodeExtra.map(inShell)]
             : [...shellPlatformSteps(rust, o, a), ...nodeExtra.map(inShell)]
     return [id, job(image, mergeQueueOnly ? mergeQueue : undefined)(result)]
 }

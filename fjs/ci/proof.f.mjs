@@ -69,7 +69,7 @@ export const proof = {
         assert(has(gha, 'ubuntu-arm', 'npm run sm t'))
     },
     injected: () => {
-        for (const command of ['echo "${{ matrix.name }}"', 'false; echo done', 'cd dir && node extra.mjs', 'NODE_OPTIONS=x node extra.mjs']) {
+        for (const command of ['printenv FOO', 'echo "env ready"', 'env FOO=value node extra.mjs', 'echo "$(env node --version)"', 'echo "${{ matrix.name }}"', 'false; echo done', 'cd dir && node extra.mjs', 'NODE_OPTIONS=x node extra.mjs']) {
             for (const kind of [test, install]) {
                 const gha = generate(false, (o, a) => [kind({ run: `${command} # ${o}-${a}`, env: { EXTRA: 'kept' } }), test(uses('actions/cache')), { type: 'rust' }])
                 for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
