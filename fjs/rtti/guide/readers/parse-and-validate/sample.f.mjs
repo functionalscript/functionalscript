@@ -13,6 +13,7 @@ import { number, open, string } from '../../../module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'built-or-handed-back',
         name: 'Built or handed back',
         about: 'Both readers accept the value. parse builds one with the declared keys only; validate hands back the value it was given, admin included.',
         schemas: [{

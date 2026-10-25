@@ -226,7 +226,7 @@ export const shuffled = keys => keys.length === 0 ? pureOk([]) : step(randomInt(
  */
 export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, presets, random }) => {
     const { parse, show, label, accepts } = keys
-    const picker = examplePicker(presets.map(([n]) => [n, n]))
+    const picker = examplePicker(presets.map(([n, , , , id]) => [n, n, id]))
     const graph = graphOf(structure)
     const count = census(structure)
     const line = stepLine(noun)(show)

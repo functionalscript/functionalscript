@@ -124,11 +124,11 @@ const demoProof = /** @type {const} */ ({
         picker: () => {
             const html = page('Recursion')
             for (const e of examples) { assert(html.includes(`>${e.name}</option>`), e.name) }
-            assert(html.includes('<option value="Recursion" selected="">'), html)
-            assert(html.includes('<optgroup label="Schemas"><option value="Closed vs open">'), html)
-            assert(html.includes('<optgroup label="Readers"><option value="Built or handed back">'), html)
-            assert(html.includes('<optgroup label="Outputs"><option value="Optional or undefined">'), html)
-            assert(html.includes('<optgroup label="Used in this project"><option value="JSON-RPC request">'), html)
+            assert(html.includes('<option value="Recursion" selected="" data-example-id="recursion">'), html)
+            assert(html.includes('<optgroup label="Schemas"><option value="Closed vs open" data-example-id="closed-vs-open">'), html)
+            assert(html.includes('<optgroup label="Readers"><option value="Built or handed back" data-example-id="built-or-handed-back">'), html)
+            assert(html.includes('<optgroup label="Outputs"><option value="Optional or undefined" data-example-id="optional-or-undefined">'), html)
+            assert(html.includes('<optgroup label="Used in this project"><option value="JSON-RPC request" data-example-id="json-rpc-request">'), html)
         },
         // A project schema shows where it comes from as the import a user of
         // the package writes, its module specifier a link to the module's
@@ -455,7 +455,7 @@ const demoProof = /** @type {const} */ ({
 })
 
 /** A demo of one example with one schema. */
-const single = schemaDemo([['One', [{ name: 'n', about: 'a number', schemas: [{ source: 'number', schema: number }], value: 'export default 1;' }]]])
+const single = schemaDemo([['One', [{ id: 'number', name: 'n', about: 'a number', schemas: [{ source: 'number', schema: number }], value: 'export default 1;' }]]])
 
 export const proof = {
     demo: demoProof,

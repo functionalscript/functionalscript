@@ -82,8 +82,8 @@ export const demo = textDemo({
     rows: 4,
     init: overview,
     examples: [
-        ['Overview', overview],
-        ['A number run into a name', 'const n = 123abc\n'],
+        ['Overview', overview, 'overview'],
+        ['A number run into a name', 'const n = 123abc\n', 'a-number-run-into-a-name'],
     ],
     highlight,
 })(text => [

@@ -220,6 +220,8 @@ export type DemoSchema = {
  * the lesson — both shown, the reader picking one while the value stays put.
  */
 export type DemoExample = {
+    /** Stable, nonempty ID; retain it when renaming or reordering a lesson. */
+    readonly id: string
     readonly name: string
     readonly about: string
     readonly schemas: readonly [DemoSchema] | readonly [DemoSchema, DemoSchema]

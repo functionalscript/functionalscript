@@ -27,6 +27,7 @@
  * @import { Marked, Run } from '../../text/marked/types.ts'
  */
 
+import { assertExampleIds } from '../../website/demo/examples/module.f.js'
 import { captionMarker, codeMarker, resultMarker, verdictMarker } from '../../website/style/module.f.js'
 import { unknown } from '../module.f.mjs'
 import { structSchemaEntries, tupleSchemaEntries } from '../common/module.f.mjs'
@@ -434,7 +435,7 @@ const partnerOf = (e, shown) => e.schemas.length === 2 ? schemaKey(e, shown === 
 
 /** @type {(e: DemoExample, picked: DemoExample) => Element} */
 const exampleOption = (e, picked) =>
-    ['option', e === picked ? { value: e.name, selected: '' } : { value: e.name }, e.name]
+    ['option', { value: e.name, ...(e === picked ? { selected: '' } : {}), 'data-example-id': e.id }, e.name]
 
 /**
  * The state on picking `e`: its first schema, compared with its pair's other
@@ -458,6 +459,7 @@ const picking = e => ({ example: e.name, shown: 0, compare: partnerOf(e, 0), tex
  */
 export const schemaDemo = groups => {
     const examples = groups.flatMap(([, g]) => g)
+    assertExampleIds(examples.map(e => e.id))
     const [start] = examples
     if (start === undefined) { throw 'rtti demo: no example to open on' }
 

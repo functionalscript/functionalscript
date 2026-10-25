@@ -142,6 +142,7 @@ export type TextDemoOptions = {
     readonly label: string
     readonly rows?: number | undefined
     readonly init: string
+    /** Explicit [label, source, stable ID] entries; retain IDs across renames. */
     readonly examples?: Examples | undefined
     /**
      * The text as coloured nodes, for a field that holds code: drawn behind

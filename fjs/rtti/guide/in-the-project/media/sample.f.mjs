@@ -18,30 +18,35 @@ import { unknown as jsonSchema } from '../../../../media/json/schema/module.f.mj
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'revision',
         name: 'Revision',
         about: 'vnd.fjs.revision: one step in the history of a mutable object over a content-addressable store. open(), so an older reader still reads a revision a newer writer extended.',
         schemas: projectSchema('revisionSchema', 'media/revision', revisionSchema),
         value: 'export default {"dialect":"vnd.fjs.revision","subject":"todo","parents":[],"snapshot":"c1dq3pe0t4f7a2kx","generation":0};',
     },
     {
+        id: 'lock',
         name: 'Lock',
         about: 'vnd.fjs.lock: a lock map as a blob of its own, so several revisions can share one resolution. The map nests: a value is a hash or another map.',
         schemas: projectSchema('lockSchema', 'media/lock', lockSchema),
         value: 'export default {"dialect":"vnd.fjs.lock","lock":{"fjs":"c1dq3pe0t4f7a2kx","deps":{"left-pad":"b7m2mnk9w0vqwhh4"}}};',
     },
     {
+        id: 'note',
         name: 'Note',
         about: 'vnd.fjs.note: a note, todo or issue as a blob: its text, what it depends on, and a priority from P1 to P5.',
         schemas: projectSchema('noteSchema', 'media/note', noteSchema),
         value: 'export default {"dialect":"vnd.fjs.note","text":"Show the project\'s own schemas in the rtti demo","priority":"P2"};',
     },
     {
+        id: 'any-json-value',
         name: 'Any JSON value',
         about: 'The JSON data model as a schema: a primitive, an object of JSON values, or an array of them. The graph draws recursive uses as arrows back to the definition.',
         schemas: projectSchema('unknown', 'media/json/rtti', jsonValue),
         value: 'export default {"name":"fjs","tags":["data","schema"],"stars":42,"private":false,"homepage":null};',
     },
     {
+        id: 'json-schema',
         name: 'JSON Schema',
         about: 'A JSON Schema (draft 2020-12) object, the target toJsonSchema converts rtti schemas into. Recursive: a schema\'s properties and items are schemas.',
         schemas: projectSchema('unknown', 'media/json/schema', jsonSchema),
