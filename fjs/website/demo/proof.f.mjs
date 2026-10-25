@@ -13,7 +13,7 @@ import { unwrap } from '../../types/result/module.f.js'
 /** A demo that echoes its text after the textarea, twice, as siblings. */
 const plain = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])
 
-const picked = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', rows: 3, init: 'one', examples: [['One', 'one'], ['Two', 'two']] })(() => [])
+const picked = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', rows: 3, init: 'one', examples: [['One', 'one', 'one'], ['Two', 'two', 'two']] })(() => [])
 
 /** @type {(demo: typeof plain) => (state: string) => (event: DemoEvent) => string} */
 const next = demo => state => event => unwrap(assertNotNullish(
@@ -97,7 +97,7 @@ export const proof = {
         examples: () => {
             const h = htmlToString(picked.view('two'))
             assert(h.startsWith(`<!DOCTYPE html><div><p>Echo &lt;text&gt; &amp; compare.</p><p><label for="${exampleName}">`), h)
-            assert(h.includes('<option value="Two" selected="">Two</option>'), h)
+            assert(h.includes('<option value="Two" selected="" data-example-id="two">Two</option>'), h)
             assert(h.endsWith('<textarea id="src" name="src" rows="3">two</textarea></p></div>'), h)
         },
     },
@@ -118,9 +118,9 @@ export const proof = {
     // Refused where the demo is built.
     throw: {
         // A repeated example.
-        repeatedExample: () => textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: '', examples: [['A', 'a'], ['A', 'b']] })(() => []),
+        repeatedExample: () => textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: '', examples: [['A', 'a', 'a'], ['A', 'b', 'another-a']] })(() => []),
         // A textarea named like the drop-down: typing would arrive as a pick.
-        nameCollision: () => textDemo({ intro: 'Echo <text> & compare.', name: exampleName, label: 'Source', init: '', examples: [['A', 'a']] })(() => []),
+        nameCollision: () => textDemo({ intro: 'Echo <text> & compare.', name: exampleName, label: 'Source', init: '', examples: [['A', 'a', 'a']] })(() => []),
     },
     // Without examples, the drop-down's name is free for the textarea.
     exampleNameWithoutExamples: () => assertEq(

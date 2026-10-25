@@ -99,15 +99,15 @@ export const tensUpTo = n => Array.from({ length: n }, (_, i) => (i + 1) * 10)
  * @type {readonly Preset[]}
  */
 export const presets = [
-    ['Insert into a leaf', tensUpTo(7), 80, 'Press Insert to add 80: only the path to the leaf 70 is built again, and the rest is shared.'],
-    ['Empty tree', [], 10, 'Press Insert to add 10, then keep inserting 20, 30, … to watch the tree grow from a single leaf.'],
-    ['Split a leaf', tensUpTo(8), 90, 'Press Insert to add 90: the leaf 70 80 is full, so it splits and 80 moves up into its parent.'],
-    ['Grow a level', tensUpTo(14), 150, 'Press Insert to add 150: the split runs all the way up to the root, and the tree grows a level.'],
-    ['Remove and merge', tensUpTo(7), 70, 'Press Remove to take out 70: its leaf empties and merges with its sibling, and the tree shrinks a level.'],
-    ['Remove a missing key', tensUpTo(7), 90, 'Press Remove to take out 90: it is not in the tree, so nothing changes and every node is shared.'],
-    ['Move a key', tensUpTo(10), 40, 'Click 40 in the tree: it is removed and inserted again, and the tree comes back with the same keys in one node fewer.'],
-    ['Move a key back', tensUpTo(10), 50, 'Click 50 in the tree: removing it empties its leaf, and inserting it again builds the same shape back, so nothing changes.'],
-    ['Big tree', tensUpTo(31), 320, 'Press Insert to add 320: only the five nodes on its path are built again, and the other 26 are shared.'],
+    ['Insert into a leaf', tensUpTo(7), 80, 'Press Insert to add 80: only the path to the leaf 70 is built again, and the rest is shared.', 'insert-into-a-leaf'],
+    ['Empty tree', [], 10, 'Press Insert to add 10, then keep inserting 20, 30, … to watch the tree grow from a single leaf.', 'empty-tree'],
+    ['Split a leaf', tensUpTo(8), 90, 'Press Insert to add 90: the leaf 70 80 is full, so it splits and 80 moves up into its parent.', 'split-a-leaf'],
+    ['Grow a level', tensUpTo(14), 150, 'Press Insert to add 150: the split runs all the way up to the root, and the tree grows a level.', 'grow-a-level'],
+    ['Remove and merge', tensUpTo(7), 70, 'Press Remove to take out 70: its leaf empties and merges with its sibling, and the tree shrinks a level.', 'remove-and-merge'],
+    ['Remove a missing key', tensUpTo(7), 90, 'Press Remove to take out 90: it is not in the tree, so nothing changes and every node is shared.', 'remove-a-missing-key'],
+    ['Move a key', tensUpTo(10), 40, 'Click 40 in the tree: it is removed and inserted again, and the tree comes back with the same keys in one node fewer.', 'move-a-key'],
+    ['Move a key back', tensUpTo(10), 50, 'Click 50 in the tree: removing it empties its leaf, and inserting it again builds the same shape back, so nothing changes.', 'move-a-key-back'],
+    ['Big tree', tensUpTo(31), 320, 'Press Insert to add 320: only the five nodes on its path are built again, and the other 26 are shared.', 'big-tree'],
 ]
 
 const versions = versionsDemo({

@@ -12,6 +12,7 @@ import { number, option, or } from '../../../module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'absent-vs-undefined',
         name: 'Absent vs undefined',
         about: 'or(option, t) lets the key be left out. or(t, undefined) needs the key, though its value may be undefined: try export default {"a":undefined};',
         schemas: [

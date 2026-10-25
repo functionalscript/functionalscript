@@ -12,6 +12,7 @@ import { number, rest, string } from '../../../module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'tuple-vs-rest',
         name: 'Tuple vs rest',
         about: 'A tuple is checked by length as well as by member. rest() admits any number of extra elements of one type.',
         schemas: [

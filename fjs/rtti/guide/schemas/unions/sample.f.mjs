@@ -12,6 +12,7 @@ import { boolean, or } from '../../../module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'two-spellings-one-set',
         name: 'Two spellings, one set',
         about: 'or(true, false) and boolean are written differently and accept exactly the same values.',
         schemas: [

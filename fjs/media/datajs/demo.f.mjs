@@ -115,18 +115,18 @@ export const _graphOf = text => {
  * @type {Examples}
  */
 export const examples = [
-    ['Overview', 'const $0=[1,2];\nexport default {"a":$0,"b":{"c":$0}};'],
-    ['JSON', 'export default {"name":"fjs","tags":["data","graph"],"version":1};'],
-    ['Nested tree', 'export default {"a":[[1],[2,3]],"b":{"c":[4],"d":{"e":[5,6],"f":[7]}},"g":[8]};'],
-    ['Primitives', 'export default [null,true,"s",-42.5,-0,NaN,-Infinity,1n,undefined];'],
-    ['Equal is not shared', 'export default [[1,2],[1,2]];'],
-    ['One node, many references', 'const $0={"n":1};\nexport default [$0,$0,$0];'],
-    ['Diamond', 'const $leaf=[1];\nconst $l={"x":$leaf};\nconst $r={"y":$leaf};\nexport default [$l,$r];'],
-    ['Longest path wins', 'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};'],
-    ['A shared primitive is not a node', 'const $x=1;\nexport default [$x,$x];'],
-    ['Unused const', 'const $dead=undefined;\nexport default 1;'],
-    ['Object keys', 'export default {"b":1,"2":2,"1":3,"b":4,["__proto__"]:5};'],
-    ['Plain JSON', '{"a":1}'],
+    ['Overview', 'const $0=[1,2];\nexport default {"a":$0,"b":{"c":$0}};', 'overview'],
+    ['JSON', 'export default {"name":"fjs","tags":["data","graph"],"version":1};', 'json'],
+    ['Nested tree', 'export default {"a":[[1],[2,3]],"b":{"c":[4],"d":{"e":[5,6],"f":[7]}},"g":[8]};', 'nested-tree'],
+    ['Primitives', 'export default [null,true,"s",-42.5,-0,NaN,-Infinity,1n,undefined];', 'primitives'],
+    ['Equal is not shared', 'export default [[1,2],[1,2]];', 'equal-is-not-shared'],
+    ['One node, many references', 'const $0={"n":1};\nexport default [$0,$0,$0];', 'one-node-many-references'],
+    ['Diamond', 'const $leaf=[1];\nconst $l={"x":$leaf};\nconst $r={"y":$leaf};\nexport default [$l,$r];', 'diamond'],
+    ['Longest path wins', 'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};', 'longest-path-wins'],
+    ['A shared primitive is not a node', 'const $x=1;\nexport default [$x,$x];', 'a-shared-primitive-is-not-a-node'],
+    ['Unused const', 'const $dead=undefined;\nexport default 1;', 'unused-const'],
+    ['Object keys', 'export default {"b":1,"2":2,"1":3,"b":4,["__proto__"]:5};', 'object-keys'],
+    ['Plain JSON', '{"a":1}', 'plain-json'],
 ]
 
 /**

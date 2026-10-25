@@ -14,6 +14,7 @@ const person = /** @type {const} */ ({ name: string, age: number })
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'closed-vs-open',
         name: 'Closed vs open',
         about: 'A struct admits the keys it declares and no others. open() admits any other keys too.',
         schemas: [

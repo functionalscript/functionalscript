@@ -25,6 +25,7 @@ const tree = () => ['const', { value: number, children: array(tree) }]
 
 /** @type {DemoExample} */
 export const recursion = {
+    id: 'recursion',
     name: 'Recursion',
     about: 'A schema can use itself. The graph draws that use as an arrow back to its definition.',
     schemas: [{ source: "const tree = () => ['const', { value: number, children: array(tree) }]", schema: tree }],
@@ -33,6 +34,7 @@ export const recursion = {
 
 /** @type {DemoExample} */
 export const sharedParts = {
+    id: 'shared-parts',
     name: 'Shared parts',
     about: 'billing and shipping use one address schema, so the graph draws it once. The value shares one address too: validate hands that back, and parse builds a copy for each use.',
     schemas: [{

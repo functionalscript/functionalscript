@@ -11,19 +11,19 @@
 
 /** @type {Examples} */
 const guards = [
-    ['Early return', 'export default (n) => {\n    if (n < 0) { return -1; }\n    if (n > 0) { return 1; }\n    return 0;\n};'],
-    ['Throw', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};'],
+    ['Early return', 'export default (n) => {\n    if (n < 0) { return -1; }\n    if (n > 0) { return 1; }\n    return 0;\n};', 'early-return'],
+    ['Throw', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};', 'throw'],
 ]
 
 /** @type {Examples} */
 const loops = [
-    ['Loop', 'export default n => {\n    let r = 1;\n    while (r < n) {\n        r = r * 2;\n    }\n    return r;\n};'],
-    ['Loop over a parameter', 'export default n => {\n    while (n > 0) {\n        n = n - 7;\n    }\n    return n;\n};'],
+    ['Loop', 'export default n => {\n    let r = 1;\n    while (r < n) {\n        r = r * 2;\n    }\n    return r;\n};', 'loop'],
+    ['Loop over a parameter', 'export default n => {\n    while (n > 0) {\n        n = n - 7;\n    }\n    return n;\n};', 'loop-over-a-parameter'],
 ]
 
 /** @type {Examples} */
 const switches = [
-    ['Switch', 'export default node => {\n    switch (node[0]) {\n        case "array": case "object": { return "container"; }\n        case "string": { return "text"; }\n        default: { throw ["unknown", node[0]]; }\n    }\n};'],
+    ['Switch', 'export default node => {\n    switch (node[0]) {\n        case "array": case "object": { return "container"; }\n        case "string": { return "text"; }\n        default: { throw ["unknown", node[0]]; }\n    }\n};', 'switch'],
 ]
 
 export default { guards, loops, switches, all: [...guards, ...loops, ...switches] }

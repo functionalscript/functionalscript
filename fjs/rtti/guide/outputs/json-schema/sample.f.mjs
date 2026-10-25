@@ -13,6 +13,7 @@ import { bigint, option, or, string } from '../../../module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'lossy-integers',
         name: 'Lossy integers',
         about: 'JSON has no bigint: bigint becomes "integer", and the constant 9007199254740993n becomes 9007199254740992, the nearest number. note admits absence, so it is not required.',
         schemas: [{

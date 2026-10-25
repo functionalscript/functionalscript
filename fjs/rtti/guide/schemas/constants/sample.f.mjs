@@ -12,6 +12,7 @@ import { number, or } from '../../../module.f.mjs'
 
 /** @type {DemoExample} */
 export const signedZero = {
+    id: 'zero-and-minus-zero',
     name: 'Zero and minus zero',
     about: 'A constant admits exactly itself, compared with Object.is: 0 and -0 are two schemas with one value each. Type 0 to see the answers swap.',
     schemas: [
@@ -23,6 +24,7 @@ export const signedZero = {
 
 /** @type {DemoExample} */
 export const taggedUnion = {
+    id: 'tagged-union',
     name: 'Tagged union',
     about: 'A constant admits exactly itself, so the kind tells the two members apart. Try "kind":"triangle", or a circle with a side.',
     schemas: [{

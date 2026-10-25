@@ -1,7 +1,7 @@
 ## Share demo inputs through URL fragments
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -79,9 +79,22 @@ an encoded-size limit and show a clear message when input is too large to
 share; do not silently truncate it. Backend storage and URL shortening are
 outside this proposal.
 
+### Implementation steps
+
+The stable-ID step uses explicit `[label, source, id]` text examples,
+`[label, keys, key, hint, id]` tree presets, and RTTI lesson `id` properties.
+Dropdown values and demo events continue to use their existing labels.
+ID lookup returns `null` for unknown or retired IDs; the restoration step
+must report that refusal. IDs are retained across renames and reordering,
+and retired IDs are never reused. See the
+[authoring contract](../README.md#stable-example-ids).
+
+The next step adds encoding, atomic restoration and Copy demo link; this
+stable-ID step does not enable fragment input restoration by itself.
+
 ### Tasks
 
-- [ ] Add stable example IDs separate from labels, including `hex-escape` for
+- [x] Add stable example IDs separate from labels, including `hex-escape` for
       Hex escape; document ID stability and retired-ID handling.
 - [ ] Specify and document the `#demo:` grammar, the versioned state schema,
       control value encodings, validation, defaults, precedence, repeated
