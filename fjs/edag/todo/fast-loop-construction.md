@@ -386,8 +386,10 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Implement normal results and statement-level enclosing-function completion propagation.
       Cover several breaks, nested returns, source nested-function returns,
       completion-shaped user values and failures.
-- [ ] Extend function-return completion handling to value operands, preserving
-      their lookup, spread and evaluation boundaries below.
+- [ ] Handle owning-function returns in plain value blocks and conditionals
+      used as required initializers or function-return payloads.
+- [ ] Extend completion handling to other value operands, preserving their
+      lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.
