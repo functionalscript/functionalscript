@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "mise: tool versions",
+            "type": "process",
+            "command": "mise",
+            "args": ["run", "check"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": []
+        },
+        {
+            "label": "mise: typecheck",
+            "type": "process",
+            "command": "mise",
+            "args": ["exec", "--", "tsc"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": "$tsc"
+        },
+        {
+            "label": "mise: Rust tests",
+            "type": "process",
+            "command": "mise",
+            "args": ["exec", "--", "cargo", "test"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": "$rustc"
+        }
+    ]
+}

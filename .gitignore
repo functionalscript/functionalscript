@@ -145,3 +145,7 @@ index.html
 
 # Website WebAssembly build artifacts
 /nanvm/demos/wasm/
+
+# Opt-in development environment trial
+/.mise/*
+!/.mise/locks/

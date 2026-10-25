@@ -1,7 +1,7 @@
 ## Investigate mise and Pixi as Nix alternatives
 
 **Priority:** P3
-**Status:** open
+**Status:** wip — mise development-environment trial
 
 ### Problem
 
@@ -25,6 +25,23 @@ manager across all supported platforms.
 - **Fast package installation on CI:** compare the time needed to make the
   required tools available with empty caches and restored caches, including
   manager bootstrap and cache overhead.
+
+### Development trials
+
+- [mise trial](https://github.com/functionalscript/functionalscript/pull/3259)
+- [Pixi trial](https://github.com/functionalscript/functionalscript/pull/3260)
+
+These PRs are independent opt-in alternatives for Stage 1 feedback. Neither
+selects the production manager or completes the six-platform investigation.
+
+### Trial version policy
+
+For these opt-in trials, the task owner allows tool versions available from
+trusted public binary caches even when they differ from the current project
+pins. Each trial must record its resolved versions and deviations. A run with
+different tool versions is a compatibility experiment, not evidence of exact
+CI parity or a like-for-like setup-speed benchmark. The production pins stay
+unchanged until a migration is selected.
 
 ### Stages
 
@@ -115,7 +132,8 @@ upstream asset listings, not completed installations.
 | SpiderMonkey `140.14.0` | `http:spidermonkey` using Mozilla's checked archives; see the next table. | [`spidermonkey` release][cf-spidermonkey]: exact version absent. A custom package is a candidate, not a published result of this investigation. |
 
 The checked conda-forge catalog cannot satisfy the complete proposed
-environment as written. Do not relax the project's pins to make it solve.
+environment at those exact pins. The cached-version trials allowed above
+may use other versions, with deviations recorded explicitly.
 mise's proposed routes also need complete installation and runtime validation;
 neither candidate has demonstrated all-platform parity.
 

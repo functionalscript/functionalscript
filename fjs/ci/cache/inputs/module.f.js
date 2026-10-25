@@ -29,6 +29,8 @@ const excludedFiles = [
     '.assetsignore', '.github/FUNDING.yml', '.github/dependabot.yml',
     'LICENSE', 'favicon.ico', 'funding.json', 'wrangler.jsonc',
     'fjs/website/favicon.svg',
+    // Opt-in development trial; the default cached checks still run in Nix.
+    'mise.toml', 'mise.lock', 'mise.spidermonkey.toml', 'mise.spidermonkey.lock',
 ]
 
 /** The JavaScript rung a path contributes to, independently of Rust. */
@@ -65,6 +67,7 @@ export const select = path => {
     const excluded = path.endsWith('.md') || path.split('/').includes('todo')
         || path.startsWith('changelog/') || path.startsWith('doc/')
         || path.startsWith('.claude/') || path.startsWith('.devcontainer/')
+        || path.startsWith('.mise/locks/')
         || excludedFiles.includes(path)
     return excluded ? [] : null
 }
