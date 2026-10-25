@@ -9,6 +9,17 @@ export type _Context = {
     readonly loops: List<LoopTarget>
 }
 
+export type _ResultMode = 'value' | 'statement' | 'none'
+
+export type _Sequence = {
+    readonly statements: readonly Statement[]
+    readonly values: readonly Value[]
+    readonly normal: boolean
+    readonly lifted: boolean
+    readonly callee: boolean
+    readonly admitted: boolean
+}
+
 export type _Region = {
     readonly block: Block
     readonly normal: boolean
