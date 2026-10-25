@@ -413,6 +413,8 @@ their documented normalization. Repeated conversions must stabilize.
       used as required initializers or function-return payloads.
 - [x] Lift owning returns through eager unary/binary operands, conditional
       tests and plain call callees/arguments, retaining required prefixes.
+- [ ] Lift owning returns through non-spread array elements, comma sequences
+      and multiple normal-yield values in admitted value regions.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
