@@ -38,12 +38,12 @@ the two are separate, and this one is not quietly migrated into the other.
 ## Shareable demo links
 
 Two controls beside Demo distinguish **Copy section link** (plain chain) from
-**Copy link with inputs** (chain with the visible label “Copy with inputs”). The section link always targets
-`#demo`; input links use `#demo` for default inputs. Example links
-such as `/fjs/compiler/#demo:example=hex-escape` restore a stable example;
-custom inputs use `#demo:state=BASE64URL_JSON`. Restore validates all inputs
-before replacing state and never presses action buttons. The encoded fragment
-limit is 16 KiB. New demos with inputs must declare defaults, choices and an
+**Copy with inputs** (chain with a visible text label). The section link always
+copies `#demo` without a query; input links use `#demo` for defaults. Example links
+such as `/fjs/compiler/?example=hex-escape#demo` restore a stable example;
+custom inputs use individual query parameters such as `?compiler=source#demo`.
+Restore validates all inputs before replacing state and never presses action
+buttons. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
 atomic sharing adapter; `textDemo` supplies one automatically. See the
 [sharing contract](./demo/sharing/README.md) for encodings, validation,
 clipboard feedback, startup edits and history navigation.
@@ -70,8 +70,8 @@ links to the current fragment open collapsed ancestors before scrolling. Encoded
 IDs are decoded once; malformed escapes and missing targets leave the page
 usable. Navigating to Emergent Testing never presses Run or starts tests.
 
-`#demo:` identifies [shareable demo inputs](./demo/sharing/README.md). The
-navigation layer reveals Demo immediately; the restoration runtime calls
+[Shareable demo inputs](./demo/sharing/README.md) use query parameters, leaving
+fragments for section navigation. The navigation layer reveals the target immediately; the restoration runtime calls
 `revealFragment` again after applying the complete input set so scrolling uses
 the final layout.
 

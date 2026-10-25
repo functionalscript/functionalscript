@@ -1,10 +1,10 @@
 /** Host-boundary proofs for URL navigation, queued restoration and clipboard UI. */
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startDemoSharing } from './demo-sharing-runtime.mjs'
-import { textSharing, recordSharing, encodeFragment, decodeFragment } from './demo/sharing/module.f.mjs'
+import { textSharing, recordSharing, encodeQuery, decodeQuery } from './demo/sharing/module.f.mjs'
 
 /** @type {(sharing?: any, hash?: string) => any} */
-const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'first'], ['Second', 'second', 'second']]), hash = '#demo:example=second') => {
+const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'first'], ['Second', 'second', 'second']]), hash = '?example=second#demo') => {
     /** @type {Map<string, (() => void)[]>} */
     const windowEvents = new Map()
     /** @type {Map<string, (() => void)[]>} */
@@ -32,7 +32,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     const document = { getElementById: (/** @type {string} */ id) => id === 'demo' ? target : null }
     /** @type {any} */
     const view = {
-        location: { hash, origin: 'https://example.com', pathname: '/demo/', search: '?unrelated=1' },
+        location: new URL(hash, 'https://example.com/demo/'),
         navigator: { clipboard: { writeText: async (/** @type {string} */ text) => { copied.push(text) } } },
         addEventListener: (/** @type {string} */ name, /** @type {() => void} */ listener) => windowEvents.set(name, [...windowEvents.get(name) ?? [], listener]),
         requestAnimationFrame: (/** @type {() => void} */ callback) => callback(),
@@ -72,7 +72,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         get hidden() { return button.hidden }, get restores() { return restores }, get state() { return state }, get scrolls() { return scrolls },
         start: (edited = false) => startDemoSharing(root, demo, controller, edited),
         flush: () => { for (const item of pending.splice(0)) { if (item.current() === 'apply') { state = item.next; restores++; item.after() } } },
-        hash: (/** @type {string} */ next) => { view.location.hash = next; windowEvents.get('hashchange')?.forEach(f => f()) },
+        navigate: (/** @type {string} */ next) => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; windowEvents.get('popstate')?.forEach(f => f()); windowEvents.get('hashchange')?.forEach(f => f()) },
         input: () => { revision += 1 },
         busy: (/** @type {boolean} */ value) => { busy = value },
         stateTo: (/** @type {any} */ value) => { state = value },
@@ -94,35 +94,50 @@ export const proof = {
         assertEq(f.restores, 1)
         assertEq(f.details.open, true)
         assertEq(f.scrolls, 1)
-        f.hash('#demo')
+        f.navigate('#demo')
         assertEq(f.pending[0].initialize, true)
         f.flush()
         assertEq(f.state, 'first')
         assertEq(f.status.hidden, true)
-        f.hash('#documentation')
+        f.navigate('#documentation')
         f.flush()
         assertEq(f.restores, 2)
         f.start()
         assertEq(f.windowEvents.get('hashchange').length, 1)
     },
+    headingsAndQueryHistory: () => {
+        const f = fixture(undefined, '?example=second#demo')
+        f.start(); f.flush()
+        f.stateTo('reader edit'); f.navigate('?example=second#heading'); f.flush()
+        assertEq(f.state, 'reader edit')
+        assertEq(f.restores, 1)
+        f.navigate('?source=other#heading'); f.flush()
+        assertEq(f.state, 'other')
+        f.navigate('#heading'); f.flush()
+        assertEq(f.state, 'first')
+        const plain = fixture(undefined, '#heading')
+        plain.start(true)
+        assertEq(plain.pending.length, 0)
+        assertEq(plain.status.textContent, '')
+    },
     validationIsAtomic: () => {
         const sharing = recordSharing({ text: 'default', choice: 'a', checked: true }, { text: { default: 'default' }, choice: { default: 'a', choices: ['a', 'b'] }, checked: { default: true } })
-        for (const hash of ['#demo:example=retired', '#demo:state=!', '#demo:example=a&example=b']) {
+        for (const hash of ['?example=retired', '?checked=invalid', '?example=a&example=b']) {
             const f = fixture(sharing, hash)
             f.start(); f.flush()
             assertEq(f.restores, 0)
             assert(f.status.textContent !== '')
             assertStructurallySame(f.state, { text: 'default', choice: 'a', checked: true })
         }
-        const invalid = encodeFragment(textSharing('unknown', 'default'), { unknown: 'x' })
+        const invalid = encodeQuery(textSharing('unknown', 'default'), { unknown: 'x' })
         assert(invalid[0] === 'ok')
         const f = fixture(sharing, invalid[1])
         f.start(); f.flush()
         assertEq(f.restores, 0)
         assert(f.status.textContent.includes('Unknown input'))
-        const encoded = encodeFragment(sharing, { text: 'Hello 🌍', choice: 'b', checked: false })
+        const encoded = encodeQuery(sharing, { text: 'Hello 🌍', choice: 'b', checked: false })
         assert(encoded[0] === 'ok')
-        f.hash(encoded[1]); f.flush()
+        f.navigate(encoded[1]); f.flush()
         assertStructurallySame(f.state, { text: 'Hello 🌍', choice: 'b', checked: false })
         assertEq(f.status.textContent, '')
         assertEq(f.status.hidden, true)
@@ -139,11 +154,11 @@ export const proof = {
         f.start(true); f.flush()
         assertEq(f.restores, 0)
         assert(f.status.textContent.includes('edits were preserved'))
-        f.hash('#demo:example=second'); f.input(); f.flush()
+        f.navigate('#documentation'); f.navigate('?example=second'); f.input(); f.flush()
         assertEq(f.state, 'first')
         assert(f.status.textContent.includes('edits were preserved'))
-        f.hash('#demo:example=second')
-        f.hash('#demo:example=first')
+        f.navigate('#documentation'); f.navigate('?example=second')
+        f.navigate('?example=first')
         f.flush()
         assertEq(f.state, 'first')
         assertEq(f.restores, 1)
@@ -152,13 +167,12 @@ export const proof = {
         const f = fixture()
         f.start(); f.flush()
         await f.click()
-        assertEq(f.copied[0], 'https://example.com/demo/#demo:example=second')
-        assertEq(f.view.location.hash, '#demo:example=second')
+        assertEq(f.copied[0], 'https://example.com/demo/?example=second#demo')
+        assertEq(f.view.location.search, '?example=second')
         assertEq(f.feedback.textContent, 'Copied!')
         f.stateTo('Custom 🌍\n')
         await f.click()
-        const hash = new URL(f.copied[1]).hash
-        assertStructurallySame(decodeFragment(hash), ['ok', { kind: 'state', inputs: { source: 'Custom 🌍\n' } }])
+        assertStructurallySame(decodeQuery(new URL(f.copied[1]).search), ['ok', { kind: 'inputs', values: { source: 'Custom 🌍\n' } }])
         const empty = fixture(undefined, '#documentation')
         empty.demo.sharing = undefined
         empty.start(); assertEq(empty.button.disabled, true); assertEq(empty.sectionButton.hidden, false); await empty.click(true)
@@ -207,7 +221,7 @@ export const proof = {
         assertEq(secondary.restores, 0)
         await secondary.click()
         assertEq(secondary.copied[0], 'https://example.com/demo/#demo')
-        const noStatus = fixture(undefined, '#demo:example=retired')
+        const noStatus = fixture(undefined, '?example=retired')
         noStatus.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? noStatus.root : selector.includes('button[data-copy-demo]') ? noStatus.button : selector.includes('button[data-copy-demo-section]') ? noStatus.sectionButton : null
         noStatus.start()
         assertEq(noStatus.pending.length, 0)

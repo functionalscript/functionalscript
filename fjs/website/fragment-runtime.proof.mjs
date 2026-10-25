@@ -54,8 +54,8 @@ export const proof = /** @type {const} */ ({
         assert(inner.open)
         assertEq(scrolls(), 1)
     },
-    demoNamespace: () => {
-        const { doc, scrolls } = fixture('#demo:example=hex-escape', 'demo')
+    demoTarget: () => {
+        const { doc, scrolls } = fixture('#demo', 'demo')
         revealFragment(doc)
         assertEq(scrolls(), 1)
     },
