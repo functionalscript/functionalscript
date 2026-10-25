@@ -86,7 +86,10 @@ export type Ranked = Node & { readonly rank: number }
  * unrelated nodes outside. Returns to the same destination merge where they
  * coincide and share one entry and small arrowhead. Hovering a shared piece
  * traces every contributing connection; ports and keyboard focus retain
- * individual connection tracing. Recursion draws dotted, independently of
+ * individual connection tracing. Clicking a return segment keeps its
+ * contributing connections selected after the pointer leaves. Segments do
+ * not add Tab stops; keyboard navigation still visits original connections.
+ * Recursion draws dotted, independently of
  * `kind`; a lazy recursive branch uses a dot-and-dash pattern.
  */
 export type Edge = {

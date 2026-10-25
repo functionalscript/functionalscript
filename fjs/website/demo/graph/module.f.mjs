@@ -1107,7 +1107,10 @@ const titleTraceOf = p => attrs => p.title === 0 ? [] : [/** @type {Element} */ 
  * their title block.
  * Returns use one hit target per shared segment. Hover traces every original
  * connection on that segment; source ports and individual keyboard focus
- * still trace one connection. Crossings do not merge their memberships.
+ * still trace one connection. Clicking a segment focuses it and keeps its
+ * contributing connections selected after the pointer leaves. Segment focus
+ * is outside the Tab order, which continues to visit individual connections.
+ * Crossings do not merge their memberships.
  * The SVG's CSS relationships use numeric identities, not display names.
  *
  * @type {(g: Graph) => Element}
@@ -1141,6 +1144,11 @@ export const graphSvg = g => {
     // between the same nodes apart.
     /** @type {(index: number, from: number) => number} */
     const slotOf = (index, from) => g.edges.slice(0, index).filter(e => e.from === from).length
+    /** @type {(index: number) => string} */
+    const descriptionOf = index => {
+        const { edge, to } = assertNotNullish(routes.find(route => route.index === index))
+        return `${nodeOf(edge.from).label} [${edge.label}] → ${nodeOf(to).label}${edge.back === true ? ' (recursive)' : ''}`
+    }
     /** @type {readonly { readonly line: Element, readonly trace: readonly Element[], readonly back: boolean }[]} */
     const edgeEls = routes.map(({ edge, index, to, points }) => {
         const from = nodeOf(edge.from)
@@ -1155,7 +1163,7 @@ export const graphSvg = g => {
         }])
         if (g.trace !== true) { return { line, trace: [], back: edge.back === true } }
         const sourcePorts = from.ports.filter(port => port.index === index && from.title < from.width)
-        const description = `${from.label} [${edge.label}] → ${target.label}${edge.back === true ? ' (recursive)' : ''}`
+        const description = descriptionOf(index)
         return { line, back: edge.back === true, trace: [/** @type {Element} */ (['g', {
             'data-graph-connection': String(index), tabindex: '0', role: 'group', 'aria-label': description,
             'data-graph-from': String(edge.from), 'data-graph-to': String(to),
@@ -1186,6 +1194,7 @@ export const graphSvg = g => {
         d: `M${segment.points.map(([x, y]) => `${x},${y}`).join(' L')}`,
         'data-graph-hit': '', 'data-graph-segment': String(i),
         'data-graph-members': segment.members.join(' '),
+        tabindex: '-1', role: 'group', 'aria-label': segment.members.map(descriptionOf).join('; '),
     }]))
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge
@@ -1321,6 +1330,9 @@ export const graphSvg = g => {
             ...positioned.map(p => `svg:has([data-graph-node-name="${p.id}"]:hover) [data-graph-to="${p.id}"] [data-graph-trace] { opacity: 1 }\n`),
             ...positioned.map(p => `svg:has([data-graph-node-name="${p.id}"]:hover) [data-graph-title-hover="${p.id}"] { opacity: 1 }\n`),
             ...returns.flatMap((segment, i) => segment.members.map(index => `svg:has([data-graph-segment="${i}"]:hover) [data-graph-connection="${index}"] [data-graph-trace] { opacity: 1 }\n`)),
+            // A clicked segment keeps the same union as hover. Explicit
+            // hover targets temporarily take precedence over that selection.
+            ...returns.flatMap((segment, i) => segment.members.map(index => `svg:has([data-graph-segment="${i}"]:focus):not(:has([data-graph-hit]:hover, [data-graph-port-edge]:hover, [data-graph-node-name]:hover)) [data-graph-connection="${index}"] [data-graph-trace] { opacity: 1 }\n`)),
             ...routes.map(r => `svg:has([data-graph-port-edge="${r.index}"]:hover) [data-graph-connection="${r.index}"] [data-graph-trace] { opacity: 1 }\n`),
         ])] : []),
         ['defs',

@@ -653,7 +653,7 @@ svg text { font: inherit }
 [data-graph-kind="new"] { fill: var(--graph-new-bg) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
-[data-graph-connection] { outline: none; pointer-events: none }
+[data-graph-connection], [data-graph-segment] { outline: none; pointer-events: none }
 [data-graph-hit] { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer }
 /* Selection has its own accent; schema values keep their semantic blue. */
 [data-graph-trace] { opacity: 0; fill: none; stroke: var(--graph-highlight); stroke-width: 3.5; pointer-events: none }

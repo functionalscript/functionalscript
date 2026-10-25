@@ -252,9 +252,11 @@ export const proof = {
             assert(members.some(ids => ids.length === 1 && ids[0] === 3), 'second branch')
             assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), 1)
             assertEq(occurrences('tabindex="0"')(html), 3)
+            assert(html.includes('tabindex="-1" role="group" aria-label="g [a] → f (recursive); g [b] → f (recursive)"'), 'a shared segment can receive click focus and describes every connection')
             for (const [i, ids] of members.entries()) {
                 for (const id of ids) {
                     assert(html.includes(`svg:has([data-graph-segment="${i}"]:hover) [data-graph-connection="${id}"] [data-graph-trace] { opacity: 1 }`), html)
+                    assert(html.includes(`svg:has([data-graph-segment="${i}"]:focus):not(:has([data-graph-hit]:hover, [data-graph-port-edge]:hover, [data-graph-node-name]:hover)) [data-graph-connection="${id}"] [data-graph-trace] { opacity: 1 }`), 'clicked segments retain their selection while idle')
                 }
             }
             assertEq(_crossings(g), 0)
