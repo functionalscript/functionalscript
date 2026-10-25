@@ -9,6 +9,7 @@
  *
  * @module
  *
+ * @import { RequiredMap } from '../../types/object/types.ts'
  * @import { Sharing } from '../../website/demo/sharing/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
@@ -506,7 +507,8 @@ const sharing = {
         'reuse-key': state.reuse.key, 'reuse-nonce': state.reuse.nonce,
         'reuse-message1': state.reuse.message1, 'reuse-message2': state.reuse.message2 }),
     restore: inputs => {
-        const values = /** @type {Readonly<Record<string, string>>} */ (inputs)
+        // The restore boundary receives these finite, validated fields.
+        const values = /** @type {RequiredMap<'curve' | 'hash' | 'key' | 'message' | 'reuse-key' | 'reuse-nonce' | 'reuse-message1' | 'reuse-message2', string>} */ (inputs)
         return { ...initial, curve: values.curve, hash: values.hash, key: values.key, message: values.message,
             reuse: { key: values['reuse-key'], nonce: values['reuse-nonce'], message1: values['reuse-message1'], message2: values['reuse-message2'] } }
     },

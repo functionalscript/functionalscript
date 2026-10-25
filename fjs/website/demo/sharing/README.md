@@ -72,6 +72,10 @@ const demo = withInputs(definition, ['message', 'algorithm', 'animate'], {
 })
 ```
 
+Sharing maps use `StringMap`: a missing key may be `undefined`. Undefined
+entries are treated as absent, and validation supplies declared defaults
+before calling `restore` with the complete input set.
+
 For more complex state, provide a `Sharing<State>` value:
 
 - `fields`: defaults and optional `choices` for all shareable inputs;

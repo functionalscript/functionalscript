@@ -34,14 +34,14 @@
  *
  * @module
  *
+ * @import { RequiredMap } from '../../../types/object/types.ts'
+ * @import { Sharing } from '../sharing/types.ts'
  * @import { Census, Keys, Layout, Options, Preset, Random, Row, Shape, State, Step, Structure, Versions, VersionsDemo } from './types.ts'
  * @import { Effect, NotImplemented } from '../../../effects/types.ts'
  * @import { RandomInt } from '../../../effects/common/types.ts'
  * @import { Click, Edge, Graph } from '../graph/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  */
-
-/** @import { Sharing } from '../sharing/types.ts' */
 
 import { refusal } from '../module.f.mjs'
 import { graphSvg } from '../graph/module.f.mjs'
@@ -295,7 +295,8 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
         examples: presets.map(([name, , , , id]) => ({ id, inputs: { example: id, key: load(name).key, count: initial.count } })),
         read: ({ status, key, count }) => ({ example: 'preset' in status ? assertNotNullish(presets.find(p => p[0] === status.preset))[4] : '', key, count }),
         restore: inputs => {
-            const values = /** @type {Readonly<Record<string, string>>} */ (inputs)
+            // The restore boundary receives these finite, validated fields.
+            const values = /** @type {RequiredMap<'example' | 'key' | 'count', string>} */ (inputs)
             const base = values.example === ''
                 ? { ...initial, versions: { before: structure.empty, after: structure.empty }, status: { random: [] } }
                 : load(assertNotNullish(presets.find(p => p[4] === values.example))[0])
