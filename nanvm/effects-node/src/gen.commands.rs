@@ -12,6 +12,7 @@ pub const COMMANDS: &[&str] = &[
     "createExclusive",
     "createServer",
     "exec",
+    "execFile",
     "fetch",
     "forever",
     "fstat",
