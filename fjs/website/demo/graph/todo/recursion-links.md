@@ -86,11 +86,6 @@ review; spacing and local routes should already make membership clear.
   retaining original edge identities and source-port tracing.
 - [ ] Implement segment-aware union highlighting and preserve individual
   keyboard access without relying on SVG paint order.
-- [ ] Show a tooltip beside the hovered shared recursion segment with the
-  number of contributing connections and their source node/port labels
-  (for example, "3 recursion links", followed by "Call A · callee",
-  "Call B · self", and "Call C · callee"). Position it clear of the inspected
-  segment and support the same details through keyboard focus.
 - [ ] Compare recursion styles in light/dark themes, including lazy recursion,
   and choose the final stroke, markers, and interaction treatment.
 - [ ] Update renderer/API documentation and demo descriptions that currently
