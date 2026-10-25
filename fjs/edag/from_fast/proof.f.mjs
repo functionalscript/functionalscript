@@ -1709,12 +1709,12 @@ export const proof = {
             })
             calledFunction(fn)
         },
-        loopReturnValueOperand: () => {
+        loopReturnValueForeignOwner: () => {
             const value = id(0)
             const loop = returningLoop(false, 7)
             const operand = /** @type {Loop} */ ({
                 ...loop, body: body(['break', loop.target, []], [
-                    ['define', value, ['block', body(['return', target, 7])], 'required'],
+                    ['define', value, ['block', body(['return', { ...target }, 7])], 'required'],
                 ]),
             })
             const fn = /** @type {FastFunction} */ ({
@@ -1806,12 +1806,12 @@ export const proof = {
             })
             calledFunction(fn)
         },
-        sharedFunctionJoinNestedOperandReturn: () => {
+        sharedFunctionJoinNestedOperandForeignReturn: () => {
             const value = id(0)
             const fn = /** @type {FastFunction} */ ({
                 target, parameters: [], rest: null, self: null, captures: [],
                 body: body(['return', target, 7], [['define', value, ['block', body(['yield', [1]], [
-                    ['if', [], true, body(['return', target, 9]), body(['yield', []])],
+                    ['if', [], true, body(['return', { ...target }, 9]), body(['yield', []])],
                 ])], 'required']]),
             })
             calledFunction(fn)

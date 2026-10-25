@@ -156,7 +156,18 @@ normalization evaluates the return payload with the current cells, then the
 existing completion pass propagates that payload through enclosing helpers.
 The function exits with its source value; normal helper exits still carry the
 memo vector for following work. Standalone and operand regions do not inherit
-function ownership.
+function ownership unless an admitted value region is first lifted below.
+
+The first value-completion increment lifts direct plain block and conditional
+values used as required initializers or source-function return payloads. A single
+yielded value in an exposed region can continue that chain. Their normal results
+bind before the original consumer, with existing scalar/zero/many packing;
+terminal owning returns skip the consumer and suffix. The lift runs before memo
+and loop-completion lowering, preserving their shared identity and state rules.
+No-return inputs retain their existing syntax identity. Conditional tests,
+multi-result yield operands, lazy initializers, function captures and arbitrary
+operator/call operands remain separate evaluation boundaries. A loop transfer
+cannot escape the operand's locally owned loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
 `[userValuesArray, memoVector]` transfer payload as owning exits. Lexical source
@@ -386,8 +397,10 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Implement normal results and statement-level enclosing-function completion propagation.
       Cover several breaks, nested returns, source nested-function returns,
       completion-shaped user values and failures.
-- [ ] Extend function-return completion handling to value operands, preserving
-      their lookup, spread and evaluation boundaries below.
+- [x] Handle owning-function returns in plain value blocks and conditionals
+      used as required initializers or function-return payloads.
+- [ ] Extend completion handling to other value operands, preserving their
+      lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.

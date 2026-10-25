@@ -23,6 +23,7 @@ import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
 import { normalizeMemo } from './loop/memo/module.f.mjs'
+import { liftReturns } from './operands/module.f.mjs'
 import { bind, call, done, run } from './task/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
@@ -248,7 +249,8 @@ const lowerValues = (input, context) => {
 /** @type {(fn: FastFunction, context: Context) => Task<Lowered>} */
 const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
-    const memoized = normalizeMemo(source.body, [], source.target)
+    const lifted = liftReturns(source.body, source.target)
+    const memoized = normalizeMemo(lifted, [], source.target)
     /** @type {FastFunction} */
     const prepared = memoized === source.body ? source : { ...source, body: memoized }
     const originalScalar = rootLoopOf(prepared)
