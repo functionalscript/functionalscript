@@ -138,8 +138,14 @@ every selected boundary. Inner entry demands use the current outer vector, and
 inner results return updates before outer transitions. Reentering an inner
 helper reuses the owning function's cells; skipped entries leave them deferred.
 
-Recipe-local computed lazy dependents, iteration-local cells and escaping
-completions remain following increments.
+Iteration-local declarations reset their selected cell at each reached source
+declaration and define the getter from that iteration's established values.
+The reset preserves caller and enclosing-iteration cells; aliases share their
+root without resetting it. Selected helper ancestors transport the vector even
+when a local declaration hides the dependency from their free-binding set.
+
+Recipe-local computed lazy dependents and escaping completions remain following
+increments.
 Stateful member-call/optional/spread operands retain explicit refusals until their
 evaluation boundary is owned below. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
@@ -373,8 +379,11 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Share caller-owned lazy cells and dependent recipes through nested
       normal-exit helpers. Preserve inner-first demand, skipped failures and
       shared identity through inner results and outer transitions.
-- [ ] Extend shared demand state to recipe-local computed dependents,
-      statement-loop-local cells and escaping completions.
+- [x] Give lazy cells declared inside loop iterations fresh declaration
+      lifetimes. Share reached values with nested helpers and same-iteration
+      reads while retaining caller-owned state.
+- [ ] Extend shared demand state to recipe-local computed dependents
+      and escaping completions.
       Preserve fresh iteration lifetimes and selected updates through every completion.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.

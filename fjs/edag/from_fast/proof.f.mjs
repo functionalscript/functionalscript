@@ -1634,15 +1634,6 @@ export const proof = {
             const escaped = /** @type {Loop} */ ({ ...inner, body: body(['return', target, 1]) })
             fromFast(afterLoop({ ...outer, body: { ...outer.body, statements: [['loop', escaped], ...outer.body.statements] } }, 7))
         },
-        nestedLoopLazyCapture: () => {
-            const outer = summing()
-            const lazy = id(0)
-            const inner = summing(0, ref(lazy))
-            const statements = /** @type {readonly Statement[]} */ ([
-                ['define', lazy, ['array', [3]], 'lazy'], ['loop', inner], ...outer.body.statements,
-            ])
-            fromFast(afterLoop({ ...outer, body: { ...outer.body, statements } }, 7))
-        },
         loopMemoExternalLazyEnvironment: () => {
             const lazy = id(0)
             const loop = collectingMemo(ref(lazy))
@@ -1685,14 +1676,6 @@ export const proof = {
             const loop = collectingMemo(ref(lazy), 2)
             const block = result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]])
             lowerValue(['block', block], [], () => ({ exp: 7, anchors: [] }))
-        },
-        loopMemoDelayedIterationRecipe: () => {
-            const lazy = id(0), delayed = id(0)
-            const loop = collectingMemo(ref(delayed))
-            const modified = /** @type {Loop} */ ({ ...loop, body: {
-                ...loop.body, statements: [['define', delayed, ['array', [ref(lazy)]], 'lazy'], ...loop.body.statements],
-            } })
-            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', modified]]))
         },
         loopMemoEscapingReturn: () => {
             const lazy = id(0)

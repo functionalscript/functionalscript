@@ -1,6 +1,7 @@
 /** Lexical snapshots and deferred dependency edges for shared memo cells. @module */
 
 import type { BindingId, Block, Definition, Loop } from '../../../../../js/ast/types.ts'
+import type { Link } from '../../../private.ts'
 
 export type _Root = {
     readonly binding: BindingId
@@ -20,12 +21,13 @@ export type _Visit = {
     readonly block: Block
     readonly index: number
     readonly scope: _Scope
-    readonly insideLoop: boolean
+    readonly ancestors: Link<Loop> | null
 }
 
 export type _LoopInfo = {
     readonly loop: Loop
     readonly roots: readonly _Root[]
+    readonly ancestors: Link<Loop> | null
 }
 
 export type _TransferVisit = {
