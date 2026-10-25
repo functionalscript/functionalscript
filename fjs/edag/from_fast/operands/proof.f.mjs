@@ -35,7 +35,9 @@ export const proof = /** @type {const} */ ({
             ['if', true, yielded([3]), body(['throw', 7])], ['?:', true, 1, 2],
             ['+', 1], ['+', 1, 2], ['()', ref(value), []],
             ['instanceof', ['block', returned(3)], 'Array'],
-            ['object', [[':', 'x', ['block', returned(3)]]]],
+            ['object', []], ['object', [[':', 'x', ref(value)]]],
+            ['object', [['...', ['object', []]], [':', 'x', ['block', returned(3)]]]],
+            ['object', [[':', ['block', returned(3)], 1], ['...', ['object', []]]]],
             ['array', [['...', ['array', []]], ['block', returned(3)]]],
             ['array', [['...', ['block', returned(3)]]]],
             ['.', ['block', returned(3)], 'x'], ['?.', ['block', returned(3)], 'x'],
@@ -175,6 +177,71 @@ export const proof = /** @type {const} */ ({
             const region = blockOf(result.statements[0])
             assertStructurallySame(region.exit, ['yield', []])
         }
+    },
+    objectEntries: () => {
+        const key = id(), value = id(), condition = id()
+        const selected = /** @type {Value} */ (['block', yielded([3], [
+            ['define', key, 'shadow', 'required'], ['if', [], ref(condition), returned(9), yielded([])],
+        ])])
+        const source = returned(['object', [[':', ref(key), selected], [':', '__proto__', ref(value)], [':', ref(key), 5]]])
+        const result = liftReturns(source, owner)
+        const region = blockOf(result.statements[0])
+        assertEq(region.statements.length, 6)
+        const first = region.statements[0], second = region.statements[1], third = region.statements[2]
+        const fourth = region.statements[3], fifth = region.statements[4], sixth = region.statements[5]
+        assert(first[0] === 'define' && second[0] === 'block' && third[0] === 'define')
+        assert(fourth[0] === 'define' && fifth[0] === 'define' && sixth[0] === 'define')
+        assertEq(first[3], 'required')
+        assertStructurallySame(first[2], ['String', ref(key)])
+        assertStructurallySame(third[2], ['String', '__proto__'])
+        assertStructurallySame(fifth[2], ['String', ref(key)])
+        assertStructurallySame(region.exit, ['yield', [['object', [
+            [':', ref(first[1]), ref(second[1][0])], [':', ref(third[1]), ref(fourth[1])], [':', ref(fifth[1]), ref(sixth[1])],
+        ]]]])
+        assertEq(liftReturns(result, owner), result)
+        assertEq(source.statements.length, 0)
+    },
+    objectKeyRegions: () => {
+        const key = id(), value = id(), condition = id()
+        const selected = /** @type {Value} */ (['block', yielded([ref(key)], [['if', [], ref(condition), returned(9), yielded([])]])])
+        const source = returned(['object', [[':', selected, ref(value)]]])
+        const result = liftReturns(source, owner)
+        const region = blockOf(result.statements[0])
+        const converted = region.statements[0], property = region.statements[1]
+        assert(converted[0] === 'block' && property[0] === 'define')
+        const conversion = converted[2]
+        assertEq(conversion.statements.length, 1)
+        const raw = conversion.statements[0]
+        assert(raw[0] === 'block')
+        assertStructurallySame(conversion.exit, ['yield', [['String', ref(raw[1][0])]]])
+        assertStructurallySame(region.exit, ['yield', [['object', [[':', ref(converted[1][0]), ref(property[1])]]]]])
+        assertEq(liftReturns(result, owner), result)
+        const foreign = /** @type {Value} */ (['block', body(['return', other, 8])])
+        const terminal = liftReturns(returned(['object', [
+            [':', ['block', returned(7)], foreign], [':', foreign, foreign],
+        ]]), owner)
+        const object = blockOf(terminal.statements[0])
+        assertEq(object.statements.length, 1)
+        const string = blockOf(object.statements[0])
+        assertEq(string.statements.length, 1)
+        assertStructurallySame(blockOf(string.statements[0]).exit, ['return', owner, 7])
+        assertStructurallySame(string.exit, ['yield', []])
+        assertStructurallySame(object.exit, ['yield', []])
+        assertStructurallySame(terminal.exit, ['yield', []])
+    },
+    objectIdentityAndCallee: () => {
+        const key = id(), condition = id()
+        for (const value of /** @type {readonly Value[]} */ ([undefined, null, true, 0, -0, 4n, 'key', ['array', []], ['object', []], ref(key)])) {
+            const source = returned(['object', [[':', value, 3], [':', 'key', ref(key)]]])
+            assertEq(liftReturns(source, owner), source)
+        }
+        const selected = /** @type {Value} */ (['block', yielded([3], [['if', [], ref(condition), returned(9), yielded([])]])])
+        const callee = /** @type {Value} */ (['object', [[':', ref(key), selected]]])
+        const source = returned(['()', callee, [['block', returned(7)]]])
+        const result = liftReturns(source, owner)
+        assert(result !== source)
+        assertStructurallySame(result.exit, ['yield', []])
+        assertEq(liftReturns(result, owner), result)
     },
     commaCalleeFacts: () => {
         const fn = id(), receiver = id(), condition = id()
@@ -439,6 +506,22 @@ export const proof = /** @type {const} */ ({
             const region = blockOf(current.statements[0])
             assertEq(region.statements.length, 2)
             assertEq(region.statements[0][0], 'define')
+            current = { statements: [region.statements[1]], exit: region.exit }
+        }
+        assertStructurallySame(blockOf(current.statements[0]).exit, ['return', owner, 7])
+    },
+    deepObjectChain: () => {
+        /** @type {Value} */
+        let value = ['block', returned(7)]
+        for (let depth = 0; depth < 20_000; ++depth) { value = ['object', [[':', 'key', value]]] }
+        const result = liftReturns(returned(value), owner)
+        let current = result
+        for (let depth = 0; depth < 20_000; ++depth) {
+            const region = blockOf(current.statements[0])
+            assertEq(region.statements.length, 2)
+            const key = region.statements[0]
+            assert(key[0] === 'define')
+            assertStructurallySame(key[2], ['String', 'key'])
             current = { statements: [region.statements[1]], exit: region.exit }
         }
         assertStructurallySame(blockOf(current.statements[0]).exit, ['return', owner, 7])

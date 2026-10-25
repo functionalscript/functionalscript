@@ -183,7 +183,14 @@ operand remains required. Zero/many yielded values at an admitted value-region
 root sequence in order and pack once into an array. Statement-result regions
 retain their declared multiple-binding signatures.
 
-Objects, `instanceof`, ordinary multiple-binding yield operands, lazy
+Non-spread object entries sequence each key through a required `String`
+conversion before its property value and later entries. This is the object
+kernel's own key conversion. A returning key skips conversion; a later return
+retains every reached key conversion and property value. Normal completion
+constructs the object from established string keys and values, preserving
+duplicate keys, enumeration order, `__proto__` as data and value identity.
+
+`instanceof`, ordinary multiple-binding yield operands, lazy
 initializers, captures, member/native callees, optional forms and spreads retain
 their evaluation boundaries. Plain-call admission preserves callee provenance
 through wrapper regions and comma results.

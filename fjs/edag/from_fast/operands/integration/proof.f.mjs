@@ -49,7 +49,232 @@ const failed = message => ['block', body(['throw', message])]
 const sequenceValue = (kind, values) => kind === 'yield' ? ['block', body(['yield', values])]
     : kind === 'array' ? ['array', values] : [',', values]
 
+/** @type {(toString: Value, valueOf: Value) => Value} */
+const keyMethods = (toString, valueOf) => ['object', [[':', 'toString', toString], [':', 'valueOf', valueOf]]]
+
 export const proof = /** @type {const} */ ({
+    objectPreviouslyRefusedReturns: () => {
+        assertEq(evaluate(calledFunction(requiredFunction(['object', [[':', escape(), 1]]]))), 7)
+        assertEq(evaluate(calledFunction(requiredFunction(['object', [[':', 'x', escape()]]]))), 7)
+    },
+    objectPrimitiveAndMethodKeys: () => {
+        const stop = id(0)
+        const primitives = /** @type {readonly (readonly [Value, string])[]} */ ([
+            [undefined, 'undefined'], [null, 'null'], [false, 'false'], [true, 'true'],
+            [0, '0'], [-0, '0'], [11, '11'], [1.5, '1.5'], [NaN, 'NaN'],
+            [Infinity, 'Infinity'], [-Infinity, '-Infinity'], [7n, '7'], ['', ''], ['key', 'key'],
+            [['array', [1, null, 3]], '1,,3'], [['object', []], '[object Object]'],
+        ])
+        const skipped = simpleFunction([], failed('unused coercion method'))
+        const methods = /** @type {readonly (readonly [Value, string])[]} */ ([
+            [keyMethods(simpleFunction([], 'alpha'), skipped), 'alpha'],
+            [keyMethods(simpleFunction([], ['object', []]), simpleFunction([], 'beta')), 'beta'],
+            [keyMethods(0, simpleFunction([], 9n)), '9'],
+            [keyMethods(simpleFunction([], undefined), skipped), 'undefined'],
+            [['object', [[':', 'valueOf', skipped]]], '[object Object]'],
+        ])
+        for (const [key, expected] of [...primitives, ...methods]) {
+            const fn = requiredFunction(['object', [[':', key, returningValue('if', ref(stop), [9])]]], [stop])
+            const value = evaluate(calledFunction(fn, [false]))
+            assert(value !== null && typeof value === 'object' && !(value instanceof Array))
+            assertStructurallySame(Object.entries(value), [[expected, 9]])
+            assertEq(evaluate(calledFunction(fn, [true])), 7)
+        }
+    },
+    objectRequiredKeyConversionAndValueOrder: () => {
+        const cases = /** @type {readonly (readonly [Value, string])[]} */ ([
+            [['object', [[':', failed('key expression'), escape()]]], 'key expression'],
+            [['object', [[':', keyMethods(simpleFunction([], failed('key conversion')), simpleFunction([], 0)), escape()]]], 'key conversion'],
+            [['object', [[':', 'duplicate', failed('earlier property value')], [':', 'duplicate', escape()]]], 'earlier property value'],
+            [['object', [
+                [':', keyMethods(simpleFunction([], failed('earlier key conversion')), simpleFunction([], 0)), 1],
+                [':', escape(), 2],
+            ]], 'earlier key conversion'],
+        ])
+        for (const [value, message] of cases) {
+            const graph = calledFunction(requiredFunction(value))
+            assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), message)
+        }
+        const exhausted = keyMethods(simpleFunction([], ['object', []]), simpleFunction([], ['array', []]))
+        const graph = calledFunction(requiredFunction(['object', [[':', exhausted, escape()]]]))
+        assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] }))
+    },
+    objectReturnsSkipConversionAndRemainingWork: () => {
+        const original = id(0), captured = id(0), output = id(0), returned = id(0), dead = id(0)
+        const payload = /** @type {Value} */ (['object', [
+            [':', 'marker', 41], [':', 'toString', simpleFunction([], failed('skipped key conversion'))],
+        ]])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [{ binding: captured, value: ref(original) }],
+            body: body(['return', target, 9], [
+                ['define', output, ['object', [
+                    [':', escape(ref(captured)), failed('skipped property value')],
+                    [':', failed('skipped later key'), failed('skipped later value')],
+                ]], 'required'], ['define', dead, failed('skipped object suffix'), 'required'],
+            ]),
+        })
+        const value = evaluate(fromFast(result(['array', [['===', ref(returned), ref(original)], ['.', ref(returned), 'marker']]], [
+            ['define', original, payload, 'required'], ['define', returned, ['()', ['function', fn], []], 'required'],
+        ])))
+        assertStructurallySame(value, [true, 41])
+        const initializer = /** @type {Value} */ (['object', [
+            [':', 'first', escape()], [':', failed('skipped entry key'), failed('skipped entry value')],
+        ]])
+        const source = requiredFunction(initializer)
+        const skipped = /** @type {FastFunction} */ ({ ...source, body: { ...source.body, statements: [
+            ...source.body.statements, ['define', dead, failed('skipped value-return suffix'), 'required'],
+        ] } })
+        assertEq(evaluate(calledFunction(skipped)), 7)
+    },
+    objectDuplicatesEnumerationAndAliases: () => {
+        const stop = id(0), first = id(0), second = id(0), output = id(0)
+        const initializer = /** @type {Value} */ (['object', [
+            [':', 'a', ref(first)], [':', 'b', ref(first)],
+            [':', 'a', returningValue('if', ref(stop), [ref(second)], ref(second))],
+            [':', '__proto__', ref(first)], [':', 2, 'two'], [':', 1, 'one'], [':', 'c', ref(second)],
+        ]])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [stop], rest: null, self: null, captures: [],
+            body: body(['return', target, ['array', [ref(output), ref(output), ref(first), ref(second), ['()', ['Object.entries'], [ref(output)]]]]], [
+                ['define', first, ['array', [4]], 'required'], ['define', second, ['array', [9]], 'required'], ['define', output, initializer, 'required'],
+            ]),
+        })
+        assertStructurallySame(evaluate(calledFunction(fn, [true])), [9])
+        const value = evaluate(calledFunction(fn, [false]))
+        assert(value instanceof Array && value[0] !== null && typeof value[0] === 'object' && value[4] instanceof Array)
+        const object = /** @type {Readonly<Record<string, unknown>>} */ (value[0])
+        assertEq(value[0], value[1])
+        assertEq(object.a, value[3])
+        assertEq(object.b, value[2])
+        assertEq(object.c, value[3])
+        assert(Object.hasOwn(object, '__proto__'))
+        assertEq(object['__proto__'], value[2])
+        assertStructurallySame(Object.keys(object), ['1', '2', 'a', 'b', '__proto__', 'c'])
+        assertStructurallySame(value[4].map(entry => {
+            assert(entry instanceof Array)
+            return entry[0]
+        }), ['1', '2', 'a', 'b', '__proto__', 'c'])
+    },
+    objectMemoAndCapturedLifetimes: () => {
+        const stop = id(0), caller = id(0), selected = id(0), recipeLocal = id(0), initialized = id(0)
+        const witness = collectingMemo(ref(selected), 0)
+        const payload = /** @type {Value} */ (['array', [ref(selected), ref(selected), ref(caller), 'returned']])
+        const initializers = /** @type {readonly Value[]} */ ([
+            ['object', [[':', ref(selected), returningValue('if', ref(stop), [ref(selected)], payload)], [':', 'alias', ref(selected)]]],
+            ['object', [[':', 'first', ref(selected)], [':', returningValue('if', ref(stop), ['tail'], payload), ref(selected)]]],
+        ])
+        for (const [index, initializer] of initializers.entries()) {
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [stop], rest: null, self: null, captures: [],
+                body: body(['return', target, ['array', [ref(initialized), ref(selected), ref(caller), 'normal']]], [
+                    ['define', caller, ['array', [4]], 'lazy'],
+                    ['define', selected, ['block', result(['array', [ref(recipeLocal), ref(recipeLocal)]], [
+                        ['define', recipeLocal, ['array', [ref(caller)]], 'lazy'],
+                    ])], 'lazy'], ['loop', witness], ['define', initialized, initializer, 'required'],
+                ]),
+            })
+            const normal = evaluate(calledFunction(fn, [false]))
+            assert(normal instanceof Array && normal[0] !== null && typeof normal[0] === 'object'
+                && normal[1] instanceof Array && normal[1][0] instanceof Array)
+            const object = /** @type {Readonly<Record<string, unknown>>} */ (normal[0])
+            assertEq(object[index === 0 ? '4,4' : 'first'], normal[1])
+            assertEq(object[index === 0 ? 'alias' : 'tail'], normal[1])
+            assertEq(normal[1][0], normal[1][1])
+            assertEq(normal[1][0][0], normal[2])
+            assertEq(normal[3], 'normal')
+            const returned = evaluate(calledFunction(fn, [true]))
+            assert(returned instanceof Array && returned[0] instanceof Array && returned[0][0] instanceof Array)
+            assertEq(returned[0], returned[1])
+            assertEq(returned[0][0], returned[0][1])
+            assertEq(returned[0][0][0], returned[2])
+            assertEq(returned[3], 'returned')
+        }
+        const local = id(0), captured = id(0), count = id(0), output = id(0), made = id(0)
+        const factoryBinding = id(0), firstFn = id(0), secondFn = id(0), first = id(0), second = id(0)
+        const getterTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const getter = /** @type {Value} */ (['function', {
+            target: getterTarget, parameters: [], rest: null, self: null, captures: [{ binding: captured, value: ref(local) }],
+            body: body(['return', getterTarget, ['array', [ref(captured), ref(captured)]]]),
+        }])
+        const inner = collectingMemo(ref(local), 2)
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [count], initial: [0], results: [output],
+            body: body(['break', outerTarget, [null]], [
+                ['if', [], ['<', ref(count), 2], body(['continue', outerTarget, [['+', ref(count), 1]]], [
+                    ['define', local, ['array', [ref(count)]], 'lazy'], ['loop', inner],
+                    ['define', made, ['object', [[':', ref(local), returningValue('if', ['===', ref(count), 1], [ref(local)], getter)]]], 'required'],
+                ]), body(['yield', []])],
+            ]),
+        })
+        const factory = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [], body: body(['return', target, null], [['loop', outer]]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(first), ref(second)]], [
+            ['define', factoryBinding, ['function', factory], 'required'],
+            ['define', firstFn, ['()', ref(factoryBinding), []], 'required'], ['define', secondFn, ['()', ref(factoryBinding), []], 'required'],
+            ['define', first, ['()', ref(firstFn), []], 'required'], ['define', second, ['()', ref(secondFn), []], 'required'],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array)
+        assertStructurallySame(value, [[[1], [1]], [[1], [1]]])
+        assertEq(value[0][0], value[0][1])
+        assertEq(value[1][0], value[1][1])
+        assert(value[0][0] !== value[1][0])
+    },
+    objectCalleesAndArgumentReturns: () => {
+        const callees = /** @type {readonly Value[]} */ ([
+            ['object', []], ['object', [[':', 'x', 1]]], ['block', result(['object', []])], [',', [0, ['object', []]]],
+        ])
+        for (const callee of callees) {
+            assertEq(evaluate(calledFunction(requiredFunction(['()', callee, [escape()]]))), 7)
+            const graph = calledFunction(requiredFunction(['()', callee, [2]]))
+            assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] }))
+        }
+        const coercion = keyMethods(simpleFunction([], failed('object callee key conversion')), simpleFunction([], 0))
+        const graph = calledFunction(requiredFunction(['()', ['object', [[':', coercion, 1]]], [escape()]]))
+        assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 'object callee key conversion')
+        assertEq(evaluate(calledFunction(requiredFunction(['()', ['object', [[':', escape(), 1]]], [failed('skipped object-callee argument')]]))), 7)
+    },
+    objectMetadataAndRoundTrip: () => {
+        const count = id(0), argument = id(0), rest = id(0), captured = id(0), self = id(0), payload = id(0), output = id(0)
+        const key = returningValue('block', ['>', ref(count), 0], [7],
+            ['()', ref(self), [['-', ref(count), 1], ['+', ref(argument), 1], 99]])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [count, argument], rest, self, captures: [{ binding: captured, value: ['array', [4]] }],
+            body: body(['return', target, ['array', [ref(output), ref(output), ref(payload), ref(captured), ref(rest)]]], [
+                ['define', payload, ['array', [ref(captured), ref(argument), ref(rest)]], 'required'],
+                ['define', output, ['object', [[':', key, ref(payload)], [':', 'alias', ref(payload)]]], 'required'],
+            ]),
+        })
+        const graph = fromFast(result(['function', fn]))
+        const second = fromFast(assertOk(toFast(graph)))
+        const third = fromFast(assertOk(toFast(second)))
+        const fourth = fromFast(assertOk(toFast(third)))
+        const fifth = fromFast(assertOk(toFast(fourth)))
+        const before = assertOk(identityAnalysis(fourth)), after = assertOk(identityAnalysis(fifth))
+        assertStructurallySame(
+            { root: before.root, nodes: before.nodes, scope: before.scope, shared: before.shared },
+            { root: after.root, nodes: after.nodes, scope: after.scope, shared: after.shared },
+        )
+        for (const current of /** @type {readonly Exp[]} */ ([graph, second, third, fourth, fifth])) {
+            assert(current instanceof Array && current[0] === '=>')
+            assertEq(current[1], 2)
+            assertEq(current[2].length, 1)
+            assert(assertOk(identityAnalysis(current)).nodes.some(node => node[0] === 'self'))
+            for (const depth of /** @type {const} */ ([0, 1])) {
+                const call = /** @type {Exp} */ (['()', current, depth === 0 ? [0, 5, 7, 8] : [1, 5]])
+                const value = evaluate(call)
+                assert(value instanceof Array && value[0] !== null && typeof value[0] === 'object' && value[2] instanceof Array)
+                const object = /** @type {Readonly<Record<string, unknown>>} */ (value[0])
+                assertEq(value[0], value[1])
+                assertEq(object['7'], value[2])
+                assertEq(object.alias, value[2])
+                assertEq(value[2][0], value[3])
+                assertEq(value[2][2], value[4])
+                assertStructurallySame(value[2], depth === 0 ? [[4], 5, [7, 8]] : [[4], 6, [99]])
+            }
+        }
+    },
     sequencePreviouslyRefusedReturns: () => {
         assertEq(evaluate(calledFunction(requiredFunction(['array', [escape()]]))), 7)
         assertEq(evaluate(calledFunction(requiredFunction([',', [1, escape()]]))), 7)
@@ -735,8 +960,10 @@ export const proof = /** @type {const} */ ({
         commaMemberCalleeReturn: () => calledFunction(requiredFunction(['()', [',', [0, ['.', ['object', [[':', 'f', constantFunction]]], 'f']]], [escape()]])),
         commaNativeCalleeReturn: () => calledFunction(requiredFunction(['()', [',', [0, ['Number.isInteger']]], [escape()]])),
         arraySpreadBeforeReturn: () => calledFunction(requiredFunction(['array', [['...', ['array', [1]]], escape()]])),
-        objectValueReturn: () => calledFunction(requiredFunction(['object', [[':', 'x', escape()]]])),
-        objectKeyReturn: () => calledFunction(requiredFunction(['object', [[':', escape(), 1]]])),
+        objectSpreadBeforeKeyReturn: () => calledFunction(requiredFunction(['object', [
+            ['...', ['object', [[':', 'x', 1]]]], [':', escape(), 2],
+        ]])),
+        objectSpreadOperandReturn: () => calledFunction(requiredFunction(['object', [['...', escape(['object', []])]]])),
         instanceofOperandReturn: () => calledFunction(requiredFunction(['instanceof', escape(['array', []]), 'Array'])),
         memberCallArgumentReturn: () => calledFunction(requiredFunction(['()', ['.', ['object', [[':', 'f', constantFunction]]], 'f'], [escape()]])),
         wrappedMemberCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['.', ['object', [[':', 'f', constantFunction]]], 'f'])], [escape()]])),
