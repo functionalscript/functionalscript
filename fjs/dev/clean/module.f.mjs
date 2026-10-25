@@ -36,8 +36,7 @@ export const isGenerated = name => name.startsWith('gen.')
  * @type {(path: string, entry: Dirent) => 'take' | 'descend' | 'skip'}
  */
 const classify = (path, { name, isDirectory }) =>
-    path === 'gen.nix/flake.lock' ? 'skip'
-    : path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
+    path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
     : isDirectory && (name === '.github' || !isThirdParty(name)) ? 'descend'
     : 'skip'
 
@@ -52,5 +51,5 @@ export const generatedFiles = root => walk(root, (path, entry) => classify(path.
 /** Deletes the generated files under `root`. @type {(root: string) => Effect<Readdir | All | Rm, readonly void[], IoChannel>} */
 export const clean = root => step(generatedFiles(root), files => allOk(...files.map(rm)))
 
-/** @type {NodeProgram} */
+/** @satisfies {NodeProgram} */
 export const main = () => exitStep(clean('.'))

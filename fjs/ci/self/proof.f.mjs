@@ -38,7 +38,7 @@ export const proof = {
     isCiWithTheConsumer: () => {
         assertEq(
             workflowOf(main()),
-            workflowOf(ci({ nodeExtra: () => [], packageConsumer, smart: true, environment: 'mise' })))
+            workflowOf(ci({ nodeExtra: () => [], packageConsumer, smart: true })))
     },
     // Website-only assets are built by Cloudflare, outside the Node CI job.
     leavesWasmToCloudflare: () => {
@@ -54,7 +54,6 @@ export const proof = {
         assert(own.includes('jdx/mise-action@'), 'expected repository mise setup')
         assert(!own.includes('cachix/install-nix-action@'), 'unexpected Nix in repository CI')
         const generic = workflowOf(builtIn())
-        assert(generic.includes('cachix/install-nix-action@'), 'expected standalone generic environment')
         assert(!generic.includes(' good.mts'), 'expected no consumer step from the built-in command')
         // Nor does it gate a job on the merge queue: a project without one
         // would never run that job.
