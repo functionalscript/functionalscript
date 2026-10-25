@@ -219,7 +219,8 @@ const dom = path => {
             // The reader's keystroke: what the field shows changes, and, when
             // the proof says, the caret is where the edit ended; that is not a
             // render.
-            type: (/** @type {string} */ value, /** @type {number | undefined} */ caret) => {
+            get type() { return self.attributes.get('type') ?? 'text' },
+            enterText: (/** @type {string} */ value, /** @type {number | undefined} */ caret) => {
                 dirty = value
                 if (caret !== undefined) {
                     self.selectionStart = caret
@@ -366,7 +367,7 @@ const dom = path => {
          */
         input: (name, value, caret) => {
             const field = named(name)
-            if (field !== null) { field.type(value, caret) }
+            if (field !== null) { field.enterText(value, caret) }
             for (const f of listeners) { f({ target: field ?? { name, value } }) }
         },
         /**
@@ -538,6 +539,27 @@ export const demo = {
 `)
 
 export const proof = {
+    scopedRadioEvents: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'a',
+    update: s => e => () => ['ok', e.kind === 'input' ? e.name + '=' + e.value : s],
+    view: s => ['div', ['input', { type: 'radio', id: 'choice', name: 'choice', value: 'b' }], ['pre', s]],
+}
+`))
+        d.root.setAttribute('data-demo-scope', 'second')
+        await startDemo(d.root)
+        await settle()
+        const field = d.root.querySelectorAll('[name]')[0]
+        assertEq(field.name, 'demo-control:6:second:choice')
+        assertEq(field.getAttribute('id'), 'demo-control:6:second:choice')
+        assertEq(field.getAttribute('data-demo-event-name'), 'choice')
+        field.checked = true
+        d.dispatch('input', { target: field })
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>choice=b</pre>'), d.root.innerHTML)
+        assertEq(d.root.querySelectorAll('[name]')[0].name, field.name)
+    },
     svgControls: async () => {
         const d = dom(moduleUrl(`
 export const demo = {
@@ -814,7 +836,7 @@ export const demo = {
         d.root.replaceChildren(toDom(d.root.ownerDocument,
             ['div', ['input', { name: 'text', value: '' }], ['pre', '']]))
         const field = d.named('text')
-        field.type('typed early')
+        field.enterText('typed early')
         await startDemo(d.root)
         assertEq(d.named('text').value, 'typed early')
         await settle()
@@ -854,7 +876,7 @@ export const demo = {
     // A file input's value is the reader's pick, never a demo's input.
     takesOverWithoutAFile: async () => {
         const { d } = prerendered([['input', { type: 'file', name: 'f' }]])
-        d.named('f').type('C:\\fakepath\\a.txt')
+        d.named('f').enterText('C:\\fakepath\\a.txt')
         await startDemo(d.root)
         await settle()
         assert(d.root.innerHTML.includes('<pre></pre>'), d.root.innerHTML)

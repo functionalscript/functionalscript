@@ -34,6 +34,8 @@
  */
 
 import { permalink } from '../permalink/module.f.js'
+import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.mjs'
+import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'
 import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
@@ -259,15 +261,15 @@ const inactive = view => {
  * demo the build could not render keeps an empty root, which the runtime
  * fills as before.
  *
- * @type {(demo: PageDemo) => readonly Node[]}
+ * @type {(demo: PageDemo, scope?: string) => readonly Node[]}
  */
-export const demoSection = ({ path, view }) => [['details', { 'data-section': '', open: '' },
-    demoSummary(),
-    ['div', { [demoMarker]: path }, ...(view === null ? [] : [inactive(view)])],
+export const demoSection = ({ path, view }, scope = path) => [['details', { 'data-section': '', open: '' },
+    scope === path ? demoSummary() : linkedSummary(`demo-section:${scope.length}:${scope}`, 'Demo')(),
+    ['div', { [demoMarker]: path, [scopeMarker]: scope }, ...(view === null ? [] : [inactive(scopeIds(scope)(view))])],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
 
-startDemo(document.querySelector('[${demoMarker}]'))
+startDemo(Array.from(document.querySelectorAll('[${demoMarker}]')).find(root => root.getAttribute('${scopeMarker}') === ${stringLiteral(scope).replaceAll('<', '\\u003c')}))
 `],
 ]]
 
