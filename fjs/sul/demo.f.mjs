@@ -231,12 +231,12 @@ const intro = 'Cuts bits into SUL words, level by level, up to one symbol, the r
  * @type {Examples}
  */
 export const examples = [
-    ['Overview', 'Hello, world! SUL is a universal encoding.'],
-    ['Two bytes', 'Hi'],
-    ['A word', 'Hello'],
-    ['The longest text', 'SUL maps any finite sequence of bits to one root: bits make words, words make symbols, and once a word is too long it is hashed.'],
-    ['Characters of several bytes', 'é € 😀'],
-    ['Empty', ''],
+    ['Overview', 'Hello, world! SUL is a universal encoding.', 'overview'],
+    ['Two bytes', 'Hi', 'two-bytes'],
+    ['A word', 'Hello', 'a-word'],
+    ['The longest text', 'SUL maps any finite sequence of bits to one root: bits make words, words make symbols, and once a word is too long it is hashed.', 'the-longest-text'],
+    ['Characters of several bytes', 'é € 😀', 'characters-of-several-bytes'],
+    ['Empty', '', 'empty'],
 ]
 
 const picker = examplePicker(examples)

@@ -12,6 +12,7 @@ import { number, record } from '../../../module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'dictionary',
         name: 'Dictionary',
         about: 'record(t) admits any string keys, each holding a t.',
         schemas: [{ source: 'record(number)', schema: record(number) }],

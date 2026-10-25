@@ -18,18 +18,21 @@ import { pullsSchema } from '../../../../website/prs/module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'github-actions-workflow',
         name: 'GitHub Actions workflow',
         about: 'A workflow as this repository generates it. Closed: CI reads its own generated workflows back, so a key the schema does not name is generator drift.',
         schemas: projectSchema('gitHubActionSchema', 'ci/common', gitHubActionSchema),
         value: `export default {"name":"CI","on":{"pull_request":{}},"permissions":{"contents":"read"},"jobs":{"test":{"runs-on":"ubuntu-latest","timeout-minutes":${jobTimeout},"steps":[{"uses":"actions/checkout@v5"},{"run":"npm test"}]}}};`,
     },
     {
+        id: 'funding-channels',
         name: 'Funding channels',
         about: 'funding.json as the site footer reads it: only the funding channels. open() at every level, because the format carries much more and none of it is the footer\'s business.',
         schemas: projectSchema('fundingSchema', 'website/funding', fundingSchema),
         value: 'export default {"version":"v1.0.0","funding":{"channels":[{"guid":"github","type":"other","address":"https://github.com/sponsors/sergey-shandar","description":"GitHub Sponsors"}]}};',
     },
     {
+        id: 'open-pull-requests',
         name: 'Open pull requests',
         about: 'The open pull requests as the site\'s PR page reads them from the GitHub API. open() at every object, so a field GitHub adds does not change what the page accepts; user is null for a deleted account.',
         schemas: projectSchema('pullsSchema', 'website/prs', pullsSchema),

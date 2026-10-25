@@ -324,7 +324,8 @@ export const proof = {
             // Folded: the suite is asked for, not what a reader came for.
             assert(html.startsWith('<body><details data-section=""><summary>'), html)
             // The title carries a slot the runner fills with the run's counts.
-            assert(html.includes('<summary><h2>Emergent Testing</h2><span data-test-counts=""></span></summary>'), html)
+            assert(html.includes('data-copy-fragment="emergent-testing"'), html)
+            assert(html.includes('<span data-test-counts=""></span></summary>'), html)
             // A runnable entry names its source, so a run can mark it if it
             // reports no tests.
             assert(html.includes('<li data-source="./proof.f.mjs">./proof.f.mjs</li>'), html)
@@ -370,7 +371,7 @@ export const proof = {
         noRunWhereNothingLinks: () => {
             const html = concat(element(['body', ...testSection(
                 { ...empty, proofs: [{ name: './a.f.mjs', blockers: ['node:fs'] }] })([])]))
-            assert(html.includes('<summary><h2>Emergent Testing</h2></summary>'), html)
+            assert(html.includes('<summary><h2 id="emergent-testing">Emergent Testing</h2><span data-permalink="">'), html)
             assert(html.includes('./a.f.mjs — not linkable in a browser: node:fs'), html)
             assert(!html.includes('data-test-run'), html)
             assert(!html.includes('data-test-results'), html)
@@ -396,15 +397,38 @@ export const proof = {
         // than letting the runtime guess a filename.
         namesTheModuleAndStartsIt: () => {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: null })]))
-            assert(html.includes('<summary><h2>Demo</h2></summary>'), html)
-            assert(html.includes('<div data-demo="/a/demo.f.mjs"></div>'), html)
+            assert(html.includes('<summary><h2 id="demo">Demo</h2><span data-permalink="">'), html)
+            assert(html.includes('<div data-demo="/a/demo.f.mjs" data-demo-scope="/a/demo.f.mjs"></div>'), html)
             assert(html.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), html)
+        },
+        scopedControlsBeforeScripts: () => {
+            const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['p',
+                ['label', { for: 'json' }, 'JSON'], ['input', { id: 'json', name: 'json' }]] }, 'second')]))
+            assert(html.includes('data-demo-scope="second"'))
+            assert(html.includes("root.getAttribute('data-demo-scope') === \"second\""))
+            assert(html.includes('for="demo-control:6:second:json"'))
+            assert(html.includes('id="demo-control:6:second:json" name="json"'))
+        },
+        repeatedSections: () => {
+            const html = concat(element(['body',
+                ...demoSection({ path: '/a/demo.f.mjs', view: ['input', { id: 'x', name: 'x' }] }),
+                ...demoSection({ path: '/a/demo.f.mjs', view: ['input', { id: 'x', name: 'x' }] }, 'second'),
+            ]))
+            assertEq(html.split('id="demo"').length - 1, 1)
+            assert(html.includes('id="demo-section:6:second"'))
+            assert(html.includes('id="demo-control:13:/a/demo.f.mjs:x"'))
+            assert(html.includes('id="demo-control:6:second:x"'))
+        },
+        scopeScriptEscaping: () => {
+            const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: null }, 'one"</script>')]))
+            assert(html.includes('\\u003c/script>'))
+            assertEq(html.split('</script>').length - 1, 1)
         },
         // The build's first view is in the root, so the demo shows before its
         // modules have loaded.
         holdsTheFirstView: () => {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['p', 'hi'] })]))
-            assert(html.includes('<div data-demo="/a/demo.f.mjs"><p>hi</p></div>'), html)
+            assert(html.includes('<div data-demo="/a/demo.f.mjs" data-demo-scope="/a/demo.f.mjs"><p>hi</p></div>'), html)
         },
         // A click before the runtime loads would go nowhere, so every control
         // the runtime hears a click on is disabled, in any case; fields and
@@ -489,7 +513,7 @@ export const proof = {
             const html = pageHtml({ ...empty, path: 'a', files: ['demo.f.mjs'], demo: { path: '/a/demo.f.mjs', view: null } })
             assert(html.includes('data-demo="/a/demo.f.mjs"'), html)
             assert(html.indexOf('<h2>Contents</h2>') < html.indexOf('</aside>'), html)
-            assert(html.indexOf('<h2>Demo</h2>') > html.indexOf('<main'), html)
+            assert(html.indexOf('<h2 id="demo">Demo</h2>') > html.indexOf('<main'), html)
         },
         // A crate's page links its API reference under its heading, and a
         // directory without one says nothing about it.

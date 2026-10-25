@@ -5,7 +5,9 @@
  * tokenizer's page can be found by the same name on the parser's, the EDAG's,
  * the serializer's, the Rust page and the side-by-side page — one program
  * followed down the pipeline, not six unrelated lists. Each demo offers the
- * whole list; none re-spells a program.
+ * whole list; none re-spells a program. Stable IDs are authored beside the
+ * programs in the specification lists and shared by every stage; renaming a
+ * label or moving an example never changes its ID.
  *
  * **The first is the overview, and every page opens on it.** It carries one
  * of everything one program can hold — a `const` referenced six times, once

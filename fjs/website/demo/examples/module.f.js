@@ -25,15 +25,28 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
-/** The `name` of the drop-down, and of the `input` events a pick sends. */
+/** The `name` of the drop-down, and of the `input` events a pick sends.
+ * @type {string}
+ */
 export const name = 'example'
 
 /** Whether a list of strings repeats a value. @type {(values: readonly string[]) => boolean} */
 const hasRepeat = values => values.some((value, index) => values.indexOf(value) !== index)
 
+/** Nonempty stable IDs are unique within one demo's examples.
+ * @type {(ids: readonly string[]) => void}
+ */
+export const assertExampleIds = ids => {
+    if (ids.some(id => id === '')) { throw 'examples: an ID is empty' }
+    if (hasRepeat(ids)) { throw 'examples: an ID is repeated' }
+    return undefined
+}
+
 /**
  * `list` as the drop-down a demo draws and the pick it makes — after
- * checking that its names and its sources are each distinct.
+ * checking that its names, sources and stable IDs are each distinct.
+ * sourceOf(id) and idOf(text) connect stable links to complete example text;
+ * unknown IDs and custom text return null. Labels remain dropdown values.
  *
  * **A repeat is refused, not resolved.** A pick is matched by name, so a
  * second example under a name already used could never be reached; the
@@ -54,16 +67,16 @@ const hasRepeat = values => values.some((value, index) => values.indexOf(value) 
  * @type {(list: Examples) => Picker}
  */
 export const examplePicker = list => {
+    assertExampleIds(list.map(example => example[2]))
     if (hasRepeat(list.map(example => example[0]))) { throw 'examples: a name is repeated' }
     if (hasRepeat(list.map(example => example[1]))) { throw 'examples: a source is repeated' }
     return {
+        sourceOf: id => list.find(example => example[2] === id)?.[1] ?? null,
+        idOf: text => list.find(example => example[1] === text)?.[2] ?? null,
         view: text => {
             /** @type {readonly Element[]} */
-            const options = list.map(example => {
-                const n = example[0]
-                const source = example[1]
-                return ['option', source === text ? { value: n, selected: '' } : { value: n }, n]
-            })
+            const options = list.map(([n, source, id]) =>
+                ['option', { value: n, ...(source === text ? { selected: '' } : {}), 'data-example-id': id }, n])
             const custom = list.some(example => example[1] === text)
                 ? []
                 : [/** @type {Element} */ (['option', { selected: '', disabled: '' }, 'Custom'])]

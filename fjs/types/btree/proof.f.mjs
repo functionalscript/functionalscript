@@ -158,7 +158,7 @@ const demoProof = {
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
         assert(h.includes('value="80"'), h)
-        assert(h.includes('<option value="Insert into a leaf" selected="">'), h)
+        assert(h.includes('<option value="Insert into a leaf" selected="" data-example-id="insert-into-a-leaf">'), h)
         assert(h.includes('Press Insert to add 80'), h)
         assertEq(occurrences('data-graph-kind="new"')(h), 0)
         // Every key is a control that moves it.

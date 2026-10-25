@@ -12,6 +12,7 @@ import { bigint, boolean, number, string, unknown } from '../../../module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'primitives',
         name: 'Primitives',
         about: 'Each primitive schema admits every value of its kind, NaN among the numbers; unknown admits any DataJS value. Try a number where the bigint is.',
         schemas: [{

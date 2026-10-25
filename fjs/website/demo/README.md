@@ -51,6 +51,36 @@ The lead says, in this order and as briefly as it can:
 
 The lead is plain prose, not a caption: no trailing colon, no bold.
 
+## DOM identifiers and repeated instances
+
+Demo views declare IDs and matching references locally. The shared page builder
+and browser runtime scope them identically to `demo-control:<length>:<scope>:<id>`.
+The default scope is the demo module path. The `:` delimiter cannot occur in a
+README heading slug, so documentation keeps its existing anchors and demo labels
+resolve to their controls. IDs must be unique within each demo view.
+
+`demoSection(demo, scope)` accepts an explicit stable scope when embedding
+additional demo sections, including repeated instances of one module. These
+extra sections also receive a scoped `demo-section:<length>:<scope>` heading ID;
+the ordinary module-page section keeps `#demo`. Give every additional section
+an explicit scope. A manually embedded root uses the matching
+`data-demo-scope` attribute; distinct instances must have distinct scopes. Keep
+that scope fixed across renders, including when controls appear in a new view.
+
+The transform covers shared widgets and manual HTML/SVG together: label `for`,
+datalist `list`, form and accessibility ID references, local `href`/`xlink:href`,
+and SVG/CSS `url(#...)` references follow IDs declared in the same view. Links
+to documentation or external targets and code-copy payloads are left intact.
+Future select/button widgets use this same boundary; demos need no separate ID
+rewrite. Document references inside attributes rather than embedding them in
+script text, which this renderer does not interpret.
+
+Event names stay the demo's local names. Native radio `name` values are also
+scoped so repeated instances do not share a browser radio group;
+`data-demo-event-name` retains the original name and the runtime delivers it in
+input events, including startup edits and later renders. Other control names
+remain unchanged.
+
 ## Input
 
 - **Every field has a visible `label`** naming what to type, as a noun in
@@ -123,6 +153,37 @@ sharing. Use [`examples`](./examples/module.f.js), through
   page cannot link — and a name carrying a verdict would be wrong on one of
   them. [`compiler/examples`](../../compiler/examples/module.f.js) makes the
   same call for the same reason.
+
+### Stable example IDs
+
+Every example has a nonempty, unique ID within its demo, separate from its
+label and dropdown position. For shared text examples the tuple is
+`[label, source, id]`:
+
+```js
+['Hex escape', 'export default "\\x41";', 'hex-escape']
+```
+
+Write IDs explicitly; short lowercase names with hyphens are recommended.
+Keep an ID when renaming or reordering an example. Never reuse a retired ID
+for a different example. An ID identifies the same example across compiler
+stages because those pages import the same specification-owned list.
+
+`examplePicker` keeps dropdown values and `pick(value)` based on labels.
+`sourceOf(id)` looks up a stable ID, and `idOf(text)` matches the complete
+source. Unknown or retired IDs and custom source return `null`; an empty
+source remains a valid example. Consumers must report an unknown ID rather
+than selecting a different example or silently falling back to the first.
+Options expose `data-example-id`; the disabled Custom entry has no ID.
+
+Tree presets append an ID as their fifth tuple entry,
+`[label, keys, key, hint, id]`. RTTI lessons declare an `id` beside their
+`name`. Both use the same nonempty, unique-ID check and expose the same
+option metadata. Labels and the events demos receive stay unchanged.
+
+Stable IDs prepare example sharing. Loading `#demo:example=…`, restoring
+custom input sets, and Copy demo link are implemented in the subsequent
+sharing step.
 
 ## Output
 

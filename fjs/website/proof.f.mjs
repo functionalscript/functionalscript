@@ -721,7 +721,8 @@ export const proof = {
                 c: { 'README.md': file('[up](../../x)\n') },
             })
             const a = pageAt(root, ['a'])
-            assert(a.includes('<article data-readme=""><h2 id="a">A</h2><p>See <a href="/b/index.html#x">b</a> and <a href="/a/c.md">c</a>.</p></article>'), a)
+            assert(a.includes('<article data-readme=""><div data-linked-heading=""><h2 id="a">A</h2>'), a)
+            assert(a.includes('</div><p>See <a href="/b/index.html#x">b</a> and <a href="/a/c.md">c</a>.</p></article>'), a)
             const b = pageAt(root, ['b'])
             assert(b.includes('<a href="/b/README.md">README.md</a> is not rendered here: line 1: a table.'), b)
             const c = pageAt(root, ['c'])
@@ -807,7 +808,7 @@ export const proof = {
             // empty source list would report a green verdict for a subtree
             // where nothing ran.
             assert(!page.includes('data-test-run'), page)
-            assert(!page.includes('<script'), page)
+            assert(!page.includes('startBrowserTestSources'), page)
         },
     },
     /**
@@ -962,7 +963,7 @@ export const proof = {
                 { a: { 'demo.f.mjs': file('export const demo = {}') } },
                 { 'a/demo.f.mjs': { init: 'hi', view: (/** @type {string} */ s) => ['p', s] } })
             const page = pageAt(root, ['a'])
-            assert(page.includes('<div data-demo="/a/demo.f.mjs"><p>hi</p></div>'), page)
+            assert(page.includes('<div data-demo="/a/demo.f.mjs" data-demo-scope="/a/demo.f.mjs"><p>hi</p></div>'), page)
         },
         /**
          * **The page holds the demo after its `start`**: the build performs
@@ -1016,7 +1017,7 @@ export const proof = {
         notImportedKeepsAnEmptyRoot: () => {
             const { root, output } = generate({ a: { 'demo.f.mjs': file('export const demo = {}') } })
             const page = pageAt(root, ['a'])
-            assert(page.includes('<div data-demo="/a/demo.f.mjs"></div>'), page)
+            assert(page.includes('<div data-demo="/a/demo.f.mjs" data-demo-scope="/a/demo.f.mjs"></div>'), page)
             assert(output.includes("skipped prerendering a/demo.f.mjs: 'demo.f.mjs' is not a JsModule"), output)
         },
         // A `view` that throws is the same: an empty root, and the reason.
@@ -1026,7 +1027,7 @@ export const proof = {
                 { 'a/demo.f.mjs': {} },
                 'broken')
             const page = pageAt(root, ['a'])
-            assert(page.includes('<div data-demo="/a/demo.f.mjs"></div>'), page)
+            assert(page.includes('<div data-demo="/a/demo.f.mjs" data-demo-scope="/a/demo.f.mjs"></div>'), page)
             assert(output.includes('skipped prerendering a/demo.f.mjs: broken'), output)
         },
         /**
@@ -1039,7 +1040,7 @@ export const proof = {
                 { a: { 'demo.f.mjs': file('export const demo = {}') } },
                 { 'a/demo.f.mjs': { init: null, view: () => ['div', ['script', 'alert(1)']] } })
             const page = pageAt(root, ['a'])
-            assert(page.includes('<div data-demo="/a/demo.f.mjs"></div>'), page)
+            assert(page.includes('<div data-demo="/a/demo.f.mjs" data-demo-scope="/a/demo.f.mjs"></div>'), page)
             assert(!page.includes('alert(1)'), page)
             assert(output.includes('skipped prerendering a/demo.f.mjs: media/html: a `script` element is refused'), output)
         },
@@ -1177,7 +1178,7 @@ export const proof = {
         // the reader came for, and a run cannot move what is above it.
         assert(
             source.indexOf('<summary><h2>Contents</h2></summary>')
-                < source.indexOf('<summary><h2>Emergent Testing</h2><span data-test-counts=""></span></summary>'),
+                < source.indexOf('<summary><h2 id="emergent-testing">Emergent Testing</h2>'),
             source)
         // The heading is the project; the suite is one section of its page.
         assert(source.includes('<h1>FunctionalScript</h1>'), source)

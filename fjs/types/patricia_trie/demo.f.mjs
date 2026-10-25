@@ -163,11 +163,11 @@ const spread = [3, 17, 40, 66, 99, 130, 180, 230]
  * @type {readonly Preset[]}
  */
 export const presets = [
-    ['Insert a key', spread, 0b01100100, 'Press Insert to add 01100100: the trie is built again from scratch, and only the branches above it are new.'],
-    ['Remove a key', spread, 0b10110100, 'Press Remove to take out 10110100: its sibling moves up, and only the branches above it change.'],
-    ['Insert at the edge', spread, 0b11111010, 'Press Insert to add 11111010: the right edge of the trie changes, and the whole left half is shared.'],
-    ['Worked example', worked, 0b10000000, 'The sixteen keys of example.md. Press Insert to add 10000000.'],
-    ['Empty trie', [], 0b00101010, 'Press Insert to add 00101010, then keep inserting to watch the trie grow.'],
+    ['Insert a key', spread, 0b01100100, 'Press Insert to add 01100100: the trie is built again from scratch, and only the branches above it are new.', 'insert-a-key'],
+    ['Remove a key', spread, 0b10110100, 'Press Remove to take out 10110100: its sibling moves up, and only the branches above it change.', 'remove-a-key'],
+    ['Insert at the edge', spread, 0b11111010, 'Press Insert to add 11111010: the right edge of the trie changes, and the whole left half is shared.', 'insert-at-the-edge'],
+    ['Worked example', worked, 0b10000000, 'The sixteen keys of example.md. Press Insert to add 10000000.', 'worked-example'],
+    ['Empty trie', [], 0b00101010, 'Press Insert to add 00101010, then keep inserting to watch the trie grow.', 'empty-trie'],
 ]
 
 /**

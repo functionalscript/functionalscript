@@ -247,15 +247,15 @@ export const proof = {
             // starts inside a row, so both raw and hashed stripes show.
             init: () => {
                 const h = htmlToString(demo.view(demo.init))
-                assert(h.includes('<option value="Overview" selected="">Overview</option>'), h)
+                assert(h.includes('<option value="Overview" selected="" data-example-id="overview">Overview</option>'), h)
                 assert(h.includes('data-sul-hash'), h)
                 assert(h.includes('<p data-caption="">Root, a hash:</p>'), h)
             },
             // Every example is drawn, none refused, and selected when shown.
             examples: () => {
-                for (const [name, text] of examples) {
+                for (const [name, text, id] of examples) {
                     const h = htmlToString(demo.view({ ...demo.init, text }))
-                    assert(h.includes(`<option value="${name}" selected="">${name}</option>`), h)
+                    assert(h.includes(`<option value="${name}" selected="" data-example-id="${id}">${name}</option>`), h)
                     assert(h.includes('data-sul-units'), h)
                     assert(!h.includes('data-result="error"'), h)
                 }

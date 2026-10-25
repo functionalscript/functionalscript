@@ -12,6 +12,7 @@ import { array, number, string } from '../../../module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'where-it-failed',
         name: 'Where it failed',
         about: 'Both readers refuse the value with the same path, items → 1 → qty, and the demo marks that member. Make the qty a number to see both accept it.',
         schemas: [{

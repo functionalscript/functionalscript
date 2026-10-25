@@ -34,7 +34,10 @@ in some and a separate `' '` node in others.
 Three exports in the style of `inputField`: `option(value, text, selected)`,
 `selectField({ name, label }, options)` taking option or optgroup elements,
 and `button(name, label, disabled?)`. A demo keeps only its data — which
-options exist and which is chosen.
+options exist and which is chosen. Keep IDs local to the demo view: the shared
+[control-ID boundary](../README.md#dom-identifiers-and-repeated-instances) scopes
+IDs and label/accessibility references at build time and on every render. Do
+not add a second widget-specific prefix or change semantic event names.
 
 ### Tasks
 

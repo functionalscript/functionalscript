@@ -33,6 +33,9 @@
  * @import { Issue } from '../issue/types.ts'
  */
 
+import { permalink } from '../permalink/module.f.js'
+import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.mjs'
+import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'
 import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
@@ -198,6 +201,19 @@ const proofItem = proof => proof.blockers.length === 0
  */
 const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
 
+/** Fixed section headings capture their links once, before any page is built.
+ * @type {(id: string, label: string) => (...rest: readonly Node[]) => Element}
+ */
+const linkedSummary = (id, label) => {
+    /** @type {Element} */
+    const heading = ['h2', { id }, label]
+    const link = permalink(id, label)
+    return (...rest) => ['summary', heading, link, ...rest]
+}
+
+const demoSummary = linkedSummary('demo', 'Demo')
+const testSummary = linkedSummary('emergent-testing', 'Emergent Testing')
+
 /**
  * A demo's first view with every action control disabled: each `button`, and
  * each `input` of type `button`, which the runtime hears a click on, and each
@@ -245,15 +261,15 @@ const inactive = view => {
  * demo the build could not render keeps an empty root, which the runtime
  * fills as before.
  *
- * @type {(demo: PageDemo) => readonly Node[]}
+ * @type {(demo: PageDemo, scope?: string) => readonly Node[]}
  */
-export const demoSection = ({ path, view }) => [['details', { 'data-section': '', open: '' },
-    summary('Demo')(),
-    ['div', { [demoMarker]: path }, ...(view === null ? [] : [inactive(view)])],
+export const demoSection = ({ path, view }, scope = path) => [['details', { 'data-section': '', open: '' },
+    scope === path ? demoSummary() : linkedSummary(`demo-section:${scope.length}:${scope}`, 'Demo')(),
+    ['div', { [demoMarker]: path, [scopeMarker]: scope }, ...(view === null ? [] : [inactive(scopeIds(scope)(view))])],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
 
-startDemo(document.querySelector('[${demoMarker}]'))
+startDemo(Array.from(document.querySelectorAll('[${demoMarker}]')).find(root => root.getAttribute('${scopeMarker}') === ${stringLiteral(scope).replaceAll('<', '\\u003c')}))
 `],
 ]]
 
@@ -298,11 +314,11 @@ export const testSection = dir => intro => {
         ['ul', { 'data-test-sources': '' }, ...dir.proofs.map(proofItem)],
     ]]
     const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
-    if (linkable.length === 0) { return section(summary('Emergent Testing')())([]) }
+    if (linkable.length === 0) { return section(testSummary())([]) }
     // **The run's counts go in the title**, so they stay in sight with the
     // section folded. The slot is there only where something can run: a title
     // waiting for counts over a suite with no control would wait for ever.
-    return section(summary('Emergent Testing')(['span', { 'data-test-counts': '' }]))([
+    return section(testSummary(['span', { 'data-test-counts': '' }]))([
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         report,
@@ -670,6 +686,7 @@ export const shell = build => title => content => htmlDocument(lang)(
     ['meta', { name: 'referrer', content: 'no-referrer' }],
     stylesheetLink,
     ...faviconLinks,
+    ['script', { type: 'module' }, `import { startFragments } from '/fjs/website/fragment-runtime.mjs'\nstartFragments(document)`],
 )(
     header(build),
     content,
