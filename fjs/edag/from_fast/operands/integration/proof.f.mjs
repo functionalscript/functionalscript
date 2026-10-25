@@ -4,6 +4,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
+import { logicalValue } from '../../../../js/ast/sugar/logical/module.f.js'
 import { fromFast } from '../../module.f.mjs'
 import { identityAnalysis } from '../../../analysis/module.f.mjs'
 import { memo } from '../../../memo/module.f.mjs'
@@ -26,6 +27,9 @@ const returningValue = (kind, condition, normal, returned = 7) => kind === 'if'
 /** @type {(value?: Value) => Value} */
 const escape = (value = 7) => ['block', body(['return', target, value])]
 
+/** Source logical tags are deliberately not normalized FAST operators. @type {(tag: '&&' | '||' | '??', left: Value) => Value} */
+const rawLogical = (tag, left) => /** @type {Value} */ (/** @type {unknown} */ ([tag, left, escape()]))
+
 /** @type {Value} */
 const constantFunction = ['function', {
     target: { kind: 'function', index: 0 }, parameters: [id(0)], rest: null, self: null, captures: [],
@@ -42,6 +46,15 @@ const simpleFunction = (parameters, value, rest = null) => {
 const failed = message => ['block', body(['throw', message])]
 
 export const proof = /** @type {const} */ ({
+    canonicalLogicalReturns: () => {
+        const cases = /** @type {const} */ ([
+            ['&&', false, false], ['&&', true, 7], ['||', true, true], ['||', false, 7],
+            ['??', 3, 3], ['??', null, 7], ['??', undefined, 7],
+        ])
+        for (const [tag, left, expected] of cases) {
+            assertEq(evaluate(calledFunction(requiredFunction(logicalValue(tag, left, escape())))), expected)
+        }
+    },
     eagerPreviouslyRefusedReturns: () => {
         assertEq(evaluate(calledFunction(requiredFunction(['if', escape(), body(['return', target, 9]), result(2)]))), 7)
         assertEq(evaluate(calledFunction(requiredFunction(['()', constantFunction, [escape()]]))), 7)
@@ -463,6 +476,13 @@ export const proof = /** @type {const} */ ({
         assertEq(repeated[0], repeated[1])
     },
     throw: {
+        rawLogicalAndSkippedReturn: () => calledFunction(requiredFunction(rawLogical('&&', false))),
+        rawLogicalAndSelectedReturn: () => calledFunction(requiredFunction(rawLogical('&&', true))),
+        rawLogicalOrSkippedReturn: () => calledFunction(requiredFunction(rawLogical('||', true))),
+        rawLogicalOrSelectedReturn: () => calledFunction(requiredFunction(rawLogical('||', false))),
+        rawNullishSkippedReturn: () => calledFunction(requiredFunction(rawLogical('??', 3))),
+        rawNullishNullReturn: () => calledFunction(requiredFunction(rawLogical('??', null))),
+        rawNullishUndefinedReturn: () => calledFunction(requiredFunction(rawLogical('??', undefined))),
         standaloneReturn: () => {
             const output = id(0)
             fromFast(result(ref(output), [['define', output, escape(), 'required']]))

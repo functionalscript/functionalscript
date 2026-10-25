@@ -164,6 +164,8 @@ before a later region can return; the operation or call runs only on normal
 completion. Callable validation stays after arguments, so a returning argument
 can bypass a noncallable callee. Value and statement conditional tests can lift
 before selecting an arm; a terminal test skips both arms.
+Source logical tags stay outside eager lifting; their producer expands them
+to canonical conditionals before normalized FAST construction.
 
 Eager-call snapshots can retain redundant required anchors through the first
 round trips. The mixed recursive-call fixture stabilizes by its third graph

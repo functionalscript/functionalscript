@@ -10,7 +10,7 @@
  * @import { _Context, _Region, _Value } from './private.ts'
  */
 
-import { isBinary, isUnary } from '../../../compiler/ast/module.f.js'
+import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
 import { mapOperator, operatorOperands } from '../../../js/ast/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
@@ -19,6 +19,9 @@ import { bind, call, done, run } from '../task/module.f.mjs'
 const binding = () => ({ index: 0 })
 /** @type {(id: BindingId) => Value} */
 const ref = id => ['ref', id]
+
+/** Source logical tags must first become FAST conditional regions. @type {(node: readonly unknown[]) => boolean} */
+const eagerBinary = node => isBinary(node) && !lazyLayers.some(layer => Object.values(layer).some(tag => tag === node[0]))
 
 /** Only the value's own loops may supply loop transfers through this boundary. @type {(owner: FunctionTarget) => _Context} */
 const operandContext = owner => ({ owner, operand: true, loops: null })
@@ -68,7 +71,7 @@ const valueTask = (source, destination, owner) => call(() => {
             ? { statement: ['block', [destination], result.block], value: ref(destination), normal: result.normal, callee: result.callee }
             : plain(source, result.callee)))
     }
-    if (isUnary(source) || isBinary(source) || source[0] === '+' && source.length === 2
+    if (isUnary(source) || eagerBinary(source) || source[0] === '+' && source.length === 2
         || source[0] === '()' && !source[2].some(item => item instanceof Array && item[0] === '...')) {
         return eagerTask(/** @type {Operator<Value>} */ (source), destination, owner)
     }

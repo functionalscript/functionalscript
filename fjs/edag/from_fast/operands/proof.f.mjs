@@ -155,6 +155,23 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(region.exit, ['yield', [[tag, ref(snapshot[1]), ref(operand[1][0])]]])
         }
     },
+    rawLogicalOperators: () => {
+        const output = id()
+        const cases = /** @type {const} */ ([
+            ['&&', false], ['&&', true], ['||', true], ['||', false], ['??', 3], ['??', null], ['??', undefined],
+        ])
+        for (const [tag, left] of cases) {
+            // Immutable source-operator tuples are constructible, but normalized
+            // FAST excludes them. They must never enter eager return lifting.
+            const value = /** @type {Value} */ (/** @type {unknown} */ ([tag, left, ['block', returned(7)]]))
+            const source = returned(value)
+            assertEq(liftReturns(source, owner), source)
+            const required = body(['return', owner, ref(output)], [['define', output, value, 'required']])
+            assertEq(liftReturns(required, owner), required)
+            const leftReturn = returned(/** @type {Value} */ (/** @type {unknown} */ ([tag, ['block', returned(7)], left])))
+            assertEq(liftReturns(leftReturn, owner), leftReturn)
+        }
+    },
     conditionalTests: () => {
         const condition = id(), value = id(), before = id(), after = id()
         const test = /** @type {Value} */ (['block', yielded([true], [
