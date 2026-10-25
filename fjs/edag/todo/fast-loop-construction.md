@@ -164,10 +164,22 @@ yielded value in an exposed region can continue that chain. Their normal results
 bind before the original consumer, with existing scalar/zero/many packing;
 terminal owning returns skip the consumer and suffix. The lift runs before memo
 and loop-completion lowering, preserving their shared identity and state rules.
-No-return inputs retain their existing syntax identity. Conditional tests,
-multi-result yield operands, lazy initializers, function captures and arbitrary
-operator/call operands remain separate evaluation boundaries. A loop transfer
-cannot escape the operand's locally owned loop chain.
+No-return inputs retain their existing syntax identity.
+
+Eager unary/binary operands, plain spread-free call callees/arguments and value
+or statement conditional tests can lift through the same regions. Earlier
+operands become required snapshots before a later region can return; only the
+normal path applies the operation or call. Callee evaluation precedes arguments,
+while callable validation follows them. A terminal guard skips both arms.
+Required callee snapshots can introduce redundant anchors in the new eager-call
+graph domain: its mixed recursive fixture has 24 then 22 nodes and stabilizes
+by the third graph conversion. Every intermediate preserves arity, captures,
+rest/self behavior and returned identity; later conversions retain that graph.
+Plain-call admission retains member/native callee provenance through wrapper
+regions. Arrays, objects, comma sequences, `instanceof`, multi-result yield
+operands, lazy initializers, captures, member/native calls, optional forms and
+spreads remain separate boundaries. A loop transfer cannot escape the operand's
+locally owned loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
 `[userValuesArray, memoVector]` transfer payload as owning exits. Lexical source
@@ -399,7 +411,7 @@ their documented normalization. Repeated conversions must stabilize.
       completion-shaped user values and failures.
 - [x] Handle owning-function returns in plain value blocks and conditionals
       used as required initializers or function-return payloads.
-- [ ] Lift owning returns through eager unary/binary operands, conditional
+- [x] Lift owning returns through eager unary/binary operands, conditional
       tests and plain call callees/arguments, retaining required prefixes.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.

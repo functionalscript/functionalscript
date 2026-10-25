@@ -158,8 +158,22 @@ The lift runs before memo and loop-completion normalization, so reached lazy
 demands and normal-path updates use the same state transport. No-return input
 retains its existing graph path and syntax identity.
 
-Conditional tests, multi-result yield operands, lazy initializers, function
-captures and arbitrary operator operands retain their evaluation boundaries.
+Eager unary/binary operands and plain spread-free call callees/arguments can
+expose the same owning returns. Required snapshots establish earlier operands
+before a later region can return; the operation or call runs only on normal
+completion. Callable validation stays after arguments, so a returning argument
+can bypass a noncallable callee. Value and statement conditional tests can lift
+before selecting an arm; a terminal test skips both arms.
+
+Eager-call snapshots can retain redundant required anchors through the first
+round trips. The mixed recursive-call fixture stabilizes by its third graph
+conversion; subsequent conversions preserve that graph, metadata and runtime
+identity. Existing named exact-graph domains retain their original checks.
+
+Arrays, objects, comma sequences, `instanceof`, multi-result yield operands,
+lazy initializers, captures, member/native callees, optional forms and spreads
+retain their evaluation boundaries. Plain-call admission preserves callee
+provenance through wrapper regions.
 Loop transfers cannot escape a lifted operand's own loop scope. Ordinary
 nested functions are normalized at their own function entry.
 
