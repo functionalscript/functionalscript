@@ -21,6 +21,7 @@ import { commandsOf } from '../effects/module.f.mjs'
 import { commonOperationMap, randomIntOperationMap } from '../effects/common/module.mjs'
 import { browserOperationMap } from '../effects/browser/module.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
+import { startDemoSharing } from './demo-sharing-runtime.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
 import { scopeIds, scopeMarker, eventNameMarker } from './demo/control_ids/module.f.mjs'
@@ -438,7 +439,7 @@ const lessMotion = root =>
  * events cancel the scheduled turn, and automatic updates keep controls
  * available so a Stop button can interrupt the work.
  *
- * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => (event: DemoEvent) => void}
+ * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => import('./private.ts').DemoController}
  */
 const stepper = (root, demo) => {
     const scoped = scopeView(root)
@@ -446,11 +447,25 @@ const stepper = (root, demo) => {
     /** @type {Promise<void>} */
     let queue = Promise.resolve()
     let pending = 0
+    let revision = 0
     let incremental = false
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     let scheduled
+    const schedule = () => {
+        const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
+        incremental = next !== null
+        if (next !== null) {
+            const delay = demo.nextDelay === undefined || lessMotion(root) ? 0 : demo.nextDelay(state)
+            scheduled = setTimeout(() => step(next, true), delay)
+        }
+    }
+    const draw = () => {
+        render(root, scoped(demo.view(state)))
+        schedule()
+    }
     /** @type {(event: DemoEvent, automatic?: boolean) => void} */
     const step = (event, automatic = false) => {
+        if (!automatic && event.kind !== 'start') { revision += 1 }
         const keepControls = automatic || incremental
         clearTimeout(scheduled)
         scheduled = undefined
@@ -471,15 +486,7 @@ const stepper = (root, demo) => {
                     await macrotask()
                 }
                 state = unwrapState(await run(demo.update(state)(event)))
-                if (pending === 1) {
-                    render(root, scoped(demo.view(state)))
-                    const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
-                    incremental = next !== null
-                    if (next !== null) {
-                        const delay = demo.nextDelay === undefined || lessMotion(root) ? 0 : demo.nextDelay(state)
-                        scheduled = setTimeout(() => step(next, true), delay)
-                    }
-                }
+                if (pending === 1) { draw() }
             } catch (cause) {
                 incremental = false
                 fail(root, cause)
@@ -489,7 +496,45 @@ const stepper = (root, demo) => {
             }
         })
     }
-    return step
+    return {
+        step,
+        read: () => state,
+        busy: () => pending > 0,
+        revision: () => revision,
+        replace: (replacement, after, current, initialize = false) => {
+            clearTimeout(scheduled)
+            scheduled = undefined
+            incremental = false
+            pending += 1
+            const applicable = () => {
+                const disposition = current()
+                if (disposition === 'apply') { return true }
+                if (pending === 1) {
+                    // A native edit may not have reached the input handler yet.
+                    // Resume timers without replacing that field's DOM value.
+                    if (disposition === 'edited') { schedule() }
+                    else { draw() }
+                }
+                return false
+            }
+            queue = queue.then(async () => {
+                if (!applicable()) { return }
+                if (initialize) { busy(root, true) }
+                try {
+                    const next = initialize ? unwrapState(await run(demo.update(replacement)({ kind: 'start' }))) : replacement
+                    if (!applicable()) { return }
+                    state = next
+                    // Restored states contain no action history. Continue only the
+                    // same automatic startup work an ordinary page load performs.
+                    if (initialize && pending === 1) { draw() }
+                    else { render(root, scoped(demo.view(state))) }
+                    after()
+                } finally {
+                    if (initialize) { busy(root, false) }
+                }
+            }).catch(cause => fail(root, cause)).finally(() => { pending -= 1 })
+        },
+    }
 }
 
 /**
@@ -526,11 +571,15 @@ export const startDemo = async root => {
     // page script does not await, and the section stays blank. A blank
     // section is the one thing it must not be, because it is what a demo that
     // renders nothing looks like.
+    let loading = true
+    let startupEdited = root.getAttribute('data-demo-input-edited') !== null
+    root.addEventListener('input', () => { if (loading) { startupEdited = true } })
     try {
         const module = await import(path)
         const demo = /** @type {Demo<any, DemoEvent, never>} */ (module.demo)
         if (demo === undefined) { throw new Error(`${path} exports no demo`) }
-        const step = stepper(root, demo)
+        const controller = stepper(root, demo)
+        const { step } = controller
         // **The build already rendered `view(init)` into the section**, and
         // the reader may have typed into it while this module loaded. Rendering
         // it again would put every field back to its markup and lose that, so
@@ -540,6 +589,8 @@ export const startDemo = async root => {
         const prerendered = root.firstElementChild !== null
         const edits = prerendered ? fields(root).filter(edited) : []
         if (!prerendered) { render(root, scopeView(root)(demo.view(demo.init))) }
+        loading = false
+        startDemoSharing(root, demo, controller, startupEdited || edits.length > 0 || root.getAttribute('data-demo-input-edited') !== null)
         // A scroll does not bubble, so it is heard in the capture phase.
         root.addEventListener('scroll', e => {
             const target = /** @type {Element} */ (e.target)

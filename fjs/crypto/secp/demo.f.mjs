@@ -10,6 +10,7 @@
  * @import { State, RealPoint, Construction } from '../../website/demo/secp/types.ts'
  */
 
+import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
 import { inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.mjs'
@@ -93,7 +94,6 @@ const finiteNegation = (from, result) => from === null || result === null ? [] :
  */
 const finiteLine = line => line.slice(1).flatMap(/** @returns {readonly Element[]} */ (to, i) => {
     const from = line[i]
-    if (from === undefined) { return [] }
     const y1 = Number(from[1])
     const raw = Number(to[1] - from[1])
     const rise = raw > 11 ? raw - 23 : raw < -11 ? raw + 23 : raw
@@ -277,7 +277,7 @@ const productionView = state => {
 }
 
 /** @type {Demo<State, DemoEvent>} */
-export const demo = {
+const definition = {
     init: { view: 'Geometric View', operation: 'kG', k: '3', p: '10,18', q: '13,12', target: 'P', realP: '0', realQ: '1', branchP: '1', branchQ: '1', curve: 'secp256k1', privateKey: '3', generated: null },
     update: state => event => pureOk(transition(state, event)),
     view: state => ['div', { 'data-secp-playground': '' },
@@ -288,3 +288,12 @@ export const demo = {
         ['p', ['a', { href: 'https://github.com/functionalscript/functionalscript/blob/main/fjs/crypto/secp/README.md' }, 'Read the crypto/secp documentation']],
     ],
 }
+
+export const demo = withInputs(definition, ['view', 'operation', 'k', 'p', 'q', 'target', 'realP', 'realQ', 'branchP', 'branchQ', 'curve', 'privateKey'], {
+    view: ['Geometric View', 'Finite Field View', 'Real Curves'],
+    operation: ['kG', 'P + Q', '2P', '−P'],
+    k: Array.from({ length: 30 }, (_, i) => String(i)),
+    p: pointOptions, q: pointOptions, target: ['P', 'Q'],
+    branchP: ['1', '-1'], branchQ: ['1', '-1'],
+    curve: namedCurves.map(c => c.name),
+})

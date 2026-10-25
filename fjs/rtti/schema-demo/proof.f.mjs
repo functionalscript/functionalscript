@@ -458,6 +458,23 @@ const demoProof = /** @type {const} */ ({
 const single = schemaDemo([['One', [{ id: 'number', name: 'n', about: 'a number', schemas: [{ source: 'number', schema: number }], value: 'export default 1;' }]]])
 
 export const proof = {
+    sharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        for (const example of sharing.examples) {
+            const restored = sharing.restore(example.inputs)
+            assertStructurallySame(sharing.read(restored), example.inputs)
+        }
+        const inputs = sharing.read(demo.init)
+        const paired = sharing.examples.find(e => e.id === 'closed-vs-open')
+        const pair = assertNotNullish(paired).inputs
+        assertEq(sharing.validate?.({ ...pair, schema: '1' }), null)
+        const second = sharing.restore({ ...pair, schema: '1', compare: '' })
+        assertEq(second.shown, 1)
+        assertEq(sharing.read(second).compare, '')
+        assertEq(sharing.validate?.(inputs), null)
+        const one = assertNotNullish(single.sharing)
+        assertEq(one.validate?.({ ...one.read(single.init), schema: '1' }), 'This example has only one schema')
+    },
     demo: demoProof,
     // A demo needs an example to open on.
     throw: () => schemaDemo([['None', []]]),

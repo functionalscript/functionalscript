@@ -27,6 +27,9 @@
  * @import { Marked, Run } from '../../text/marked/types.ts'
  */
 
+/** @import { Sharing } from '../../website/demo/sharing/types.ts' */
+
+import { assertNotNullish } from '../../asserts/module.f.js'
 import { assertExampleIds } from '../../website/demo/examples/module.f.js'
 import { captionMarker, codeMarker, resultMarker, verdictMarker } from '../../website/style/module.f.js'
 import { unknown } from '../module.f.mjs'
@@ -539,7 +542,35 @@ export const schemaDemo = groups => {
      */
     const showing = (state, shown) => ({ ...state, shown, compare: partnerOf(exampleOf(state.example), shown) })
 
+    const sharedSchemas = examples.flatMap(e => e.schemas.map((_, i) => ({
+        key: `${e.id.length}:${e.id}:${i}`, internal: schemaKey(e, i),
+    })))
+    /** @type {(state: DemoState) => import('../../website/demo/sharing/types.ts').Inputs} */
+    const readInputs = state => ({
+        example: exampleOf(state.example).id, schema: String(state.shown), value: state.text,
+        compare: state.compare === '' ? '' : assertNotNullish(sharedSchemas.find(s => s.internal === state.compare)).key,
+    })
+    /** @type {Sharing<DemoState>} */
+    const sharing = {
+        fields: {
+            example: { default: start.id, choices: examples.map(e => e.id) },
+            schema: { default: '0', choices: ['0', '1'] },
+            value: { default: start.value },
+            compare: { default: readInputs(picking(start)).compare, choices: ['', ...sharedSchemas.map(s => s.key)] },
+        },
+        examples: examples.map(e => ({ id: e.id, inputs: readInputs(picking(e)) })),
+        read: readInputs,
+        validate: inputs => inputs.schema === '1' && assertNotNullish(examples.find(e => e.id === inputs.example)).schemas.length < 2
+            ? 'This example has only one schema' : null,
+        restore: inputs => {
+            const values = /** @type {Readonly<Record<string, string>>} */ (inputs)
+            return { example: assertNotNullish(examples.find(e => e.id === values.example)).name,
+                shown: values.schema === '0' ? 0 : 1, text: values.value,
+                compare: values.compare === '' ? '' : assertNotNullish(sharedSchemas.find(s => s.key === values.compare)).internal }
+        },
+    }
     return {
+        sharing,
         init: picking(start),
         update: state => event => pureOk(
             event.kind === 'input'

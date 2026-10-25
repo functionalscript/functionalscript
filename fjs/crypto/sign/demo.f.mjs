@@ -9,6 +9,7 @@
  *
  * @module
  *
+ * @import { Sharing } from '../../website/demo/sharing/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Curve, Point2D } from '../secp/types.ts'
@@ -480,17 +481,41 @@ const nonceReuseView = draft => {
     ]
 }
 
+/** @type {DemoState} */
+const initial = {
+    curve: 'P-256 (secp256r1)',
+    hash: 'SHA-256',
+    key: 'c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721',
+    message: 'sample',
+    eve: null,
+    bob: null,
+    reuse: { key: '12345678', nonce: '7', message1: 'sample', message2: 'test' },
+}
+
+/** @type {Sharing<DemoState>} */
+const sharing = {
+    fields: {
+        curve: { default: initial.curve, choices: curves.map(c => c.name) },
+        hash: { default: initial.hash, choices: sha2Algorithms.map(a => a.name) },
+        key: { default: initial.key }, message: { default: initial.message },
+        'reuse-key': { default: initial.reuse.key }, 'reuse-nonce': { default: initial.reuse.nonce },
+        'reuse-message1': { default: initial.reuse.message1 }, 'reuse-message2': { default: initial.reuse.message2 },
+    },
+    examples: [],
+    read: state => ({ curve: state.curve, hash: state.hash, key: state.key, message: state.message,
+        'reuse-key': state.reuse.key, 'reuse-nonce': state.reuse.nonce,
+        'reuse-message1': state.reuse.message1, 'reuse-message2': state.reuse.message2 }),
+    restore: inputs => {
+        const values = /** @type {Readonly<Record<string, string>>} */ (inputs)
+        return { ...initial, curve: values.curve, hash: values.hash, key: values.key, message: values.message,
+            reuse: { key: values['reuse-key'], nonce: values['reuse-nonce'], message1: values['reuse-message1'], message2: values['reuse-message2'] } }
+    },
+}
+
 /** @type {Demo<DemoState, DemoEvent>} */
 export const demo = {
-    init: {
-        curve: 'P-256 (secp256r1)',
-        hash: 'SHA-256',
-        key: 'c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721',
-        message: 'sample',
-        eve: null,
-        bob: null,
-        reuse: { key: '12345678', nonce: '7', message1: 'sample', message2: 'test' },
-    },
+    init: initial,
+    sharing,
     update,
     view: state => {
         const result = signed(state)

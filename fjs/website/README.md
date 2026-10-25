@@ -35,6 +35,17 @@ that issue's concern, for automated runners. Module pages do not depend on it,
 and moving the site under such a root would break every fetch they make — so
 the two are separate, and this one is not quietly migrated into the other.
 
+## Shareable demo links
+
+Every demo exposes Copy demo link through the shared runtime. Example links
+such as `/fjs/compiler/#demo:example=hex-escape` restore a stable example;
+custom inputs use `#demo:state=BASE64URL_JSON`. Restore validates all inputs
+before replacing state and never presses action buttons. The encoded fragment
+limit is 16 KiB. New demos with inputs must declare defaults, choices and an
+atomic sharing adapter; `textDemo` supplies one automatically. See the
+[sharing contract](./demo/sharing/README.md) for encodings, validation,
+clipboard feedback, startup edits and history navigation.
+
 ## Section links
 
 Generated module pages expose `#demo` and `#emergent-testing` targets. README
@@ -57,11 +68,10 @@ links to the current fragment open collapsed ancestors before scrolling. Encoded
 IDs are decoded once; malformed escapes and missing targets leave the page
 usable. Navigating to Emergent Testing never presses Run or starts tests.
 
-`#demo:` is reserved for the separate
-[demo-state sharing proposal](./demo/todo/shareable-demo-fragments.md). This
-navigation layer reveals Demo for that namespace; restoring an example or custom
-state is still future work. Its restoration runtime can call `revealFragment`
-after rendering to scroll using the final layout.
+`#demo:` identifies [shareable demo inputs](./demo/sharing/README.md). The
+navigation layer reveals Demo immediately; the restoration runtime calls
+`revealFragment` again after applying the complete input set so scrolling uses
+the final layout.
 
 ## CLI reference
 

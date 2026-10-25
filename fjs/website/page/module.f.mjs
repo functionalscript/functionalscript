@@ -34,6 +34,7 @@
  */
 
 import { permalink } from '../permalink/module.f.js'
+import { sharingControls, earlyInputCapture } from '../demo/sharing/module.f.mjs'
 import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.mjs'
 import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'
@@ -247,10 +248,9 @@ const inactive = view => {
 /**
  * The demo section: what this module *does*, if it says.
  *
- * Two elements and nothing else. The section is the demo's own root, which the
- * runtime renders every state into; the script is the page's half of the
- * wiring, naming the module in `demoMarker` so the runtime never guesses a
- * filename.
+ * The section holds a patchable demo root, persistent sharing controls and
+ * its startup script. The script names the module in `demoMarker`, so the
+ * runtime never guesses a filename. Sharing controls survive every render.
  *
  * **The root already holds the demo's first view**, rendered by the build, so
  * the demo shows with the page rather than after the runtime and the demo's
@@ -266,6 +266,7 @@ const inactive = view => {
 export const demoSection = ({ path, view }, scope = path) => [['details', { 'data-section': '', open: '' },
     scope === path ? demoSummary() : linkedSummary(`demo-section:${scope.length}:${scope}`, 'Demo')(),
     ['div', { [demoMarker]: path, [scopeMarker]: scope }, ...(view === null ? [] : [inactive(scopeIds(scope)(view))])],
+    sharingControls(),
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
 
@@ -686,6 +687,7 @@ export const shell = build => title => content => htmlDocument(lang)(
     ['meta', { name: 'referrer', content: 'no-referrer' }],
     stylesheetLink,
     ...faviconLinks,
+    earlyInputCapture,
     ['script', { type: 'module' }, `import { startFragments } from '/fjs/website/fragment-runtime.mjs'\nstartFragments(document)`],
 )(
     header(build),
