@@ -439,6 +439,8 @@ their documented normalization. Repeated conversions must stabilize.
       key conversion before each property value and preserving object identity.
 - [x] Lift owning returns through the `instanceof` value operand, preserving
       literal constructor metadata and normal Boolean results.
+- [ ] Lift owning returns through ordinary statement-result yield operands,
+      preserving result binding identities, arity and evaluation order.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
