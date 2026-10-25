@@ -23,7 +23,7 @@ without reading source blobs. It builds four input manifests:
 The selectors also name files excluded from the cache. Every tracked file must
 be selected or explicitly excluded, so adding a new kind of input requires a
 decision. Groups may overlap: generated Rust belongs to both `fjs` and `rust`.
-Markdown and TODO files under shared CI tooling (`fjs/ci/`, `gen.nix/`, and
+Markdown and TODO files under shared CI tooling (`fjs/ci/` and
 `.github/workflows/`) are excluded. Documents in the Rust workspace and `spec/`
 remain inputs because those checks may read them.
 

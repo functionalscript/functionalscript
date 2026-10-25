@@ -1,26 +1,5 @@
 /**
- * `npm run gen:clean`: deletes every generated file — a file whose name starts
- * with `gen.`, and every file inside a directory whose name does — so the drift
- * check regenerates deterministic outputs from nothing and stale output shows up as a deletion
- * ([CONTRIBUTING.md](../../../CONTRIBUTING.md#naming-generated-files)).
- *
- * `gen.nix/flake.lock` is the one preserved input: the optional legacy Nix
- * environment refreshes it explicitly, outside ordinary generation. Cleanup
- * must preserve it even when `gen:clean` runs separately from `gen`.
- *
- * Directories stay, emptied: `rm` removes files only, and git tracks no empty
- * directory, so the drift check cannot see one. Outside a generated directory,
- * dot-names (`.git` among them), `node_modules` and `target` are not entered:
- * they hold third-party files, whose names follow no convention of this
- * repository. `.github` is the one dot-name entered: the generated workflows
- * live there. Inside a generated directory, everything is generated, dot-names
- * included.
- *
- * Only the path below the scan root is examined, so a root that itself lies
- * under a `gen.*` directory does not make its handwritten files generated.
- *
  * @module
- *
  * @import { All, Dirent, IoChannel, NodeProgram, Readdir, Rm } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  */
@@ -40,8 +19,7 @@ export const isGenerated = name => name.startsWith('gen.')
  * @type {(path: string, entry: Dirent) => 'take' | 'descend' | 'skip'}
  */
 const classify = (path, { name, isDirectory }) =>
-    path === 'gen.nix/flake.lock' ? 'skip'
-    : path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
+    path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
     : isDirectory && (name === '.github' || !isThirdParty(name)) ? 'descend'
     : 'skip'
 

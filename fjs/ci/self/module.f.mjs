@@ -35,7 +35,7 @@ export const packageConsumer = {
 }
 
 /**
- * The workflows and flakes this repository commits, with its own module as
+ * The workflows and environment manifests this repository commits, with its own module as
  * the packed package's consumer. Every platform runs on
  * every pull request: a macOS or Windows failure found only in the merge queue
  * is found after review, by the queue's eviction.
@@ -46,5 +46,4 @@ export const main = () => ci({
     nodeExtra: () => [],
     packageConsumer,
     smart: true,
-    environment: 'pixi',
 })

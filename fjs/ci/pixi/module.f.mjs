@@ -1,7 +1,5 @@
 /**
- * Repository-only Pixi CI migration. Generic `fjs ci` keeps its self-contained
- * generated Nix environment; this adapter requires the repository's committed
- * Pixi manifest and lock. Every original check survives the environment change.
+ * Pixi CI execution using the checkout's committed manifest and lock.
  * @module
  * @import { Job, Jobs, Step } from '../common/types.ts'
  */
@@ -11,13 +9,12 @@ import { wasmTargets } from '../rust/module.f.mjs'
 /** @type {(command: string) => string} */
 export const pixiDevelop = command => `pixi run --locked --environment ci ${command}`
 
-const oldPrefix = 'sh ./gen.nix/run '
+import { commandPrefix as oldPrefix } from '../environment/module.f.mjs'
 const nodeCheck = `test "$(node --version)" = "v${node}"`
 
 /** @type {(step: Step, platform: boolean) => readonly Step[]} */
 const migrateStep = (step, platform) => {
-    if (step.uses?.startsWith('cachix/install-nix-action@') === true
-        || step.uses?.startsWith('dtolnay/rust-toolchain@') === true
+    if (step.uses?.startsWith('dtolnay/rust-toolchain@') === true
         || step.uses?.startsWith('actions/checkout@') === true
         || (platform && step.uses?.startsWith('actions/setup-node@') === true)) { return [] }
     if (step.run === undefined || step['working-directory'] !== undefined) { return [step] }

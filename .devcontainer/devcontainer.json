@@ -4,13 +4,6 @@
         "dockerfile": "Dockerfile",
         "context": ".."
     },
-    "features": {
-        "ghcr.io/devcontainers/features/nix:1": {
-            "flakeUri": "path:/opt/fjs-nix#devTools"
-        }
-    },
-    "containerEnv": {
-        "CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER": "/nix/var/nix/profiles/default/bin/fjs-i686-cc"
-    },
-    "postCreateCommand": "npm ci"
+    "postCreateCommand": "sh ./dev-setup.sh",
+    "remoteUser": "vscode"
 }

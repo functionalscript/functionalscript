@@ -28,7 +28,7 @@ export const platformSchema = /** @type {const} */ ({
     architecture: string,
 })
 
-const shellPrefixes = /** @type {const} */ (['sh ./gen.nix/run ', 'pixi run --locked --environment ci '])
+const shellPrefixes = /** @type {const} */ (['env ', 'pixi run --locked --environment ci '])
 
 const botIdentity = /** @type {const} */ ({
     GIT_AUTHOR_NAME: 'github-actions[bot]',
@@ -48,8 +48,7 @@ const isAction = (step, action) => step.uses?.startsWith(`${action}@`) === true
 
 /** Environment setup belongs to every check whose commands it executes. */
 /** @type {(step: Step) => boolean} */
-const environmentSetup = step => isAction(step, 'cachix/install-nix-action')
-    || step.run?.includes('npm install --prefix .pixi/ci-tools/npm ') === true
+const environmentSetup = step => step.run?.includes('npm install --prefix .pixi/ci-tools/npm ') === true
     || isAction(step, 'prefix-dev/setup-pixi') || step.run?.startsWith('pixi install ') === true
 
 /** Each check's terminal work. Installs and version checks are shared below. */

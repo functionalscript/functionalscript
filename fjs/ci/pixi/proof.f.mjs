@@ -14,7 +14,7 @@ import { pixiDevelop, pixiJobs } from './module.f.mjs'
 const jobs = (hasRust, pixi, smart = false) => {
     /** @type {Dir} */
     const root = hasRust ? { 'Cargo.toml': [empty] } : {}
-    const [state, code] = virtualAt(root)(ci({ nodeExtra: () => [], smart, ...(pixi ? { environment: 'pixi' } : {}) }))
+    const [state, code] = virtualAt(root)(ci({ nodeExtra: () => [], smart }))
     assertEq(exitCode(code), 0)
     const github = state.root['.github']
     assert(typeof github === 'object' && !(github instanceof Array))
@@ -30,10 +30,9 @@ export const proof = {
         assertEq(pixiDevelop('node --version'), 'pixi run --locked --environment ci node --version')
         assertEq(Object.keys(pixiJobs({ absent: undefined }, false)).length, 0)
     },
-    genericSmartKeepsItsSelfContainedEnvironment: () => {
+    genericSmartUsesPixi: () => {
         const generic = jobs(false, false, true)
-        assert(generic.node26?.steps.some(s => s.uses?.startsWith('cachix/install-nix-action@') === true) === true)
-        assert(!generic.node26?.steps.some(s => s.uses?.startsWith('prefix-dev/setup-pixi@') === true))
+        assert(generic.node26?.steps.some(s => s.uses?.startsWith('prefix-dev/setup-pixi@') === true) === true)
     },
     everyJobUsesPixiAndNoNix: () => {
         for (const hasRust of [true, false]) {
@@ -47,24 +46,6 @@ export const proof = {
                 const setup = job.steps.findIndex(s => s.uses?.startsWith('prefix-dev/setup-pixi@') === true)
                 assert(checkout >= 0 && setup > checkout, id)
                 assert(job.steps.some(s => s.run?.startsWith(pixiDevelop('')) === true), id)
-            }
-        }
-    },
-    preserveAllChecks: () => {
-        const original = jobs(true, false)
-        const migrated = jobs(true, true)
-        for (const [id, job] of Object.entries(original)) {
-            assert(job !== undefined)
-            const runs = migrated[id]?.steps.flatMap(s => s.run === undefined ? [] : [s.env?.FJS_CI_RUN ?? s.run]) ?? []
-            for (const step of job.steps) {
-                if (step.run !== undefined) {
-                    const command = step.run.split('sh ./gen.nix/run ').join(pixiDevelop(''))
-                        .replace('wasmer 7.1.0', 'wasmer 7.5.0')
-                        .replace(pixiDevelop('wasmtime --version'), `${pixiDevelop('wasmtime --version')} | cut -d ' ' -f 1-2`)
-                    assert(runs.includes(command) || runs.includes(pixiDevelop(command))
-                        || (step.run === 'test "$(node --version)" = "v26.12.1"'
-                            && runs.includes(`test "$(${pixiDevelop('node --version')})" = "v26.12.1"`)), step.run)
-                }
             }
         }
     },

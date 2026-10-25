@@ -54,7 +54,7 @@ const javascript = (/** @type {string} */ path) => {
  * @type {(path: string) => readonly Rung[] | null}
  */
 export const select = path => {
-    const ci = path.startsWith('gen.nix/') || path.startsWith('fjs/ci/') || path.startsWith('.github/workflows/')
+    const ci = path.startsWith('fjs/ci/') || path.startsWith('.github/workflows/')
     // CI documents are not build inputs, even under a generated directory.
     if (ci && (path.endsWith('.md') || path.split('/').includes('todo'))) { return [] }
     const js = javascript(path)

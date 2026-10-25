@@ -1,29 +1,11 @@
 /**
- * CI step builder for the Rust crate: platform compatibility jobs run native
- * tests and Clippy, Intel jobs also run 32-bit target tests and Clippy, and
- * `ubuntu-arm` also checks formatting and exercises every WASM target.
- *
- * The jobs get their toolchain from two places, and the reason is packaging
- * rather than preference. Intel macOS and the two Windows jobs install only
- * native Rust through `dtolnay/rust-toolchain`. The other jobs take
- * `cargo` from the shared shell — but not from Nixpkgs alone: Nixpkgs builds a
- * single `rustc` and hard-codes the targets it builds `std` for, and three of
- * the four WASM targets are not among them at any version. The shell takes the
- * toolchain from `rust-overlay` instead, which unpacks the same release
- * artifacts `rustup` would.
- *
- * Both name `../config/module.f.js`'s `rust`, so the version cannot differ
- * between direct-install jobs and the rest.
- *
  * @module
- *
  * @import { Architecture, MetaStep, Os } from '../common/types.ts'
- * @import { NixPerSystem, NixRust } from '../nix/types.ts'
  */
 
-import { rust, wasmer, wasmtime } from '../config/module.f.js'
+import { wasmer, wasmtime } from '../config/module.f.js'
 import { isUbuntuArm, test } from '../common/module.f.mjs'
-import { nixVersionStep } from '../nix/module.f.mjs'
+import { environmentVersionStep } from '../environment/module.f.mjs'
 
 /**
  * One `cargo` check, run twice: debug, then `--release`.
@@ -61,15 +43,7 @@ const rustTarget = target => [
 const i686Linux = /** @type {const} */ ('i686-unknown-linux-gnu')
 
 /**
- * The 32-bit target a platform job also checks, which is now Windows Intel and
- * nothing else.
- *
- * 32-bit *Linux* is not here, because that job is on the shared shell and this
- * decides which jobs install a toolchain of their own — see
- * {@link shellRustCommands}, which is where Intel Linux gets its second target.
- * Windows is here because those two jobs have no shell at all: Nix does not run
- * there, so `dtolnay/rust-toolchain` provides the target the way it always did.
- *
+ * The additional Windows target; Intel Linux is handled by shellRustCommands.
  * @type {(v: Os, a: Architecture) => string | undefined}
  */
 export const i686Target = (v, a) =>
@@ -82,85 +56,6 @@ const i686 = (v, a) => {
 }
 
 /**
- * The one system a 32-bit x86 toolchain exists for, and the runner this job
- * has.
- *
- * `pkgsi686Linux` is Nixpkgs built for `i686-linux`, and the snapshot builds it
- * only where the host is x86 Linux — on anything else the attribute is a
- * `throw`, not a package set. So this is a capability of one platform, declared
- * for that platform, rather than a property of the shell.
- */
-export const i686System = /** @type {const} */ ('x86_64-linux')
-
-const i686Compiler = /** @type {const} */ (['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc'])
-
-/**
- * What Intel Linux adds to the shared shell: the 32-bit target, and the linker
- * `cargo` has to be pointed at to use it.
- *
- * The linker is the whole reason this is a per-system declaration, and it is an
- * **i686** toolchain rather than a multilib one. `pkgsi686Linux` is Nixpkgs
- * built for `i686-linux`, so its cc-wrapper injects the 32-bit emulation and
- * the 32-bit libc as a matter of what it is, with nothing to override.
- *
- * `gcc_multi` was tried first and does not work, which is worth recording
- * because it looks like the obvious answer. It finds every 32-bit file
- * correctly — `glibc_multi`'s `lib/32/Scrt1.o`, gcc's `32/crtbeginS.o` — and
- * the link still fails with every object *"incompatible with elf64-x86-64"*.
- * The wrapper is a 64-bit wrapper: its bintools inject `-m elf_x86_64`, which
- * outlives gcc's own `-m32`, so `lld` is told to emit a 64-bit binary out of
- * 32-bit input. A wrapper that is i686 has no such flag to inject.
- *
- * It replaces `apt-get install libc6-dev-i386` rather than joining it. A Nix
- * toolchain does not look in `/usr`: the cc-wrapper is built to keep
- * `/usr/include` and `/usr/lib` off its search paths, so a libc installed by
- * the runner's package manager would sit there unread. The `rust-std` for the
- * target comes from `rust-overlay`, as the `targets` below asks; that is the
- * standard library, and this is what it links against.
- *
- * Nothing names it in the shell's `packages`, and nothing should: interpolating
- * a derivation into the hook puts it in the closure, which is all that is
- * wanted here — a 32-bit `cc` on `PATH` would only shadow the host one that
- * the untargeted `cargo test` needs.
- * The installable profile exposes it as `fjs-i686-cc` instead, so containers
- * can select it without a shell hook or a collision with the native compiler.
- *
- * The `shellHook` names that linker outright rather than trusting `PATH`.
- * `mkShell` brings its own `cc` from `stdenv`, and `addToSearchPath` appends,
- * so which one `cargo` finds is a question about ordering;
- * `CARGO_TARGET_<TARGET>_LINKER` is not. The `${...}` in it is Nix's
- * interpolation, not this file's — the generator emits an indented string,
- * where Nix resolves the reference to its store path.
- *
- * The target is an addition to what every system's toolchain carries rather
- * than a toolchain of its own: the shell already has `rust-overlay`'s
- * `1.99.1` with the WASM targets, and this is one more `rust-std` on the
- * platform that can link it.
- *
- * @type {{ readonly [system: string]: NixPerSystem }}
- */
-export const i686PerSystem = {
-    [i686System]: {
-        targets: [i686Linux],
-        shellHook: [
-            'export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=',
-            i686Compiler,
-            '/bin/cc',
-        ],
-        commands: [{
-            name: 'fjs-i686-cc',
-            script: ['exec ', i686Compiler, '/bin/cc "$@"'],
-        }],
-    },
-}
-
-/**
- * The native checks every platform job runs, as commands rather than steps.
- *
- * A job on the shared shell runs these through `nix develop` and needs no
- * toolchain of its own; one off it wraps them in `rustPlatformSteps` below,
- * whose `{ type: 'rust' }` marker is what makes `toSteps` install one.
- *
  * @type {readonly string[]}
  */
 export const rustPlatformCommands = targetCheckCommands()
@@ -173,58 +68,24 @@ export const rustPlatformSteps = (v, a) => [
 ]
 
 /**
- * The one platform job that also checks formatting and every WASM target:
- * Ubuntu ARM, the runner every canonical job uses.
- *
- * Those checks were a job of their own, `wasm`, on the same runner image and
- * in the same shell as this one. What the extra job added beyond its commands
- * was one more runner to wait for, and Nix installed and the shell substituted
- * a second time — the reason `ubuntu-intel32` was folded into `ubuntu-intel`.
- * Its steps are unchanged, and each is still its own reportable step.
- *
  * @type {(v: Os, a: Architecture) => boolean}
  */
 const wasmPlatform = isUbuntuArm
 
 /**
- * What a platform job on the shared shell asserts before its `cargo` commands
- * run: on {@link wasmPlatform}, the two WASM runtimes its shell provides, and
- * nothing elsewhere. See {@link wasmRust} for why the toolchain itself is not
- * checked.
- *
- * The runtimes come from the same shell as `cargo`, and that is not a detail:
- * `cargo` invokes them itself, through the `runner` keys in
- * `.cargo/config.toml`, so they have to be on the same `PATH` as the `cargo`
- * that spawns them.
- *
+ * Assert the two WASM runtimes on the platform that exercises them.
  * @type {(v: Os, a: Architecture) => readonly MetaStep[]}
  */
 export const shellRustVersionSteps = (v, a) =>
     wasmPlatform(v, a)
         ? [
-            nixVersionStep('wasmtime --version', `wasmtime ${wasmtime}`),
-            nixVersionStep('wasmer --version', `wasmer ${wasmer}`),
+            environmentVersionStep('wasmtime --version', `wasmtime ${wasmtime}`),
+            environmentVersionStep('wasmer --version', `wasmer ${wasmer}`),
         ]
         : []
 
 /**
- * What a platform job on the shared shell runs `cargo` for: its own platform;
- * on Intel Linux, the 32-bit target that platform's shell carries; and on
- * {@link wasmPlatform}, the formatting check first and every WASM target after.
- *
- * The four 32-bit checks were a job of their own, `ubuntu-intel32`, for as long as
- * they needed a second environment. They no longer do, and a job is not free:
- * it is one more of the runners a workflow gets at once, and the whole of what
- * this one did beyond `ubuntu-intel` was install Nix and substitute the same
- * `x86_64-linux` shell a second time — that shell being the only thing the two
- * ever had in common, since no other job in the workflow runs on Intel Linux
- * at all.
- *
- * What it cost to fold them back in is the job name: a red `ubuntu-intel` says
- * "Intel Linux" now, and which of its steps failed is a click away rather than
- * a check name. That is the trade, and it is the only one — the steps
- * themselves are unchanged, and each is still its own reportable step.
- *
+ * Native checks, plus i686 on Intel Linux and formatting/WASM on ARM Linux.
  * @type {(v: Os, a: Architecture) => readonly string[]}
  */
 export const shellRustCommands = (v, a) => {
@@ -239,25 +100,10 @@ export const shellRustCommands = (v, a) => {
 
 const wasmerConfig = /** @type {const} */ ('.cargo/config.wasmer.toml')
 
-/**
- * Wasmtime 47 removed wasi-threads, so this target runs under Wasmer only.
- * Clippy needs no runner and stays. See `../../../todo/blocked/wasmtime-threads.md`.
- *
- * The Wasmtime the flake provides predates that removal, so the arrangement
- * currently tests less than it could rather than something it cannot: revisit
- * when the pinned snapshot moves past 47.
- */
 const wasmerOnlyTarget = /** @type {const} */ ('wasm32-wasip1-threads')
 
 /**
- * Every WASM target {@link wasmPlatform} exercises, in the order it exercises
- * them.
- *
- * One list, read three times: the flake declares these as the targets whose
- * `rust-std` its toolchain must carry, {@link shellRustCommands} builds the
- * commands from the same array, and `../dev/module.f.mjs` gives a developer's shell the same
- * ones. A target added here therefore arrives in the shell and in the job
- * together, rather than as a command with no standard library.
+ * Every WASM target exercised on ARM Linux.
  */
 export const wasmTargets = /** @type {const} */ ([
     'wasm32-wasip1',
@@ -277,35 +123,3 @@ const wasmTargetCommands = target =>
             ...targetCheckCommands(target),
             ...cargoPair('test', target, wasmerConfig),
         ]
-
-/**
- * The Rust the shared flake carries: a `rust-overlay` toolchain with every
- * target {@link wasmPlatform} builds.
- *
- * `minimal` rather than `default`, with the two components the jobs actually
- * run named explicitly: the default profile would add `rust-docs`, which is a
- * download nothing here opens.
- *
- * It is declared beside the commands that use it rather than beside the flake,
- * so the targets below and `wasmTargets` above cannot come apart —
- * `../dev/module.f.mjs` takes this whole record.
- *
- * The flake names `1.99.1` in full, so no job checks the toolchain's version:
- * a check could only restate the flake. The two runtimes are the opposite
- * case, and {@link shellRustVersionSteps} is the whole of that tie.
- *
- * @type {NixRust}
- */
-export const wasmRust = {
-    version: rust,
-    extensions: ['clippy', 'rustfmt'],
-    targets: wasmTargets,
-}
-
-/**
- * The two runtimes `.cargo/config.toml` and `.cargo/config.wasmer.toml` name,
- * as the shared flake's attributes. Neither carries a version.
- *
- * @type {readonly string[]}
- */
-export const wasmPackages = ['wasmtime', 'wasmer']

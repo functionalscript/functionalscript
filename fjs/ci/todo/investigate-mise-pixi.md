@@ -1,3 +1,6 @@
+<!-- Historical comparison evidence. The owner selected complete removal of
+Nix for this pixi branch; active setup is in doc/pixi-trial/README.md. -->
+
 ## Investigate mise and Pixi as Nix alternatives
 
 **Priority:** P3
@@ -277,6 +280,6 @@ when assessing the one-primary-manager goal.
 ### Related
 
 - [Tool configuration](../config/module.f.js) — exact supported tool versions.
-- [Nix environment](../nix/README.md) — current development environment.
+- [pixi environment](../../../doc/pixi-trial/README.md) — current development environment.
 - [CI](../README.md) — platform jobs and generated workflows.
 - [CI caching](./096-ci-caching.md) — related cache investigation.

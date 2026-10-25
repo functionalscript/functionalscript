@@ -30,15 +30,15 @@ const stepWith = (source, run) => {
     return result
 }
 
-const nix = uses('cachix/install-nix-action')
-const nodeVersion = /** @type {const} */ ({ run: 'test "$(sh ./gen.nix/run node --version)" = "v26.12.1"' })
-const tscVersion = /** @type {const} */ ({ run: 'test "$(sh ./gen.nix/run tsc --version)" = "Version 7.0.2"' })
-const install = /** @type {const} */ ({ run: 'sh ./gen.nix/run npm ci' })
-const suite = /** @type {const} */ ({ run: 'sh ./gen.nix/run node --test' })
-const compile = /** @type {const} */ ({ run: 'sh ./gen.nix/run npm start compile' })
-const tsc = /** @type {const} */ ({ run: 'sh ./gen.nix/run tsc' })
-const coverage = /** @type {const} */ ({ run: 'sh ./gen.nix/run npm run cov' })
-const pack = /** @type {const} */ ({ run: 'sh ./gen.nix/run npm pack --pack-destination "$RUNNER_TEMP/consumer"' })
+const environment = uses('prefix-dev/setup-pixi')
+const nodeVersion = /** @type {const} */ ({ run: 'test "$(env node --version)" = "v26.12.1"' })
+const tscVersion = /** @type {const} */ ({ run: 'test "$(env tsc --version)" = "Version 7.0.2"' })
+const install = /** @type {const} */ ({ run: 'env npm ci' })
+const suite = /** @type {const} */ ({ run: 'env node --test' })
+const compile = /** @type {const} */ ({ run: 'env npm start compile' })
+const tsc = /** @type {const} */ ({ run: 'env tsc' })
+const coverage = /** @type {const} */ ({ run: 'env npm run cov' })
+const pack = /** @type {const} */ ({ run: 'env npm pack --pack-destination "$RUNNER_TEMP/consumer"' })
 const consumer = /** @type {const} */ ({ run: 'node good.mts', 'working-directory': '${{ runner.temp }}/consumer' })
 
 export const proof = /** @type {const} */ ({
@@ -102,25 +102,25 @@ export const proof = /** @type {const} */ ({
     },
     /** Commands and shared prerequisites keep their original execution order. */
     checks: () => {
-        const source = job([uses('actions/checkout'), nix, nodeVersion, tscVersion, install, tsc, compile, coverage, pack, consumer])
+        const source = job([uses('actions/checkout'), environment, nodeVersion, tscVersion, install, tsc, compile, coverage, pack, consumer])
         const result = checks('node26', source)
         assertStructurallySame(result, [
-            { id: 'tsc', rung: 'ts', steps: [nix, nodeVersion, tscVersion, install, tsc] },
-            { id: 'compile', rung: 'fjs', steps: [nix, nodeVersion, install, compile] },
-            { id: 'coverage', rung: 'js', steps: [nix, nodeVersion, install, coverage] },
-            { id: 'package', rung: 'ts', steps: [nix, nodeVersion, tscVersion, install, pack, consumer] },
+            { id: 'tsc', rung: 'ts', steps: [environment, nodeVersion, tscVersion, install, tsc] },
+            { id: 'compile', rung: 'fjs', steps: [environment, nodeVersion, install, compile] },
+            { id: 'coverage', rung: 'js', steps: [environment, nodeVersion, install, coverage] },
+            { id: 'package', rung: 'ts', steps: [environment, nodeVersion, tscVersion, install, pack, consumer] },
         ])
         assertOk(parse(checksSchema)(result))
     },
     /** The expensive installation waits for init, and a hit skips its prerequisites. */
     bootstrap: () => {
-        const source = cached([nix, installNode(), uses('actions/checkout'), nodeVersion, install, suite])
+        const source = cached([environment, installNode(), uses('actions/checkout'), nodeVersion, install, suite])
         assertStructurallySame(source.permissions, { contents: 'write' })
         assertStructurallySame(source.steps[0], uses('actions/checkout', { 'fetch-depth': '1' }))
         assertStructurallySame(source.steps[1], installNode({ 'package-manager-cache': 'false' }))
         assertEq(source.steps.filter(step => step.uses?.startsWith('actions/setup-node@')).length, 1)
         assertEq(source.steps.find(step => step.id === 'init')?.run, 'npm start ci init')
-        assertEq(source.steps.find(step => step.uses === nix.uses)?.if, "steps.init.outputs.hit-suite != 'true'")
+        assertEq(source.steps.find(step => step.uses === environment.uses)?.if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, install.run).if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, suite.run).if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, 'npm start ci report suite').if, "steps.init.outputs.hit-suite != 'true'")
@@ -164,7 +164,7 @@ export const proof = /** @type {const} */ ({
     /** A partial hit cannot skip npm ci when another dependent check misses. */
     sharedInstallAndPackage: () => {
         const source = cached([
-            nix, install, tsc, compile, coverage,
+            environment, install, tsc, compile, coverage,
             { run: 'mkdir "$RUNNER_TEMP/consumer"' }, pack,
             installNode({ 'package-manager-cache': 'false' }), consumer,
         ])
@@ -180,17 +180,17 @@ export const proof = /** @type {const} */ ({
         assert(!spec.includes('${{'))
         assertEq(source.steps.filter(step => step.run === 'npm start ci report package').length, 1)
     },
-    /** Uncached generator and injected demo work still gets its Nix environment. */
+    /** Uncached generator and injected demo work still gets its Pixi environment. */
     uncachedShell: () => {
         const source = cached([
-            nix, nodeVersion, suite,
-            { run: 'sh ./gen.nix/run npm run gen' },
-            { run: 'sh ./gen.nix/run bash -e -c "$FJS_CI_RUN"', env: { FJS_CI_RUN: 'sh ./nanvm/demos/gen.build.sh' } },
+            environment, nodeVersion, suite,
+            { run: 'env npm run gen' },
+            { run: 'env bash -e -c "$FJS_CI_RUN"', env: { FJS_CI_RUN: 'sh ./nanvm/demos/gen.build.sh' } },
             { run: 'git add -A && git diff --cached --exit-code' },
         ])
-        assertEq(source.steps.find(step => step.uses === nix.uses)?.if, undefined)
+        assertEq(source.steps.find(step => step.uses === environment.uses)?.if, undefined)
         assertEq(stepWith(source, nodeVersion.run).if, undefined)
-        assertEq(stepWith(source, 'sh ./gen.nix/run npm run gen').if, undefined)
+        assertEq(stepWith(source, 'env npm run gen').if, undefined)
         assertEq(stepWith(source, 'git add -A && git diff --cached --exit-code').if, undefined)
         assertEq(source.steps.filter(step => step.run?.startsWith('npm start ci report ')).length, 1)
     },
@@ -198,10 +198,10 @@ export const proof = /** @type {const} */ ({
     independentChecks: () => {
         const rustToolchain = uses('dtolnay/rust-toolchain', { components: 'rustfmt,clippy' })
         const source = cached([
-            nix, rustToolchain, nodeVersion,
-            { run: 'test "$(sh ./gen.nix/run wasmtime --version)" = "wasmtime 45.0.2"' },
-            { run: 'test "$(sh ./gen.nix/run wasmer --version)" = "wasmer 7.1.0"' },
-            { run: 'test "$(sh ./gen.nix/run js --version)" = "JavaScript-C140.14.0"' },
+            environment, rustToolchain, nodeVersion,
+            { run: 'test "$(env wasmtime --version)" = "wasmtime 45.0.2"' },
+            { run: 'test "$(env wasmer --version)" = "wasmer 7.1.0"' },
+            { run: 'test "$(env js --version)" = "JavaScript-C140.14.0"' },
             install, { run: 'cargo test' }, { run: 'cargo clippy -- -D warnings' },
             { run: 'npm install -g functionalscript@0.56.0' },
             suite, { run: 'fjs test' },
@@ -218,7 +218,7 @@ export const proof = /** @type {const} */ ({
     /** Each alternative engine groups its install, pin verification and coverage. */
     engines: () => {
         for (const id of ['deno', 'bun']) {
-            const source = cached([nix, uses('actions/checkout'), { run: `${id} install` }, { run: `${id} test` }], id)
+            const source = cached([environment, uses('actions/checkout'), { run: `${id} install` }, { run: `${id} test` }], id)
             assertEq(stepWith(source, `${id} install`).if, "steps.init.outputs.hit-suite != 'true'")
             assertEq(source.steps.filter(step => step.run === 'npm start ci report suite').length, 1)
         }
