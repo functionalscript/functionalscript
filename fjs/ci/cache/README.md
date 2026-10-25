@@ -55,7 +55,7 @@ through Git config, whose credential includes belong to checkout. A hit writes
 nothing. The final `npm start ci publish` step publishes the recorded successes,
 even if a later check failed; fork and Dependabot pull requests do not publish.
 The workflow also supplies `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` to
-the publisher for Git merge commits.
+the publisher for cache publication commits.
 
 Publication compares the committed trees of the local cache branch and that
 initial remote ref. An unchanged tree needs no push or temporary worktree,
@@ -63,12 +63,20 @@ regardless of differences in commit metadata. A missing local branch means
 there is no cache information to publish; a missing baseline permits the first
 publication. These decisions use Git refs and trees, without marker files.
 
-When there is new information, publication makes at most ten total push
-attempts. After a failed push, it fetches the current `build-cache` tip and
-merges it with the local cache branch in a temporary worktree. It compares the
-merged tree with the latest remote tree before retrying: if they match, it
-stops without pushing a metadata-only change. Fetches and pushes run from the
-source checkout so Git uses the credentials configured there by
+When there is new information, publication squashes the job's additions into
+one commit whose sole parent is the initial remote tip, or a root commit for
+the first publication. It makes at most ten normal push attempts, without force
+pushing. After a failed push, it fetches the current `build-cache` tip and
+squash-merges it with the local cache branch in a temporary worktree. If the
+combined tree matches the latest remote tree, it stops without committing or
+pushing. Otherwise it creates a replacement commit with the latest remote tip
+as its sole parent and retries. Published history stays intact and linear;
+shallow baselines and independently created cache roots are supported.
+
+Git plumbing captures output through an argument-vector subprocess, without a
+shell, so Windows and POSIX jobs pass paths and arguments literally.
+
+Fetches and pushes run from the source checkout so Git uses the credentials configured there by
 `actions/checkout`. Only the separate worktree checks out the cache branch;
 publication leaves the source checkout untouched. Concurrent reports accumulate
 without rerunning the checks that produced them.
