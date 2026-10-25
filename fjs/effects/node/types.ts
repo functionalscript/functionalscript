@@ -188,6 +188,9 @@ export type ExecResult = {
 
 export type Exec = readonly['exec', (command: string, stdin?: string) => IoResult<ExecResult>]
 
+/** Run an executable with literal argv and capture both streams, without a shell. */
+export type ExecFile = readonly['execFile', (command: string, args: readonly string[]) => IoResult<ExecResult>]
+
 // spawn
 
 /**
@@ -509,7 +512,7 @@ export type Close = readonly['close', (handle: Handle) => IoResult<void>]
 
 // Fs
 
-export type Fs = Mkdir | ResolveFileModule | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rmdir | Rename | Exec | Access | CreateExclusive | WriteExclusive | WriteBytes | Stat | Open | Fstat | Pread | Close
+export type Fs = Mkdir | ResolveFileModule | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rmdir | Rename | Exec | ExecFile | Access | CreateExclusive | WriteExclusive | WriteBytes | Stat | Open | Fstat | Pread | Close
 
 // Server
 

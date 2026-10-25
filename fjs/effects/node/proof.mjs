@@ -46,7 +46,7 @@ import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
-    awaitIfPromise, both, catch_, childWait, close, doubledLengthMessage, errorMessage,
+    awaitIfPromise, both, catch_, execFile, childWait, close, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat, import_,
     inflate, inflateTrailingCode, open, pread, randomInt, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
@@ -1869,6 +1869,27 @@ export const proof = {
     // for an exit, a signal and a missing executable — which no in-memory runner
     // has. `node` is named rather than `process.execPath`: under Deno and Bun that
     // path is their own binary, and only Node takes `-e`.
+    execFile: {
+        literalArguments: async () => {
+            /** @type {readonly string[]} */
+            const args = ["space and 'quote'", '$(echo wrong)', '& %PATH% ^ \"quoted\"']
+            await hostCheck(execFile('node', ['-e', 'process.stdout.write(JSON.stringify(process.argv.slice(1))); process.stderr.write("stderr")', ...args]), result => {
+                const { stdout, stderr } = unwrap(result)
+                assertStructurallySame(JSON.parse(stdout), args)
+                assertEq(stderr, 'stderr')
+            })
+        },
+        failure: async () => {
+            await hostCheck(execFile('node', ['-e', 'process.exitCode = 3']), result => {
+                assertEq(result[0], 'error')
+            })
+        },
+        missing: async () => {
+            await hostCheck(execFile('fjs-no-such-command-29e41680', []), result => {
+                assertEq(result[0], 'error')
+            })
+        },
+    },
     spawn: {
         exited: async () => {
             const program = step(
