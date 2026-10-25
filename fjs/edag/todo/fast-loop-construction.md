@@ -400,6 +400,7 @@ their documented normalization. Repeated conversions must stabilize.
       Preserve demanded payload identity, normal-path updates and skipped failures.
 - [ ] Carry shared demand state through outer-loop breaks and continues.
       Preserve fresh iteration lifetimes and selected updates through every completion.
+      Track exact ancestor targets and control-only intermediate helpers.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
 - [x] Share normal continuations in noncanonical helper callers at graph
