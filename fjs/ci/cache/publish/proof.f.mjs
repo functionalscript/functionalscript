@@ -45,6 +45,13 @@ const execute = (outcomes, environment = env, failSpawn = false) => {
             assertEq(options.stdio, 'inherit')
             return [[...calls, args], failSpawn ? error(ioError({ message: 'git unavailable' })) : ok(child)]
         },
+        execFile: (command, args) => calls => {
+            assertEq(command, 'git')
+            const outcome = assertNotNullish(outcomes[calls.length])
+            return [[...calls, args], outcome[0] === 'ok' && outcome[1][0] === 'exited' && outcome[1][1] === 0
+                ? ok({ stdout: 'abc\n', stderr: '' })
+                : error(ioError({ message: 'plumbing failed' }))]
+        },
         childWait: () => calls => [calls, assertNotNullish(outcomes[calls.length - 1])],
         write: () => calls => [calls, ok(undefined)],
     }
@@ -53,11 +60,34 @@ const execute = (outcomes, environment = env, failSpawn = false) => {
     return partialRun(nodeCommands)(operations)([])(main(options))
 }
 
+const directory = /** @type {const} */ ('tmp/fjs-ci-node/publish')
+/** @type {readonly string[]} */
+const create = ['worktree', 'add', directory, 'build-cache']
+/** @type {readonly string[]} */
+const remove = ['worktree', 'remove', '--force', directory]
+/** @type {readonly string[]} */
+const push = ['push', 'origin', 'build-cache']
+/** @type {(remote?: boolean) => readonly (readonly string[])[]} */
+const squash = (remote = true) => [
+    comparison[1],
+    ['-C', directory, 'write-tree'],
+    ['-C', directory, 'commit-tree', 'abc', ...(remote ? ['-p', 'refs/remotes/origin/build-cache'] : []), '-m', 'ci: publish cache additions'],
+    ['update-ref', 'refs/heads/build-cache', 'abc'],
+]
+/** @type {readonly (readonly string[])[]} */
+const reconcile = [
+    ['fetch', 'origin', 'build-cache:refs/remotes/origin/build-cache'],
+    ['-C', directory, 'merge', '--squash', '--allow-unrelated-histories', 'refs/remotes/origin/build-cache'],
+    ['-C', directory, 'diff', '--cached', '--quiet', 'refs/remotes/origin/build-cache', '--'],
+]
+/** @type {readonly IoResult<ExitStatus>[]} */
+const prepared = [...different, done, done, done, done, done]
+
 export const proof = /** @type {const} */ ({
     uncontended: () => {
-        const [calls, result] = execute([...different, done])
+        const [calls, result] = execute([...prepared, done, done])
         assertEq(exitCode(result), 0)
-        assertStructurallySame(calls, [...comparison, ['push', 'origin', 'build-cache']])
+        assertStructurallySame(calls, [...comparison, create, ...squash(), push, remove])
     },
     unchanged: () => {
         const [calls, result] = execute([done, done, done])
@@ -70,64 +100,62 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(calls, [comparison[0]])
     },
     firstPublication: () => {
-        const [calls, result] = execute([done, rejected, done])
+        const [calls, result] = execute([done, rejected, done, rejected, done, done, done, done, done])
         assertEq(exitCode(result), 0)
-        assertStructurallySame(calls, [...comparison.slice(0, 2), ['push', 'origin', 'build-cache']])
+        assertStructurallySame(calls, [...comparison.slice(0, 2), create, ...squash(false), push, remove])
     },
     repeatedRaces: () => {
-        const [calls, result] = execute([...different, rejected, done, done, done, ...different, rejected, done, done, ...different, done, done])
+        /** @type {readonly IoResult<ExitStatus>[]} */
+        const retry = [done, done, rejected, done, done, done, done]
+        const [calls, result] = execute([...prepared, rejected, ...retry, rejected, ...retry, done, done])
         assertEq(exitCode(result), 0)
         assertStructurallySame(calls, [
-            ...comparison,
-            ['push', 'origin', 'build-cache'],
-            ['worktree', 'add', 'tmp/fjs-ci-node/publish', 'build-cache'],
-            ['fetch', 'origin', 'build-cache:refs/remotes/origin/build-cache'],
-            ['-C', 'tmp/fjs-ci-node/publish', 'merge', '--no-edit', '--allow-unrelated-histories', 'refs/remotes/origin/build-cache'],
-            ...comparison,
-            ['push', 'origin', 'build-cache'],
-            ['fetch', 'origin', 'build-cache:refs/remotes/origin/build-cache'],
-            ['-C', 'tmp/fjs-ci-node/publish', 'merge', '--no-edit', '--allow-unrelated-histories', 'refs/remotes/origin/build-cache'],
-            ...comparison,
-            ['push', 'origin', 'build-cache'],
-            ['worktree', 'remove', '--force', 'tmp/fjs-ci-node/publish'],
+            ...comparison, create, ...squash(), push,
+            ...reconcile, ...squash(), push,
+            ...reconcile, ...squash(), push, remove,
         ])
     },
-    alreadyPublishedAfterMerge: () => {
-        const [calls, result] = execute([...different, rejected, done, done, done, done, done, done, done])
+    alreadyPublished: () => {
+        const [calls, result] = execute([...prepared, rejected, done, done, done, done])
         assertEq(exitCode(result), 0)
-        assertEq(calls.filter(args => args[0] === 'push').length, 1)
-        assertEq(calls.filter(args => args[0] === 'fetch').length, 1)
-        assertEq(calls.filter(args => args[0] === 'diff').length, 2)
-        assertEq(calls.at(-1)?.[1], 'remove')
+        assertStructurallySame(calls, [...comparison, create, ...squash(), push, ...reconcile, remove])
     },
     bounded: () => {
         /** @type {readonly IoResult<ExitStatus>[]} */
-        const outcomes = [...different, rejected, done, ...Array.from({ length: 9 }, () => [done, done, ...different, rejected]).flat(), done]
-        const [calls, result] = execute(outcomes)
+        const retry = [done, done, rejected, done, done, done, done, rejected]
+        const [calls, result] = execute([...prepared, rejected, ...Array.from({ length: 9 }, () => retry).flat(), done])
         assertEq(exitCode(result), 1)
         assertEq(calls.filter(args => args[0] === 'push').length, 10)
         assertEq(calls.filter(args => args[0] === 'fetch').length, 9)
-        assertEq(calls.at(-1)?.[1], 'remove')
+        assertStructurallySame(calls.at(-1), remove)
     },
     creationFailure: () => {
-        const [calls, result] = execute([...different, rejected, rejected])
+        const [calls, result] = execute([...different, rejected])
         assertEq(exitCode(result), 1)
-        assertEq(calls.length, 5)
+        assertEq(calls.length, 4)
     },
-    fetchFailure: () => {
-        const [calls, result] = execute([...different, rejected, done, rejected, done])
-        assertEq(exitCode(result), 1)
-        assertEq(calls.length, 7)
-        assertEq(calls.at(-1)?.[1], 'remove')
+    preparationFailures: () => {
+        for (const index of [0, 1, 2, 3]) {
+            /** @type {readonly IoResult<ExitStatus>[]} */
+            const outcomes = [invalid, rejected, rejected, rejected]
+            const [calls, result] = execute([...different, done, ...Array.from({ length: index }, () => done), assertNotNullish(outcomes[index]), done])
+            assertEq(exitCode(result), 1)
+            assertEq(calls.filter(args => args[0] === 'push').length, 0)
+            assertStructurallySame(calls.at(-1), remove)
+        }
     },
-    mergeFailure: () => {
-        const [calls, result] = execute([...different, rejected, done, done, rejected, done])
-        assertEq(exitCode(result), 1)
-        assertEq(calls.length, 8)
-        assertEq(calls.at(-1)?.[1], 'remove')
+    reconciliationFailures: () => {
+        /** @type {readonly IoResult<ExitStatus>[]} */
+        const retry = [done, done, rejected, done, done, done, done]
+        for (const index of [0, 1, 2, 3, 4, 5, 6]) {
+            const [calls, result] = execute([...prepared, rejected, ...retry.slice(0, index), invalid, done])
+            assertEq(exitCode(result), 1)
+            assertEq(calls.filter(args => args[0] === 'push').length, 1)
+            assertStructurallySame(calls.at(-1), remove)
+        }
     },
     cleanupDoesNotReplaceSuccess: () => {
-        const [, result] = execute([...different, rejected, done, done, done, ...different, done, rejected])
+        const [, result] = execute([...prepared, done, rejected])
         assertEq(exitCode(result), 0)
     },
     cannotStart: () => {
@@ -152,16 +180,16 @@ export const proof = /** @type {const} */ ({
             assertEq(calls.filter(args => args[0] === 'push' || args[0] === 'worktree').length, 0)
         }
     },
-    comparisonFailureAfterMerge: () => {
-        const [calls, result] = execute([...different, rejected, done, done, done, done, done, invalid, done])
-        assertEq(exitCode(result), 1)
-        assertEq(calls.filter(args => args[0] === 'push').length, 1)
-        assertEq(calls.filter(args => args[0] === 'fetch').length, 1)
-        assertEq(calls.at(-1)?.[1], 'remove')
-    },
     defaultDirectory: () => {
-        const [calls, result] = execute([...different, rejected, done, done, done, ...different, done, done], {})
+        const [calls, result] = execute([...prepared, done, done], {})
         assertEq(exitCode(result), 0)
-        assertEq(calls[4]?.[2], '/fjs-ci-/publish')
+        assertEq(calls[3]?.[2], '/fjs-ci-/publish')
+    },
+    literalDirectory: () => {
+        const path = /** @type {const} */ ("C:/tmp's $(false) & %PATH%/fjs-ci-/publish")
+        const [calls, result] = execute([...prepared, done, done], { RUNNER_TEMP: "C:/tmp's $(false) & %PATH%" })
+        assertEq(exitCode(result), 0)
+        assertStructurallySame(calls[5], ['-C', path, 'write-tree'])
+        assertEq(calls[6]?.[1], path)
     },
 })
