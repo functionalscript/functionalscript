@@ -7,7 +7,7 @@
  * @import { BindingId, Block, Exit, FunctionTarget, Operator, Statement, Value } from '../../../js/ast/types.ts'
  * @import { List } from '../../../types/list/types.ts'
  * @import { Task } from '../task/types.ts'
- * @import { _Context, _Region, _Value } from './private.ts'
+ * @import { _Context, _Region, _ResultMode, _Sequence, _Value } from './private.ts'
  */
 
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
@@ -31,33 +31,41 @@ const plain = (source, callee = !(source instanceof Array) || source[0] === 'ref
     || source[0] === 'array' || source[0] === 'object') =>
     ({ statement: null, value: source, normal: true, callee })
 
-/** Snapshot eager operands in source order; object keys convert before their values. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget) => Task<_Value>} */
-const eagerTask = (source, destination, owner) => {
-    const input = operatorOperands(source).map((value, index) => source[0] === 'object' && index % 2 === 0
-        ? /** @type {Value} */ (['String', value]) : value)
-    /** @type {(statements: List<Statement>, exit: Exit, normal: boolean, callee: boolean) => Task<_Value>} */
-    const finish = (statements, exit, normal, callee) => done({
-        statement: ['block', [destination], { statements: toArray(statements).toReversed(), exit }],
-        value: ref(destination), normal, callee,
+/** Establish ordered operands, retaining their independent result identities. @type {(input: readonly Value[], owner: FunctionTarget, plainCall: boolean) => Task<_Sequence>} */
+const sequenceTask = (input, owner, plainCall) => {
+    /** @type {(statements: List<Statement>, values: List<Value>, normal: boolean, lifted: boolean, callee: boolean, admitted?: boolean) => Task<_Sequence>} */
+    const finish = (statements, values, normal, lifted, callee, admitted = true) => done({
+        statements: toArray(statements).toReversed(), values: toArray(values).toReversed(), normal, lifted, callee, admitted,
     })
-    /** @type {(index: number, statements: List<Statement>, values: List<Value>, lifted: boolean, lastCallee: boolean) => Task<_Value>} */
+    /** @type {(index: number, statements: List<Statement>, values: List<Value>, lifted: boolean, lastCallee: boolean) => Task<_Sequence>} */
     const each = (index, statements, values, lifted, lastCallee) => call(() => {
-        if (index === input.length) {
-            const callee = source[0] !== ',' || lastCallee
-            if (!lifted) { return done(plain(source, callee)) }
-            const established = toArray(values).toReversed()
-            return finish(statements, ['yield', [mapOperator((_, index) => established[index])(source)]], true, callee)
-        }
+        if (index === input.length) { return finish(statements, values, true, lifted, lastCallee) }
         const id = binding()
         return bind(valueTask(input[index], id, owner), result => {
-            if (source[0] === '()' && index === 0 && !result.callee) { return done(plain(source, false)) }
+            if (plainCall && index === 0 && !result.callee) { return finish(null, null, true, false, false, false) }
             const statement = result.statement ?? /** @type {Statement} */ (['define', id, result.value, 'required'])
             const next = /** @type {List<Statement>} */ ({ first: statement, tail: statements })
-            if (!result.normal) { return finish(next, ['yield', []], false, true) }
+            if (!result.normal) { return finish(next, values, false, true, true) }
             return each(index + 1, next, { first: ref(id), tail: values }, lifted || result.statement !== null, result.callee)
         })
     })
     return each(0, null, null, false, false)
+}
+
+/** Snapshot eager operands in source order; object keys convert before their values. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget) => Task<_Value>} */
+const eagerTask = (source, destination, owner) => {
+    const input = operatorOperands(source).map((value, index) => source[0] === 'object' && index % 2 === 0
+        ? /** @type {Value} */ (['String', value]) : value)
+    return bind(sequenceTask(input, owner, source[0] === '()'), result => {
+        if (!result.admitted) { return done(plain(source, false)) }
+        const callee = source[0] !== ',' || result.callee
+        if (!result.lifted) { return done(plain(source, callee)) }
+        return done({
+            statement: ['block', [destination], { statements: result.statements, exit: result.normal
+                ? ['yield', [mapOperator((_, index) => result.values[index])(source)]] : ['yield', []] }],
+            value: ref(destination), normal: result.normal, callee: !result.normal || callee,
+        })
+    })
 }
 
 /**
@@ -69,7 +77,7 @@ const eagerTask = (source, destination, owner) => {
 const valueTask = (source, destination, owner) => call(() => {
     if (!(source instanceof Array)) { return done(plain(source)) }
     if (source[0] === 'block') {
-        return bind(blockTask(source[1], operandContext(owner), true), result => done(result.returns
+        return bind(blockTask(source[1], operandContext(owner), 'value'), result => done(result.returns
             ? { statement: ['block', [destination], result.block], value: ref(destination), normal: result.normal, callee: result.callee }
             : plain(source, result.callee)))
     }
@@ -88,8 +96,8 @@ const valueTask = (source, destination, owner) => call(() => {
             statement: ['block', [destination], { statements: [/** @type {Statement} */ (test.statement)], exit: ['yield', []] }],
             value: ref(destination), normal: false, callee: true,
         }) }
-        return bind(blockTask(then, operandContext(owner), true), a =>
-            bind(blockTask(otherwise, operandContext(owner), true), b => {
+        return bind(blockTask(then, operandContext(owner), 'value'), a =>
+            bind(blockTask(otherwise, operandContext(owner), 'value'), b => {
                 const callee = a.callee && b.callee
                 if (test.statement === null && !a.returns && !b.returns) { return done(plain(source, callee)) }
                 const result = test.statement === null ? destination : binding()
@@ -104,8 +112,8 @@ const valueTask = (source, destination, owner) => call(() => {
     })
 })
 
-/** @type {(source: Block, context: _Context, pack: boolean) => Task<_Region>} */
-const blockTask = (source, context, pack) => {
+/** @type {(source: Block, context: _Context, mode: _ResultMode) => Task<_Region>} */
+const blockTask = (source, context, mode) => {
     /** @type {(statements: List<Statement>, exit: Exit, normal: boolean, returns: boolean, lifted: boolean, changed: boolean, callee?: boolean) => Task<_Region>} */
     const finish = (statements, exit, normal, returns, lifted, changed, callee = false) => done({
         block: changed ? { statements: toArray(statements).toReversed(), exit } : source, normal, returns, lifted, callee: !normal || callee,
@@ -122,12 +130,20 @@ const blockTask = (source, context, pack) => {
             /** @type {(mapped: Exit, next: List<Statement>, added: boolean, callee?: boolean) => Task<_Region>} */
             const complete = (mapped, next, added, callee = false) => {
                 const normal = mapped[0] === 'yield'
-                const packed = /** @type {Exit} */ (pack && normal && mapped[1].length !== 1
+                const packed = /** @type {Exit} */ (mode === 'value' && normal && mapped[1].length !== 1
                     ? ['yield', [['array', mapped[1]]]] : mapped)
                 return finish(next, packed, normal, returns || ownReturn || added, lifted || added,
                     changed || packed !== source.exit || added, callee || normal && mapped[0] === 'yield' && mapped[1].length !== 1)
             }
-            if (ownReturn || context.operand && exit[0] === 'yield' && (exit[1].length === 1 || pack)) {
+            if (mode === 'statement' && exit[0] === 'yield') {
+                return bind(sequenceTask(exit[1], context.owner, false), result => {
+                    if (!result.lifted) { return complete(exit, statements, false) }
+                    const next = result.statements.reduce((tail, first) => /** @type {List<Statement>} */ ({ first, tail }), statements)
+                    if (!result.normal) { return finish(next, ['yield', []], false, true, true, true) }
+                    return complete(['yield', result.values], next, true, result.callee)
+                })
+            }
+            if (ownReturn || context.operand && exit[0] === 'yield' && (exit[1].length === 1 || mode === 'value')) {
                 const values = /** @type {Extract<Exit, readonly ['yield', ...unknown[]]>} */ (exit)[1]
                 const value = ownReturn ? /** @type {Extract<Exit, readonly ['return', ...unknown[]]>} */ (exit)[2]
                     : values.length === 1 ? values[0] : /** @type {Value} */ (['array', values])
@@ -155,18 +171,18 @@ const blockTask = (source, context, pack) => {
                 result.statement ?? statement, result.normal, result.statement !== null, result.statement !== null))
         }
         if (statement[0] === 'loop') {
-            return bind(blockTask(statement[1].body, { ...context, loops: { first: statement[1].target, tail: context.loops } }, false), result => append(
+            return bind(blockTask(statement[1].body, { ...context, loops: { first: statement[1].target, tail: context.loops } }, 'none'), result => append(
                 result.block === statement[1].body ? statement : ['loop', { ...statement[1], body: result.block }],
                 true, result.returns, result.lifted))
         }
         if (statement[0] === 'block') {
-            return bind(blockTask(statement[2], context, false), result => append(
+            return bind(blockTask(statement[2], context, 'statement'), result => append(
                 result.block === statement[2] ? statement : ['block', statement[1], result.block], result.normal, result.returns, result.lifted))
         }
         return bind(valueTask(statement[2], binding(), context.owner), test => {
             if (!test.normal) { return append(/** @type {Statement} */ (test.statement), false, true, true) }
-            return bind(blockTask(statement[3], context, false), then =>
-                bind(blockTask(statement[4], context, false), otherwise => append(
+            return bind(blockTask(statement[3], context, 'statement'), then =>
+                bind(blockTask(statement[4], context, 'statement'), otherwise => append(
                     test.statement === null && then.block === statement[3] && otherwise.block === statement[4] ? statement
                         : ['if', statement[1], test.value, then.block, otherwise.block],
                     then.normal || otherwise.normal, then.returns || otherwise.returns || test.statement !== null,
@@ -177,11 +193,11 @@ const blockTask = (source, context, pack) => {
 }
 
 /**
- * Normalize a function body's direct required initializers and return payloads.
+ * Normalize direct required initializers, return payloads and statement results.
  * No owning return to expose means no change to the input block identity.
  * @type {(block: Block, owner: FunctionTarget) => Block}
  */
 export const liftReturns = (block, owner) => {
-    const result = run(blockTask(block, { owner, operand: false, loops: null }, false))
+    const result = run(blockTask(block, { owner, operand: false, loops: null }, 'none'))
     return result.lifted ? result.block : block
 }

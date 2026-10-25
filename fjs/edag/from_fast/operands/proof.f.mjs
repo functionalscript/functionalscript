@@ -142,11 +142,101 @@ export const proof = /** @type {const} */ ({
         const multi = yielded([guard, 7])
         const statement = /** @type {Statement} */ (['block', [first, second], multi])
         const source = returned(['block', yielded([7], [statement, ['if', [], false, returned(8), yielded([])]])])
-        const region = blockOf(liftReturns(source, owner).statements[0])
-        assertEq(region.statements[0], statement)
+        const normalized = liftReturns(source, owner)
+        const region = blockOf(normalized.statements[0])
+        const result = region.statements[0]
+        assert(result[0] === 'block')
+        assertEq(result[1], statement[1])
+        assertEq(result[2].statements.length, 1)
+        assertStructurallySame(blockOf(result[2].statements[0]).exit, ['return', owner, 3])
+        assertStructurallySame(result[2].exit, ['yield', []])
+        assertStructurallySame(normalized.exit, ['yield', []])
         assertEq(multi.exit[0], 'yield')
         const ordinary = yielded([guard, 7])
         assertEq(liftReturns(ordinary, owner), ordinary)
+    },
+    statementYieldLists: () => {
+        const value = id(), condition = id(), before = id(), after = id()
+        const selected = /** @type {Value} */ (['block', yielded([ref(value)], [['if', [], ref(condition), returned(7), yielded([])]])])
+        const prefix = /** @type {Statement} */ (['define', before, 4, 'required'])
+        const suffix = /** @type {Statement} */ (['define', after, 9, 'required'])
+        for (const length of /** @type {const} */ ([1, 3])) {
+            const bindings = Array.from({ length }, id)
+            const values = length === 1 ? [selected] : [ref(value), selected, ref(value)]
+            const normal = yielded(values, [prefix])
+            for (const kind of /** @type {const} */ (['block', 'if'])) {
+                const statement = /** @type {Statement} */ (kind === 'block' ? ['block', bindings, normal]
+                    : ['if', bindings, ref(condition), normal, yielded(Array.from({ length }, () => 3))])
+                const source = body(['return', owner, ['array', bindings.map(ref)]], [statement, suffix])
+                const result = liftReturns(source, owner)
+                const region = result.statements[0]
+                assert(region[0] === 'block' || region[0] === 'if')
+                assertEq(region[1], bindings)
+                const regionBody = region[0] === 'block' ? region[2] : region[3]
+                assertEq(regionBody.statements[0], prefix)
+                assertEq(regionBody.statements.length, length + 1)
+                assert(regionBody.exit[0] === 'yield')
+                assertEq(regionBody.exit[1].length, length)
+                for (let index = 0; index < length; ++index) {
+                    const established = regionBody.statements[index + 1]
+                    assert(established[0] === 'define' || established[0] === 'block')
+                    const read = regionBody.exit[1][index]
+                    assert(read instanceof Array && read[0] === 'ref')
+                    assertEq(read[1], established[0] === 'define' ? established[1] : established[1][0])
+                }
+                assertEq(result.statements[1], suffix)
+                assertEq(result.exit, source.exit)
+                assertEq(liftReturns(result, owner), result)
+            }
+        }
+        const zero = body(['return', owner, 9], [['block', [], yielded([], [['define', before, selected, 'required']])]])
+        const normalized = liftReturns(zero, owner)
+        assertStructurallySame(blockOf(normalized.statements[0]).exit, ['yield', []])
+        assertEq(liftReturns(normalized, owner), normalized)
+        const unchanged = body(['return', owner, 9], [
+            ['block', [value, before], yielded([1, 2])], ['if', [], true, yielded([]), yielded([])],
+        ])
+        assertEq(liftReturns(unchanged, owner), unchanged)
+    },
+    statementYieldTerminalAndArity: () => {
+        const value = id(), condition = id(), before = id()
+        const bindings = /** @type {readonly BindingId[]} */ ([id(), id(), id()])
+        const prefix = /** @type {Statement} */ (['define', before, 4, 'required'])
+        const foreign = /** @type {Value} */ (['block', body(['return', other, 8])])
+        const terminal = yielded([ref(value), ['block', returned(7)], foreign], [prefix])
+        for (const kind of /** @type {const} */ (['block', 'if'])) {
+            const statement = /** @type {Statement} */ (kind === 'block' ? ['block', bindings, terminal]
+                : ['if', bindings, ref(condition), terminal, body(['throw', 9])])
+            const source = body(['return', owner, foreign], [statement, ['define', value, foreign, 'required']])
+            const result = liftReturns(source, owner)
+            assertEq(result.statements.length, 1)
+            const mapped = result.statements[0]
+            assert(mapped[0] === 'block' || mapped[0] === 'if')
+            assertEq(mapped[1], bindings)
+            const regionBody = mapped[0] === 'block' ? mapped[2] : mapped[3]
+            assertEq(regionBody.statements.length, 3)
+            assertEq(regionBody.statements[0], prefix)
+            const snapshot = regionBody.statements[1]
+            assert(snapshot[0] === 'define')
+            assertEq(snapshot[3], 'required')
+            assertStructurallySame(snapshot[2], ref(value))
+            assertStructurallySame(blockOf(regionBody.statements[2]).exit, ['return', owner, 7])
+            assertStructurallySame(regionBody.exit, ['yield', []])
+            assertStructurallySame(result.exit, ['yield', []])
+        }
+        const selected = /** @type {Value} */ (['if', ref(condition), returned(7), yielded([3])])
+        const source = body(['return', owner, 9], [['block', bindings, yielded([selected])]])
+        const result = liftReturns(source, owner)
+        const region = result.statements[0]
+        assert(region[0] === 'block' && region[2].exit[0] === 'yield')
+        assertEq(region[1], bindings)
+        // The construction owner must still reject the original 3-vs-1 mismatch.
+        assertEq(region[2].exit[1].length, 1)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loopYield = body(['return', owner, 9], [['loop', {
+            target: loopTarget, parameters: [], initial: [], results: [], body: yielded([['block', returned(7)]]),
+        }]])
+        assertEq(liftReturns(loopYield, owner), loopYield)
     },
     arraysAndComma: () => {
         const earlier = id(), condition = id()
@@ -586,6 +676,17 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(blockOf(current.statements[0]).exit, ['return', owner, 7])
     },
     throw: {
+        statementResultForeignReturn: () => liftReturns(body(['return', owner, 9], [
+            ['block', [id()], yielded([['block', body(['return', other, 7])]])],
+        ]), owner),
+        statementResultEnclosingLoopEscape: () => {
+            const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            return liftReturns(body(['return', owner, 9], [['loop', {
+                target, parameters: [], initial: [], results: [], body: body(['break', target, []], [
+                    ['block', [id()], yielded([['block', body(['continue', target, []])]])],
+                ]),
+            }]]), owner)
+        },
         instanceofForeignReturn: () => liftReturns(returned(['instanceof', ['block', body(['return', other, 7])], 'Array']), owner),
         instanceofEnclosingLoopEscape: () => {
             const target = /** @type {const} */ ({ kind: 'loop', index: 0 })

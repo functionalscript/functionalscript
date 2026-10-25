@@ -184,6 +184,12 @@ array allocates after its operands; a comma keeps its last operand's value and
 callee provenance while requiring every preceding evaluation. Zero/many normal
 yield values at admitted value-region roots sequence and pack into one array;
 ordinary statement-result regions keep their original multiple-binding arity.
+Statement blocks and conditional arms sequence normal-yield operands through
+required snapshots when an owning return crosses a result expression. Normal
+completion retains the original result-list arity and binding identities;
+returning paths skip the remaining results and consumer. Result-list lifting
+does not change source-function or loop-body root yields, and the existing
+normal-path signature check still rejects a mismatched yield count.
 Complex array/comma/object memo fixtures settle their required/comma anchor order
 after three round trips from the initial graph, with state order, sharing,
 metadata and execution preserved through every intermediate. Further round
@@ -196,10 +202,9 @@ Only normal completion builds the object from established string keys and
 values, retaining duplicate-key and enumeration rules, `__proto__` as data and
 value identities. No-return inputs retain their original object syntax.
 Plain-call admission retains member/native callee provenance through wrappers
-and comma results. Ordinary multiple-binding yield operands, lazy initializers,
-captures, member/native calls, optional forms and spreads remain separate
-boundaries. A loop transfer cannot escape the operand's
-locally owned loop chain.
+and comma results. Lazy initializers, captures, member/native calls, optional
+forms and spreads remain separate boundaries. A loop transfer cannot escape
+the operand's locally owned loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
 `[userValuesArray, memoVector]` transfer payload as owning exits. Lexical source
@@ -439,6 +444,8 @@ their documented normalization. Repeated conversions must stabilize.
       key conversion before each property value and preserving object identity.
 - [x] Lift owning returns through the `instanceof` value operand, preserving
       literal constructor metadata and normal Boolean results.
+- [x] Lift owning returns through ordinary statement-result yield operands,
+      preserving result binding identities, arity and evaluation order.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their

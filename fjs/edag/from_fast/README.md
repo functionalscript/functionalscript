@@ -187,6 +187,14 @@ operand remains required. Zero/many yielded values at an admitted value-region
 root sequence in order and pack once into an array. Statement-result regions
 retain their declared multiple-binding signatures.
 
+Statement blocks and conditional arms can lift owning returns from their normal
+yield operands. Required snapshots establish earlier results before a later
+operand can return; a return skips the remaining results and following work.
+Normal completion yields the original ordered result list to the same statement
+bindings, preserving zero/one/many arity and normal-path signature validation.
+This result-list mode is distinct from value-region array packing and from
+source-function or loop-body root yields.
+
 Non-spread object entries sequence each key through a required `String`
 conversion before its property value and later entries. This is the object
 kernel's own key conversion. A returning key skips conversion; a later return
@@ -194,10 +202,9 @@ retains every reached key conversion and property value. Normal completion
 constructs the object from established string keys and values, preserving
 duplicate keys, enumeration order, `__proto__` as data and value identity.
 
-Ordinary multiple-binding yield operands, lazy initializers, captures,
-member/native callees, optional forms and spreads retain their evaluation
-boundaries. Plain-call admission preserves callee provenance
-through wrapper regions and comma results.
+Lazy initializers, captures, member/native callees, optional forms and spreads
+retain their evaluation boundaries. Plain-call admission preserves callee
+provenance through wrapper regions and comma results.
 Loop transfers cannot escape a lifted operand's own loop scope. Ordinary
 nested functions are normalized at their own function entry.
 
