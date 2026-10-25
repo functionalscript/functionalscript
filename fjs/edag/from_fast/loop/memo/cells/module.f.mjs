@@ -1,8 +1,8 @@
 /**
- * Select caller-owned lazy recipes before graph construction loses their
+ * Select lazy recipes before graph construction loses their
  * lexical definitions. Values keep their own loop-normalization boundary;
  * ordinary function bodies remain opaque. Deferred prerequisites and computed
- * dependents share the same caller-owned vector, in definition order; lazy
+ * dependents share the same vector, in definition order; lazy
  * reference aliases share their root's cell.
  *
  * @module
@@ -118,7 +118,7 @@ export const memoCells = (block, externalLazyIds = []) => {
     /** @type {readonly _Root[]} */
     const external = externalLazyIds.map(binding => ({ binding, source: null, dependencies: [] }))
     /** @type {Link<_Visit> | null} */
-    let pending = { first: { block: prepared, index: 0, scope: new Map(external.map(root => [root.binding, root])), insideLoop: false }, tail: null }
+    let pending = { first: { block: prepared, index: 0, scope: new Map(external.map(root => [root.binding, root])), ancestors: null }, tail: null }
     /** @type {readonly _Root[]} */
     let roots = external
     /** @type {readonly (readonly [Definition, _Root])[]} */
@@ -127,12 +127,12 @@ export const memoCells = (block, externalLazyIds = []) => {
     let inventory = []
     while (pending !== null) {
         const { first: visit, tail } = /** @type {Link<_Visit>} */ (pending)
-        const { block, index, scope, insideLoop } = visit
+        const { block, index, scope, ancestors } = visit
         pending = tail
         if (index === block.statements.length) { continue }
         const statement = block.statements[index]
         /** @type {_Visit} */
-        const next = { block, index: index + 1, scope, insideLoop }
+        const next = { block, index: index + 1, scope, ancestors }
         if (statement[0] === 'define') {
             const [, binding, initializer, mode] = statement
             /** @type {_Root | null} */
@@ -140,7 +140,7 @@ export const memoCells = (block, externalLazyIds = []) => {
             if (mode === 'lazy' && initializer !== null && typeof initializer === 'object') {
                 if (initializer[0] === 'ref') { root = scope.get(initializer[1]) ?? null }
                 else {
-                    root = { binding, source: { definition: statement, insideLoop }, dependencies: dependencies(initializer, scope) }
+                    root = { binding, source: { definition: statement, insideLoop: ancestors !== null }, dependencies: dependencies(initializer, scope) }
                     roots = [...roots, root]
                 }
             }
@@ -156,9 +156,9 @@ export const memoCells = (block, externalLazyIds = []) => {
                 const root = scope.get(binding)
                 return root === undefined || root === null ? [] : [root]
             })
-            if (free.length !== 0) { inventory = [...inventory, { loop, roots: free }] }
+            if (free.length !== 0) { inventory = [...inventory, { loop, roots: free, ancestors }] }
             pending = {
-                first: { block: loop.body, index: 0, scope: established(scope, loop.parameters), insideLoop: true },
+                first: { block: loop.body, index: 0, scope: established(scope, loop.parameters), ancestors: { first: loop, tail: ancestors } },
                 tail: { first: { ...next, scope: established(scope, loop.results) }, tail },
             }
             continue
@@ -166,16 +166,19 @@ export const memoCells = (block, externalLazyIds = []) => {
         const children = statement[0] === 'block' ? [statement[2]] : [statement[3], statement[4]]
         /** @type {Link<_Visit>} */
         const rest = { first: { ...next, scope: established(scope, statement[1]) }, tail }
-        pending = children.reduceRight((tail, block) => ({ first: { block, index: 0, scope, insideLoop }, tail }), /** @type {Link<_Visit> | null} */ (rest))
+        pending = children.reduceRight((tail, block) => ({ first: { block, index: 0, scope, ancestors }, tail }), /** @type {Link<_Visit> | null} */ (rest))
     }
     if (inventory.length === 0) { return null }
     const cells = dependencyClosure(roots, roots.filter(root => inventory.some(info => info.roots.includes(root))))
     const recipes = cells.map(({ binding, source }) => {
         if (source === null) { throw 'external lazy memo prerequisites require an owned initializer recipe' }
-        if (source.insideLoop) { throw 'iteration-local memo cells require nested demand-state lowering' }
-        return { binding, initializer: source.definition[2], definition: source.definition }
+        return { binding, initializer: source.definition[2], definition: source.definition, iterationLocal: source.insideLoop }
     })
-    for (const info of inventory) { normalTransfers(info.loop) }
+    // A local recipe is bound inside its owner, so free-loop dependencies
+    // alone need not select that owner. Every enclosing helper transports
+    // the vector that the reached local declaration resets.
+    const loops = new Set(inventory.flatMap(info => [...toArray(info.ancestors).toReversed(), info.loop]))
+    for (const loop of loops) { normalTransfers(loop) }
     return {
         block: prepared,
         cells: recipes,
@@ -183,6 +186,6 @@ export const memoCells = (block, externalLazyIds = []) => {
             const index = cells.indexOf(root)
             return index === -1 ? [] : [/** @type {const} */ ([definition, index])]
         })),
-        loops: new Set(inventory.map(info => info.loop)),
+        loops,
     }
 }

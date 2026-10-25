@@ -12,8 +12,8 @@ import { memo } from '../../../../memo/module.f.mjs'
 import { toFast } from '../../../../to_fast/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _afterLoop as afterLoop, _body as body, _summing as summing, _calledFunction as calledFunction, _counting as counting, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../proof.f.mjs'
 
-/** Run a fresh inner entry on each selected outer iteration, retaining its history. @type {(inner: Loop, limit?: Value, selected?: Value, value?: Value) => Loop} */
-const collectingInnerMemo = (inner, limit = 2, selected = true, value = ref(inner.results[0])) => {
+/** Run a fresh inner entry on each selected outer iteration, retaining its history. @type {(inner: Loop, limit?: Value, selected?: Value, value?: Value, prefix?: (index: Value) => readonly Statement[]) => Loop} */
+const collectingInnerMemo = (inner, limit = 2, selected = true, value = ref(inner.results[0]), prefix = () => []) => {
     const count = id(0), saved = id(0), output = id(0), chosen = id(0)
     const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
     return {
@@ -21,6 +21,7 @@ const collectingInnerMemo = (inner, limit = 2, selected = true, value = ref(inne
         body: body(['continue', loopTarget, [ref(count), ref(saved)]], [
             ['if', [], ['<', ref(count), limit],
                 body(['continue', loopTarget, [['+', ref(count), 1], ['array', [ref(saved), ref(chosen)]]]], [
+                    ...prefix(ref(count)),
                     ['if', [chosen], selected, afterLoop(inner, value), result(null)],
                 ]),
                 body(['break', loopTarget, [ref(saved)]]),
@@ -29,7 +30,226 @@ const collectingInnerMemo = (inner, limit = 2, selected = true, value = ref(inne
     }
 }
 
+/** Observe two inner demands and the following outer demand for each iteration. @type {(outer: Loop, iterations?: number) => Value} */
+const innerObservations = (outer, iterations = 2) => ['array', Array.from({ length: iterations }, (_, index) => {
+    const iteration = collectedMemo(ref(outer.results[0]), iterations - index - 1)
+    const history = /** @type {Value} */ (['.', iteration, 0])
+    return /** @type {Value} */ (['array', [collectedMemo(history, 1), collectedMemo(history), ['.', iteration, 1]]])
+})]
+
 export const proof = /** @type {const} */ ({
+    loopMemoIterationLocalIdentity: () => {
+        const local = id(0)
+        const inner = collectingMemo(ref(local), 2)
+        const outer = collectingInnerMemo(inner, 3, true, ['array', [ref(inner.results[0]), ref(local)]],
+            index => [['define', local, ['array', [index]], 'lazy']])
+        // No caller-owned recipe makes the outer helper free in this fixture.
+        const block = result(innerObservations(outer, 3), [['loop', outer]])
+        const graph = fromFast(block)
+        const value = evaluate(graph)
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[[0], [0], [0]], [[1], [1], [1]], [[2], [2], [2]]])
+        for (const iteration of value) {
+            assert(iteration instanceof Array)
+            assertEq(iteration[0], iteration[1])
+            assertEq(iteration[0], iteration[2])
+        }
+        assert(value[0] instanceof Array && value[1] instanceof Array && value[2] instanceof Array)
+        assert(value[0][0] !== value[1][0] && value[1][0] !== value[2][0])
+        const second = fromFast(assertOk(toFast(graph)))
+        const third = fromFast(assertOk(toFast(second)))
+        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+        const repeated = evaluate(third)
+        assert(repeated instanceof Array)
+        for (const iteration of repeated) {
+            assert(iteration instanceof Array)
+            assertEq(iteration[0], iteration[2])
+        }
+    },
+    loopMemoIterationLocalDeclarationSnapshot: () => {
+        const prerequisite = id(0), local = id(0)
+        const inner = collectingMemo(ref(local), 2)
+        const outer = collectingInnerMemo(inner, 2, true, ['array', [ref(inner.results[0]), ref(prerequisite)]], index => [
+            ['define', prerequisite, index, 'required'],
+            ['define', local, ['array', [ref(prerequisite)]], 'lazy'],
+            ['define', prerequisite, ['+', index, 100], 'required'],
+        ])
+        const value = evaluate(fromFast(result(['array', [innerObservations(outer), ref(prerequisite)]], [
+            ['define', prerequisite, ['array', [9]], 'required'], ['loop', outer],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array)
+        assertStructurallySame(value, [[[[0], [0], 100], [[1], [1], 101]], [9]])
+        for (const iteration of value[0]) {
+            assert(iteration instanceof Array)
+            assertEq(iteration[0], iteration[1])
+        }
+    },
+    loopMemoIterationLocalCallerDependency: () => {
+        const caller = id(0), local = id(0), unused = id(0)
+        const inner = collectingMemo(ref(local), 2), following = collectingMemo(ref(caller), 1)
+        const outer = collectingInnerMemo(inner, 2, true, ['array', [ref(inner.results[0]), ref(local)]], index => [
+            ['define', local, ['array', [ref(caller), index]], 'lazy'],
+            ['define', unused, ['array', [ref(caller), ['block', body(['throw', 'unused local dependent'])]]], 'lazy'],
+        ])
+        const value = evaluate(fromFast(result(['array', [innerObservations(outer), ref(caller), collectedMemo(ref(following.results[0]))]], [
+            ['define', caller, ['array', ['caller']], 'lazy'], ['loop', outer], ['loop', following],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array)
+        assertStructurallySame(value, [
+            [[[['caller'], 0], [['caller'], 0], [['caller'], 0]], [[['caller'], 1], [['caller'], 1], [['caller'], 1]]],
+            ['caller'], ['caller'],
+        ])
+        for (const iteration of value[0]) {
+            assert(iteration instanceof Array && iteration[0] instanceof Array)
+            assertEq(iteration[0], iteration[1])
+            assertEq(iteration[0], iteration[2])
+            assertEq(iteration[0][0], value[1])
+        }
+        assert(value[0][0] instanceof Array && value[0][1] instanceof Array)
+        assert(value[0][0][0] !== value[0][1][0])
+        assertEq(value[1], value[2])
+    },
+    loopMemoIterationLocalInnerAliases: () => {
+        const caller = id(0), local = id(0), alias = id(0), callerAlias = id(0)
+        const source = collectingMemo(['array', [ref(alias), ref(callerAlias)]], 2)
+        const inner = /** @type {Loop} */ ({ ...source, body: { ...source.body, statements: [
+            ['define', alias, ref(local), 'lazy'], ['define', callerAlias, ref(caller), 'lazy'], ...source.body.statements,
+        ] } })
+        const outer = collectingInnerMemo(inner, 2, true, ['array', [ref(inner.results[0]), ref(local)]],
+            index => [['define', local, ['array', [index]], 'lazy']])
+        const value = evaluate(fromFast(result(['array', [innerObservations(outer), ref(caller)]], [
+            ['define', caller, ['array', ['caller']], 'lazy'], ['loop', outer],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array)
+        assertStructurallySame(value, [
+            [[[[0], ['caller']], [[0], ['caller']], [0]], [[[1], ['caller']], [[1], ['caller']], [1]]], ['caller'],
+        ])
+        for (const iteration of value[0]) {
+            assert(iteration instanceof Array && iteration[0] instanceof Array && iteration[1] instanceof Array)
+            assertEq(iteration[0][0], iteration[1][0])
+            assertEq(iteration[0][0], iteration[2])
+            assertEq(iteration[0][1], value[1])
+            assertEq(iteration[1][1], value[1])
+        }
+        assert(value[0][0] instanceof Array && value[0][1] instanceof Array)
+        assert(value[0][0][2] !== value[0][1][2])
+    },
+    loopMemoIterationLocalSkippedDemands: () => {
+        const local = id(0), selectedResult = id(0)
+        for (const outerLimit of /** @type {const} */ ([0, 2])) {
+            for (const innerLimit of /** @type {const} */ ([0, 2])) {
+                for (const selected of /** @type {const} */ ([false, true])) {
+                    const inner = collectingMemo(ref(local), innerLimit)
+                    /** @type {(index: Value) => readonly Statement[]} */
+                    const declarations = () => [['define', local, ['block', body(['throw', 'local recipe'])], 'lazy']]
+                    const outer = collectingInnerMemo(inner, outerLimit, selected, ref(inner.results[0]), declarations)
+                    const graph = fromFast(afterLoop(outer, 7))
+                    if (outerLimit !== 0 && innerLimit !== 0 && selected) {
+                        assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 'local recipe')
+                    } else { assertEq(evaluate(graph), 7) }
+                    const following = collectingInnerMemo(inner, outerLimit, selected, ref(local), declarations)
+                    const demanded = fromFast(afterLoop(following, 7))
+                    if (outerLimit !== 0 && selected) {
+                        assertEq(assertError(memo(assertOk(identityAnalysis(demanded)))({ args: [] })), 'local recipe')
+                    } else { assertEq(evaluate(demanded), 7) }
+                    assertEq(evaluate(fromFast(result(ref(selectedResult), [
+                        ['if', [selectedResult], false, afterLoop(outer, 7), result(9)],
+                    ]))), 9)
+                }
+            }
+        }
+    },
+    loopMemoIterationLocalResetDepthAndBindingReuse: () => {
+        const local = id(0), outerSnapshot = id(0)
+        const inner = collectingMemo(ref(local), 2)
+        const middle = collectingInnerMemo(inner, 2, true, ['array', [ref(inner.results[0]), ref(local), ref(outerSnapshot)]], index => [
+            ['define', outerSnapshot, ref(local), 'required'], ['define', local, ['array', ['middle', index]], 'lazy'],
+        ])
+        const outer = collectingInnerMemo(middle, 2, true, ['array', [ref(middle.results[0]), ref(local)]],
+            index => [['define', local, ['array', ['outer', index]], 'lazy']])
+        const observations = /** @type {Value} */ (['array', [1, 0].map(ago => {
+            const iteration = collectedMemo(ref(outer.results[0]), ago)
+            const middleHistory = /** @type {Value} */ (['.', iteration, 0])
+            return /** @type {Value} */ (['array', [
+                ...[1, 0].map(middleAgo => {
+                    const current = collectedMemo(middleHistory, middleAgo)
+                    const innerHistory = /** @type {Value} */ (['.', current, 0])
+                    return /** @type {Value} */ (['array', [collectedMemo(innerHistory, 1), collectedMemo(innerHistory), ['.', current, 1], ['.', current, 2]]])
+                }), ['.', iteration, 1],
+            ]])
+        })])
+        const value = evaluate(fromFast(afterLoop(outer, observations)))
+        assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array)
+        assertStructurallySame(value, [
+            [[['middle', 0], ['middle', 0], ['middle', 0], ['outer', 0]], [['middle', 1], ['middle', 1], ['middle', 1], ['outer', 0]], ['outer', 0]],
+            [[['middle', 0], ['middle', 0], ['middle', 0], ['outer', 1]], [['middle', 1], ['middle', 1], ['middle', 1], ['outer', 1]], ['outer', 1]],
+        ])
+        for (const iteration of value) {
+            assert(iteration instanceof Array && iteration[0] instanceof Array && iteration[1] instanceof Array)
+            for (const current of iteration.slice(0, 2)) {
+                assert(current instanceof Array)
+                assertEq(current[0], current[1])
+                assertEq(current[0], current[2])
+                assertEq(current[3], iteration[2])
+                assert(current[0] !== iteration[2])
+            }
+            assert(iteration[0][0] !== iteration[1][0])
+        }
+        assert(value[0][0] instanceof Array && value[1][0] instanceof Array)
+        assert(value[0][0][0] !== value[1][0][0])
+        assert(value[0][2] !== value[1][2])
+    },
+    loopMemoIterationLocalFunctionCapturesAndInvocations: () => {
+        const local = id(0), userFn = id(0), captured = id(0), fnBinding = id(0), first = id(0), second = id(0)
+        const userTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const getter = /** @type {FastFunction} */ ({
+            target: userTarget, parameters: [], rest: null, self: null, captures: [{ binding: captured, value: ref(local) }],
+            body: body(['return', userTarget, ref(captured)]),
+        })
+        const inner = collectingMemo(['===', ['()', ref(userFn), []], ref(local)], 2)
+        const outer = collectingInnerMemo(inner, 2, true, ['array', [ref(inner.results[0]), ['()', ref(userFn), []]]], index => [
+            ['define', local, ['array', [index]], 'lazy'], ['define', userFn, ['function', getter], 'required'],
+        ])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [], body: body(['return', target, innerObservations(outer)], [['loop', outer]]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(first), ref(second)]], [
+            ['define', fnBinding, ['function', fn], 'required'],
+            ['define', first, ['()', ref(fnBinding), []], 'required'], ['define', second, ['()', ref(fnBinding), []], 'required'],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array)
+        assertStructurallySame(value, [
+            [[true, true, [0]], [true, true, [1]]], [[true, true, [0]], [true, true, [1]]],
+        ])
+        for (const invocation of value) {
+            assert(invocation instanceof Array && invocation[0] instanceof Array && invocation[1] instanceof Array)
+            for (const iteration of invocation) {
+                assert(iteration instanceof Array)
+                assertEq(iteration[0], true)
+                assertEq(iteration[1], true)
+            }
+            assert(invocation[0][2] !== invocation[1][2])
+        }
+        assert(value[0][0] instanceof Array && value[1][0] instanceof Array)
+        assert(value[0][0][2] !== value[1][0][2])
+    },
+    loopMemoIterationLocalZeroResultDemand: () => {
+        const local = id(0), observed = id(0)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [], initial: [], results: [],
+            body: body(['break', loopTarget, []], [['define', observed, ref(local), 'required']]),
+        })
+        const outer = collectingInnerMemo(inner, 2, true, ref(local), index => [['define', local, ['array', [index]], 'lazy']])
+        const value = evaluate(fromFast(afterLoop(outer, ['array', [collectedMemo(ref(outer.results[0]), 1), collectedMemo(ref(outer.results[0]))]])))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[0], [1]])
+        assert(value[0] !== value[1])
+        const failing = collectingInnerMemo(inner, 2, true, 7,
+            () => [['define', local, ['block', body(['throw', 'required local demand'])], 'lazy']])
+        const failed = fromFast(afterLoop(failing, 9))
+        assertEq(assertError(memo(assertOk(identityAnalysis(failed)))({ args: [] })), 'required local demand')
+    },
     loopMemoNestedIdentityAndRoundTrip: () => {
         const lazy = id(0)
         const inner = collectingMemo(ref(lazy), 2)
@@ -907,6 +1127,19 @@ export const proof = /** @type {const} */ ({
         }
     },
     throw: {
+        loopMemoIterationLocalEscapingReturn: () => {
+            const local = id(0)
+            const inner = collectingMemo(ref(local), 2)
+            const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const outer = /** @type {Loop} */ ({
+                target: loopTarget, parameters: [], initial: [], results: [],
+                body: body(['return', target, 9], [['define', local, ['array', [4]], 'lazy'], ['loop', inner]]),
+            })
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [], rest: null, self: null, captures: [], body: body(['return', target, 7], [['loop', outer]]),
+            })
+            calledFunction(fn)
+        },
         loopMemoReachableUnsupportedSuffix: () => {
             const selected = id(0), prerequisite = id(0), dependent = id(0)
             const source = collectingMemo(ref(dependent))
