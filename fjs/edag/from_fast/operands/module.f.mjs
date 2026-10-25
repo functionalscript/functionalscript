@@ -1,7 +1,7 @@
 /**
  * Expose owning function returns at direct value-consumer boundaries. Eager
  * operands and tests become statement regions only when a return must cross
- * them. Member, optional and collection boundaries retain their evaluation.
+ * them. Member, optional, object and spread boundaries retain their evaluation.
  *
  * @module
  * @import { BindingId, Block, Exit, FunctionTarget, Operator, Statement, Value } from '../../../js/ast/types.ts'
@@ -34,34 +34,35 @@ const plain = (source, callee = !(source instanceof Array) || source[0] === 'ref
 /** Snapshot eager operands in source order before exposing any later return. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget) => Task<_Value>} */
 const eagerTask = (source, destination, owner) => {
     const input = operatorOperands(source)
-    /** @type {(statements: List<Statement>, exit: Exit, normal: boolean) => Task<_Value>} */
-    const finish = (statements, exit, normal) => done({
+    /** @type {(statements: List<Statement>, exit: Exit, normal: boolean, callee: boolean) => Task<_Value>} */
+    const finish = (statements, exit, normal, callee) => done({
         statement: ['block', [destination], { statements: toArray(statements).toReversed(), exit }],
-        value: ref(destination), normal, callee: true,
+        value: ref(destination), normal, callee,
     })
-    /** @type {(index: number, statements: List<Statement>, values: List<Value>, lifted: boolean) => Task<_Value>} */
-    const each = (index, statements, values, lifted) => call(() => {
+    /** @type {(index: number, statements: List<Statement>, values: List<Value>, lifted: boolean, lastCallee: boolean) => Task<_Value>} */
+    const each = (index, statements, values, lifted, lastCallee) => call(() => {
         if (index === input.length) {
-            if (!lifted) { return done(plain(source, true)) }
+            const callee = source[0] !== ',' || lastCallee
+            if (!lifted) { return done(plain(source, callee)) }
             const established = toArray(values).toReversed()
-            return finish(statements, ['yield', [mapOperator((_, index) => established[index])(source)]], true)
+            return finish(statements, ['yield', [mapOperator((_, index) => established[index])(source)]], true, callee)
         }
         const id = binding()
         return bind(valueTask(input[index], id, owner), result => {
             if (source[0] === '()' && index === 0 && !result.callee) { return done(plain(source, false)) }
             const statement = result.statement ?? /** @type {Statement} */ (['define', id, result.value, 'required'])
             const next = /** @type {List<Statement>} */ ({ first: statement, tail: statements })
-            if (!result.normal) { return finish(next, ['yield', []], false) }
-            return each(index + 1, next, { first: ref(id), tail: values }, lifted || result.statement !== null)
+            if (!result.normal) { return finish(next, ['yield', []], false, true) }
+            return each(index + 1, next, { first: ref(id), tail: values }, lifted || result.statement !== null, result.callee)
         })
     })
-    return each(0, null, null, false)
+    return each(0, null, null, false, false)
 }
 
 /**
- * Only eager unary/binary operations and spread-free bare calls sequence their
- * operands. Instanceof metadata, collections, chains, lazy initializers and
- * ordinary functions/captures remain opaque.
+ * Eager unary/binary operations, comma sequences, spread-free arrays and bare
+ * calls sequence their operands. Instanceof metadata, objects, chains, lazy
+ * initializers and ordinary functions/captures remain opaque.
  * @type {(source: Value, destination: BindingId, owner: FunctionTarget) => Task<_Value>}
  */
 const valueTask = (source, destination, owner) => call(() => {
@@ -72,7 +73,9 @@ const valueTask = (source, destination, owner) => call(() => {
             : plain(source, result.callee)))
     }
     if (isUnary(source) || eagerBinary(source) || source[0] === '+' && source.length === 2
-        || source[0] === '()' && !source[2].some(item => item instanceof Array && item[0] === '...')) {
+        || source[0] === ',' && source[1].length !== 0
+        || (source[0] === '()' || source[0] === 'array')
+            && !(source[0] === 'array' ? source[1] : source[2]).some(item => item instanceof Array && item[0] === '...')) {
         return eagerTask(/** @type {Operator<Value>} */ (source), destination, owner)
     }
     if (source[0] !== 'if' && source[0] !== '?:') { return done(plain(source)) }
@@ -122,9 +125,10 @@ const blockTask = (source, context, pack) => {
                 return finish(next, packed, normal, returns || ownReturn || added, lifted || added,
                     changed || packed !== source.exit || added, callee || normal && mapped[0] === 'yield' && mapped[1].length !== 1)
             }
-            if (ownReturn || context.operand && exit[0] === 'yield' && exit[1].length === 1) {
+            if (ownReturn || context.operand && exit[0] === 'yield' && (exit[1].length === 1 || pack)) {
+                const values = /** @type {Extract<Exit, readonly ['yield', ...unknown[]]>} */ (exit)[1]
                 const value = ownReturn ? /** @type {Extract<Exit, readonly ['return', ...unknown[]]>} */ (exit)[2]
-                    : /** @type {Extract<Exit, readonly ['yield', ...unknown[]]>} */ (exit)[1][0]
+                    : values.length === 1 ? values[0] : /** @type {Value} */ (['array', values])
                 return bind(valueTask(value, binding(), context.owner), result => {
                     if (result.statement === null) { return complete(exit, statements, false, result.callee) }
                     const next = /** @type {List<Statement>} */ ({ first: result.statement, tail: statements })

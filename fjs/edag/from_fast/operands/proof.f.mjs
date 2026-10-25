@@ -29,13 +29,15 @@ export const proof = /** @type {const} */ ({
     unchanged: () => {
         const value = id()
         const ordinary = /** @type {readonly Value[]} */ ([
-            1, ref(value), ['array', [['block', returned(2)]]],
+            1, ref(value), ['array', []], ['array', [1, ref(value)]], [',', []], [',', [1, ref(value)]],
             ['block', yielded([])], ['block', yielded([3])], ['block', yielded([3, 4])],
             ['block', body(['throw', 7])],
             ['if', true, yielded([3]), body(['throw', 7])], ['?:', true, 1, 2],
             ['+', 1], ['+', 1, 2], ['()', ref(value), []],
             ['instanceof', ['block', returned(3)], 'Array'],
-            ['object', [[':', 'x', ['block', returned(3)]]]], [',', [1, ['block', returned(3)]]],
+            ['object', [[':', 'x', ['block', returned(3)]]]],
+            ['array', [['...', ['array', []]], ['block', returned(3)]]],
+            ['array', [['...', ['block', returned(3)]]]],
             ['.', ['block', returned(3)], 'x'], ['?.', ['block', returned(3)], 'x'],
             ['?.()', ref(value), [['block', returned(3)]]], ['()', ref(value), [['...', ['block', returned(3)]]]],
             ['function', { target: owner, parameters: [], rest: null, self: null, captures: [], body: returned(['block', returned(3)]) }],
@@ -115,17 +117,89 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(terminal.exit, ['yield', []])
     },
     multipleYieldOperands: () => {
-        const value = id()
+        const value = id(), earlier = id(), condition = id()
+        const selected = /** @type {Value} */ (['block', yielded([3], [['if', [], ref(condition), returned(8), yielded([])]])])
+        for (const source of /** @type {readonly Value[]} */ ([
+            ['block', yielded([ref(earlier), selected, 7])],
+            ['if', true, yielded([ref(earlier), selected, 7]), yielded([])],
+        ])) {
+            const result = liftReturns(body(['return', owner, ref(value)], [['define', value, source, 'required']]), owner)
+            const region = result.statements[0]
+            const packed = region[0] === 'block' ? region[2] : /** @type {Extract<Statement, readonly ['if', ...unknown[]]>} */ (region)[3]
+            assertEq(packed.statements.length, 1)
+            const sequence = blockOf(packed.statements[0])
+            assertEq(sequence.statements.length, 3)
+            const first = sequence.statements[0], second = sequence.statements[1], third = sequence.statements[2]
+            assert(first[0] === 'define' && second[0] === 'block' && third[0] === 'define')
+            assertStructurallySame(first[2], ref(earlier))
+            assertStructurallySame(sequence.exit, ['yield', [['array', [ref(first[1]), ref(second[1][0]), ref(third[1])]]]])
+            assertEq(liftReturns(result, owner), result)
+        }
+        const first = id(), second = id()
         const guard = /** @type {Value} */ (['block', returned(3)])
-        const multi = yielded([guard, 7], [['if', [], true, returned(8), yielded([])]])
-        const packed = liftReturns(body(['return', owner, ref(value)], [['define', value, ['block', multi], 'required']]), owner)
-        const region = packed.statements[0]
-        assert(region[0] === 'block' && region[2].exit[0] === 'yield')
-        const array = region[2].exit[1][0]
-        assert(array instanceof Array && array[0] === 'array')
-        assertEq(array[1][0], guard)
-        const opaque = returned(['block', yielded([guard, 7])])
-        assertEq(liftReturns(opaque, owner), opaque)
+        const multi = yielded([guard, 7])
+        const statement = /** @type {Statement} */ (['block', [first, second], multi])
+        const source = returned(['block', yielded([7], [statement, ['if', [], false, returned(8), yielded([])]])])
+        const region = blockOf(liftReturns(source, owner).statements[0])
+        assertEq(region.statements[0], statement)
+        assertEq(multi.exit[0], 'yield')
+        const ordinary = yielded([guard, 7])
+        assertEq(liftReturns(ordinary, owner), ordinary)
+    },
+    arraysAndComma: () => {
+        const earlier = id(), condition = id()
+        const selected = /** @type {Value} */ (['block', yielded([3], [
+            ['define', earlier, 4, 'required'], ['if', [], ref(condition), returned(9), yielded([])],
+        ])])
+        for (const tag of /** @type {const} */ (['array', ','])) {
+            const values = /** @type {readonly Value[]} */ ([ref(earlier), selected])
+            const source = returned(tag === 'array' ? ['array', values] : [',', values])
+            const result = liftReturns(source, owner)
+            const region = blockOf(result.statements[0])
+            const first = region.statements[0], second = region.statements[1]
+            assert(first[0] === 'define' && second[0] === 'block')
+            assertEq(first[3], 'required')
+            assertStructurallySame(first[2], ref(earlier))
+            assert(first[1] !== earlier)
+            assertStructurallySame(region.exit, ['yield', [[tag, [ref(first[1]), ref(second[1][0])]]]])
+            assertEq(liftReturns(result, owner), result)
+        }
+        const terminal = /** @type {Value} */ (['block', returned(7)])
+        const foreign = /** @type {Value} */ (['block', body(['return', other, 8])])
+        for (const source of /** @type {readonly Value[]} */ ([
+            ['array', [1, terminal, foreign]], [',', [1, terminal, foreign]],
+            ['block', yielded([1, terminal, foreign])],
+        ])) {
+            const result = liftReturns(returned(source), owner)
+            assertStructurallySame(result.exit, ['yield', []])
+            const region = blockOf(result.statements[0])
+            assertStructurallySame(region.exit, ['yield', []])
+        }
+    },
+    commaCalleeFacts: () => {
+        const fn = id(), receiver = id(), condition = id()
+        const selected = /** @type {Value} */ (['block', yielded([3], [['if', [], ref(condition), returned(9), yielded([])]])])
+        for (const last of /** @type {readonly Value[]} */ ([ref(fn), ['array', []], ['object', []], ['instanceof', 1, 'Array']])) {
+            for (const prefix of /** @type {readonly Value[]} */ ([1, selected])) {
+                const callee = /** @type {Value} */ ([',', [prefix, last]])
+                const source = returned(['()', callee, [['block', returned(7)]]])
+                const result = liftReturns(source, owner)
+                assert(result !== source)
+                assertEq(liftReturns(result, owner), result)
+            }
+        }
+        for (const last of /** @type {readonly Value[]} */ ([['.', ref(receiver), 'at'], ['?.', ref(receiver), 'at'], ['Object.is'], ['slice']])) {
+            for (const prefix of /** @type {readonly Value[]} */ ([1, selected])) {
+                const comma = /** @type {Value} */ ([',', [prefix, last]])
+                for (const callee of /** @type {readonly Value[]} */ ([comma, ['block', yielded([comma])], ['?:', true, comma, ref(fn)]])) {
+                    const source = returned(['()', callee, [['block', returned(7)]]])
+                    assertEq(liftReturns(source, owner), source)
+                }
+            }
+        }
+        const terminal = /** @type {Value} */ ([',', [['block', returned(7)], ['block', body(['return', other, 8])], ['.', ref(receiver), 'at']]])
+        const source = returned(['()', terminal, [['block', body(['return', other, 8])]]])
+        assertStructurallySame(liftReturns(source, owner).exit, ['yield', []])
     },
     eagerOperators: () => {
         const earlier = id(), condition = id()
@@ -263,7 +337,7 @@ export const proof = /** @type {const} */ ({
         const member = /** @type {Value} */ (['.', ref(receiver), 'at'])
         const callees = /** @type {readonly Value[]} */ ([
             member, ['?.', ref(receiver), 'at'], ['.', ref(receiver), 'at', ['|()', []]],
-            ['?.()', ref(fn), []], ['Object.is'], ['slice'], [',', [ref(fn)]],
+            ['?.()', ref(fn), []], ['Object.is'], ['slice'], [',', []],
             ['block', yielded([member])], ['if', true, yielded([member]), yielded([ref(fn)])],
             ['if', true, yielded([ref(fn)]), yielded([member])], ['?:', true, ['block', yielded([member])], ref(fn)],
         ])
@@ -354,6 +428,20 @@ export const proof = /** @type {const} */ ({
             current = blockOf(current.statements[0])
         }
         assertStructurallySame(current.exit, ['return', owner, 7])
+    },
+    deepSequenceChain: () => {
+        /** @type {Value} */
+        let value = ['block', returned(7)]
+        for (let depth = 0; depth < 20_000; ++depth) { value = depth % 2 === 0 ? ['array', [1, value]] : [',', [1, value]] }
+        const result = liftReturns(returned(value), owner)
+        let current = result
+        for (let depth = 0; depth < 20_000; ++depth) {
+            const region = blockOf(current.statements[0])
+            assertEq(region.statements.length, 2)
+            assertEq(region.statements[0][0], 'define')
+            current = { statements: [region.statements[1]], exit: region.exit }
+        }
+        assertStructurallySame(blockOf(current.statements[0]).exit, ['return', owner, 7])
     },
     throw: {
         foreignReturn: () => liftReturns(returned(['block', body(['return', other, 3])]), owner),
