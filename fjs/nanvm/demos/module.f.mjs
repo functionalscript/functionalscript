@@ -150,7 +150,7 @@ export const buildScriptPath = 'nanvm/demos/gen.build.sh'
 /**
  * The script's text: the pinned Rust checked first, then the module built and
  * published with the WAT of each of `places`. Run in the shared shell, which
- * carries that Rust and the `wasm32` target: `sh ./gen.nix/run sh
+ * carries that Rust and the `wasm32` target: `./dev.sh sh
  * ./nanvm/demos/gen.build.sh`.
  *
  * @type {(places: readonly Place[]) => string}
@@ -159,7 +159,7 @@ export const buildScript = places => `#!/bin/sh
 set -e
 case "$(rustc --version)" in
 "rustc ${rust} "*) ;;
-*) echo "nanvm/demos/wasm/ is built with Rust ${rust}, not $(rustc --version): run sh ./gen.nix/run sh ./${buildScriptPath}" >&2; exit 1 ;;
+*) echo "nanvm/demos/wasm/ is built with Rust ${rust}, not $(rustc --version): run ./dev.sh sh ./${buildScriptPath}" >&2; exit 1 ;;
 esac
 cargo build -p nanvm-demos --release --target ${wasmTarget}
 cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(({ name }) => name).join(' ')}

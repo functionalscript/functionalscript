@@ -31,7 +31,7 @@ export const proof = /** @type {const} */ ({
         }
     },
     ciDocumentation: () => {
-        for (const directory of ['fjs/ci/', 'gen.nix/', '.github/workflows/']) {
+        for (const directory of ['fjs/ci/', '.github/workflows/']) {
             for (const path of ['README.md', 'nested/todo/proposal.md', 'todo/proposal.txt', 'todo/example.f.mjs']) {
                 assertStructurallySame(select(`${directory}${path}`), [])
             }
@@ -42,8 +42,6 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(select('nanvm/lib/src/gen.methods.rs'), ['fjs', 'rust'])
         assertStructurallySame(select('nanvm/harness/fixtures/a.mjs'), ['js', 'rust'])
         assertStructurallySame(select('nanvm/demos/a/types.ts'), ['ts', 'rust'])
-        assertStructurallySame(select('gen.nix/run'), ['fjs', 'rust'])
-        assertStructurallySame(select('gen.nix/flake.nix'), ['fjs', 'rust'])
         assertStructurallySame(select('.github/workflows/gen.ci.yml'), ['fjs', 'rust'])
         assertStructurallySame(select('fjs/ci/cache/module.f.mjs'), ['fjs', 'rust'])
         assertStructurallySame(select('fjs/ci/cache/types.ts'), ['ts', 'rust'])

@@ -1,5 +1,5 @@
-# Experimental alternative to ./dev.sh; see doc/mise-trial/README.md.
-# Manual snapshot of fjs/ci/config/module.f.js, not an adopted generator output.
+# Development and CI tools; see doc/mise-trial/README.md.
+# Keep these pins synchronized with fjs/ci/config/module.f.js.
 min_version = "2026.10.19"
 
 [tools]

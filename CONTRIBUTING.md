@@ -40,14 +40,7 @@ work is tracked from then on.
 
 ## Requirements
 
-[Nix](https://nixos.org/download/). The repository's developer shell, below,
-provides every tool in this table at the version CI uses — install Nix, enter
-the shell, and nothing else is a question. The table says what the shell
-carries and what each tool is for. Intel macOS and bare Windows developers
-install the pinned tools directly. Every tool has one exact accepted version
-during prerelease. The versions, including those CI's direct-install jobs
-use, are the pins in
-[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js).
+Install mise; see the development environment below for initialization.
 
 | Tool    | Version              | Required for                                                     |
 | ------- | -------------------- | ---------------------------------------------------------------- |
@@ -72,82 +65,30 @@ today's pins do not establish what earlier releases supported. Additional
 tool-version support after release remains subject to actual demand.
 
 TypeScript is **not** an npm dependency of this package, so `npm ci` does not
-install it: it is a tool the shell provides, like the others in this table, at the version
-[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins for CI; on Intel
-macOS or bare Windows, install exactly that version globally. Do not reach for `npx tsc`: with
+install it: the mise environment provides the exact supported compiler on every
+platform. Do not reach for `npx tsc`: with
 nothing to resolve in `node_modules` it downloads whatever the registry calls
 latest, which is not the compiler CI runs.
 
-### The Nix shell
+### Development environment
 
-On the mise CI trial branch, repository CI uses the root mise manifests on all
-six native platforms. See [the CI trial notes](./doc/mise-trial/CI.md).
-The Nix shell and devcontainer remain available for local development; their
-system-library setup differs from the mise runner prerequisites.
+Install [mise](https://mise.jdx.dev) and follow
+[the platform setup guide](./doc/mise-trial/README.md).
 
-`gen.nix/` is a development environment carrying every tool in that table at
-the versions CI uses. It is not a convenience built alongside CI: every job runs
-its commands inside this very shell, so what passes here is what passes there,
-except the Intel macOS and two Windows platform jobs, which install their tools
-directly, and the publishing workflow, which runs on the Node `setup-node` installs. The packed-package
-check that closes `node26` stays out of it too, by design: it installs the
-published tarball with `setup-node`'s selected Node and npm, as a consumer would. Every
-developer and every agent on a supported Nix platform uses these tools, through
-the shell or the devcontainer's installed profile.
-
-```bash
-./dev.sh                   # an interactive shell
-./dev.sh npm run cov       # or one command in it
+```sh
+mise trust
+mise install --locked
+./dev.sh node --version
+./dev.sh npm ci
 ```
 
-[`dev.sh`](./dev.sh) opens the shell, or runs the command given to it, and
-enables flakes itself, so a stock Nix install needs no configuration;
-[`gen.nix/run`](./gen.nix/run) is the generated form of the latter, and is what
-a CI step names. On ARM macOS and Linux, install Nix on the host; VS Code's offer
-to reopen in a container is a slower detour there, and declining it changes
-nothing. Nix does not run natively on Windows: a Windows contributor opens the
-repository in that container —
-[`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) builds
-a Debian image with the same pinned tools installed into Nix's global profile,
-then runs `npm ci`. The tools are on the container-wide `PATH`, so extensions,
-tasks and terminals can use them directly, without `./dev.sh` or a special
-terminal profile. Native linking and the x86 Linux 32-bit linker are available
-there too. A Windows contributor can also work in WSL2 with Nix installed
-there and enter the shell through `./dev.sh`. Bare Windows, outside both,
-means installing the [Requirements](#requirements) table by hand at the
-versions `fjs/ci/config/module.f.js` pins, as CI's Windows jobs do.
+`./dev.sh <command>` uses mise; without arguments it opens a shell. On Windows,
+run `mise exec -- <command>` directly. The six native CI hosts use the same manager.
+The devcontainer installs it and initializes the workspace on creation.
 
-The container installs the generated `devTools` flake output while building its
-image, from the checked-in `gen.nix/flake.nix` and `gen.nix/flake.lock`. Rebuild
-the container after those files change, including after switching to a branch
-with different tool pins. Ordinary source changes do not require a rebuild.
-
-### Direct tools on Intel macOS
-
-Intel macOS CI installs Node with `actions/setup-node` and native Rust with
-`dtolnay/rust-toolchain`, using the same pins as the Nix jobs. It runs
-`npm ci`, `node --test`, and native Rust tests and Clippy in debug and release
-mode. It needs no Deno, Bun, TypeScript or WASM tooling for those checks.
-ARM macOS continues to use Nix.
-
-The generated flakes support Linux and ARM macOS only. This split is adopted
-ahead of Nixpkgs dropping Intel macOS after 26.05, and avoids setting up the
-full shared toolchain on the slow Intel runner. Intel macOS contributors and
-agents install the tools needed for their work from the [Requirements](#requirements)
-table at the exact versions in `fjs/ci/config/module.f.js`; type-checking and
-package generation also need the pinned TypeScript compiler. Run the normal
-check commands directly. `npm run gen` requires Node and runs without Nix;
-refreshing the optional legacy flake lock still requires Nix.
-
-One build runs outside it: Cloudflare's Workers Builds generates the website on
-its own image and reads its Node version from `.node-version`, which is why that
-file exists ([fjs/website/README.md](./fjs/website/README.md#the-site-is-the-repository-served)).
-Keep its exact patch synchronized with the scalar `node` pin and
-`engines.node` in both `package.json` and the root `package-lock.json` metadata.
-That engine pin defines support for the CLI, development and npm consumers;
-npm normally warns on mismatches unless strict engine checking is enabled.
-
-[`fjs/ci/nix/README.md`](./fjs/ci/nix/README.md) explains the shell and how it is generated.
+Host prerequisites remain necessary: Linux needs a C compiler, Linux x64 also
+needs `gcc-multilib libc6-dev-i386`; macOS needs Command Line Tools; Windows
+needs the MSVC build tools and SDK. See the platform guide for runtime gaps.
 
 ### Installing dependencies
 
@@ -165,11 +106,6 @@ cargo test               # only if you touched Rust
 cargo clippy -- -D warnings
 cargo fmt -- --check
 ```
-
-Both of the first two need `tsc` on `PATH`, which the Nix shell provides. Which
-of them a change needs — none for Markdown alone, the tests under its own
-directory for FunctionalScript, the Cargo rows for Rust — is
-[AGENTS.md](./AGENTS.md)'s list; CI runs everything.
 
 #### Ways to run the FunctionalScript test suite
 
@@ -208,19 +144,6 @@ CI exercises these same combinations — see the `node26`,
 `deno`, and `bun` jobs, and `ubuntu-arm` for SpiderMonkey, in
 [.github/workflows/gen.ci.yml](./.github/workflows/gen.ci.yml) for the exact commands
 and pinned runtime versions.
-
-`npm run sm` is the SpiderMonkey counterpart of `npm start`: it runs an `fjs`
-command in the SpiderMonkey shell the Nix shell carries, through a host that
-implements only what `fjs t` and `fjs compile` need
-([`fjs/effects/spidermonkey/module.mjs`](./fjs/effects/spidermonkey/module.mjs)),
-so `npm run sm t` runs the suite, `npm run sm c` checks every authored `.f.js`
-or compiles one, and another command answers `NotImplemented` for the
-operations the host lacks. The host makes directories and removes files with
-`mkdir` and `rm` through the shell's `os.system`, so it needs a POSIX shell. Off Node, Deno, and Bun,
-`fjs t` loads authored `.f.mjs` and `.f.js` proofs only: the impure
-`proof.mjs` ones need the Node host. It scopes to a subtree like
-`npm start test` does, and an argument starting with `-` needs
-`npm run sm -- …`, since npm takes it for its own.
 
 #### Running tests under a subtree
 
@@ -330,18 +253,7 @@ browser. A module without a demo does not need one merely because it changes.
 npm run gen
 ```
 
-Run this after changing anything a generator reads — `fjs/ci`'s workflows and
-Nix flakes, `fjs/nanvm`'s Rust test data, a `nanvm-harness` fixture. `gen` is
-one program, [`fjs/dev/gen/module.f.mjs`](./fjs/dev/gen/module.f.mjs): its
-`generators` list is every generator in the order regeneration needs, the
-reason for each position beside it, and a new generated output is a new entry
-there. It needs Node; the mise CI trial runs it without Nix. The optional
-legacy Nix environment remains generated, but its committed `gen.nix/flake.lock`
-is preserved as a dependency lock. Refresh it explicitly through
-`npm run lock-update` after changing the Nix pins.
-
-`gen` starts by deleting generated outputs through `fjs/dev/clean`, except that
-legacy dependency lock. An output no generator writes any more shows up as a
+`gen` starts by deleting every generated output through `fjs/dev/clean`. An output no generator writes any more shows up as a
 deletion, and every source generator runs again. CI's drift check runs `gen` and then
 `git add -A && git diff --cached --exit-code`; run the same two commands to
 see what CI will. The cleanup lives in `gen` rather than in its own CI step
@@ -371,48 +283,13 @@ are handwritten.
   than `.github`, `node_modules` and `target`. It removes files only; the
   emptied directories are invisible to git.
 
-`.gitattributes` marks the `gen.*` names with two lines — an attribute on a
-directory does not reach the files inside it — and nothing else: no committed
-output keeps a name outside the rule. Nix needs `flake.nix` and `flake.lock`,
-so the whole environment directory is `gen.nix/`, entered as
-`nix develop ./gen.nix` and, from a CI step, `sh ./gen.nix/run <command>` —
-through `sh`, because a script regenerated from nothing has no executable bit
-and nothing may depend on one. The two workflows keep their suffix under the
-prefix, since GitHub reads any name in `.github/workflows/`; npm trusted
-publishing is bound to `gen.npm-publish.yml`'s exact name, so a project that
-renames it updates its trusted publisher on npm as well
-([fjs/ci/README.md](./fjs/ci/README.md#the-publishing-workflow)). The
-dependency lockfiles are refreshed by `npm run lock-update`, not `gen`.
-The legacy `gen.nix/flake.lock` is also preserved during cleanup, so keeping
-the optional Nix development environment does not make CI regeneration
-depend on Nix.
-
 ### Updating dependencies
 
-To bump an npm devDependency version, edit `package.json` by hand first (there
-is no `npm-check-updates` step anymore). To move a pinned Nixpkgs or
-`rust-overlay` commit, edit `fjs/ci/config/module.f.js`; a Nixpkgs commit must
-first pass the binary-cache check in
-[`fjs/ci/update-versions.md`](./fjs/ci/update-versions.md), the procedure the
-daily version-update routine follows. Either way, then run:
-
-```bash
-npm run lock-update
-```
-
-This is a maintainer action, not something to run after an ordinary source
-change — `gen` above covers that, the `flake.lock` files included. It requires
-Node, Deno, Bun, Cargo, and Nix all installed: it runs `gen` first, then
-refreshes `package-lock.json`, `deno.lock`, `bun.lock`, `Cargo.lock` and
-`.devcontainer/devcontainer-lock.json` — see
-[`nix/README.md`](./fjs/ci/nix/README.md). The last one pins the devcontainer's
-Nix feature to the version and digest the registry serves, and is written by
-the devcontainer CLI, which the script runs through `npx` at a version pinned
-in the command rather than as a dependency of this package — an external tool
-called from a repository script, approved by the maintainer for this step
-([AGENTS.md §6](./AGENTS.md#6-external-tools)). An agent session
-needs the registry's content host, `pkg-containers.githubusercontent.com`,
-allowed in its network policy for that step.
+Update exact accepted versions in `fjs/ci/config/module.f.js` and the mise
+manifest together. Keep `.node-version`, the package engine and the root lockfile
+engine synchronized. Refresh the manager lock, including every supported
+platform and any npm sidecars, then run scoped checks and `./dev.sh npm run gen`.
+`./dev.sh npm run lock-update` refreshes manager and package dependency locks.
 
 ## Opening a pull request
 
@@ -502,25 +379,16 @@ Reviewing someone else's pull request: [REVIEWING.md](./doc/REVIEWING.md).
 
 ## OpenAI Codex environment
 
-The same shell. The environment's setup script installs Nix and fetches both
-dependency sets inside it, so every later command finds the toolchain CI uses
-and the dependencies it needs — the container's network is open during setup
-only, so a `cargo fetch` left for later would fail there. Codex runs the script
-as root in a container without an init system, which the official installer
-refuses in both of its modes, so the script uses the Determinate installer,
-which supports exactly that. The shells Codex opens for the task afterwards do
-not carry the setup shell's `PATH`, and `--init none` writes no startup
-integration, so the environment's own settings must put Nix on the task's
-`PATH`: set the `PATH` environment variable there to begin with
-`/nix/var/nix/profiles/default/bin`. The setup script sources the same profile
-for its own commands.
+Install mise in the environment setup and initialize this trusted checkout:
 
 ```sh
-curl -fsSL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
-. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+mise trust
+mise install --locked
 ./dev.sh npm ci
 ./dev.sh cargo fetch
 ```
 
-`npm test`, `npm run cov` and every other check then run as
-`./dev.sh <command>`.
+Each command runs in a fresh process. Use `./dev.sh <command>` so the selected
+tools are available every time. Verify `./dev.sh node --version` against the
+exact central pin before editing. Do not run untrusted review hooks with broader
+permissions.

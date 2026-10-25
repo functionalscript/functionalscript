@@ -28,7 +28,7 @@ export const platformSchema = /** @type {const} */ ({
     architecture: string,
 })
 
-const shellPrefixes = /** @type {const} */ (['mise exec -- ', 'mise -E spidermonkey exec -- ', 'sh ./gen.nix/run '])
+const shellPrefixes = /** @type {const} */ (['mise exec -- ', 'mise -E spidermonkey exec -- ', 'env '])
 
 const botIdentity = /** @type {const} */ ({
     GIT_AUTHOR_NAME: 'github-actions[bot]',
@@ -47,7 +47,7 @@ const command = step => {
 const isAction = (step, action) => step.uses?.startsWith(`${action}@`) === true
 
 /** @type {(step: Step) => boolean} */
-const isEnvironmentSetup = step => isAction(step, 'jdx/mise-action') || isAction(step, 'cachix/install-nix-action')
+const isEnvironmentSetup = step => isAction(step, 'jdx/mise-action')
 
 /** Each check's terminal work. Installs and version checks are shared below. */
 /** @type {(jobId: string, step: Step) => string | undefined} */

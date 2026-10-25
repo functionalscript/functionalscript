@@ -4,7 +4,6 @@
 
 import { consumerDirectory, packageCheckSteps } from './module.f.mjs'
 import { typescript } from '../config/module.f.js'
-import { generatedDirectory } from '../nix/module.f.mjs'
 import { packageConsumer } from '../self/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { isDigits } from '../../text/ascii/module.f.js'
@@ -45,13 +44,13 @@ export const proof = {
     },
     // A consumer's toolchain, not the repository's: commands only, the Node
     // being the job's `setup-node` (proved on the assembled workflow, in
-    // `fjs/ci/proof.f.mjs`), and none entering a generated flake, whose shell
+    // `fjs/ci/proof.f.mjs`), and none entering a tool manager, whose shell
     // would put this repository's `node` and `tsc` on `PATH`.
     consumerToolchain: () => {
         assert(steps.every(step => step.run !== undefined), 'expected commands only')
         assert(
-            !steps.some(step => step.run?.startsWith(`sh ./${generatedDirectory}/`) === true),
-            'the package check must not enter a flake')
+            !steps.some(step => step.run?.startsWith('mise ') || step.run?.startsWith('pixi ')),
+            'the package check must not enter a tool manager')
     },
     // The one option with a silent failure mode: `true` stops tsc opening the
     // declarations at all, and the check still passes. Stated rather than left

@@ -30,9 +30,7 @@ compile, and confirm with `npm start compile` from the repository root. See
 
 ### 1.1 Commands
 
-- `tsc` — type-check. The compiler is the Nix developer shell's (`./dev.sh`),
-  not a dependency of this package. Not `npx tsc`, which resolves nothing
-  locally and fetches the registry's latest.
+- `tsc` — type-check with the selected development environment (`./dev.sh tsc`).
 - `npm start test` (or any equivalent from
   [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite))
   — test FunctionalScript (`.f.mjs`) files. Run from a directory, it tests
