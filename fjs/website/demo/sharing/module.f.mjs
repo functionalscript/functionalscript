@@ -6,6 +6,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  */
+
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { definedEntries } from '../../../types/object/module.f.mjs'
 import { stringToU8List } from '../../../text/utf8/module.f.mjs'
