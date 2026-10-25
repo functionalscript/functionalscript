@@ -46,4 +46,5 @@ export const main = () => ci({
     nodeExtra: () => [],
     packageConsumer,
     smart: true,
+    environment: 'mise',
 })

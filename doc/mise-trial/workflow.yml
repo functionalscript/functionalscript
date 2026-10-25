@@ -1,0 +1,46 @@
+# Inactive example: copy into .github/workflows/ for a deliberate trial.
+name: Try mise development tools
+on:
+  workflow_dispatch:
+    inputs:
+      cache:
+        description: Restore/save installed-tool and Rust caches
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-26.04, ubuntu-26.04-arm, macos-26-intel, macos-26, windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      MISE_USE_VERSIONS_HOST: "0"
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/cache@v6.1.0
+        if: inputs.cache
+        with:
+          path: |
+            ~/.cargo
+            ~/.rustup
+          key: mise-rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'mise.lock', 'Cargo.lock') }}
+      - uses: jdx/mise-action@v3
+        with:
+          version: "2026.10.19"
+          install_args: --locked
+          cache: ${{ inputs.cache }}
+      - run: mise exec -- node --version
+      - run: mise exec -- tsc --version
+      - run: mise exec -- rustc --version
+      - run: mise exec -- deno --version
+      - run: mise exec -- bun --version
+      - run: mise exec -- wasmtime --version
+      - run: mise exec -- npm ci
+      - run: mise exec -- tsc
+      - run: mise exec -- cargo test
+      - run: mise exec -- cargo clippy -- -D warnings
+      - run: mise exec -- cargo fmt -- --check

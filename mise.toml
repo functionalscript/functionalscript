@@ -1,0 +1,58 @@
+# Experimental alternative to ./dev.sh; see doc/mise-trial/README.md.
+# Manual snapshot of fjs/ci/config/module.f.js, not an adopted generator output.
+min_version = "2026.10.19"
+
+[tools]
+node = "26.12.1"
+"npm:typescript" = "7.0.2"
+bun = "1.4.4"
+rust = [
+    { version = "1.99.1", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["wasm32-wasip1", "wasm32-wasip2", "wasm32-unknown-unknown", "wasm32-wasip1-threads", "i686-unknown-linux-gnu"], os = ["linux/x64"] },
+    { version = "1.99.1", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["wasm32-wasip1", "wasm32-wasip2", "wasm32-unknown-unknown", "wasm32-wasip1-threads"], os = ["linux/arm64", "macos"] },
+    { version = "1.99.1", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["i686-pc-windows-msvc"], os = ["windows/x64"] },
+    { version = "1.99.1", profile = "minimal", components = ["clippy", "rustfmt"], os = ["windows/arm64"] },
+]
+
+[tools."github:denoland/deno"]
+version = "2.8.3"
+
+[tools."github:denoland/deno".platforms]
+linux-x64 = { asset_pattern = "deno-x86_64-unknown-linux-gnu.zip" }
+linux-arm64 = { asset_pattern = "deno-aarch64-unknown-linux-gnu.zip" }
+macos-x64 = { asset_pattern = "deno-x86_64-apple-darwin.zip" }
+macos-arm64 = { asset_pattern = "deno-aarch64-apple-darwin.zip" }
+windows-x64 = { asset_pattern = "deno-x86_64-pc-windows-msvc.zip" }
+windows-arm64 = { asset_pattern = "deno-aarch64-pc-windows-msvc.zip" }
+
+[tools."github:bytecodealliance/wasmtime"]
+version = "45.0.2"
+
+[tools."github:bytecodealliance/wasmtime".platforms]
+linux-x64 = { asset_pattern = "wasmtime-v45.0.2-x86_64-linux.tar.xz" }
+linux-arm64 = { asset_pattern = "wasmtime-v45.0.2-aarch64-linux.tar.xz" }
+macos-x64 = { asset_pattern = "wasmtime-v45.0.2-x86_64-macos.tar.xz" }
+macos-arm64 = { asset_pattern = "wasmtime-v45.0.2-aarch64-macos.tar.xz" }
+windows-x64 = { asset_pattern = "wasmtime-v45.0.2-x86_64-windows.zip" }
+windows-arm64 = { asset_pattern = "wasmtime-v45.0.2-aarch64-windows.zip" }
+
+[tools."github:wasmerio/wasmer"]
+version = "7.1.0"
+# Upstream has no native Windows ARM64 archive; no emulated substitution.
+os = ["linux", "macos", "windows/x64"]
+
+[tools."github:wasmerio/wasmer".platforms]
+linux-x64 = { asset_pattern = "wasmer-linux-amd64.tar.gz" }
+linux-arm64 = { asset_pattern = "wasmer-linux-aarch64.tar.gz" }
+macos-x64 = { asset_pattern = "wasmer-darwin-amd64.tar.gz" }
+macos-arm64 = { asset_pattern = "wasmer-darwin-arm64.tar.gz" }
+windows-x64 = { asset_pattern = "wasmer-windows-amd64.tar.gz" }
+
+[tasks.check]
+description = "Show the selected baseline tool versions"
+run = ["node --version", "tsc --version", "rustc --version", "cargo --version", "deno --version", "bun --version", "wasmtime --version"]
+
+[tasks.test]
+run = "npm test"
+
+[tasks.rust-test]
+run = "cargo test"

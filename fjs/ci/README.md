@@ -4,11 +4,17 @@ This directory contains the FunctionalScript source that defines the GitHub Acti
 workflows for this repository. Running the generator writes
 `.github/workflows/gen.ci.yml` with the latest matrix of jobs and steps and
 `.github/workflows/gen.npm-publish.yml` with the release job, plus one Nix
-development environment under `gen.nix/`. It is the shell a developer enters
-and the shell six of the nine CI jobs run inside. Intel macOS and the two
-Windows jobs install their tools directly and enter no flake.
-Which jobs have a flake and why the rest do not is
-[`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
+development environment under `gen.nix/` for local use. On this branch the
+repository's `self/module.f.mjs` selects `Setup.environment: 'mise'`: its
+nine jobs use mise on all six native platforms, with no Nix dependency in CI.
+See [the migration notes](../../doc/mise-trial/CI.md).
+
+The built-in `fjs ci` keeps its existing self-contained Nix setup for external
+projects. The job-builder descriptions below describe that default; the
+repository-only `mise/module.f.mjs` adapter changes setup and command execution
+while preserving those checks. A caller selecting mise must supply its own
+manifest, lock, and dependency sidecars. Publishing and the isolated packed
+consumer retain their direct Node installation.
 
 ## `fjs ci` is not stable
 
