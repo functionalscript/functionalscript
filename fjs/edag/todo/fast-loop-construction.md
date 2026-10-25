@@ -373,6 +373,9 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Share caller-owned lazy cells and dependent recipes through nested
       normal-exit helpers. Preserve inner-first demand, skipped failures and
       shared identity through inner results and outer transitions.
+- [ ] Give lazy cells declared inside loop iterations fresh declaration
+      lifetimes. Share reached values with nested helpers and same-iteration
+      reads while retaining caller-owned state.
 - [ ] Extend shared demand state to recipe-local computed dependents,
       statement-loop-local cells and escaping completions.
       Preserve fresh iteration lifetimes and selected updates through every completion.
