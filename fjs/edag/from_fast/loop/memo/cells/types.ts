@@ -19,3 +19,12 @@ export type MemoPlan = {
     readonly definitions: ReadonlyMap<Definition, number>
     readonly loops: ReadonlySet<Loop>
 }
+
+/** The cells visible in one recipe invocation, without a statement root. */
+export type MemoLayout = Pick<MemoPlan, 'cells' | 'definitions' | 'loops'>
+
+export type RecipePlan = {
+    readonly value: Value
+    readonly layout: MemoLayout
+    readonly localCount: number
+}
