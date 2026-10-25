@@ -1,4 +1,5 @@
 /** Host-boundary proofs for URL navigation, queued restoration and clipboard UI. */
+
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startDemoSharing } from './demo-sharing-runtime.mjs'
 import { textSharing, recordSharing, encodeQuery, decodeQuery } from './demo/sharing/module.f.mjs'

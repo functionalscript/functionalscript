@@ -3,6 +3,7 @@
  * @import { Demo, DemoEvent } from './demo/types.ts'
  * @import { DemoController } from './demo/sharing/types.ts'
  */
+
 import { decodeQuery, encodeQuery, restoreInputs } from './demo/sharing/module.f.mjs'
 import { copy } from './copy-runtime.mjs'
 import { revealFragment } from './fragment-runtime.mjs'
