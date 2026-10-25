@@ -37,8 +37,8 @@ the two are separate, and this one is not quietly migrated into the other.
 
 ## Shareable demo links
 
-Two icons beside Demo distinguish **Copy section link** (plain chain) from
-**Copy link with inputs** (chain with a dot). The section link always targets
+Two controls beside Demo distinguish **Copy section link** (plain chain) from
+**Copy link with inputs** (chain with the visible label “Copy with inputs”). The section link always targets
 `#demo`; input links use `#demo` for default inputs. Example links
 such as `/fjs/compiler/#demo:example=hex-escape` restore a stable example;
 custom inputs use `#demo:state=BASE64URL_JSON`. Restore validates all inputs

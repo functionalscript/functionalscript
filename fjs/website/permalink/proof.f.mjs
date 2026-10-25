@@ -18,9 +18,10 @@ export const proof = /** @type {const} */ ({
         assert(html.includes('data-copy-demo-section="demo"'))
         assert(html.includes('data-copy-demo=""'))
         assertEq(html.split('<svg ').length - 1, 3)
-        assertEq(html.split('data-input-link-dot=""').length - 1, 1)
+        assert(html.includes('<span data-input-link-label="">Copy with inputs</span>'))
+        assert(!html.includes('data-input-link-dot'))
         assert(html.includes('aria-label="Copy section link" title="Copy section link"'))
-        assert(html.includes('aria-label="Copy link with inputs" title="Copy link with inputs"'))
+        assert(html.includes('aria-label="Copy with inputs" title="Copy link with inputs"'))
         assert(!html.includes('data-copy-fragment='))
     },
     heading: () => {

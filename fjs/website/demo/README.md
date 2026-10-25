@@ -183,7 +183,7 @@ option metadata. Labels and the events demos receive stay unchanged.
 
 Stable IDs are used by [shareable demo inputs](./sharing/README.md).
 The plain chain beside the Demo heading copies the section link. The chain
-with a dot copies the current inputs: `#demo` for defaults, a matching example,
+with the visible “Copy with inputs” label copies the current inputs: `#demo` for defaults, a matching example,
 or the complete custom input set. Tooltips and accessible labels distinguish
 the two actions. Every new demo with editable inputs must declare the
 [sharing contract](./sharing/README.md#authoring); `textDemo` does this
