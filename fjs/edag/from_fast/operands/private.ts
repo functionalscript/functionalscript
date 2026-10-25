@@ -14,10 +14,12 @@ export type _Region = {
     readonly normal: boolean
     readonly returns: boolean
     readonly lifted: boolean
+    readonly callee: boolean
 }
 
 export type _Value = {
     readonly statement: Statement | null
     readonly value: Value
     readonly normal: boolean
+    readonly callee: boolean
 }
