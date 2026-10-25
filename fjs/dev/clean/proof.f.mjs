@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { exitCode } from '../../effects/node/module.f.mjs'
-import { nodeProgramOptions, virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { clean, generatedFiles, isGenerated, main } from './module.f.mjs'
@@ -68,7 +68,7 @@ export const proof = {
         })
     },
     main: () => {
-        const [state, code] = virtualAt(root)(main(nodeProgramOptions([])))
+        const [state, code] = virtualAt(root)(main())
         assertEq(exitCode(code), 0)
         assertEq(Object.keys(state.root).includes('gen.matrix.md'), false)
     },

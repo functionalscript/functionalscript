@@ -193,7 +193,7 @@ export const proof = {
         },
         standaloneCleanThenGenerate: () => {
             const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
-            const cleanThenGenerate = step(clean(defaultNodeProgramOptions), () => main(defaultNodeProgramOptions))
+            const cleanThenGenerate = step(clean(), () => main(defaultNodeProgramOptions))
             const [state, code] = run({ ...emptyState, root })(cleanThenGenerate)
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(spawned(), 0)
