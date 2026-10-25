@@ -389,7 +389,9 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Give computed lazy bindings inside initializers recipe-owned cells.
       Preserve local sharing, skipped demands and fresh local lifetimes when
       an owning initializer is evaluated again.
-- [ ] Carry shared demand state through escaping completions.
+- [ ] Return from memo-bearing statement helpers to the owning source function.
+      Preserve demanded payload identity, normal-path updates and skipped failures.
+- [ ] Carry shared demand state through outer-loop breaks and continues.
       Preserve fresh iteration lifetimes and selected updates through every completion.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
