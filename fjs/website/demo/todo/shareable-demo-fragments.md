@@ -1,7 +1,7 @@
 ## Share demo inputs through URL fragments
 
 **Priority:** P3
-**Status:** wip
+**Status:** wip — URL restoration and copying
 
 ### Problem
 
