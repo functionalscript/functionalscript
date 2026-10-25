@@ -83,8 +83,10 @@ initialization uses the existing failure channel and never supplies a ready
 cell. Conditional regions update only the selected arm's state.
 
 Internal continues carry next user state and memo state simultaneously.
-Normal and escaping helper completions carry the updated memo vector back to
-the caller, which retains it for subsequent demands and sequential loops.
+Normal helper completions and resumable outer-loop transfers carry the updated
+memo vector back to the caller for subsequent demands and sequential loops.
+Source-function returns demand their payload before propagating it; the owning
+function exits without resuming memo state.
 Nested helpers receive the same owning cells and return their updates to
 their caller; no generated helper directly invokes an enclosing helper.
 The declared normalized loop input and result signatures remain unchanged.
@@ -133,8 +135,40 @@ initialize source lazy values. Shared recipe functions prevent
 conditional dependency DAGs from being recursively copied at each demand;
 full-vector replacement retains its ordinary slot-copying cost.
 
-Recipe-local computed lazy dependents, iteration-local cells, nested memo
-boundaries and escaping completions remain following increments.
+Nested normal-exit statement helpers carry the same caller-owned vector through
+every selected boundary. Inner entry demands use the current outer vector, and
+inner results return updates before outer transitions. Reentering an inner
+helper reuses the owning function's cells; skipped entries leave them deferred.
+
+Iteration-local declarations reset their selected cell at each reached source
+declaration and define the getter from that iteration's established values.
+The reset preserves caller and enclosing-iteration cells; aliases share their
+root without resetting it. Selected helper ancestors transport the vector even
+when a local declaration hides the dependency from their free-binding set.
+
+Recipe-local computed lazy bindings extend their owning getter's memo layout.
+Each initializer call appends fresh local cells, with getters created at their
+reached declarations. Narrower dependency calls receive only their prefix and
+merge returned updates with the caller's local suffix. A getter returns its
+parent width, retaining dependency updates and any returned payload identities.
+Statement helpers may return to the exact enclosing source function. Memo
+normalization evaluates the return payload with the current cells, then the
+existing completion pass propagates that payload through enclosing helpers.
+The function exits with its source value; normal helper exits still carry the
+memo vector for following work. Standalone and operand regions do not inherit
+function ownership.
+
+Statement-level outer-loop breaks and continues use the same private
+`[userValuesArray, memoVector]` transfer payload as owning exits. Lexical source
+targets map to their exact private loop targets; the existing completion pass
+relays the pair until that target supplies results or starts its next iteration.
+Control-only helpers escaping to selected ancestors join the transport plan,
+including intermediate helpers with no memo reads. Newly selected targets can
+require further control helpers, so selection closes over those escape paths.
+Payload evaluation supplies the latest vector before every transfer. Continued
+iterations retain caller and enclosing-iteration cells and reset their own local
+lifetimes at reached declarations. Foreign targets and operand escapes remain
+refused.
 Stateful member-call/optional/spread operands retain explicit refusals until their
 evaluation boundary is owned below. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
@@ -365,9 +399,20 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Share caller-owned dependent lazy recipes through normal-exit helpers.
       Preserve transitive/conditional demands, shared prerequisite identity,
       caller-only dependents and bounded construction of recipe DAGs.
-- [ ] Extend shared demand state to recipe-local computed dependents,
-      statement-loop-local cells, nested memo boundaries and escaping completions.
+- [x] Share caller-owned lazy cells and dependent recipes through nested
+      normal-exit helpers. Preserve inner-first demand, skipped failures and
+      shared identity through inner results and outer transitions.
+- [x] Give lazy cells declared inside loop iterations fresh declaration
+      lifetimes. Share reached values with nested helpers and same-iteration
+      reads while retaining caller-owned state.
+- [x] Give computed lazy bindings inside initializers recipe-owned cells.
+      Preserve local sharing, skipped demands and fresh local lifetimes when
+      an owning initializer is evaluated again.
+- [x] Return from memo-bearing statement helpers to the owning source function.
+      Preserve demanded payload identity, normal-path updates and skipped failures.
+- [x] Carry shared demand state through outer-loop breaks and continues.
       Preserve fresh iteration lifetimes and selected updates through every completion.
+      Track exact ancestor targets and control-only intermediate helpers.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
 - [x] Share normal continuations in noncanonical helper callers at graph

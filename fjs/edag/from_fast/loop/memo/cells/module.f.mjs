@@ -1,22 +1,23 @@
 /**
- * Select caller-owned lazy recipes before graph construction loses their
+ * Select lazy recipes before graph construction loses their
  * lexical definitions. Values keep their own loop-normalization boundary;
  * ordinary function bodies remain opaque. Deferred prerequisites and computed
- * dependents share the same caller-owned vector, in definition order; lazy
+ * dependents share the same vector, in definition order; lazy
  * reference aliases share their root's cell.
  *
  * @module
  *
- * @import { BindingId, Block, Definition, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Exit, FunctionTarget, Loop, LoopTarget, Statement, Value } from '../../../../../js/ast/types.ts'
  * @import { List } from '../../../../../types/list/types.ts'
  * @import { Link } from '../../../private.ts'
  * @import { Task } from '../../../task/types.ts'
- * @import { MemoPlan } from './types.ts'
- * @import { _LoopInfo, _Occurrence, _Root, _Scope, _TransferVisit, _Visit } from './private.ts'
+ * @import { MemoLayout, MemoPlan, RecipePlan } from './types.ts'
+ * @import { _LoopInfo, _Occurrence, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _Transfer, _Visit } from './private.ts'
  */
 
-import { freeBindings, freeLoopBindings } from '../../../control/module.f.mjs'
-import { toArray } from '../../../../../types/list/module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings } from '../../../control/module.f.mjs'
+import { concat, toArray } from '../../../../../types/list/module.f.mjs'
+import { mapOperator, operatorOperands } from '../../../../../js/ast/module.f.mjs'
 import { bind, call, done, run } from '../../../task/module.f.mjs'
 
 /**
@@ -83,24 +84,66 @@ const dependencyClosure = (roots, crossing) => {
 }
 
 /**
- * Nested ordinary loops may retain their own transfers. Crossing any helper
- * exit requires the later completion-bearing memo protocol.
- * @type {(loop: Loop) => void}
+ * Collect transfers owned by this loop's statement regions. Nested loops have
+ * their own inventory rows; operands and ordinary functions retain their owner.
+ * @type {(loop: Loop) => readonly _Transfer[]}
  */
-const normalTransfers = loop => {
-    /** @type {Link<_TransferVisit> | null} */
-    let pending = { first: { block: loop.body, loop }, tail: null }
+const loopTransfers = loop => {
+    /** @type {Link<Block> | null} */
+    let pending = { first: loop.body, tail: null }
+    /** @type {List<_Transfer>} */
+    let transfers = null
     while (pending !== null) {
-        const { first: visit, tail } = /** @type {Link<_TransferVisit>} */ (pending)
-        const exit = visit.block.exit
-        if (exit[0] === 'return' || (exit[0] === 'break' || exit[0] === 'continue') && exit[1] !== visit.loop.target) {
-            throw 'memo helper escaping transfers require completion demand-state lowering'
-        }
-        const children = visit.block.statements.flatMap(statement => statement[0] === 'block'
-            ? [{ block: statement[2], loop: visit.loop }]
-            : statement[0] === 'if' ? [{ block: statement[3], loop: visit.loop }, { block: statement[4], loop: visit.loop }]
-            : statement[0] === 'loop' ? [{ block: statement[1].body, loop: statement[1] }] : [])
+        const { first: block, tail } = /** @type {Link<Block>} */ (pending)
+        const exit = block.exit
+        if (exit[0] === 'return' || exit[0] === 'break' || exit[0] === 'continue') { transfers = { first: exit, tail: transfers } }
+        const children = block.statements.flatMap(statement => statement[0] === 'block' ? [statement[2]]
+            : statement[0] === 'if' ? [statement[3], statement[4]] : [])
         pending = children.reduceRight((tail, first) => ({ first, tail }), tail)
+    }
+    return toArray(transfers).toReversed()
+}
+
+/** Nearest lexical ownership distinguishes shared syntax from sibling targets. @type {(info: _LoopInfo, target: LoopTarget) => Loop | null} */
+const transferLoop = (info, target) => {
+    if (info.loop.target === target) { return info.loop }
+    let ancestors = info.ancestors
+    while (ancestors !== null) {
+        if (ancestors.first.target === target) { return ancestors.first }
+        ancestors = ancestors.tail
+    }
+    return null
+}
+
+/**
+ * A control-only helper escaping a selected ancestor must carry the same
+ * vector. Selecting its intermediates can expose further such targets, so
+ * close that selection before restoring the inventory's lexical order.
+ * @type {(inventory: readonly _LoopInfo[], crossing: readonly _LoopInfo[]) => ReadonlySet<Loop>}
+ */
+const selectedLoops = (inventory, crossing) => {
+    /** @type {ReadonlySet<Loop>} */
+    let selected = new Set(crossing.flatMap(info => [...toArray(info.ancestors), info.loop]))
+    while (true) {
+        const added = inventory.filter(info => !selected.has(info.loop) && info.transfers.some(exit => {
+            if (exit[0] === 'return') { return false }
+            const target = transferLoop(info, exit[1])
+            return target !== null && selected.has(target)
+        }))
+        if (added.length === 0) { return new Set(inventory.filter(info => selected.has(info.loop)).map(info => info.loop)) }
+        selected = new Set([...selected, ...added.flatMap(info => [...toArray(info.ancestors), info.loop])])
+    }
+}
+
+/** Validate only regions reached through memo helpers; raw outer exits stay raw. @type {(inventory: readonly _LoopInfo[], selected: ReadonlySet<Loop>, functionTarget: FunctionTarget | null) => void} */
+const validateTransfers = (inventory, selected, functionTarget) => {
+    for (const info of inventory) {
+        if (!selected.has(info.loop) && !toArray(info.ancestors).some(loop => selected.has(loop))) { continue }
+        for (const exit of info.transfers) {
+            if (exit[0] === 'return' ? exit[1] !== functionTarget : transferLoop(info, exit[1]) === null) {
+                throw 'memo helper transfer must name its lexical owner'
+            }
+        }
     }
 }
 
@@ -111,9 +154,9 @@ const normalTransfers = loop => {
  * aliases and recipes. Declaration rows keep lexical shadows distinct from
  * earlier reads; selected external entries cannot become eager captures.
  * Unsupported lifetimes are refused before any recipe moves.
- * @type {(block: Block, externalLazyIds?: readonly BindingId[]) => MemoPlan | null}
+ * @type {(block: Block, externalLazyIds?: readonly BindingId[], functionTarget?: FunctionTarget | null) => MemoPlan | null}
  */
-export const memoCells = (block, externalLazyIds = []) => {
+export const memoCells = (block, externalLazyIds = [], functionTarget = null) => {
     const prepared = run(occurrenceBlock(block)).block
     /** @type {readonly _Root[]} */
     const external = externalLazyIds.map(binding => ({ binding, source: null, dependencies: [] }))
@@ -156,7 +199,7 @@ export const memoCells = (block, externalLazyIds = []) => {
                 const root = scope.get(binding)
                 return root === undefined || root === null ? [] : [root]
             })
-            if (free.length !== 0) { inventory = [...inventory, { loop, roots: free, ancestors }] }
+            inventory = [...inventory, { loop, roots: free, ancestors, transfers: loopTransfers(loop) }]
             pending = {
                 first: { block: loop.body, index: 0, scope: established(scope, loop.parameters), ancestors: { first: loop, tail: ancestors } },
                 tail: { first: { ...next, scope: established(scope, loop.results) }, tail },
@@ -168,17 +211,15 @@ export const memoCells = (block, externalLazyIds = []) => {
         const rest = { first: { ...next, scope: established(scope, statement[1]) }, tail }
         pending = children.reduceRight((tail, block) => ({ first: { block, index: 0, scope, ancestors }, tail }), /** @type {Link<_Visit> | null} */ (rest))
     }
-    if (inventory.length === 0) { return null }
-    const cells = dependencyClosure(roots, roots.filter(root => inventory.some(info => info.roots.includes(root))))
+    const crossing = inventory.filter(info => info.roots.length !== 0)
+    if (crossing.length === 0) { return null }
+    const cells = dependencyClosure(roots, roots.filter(root => crossing.some(info => info.roots.includes(root))))
     const recipes = cells.map(({ binding, source }) => {
         if (source === null) { throw 'external lazy memo prerequisites require an owned initializer recipe' }
-        if (source.insideLoop) { throw 'iteration-local memo cells require nested demand-state lowering' }
-        return { binding, initializer: source.definition[2], definition: source.definition }
+        return { binding, initializer: source.definition[2], definition: source.definition, iterationLocal: source.insideLoop }
     })
-    for (const info of inventory) {
-        if (info.ancestors !== null) { throw 'nested memo helper boundaries require shared demand-state lowering' }
-        normalTransfers(info.loop)
-    }
+    const loops = selectedLoops(inventory, crossing)
+    validateTransfers(inventory, loops, functionTarget)
     return {
         block: prepared,
         cells: recipes,
@@ -186,6 +227,157 @@ export const memoCells = (block, externalLazyIds = []) => {
             const index = cells.indexOf(root)
             return index === -1 ? [] : [/** @type {const} */ ([definition, index])]
         })),
-        loops: new Set(inventory.map(info => info.loop)),
+        loops,
+    }
+}
+
+const emptyOwned = /** @type {_Owned} */ ({ roots: null, definitions: null, pruned: false })
+
+/** Retain source order across eager subregions. @type {(first: _Owned, second: _Owned) => _Owned} */
+const mergeOwned = (first, second) => ({
+    roots: concat(first.roots)(second.roots),
+    definitions: concat(first.definitions)(second.definitions),
+    pruned: first.pruned || second.pruned,
+})
+
+/** @type {(exit: Exit, values: readonly Value[]) => Exit} */
+const mappedExit = (exit, values) => values.every((value, index) => value === exitValues(exit)[index]) ? exit
+    : exit[0] === 'yield' ? ['yield', values]
+        : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values]
+            : exit[0] === 'throw' ? ['throw', values[0]] : ['return', exit[1], values[0]]
+
+/** @type {(values: readonly Value[], scope: _Scope) => Task<_OwnedValues>} */
+const ownedValues = (values, scope) => {
+    /** @type {(index: number, prepared: List<Value>, owned: _Owned) => Task<_OwnedValues>} */
+    const each = (index, prepared, owned) => call(() => index === values.length
+        ? done({ values: toArray(prepared).toReversed(), owned })
+        : bind(ownedValue(values[index], scope), result => each(index + 1, { first: result.value, tail: prepared }, mergeOwned(owned, result.owned))))
+    return each(0, null, emptyOwned)
+}
+
+/**
+ * Prepare the current initializer's eager regions. A lazy definition owns a
+ * later recipe, and loop/function bodies own separate execution boundaries.
+ * @type {(source: Value, scope: _Scope) => Task<_OwnedValue>}
+ */
+const ownedValue = (source, scope) => call(() => {
+    if (source === null || typeof source !== 'object' || source[0] === 'ref') { return done(/** @type {_OwnedValue} */ ({ value: source, owned: emptyOwned })) }
+    if (source[0] === 'block') {
+        return bind(ownedBlock(source[1], scope), result => done({ value: ['block', result.block], owned: result.owned }))
+    }
+    if (source[0] === 'if') {
+        return bind(ownedValue(source[1], scope), test =>
+            bind(ownedBlock(source[2], scope), then =>
+                bind(ownedBlock(source[3], scope), otherwise => done({
+                    value: ['if', test.value, then.block, otherwise.block],
+                    owned: mergeOwned(test.owned, mergeOwned(then.owned, otherwise.owned)),
+                }))))
+    }
+    if (source[0] === 'function') {
+        return bind(ownedValues(source[1].captures.map(capture => capture.value), scope), captures => done({
+            value: ['function', { ...source[1], captures: source[1].captures.map((capture, index) => ({ binding: capture.binding, value: captures.values[index] })) }],
+            owned: captures.owned,
+        }))
+    }
+    return bind(ownedValues(operatorOperands(source), scope), operands => done({
+        value: mapOperator((_, index) => operands.values[index])(source), owned: operands.owned,
+    }))
+})
+
+/** @type {(source: Block, initialScope: _Scope) => Task<_OwnedBlock>} */
+const ownedBlock = (source, initialScope) => {
+    /** @type {(index: number, scope: _Scope, statements: List<Statement>, owned: _Owned) => Task<_OwnedBlock>} */
+    const each = (index, scope, statements, owned) => call(() => {
+        if (index === source.statements.length) {
+            return bind(ownedValues(exitValues(source.exit), scope), values => done({
+                block: { statements: toArray(statements).toReversed(), exit: mappedExit(source.exit, values.values) },
+                normal: source.exit[0] === 'yield', owned: mergeOwned(owned, values.owned),
+            }))
+        }
+        const statement = source.statements[index]
+        /** @type {(statement: Statement, nextScope: _Scope, added: _Owned, normal?: boolean) => Task<_OwnedBlock>} */
+        const append = (statement, nextScope, added, normal = true) => {
+            const next = /** @type {List<Statement>} */ ({ first: statement, tail: statements })
+            const collected = mergeOwned(owned, added)
+            if (normal) { return each(index + 1, nextScope, next, collected) }
+            const pruned = index + 1 < source.statements.length || source.exit[0] !== 'yield' || source.exit[1].length !== 0
+            return done({ block: { statements: toArray(next).toReversed(), exit: ['yield', []] }, normal: false,
+                owned: { ...collected, pruned: collected.pruned || pruned } })
+        }
+        if (statement[0] === 'define') {
+            const [, binding, initializer, mode] = statement
+            if (mode === 'required') {
+                return bind(ownedValue(initializer, scope), value => append(['define', binding, value.value, mode], established(scope, [binding]), value.owned))
+            }
+            const definition = /** @type {Definition} */ (['define', binding, initializer, mode])
+            /** @type {_Root | null} */
+            let root = null
+            /** @type {List<_Root>} */
+            let roots = null
+            if (initializer !== null && typeof initializer === 'object') {
+                if (initializer[0] === 'ref') { root = scope.get(initializer[1]) ?? null }
+                else {
+                    root = { binding, source: { definition, insideLoop: false }, dependencies: dependencies(initializer, scope) }
+                    roots = [root]
+                }
+            }
+            const added = /** @type {_Owned} */ ({
+                roots, definitions: root === null ? null : [[definition, root]], pruned: false,
+            })
+            return append(definition, new Map([...scope, [binding, root]]), added)
+        }
+        if (statement[0] === 'loop') {
+            return bind(ownedValues(statement[1].initial, scope), initial => append(
+                ['loop', { ...statement[1], initial: initial.values }], established(scope, statement[1].results), initial.owned))
+        }
+        if (statement[0] === 'block') {
+            return bind(ownedBlock(statement[2], scope), result => append(
+                ['block', statement[1], result.block], established(scope, statement[1]), result.owned, result.normal))
+        }
+        return bind(ownedValue(statement[2], scope), test =>
+            bind(ownedBlock(statement[3], scope), then =>
+                bind(ownedBlock(statement[4], scope), otherwise => append(
+                    ['if', statement[1], test.value, then.block, otherwise.block], established(scope, statement[1]),
+                    mergeOwned(test.owned, mergeOwned(then.owned, otherwise.owned)), then.normal || otherwise.normal))))
+    })
+    return each(0, initialScope, null, emptyOwned)
+}
+
+/**
+ * Append only this getter's connected local recipes. The caller's cells keep
+ * their slots; a getter invocation supplies fresh slots for its owned locals.
+ * @type {(value: Value, outer: MemoLayout, aliases: ReadonlyMap<BindingId, number>) => RecipePlan}
+ */
+export const recipeCells = (value, outer, aliases) => {
+    const indices = [...new Set(aliases.values())]
+    const borrowed = indices.map(index => {
+        const cell = outer.cells[index]
+        return /** @type {_Root} */ ({ binding: cell.binding, source: { definition: cell.definition, insideLoop: cell.iterationLocal }, dependencies: [] })
+    })
+    const byIndex = new Map(indices.map((index, position) => [index, borrowed[position]]))
+    const scope = new Map([...aliases].map(([binding, index]) => /** @type {const} */ ([binding, /** @type {_Root} */ (byIndex.get(index))])))
+    const prepared = run(ownedValue(value, scope))
+    const localRoots = toArray(prepared.owned.roots)
+    const selected = dependencyClosure([...borrowed, ...localRoots], borrowed)
+    const locals = localRoots.filter(root => selected.includes(root))
+    const slots = new Map([
+        ...borrowed.map((root, position) => /** @type {const} */ ([root, indices[position]])),
+        ...locals.map((root, index) => /** @type {const} */ ([root, outer.cells.length + index])),
+    ])
+    const cells = locals.map(root => {
+        const definition = /** @type {NonNullable<_Root['source']>} */ (root.source).definition
+        return { binding: root.binding, initializer: definition[2], definition, iterationLocal: false }
+    })
+    return {
+        value: locals.length === 0 && !prepared.owned.pruned ? value : prepared.value,
+        layout: {
+            cells: locals.length === 0 ? outer.cells : [...outer.cells, ...cells],
+            definitions: new Map(locals.length === 0 ? [] : toArray(prepared.owned.definitions).flatMap(([definition, root]) => {
+                const index = slots.get(root)
+                return index === undefined ? [] : [/** @type {const} */ ([definition, index])]
+            })),
+            loops: new Set(),
+        },
+        localCount: locals.length,
     }
 }

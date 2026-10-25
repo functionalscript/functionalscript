@@ -1,21 +1,22 @@
 /**
- * Carry caller-owned lazy values through normal-exit loop helpers.
+ * Carry shared lazy values through loop helpers and enclosing-loop transfers.
  * Private memo cells record readiness separately from their source payload.
  * Generated loops transport packets without changing a source loop's declared
  * input/result signature. Ordinary function bodies retain their own owner.
  *
  * @module
  *
- * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Exit, Function as FastFunction, FunctionTarget, Loop, Operator, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { List } from '../../../../types/list/types.ts'
- * @import { _Block, _Context, _Exit, _Value, _Values } from './private.ts'
+ * @import { MemoLayout } from './cells/types.ts'
+ * @import { _Block, _Context, _Exit, _Recipe, _Value, _Values } from './private.ts'
  * @import { Task } from '../../task/types.ts'
  */
 
 import { concat, toArray } from '../../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
-import { freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
-import { memoCells } from './cells/module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
+import { memoCells, recipeCells } from './cells/module.f.mjs'
 import { bind, call, done, run } from '../../task/module.f.mjs'
 
 /** @type {(index?: number) => BindingId} */
@@ -24,6 +25,9 @@ const binding = (index = 0) => ({ index })
 const ref = id => ['ref', id]
 /** A source binder shadows only this region's active aliases. @type {(aliases: ReadonlyMap<BindingId, number>, bindings: readonly BindingId[]) => ReadonlyMap<BindingId, number>} */
 const withoutAliases = (aliases, bindings) => new Map([...aliases].filter(([id]) => !bindings.includes(id)))
+
+/** Replace one private cell, retaining every other lifetime's latest state. @type {(plan: MemoLayout, memo: BindingId, index: number, cell: Value) => Value} */
+const withCell = (plan, memo, index, cell) => ['array', plan.cells.map((_, slot) => slot === index ? cell : ['.', ref(memo), slot])]
 /** @type {(value: Value, context: _Context) => _Value} */
 const plain = (value, context) => ({ statements: null, value, memo: context.memo, usesMemo: false })
 
@@ -62,20 +66,31 @@ const valuesTask = (input, context) => {
 }
 
 /**
- * Snapshot established prerequisites at the original lazy declaration. The
- * explicit memo input and pair result leave the source recipe deferred.
+ * Snapshot established prerequisites at the original lazy declaration. Fresh
+ * getter-local cells extend only this invocation; the pair result trims them
+ * while retaining updates to the parent layout.
  * @type {(index: number, context: _Context) => Task<FastFunction>}
  */
 const recipeFunction = (index, context) => call(() => {
     const source = context.plan.cells[index]
+    const owned = recipeCells(source.initializer, context.plan, context.aliases)
     const memo = binding(source.binding.index)
+    const localMemo = owned.localCount === 0 ? memo : binding()
     const initialized = binding(source.binding.index)
     const target = /** @type {const} */ ({ kind: 'function', index: source.binding.index })
-    return bind(valueTask(source.initializer, { ...context, memo, loop: null, operand: false }), recipe => {
-        const updated = /** @type {Value} */ (['array', context.plan.cells.map((_, slot) => slot === index
-            ? ['array', [true, ref(initialized)]] : ['.', ref(recipe.memo), slot])])
+    const width = context.plan.cells.length
+    const locals = owned.layout.cells.slice(width)
+    /** @type {readonly _Recipe[]} */
+    const recipes = [...context.recipes, ...locals.map(cell => ({ binding: binding(cell.binding.index), width: owned.layout.cells.length }))]
+    /** @type {readonly Statement[]} */
+    const prefix = owned.localCount === 0 ? [] : [['define', localMemo, ['array', [
+        ...context.plan.cells.map((_, slot) => /** @type {Value} */ (['.', ref(memo), slot])),
+        ...locals.map(() => /** @type {Value} */ (['array', [false, undefined]])),
+    ]], 'required']]
+    return bind(valueTask(owned.value, { ...context, plan: owned.layout, recipes, memo: localMemo, owners: null, operand: false }), recipe => {
+        const updated = withCell(context.plan, recipe.memo, index, ['array', [true, ref(initialized)]])
         const body = /** @type {Block} */ ({
-            statements: toArray(concat(recipe.statements)([['define', initialized, recipe.value, 'required']])),
+            statements: [...prefix, ...toArray(concat(recipe.statements)([['define', initialized, recipe.value, 'required']]))],
             exit: ['return', target, ['array', [ref(initialized), updated]]],
         })
         return done({ target, parameters: [memo], rest: null, self: null,
@@ -83,17 +98,28 @@ const recipeFunction = (index, context) => call(() => {
     })
 })
 
-/** One first demand invokes the declaration's recipe; hits reuse its payload. @type {(index: number, context: _Context) => _Value} */
+/**
+ * First demand invokes the declaration's recipe; hits reuse its payload.
+ * A narrower getter receives only its prefix and cannot replace caller-local
+ * state. Its returned prefix rejoins the caller's original suffix.
+ * @type {(index: number, context: _Context) => _Value}
+ */
 const demand = (index, context) => {
     const value = binding()
     const memo = binding()
     const initialized = binding()
     const cell = /** @type {Value} */ (['.', ref(context.memo), index])
+    const recipe = context.recipes[index]
+    const sameWidth = recipe.width === context.plan.cells.length
+    const input = /** @type {Value} */ (sameWidth ? ref(context.memo)
+        : ['array', context.plan.cells.slice(0, recipe.width).map((_, slot) => ['.', ref(context.memo), slot])])
+    const updated = /** @type {Value} */ (sameWidth ? ['.', ref(initialized), 1]
+        : ['array', context.plan.cells.map((_, slot) => ['.', slot < recipe.width ? ['.', ref(initialized), 1] : ref(context.memo), slot])])
     return {
         statements: [['if', [value, memo], ['.', cell, 0],
             { statements: [], exit: ['yield', [['.', cell, 1], ref(context.memo)]] },
-            { statements: [['define', initialized, ['()', ref(context.recipes[index]), [ref(context.memo)]], 'required']],
-                exit: ['yield', [['.', ref(initialized), 0], ['.', ref(initialized), 1]]] },
+            { statements: [['define', initialized, ['()', ref(recipe.binding), [input]], 'required']],
+                exit: ['yield', [['.', ref(initialized), 0], updated]] },
         ]],
         value: ref(value), memo, usesMemo: true,
     }
@@ -160,22 +186,19 @@ const valueTask = (source, context) => call(() => {
     })
 })
 
-/** @type {(exit: Exit) => readonly Value[]} */
-const exitValues = exit => exit[0] === 'yield' ? exit[1] : exit[0] === 'break' || exit[0] === 'continue' ? exit[2] : [exit[0] === 'throw' ? exit[1] : exit[2]]
-
 /** @type {(exit: Exit, context: _Context) => Task<_Exit>} */
 const exitTask = (exit, context) => call(() => {
     if (context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
     const inputs = exitValues(exit)
     return bind(valuesTask(inputs, context), values => {
         /** @type {Exit} */
-        let mapped = exit
-        if (context.loop !== null && (exit[0] === 'break' || exit[0] === 'continue') && exit[1] === context.loop.source) {
-            mapped = [exit[0], context.loop.target, [['array', values.values], ref(values.memo)]]
-        } else if (!values.values.every((value, i) => value === inputs[i])) {
-            mapped = exit[0] === 'yield' ? ['yield', values.values]
+        let mapped = values.values.every((value, i) => value === inputs[i]) ? exit
+            : exit[0] === 'yield' ? ['yield', values.values]
                 : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values.values]
                     : exit[0] === 'throw' ? ['throw', values.values[0]] : ['return', exit[1], values.values[0]]
+        if (exit[0] === 'break' || exit[0] === 'continue') {
+            const owner = toArray(context.owners).find(owner => owner.source === exit[1])
+            if (owner !== undefined) { mapped = [exit[0], owner.target, [['array', values.values], ref(values.memo)]] }
         }
         return done({ statements: values.statements, exit: mapped, memo: values.memo, normal: exit[0] === 'yield', usesMemo: values.usesMemo })
     })
@@ -184,7 +207,7 @@ const exitTask = (exit, context) => call(() => {
 /** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context) => Task<{ readonly statements: List<Statement>; readonly memo: BindingId; readonly usesMemo: boolean }>} */
 const loopTask = (loop, context) => call(() => {
     if (!context.plan.loops.has(loop)) {
-        if (freeLoopBindings(loop).some(id => context.aliases.has(id))) { throw 'memo demands in operand-owned or nested loop helpers are not supported yet' }
+        if (freeLoopBindings(loop).some(id => context.aliases.has(id))) { throw 'memo demands in operand-owned loop helpers are not supported yet' }
         return bind(valuesTask(loop.initial, context), initial => done({
             statements: concat(initial.statements)([['loop', initial.values.every((value, i) => value === loop.initial[i]) ? loop : { ...loop, initial: initial.values }]]),
             memo: initial.memo, usesMemo: initial.usesMemo,
@@ -196,7 +219,7 @@ const loopTask = (loop, context) => call(() => {
     const outputMemo = binding(loop.target.index)
     const target = /** @type {const} */ ({ kind: 'loop', index: loop.target.index })
     return bind(valuesTask(loop.initial, context), initial =>
-        bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), memo, loop: { source: loop.target, target }, operand: false }), body => {
+        bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), memo, owners: { first: { source: loop.target, target }, tail: context.owners }, operand: false }), body => {
             const internal = /** @type {Loop} */ ({
                 target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: [result, outputMemo],
                 body: { statements: [
@@ -236,8 +259,12 @@ const blockTask = (block, context) => {
                 if (selected !== undefined) {
                     const active = new Map([...shadowed, [statement[1], selected]])
                     if (context.plan.cells[selected].definition === statement) {
+                        const local = context.plan.cells[selected].iterationLocal
+                        const nextMemo = local ? binding() : memo
+                        /** @type {readonly Statement[]} */
+                        const reset = local ? [['define', nextMemo, withCell(context.plan, memo, selected, ['array', [false, undefined]]), 'required']] : []
                         return bind(recipeFunction(selected, current), fn => resume(
-                            [['define', context.recipes[selected], ['function', fn], 'required']], memo, true, false, true, active))
+                            [...reset, ['define', context.recipes[selected].binding, ['function', fn], 'required']], nextMemo, true, local, true, active))
                     }
                     return resume(null, memo, true, false, true, active)
                 }
@@ -288,15 +315,16 @@ const blockTask = (block, context) => {
  * Normalize only local lazy values that actually cross a statement-loop helper.
  * The original block identity is returned when no such cells exist. Generated
  * required cells make repeated normalization a no-op. External lazy bindings
- * have no available recipe and remain explicit admission boundaries.
- * @type {(root: Block, externalLazyIds?: readonly BindingId[]) => Block}
+ * have no available recipe and remain explicit admission boundaries. Only a
+ * source function supplies the owner for returns across statement helpers.
+ * @type {(root: Block, externalLazyIds?: readonly BindingId[], functionTarget?: FunctionTarget | null) => Block}
  */
-export const normalizeMemo = (root, externalLazyIds = []) => {
-    const plan = memoCells(root, externalLazyIds)
+export const normalizeMemo = (root, externalLazyIds = [], functionTarget = null) => {
+    const plan = memoCells(root, externalLazyIds, functionTarget)
     if (plan === null) { return root }
     const memo = binding()
-    const recipes = plan.cells.map(cell => binding(cell.binding.index))
-    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), recipes, memo, loop: null, operand: false })
+    const recipes = plan.cells.map(cell => ({ binding: binding(cell.binding.index), width: plan.cells.length }))
+    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), recipes, memo, owners: null, operand: false })
     const result = run(blockTask(plan.block, context))
     const initializer = /** @type {Value} */ (['array', plan.cells.map(() => ['array', [false, undefined]])])
     return { statements: [['define', memo, initializer, 'required'], ...result.block.statements], exit: result.block.exit }

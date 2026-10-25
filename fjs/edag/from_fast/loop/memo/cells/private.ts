@@ -1,6 +1,7 @@
 /** Lexical snapshots and deferred dependency edges for shared memo cells. @module */
 
-import type { BindingId, Block, Definition, Loop } from '../../../../../js/ast/types.ts'
+import type { BindingId, Block, Definition, Exit, Loop, Value } from '../../../../../js/ast/types.ts'
+import type { List } from '../../../../../types/list/types.ts'
 import type { Link } from '../../../private.ts'
 
 export type _Root = {
@@ -28,9 +29,18 @@ export type _LoopInfo = {
     readonly loop: Loop
     readonly roots: readonly _Root[]
     readonly ancestors: Link<Loop> | null
+    readonly transfers: readonly _Transfer[]
 }
 
-export type _TransferVisit = {
-    readonly block: Block
-    readonly loop: Loop
+export type _Transfer = Extract<Exit, readonly ['return' | 'break' | 'continue', ...unknown[]]>
+
+/** Only the current recipe's owned definitions; lazy initializers stay opaque. */
+export type _Owned = {
+    readonly roots: List<_Root>
+    readonly definitions: List<readonly [Definition, _Root]>
+    readonly pruned: boolean
 }
+
+export type _OwnedValue = { readonly value: Value; readonly owned: _Owned }
+export type _OwnedValues = { readonly values: readonly Value[]; readonly owned: _Owned }
+export type _OwnedBlock = { readonly block: Block; readonly normal: boolean; readonly owned: _Owned }

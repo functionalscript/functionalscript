@@ -59,7 +59,7 @@ previous lazy slot reads; the state/result order and existing scalar exact-graph
 cases remain unchanged. General helper round trips preserve their documented
 sharing normalization and repeated conversions stabilize.
 
-[`loop/memo`](./loop/memo/module.f.mjs) preserves caller-owned lazy identity
+[`loop/memo`](./loop/memo/module.f.mjs) preserves lazy identity
 across normal-exit helpers. Its lexical inventory selects deferred recipes used
 free by a statement loop; direct lazy reference aliases share the original
 cell. Cells follow definition order, independently of debug indices or demand
@@ -120,9 +120,45 @@ This avoids repeated expansion of conditional dependency diamonds. Full-vector
 replacement still copies the cell slots; the growth proofs account for that
 transport cost.
 
-Recipe-local computed lazy dependents, iteration-local or nested memo
-boundaries, escaping helper completions and stateful member-call/optional/spread
-operands retain explicit refusals. Ordinary nested functions keep their own
+Nested statement-loop helpers carry the same caller-owned vector at every
+selected boundary. Inner results return their updates before outer transitions
+or following caller demands. Later inner entries reuse those owning cells;
+skipped inner or outer loops leave recipes deferred. Inner entry expressions
+use the current outer vector even when the inner body needs no memo state.
+
+Selected lazy declarations inside iterations start a fresh unready cell whenever
+their declaration is reached. The reset replaces only that cell in the latest
+vector, retaining caller and enclosing-iteration state. Its recipe function
+captures the current established iteration values at the declaration. Inner
+helpers and later reads in that iteration share the payload; direct lazy aliases
+reuse its cell without resetting it. An enclosing helper carries this vector
+even when its only memo dependency is declared inside its own body.
+
+Computed lazy bindings inside an initializer use a private extension of its
+visible memo layout. Each actual initializer invocation starts with fresh local
+cells; declarations create their getters only when reached. Nested initializers
+extend that layout again. Calls to narrower outer getters merge the returned
+prefix with the caller's unchanged local suffix, so ready siblings survive an
+outer dependency's first demand. Returning trims the local extension while
+retaining parent updates and the identities of returned or captured payloads.
+
+Memo-bearing statement helpers may return to their exact enclosing source
+function. Return payloads demand the current cells before completion lowering
+propagates the source value through nested helpers. Normal exits still carry
+the updated vector for following work; a function return needs no resumable
+vector. Standalone and operand regions do not inherit function ownership.
+
+Statement-level breaks and continues to enclosing loops carry their latest
+memo vector with the target's user results or next state. A lexical owner chain
+maps source targets to their private transport loops by identity. Control-only
+helpers that escape to a selected ancestor join the same protocol, including
+intermediate helpers with no lazy reads. Completion dispatch relays the packet
+until the target processes its own result or transition. A continue retains
+caller and enclosing-iteration cells; reaching local declarations in the next
+iteration resets only those lifetimes. No helper invokes an enclosing helper.
+
+Stateful member-call/optional/spread operands retain explicit refusals.
+Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
 External lazy environments without an AST recipe retain the existing refusal.
 Value-owned loops normalize their own local recipes; a recipe outside that

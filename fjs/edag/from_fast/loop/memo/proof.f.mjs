@@ -1,6 +1,6 @@
 /**
  * Memo normalization keeps a caller's first-demand value across loop helpers.
- * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, LoopTarget, Statement, Value } from '../../../../js/ast/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
@@ -45,6 +45,40 @@ const evaluate = block => assertOk(toData(assertOk(memo(assertOk(identityAnalysi
 /** @type {(block: Block) => readonly (readonly [BindingId, FastFunction])[]} */
 const recipesIn = block => block.statements.flatMap(statement => statement[0] === 'define'
     && statement[2] instanceof Array && statement[2][0] === 'function' ? [/** @type {const} */ ([statement[1], statement[2][1]])] : [])
+
+/** @type {(fn: FastFunction) => readonly Value[]} */
+const readyCells = fn => {
+    const exit = fn.body.exit
+    assert(exit[0] === 'return')
+    const packet = exit[2]
+    assert(packet instanceof Array && packet[0] === 'array')
+    const vector = packet[1][1]
+    assert(vector instanceof Array && vector[0] === 'array')
+    return vector[1].map(cell => {
+        assert(!(cell instanceof Array) || cell[0] !== '...')
+        // TypeScript does not exclude the readonly spread tuple after this guard.
+        return /** @type {Value} */ (cell)
+    })
+}
+
+/** @type {(exit: Exit, kind: 'break' | 'continue', target: LoopTarget, values: readonly BindingId[], memo: BindingId) => void} */
+const loopPacket = (exit, kind, target, values, memo) => {
+    assert(exit[0] === 'break' || exit[0] === 'continue')
+    assertEq(exit[0], kind)
+    assertEq(exit[1], target)
+    assertEq(exit[2].length, 2)
+    const packet = exit[2][0]
+    assert(packet instanceof Array && packet[0] === 'array')
+    assertEq(packet[1].length, values.length)
+    for (const [index, binding] of values.entries()) {
+        const value = packet[1][index]
+        assert(value instanceof Array && value[0] === 'ref')
+        assertEq(value[1], binding)
+    }
+    const current = exit[2][1]
+    assert(current instanceof Array && current[0] === 'ref')
+    assertEq(current[1], memo)
+}
 
 export const proof = /** @type {const} */ ({
     unchanged: () => {
@@ -214,6 +248,234 @@ export const proof = /** @type {const} */ ({
         assertEq(result[0], result[1])
         assertEq(result[0][0], result[2])
         assertStructurallySame(result[0][1], [7])
+    },
+    recipeLocalLayout: () => {
+        const owner = id(0), local = id(0), localAlias = id(0)
+        const initializer = /** @type {Value} */ (['block', yielded(['array', [ref(localAlias), ref(local)]], [
+            ['define', local, ['array', [ref(lazy)]], 'lazy'], ['define', localAlias, ref(local), 'lazy'],
+        ])])
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', [4]], 'lazy'], ['define', owner, initializer, 'lazy'], ['loop', counting(ref(owner))],
+        ])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const initial = normalized.statements[0]
+        assert(initial[0] === 'define')
+        assertStructurallySame(initial[2], ['array', [['array', [false, undefined]], ['array', [false, undefined]]]])
+        const roots = recipesIn(normalized)
+        assertEq(roots.length, 2)
+        const recipe = roots[1][1]
+        const extension = recipe.body.statements[0]
+        assert(extension[0] === 'define')
+        assertEq(extension[3], 'required')
+        const extended = extension[2]
+        assert(extended instanceof Array && extended[0] === 'array')
+        assertEq(extended[1].length, 3)
+        assertStructurallySame(extended[1][2], ['array', [false, undefined]])
+        for (const slot of /** @type {const} */ ([0, 1])) {
+            const retained = extended[1][slot]
+            assert(retained instanceof Array && retained[0] === '.')
+            assertEq(retained[2], slot)
+            const memo = retained[1]
+            assert(memo instanceof Array && memo[0] === 'ref')
+            assertEq(memo[1], recipe.parameters[0])
+        }
+        const region = recipe.body.statements[1]
+        assert(region[0] === 'block')
+        const locals = recipesIn(region[2])
+        assertEq(locals.length, 1)
+        const definition = region[2].statements[0]
+        assert(definition[0] === 'define')
+        assertEq(definition[1], locals[0][0])
+        assertEq(readyCells(locals[0][1]).length, 3)
+        const demand = region[2].statements[1]
+        assert(demand[0] === 'if')
+        const ready = demand[2]
+        assert(ready instanceof Array && ready[0] === '.')
+        const cell = ready[1]
+        assert(cell instanceof Array && cell[0] === '.')
+        assertEq(cell[2], 2)
+        const memo = cell[1]
+        assert(memo instanceof Array && memo[0] === 'ref')
+        assertEq(memo[1], extension[1])
+        const invocation = demand[4].statements[0]
+        assert(invocation[0] === 'define')
+        const call = invocation[2]
+        assert(call instanceof Array && call[0] === '()')
+        const callee = call[1]
+        assert(callee instanceof Array && callee[0] === 'ref')
+        assertEq(callee[1], locals[0][0])
+        const argument = call[2][0]
+        assert(argument instanceof Array && argument[0] === 'ref')
+        assertEq(argument[1], extension[1])
+        const returned = readyCells(recipe)
+        assertEq(returned.length, 2)
+        const retained = returned[0]
+        assert(retained instanceof Array && retained[0] === '.')
+        const latest = retained[1]
+        assert(latest instanceof Array && latest[0] === 'ref')
+        assertEq(latest[1], region[1][1])
+    },
+    recipeLocalOuterMissRetainsTail: () => {
+        const outer = id(0), owner = id(0), outerLocal = id(0), sibling = id(0), saved = id(0), observed = id(0)
+        const outerInitializer = /** @type {Value} */ (['block', yielded(ref(outerLocal), [
+            ['define', outerLocal, ['array', [ref(lazy)]], 'lazy'],
+        ])])
+        const initializer = /** @type {Value} */ (['block', yielded(['array', [ref(saved), ref(sibling), ref(outer)]], [
+            ['define', sibling, ['array', [ref(lazy)]], 'lazy'],
+            ['define', saved, ref(sibling), 'required'], ['define', observed, ref(outer), 'required'],
+        ])])
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', [1]], 'lazy'], ['define', outer, outerInitializer, 'lazy'],
+            ['define', owner, initializer, 'lazy'], ['loop', counting(ref(owner))],
+        ])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const roots = recipesIn(normalized)
+        assertEq(roots.length, 3)
+        assertEq(readyCells(roots[1][1]).length, 3)
+        assertEq(readyCells(roots[2][1]).length, 3)
+        const outerExtension = roots[1][1].body.statements[0]
+        const ownerExtension = roots[2][1].body.statements[0]
+        assert(outerExtension[0] === 'define' && ownerExtension[0] === 'define')
+        const outerVector = outerExtension[2]
+        const ownerVector = ownerExtension[2]
+        assert(outerVector instanceof Array && outerVector[0] === 'array')
+        assert(ownerVector instanceof Array && ownerVector[0] === 'array')
+        assertEq(outerVector[1].length, 4)
+        assertEq(ownerVector[1].length, 4)
+        assertStructurallySame(outerVector[1][3], ['array', [false, undefined]])
+        assertStructurallySame(ownerVector[1][3], ['array', [false, undefined]])
+        const region = roots[2][1].body.statements[1]
+        assert(region[0] === 'block')
+        const firstDemand = region[2].statements[1]
+        const outerDemand = region[2].statements[3]
+        assert(firstDemand[0] === 'if' && outerDemand[0] === 'if')
+        const invocation = outerDemand[4].statements[0]
+        assert(invocation[0] === 'define')
+        const call = invocation[2]
+        assert(call instanceof Array && call[0] === '()')
+        const callee = call[1]
+        assert(callee instanceof Array && callee[0] === 'ref')
+        assertEq(callee[1], roots[1][0])
+        const prefix = call[2][0]
+        assert(prefix instanceof Array && prefix[0] === 'array')
+        assertEq(prefix[1].length, 3)
+        for (const slot of /** @type {const} */ ([0, 1, 2])) {
+            const retained = prefix[1][slot]
+            assert(retained instanceof Array && retained[0] === '.')
+            assertEq(retained[2], slot)
+            const memo = retained[1]
+            assert(memo instanceof Array && memo[0] === 'ref')
+            assertEq(memo[1], firstDemand[1][1])
+        }
+        const miss = outerDemand[4].exit
+        assert(miss[0] === 'yield')
+        const merged = miss[1][1]
+        assert(merged instanceof Array && merged[0] === 'array')
+        assertEq(merged[1].length, 4)
+        for (const slot of /** @type {const} */ ([0, 1, 2])) {
+            const retained = merged[1][slot]
+            assert(retained instanceof Array && retained[0] === '.')
+            assertEq(retained[2], slot)
+            const returned = retained[1]
+            assert(returned instanceof Array && returned[0] === '.')
+            assertEq(returned[2], 1)
+            const packet = returned[1]
+            assert(packet instanceof Array && packet[0] === 'ref')
+            assertEq(packet[1], invocation[1])
+        }
+        const tail = merged[1][3]
+        assert(tail instanceof Array && tail[0] === '.')
+        assertEq(tail[2], 3)
+        const incoming = tail[1]
+        assert(incoming instanceof Array && incoming[0] === 'ref')
+        assertEq(incoming[1], firstDemand[1][1])
+        const reused = region[2].statements[6]
+        assert(reused[0] === 'if')
+        const ready = reused[2]
+        assert(ready instanceof Array && ready[0] === '.')
+        const cell = ready[1]
+        assert(cell instanceof Array && cell[0] === '.')
+        assertEq(cell[2], 3)
+        const memo = cell[1]
+        assert(memo instanceof Array && memo[0] === 'ref')
+        assertEq(memo[1], outerDemand[1][1])
+    },
+    nestedRecipeLocalWidths: () => {
+        const owner = id(0), local = id(0), nested = id(0)
+        const nestedInitializer = /** @type {Value} */ (['block', yielded(ref(nested), [
+            ['define', nested, ['array', [ref(lazy)]], 'lazy'],
+        ])])
+        const initializer = /** @type {Value} */ (['block', yielded(ref(local), [
+            ['define', local, nestedInitializer, 'lazy'],
+        ])])
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', [1]], 'lazy'], ['define', owner, initializer, 'lazy'], ['loop', counting(ref(owner))],
+        ])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const roots = recipesIn(normalized)
+        assertEq(roots.length, 2)
+        const ownerRecipe = roots[1][1]
+        const extension = ownerRecipe.body.statements[0]
+        assert(extension[0] === 'define')
+        const vector = extension[2]
+        assert(vector instanceof Array && vector[0] === 'array')
+        assertEq(vector[1].length, 3)
+        const region = ownerRecipe.body.statements[1]
+        assert(region[0] === 'block')
+        const locals = recipesIn(region[2])
+        assertEq(locals.length, 1)
+        const localRecipe = locals[0][1]
+        const localExtension = localRecipe.body.statements[0]
+        assert(localExtension[0] === 'define')
+        const localVector = localExtension[2]
+        assert(localVector instanceof Array && localVector[0] === 'array')
+        assertEq(localVector[1].length, 4)
+        assertStructurallySame(localVector[1][3], ['array', [false, undefined]])
+        const localRegion = localRecipe.body.statements[1]
+        assert(localRegion[0] === 'block')
+        const nestedRecipes = recipesIn(localRegion[2])
+        assertEq(nestedRecipes.length, 1)
+        assertEq(readyCells(ownerRecipe).length, 2)
+        assertEq(readyCells(localRecipe).length, 3)
+        assertEq(readyCells(nestedRecipes[0][1]).length, 4)
+        assertEq(nestedRecipes[0][1].body.statements[0][0], 'if')
+    },
+    deepOwnedRecipeLocal: () => {
+        const owner = id(0), local = id(0)
+        /** @type {Value} */
+        let initializer = ['block', yielded(ref(local), [['define', local, ['array', [ref(lazy)]], 'lazy']])]
+        for (let depth = 0; depth < 20_000; ++depth) { initializer = ['block', yielded(initializer)] }
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', []], 'lazy'], ['define', owner, initializer, 'lazy'], ['loop', counting(ref(owner))],
+        ])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const roots = recipesIn(normalized)
+        assertEq(roots.length, 2)
+        const recipe = roots[1][1]
+        const extension = recipe.body.statements[0]
+        assert(extension[0] === 'define')
+        const vector = extension[2]
+        assert(vector instanceof Array && vector[0] === 'array')
+        assertEq(vector[1].length, 3)
+        const outer = recipe.body.statements[1]
+        assert(outer[0] === 'block')
+        let current = outer[2]
+        for (let depth = 0; depth < 20_000; ++depth) {
+            const region = current.statements[0]
+            assert(region[0] === 'block')
+            assertEq(region[1].length, 2)
+            current = region[2]
+        }
+        const locals = recipesIn(current)
+        assertEq(locals.length, 1)
+        assertEq(readyCells(locals[0][1]).length, 3)
+        const demand = current.statements[1]
+        assert(demand[0] === 'if')
+        assertStructurallySame(demand[2], ['.', ['.', ref(extension[1]), 2], 0])
     },
     deepRecipeDependency: () => {
         const dependent = id(0)
@@ -543,6 +805,521 @@ export const proof = /** @type {const} */ ({
         assertEq(original.results.length, 1)
         assertEq(original.initial[0], 0)
     },
+    nestedPacketLayout: () => {
+        const innerState = id(0), innerOutput = id(0)
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [innerState], initial: [0], results: [innerOutput],
+            body: body(['continue', innerTarget, [ref(innerState)]], [
+                ['if', [], ['<', ref(innerState), 1], body(['continue', innerTarget, [['+', ref(innerState), 1]]]),
+                    body(['break', innerTarget, [ref(lazy)]])],
+            ]),
+        })
+        const original = counting(ref(innerOutput))
+        const outer = /** @type {Loop} */ ({ ...original,
+            body: { ...original.body, statements: [['loop', inner], ...original.body.statements] } })
+        const source = yielded(ref(output), [['define', lazy, ['array', [7]], 'lazy'], ['loop', outer]])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const vector = normalized.statements[0]
+        assert(vector[0] === 'define')
+        assertStructurallySame(vector[2], ['array', [['array', [false, undefined]]]])
+        assertEq(recipesIn(normalized).length, 1)
+        const statement = normalized.statements[2]
+        assert(statement[0] === 'loop')
+        const carriedOuter = statement[1]
+        assert(carriedOuter.target !== outer.target)
+        assertEq(carriedOuter.parameters.length, 2)
+        assertEq(carriedOuter.results.length, 2)
+        const outerMemo = carriedOuter.initial[1]
+        assert(outerMemo instanceof Array && outerMemo[0] === 'ref')
+        assertEq(outerMemo[1], vector[1])
+        const nested = carriedOuter.body.statements[1]
+        assert(nested[0] === 'loop')
+        const carriedInner = nested[1]
+        assert(carriedInner.target !== inner.target)
+        assert(carriedInner.target !== carriedOuter.target)
+        assertEq(carriedInner.parameters.length, 2)
+        assertEq(carriedInner.results.length, 2)
+        const innerMemo = carriedInner.initial[1]
+        assert(innerMemo instanceof Array && innerMemo[0] === 'ref')
+        assertEq(innerMemo[1], carriedOuter.parameters[1])
+        const innerConditional = carriedInner.body.statements[1]
+        assert(innerConditional[0] === 'if')
+        const demand = innerConditional[4].statements[0]
+        assert(demand[0] === 'if')
+        const ready = demand[2]
+        assert(ready instanceof Array && ready[0] === '.')
+        const cell = ready[1]
+        assert(cell instanceof Array && cell[0] === '.')
+        const readMemo = cell[1]
+        assert(readMemo instanceof Array && readMemo[0] === 'ref')
+        assertEq(readMemo[1], carriedInner.parameters[1])
+        const innerContinue = innerConditional[3].exit
+        assert(innerContinue[0] === 'continue')
+        assertEq(innerContinue[1], carriedInner.target)
+        const unchangedMemo = innerContinue[2][1]
+        assert(unchangedMemo instanceof Array && unchangedMemo[0] === 'ref')
+        assertEq(unchangedMemo[1], carriedInner.parameters[1])
+        const innerBreak = innerConditional[4].exit
+        assert(innerBreak[0] === 'break')
+        assertEq(innerBreak[1], carriedInner.target)
+        const demandedMemo = innerBreak[2][1]
+        assert(demandedMemo instanceof Array && demandedMemo[0] === 'ref')
+        assertEq(demandedMemo[1], demand[1][1])
+        const projection = carriedOuter.body.statements[2]
+        assert(projection[0] === 'define')
+        assertEq(projection[1], innerOutput)
+        assertStructurallySame(projection[2], ['.', ref(carriedInner.results[0]), 0])
+        const outerConditional = carriedOuter.body.statements[3]
+        assert(outerConditional[0] === 'if')
+        for (const branch of /** @type {const} */ ([outerConditional[3], outerConditional[4]])) {
+            const exit = branch.exit
+            assert(exit[0] === 'break' || exit[0] === 'continue')
+            assertEq(exit[1], carriedOuter.target)
+            assertEq(exit[2].length, 2)
+            const memo = exit[2][1]
+            assert(memo instanceof Array && memo[0] === 'ref')
+            assertEq(memo[1], carriedInner.results[1])
+        }
+        assertEq(outer.parameters, original.parameters)
+        assertEq(outer.results, original.results)
+        assertEq(inner.parameters[0], innerState)
+        assertEq(inner.initial[0], 0)
+        assertEq(inner.results[0], innerOutput)
+        assertEq(inner.target, innerTarget)
+    },
+    nestedInitialDemandDependencies: () => {
+        const initialCell = id(0), bodyCell = id(0), innerState = id(0), innerOutput = id(0)
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [innerState], initial: [ref(initialCell)], results: [innerOutput],
+            body: body(['break', innerTarget, [['array', [ref(innerState), ref(bodyCell)]]]]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [], initial: [], results: [output],
+            body: body(['break', loopTarget, [ref(innerOutput)]], [['loop', inner]]),
+        })
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', [1]], 'lazy'],
+            ['define', initialCell, ['array', [ref(lazy)]], 'lazy'],
+            ['define', bodyCell, ['array', [ref(lazy), ref(initialCell)]], 'lazy'], ['loop', outer],
+        ])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const vector = normalized.statements[0]
+        assert(vector[0] === 'define')
+        assertStructurallySame(vector[2], ['array', [
+            ['array', [false, undefined]], ['array', [false, undefined]], ['array', [false, undefined]],
+        ]])
+        const recipes = recipesIn(normalized)
+        assertEq(recipes.length, 3)
+        const statement = normalized.statements[4]
+        assert(statement[0] === 'loop')
+        const carriedOuter = statement[1]
+        const initialDemand = carriedOuter.body.statements[0]
+        assert(initialDemand[0] === 'if')
+        assertStructurallySame(initialDemand[2], ['.', ['.', ref(carriedOuter.parameters[1]), 1], 0])
+        const initialInvocation = initialDemand[4].statements[0]
+        assert(initialInvocation[0] === 'define')
+        const initialCall = initialInvocation[2]
+        assert(initialCall instanceof Array && initialCall[0] === '()')
+        const initialRecipe = initialCall[1]
+        assert(initialRecipe instanceof Array && initialRecipe[0] === 'ref')
+        assertEq(initialRecipe[1], recipes[1][0])
+        const nested = carriedOuter.body.statements[2]
+        assert(nested[0] === 'loop')
+        const carriedInner = nested[1]
+        const initialMemo = carriedInner.initial[1]
+        assert(initialMemo instanceof Array && initialMemo[0] === 'ref')
+        assertEq(initialMemo[1], initialDemand[1][1])
+        assert(initialMemo[1] !== carriedOuter.parameters[1])
+        const eagerOperand = carriedInner.body.statements[1]
+        assert(eagerOperand[0] === 'define')
+        assertEq(eagerOperand[3], 'required')
+        const established = eagerOperand[2]
+        assert(established instanceof Array && established[0] === 'ref')
+        assertEq(established[1], innerState)
+        const bodyDemand = carriedInner.body.statements[2]
+        assert(bodyDemand[0] === 'if')
+        assertStructurallySame(bodyDemand[2], ['.', ['.', ref(carriedInner.parameters[1]), 2], 0])
+        const bodyInvocation = bodyDemand[4].statements[0]
+        assert(bodyInvocation[0] === 'define')
+        const bodyCall = bodyInvocation[2]
+        assert(bodyCall instanceof Array && bodyCall[0] === '()')
+        const bodyRecipe = bodyCall[1]
+        assert(bodyRecipe instanceof Array && bodyRecipe[0] === 'ref')
+        assertEq(bodyRecipe[1], recipes[2][0])
+        const dependencies = recipes[2][1].body.statements.filter(statement => statement[0] === 'if')
+        assertEq(dependencies.length, 2)
+        assertStructurallySame(dependencies[0][2], ['.', ['.', ref(recipes[2][1].parameters[0]), 0], 0])
+        assertStructurallySame(dependencies[1][2], ['.', ['.', ref(dependencies[0][1][1]), 1], 0])
+        const returned = recipes[2][1].body.exit
+        assert(returned[0] === 'return')
+        const packet = returned[2]
+        assert(packet instanceof Array && packet[0] === 'array')
+        const updated = packet[1][1]
+        assert(updated instanceof Array && updated[0] === 'array')
+        for (const slot of /** @type {const} */ ([0, 1])) {
+            const retained = updated[1][slot]
+            assert(retained instanceof Array && retained[0] === '.')
+            assertEq(retained[2], slot)
+            const memo = retained[1]
+            assert(memo instanceof Array && memo[0] === 'ref')
+            assertEq(memo[1], dependencies[1][1][1])
+        }
+        const innerBreak = carriedInner.body.exit
+        assert(innerBreak[0] === 'break')
+        assertEq(innerBreak[1], carriedInner.target)
+        const bodyMemo = innerBreak[2][1]
+        assert(bodyMemo instanceof Array && bodyMemo[0] === 'ref')
+        assertEq(bodyMemo[1], bodyDemand[1][1])
+        const outerBreak = carriedOuter.body.exit
+        assert(outerBreak[0] === 'break')
+        assertEq(outerBreak[1], carriedOuter.target)
+        const outputMemo = outerBreak[2][1]
+        assert(outputMemo instanceof Array && outputMemo[0] === 'ref')
+        assertEq(outputMemo[1], carriedInner.results[1])
+    },
+    ancestorTransferPackets: () => {
+        const second = id(0), secondOutput = id(0), middleFirst = id(0), middleSecond = id(0)
+        const middleOutput = id(0), middleOtherOutput = id(0), innerOutput = id(0), demanded = id(0)
+        const middleTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [innerOutput],
+            body: body(['yield', []], [
+                ['define', demanded, ref(lazy), 'required'],
+                ['if', [], true, body(['continue', loopTarget, [ref(second), ref(state)]]), body(['yield', []], [
+                    ['if', [], true, body(['break', middleTarget, [ref(middleSecond), ref(middleFirst)]]),
+                        body(['break', innerTarget, [ref(demanded)]])],
+                ])],
+            ]),
+        })
+        const middle = /** @type {Loop} */ ({
+            target: middleTarget, parameters: [middleFirst, middleSecond], initial: [3, 4], results: [middleOutput, middleOtherOutput],
+            body: body(['break', middleTarget, [ref(middleFirst), ref(middleSecond)]], [['loop', inner]]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state, second], initial: [1, 2], results: [output, secondOutput],
+            body: body(['break', loopTarget, [ref(middleOutput), ref(middleOtherOutput)]], [['loop', middle]]),
+        })
+        const source = yielded(0, [['define', lazy, ['array', [5]], 'lazy'], ['loop', outer]])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const statement = normalized.statements[2]
+        assert(statement[0] === 'loop')
+        const carriedOuter = statement[1]
+        const middleStatement = carriedOuter.body.statements[2]
+        assert(middleStatement[0] === 'loop')
+        const carriedMiddle = middleStatement[1]
+        const innerStatement = carriedMiddle.body.statements[2]
+        assert(innerStatement[0] === 'loop')
+        const carriedInner = innerStatement[1]
+        for (const loop of /** @type {const} */ ([carriedOuter, carriedMiddle, carriedInner])) {
+            assertEq(loop.parameters.length, 2)
+            assertEq(loop.results.length, 2)
+        }
+        assert(carriedOuter.target !== outer.target)
+        assert(carriedMiddle.target !== middle.target)
+        assert(carriedInner.target !== inner.target)
+        const demand = carriedInner.body.statements[0]
+        assert(demand[0] === 'if')
+        const conditional = carriedInner.body.statements[2]
+        assert(conditional[0] === 'if')
+        loopPacket(conditional[3].exit, 'continue', carriedOuter.target, [second, state], demand[1][1])
+        const cases = conditional[4].statements[0]
+        assert(cases[0] === 'if')
+        loopPacket(cases[3].exit, 'break', carriedMiddle.target, [middleSecond, middleFirst], demand[1][1])
+        loopPacket(cases[4].exit, 'break', carriedInner.target, [demanded], demand[1][1])
+        loopPacket(carriedMiddle.body.exit, 'break', carriedMiddle.target, [middleFirst, middleSecond], carriedInner.results[1])
+        loopPacket(carriedOuter.body.exit, 'break', carriedOuter.target, [middleOutput, middleOtherOutput], carriedMiddle.results[1])
+        assertEq(outer.parameters[0], state)
+        assertEq(outer.parameters[1], second)
+        assertEq(outer.results[0], output)
+        assertEq(outer.results[1], secondOutput)
+        assertEq(middle.target, middleTarget)
+        assertEq(inner.target, innerTarget)
+    },
+    ancestorTransferSignatures: () => {
+        for (const arity of /** @type {const} */ ([0, 2])) {
+            const parameters = Array.from({ length: arity }, () => id(0))
+            const results = Array.from({ length: arity }, () => id(0))
+            const demanded = id(0)
+            const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const inner = /** @type {Loop} */ ({
+                target: innerTarget, parameters: [], initial: [], results: [],
+                body: body(['yield', []], [
+                    ['define', demanded, ref(lazy), 'required'],
+                    ['if', [], true, body(['continue', loopTarget, parameters.toReversed().map(ref)]),
+                        body(['break', loopTarget, parameters.map(ref)])],
+                ]),
+            })
+            const outer = /** @type {Loop} */ ({
+                target: loopTarget, parameters, initial: parameters.map((_, index) => index + 1), results,
+                body: body(['break', loopTarget, parameters.map(ref)], [['loop', inner]]),
+            })
+            const source = yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', outer]])
+            const normalized = normalizeMemo(source)
+            assertEq(normalizeMemo(normalized), normalized)
+            const statement = normalized.statements[2]
+            assert(statement[0] === 'loop')
+            const carriedOuter = statement[1]
+            const statePacket = carriedOuter.initial[0]
+            assert(statePacket instanceof Array && statePacket[0] === 'array')
+            assertEq(statePacket[1].length, arity)
+            const nested = carriedOuter.body.statements[arity]
+            assert(nested[0] === 'loop')
+            const carriedInner = nested[1]
+            const demand = carriedInner.body.statements[0]
+            assert(demand[0] === 'if')
+            const conditional = carriedInner.body.statements[2]
+            assert(conditional[0] === 'if')
+            loopPacket(conditional[3].exit, 'continue', carriedOuter.target, parameters.toReversed(), demand[1][1])
+            loopPacket(conditional[4].exit, 'break', carriedOuter.target, parameters, demand[1][1])
+            assertEq(outer.parameters, parameters)
+            assertEq(outer.results, results)
+            assertEq(outer.initial.length, arity)
+        }
+    },
+    neutralAncestorTransferClosure: () => {
+        const observed = id(0)
+        const middleTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const firstTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const secondTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const first = /** @type {Loop} */ ({
+            target: firstTarget, parameters: [], initial: [], results: [], body: body(['continue', loopTarget, [ref(state)]]),
+        })
+        const second = /** @type {Loop} */ ({
+            target: secondTarget, parameters: [], initial: [], results: [], body: body(['continue', middleTarget, []]),
+        })
+        const middle = /** @type {Loop} */ ({
+            target: middleTarget, parameters: [], initial: [], results: [],
+            body: body(['break', middleTarget, []], [
+                ['if', [], true, body(['yield', []], [['loop', first]]), body(['yield', []], [['loop', second]])],
+            ]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state], initial: [0], results: [output],
+            body: body(['break', loopTarget, [ref(state)]], [['define', observed, ref(lazy), 'required'], ['loop', middle]]),
+        })
+        const source = yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', outer]])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const statement = normalized.statements[2]
+        assert(statement[0] === 'loop')
+        const carriedOuter = statement[1]
+        const demand = carriedOuter.body.statements[1]
+        assert(demand[0] === 'if')
+        const middleStatement = carriedOuter.body.statements[3]
+        assert(middleStatement[0] === 'loop')
+        const carriedMiddle = middleStatement[1]
+        const middleMemo = carriedMiddle.initial[1]
+        assert(middleMemo instanceof Array && middleMemo[0] === 'ref')
+        assertEq(middleMemo[1], demand[1][1])
+        const conditional = carriedMiddle.body.statements[0]
+        assert(conditional[0] === 'if')
+        assertEq(conditional[1].length, 1)
+        const firstStatement = conditional[3].statements[0]
+        const secondStatement = conditional[4].statements[0]
+        assert(firstStatement[0] === 'loop' && secondStatement[0] === 'loop')
+        const carriedFirst = firstStatement[1]
+        const carriedSecond = secondStatement[1]
+        for (const loop of /** @type {const} */ ([carriedMiddle, carriedFirst, carriedSecond])) {
+            assertEq(loop.parameters.length, 2)
+            assertEq(loop.results.length, 2)
+        }
+        loopPacket(carriedFirst.body.exit, 'continue', carriedOuter.target, [state], carriedFirst.parameters[1])
+        loopPacket(carriedSecond.body.exit, 'continue', carriedMiddle.target, [], carriedSecond.parameters[1])
+        loopPacket(carriedMiddle.body.exit, 'break', carriedMiddle.target, [], conditional[1][0])
+        loopPacket(carriedOuter.body.exit, 'break', carriedOuter.target, [state], carriedMiddle.results[1])
+        assertEq(first.parameters.length, 0)
+        assertEq(second.results.length, 0)
+        assertEq(middle.target, middleTarget)
+    },
+    localDeclarationResetLayout: () => {
+        const local = id(0), localAlias = id(0), prerequisite = id(0), innerOutput = id(0), regionOutput = id(0)
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [innerOutput],
+            body: body(['break', innerTarget, [ref(localAlias)]]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state], initial: [0], results: [output],
+            body: body(['break', loopTarget, [ref(regionOutput)]], [
+                ['block', [regionOutput], yielded(ref(innerOutput), [
+                    ['define', prerequisite, ['+', ref(state), 1], 'required'],
+                    ['define', local, ['array', [ref(prerequisite)]], 'lazy'],
+                    ['define', localAlias, ref(local), 'lazy'], ['loop', inner],
+                ])],
+            ]),
+        })
+        const source = yielded(ref(output), [['loop', outer]])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const vector = normalized.statements[0]
+        assert(vector[0] === 'define')
+        assertStructurallySame(vector[2], ['array', [['array', [false, undefined]]]])
+        assertEq(recipesIn(normalized).length, 0)
+        const statement = normalized.statements[1]
+        assert(statement[0] === 'loop')
+        const carriedOuter = statement[1]
+        assert(carriedOuter.target !== outer.target)
+        assertEq(carriedOuter.parameters.length, 2)
+        assertEq(carriedOuter.results.length, 2)
+        const initialMemo = carriedOuter.initial[1]
+        assert(initialMemo instanceof Array && initialMemo[0] === 'ref')
+        assertEq(initialMemo[1], vector[1])
+        assertEq(carriedOuter.body.statements.length, 2)
+        const region = carriedOuter.body.statements[1]
+        assert(region[0] === 'block')
+        assertEq(region[1][0], regionOutput)
+        assertEq(region[1].length, 2)
+        const statements = region[2].statements
+        assertEq(statements.length, 5)
+        const established = statements[0]
+        assert(established[0] === 'define')
+        assertEq(established[1], prerequisite)
+        assertEq(established[3], 'required')
+        const reset = statements[1]
+        assert(reset[0] === 'define')
+        assertEq(reset[3], 'required')
+        assertStructurallySame(reset[2], ['array', [['array', [false, undefined]]]])
+        const getter = statements[2]
+        assert(getter[0] === 'define')
+        assertEq(getter[3], 'required')
+        const value = getter[2]
+        assert(value instanceof Array && value[0] === 'function')
+        assertEq(value[1].parameters.length, 1)
+        assertEq(value[1].captures.length, 1)
+        assertEq(value[1].captures[0].binding, prerequisite)
+        const captured = value[1].captures[0].value
+        assert(captured instanceof Array && captured[0] === 'ref')
+        assertEq(captured[1], prerequisite)
+        const nested = statements[3]
+        assert(nested[0] === 'loop')
+        const carriedInner = nested[1]
+        const innerMemo = carriedInner.initial[1]
+        assert(innerMemo instanceof Array && innerMemo[0] === 'ref')
+        assertEq(innerMemo[1], reset[1])
+        const demand = carriedInner.body.statements[0]
+        assert(demand[0] === 'if')
+        const invocation = demand[4].statements[0]
+        assert(invocation[0] === 'define')
+        const call = invocation[2]
+        assert(call instanceof Array && call[0] === '()')
+        const callee = call[1]
+        assert(callee instanceof Array && callee[0] === 'ref')
+        assertEq(callee[1], getter[1])
+        const outerExit = carriedOuter.body.exit
+        assert(outerExit[0] === 'break')
+        const returnedMemo = outerExit[2][1]
+        assert(returnedMemo instanceof Array && returnedMemo[0] === 'ref')
+        assertEq(returnedMemo[1], region[1][1])
+        assertEq(outer.body.statements.length, 1)
+        assertEq(inner.target, innerTarget)
+    },
+    localDependencyResetRetention: () => {
+        const local = id(0), dependent = id(0), observedCaller = id(0), observedLocal = id(0), innerOutput = id(0)
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [innerOutput],
+            body: body(['break', innerTarget, [ref(dependent)]]),
+        })
+        const outer = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state], initial: [0], results: [output],
+            body: body(['break', loopTarget, [ref(innerOutput)]], [
+                ['define', observedCaller, ref(lazy), 'required'],
+                ['define', local, ['array', [ref(lazy), ref(state)]], 'lazy'],
+                ['define', observedLocal, ref(local), 'required'],
+                ['define', dependent, ['array', [ref(local), ref(state)]], 'lazy'], ['loop', inner],
+            ]),
+        })
+        const source = yielded(ref(output), [['define', lazy, ['array', [1]], 'lazy'], ['loop', outer]])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const callerRecipes = recipesIn(normalized)
+        assertEq(callerRecipes.length, 1)
+        const statement = normalized.statements[2]
+        assert(statement[0] === 'loop')
+        const carriedOuter = statement[1]
+        const callerDemand = carriedOuter.body.statements[1]
+        assert(callerDemand[0] === 'if')
+        const localReset = carriedOuter.body.statements[3]
+        assert(localReset[0] === 'define')
+        assertEq(localReset[3], 'required')
+        const resetLocal = localReset[2]
+        assert(resetLocal instanceof Array && resetLocal[0] === 'array')
+        assertStructurallySame(resetLocal[1][1], ['array', [false, undefined]])
+        for (const slot of /** @type {const} */ ([0, 2])) {
+            const retained = resetLocal[1][slot]
+            assert(retained instanceof Array && retained[0] === '.')
+            assertEq(retained[2], slot)
+            const memo = retained[1]
+            assert(memo instanceof Array && memo[0] === 'ref')
+            assertEq(memo[1], callerDemand[1][1])
+        }
+        const localRecipes = recipesIn(carriedOuter.body)
+        assertEq(localRecipes.length, 2)
+        const localGetter = carriedOuter.body.statements[4]
+        assert(localGetter[0] === 'define')
+        assertEq(localGetter[1], localRecipes[0][0])
+        const localDemand = carriedOuter.body.statements[5]
+        assert(localDemand[0] === 'if')
+        const dependentReset = carriedOuter.body.statements[7]
+        assert(dependentReset[0] === 'define')
+        assertEq(dependentReset[3], 'required')
+        const resetDependent = dependentReset[2]
+        assert(resetDependent instanceof Array && resetDependent[0] === 'array')
+        assertStructurallySame(resetDependent[1][2], ['array', [false, undefined]])
+        for (const slot of /** @type {const} */ ([0, 1])) {
+            const retained = resetDependent[1][slot]
+            assert(retained instanceof Array && retained[0] === '.')
+            assertEq(retained[2], slot)
+            const memo = retained[1]
+            assert(memo instanceof Array && memo[0] === 'ref')
+            assertEq(memo[1], localDemand[1][1])
+        }
+        const dependentGetter = carriedOuter.body.statements[8]
+        assert(dependentGetter[0] === 'define')
+        assertEq(dependentGetter[1], localRecipes[1][0])
+        for (const index of /** @type {const} */ ([0, 1])) {
+            const getter = localRecipes[index][1]
+            assertEq(getter.parameters.length, 1)
+            assertEq(getter.captures.length, 2)
+            const established = getter.captures.find(capture => capture.binding === state)
+            assert(established !== undefined)
+            const captured = established.value
+            assert(captured instanceof Array && captured[0] === 'ref')
+            assertEq(captured[1], state)
+            const dependency = getter.body.statements[0]
+            assert(dependency[0] === 'if')
+            const invocation = dependency[4].statements[0]
+            assert(invocation[0] === 'define')
+            const call = invocation[2]
+            assert(call instanceof Array && call[0] === '()')
+            const callee = call[1]
+            assert(callee instanceof Array && callee[0] === 'ref')
+            assertEq(callee[1], index === 0 ? callerRecipes[0][0] : localRecipes[0][0])
+            const returned = getter.body.exit
+            assert(returned[0] === 'return')
+            const packet = returned[2]
+            assert(packet instanceof Array && packet[0] === 'array')
+            const ready = packet[1][1]
+            assert(ready instanceof Array && ready[0] === 'array')
+            const retained = ready[1][0]
+            assert(retained instanceof Array && retained[0] === '.')
+            const memo = retained[1]
+            assert(memo instanceof Array && memo[0] === 'ref')
+            assertEq(memo[1], dependency[1][1])
+            assertStructurallySame(ready[1][index + 1], ['array', [true, packet[1][0]]])
+        }
+        const nested = carriedOuter.body.statements[9]
+        assert(nested[0] === 'loop')
+        const innerMemo = nested[1].initial[1]
+        assert(innerMemo instanceof Array && innerMemo[0] === 'ref')
+        assertEq(innerMemo[1], dependentReset[1])
+    },
     iterationIdentity: () => {
         const read = id(0)
         const original = counting(ref(read))
@@ -793,6 +1570,100 @@ export const proof = /** @type {const} */ ({
         ])
         assertEq(assertError(memo(assertOk(identityAnalysis(fromFast(normalizeMemo(failed)))))({ args: [] })), 'initialization failure')
     },
+    ownedReturnLayout: () => {
+        const loop = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state], initial: [0], results: [output],
+            body: body(['continue', loopTarget, [ref(state)]], [
+                ['if', [], ['<', ref(state), 1], body(['continue', loopTarget, [['+', ref(state), 1]]]),
+                    body(['yield', []], [
+                        ['if', [], true, body(['return', functionTarget, ref(lazy)]), body(['break', loopTarget, [ref(lazy)]])],
+                    ])],
+            ]),
+        })
+        const source = yielded(ref(output), [['define', lazy, ['array', [5]], 'lazy'], ['loop', loop]])
+        const normalized = normalizeMemo(source, [], functionTarget)
+        assertEq(normalizeMemo(normalized, [], functionTarget), normalized)
+        const statement = normalized.statements[2]
+        assert(statement[0] === 'loop')
+        const carried = statement[1]
+        assert(carried.target !== loop.target)
+        assertEq(carried.parameters.length, 2)
+        assertEq(carried.results.length, 2)
+        assertStructurallySame(carried.initial[0], ['array', loop.initial])
+        const conditional = carried.body.statements[1]
+        assert(conditional[0] === 'if')
+        const continued = conditional[3]
+        assertEq(continued.statements.length, 0)
+        assert(continued.exit[0] === 'continue')
+        assertEq(continued.exit[1], carried.target)
+        assertEq(continued.exit[2].length, 2)
+        const continuingMemo = continued.exit[2][1]
+        assert(continuingMemo instanceof Array && continuingMemo[0] === 'ref')
+        assertEq(continuingMemo[1], carried.parameters[1])
+        const exits = conditional[4].statements[0]
+        assert(exits[0] === 'if')
+        const returned = exits[3]
+        assertEq(returned.statements.length, 2)
+        const returnDemand = returned.statements[0]
+        assert(returnDemand[0] === 'if')
+        const stableReturn = returned.statements[1]
+        assert(stableReturn[0] === 'define')
+        assertEq(stableReturn[3], 'required')
+        const demanded = stableReturn[2]
+        assert(demanded instanceof Array && demanded[0] === 'ref')
+        assertEq(demanded[1], returnDemand[1][0])
+        assert(returned.exit[0] === 'return')
+        assertEq(returned.exit[1], functionTarget)
+        const payload = returned.exit[2]
+        assert(payload instanceof Array && payload[0] === 'ref')
+        assertEq(payload[1], stableReturn[1])
+        const broken = exits[4]
+        const breakDemand = broken.statements[0]
+        assert(breakDemand[0] === 'if')
+        const stableBreak = broken.statements[1]
+        assert(stableBreak[0] === 'define')
+        assertEq(stableBreak[3], 'required')
+        assert(broken.exit[0] === 'break')
+        assertEq(broken.exit[1], carried.target)
+        assertEq(broken.exit[2].length, 2)
+        const values = broken.exit[2][0]
+        assert(values instanceof Array && values[0] === 'array')
+        assertEq(values[1].length, 1)
+        const result = values[1][0]
+        assert(result instanceof Array && result[0] === 'ref')
+        assertEq(result[1], stableBreak[1])
+        const breakingMemo = broken.exit[2][1]
+        assert(breakingMemo instanceof Array && breakingMemo[0] === 'ref')
+        assertEq(breakingMemo[1], breakDemand[1][1])
+        assertEq(loop.parameters[0], state)
+        assertEq(loop.initial[0], 0)
+        assertEq(loop.results[0], output)
+    },
+    ownedReturnExitIdentity: () => {
+        const observed = id(0)
+        const exit = /** @type {Exit} */ (['return', functionTarget, ref(state)])
+        const loop = /** @type {Loop} */ ({
+            target: loopTarget, parameters: [state], initial: [3], results: [output],
+            body: body(exit, [['define', observed, ref(lazy), 'required']]),
+        })
+        const source = yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', loop]])
+        const normalized = normalizeMemo(source, [], functionTarget)
+        const statement = normalized.statements[2]
+        assert(statement[0] === 'loop')
+        const carried = statement[1]
+        assertEq(carried.body.statements.length, 3)
+        const demand = carried.body.statements[1]
+        assert(demand[0] === 'if')
+        const required = carried.body.statements[2]
+        assert(required[0] === 'define')
+        assertEq(required[1], observed)
+        assertEq(required[3], 'required')
+        const value = required[2]
+        assert(value instanceof Array && value[0] === 'ref')
+        assertEq(value[1], demand[1][0])
+        assertEq(carried.body.exit, exit)
+        assertEq(loop.body.exit, exit)
+    },
     functionBodyBoundary: () => {
         const captured = id(0), callee = id(0)
         const nestedBody = body(['return', functionTarget, ref(captured)])
@@ -907,14 +1778,30 @@ export const proof = /** @type {const} */ ({
         operandComputedLazyDependent: () => {
             normalizeMemo(crossing(['block', body(['yield', [ref(alias)]], [['define', alias, ['array', [ref(lazy)]], 'lazy']])]))
         },
-        recipeLocalComputedLazyDependent: () => {
-            const dependent = id(0), local = id(0)
-            const initializer = /** @type {Value} */ (['block', yielded(ref(local), [['define', local, ['array', [ref(lazy)]], 'lazy']])])
-            normalizeMemo(yielded(ref(output), [
-                ['define', lazy, ['array', []], 'lazy'], ['define', dependent, initializer, 'lazy'], ['loop', counting(ref(dependent))],
-            ]))
-        },
         operandReturn: () => { normalizeMemo(crossing(['block', body(['return', functionTarget, ref(lazy)])])) },
+        ownedOperandReturn: () => { normalizeMemo(crossing(['block', body(['return', functionTarget, ref(lazy)])]), [], functionTarget) },
+        ownedForeignReturn: () => {
+            const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })
+            const loop = /** @type {Loop} */ ({ ...counting(ref(lazy)), body: body(['return', foreign, ref(lazy)]) })
+            normalizeMemo(yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', loop]]), [], functionTarget)
+        },
+        foreignLoopBreak: () => {
+            const foreign = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const observed = id(0)
+            const loop = /** @type {Loop} */ ({ ...counting(0), body: body(['break', foreign, []], [['define', observed, ref(lazy), 'required']]) })
+            normalizeMemo(yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', loop]]))
+        },
+        siblingLoopContinue: () => {
+            const siblingTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const observed = id(0)
+            const sibling = /** @type {Loop} */ ({
+                target: siblingTarget, parameters: [], initial: [], results: [], body: body(['break', siblingTarget, []]),
+            })
+            const loop = /** @type {Loop} */ ({ ...counting(0), body: body(['continue', siblingTarget, []], [['define', observed, ref(lazy), 'required']]) })
+            normalizeMemo(yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', sibling], ['loop', loop]]))
+        },
+        operandLoopBreak: () => { normalizeMemo(crossing(['block', body(['break', loopTarget, [ref(lazy)]])])) },
+        operandLoopContinue: () => { normalizeMemo(crossing(['block', body(['continue', loopTarget, [ref(lazy)]])])) },
         escapedReturn: () => {
             const loop = /** @type {Loop} */ ({ ...counting(ref(lazy)), body: body(['return', functionTarget, ref(lazy)]) })
             normalizeMemo(yielded(0, [['define', lazy, ['array', []], 'lazy'], ['loop', loop]]))
