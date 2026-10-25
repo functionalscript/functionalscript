@@ -414,6 +414,21 @@ const demoProof = /** @type {const} */ ({
             assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to]), [[1, 1], [2, 2]])
             assertEq(_crossings(g), 0)
         },
+        // The dense project schema keeps every original connection while
+        // its largest destination bundle is drawn and hovered as one trunk.
+        bundledEdagValue: () => {
+            const g = _graphOf(exampleNamed('Evaluated EDAG value').schemas[0].schema)
+            const returns = g.edges.flatMap((edge, index) => edge.back === true ? [{ edge, index }] : [])
+            const targets = [...new Set(returns.map(({ edge }) => edge.to))]
+            const largest = targets.map(to => returns.filter(({ edge }) => edge.to === to).map(({ index }) => index))
+                .toSorted((a, b) => b.length - a.length)[0]
+            const html = htmlToString(graphSvg(g))
+            const shared = html.split('data-graph-members="').slice(1).map(after => after.slice(0, after.indexOf('"')).split(' ').map(Number))
+            assert(largest.length > 1, 'the example has a crowded destination')
+            assert(shared.some(ids => ids.length === largest.length && largest.every(id => ids.includes(id))), 'one segment represents every return into that destination')
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), targets.length)
+            assertEq(occurrences('tabindex="0"')(html), g.edges.filter(edge => typeof edge.to === 'number').length)
+        },
         // A named thunk that is not a const is labelled with its name too.
         namedArray: () => {
             /** @type {import('../types.ts').Type} */

@@ -668,6 +668,10 @@ rect[data-graph-trace] { fill: var(--graph-highlight-bg) }
 [data-graph-port-edge], [data-graph-node-name] { cursor: pointer }
 [data-graph-port-edge] { pointer-events: all }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
+/* Returns are secondary to forward flow; laziness remains a separate pattern. */
+[data-graph-edge][data-graph-recursion] { stroke-width: 1.25; stroke-dasharray: 1 4; stroke-linecap: round }
+[data-graph-edge][data-graph-recursion][data-graph-edge-kind="lazy"] { stroke-dasharray: 1 3 5 3 }
+[data-graph-trace][data-graph-recursion] { stroke-dasharray: none }
 [data-graph-port], [data-graph-group] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
 /* The versions demos draw a node's kind as its fill, so a value filling a

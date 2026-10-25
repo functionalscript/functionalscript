@@ -16,6 +16,9 @@ import { occurrences } from '../../../types/string/module.f.mjs'
 const routes = html => html.split('" data-graph-edge=""').slice(0, -1)
     .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
 
+/** Original connection identities represented by each return hit segment. @type {(html: string) => readonly (readonly number[])[]} */
+const memberships = html => html.split('data-graph-members="').slice(1).map(after => after.slice(0, after.indexOf('"')).split(' ').map(Number))
+
 /**
  * Three ranks, one node each, and an edge `r` from the root that skips the
  * middle one — the smallest graph that needs a lane.
@@ -206,46 +209,23 @@ export const proof = {
         },
     },
     graphSvg: {
-        /**
-         * **A back edge goes around the graph.** It leaves `g`'s port at
-         * x=180, goes down a lane right of its column, x=190, to a lane
-         * below the graph, y=40, left to a lane left of `f`'s column,
-         * x=10, and up into `f`'s middle. Each of those two lanes widens
-         * its gap, plus 20px clearance before the arrowhead, so `f` starts
-         * at x=40 and the drawing ends a margin past them. With back edges
-         * left out the graph is a tree, and is drawn as one.
-         */
+        // Return segments join at the target, with one small arrowhead.
         back: () => {
             /** @type {Graph} */
             const g = {
+                trace: true,
                 nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
                 edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 0, label: 'y', back: true }],
             }
             const html = htmlToString(graphSvg(g))
-            assertEq(JSON.stringify(routes(html)), '["M90,20 L130,20","M180,20 L190,20 L190,40 L10,40 L10,20 L40,20"]')
-            assert(html.includes('viewBox="0 0 200 50"'), html)
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), 1)
+            assert(memberships(html).every(ids => ids.length === 1 && ids[0] === 1), html)
             assertEq(_crossings(g), 0)
         },
-        /**
-         * **Of two back edges spanning as many ranks, the lower is nearer
-         * the graph**, so the higher one, `a`, goes down right of where
-         * `b` leaves, x=210 past x=200, and below it, y=70 past y=60.
-         */
-        backLanes: () => {
+        bundledReturns: () => {
             /** @type {Graph} */
             const g = {
-                nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
-                edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 0, label: 'a', back: true }, { from: 1, to: 0, label: 'b', back: true }],
-            }
-            assertEq(JSON.stringify(routes(htmlToString(graphSvg(g))).slice(1)),
-                '["M190,20 L210,20 L210,70 L10,70 L10,26.666666666666664 L50,26.666666666666664","M190,40 L200,40 L200,60 L20,60 L20,33.33333333333333 L50,33.33333333333333"]')
-            assertEq(_crossings(g), 0)
-        },
-        // Every return has its own destination entry. The outer gap enters
-        // above the inner one, keeping their final horizontal segments distinct.
-        separateReturnEntries: () => {
-            /** @type {Graph} */
-            const g = {
+                trace: true,
                 nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
                 edges: [
                     { from: 0, to: 1, label: 'x' },
@@ -254,36 +234,38 @@ export const proof = {
                     { from: 1, to: 0, label: 'b', back: true },
                 ],
             }
-            const paths = routes(htmlToString(graphSvg(g))).slice(1).map(path => path.split(' L'))
-            assert(paths[0][2] !== paths[1][2], 'distinct bottom lanes')
-            assert(paths[0][3] !== paths[1][3], 'distinct ascent lanes')
-            assert(paths[0][5] !== paths[1][5], 'distinct destination entries')
-            const entryLengths = paths.map(path => Number(path[5].split(',')[0]) - Number(path[4].split(',')[0]))
-            assertStructurallySame(entryLengths.toSorted((a, b) => a - b), [30, 40])
-            assert(Number(paths[0][5].split(',')[1]) < Number(paths[1][5].split(',')[1]), 'outer route enters above inner')
+            const html = htmlToString(graphSvg(g))
+            const members = memberships(html)
+            assert(members.some(ids => ids.length === 2 && ids.includes(2) && ids.includes(3)), 'shared trunk')
+            assert(members.some(ids => ids.length === 1 && ids[0] === 2), 'first branch')
+            assert(members.some(ids => ids.length === 1 && ids[0] === 3), 'second branch')
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), 1)
+            assertEq(occurrences('tabindex="0"')(html), 3)
+            for (const [i, ids] of members.entries()) {
+                for (const id of ids) {
+                    assert(html.includes(`svg:has([data-graph-segment="${i}"]:hover) [data-graph-connection="${id}"] [data-graph-trace] { opacity: 1 }`), html)
+                }
+            }
             assertEq(_crossings(g), 0)
-            assertEq(occurrences('marker-end="url(#graph-arrow)"')(htmlToString(graphSvg(g))), 3)
         },
-        /**
-         * **A narrower back edge is nearer the graph**: `g`'s edge to
-         * itself, one rank, is inside `h`'s edge to `f`, two, in a lane
-         * above it at y=60 and a gap of its own left of `g`, x=130.
-         */
+        // One outer and one self return share a cyclic group, but keep
+        // separate targets and baselines within that group.
         backNested: () => {
             /** @type {Graph} */
             const g = {
+                trace: true,
                 nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }, { id: 2, kind: 'a', label: 'h', rank: 2 }],
                 edges: [{ from: 0, to: 1, label: 'x' }, { from: 1, to: 2, label: 'x' }, { from: 1, to: 1, label: 'b', back: true }, { from: 2, to: 0, label: 'a', back: true }],
             }
-            assertEq(JSON.stringify(routes(htmlToString(graphSvg(g))).slice(2)),
-                '["M210,40 L220,40 L220,60 L130,60 L130,30 L160,30","M310,30 L320,30 L320,70 L10,70 L10,30 L40,30"]')
+            const html = htmlToString(graphSvg(g))
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), 2)
+            assert(memberships(html).every(ids => ids.length === 1), 'different targets never merge')
             assertEq(_crossings(g), 0)
         },
-        // Every return keeps its lane and arrowhead, including same-target
-        // returns from different columns and with different edge kinds.
-        independentReturns: () => {
+        mixedReturns: () => {
             /** @type {Graph} */
             const g = {
+                trace: true,
                 nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: `${id}`, rank: id })),
                 edges: [
                     { from: 0, to: 1, label: '' }, { from: 1, to: 2, label: '' }, { from: 2, to: 3, label: '' },
@@ -295,19 +277,23 @@ export const proof = {
                 ],
             }
             const html = htmlToString(graphSvg(g))
-            const paths = routes(html)
-            assertEq(paths.length, 8)
-            const returns = paths.slice(3).map(path => path.split(' L'))
-            assertEq(new Set(returns.map(path => path[2].split(',')[1])).size, 5)
-            assertEq(new Set([3, 5, 6, 7].map(i => paths[i].split(' L')[5])).size, 4)
-            assertEq(occurrences('marker-end="url(#graph-arrow)"')(html), 8)
+            assert(memberships(html).some(ids => ids.length === 4 && [3, 5, 6, 7].every(id => ids.includes(id))), 'all four returns share the final trunk')
+            assert(memberships(html).some(ids => ids.length === 1 && ids[0] === 6), 'lazy source branch keeps its identity')
+            assert(html.includes('data-graph-recursion="" data-graph-edge-kind="lazy"'), html)
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), 2)
             assertEq(_crossings(g), 0)
         },
-        // Two definitions in the same column remain separate destinations.
-        // Rank alone must not merge their returns or their arrowheads.
+        returnKind: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'n', label: 'f', rank: 0 }],
+                edges: [{ from: 0, to: 0, label: '', back: true, kind: 'custom' }],
+            }))
+            assert(html.includes('data-graph-edge-kind="custom"'), 'a return retains the demo\'s own kind')
+        },
         distinctReturnTargets: () => {
             /** @type {Graph} */
             const g = {
+                trace: true,
                 nodes: [
                     { id: 0, kind: 'n', label: 'root', rank: 0 },
                     { id: 1, kind: 'n', label: 'left', rank: 1 },
@@ -321,10 +307,96 @@ export const proof = {
                 ],
             }
             const html = htmlToString(graphSvg(g))
-            const paths = routes(html)
-            assert(paths[4].split(' L')[2] !== paths[5].split(' L')[2], 'separate bottom lanes')
-            assertEq(occurrences('marker-end="url(#graph-arrow)"')(html), 6)
+            assert(memberships(html).every(ids => ids.length === 1), 'same rank is not same target')
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), 2)
             assertEq(_crossings(g), 0)
+        },
+        // A long unrelated branch belongs below the return, not inside its
+        // apparent loop. Node and route order is independent of input order.
+        localCycle: () => {
+            /** @type {Graph} */
+            const g = {
+                trace: true,
+                centerColumns: true,
+                nodes: [
+                    { id: 0, kind: 'n', label: 'root', rank: 0 },
+                    { id: 1, kind: 'n', label: 'cycle', rank: 1 },
+                    { id: 2, kind: 'n', label: 'tail', rank: 2 },
+                    { id: 3, kind: 'n', label: 'unrelated', rank: 1 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: 'cycle' }, { from: 0, to: 3, label: 'other' },
+                    { from: 1, to: 2, label: '' }, { from: 2, to: 1, label: 'self', back: true },
+                    ...Array.from({ length: 15 }, (_, i) => ({ from: 3, to: { inline: `${i}` }, label: `${i}` })),
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            assertEq(_crossings(g), 0)
+            assert(html.includes('d="M'), html)
+            const boxes = html.split(' data-graph-node=""').slice(0, -1).map(before => before.slice(before.lastIndexOf('<rect ')))
+            const unrelated = boxes.find(box => box.includes('height="300"'))
+            assert(unrelated !== undefined, 'tall unrelated branch is present')
+            const top = Number(unrelated.slice(unrelated.indexOf(' y="') + 4).split('"')[0])
+            const returnPaths = html.split(' data-graph-recursion=""').slice(0, -1).map(before => before.slice(before.lastIndexOf('<path d="') + 9).split('"')[0])
+            assert(returnPaths.every(path => path.split(' L').every(point => Number(point.slice(point.startsWith('M') ? 1 : 0).split(',')[1]) < top)), 'all return segments stay above unrelated nodes')
+            assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
+        },
+        // Separate recursive definitions can share an acyclic dependency
+        // without becoming one cycle or duplicating that dependency.
+        separateCycles: () => {
+            /** @type {Graph} */
+            const g = {
+                trace: true,
+                nodes: [
+                    { id: 0, kind: 'n', label: 'root', rank: 0 },
+                    { id: 1, kind: 'n', label: 'first', rank: 1 },
+                    { id: 2, kind: 'n', label: 'second', rank: 1 },
+                    { id: 3, kind: 'n', label: 'shared leaf', rank: 2 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: 'first' }, { from: 0, to: 2, label: 'second' },
+                    { from: 2, to: 2, label: 'self', back: true },
+                    { from: 1, to: 1, label: 'self', back: true },
+                    { from: 1, to: 3, label: 'value' }, { from: 2, to: 3, label: 'value' },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            assertEq(_crossings(g), 0)
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), 2)
+            assertEq(occurrences('data-graph-node=""')(html), 4)
+            assert(memberships(html).every(ids => ids.length === 1), 'separate definitions retain separate returns')
+            assertEq(html, htmlToString(graphSvg({ ...g, nodes: g.nodes.toReversed() })))
+        },
+        // A skipped rank inside a cycle reserves a forward lane in the
+        // component band before packing that column's boxes.
+        cycleWithForwardLane: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [0, 1, 2].map(id => ({ id, kind: 'n', label: `${id}`, rank: id })),
+                edges: [
+                    { from: 0, to: 1, label: 'next' }, { from: 0, to: 2, label: 'skip' },
+                    { from: 1, to: 2, label: 'next' }, { from: 2, to: 0, label: 'self', back: true },
+                ],
+            }
+            assertEq(_crossings(g), 0)
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(htmlToString(graphSvg(g))), 1)
+        },
+        // Corner ports also provide actual origin heights when centering
+        // a shared, non-tree acyclic graph.
+        centeredCorners: () => {
+            /** @type {Graph} */
+            const g = {
+                centerColumns: true,
+                nodes: [0, 1, 2, 3].map(id => ({ id, kind: 'n', label: `${id}`, rank: id === 0 ? 0 : id === 3 ? 2 : 1 })),
+                edges: [
+                    { from: 0, to: 1, label: '', corner: 'top' },
+                    { from: 0, to: 2, label: '', corner: 'bottom' },
+                    { from: 1, to: 3, label: '', corner: 'middle' },
+                    { from: 2, to: 3, label: '', corner: 'middle' },
+                ],
+            }
+            assertEq(_crossings(g), 0)
+            assertEq(routes(htmlToString(graphSvg(g))).length, 4)
         },
         // Native focus makes click and keyboard selection trace the same
         // complete route as hover. Outlines cover only source ports and
@@ -340,7 +412,7 @@ export const proof = {
             }))
             assertEq(occurrences(' data-graph-connection=')(html), 2)
             assertEq(occurrences('tabindex="0"')(html), 2)
-            assertEq(occurrences('data-graph-hit=')(html), 2)
+            assertEq(occurrences('data-graph-hit=')(html), 6)
             assertEq(occurrences('data-graph-trace=""')(html), 8)
             assertEq(occurrences('data-graph-title-outline=')(html), 2)
             assertEq(occurrences(' data-graph-title-hover=')(html), 2)
@@ -349,13 +421,13 @@ export const proof = {
             assertEq(occurrences(' data-graph-port-edge=')(html), 6)
             // Either source cell activates the connection. Their combined
             // outline keeps the field name beside its reference.
-            assert(html.includes('<rect x="50" y="10" width="68" height="20" data-graph-port="" data-graph-port-edge="0">'), html)
-            assert(html.includes('<text x="84" y="20" text-anchor="middle" data-graph-edge-label="" data-graph-port-edge="0">item<'), html)
-            assert(html.includes('<rect x="50" y="10" width="115" height="20" rx="4" data-graph-trace="" data-graph-port-outline="0">'), html)
-            assert(html.includes('<text x="84" y="40" text-anchor="middle" data-graph-edge-label="">constant<'), html)
+            assert(html.includes('height="20" data-graph-port="" data-graph-port-edge="0"'), html)
+            assert(html.includes('data-graph-edge-label="" data-graph-port-edge="0">item<'), html)
+            assert(html.includes('width="115" height="20" rx="4" data-graph-trace="" data-graph-port-outline="0"'), html)
+            assert(html.includes('data-graph-edge-label="">constant<'), html)
             assertEq(occurrences(' data-graph-node-name=')(html), 4)
             assertEq(occurrences(' data-graph-title-hit=')(html), 2)
-            assert(html.includes('<rect x="10" y="10" width="40" height="40" rx="4" fill="transparent" stroke="none" data-graph-title-hit="" data-graph-node-name="0">'), html)
+            assert(html.includes('width="40" height="40" rx="4" fill="transparent" stroke="none" data-graph-title-hit="" data-graph-node-name="0"'), html)
             assert(html.includes('data-graph-from="0" data-graph-to="1"'), html)
             assert(html.includes('svg:has([data-graph-port-edge="0"]:hover) [data-graph-connection="0"]'), html)
             assert(html.includes('svg:has([data-graph-node-name="1"]:hover) [data-graph-to="1"]'), html)
@@ -863,11 +935,11 @@ export const proof = {
             const html = htmlToString(graphSvg(g))
             assertStructurallySame(routes(html).slice(-2).map(route => route.slice(route.lastIndexOf('L'))), ['L212,40', 'L212,40'])
             assertEq(_crossings(g), 0)
-            // Returns must not pull the node toward their outside lanes.
+            // Adding a return groups the cycle while retaining clearance.
             /** @type {Graph} */
             const returning = { ...g, edges: [...g.edges, { from: 3, to: 0, label: '', back: true, corner: /** @type {const} */ ('top') }] }
             assertEq(_crossings(returning), 0)
-            assertStructurallySame(routes(htmlToString(graphSvg(returning))).slice(0, 4).map(route => route.slice(route.lastIndexOf(','))), routes(html).map(route => route.slice(route.lastIndexOf(','))))
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(htmlToString(graphSvg(returning))), 1)
         },
         // Crossed preferences are pooled symmetrically, keeping 14px
         // clearance. A third slot remains independent once order permits it.
