@@ -365,6 +365,9 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Share caller-owned dependent lazy recipes through normal-exit helpers.
       Preserve transitive/conditional demands, shared prerequisite identity,
       caller-only dependents and bounded construction of recipe DAGs.
+- [ ] Share caller-owned lazy cells and dependent recipes through nested
+      normal-exit helpers. Preserve inner-first demand, skipped failures and
+      shared identity through inner results and outer transitions.
 - [ ] Extend shared demand state to recipe-local computed dependents,
       statement-loop-local cells, nested memo boundaries and escaping completions.
       Preserve fresh iteration lifetimes and selected updates through every completion.
