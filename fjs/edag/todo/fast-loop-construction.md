@@ -6,7 +6,7 @@ statement-level transfers and normal-exit caller memo transport are implemented;
 the end-to-end `memberPresent` query is implemented;
 member/optional-call completion lifting is implemented;
 array/call spread return lifting is implemented;
-object-spread return lifting is in progress;
+object-spread return lifting is implemented;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -208,7 +208,7 @@ value identities. No-return inputs retain their original object syntax.
 Plain-call admission retains member/native callee provenance through wrappers
 and comma results. Member and optional-call operands use the shared FAST return
 normalizer and the member-resolution protocol below. Lazy initializers,
-captures, native bare callees and object spreads remain separate boundaries. A loop
+captures and native bare callees remain separate boundaries. A loop
 transfer cannot escape the operand's locally owned loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
@@ -222,8 +222,8 @@ Payload evaluation supplies the latest vector before every transfer. Continued
 iterations retain caller and enclosing-iteration cells and reset their own local
 lifetimes at reached declarations. Foreign targets and operand escapes remain
 refused.
-Demand-only guarded operands that are not exposed by return lifting and object
-spread operands retain their existing refusals. External lazy environments have no AST
+Demand-only guarded operands that are not exposed by return lifting retain their
+existing refusals. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
 
 ### Enclosing-function returns
@@ -561,13 +561,31 @@ their spread operands and materializations. A forced suffix expands its items
 once after the optional region joins. Array elements retain their identities;
 strings use the existing Unicode code-point iteration, including lone
 surrogates. No new node or iterable protocol is introduced. Logical no-return
-inputs retain their original syntax identities. Object spreads remain separate.
+inputs retain their original syntax identities.
 
 Physical preparation retains its existing outward-control and bare-callee
 domain, including standalone regions without a recorded function owner. Its
 operand sequencer uses the same expansion constructor when snapshotting an
 earlier spread before a later statement prelude. Both target writers consume
 that common prepared plan.
+
+Object literals sequence their entries rather than inferring key positions
+from operand parity. A property contributes a required `String(key)` followed
+by its value; a spread contributes one operand and a required ordinary object
+materialization. Returning operands skip their own conversion/copy and the
+remaining entries. Normal completion rebuilds the original entry tags around
+established string keys, values and copied objects.
+
+The existing own-property kernel supplies duplicate-key replacement, integer-key
+enumeration, ordinary insertion order and `__proto__` as data. Strings contribute
+UTF-16 code-unit properties; arrays contribute indices; nullish values and other
+non-object primitives contribute none. Copied property values retain their
+identities. This introduces no getter or foreign-object protocol.
+
+Physical object snapshots use entry metadata too: keys convert before any
+hoisted value prelude, and earlier object spreads copy before later outward
+control. No-prelude objects retain their ordinary spelling; standalone regions
+retain the existing physical ownership domain.
 
 ### Identity and evidence
 
@@ -620,6 +638,8 @@ their documented normalization. Repeated conversions must stabilize.
       query, retained receivers and existing chain-region boundaries.
 - [x] Lift owning returns through spread-bearing arrays and calls, expanding
       each reached spread before later control while preserving optional skips.
+- [x] Lift owning returns through spread-bearing object literals, preserving
+      key conversion, own-property copying, enumeration and value identities.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their

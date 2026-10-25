@@ -36,6 +36,12 @@ physical preparation domain. Member/optional calls use their shared chain
 normalization, retaining lookup and selected expansion regions. Both serializers
 receive explicit array constructions and ordinary spread references.
 
+Object-entry metadata distinguishes spread operands from property keys and
+values. Before a later control prelude, snapshots convert earlier keys to
+strings and materialize earlier object spreads through the shared constructor.
+Objects without a hoisted prelude retain their ordinary syntax. Own-property
+copying retains UTF-16 string properties, enumeration and value identities.
+
 A general loop has private parameter and result slots. Preparation establishes
 every transfer operand in an immutable temporary before writing any destination
 slot. Swaps and several state values therefore transfer simultaneously. Each

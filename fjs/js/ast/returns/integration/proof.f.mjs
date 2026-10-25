@@ -58,6 +58,10 @@ export const proof = /** @type {const} */ ({
         assertEq(evaluate(calledFunction(requiredFunction(['instanceof', ['array', [['...', ['array', [1]]], escape()]], 'Array']))), 7)
         assertEq(evaluate(calledFunction(requiredFunction(['()', constantFunction, [['...', ['array', [1, 2]]], escape()]]))), 7)
         assertStructurallySame(evaluate(calledFunction(requiredFunction(['array', [['...', escape(['array', [7]])]]]))), [7])
+        assertEq(evaluate(calledFunction(requiredFunction(['object', [
+            ['...', ['object', [[':', 'x', 1]]]], [':', escape(), 2],
+        ]]))), 7)
+        assertStructurallySame(evaluate(calledFunction(requiredFunction(['object', [['...', escape(['object', []])]]]))), {})
     },
     memberReturnsPreviouslyRefused: () => {
         for (const value of /** @type {readonly Value[]} */ ([
@@ -1314,10 +1318,6 @@ export const proof = /** @type {const} */ ({
         },
         commaMemberCalleeReturn: () => calledFunction(requiredFunction(['()', [',', [0, ['.', ['object', [[':', 'f', constantFunction]]], 'f']]], [escape()]])),
         commaNativeCalleeReturn: () => calledFunction(requiredFunction(['()', [',', [0, ['Number.isInteger']]], [escape()]])),
-        objectSpreadBeforeKeyReturn: () => calledFunction(requiredFunction(['object', [
-            ['...', ['object', [[':', 'x', 1]]]], [':', escape(), 2],
-        ]])),
-        objectSpreadOperandReturn: () => calledFunction(requiredFunction(['object', [['...', escape(['object', []])]]])),
         wrappedMemberCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['.', ['object', [[':', 'f', constantFunction]]], 'f'])], [escape()]])),
         wrappedOptionalCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['?.', null, 'f'])], [escape()]])),
         nativeCalleeReturn: () => calledFunction(requiredFunction(['()', ['Number.isInteger'], [escape()]])),

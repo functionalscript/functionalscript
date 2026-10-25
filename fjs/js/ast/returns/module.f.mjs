@@ -7,7 +7,7 @@
  * @import { BindingId, Block, Exit, FunctionTarget, Item, Key, LoopTarget, Operator, Statement, Step, Value } from '../types.ts'
  * @import { List } from '../../../types/list/types.ts'
  * @import { Task } from '../task/types.ts'
- * @import { _ChainEnd, _ChainRegion, _ChainSource, _Context, _Region, _ResultMode, _Sequence, _Value } from './private.ts'
+ * @import { _ChainEnd, _ChainRegion, _ChainSource, _Context, _Expansion, _Region, _ResultMode, _Sequence, _Value } from './private.ts'
  */
 
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
@@ -34,7 +34,10 @@ const plain = (source, callee = !(source instanceof Array) || source[0] === 'ref
 /** A reached spread uses the ordinary array expansion kernel in either FAST stage. @type {<V>(value: V) => readonly ['array', readonly [readonly ['...', V]]]} */
 export const _expandSpread = value => ['array', [['...', value]]]
 
-/** Establish ordered operands and reached spread expansions before later control. @type {(input: readonly Value[], owner: FunctionTarget | null, plainCall: boolean, permitted: readonly LoopTarget[], spreads?: readonly boolean[]) => Task<_Sequence>} */
+/** Object spreads copy the ordinary own-property kernel in either FAST stage. @type {<V>(value: V) => readonly ['object', readonly [readonly ['...', V]]]} */
+export const _expandObjectSpread = value => ['object', [['...', value]]]
+
+/** Establish ordered operands and reached spread expansions before later control. @type {(input: readonly Value[], owner: FunctionTarget | null, plainCall: boolean, permitted: readonly LoopTarget[], spreads?: readonly _Expansion[]) => Task<_Sequence>} */
 const sequenceTask = (input, owner, plainCall, permitted, spreads = []) => {
     /** @type {(statements: List<Statement>, values: List<Value>, normal: boolean, lifted: boolean, callee: boolean, admitted?: boolean) => Task<_Sequence>} */
     const finish = (statements, values, normal, lifted, callee, admitted = true) => done({
@@ -49,9 +52,11 @@ const sequenceTask = (input, owner, plainCall, permitted, spreads = []) => {
             const statement = result.statement ?? /** @type {Statement} */ (['define', id, result.value, 'required'])
             const next = /** @type {List<Statement>} */ ({ first: statement, tail: statements })
             if (!result.normal) { return finish(next, values, false, true, true) }
-            if (spreads[index]) {
+            const kind = spreads[index]
+            if (kind !== undefined) {
                 const expanded = binding()
-                const expansion = /** @type {Statement} */ (['define', expanded, _expandSpread(ref(id)), 'required'])
+                const expansion = /** @type {Statement} */ (['define', expanded,
+                    kind === 'object' ? _expandObjectSpread(ref(id)) : _expandSpread(ref(id)), 'required'])
                 return each(index + 1, { first: expansion, tail: next }, { first: ref(expanded), tail: values },
                     lifted || result.statement !== null, result.callee)
             }
@@ -63,10 +68,13 @@ const sequenceTask = (input, owner, plainCall, permitted, spreads = []) => {
 
 /** Snapshot eager operands in source order; object keys convert before their values. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>} */
 const eagerTask = (source, destination, owner, permitted) => {
-    const input = operatorOperands(source).map((value, index) => source[0] === 'object' && index % 2 === 0
-        ? /** @type {Value} */ (['String', value]) : value)
-    const spreads = source[0] === 'array' ? source[1].map(isSpread)
-        : source[0] === '()' ? [false, ...source[2].map(isSpread)] : []
+    const input = source[0] === 'object' ? source[1].flatMap(entry => entry[0] === '...'
+        ? [entry[1]] : [/** @type {Value} */ (['String', entry[1]]), entry[2]]) : operatorOperands(source)
+    /** @type {readonly _Expansion[]} */
+    const spreads = source[0] === 'object' ? source[1].flatMap(entry => entry[0] === '...'
+        ? [/** @type {const} */ ('object')] : [undefined, undefined])
+        : source[0] === 'array' ? source[1].map(itemExpansion)
+            : source[0] === '()' ? [undefined, ...source[2].map(itemExpansion)] : []
     return bind(sequenceTask(input, owner, source[0] === '()', permitted, spreads), result => {
         if (!result.admitted) { return done(plain(source, false)) }
         const callee = source[0] !== ',' || result.callee
@@ -81,6 +89,9 @@ const eagerTask = (source, destination, owner, permitted) => {
 
 /** @type {(item: Item<Value>) => item is readonly ['...', Value]} */
 const isSpread = item => item instanceof Array && item[0] === '...'
+
+/** @type {(item: Item<Value>) => _Expansion} */
+const itemExpansion = item => isSpread(item) ? 'array' : undefined
 
 /** Original item metadata survives snapshots of the expanded values. @type {(items: readonly Item<Value>[], values: readonly Value[]) => readonly Item<Value>[]} */
 const mappedItems = (items, values) => items.map((item, index) => isSpread(item) ? ['...', values[index]] : values[index])
@@ -152,7 +163,7 @@ const chainValue = (value, step, owner, end, permitted) => call(() => {
 
 /** Original arguments and spread expansions stay in their selected region. @type {(args: readonly Item<Value>[], invoke: (args: readonly Item<Value>[]) => Value, step: Step<Value> | undefined, owner: FunctionTarget | null, end: _ChainEnd, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
 const chainArguments = (args, invoke, step, owner, end, permitted) =>
-    bind(sequenceTask(args.map(item => isSpread(item) ? item[1] : item), owner, false, permitted, args.map(isSpread)), result => {
+    bind(sequenceTask(args.map(item => isSpread(item) ? item[1] : item), owner, false, permitted, args.map(itemExpansion)), result => {
         if (!result.normal) { return done({ block: { statements: result.statements, exit: ['yield', []] }, normal: false, lifted: true, callee: true }) }
         const value = invoke(mappedItems(args, result.values))
         if (step === undefined) { return done({ block: { statements: result.statements, exit: ['yield', [value]] }, normal: true, lifted: result.lifted, callee: true }) }
@@ -194,7 +205,7 @@ const forcedChain = (region, end, owner, permitted) => {
     if (end.args === null || !region.normal) { return done(region) }
     const ids = Array.from({ length: end.member ? 3 : 1 }, binding)
     const items = end.args
-    return bind(sequenceTask(items.map(item => isSpread(item) ? item[1] : item), owner, false, permitted, items.map(isSpread)), /** @returns {Task<_ChainRegion>} */ args => {
+    return bind(sequenceTask(items.map(item => isSpread(item) ? item[1] : item), owner, false, permitted, items.map(itemExpansion)), /** @returns {Task<_ChainRegion>} */ args => {
         const prefix = /** @type {readonly Statement[]} */ ([['block', ids, region.block], ...args.statements])
         if (!args.normal) { return done({ block: { statements: prefix, exit: ['yield', []] }, normal: false, lifted: true, callee: true }) }
         const values = mappedItems(items, args.values)
@@ -226,7 +237,7 @@ const chainTask = (source, destination, owner, permitted) => {
 
 /**
  * Eager operations, constructor checks, comma sequences, array/call items
- * and bare calls sequence their value operands. Member chains preserve their
+ * and object entries sequence their value operands. Member chains preserve their
  * own lookup/skip regions. Lazy initializers and function captures stay opaque.
  * @type {(source: Value, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>}
  */
@@ -245,7 +256,7 @@ const valueTask = (source, destination, owner, permitted) => call(() => {
     }
     if (isUnary(source) || eagerBinary(source) || source[0] === 'instanceof' || source[0] === '+' && source.length === 2
         || source[0] === ',' && source[1].length !== 0
-        || source[0] === 'object' && !source[1].some(entry => entry[0] === '...')
+        || source[0] === 'object'
         || source[0] === '()' || source[0] === 'array') {
         return eagerTask(/** @type {Operator<Value>} */ (source), destination, owner, permitted)
     }

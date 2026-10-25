@@ -18,12 +18,12 @@
  * @module
  * @import { BindingId, Block as NormalBlock, Exit as NormalExit, Function as NormalFunction, LoopTarget, Operator, Statement as NormalStatement, Value as NormalValue } from '../types.ts'
  * @import { Block, Exit, Function as PreparedFunction, Statement, Value } from './types.ts'
- * @import { _Block, _Context, _Facts, _Flow, _Flows, _Link, _Node, _Prepared, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
+ * @import { _Block, _Context, _Facts, _Flow, _Flows, _Link, _Node, _Prepared, _Snapshot, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
  */
 
 import { mapOperator, operatorOperands } from '../module.f.mjs'
 import { scalarLoopOf } from '../loop/module.f.js'
-import { _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
+import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { iterable, toArray } from '../../../types/list/module.f.mjs'
@@ -163,8 +163,12 @@ const nonlocalValue = (value, context) => nonlocal(['value', value], context)
 /** @type {(block: NormalBlock, context: _Context) => boolean} */
 const nonlocalBlock = (block, context) => nonlocal(['block', block], context)
 
-/** @type {(input: readonly NormalValue[], context: _Context, spreads?: readonly boolean[]) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
-const values = (input, context, spreads = []) => {
+/** A snapshot completes its key coercion or spread copy before later statements. @type {(value: Value, kind: _Snapshot | undefined) => Value} */
+const snapshot = (value, kind) => kind === 'array' ? _expandSpread(value)
+    : kind === 'object' ? _expandObjectSpread(value) : kind === 'key' ? ['String', value] : value
+
+/** @type {(input: readonly NormalValue[], context: _Context, snapshots?: readonly _Snapshot[]) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
+const values = (input, context, snapshots = []) => {
     /** @type {(index: number, next: number, previous: import('../../../types/list/types.ts').List<_Value>) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
     const each = (index, next, previous) => call(() => {
         if (index < input.length) {
@@ -176,7 +180,7 @@ const values = (input, context, spreads = []) => {
         const temporaries = fresh(next, lastPrelude)
         return done({
             value: prepared.map((result, index) => index < lastPrelude ? ['ref', temporaries[index]] : result.value),
-            statements: prepared.flatMap((result, index) => [...result.statements, ...index < lastPrelude ? [/** @type {Statement} */ (['define', temporaries[index], spreads[index] ? _expandSpread(result.value) : result.value])] : []]),
+            statements: prepared.flatMap((result, index) => [...result.statements, ...index < lastPrelude ? [/** @type {Statement} */ (['define', temporaries[index], snapshot(result.value, snapshots[index])])] : []]),
             next: next + temporaries.length,
         })
     })
@@ -227,9 +231,11 @@ const prepareValue = (value, context) => call(() => {
             // construction combines that shape into a member-call step.
             const operation = memberCall ? /** @type {Operator<NormalValue>} */ (['.', value[1][1], value[1][2], ['|()', value[2]]]) : value
             const input = operatorOperands(operation)
-            const spreadItems = operation[0] === 'array' ? operation[1] : operation[0] === '()' ? operation[2] : []
-            const flags = spreadItems.map(item => item instanceof Array && item[0] === '...')
-            const spreadFlags = operation[0] === '()' ? [false, ...flags] : flags
+            /** @type {readonly _Snapshot[]} */
+            const snapshots = operation[0] === 'object'
+                ? operation[1].flatMap(/** @returns {readonly _Snapshot[]} */ entry => entry[0] === '...' ? ['object'] : ['key', null])
+                : operation[0] === 'array' ? operation[1].map(item => item instanceof Array && item[0] === '...' ? 'array' : null)
+                    : operation[0] === '()' ? [null, ...operation[2].map(/** @returns {_Snapshot} */ item => item instanceof Array && item[0] === '...' ? 'array' : null)] : []
             if ((memberCall || value[0] === '?.' || value[0] === '?.()' || (value[0] === '.' && value.length === 4))
                 && (memberCall ? input : input.slice(1)).some(child => nonlocalValue(child, context))) {
                 if (context.owner !== null || memberCall) {
@@ -244,7 +250,7 @@ const prepareValue = (value, context) => call(() => {
                 }
                 throw ['unsupported FAST preparation', 'a nonlocal transfer in a chain operand']
             }
-            return bind(values(input, context, spreadFlags), prepared => done({ value: mapOperator((_, index) => prepared.value[index])(operation), statements: prepared.statements, next: prepared.next }))
+            return bind(values(input, context, snapshots), prepared => done({ value: mapOperator((_, index) => prepared.value[index])(operation), statements: prepared.statements, next: prepared.next }))
         }
     }
 })

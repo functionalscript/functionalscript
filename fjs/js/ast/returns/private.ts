@@ -12,6 +12,8 @@ export type _Context = {
 
 export type _ResultMode = 'value' | 'statement' | 'none'
 
+export type _Expansion = 'array' | 'object' | undefined
+
 export type _Sequence = {
     readonly statements: readonly Statement[]
     readonly values: readonly Value[]
