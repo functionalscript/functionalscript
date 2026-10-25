@@ -171,11 +171,22 @@ Eager-call snapshots can retain redundant required anchors through the first
 round trips. The mixed recursive-call fixture stabilizes by its third graph
 conversion; subsequent conversions preserve that graph, metadata and runtime
 identity. Existing named exact-graph domains retain their original checks.
+Complex array/comma memo fixtures reach their fixed graph after three round
+trips from the initial graph; later conversions retain that graph. Required
+and comma anchors settle into the existing canonical-index order while every
+intermediate preserves values, sharing, state order and metadata.
 
-Arrays, objects, comma sequences, `instanceof`, multi-result yield operands,
-lazy initializers, captures, member/native callees, optional forms and spreads
-retain their evaluation boundaries. Plain-call admission preserves callee
-provenance through wrapper regions.
+Non-spread array elements and nonempty comma sequences use the same ordered
+snapshots. A return skips later elements and array allocation; a normal comma
+keeps its last operand's value and callee provenance, while every preceding
+operand remains required. Zero/many yielded values at an admitted value-region
+root sequence in order and pack once into an array. Statement-result regions
+retain their declared multiple-binding signatures.
+
+Objects, `instanceof`, ordinary multiple-binding yield operands, lazy
+initializers, captures, member/native callees, optional forms and spreads retain
+their evaluation boundaries. Plain-call admission preserves callee provenance
+through wrapper regions and comma results.
 Loop transfers cannot escape a lifted operand's own loop scope. Ordinary
 nested functions are normalized at their own function entry.
 
