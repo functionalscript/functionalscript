@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { binaryTags, unaryTags } from '../../../compiler/ast/module.f.js'
-import { liftReturns, liftValueReturns } from './module.f.mjs'
+import { _expandSpread, liftReturns, liftValueReturns } from './module.f.mjs'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const other = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -41,6 +41,10 @@ const regions = root => {
 }
 
 export const proof = /** @type {const} */ ({
+    expansion: () => {
+        const value = id()
+        assertStructurallySame(_expandSpread(ref(value)), ['array', [['...', ref(value)]]])
+    },
     unchanged: () => {
         const value = id()
         const ordinary = /** @type {readonly Value[]} */ ([
@@ -53,16 +57,16 @@ export const proof = /** @type {const} */ ({
             ['object', []], ['object', [[':', 'x', ref(value)]]],
             ['object', [['...', ['object', []]], [':', 'x', ['block', returned(3)]]]],
             ['object', [[':', ['block', returned(3)], 1], ['...', ['object', []]]]],
-            ['array', [['...', ['array', []]], ['block', returned(3)]]],
-            ['array', [['...', ['block', returned(3)]]]],
+            ['array', [['...', ['array', [1]]], 2]],
+            ['array', [['...', 'a😀b']]],
             ['.', ref(value), 'x'], ['?.', ref(value), 'x'], ['?.()', ref(value), [1]],
             ['.', ref(value), ['Number', 0], ['|()', [1]]],
             ['?.', ref(value), 'x', ['|.', 'y', ['|!()', [1]]]],
             ['?.()', ref(value), [1], ['|()', [2]]],
             ['?.()', ref(value), [], ['|!()', [1]]],
-            ['?.()', ref(value), [['...', ['block', returned(3)]]]],
-            ['.', ref(value), 'x', ['|()', [['...', ['block', returned(3)]]]]],
-            ['()', ref(value), [['...', ['block', returned(3)]]]],
+            ['?.()', ref(value), [['...', ['array', [1]]]]],
+            ['.', ref(value), 'x', ['|()', [['...', ['array', [1]]]]]],
+            ['()', ref(value), [['...', ['array', [1]]]]],
             ['function', { target: owner, parameters: [], rest: null, self: null, captures: [], body: returned(['block', returned(3)]) }],
         ])
         for (const source of ordinary) {
@@ -584,8 +588,8 @@ export const proof = /** @type {const} */ ({
         const terminal = /** @type {Value} */ (['block', yielded([member], [['block', [], returned(7)]])])
         const result = liftReturns(returned(['()', terminal, [['block', body(['return', other, 3])]]]), owner)
         assertStructurallySame(result.exit, ['yield', []])
-        const opaque = returned(['()', ref(fn), [['...', ['block', returned(7)]]]])
-        assertEq(liftReturns(opaque, owner), opaque)
+        const spread = returned(['()', ref(fn), [['...', ['block', returned(7)]]]])
+        assert(liftReturns(spread, owner) !== spread)
         for (const callee of /** @type {readonly Value[]} */ ([member, ['.', ref(receiver), 'at', ['|()', []]], ['?.()', ref(fn), []]])) {
             const source = returned(['()', callee, [['block', returned(7)]]])
             const mapped = liftReturns(source, owner)
@@ -636,6 +640,44 @@ export const proof = /** @type {const} */ ({
         assert(definitions.some(statement => statement[2] instanceof Array && statement[2][0] === 'memberPresent' && statement[3] === 'required'))
         const optional = liftReturns(returned(['?.', ref(receiver), 'x', ['|?.()', [selected]]]), owner)
         assert(regions(optional).some(block => block.statements.some(statement => statement[0] === 'if')))
+    },
+    spreadSnapshots: () => {
+        const source = id(), condition = id(), destination = id()
+        const selected = /** @type {Value} */ (['if', ref(condition), returned(7), yielded([0])])
+        const cases = /** @type {readonly Value[]} */ ([
+            ['array', [['...', ref(source)], selected, ['...', 'a😀b']]],
+            ['()', ref(source), [['...', ['array', [1]]], selected, 2]],
+            ['.', ref(source), 'slice', ['|()', [['...', ['array', [1]]], selected]]],
+            ['.', ref(source), 'slice', ['|?.()', [['...', selected], 2]]],
+            ['?.()', ref(source), [['...', selected], 2]],
+            ['?.', ref(source), 'x', ['|!()', [['...', ['array', [1]]], selected]]],
+            ['?.()', ref(source), [], ['|!()', [['...', ['array', [1]]], selected]]],
+            ['?.', ref(source), 'x', ['|()', [['...', selected]], ['|.', 'y', ['|!()', [['...', selected]]]]]],
+        ])
+        for (const value of cases) {
+            const original = returned(value)
+            const mapped = liftReturns(original, owner)
+            assert(mapped !== original)
+            assertEq(liftReturns(mapped, owner), mapped)
+            const definitions = regions(mapped).flatMap(block => block.statements.filter(statement => statement[0] === 'define'))
+            assert(definitions.some(statement => statement[2] instanceof Array && statement[2][0] === 'array'
+                && statement[2][1].some(item => item instanceof Array && item[0] === '...') && statement[3] === 'required'))
+        }
+        const terminal = liftValueReturns(['array', [['...', ['block', returned(7)]]]], destination, owner)
+        assert(terminal.statement !== null)
+        assertEq(terminal.normal, false)
+        const definitions = regions(blockOf(terminal.statement)).flatMap(block => block.statements.filter(statement => statement[0] === 'define'))
+        assertEq(definitions.some(statement => statement[2] instanceof Array && statement[2][0] === 'array'), false)
+        const scalar = liftReturns(returned(['array', [['...', ref(source)], selected]]), owner)
+        const region = blockOf(scalar.statements[0])
+        assertEq(region.statements.length, 3)
+        const operand = region.statements[0], expanded = region.statements[1]
+        assert(operand[0] === 'define' && expanded[0] === 'define')
+        assertStructurallySame(expanded[2], ['array', [['...', ref(operand[1])]]])
+        assert(region.exit[0] === 'yield')
+        const value = region.exit[1][0]
+        assert(value instanceof Array && value[0] === 'array')
+        assertStructurallySame(value[1][0], ['...', ref(expanded[1])])
     },
     forcedSuffixSharing: () => {
         const receiver = id(), condition = id(), unique = id()

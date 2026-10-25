@@ -50,6 +50,12 @@ optional-call operands before graph construction or physical preparation. It
 retains required lookup, receiver binding and optional-region boundaries;
 target writers consume the resulting explicit control flow.
 
+Spread-bearing arrays and calls use the same sequencer. Each reached spread
+materializes into an internal array before a later operand can return; normal
+output spreads that established array. Member lookup and optional guards stay
+outside or around the selected argument expansions as their contracts require.
+Object spreads retain their existing admission boundary.
+
 `analyzeBindings(scope)` consumes the resolved, pattern-expanded binding stage,
 before assignment normalization or graph construction. Each scope declares the
 same binding identities for locals and parameters. Its events distinguish

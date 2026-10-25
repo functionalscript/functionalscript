@@ -53,6 +53,12 @@ const sequenceValue = (kind, values) => kind === 'yield' ? ['block', body(['yiel
 const keyMethods = (toString, valueOf) => ['object', [[':', 'toString', toString], [':', 'valueOf', valueOf]]]
 
 export const proof = /** @type {const} */ ({
+    spreadCompletions: () => {
+        assertEq(evaluate(calledFunction(requiredFunction(['array', [['...', ['array', [1]]], escape()]]))), 7)
+        assertEq(evaluate(calledFunction(requiredFunction(['instanceof', ['array', [['...', ['array', [1]]], escape()]], 'Array']))), 7)
+        assertEq(evaluate(calledFunction(requiredFunction(['()', constantFunction, [['...', ['array', [1, 2]]], escape()]]))), 7)
+        assertStructurallySame(evaluate(calledFunction(requiredFunction(['array', [['...', escape(['array', [7]])]]]))), [7])
+    },
     memberReturnsPreviouslyRefused: () => {
         for (const value of /** @type {readonly Value[]} */ ([
             ['instanceof', ['.', ['object', [[':', 'x', 1]]], ['Number', escape()]], 'Array'],
@@ -1308,18 +1314,14 @@ export const proof = /** @type {const} */ ({
         },
         commaMemberCalleeReturn: () => calledFunction(requiredFunction(['()', [',', [0, ['.', ['object', [[':', 'f', constantFunction]]], 'f']]], [escape()]])),
         commaNativeCalleeReturn: () => calledFunction(requiredFunction(['()', [',', [0, ['Number.isInteger']]], [escape()]])),
-        arraySpreadBeforeReturn: () => calledFunction(requiredFunction(['array', [['...', ['array', [1]]], escape()]])),
         objectSpreadBeforeKeyReturn: () => calledFunction(requiredFunction(['object', [
             ['...', ['object', [[':', 'x', 1]]]], [':', escape(), 2],
         ]])),
         objectSpreadOperandReturn: () => calledFunction(requiredFunction(['object', [['...', escape(['object', []])]]])),
-        instanceofSpreadOperandReturn: () => calledFunction(requiredFunction(['instanceof', ['array', [['...', ['array', [1]]], escape()]], 'Array'])),
         wrappedMemberCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['.', ['object', [[':', 'f', constantFunction]]], 'f'])], [escape()]])),
         wrappedOptionalCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['?.', null, 'f'])], [escape()]])),
         nativeCalleeReturn: () => calledFunction(requiredFunction(['()', ['Number.isInteger'], [escape()]])),
         wrappedNativeCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['Number.isInteger'])], [escape()]])),
-        callSpreadReturn: () => calledFunction(requiredFunction(['()', constantFunction, [['...', ['array', [1, 2]]], escape()]])),
-        spreadOperandReturn: () => calledFunction(requiredFunction(['array', [['...', escape(['array', [7]])]]])),
         functionCaptureReturn: () => {
             const captured = id(0)
             const nestedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })

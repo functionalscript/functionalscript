@@ -27,6 +27,15 @@ An abrupt-only normalized region can retain an unreachable empty yield.
 Result-slot writes use only established yielded temporaries, so those regions
 never introduce references to missing values into target syntax.
 
+Before an array/call operand can transfer outward, the physical operand
+sequencer materializes earlier reached spreads when establishing snapshots
+before a statement prelude. It reuses the logical return pass's expansion
+constructor. Merely retaining the iterable would defer a failed expansion until
+after the transfer. Existing standalone and bare-callee control forms keep their
+physical preparation domain. Member/optional calls use their shared chain
+normalization, retaining lookup and selected expansion regions. Both serializers
+receive explicit array constructions and ordinary spread references.
+
 A general loop has private parameter and result slots. Preparation establishes
 every transfer operand in an immutable temporary before writing any destination
 slot. Swaps and several state values therefore transfer simultaneously. Each

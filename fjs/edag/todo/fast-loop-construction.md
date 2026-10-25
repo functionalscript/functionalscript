@@ -5,7 +5,7 @@
 statement-level transfers and normal-exit caller memo transport are implemented;
 the end-to-end `memberPresent` query is implemented;
 member/optional-call completion lifting is implemented;
-array/call spread return lifting is in progress;
+array/call spread return lifting is implemented;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -207,7 +207,7 @@ value identities. No-return inputs retain their original object syntax.
 Plain-call admission retains member/native callee provenance through wrappers
 and comma results. Member and optional-call operands use the shared FAST return
 normalizer and the member-resolution protocol below. Lazy initializers,
-captures, native bare callees and spreads remain separate boundaries. A loop
+captures, native bare callees and object spreads remain separate boundaries. A loop
 transfer cannot escape the operand's locally owned loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
@@ -221,8 +221,8 @@ Payload evaluation supplies the latest vector before every transfer. Continued
 iterations retain caller and enclosing-iteration cells and reset their own local
 lifetimes at reached declarations. Foreign targets and operand escapes remain
 refused.
-Demand-only guarded operands that are not exposed by return lifting and spread
-operands retain their existing refusals. External lazy environments have no AST
+Demand-only guarded operands that are not exposed by return lifting and object
+spread operands retain their existing refusals. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
 
 ### Enclosing-function returns
@@ -548,6 +548,26 @@ expansion before a successful transfer. This boundary belongs to common
 preparation and construction, alongside member resolution; target writers do
 not independently infer it.
 
+The shared FAST return sequencer establishes each reached spread operand, then
+requires an ordinary array construction containing that one spread. Later
+operands run only after this materialization succeeds. The final array or call
+retains the original item tags around references to the expanded arrays, so
+replaying a spread cannot expose a deferred expansion failure. An owning return
+inside the original operand skips its expansion and all later work.
+
+Member lookup remains before argument expansion, and optional guards enclose
+their spread operands and materializations. A forced suffix expands its items
+once after the optional region joins. Array elements retain their identities;
+strings use the existing Unicode code-point iteration, including lone
+surrogates. No new node or iterable protocol is introduced. Logical no-return
+inputs retain their original syntax identities. Object spreads remain separate.
+
+Physical preparation retains its existing outward-control and bare-callee
+domain, including standalone regions without a recorded function owner. Its
+operand sequencer uses the same expansion constructor when snapshotting an
+earlier spread before a later statement prelude. Both target writers consume
+that common prepared plan.
+
 ### Identity and evidence
 
 Preserve established exact-graph loop cases outside any normalization explicitly
@@ -597,6 +617,8 @@ their documented normalization. Repeated conversions must stabilize.
       existing index vocabulary before enabling member-argument lifting.
 - [x] Lift owning returns through member and optional-call operands using the
       query, retained receivers and existing chain-region boundaries.
+- [x] Lift owning returns through spread-bearing arrays and calls, expanding
+      each reached spread before later control while preserving optional skips.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their

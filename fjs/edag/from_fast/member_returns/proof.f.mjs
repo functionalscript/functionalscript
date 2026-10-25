@@ -312,8 +312,5 @@ export const proof = /** @type {const} */ ({
             const argument = id(0)
             fromFast(result(['function', requiredFunction(['?.()', ref(argument), [wrong]], [argument])]))
         },
-        spreadMemberArgument: () => {
-            fromFast(result(['function', requiredFunction(['.', 'abc', 'slice', ['|()', [['...', escape()]]]])]))
-        },
     },
 })
