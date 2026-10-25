@@ -4,7 +4,8 @@
 **Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers,
 statement-level transfers and normal-exit caller memo transport are implemented;
 the end-to-end `memberPresent` query is implemented;
-member/optional-call completions and broader memo lifetimes remain in E
+member/optional-call completion lifting is in progress;
+broader operand and memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
