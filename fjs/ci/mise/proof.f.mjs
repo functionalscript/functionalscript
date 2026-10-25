@@ -9,16 +9,15 @@ const source = {
     'runs-on': 'ubuntu-26.04',
     'timeout-minutes': jobTimeout,
     steps: [
-        { uses: 'cachix/install-nix-action@v1' },
         { uses: 'dtolnay/rust-toolchain@1.99.1' },
         { uses: 'actions/setup-node@v1', with: { 'node-version': '26.12.1' } },
         { uses: 'actions/cache@v1' },
         { run: 'npm install -g functionalscript@0.56.0' },
         { uses: 'actions/checkout@v1' },
-        { run: 'sh ./gen.nix/run cargo test' },
-        { run: 'test "$(sh ./gen.nix/run wasmtime --version)" = "wasmtime 45.0.2"' },
-        { run: 'test "$(sh ./gen.nix/run js --version)" = "JavaScript-C140.14.0"' },
-        { run: 'sh ./gen.nix/run npm run sm t' },
+        { run: 'env cargo test' },
+        { run: 'test "$(env wasmtime --version)" = "wasmtime 45.0.2"' },
+        { run: 'test "$(env js --version)" = "JavaScript-C140.14.0"' },
+        { run: 'env npm run sm t' },
         { run: 'test "$(node --version)" = "v26.12.1"' },
         ...['cargo test', 'npm ci', 'node --test', 'fjs test', 'tsc', 'git diff', 'mkdir consumer'].map(run => ({ run })),
         { run: 'echo extra && node extra.mjs', env: { EXTRA: 'kept' } },
@@ -28,6 +27,15 @@ const source = {
 }
 
 export const proof = {
+    callerTextIsPreserved: () => {
+        for (const script of ['printenv FOO', 'echo "env ready"', 'echo "$(env node --version)"']) {
+            const migrated = miseJobs({ 'windows-arm': { ...source, steps: [
+                { uses: 'actions/checkout@v1' }, { run: script },
+            ] } }, false)
+            const step = migrated['windows-arm']?.steps.find(step => step.env?.FJS_CI_RUN === script)
+            assertEq(step?.run, miseDevelop('bash -e -c "$FJS_CI_RUN"'))
+        }
+    },
     wrapper: () => {
         assertEq(miseDevelop('node --version'), 'mise exec -- node --version')
         assertEq(spiderMonkeyDevelop('js --version'), 'mise -E spidermonkey exec -- js --version')

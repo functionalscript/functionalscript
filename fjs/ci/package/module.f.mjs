@@ -163,10 +163,10 @@ const consumerTsc = /** @type {const} */ ('npx tsc --pretty false --ignoreConfig
  * an opaque script.
  *
  * The compiler is `../config/module.f.js`'s, installed from npm as a consumer
- * installs it, rather than taken from the flake the rest of the job enters:
- * entering that flake would put this repository's toolchain on `PATH` in the
+ * installs it, rather than taken from the environment manifest the rest of the job enters:
+ * entering that environment manifest would put this repository's toolchain on `PATH` in the
  * one place nothing of the repository should be in reach. It is the same
- * version the shell provides through Nix, so the declarations in the tarball
+ * version the shell provides through the manager, so the declarations in the tarball
  * are read by the compiler that emitted them.
  *
  * That version must stay exact for a reason peculiar to this check: the
@@ -254,13 +254,13 @@ const consumerCommands = consumer => [
  *   temporary files are directories of their own.
  * - **Nothing but the tarball in it.** The job makes it with a `mkdir` that
  *   fails if it already exists, and `npm pack` writes the tarball into it.
- * - **No repository toolchain on `PATH`.** No step here enters the flake: each
- *   Nix step entered its shell for its own command alone, so the `node`,
+ * - **No repository toolchain on `PATH`.** No step here enters the environment manifest: each
+ *   environment step entered its shell for its own command alone, so the `node`,
  *   `npm` and `npx` here are those of the `setup-node` step the job runs just
  *   before them, as a consumer's would be (`../node/module.f.mjs`).
  *
  * What the same runner still holds is outside a consumer's resolution: the
- * checkout beside it, the Nix store, and the npm cache `npm ci` filled, which
+ * checkout beside it, the tool installation directories, and the npm cache `npm ci` filled, which
  * hands out package contents only against their recorded integrity.
  *
  * Commands only, each starting in that directory: the job these steps close

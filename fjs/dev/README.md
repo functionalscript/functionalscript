@@ -1,18 +1,7 @@
-# Test Framework
+# Development commands
 
-The main principle is that tests don't depend on test framework. We use conventions instead.
+`npm run gen` regenerates source outputs through `gen/module.f.mjs`, stopping
+at the first failure. `npm run gen:clean` deletes all generated files before
+regeneration; no tool lock is exempt. Run both through `./dev.sh`.
 
-## Conventions
-
-- file name `test.f.*`,
-- parsing default exports.
-
-## Regeneration
-
-`npm run gen` is [`gen/module.f.mjs`](./gen/module.f.mjs): one program whose
-`generators` list is every generator of this repository in the order
-regeneration needs, each with the reason for its position beside it, ending
-with the generated Nix lock script run on the terminal. `npm run gen:clean` is
-[`clean/module.f.mjs`](./clean/module.f.mjs), the cleanup that program starts
-with. A new generated output is a new entry in that list — see
-[CONTRIBUTING.md](../../CONTRIBUTING.md#regenerating-after-a-source-change).
+Dependency lock updates are separate from generation. See root CONTRIBUTING.md.

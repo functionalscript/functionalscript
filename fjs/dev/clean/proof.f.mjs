@@ -2,19 +2,20 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { exitCode } from '../../effects/node/module.f.mjs'
-import { nodeProgramOptions, virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { clean, generatedFiles, isGenerated, main } from './module.f.mjs'
 
 /** @type {Dir} */
 const root = {
     'gen.matrix.md': [],
-    'gen.nix': { 'flake.lock': [] },
+    'gen.environment': { 'dependency.lock': [], 'manifest.toml': [] },
     'matrix.md': [],
     'generate': { 'module.f.mjs': [] },
     'regen.md': [],
     'src': {
         'gen.operators.rs': [],
+        'gen.environment': { 'dependency.lock': [] },
         'main.rs': [],
         'gen.fixtures': { 'a.rs': [], '.hidden': [], 'deep': { 'b.rs': [] } },
     },
@@ -34,11 +35,14 @@ export const proof = {
         assertEq(unwrap(result).toSorted().join(','), [
             './.github/workflows/gen.ci.yml',
             './gen.matrix.md',
+            './gen.environment/dependency.lock',
+            './gen.environment/manifest.toml',
             './src/gen.fixtures/.hidden',
             './src/gen.fixtures/a.rs',
             './src/gen.fixtures/deep/b.rs',
+            './src/gen.environment/dependency.lock',
             './src/gen.operators.rs',
-        ].join(','))
+        ].toSorted().join(','))
     },
     // A scan root under a `gen.*` directory: only the path below the root
     // counts, so its handwritten files are not taken.
@@ -53,10 +57,10 @@ export const proof = {
         assertEq(result[0], 'ok')
         assertStructurallySame(state.root, {
             'matrix.md': [],
-            'gen.nix': { 'flake.lock': [] },
+            'gen.environment': {},
             'generate': { 'module.f.mjs': [] },
             'regen.md': [],
-            'src': { 'main.rs': [], 'gen.fixtures': { 'deep': {} } },
+            'src': { 'main.rs': [], 'gen.fixtures': { 'deep': {} }, 'gen.environment': {} },
             '.git': { 'gen.pack': [] },
             '.github': { 'FUNDING.yml': [], 'workflows': {} },
             'node_modules': { 'gen.js': [] },
@@ -64,7 +68,7 @@ export const proof = {
         })
     },
     main: () => {
-        const [state, code] = virtualAt(root)(main(nodeProgramOptions([])))
+        const [state, code] = virtualAt(root)(main())
         assertEq(exitCode(code), 0)
         assertEq(Object.keys(state.root).includes('gen.matrix.md'), false)
     },
