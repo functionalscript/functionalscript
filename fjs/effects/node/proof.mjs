@@ -1871,6 +1871,7 @@ export const proof = {
     // path is their own binary, and only Node takes `-e`.
     execFile: {
         literalArguments: async () => {
+            /** @type {readonly string[]} */
             const args = ["space and 'quote'", '$(echo wrong)', '& %PATH% ^ \"quoted\"']
             await hostCheck(execFile('node', ['-e', 'process.stdout.write(JSON.stringify(process.argv.slice(1))); process.stderr.write("stderr")', ...args]), result => {
                 const { stdout, stderr } = unwrap(result)
