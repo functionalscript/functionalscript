@@ -45,9 +45,10 @@ const execute = (outcomes, environment = env, failSpawn = false) => {
             assertEq(options.stdio, 'inherit')
             return [[...calls, args], failSpawn ? error(ioError({ message: 'git unavailable' })) : ok(child)]
         },
-        exec: command => calls => {
+        execFile: (command, args) => calls => {
+            assertEq(command, 'git')
             const outcome = assertNotNullish(outcomes[calls.length])
-            return [[...calls, [command]], outcome[0] === 'ok' && outcome[1][0] === 'exited' && outcome[1][1] === 0
+            return [[...calls, args], outcome[0] === 'ok' && outcome[1][0] === 'exited' && outcome[1][1] === 0
                 ? ok({ stdout: 'abc\n', stderr: '' })
                 : error(ioError({ message: 'plumbing failed' }))]
         },
@@ -66,8 +67,8 @@ const push = ['push', 'origin', 'build-cache']
 /** @type {(remote?: boolean) => readonly (readonly string[])[]} */
 const squash = (remote = true) => [
     comparison[1],
-    [`git '-C' '${directory}' 'write-tree'`],
-    [`git '-C' '${directory}' 'commit-tree' 'abc'${remote ? " '-p' 'refs/remotes/origin/build-cache'" : ''} '-m' 'ci: publish cache additions'`],
+    ['-C', directory, 'write-tree'],
+    ['-C', directory, 'commit-tree', 'abc', ...(remote ? ['-p', 'refs/remotes/origin/build-cache'] : []), '-m', 'ci: publish cache additions'],
     ['update-ref', 'refs/heads/build-cache', 'abc'],
 ]
 const reconcile = [
@@ -175,14 +176,11 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 0)
         assertEq(calls[3]?.[2], '/fjs-ci-/publish')
     },
-    nulDirectory: () => {
-        const [calls, result] = execute([...different, done, done, done], { RUNNER_TEMP: '\u0000' })
-        assertEq(exitCode(result), 1)
-        assertStructurallySame(calls.at(-1)?.slice(0, 3), ['worktree', 'remove', '--force'])
-    },
-    quotedDirectory: () => {
-        const [calls, result] = execute([...prepared, done, done], { RUNNER_TEMP: "tmp's $(false)" })
+    literalDirectory: () => {
+        const path = "C:/tmp's $(false) & %PATH%/fjs-ci-/publish"
+        const [calls, result] = execute([...prepared, done, done], { RUNNER_TEMP: "C:/tmp's $(false) & %PATH%" })
         assertEq(exitCode(result), 0)
-        assertEq(calls[5]?.[0], "git '-C' 'tmp'\\''s $(false)/fjs-ci-/publish' 'write-tree'")
+        assertStructurallySame(calls[5], ['-C', path, 'write-tree'])
+        assertEq(calls[6]?.[1], path)
     },
 })

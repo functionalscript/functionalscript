@@ -509,7 +509,7 @@ const { mkdir, open, readFile, readdir, rename, writeFile, rm, rmdir, access, st
 /** What `stat` and `fstat` answer of a host's `Stats`. @type {(s: Stats) => FileStat} */
 const fileStat = s => ({ size: s.size, isFile: s.isFile(), isDirectory: s.isDirectory() })
 
-const { exec, spawn } = childProcess
+const { exec, execFile, spawn } = childProcess
 
 /** The child a {@link Child} brands, as `asFileHandle` recovers a handle. @type {(child: Child) => ChildProcess} */
 const asChild = child => /** @type {ChildProcess} */ (asBase(child))
@@ -943,6 +943,10 @@ export const runNodeEffect = asyncRunAll({
             resolve(e !== null ? error(toIoError(e)) : ok({ stdout, stderr }))
         )
         child.stdin?.end(stdin)
+    }),
+    execFile: (command, args) => new Promise(resolve => {
+        execFile(command, args, (e, stdout, stderr) =>
+            resolve(e !== null ? error(toIoError(e)) : ok({ stdout, stderr })))
     }),
     // The subprocess slice of `./todo/spawn-effect.md`: a child on this process's
     // terminal, waited for. The handle is the branded `ChildProcess` itself, as

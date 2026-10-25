@@ -73,6 +73,9 @@ pushing. Otherwise it creates a replacement commit with the latest remote tip
 as its sole parent and retries. Published history stays intact and linear;
 shallow baselines and independently created cache roots are supported.
 
+Git plumbing captures output through an argument-vector subprocess, without a
+shell, so Windows and POSIX jobs pass paths and arguments literally.
+
 Fetches and pushes run from the source checkout so Git uses the credentials configured there by
 `actions/checkout`. Only the separate worktree checks out the cache branch;
 publication leaves the source checkout untouched. Concurrent reports accumulate

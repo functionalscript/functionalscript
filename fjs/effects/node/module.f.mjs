@@ -21,7 +21,7 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { EffectList, Next } from '../list/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecFile, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
@@ -263,7 +263,7 @@ export const isDirectory = ([tag, payload]) =>
 const nodeCommandSet = {
     access: null, all: null, await: null, catch: null, childWait: null, close: null,
     createExclusive: null,
-    createServer: null, exec: null, fetch: null, forever: null, fstat: null,
+    createServer: null, exec: null, execFile: null, fetch: null, forever: null, fstat: null,
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, open: null, pread: null,
     randomInt: null,
@@ -400,6 +400,9 @@ export const inflateTrailingMessage = count => `${count} bytes after the end of 
 
 /** @type {Func<Exec>} */
 export const exec = do_('exec')
+
+/** @type {Func<ExecFile>} */
+export const execFile = do_('execFile')
 
 // spawn
 
