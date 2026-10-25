@@ -26,12 +26,17 @@ the key. `deno task cov` has the same shape: every test, `module.f.m?js` measure
 
 ### Proposal
 
-Under coverage, load FunctionalScript proofs only: `proof.f.mjs`, and the
-`proof` export of a `module.f.mjs`. `isAuthored` in `fjs/dev` is already
-that predicate — it is what every engine but Node, Deno and Bun loads — so
-the coverage run takes it in place of `shouldLoad`, on every engine. The
-plain JavaScript proofs keep running in the suite, without coverage, where
-the `js` rung of the cache reruns them.
+Under coverage, load FunctionalScript proofs from `.f.mjs` and `.f.js` files
+only. `isAuthored` in `fjs/dev` already selects those files. The Node coverage
+run uses the FJS-only native entry from
+[the runner split](./split-fjs-and-js-runners.md), in place of the combined
+entry that uses `shouldLoad`.
+
+The [six-job CI plan](../../ci/todo/six-ci-jobs.md) requires coverage on Node
+only. Bun and SpiderMonkey test FJS through the repository runner. Node,
+Deno and Bun test host JavaScript through their native runners without
+coverage, on each OS assigned by the plan. Adding Deno or Bun coverage to CI
+is outside this task.
 
 The measured set stays `module.f.mjs` and `module.f.js`. FunctionalScript
 files under other names are loaded but not measured, by two routes. A
@@ -53,18 +58,21 @@ other modules' proofs.
 
 ### Tasks
 
-- [ ] Run `npm run cov` with `isAuthored` in place of `shouldLoad` once and
-      list the modules whose coverage drops.
+- [ ] Run Node coverage through the FJS-only native entry using `isAuthored`
+      and list the modules whose coverage drops.
 - [ ] Close each gap in the module's own `proof.f.mjs`.
-- [ ] `npm run cov` and `deno task cov` load FunctionalScript proofs only,
-      and `bun test --coverage` the same; the generated CI runs them so.
-      The Deno and Bun jobs run only their coverage command today, so each
-      gains a plain run beside it — `deno task test`, `bun test` — or the
-      plain JavaScript proofs stop running on those engines.
+- [ ] Make `npm run cov` select the FJS-only native entry and retain its
+      coverage thresholds. The generated CI requires coverage under Node only.
+- [ ] Keep host-JS proofs in the JS-only native entries for Node, Deno and Bun;
+      the six-job migration removes the existing Deno/Bun coverage commands
+      in favor of the assigned FJS and JS test runs.
 - [ ] [`CONTRIBUTING.md`](../../../CONTRIBUTING.md) says what coverage runs
       and measures, and the build cache's `fjs` rung cites it.
 
 ### Related
 
+- [Split FJS and JS runners](./split-fjs-and-js-runners.md)
+- [Six CI jobs](../../ci/todo/six-ci-jobs.md)
 - [Prove each module's coverage by its own proof](./per-module-coverage.md)
 - [Cache successful builds by their inputs](../../ci/cache/README.md)
+
