@@ -49,6 +49,7 @@ const isAction = (step, action) => step.uses?.startsWith(`${action}@`) === true
 /** Environment setup belongs to every check whose commands it executes. */
 /** @type {(step: Step) => boolean} */
 const environmentSetup = step => isAction(step, 'cachix/install-nix-action')
+    || step.run?.includes('npm install --prefix .pixi/ci-tools/npm ') === true
     || isAction(step, 'prefix-dev/setup-pixi') || step.run?.startsWith('pixi install ') === true
 
 /** Each check's terminal work. Installs and version checks are shared below. */

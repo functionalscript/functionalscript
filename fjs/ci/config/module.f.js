@@ -197,8 +197,8 @@ export const spidermonkey = /** @type {const} */ ({
 // `owner/name`; call sites compose the full ref as
 // `` `${name}@${actions[name]}` ``.
 // Note: dtolnay/rust-toolchain value is a Rust version, not an action version.
-export const pixiTypescript = '6.0.2'
-export const pixiBun = '1.4.2'
+export const pixiTypescript = '7.0.2'
+export const pixiBun = '1.4.4'
 export const pixiWasmer = '7.5.0'
 
 export const actions = /** @type {const} */({

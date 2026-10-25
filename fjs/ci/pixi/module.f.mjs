@@ -60,6 +60,7 @@ const migrateJob = (id, job, hasRust) => {
                 uses: `prefix-dev/setup-pixi@${actions['prefix-dev/setup-pixi']}`,
                 with: { 'pixi-version': 'v0.83.0', environments: 'ci', locked: 'true', cache: 'true' },
             },
+            { run: pixiDevelop(`npm install --prefix .pixi/ci-tools/npm typescript@${pixiTypescript} bun@${pixiBun}`), shell: 'bash' },
             ...(hasRust && id === 'ubuntu-intel' ? [{
                 run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386',
                 shell: 'bash',

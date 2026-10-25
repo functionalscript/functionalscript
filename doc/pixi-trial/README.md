@@ -170,9 +170,9 @@ Production publishing keeps its independent Node, registry and provenance setup.
 The generic `fjs ci` command retains its generated Nix environment; only this
 repository's self-generation opts into `Setup.environment: 'pixi'`.
 
-The separate locked `ci` environment supplies Node 26.12.1 and TypeScript 6.0.2
+The separate locked `ci` environment supplies Node 26.12.1 and TypeScript 7.0.2
 on all six native hosts. ARM Linux additionally gets cached Deno 2.8.3, Bun
-1.4.2 and Wasmer 7.5.0. Unlike the developer profile, CI deliberately installs
+1.4.4 and Wasmer 7.5.0. Unlike the developer profile, CI deliberately installs
 Rust 1.99.1 through the pinned Rust toolchain action, with rustfmt, Clippy and
 the original per-host cross targets. This keeps Rust and its target libraries
 consistent while Pixi's channel lacks the supported patch release. Linux x64
@@ -197,3 +197,9 @@ Nix lock without executing Nix; `npm run lock-update:nix` refreshes that legacy
 environment explicitly. The Nix development entry point remains available.
 Neither trial has been selected for final adoption, and comparable cold/warm
 CI benchmarks and developer feedback remain TODO work.
+
+The cached TypeScript 6 compiler emitted invalid declarations and Bun 1.4.2
+failed the serializer chain proof in GitHub CI. CI therefore installs exact
+npm-distributed TypeScript 7.0.2 and Bun 1.4.4 into a trial-local prefix,
+placed before Conda binaries on PATH. These version-pinned supplements are
+outside pixi.lock; the development profiles retain their cached versions.

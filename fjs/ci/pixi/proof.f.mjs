@@ -59,8 +59,8 @@ export const proof = {
             for (const step of job.steps) {
                 if (step.run !== undefined) {
                     const command = step.run.split('sh ./gen.nix/run ').join(pixiDevelop(''))
-                        .replace('Version 7.0.2', 'Version 6.0.2')
-                        .replace('= "1.4.4"', '= "1.4.2"')
+                        .replace('Version 7.0.2', 'Version 7.0.2')
+                        .replace('= "1.4.4"', '= "1.4.4"')
                         .replace('wasmer 7.1.0', 'wasmer 7.5.0')
                         .replace(pixiDevelop('wasmtime --version'), `${pixiDevelop('wasmtime --version')} | cut -d ' ' -f 1-2`)
                     assert(runs.includes(command) || runs.includes(pixiDevelop(command))

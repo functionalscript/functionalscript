@@ -71,5 +71,8 @@ bun = "==1.4.2"
 wasmer = "==7.5.0"
 
 [feature.ci.target.unix.activation.env]
-PATH = "$PIXI_PROJECT_ROOT/.pixi/ci-tools/bin:$PATH"
+PATH = "$PIXI_PROJECT_ROOT/.pixi/ci-tools/npm/node_modules/.bin:$PIXI_PROJECT_ROOT/.pixi/ci-tools/bin:$PATH"
 LD_LIBRARY_PATH = "$PIXI_PROJECT_ROOT/.pixi/ci-tools/spidermonkey:$LD_LIBRARY_PATH"
+
+[feature.ci.target.win.activation.env]
+PATH = "%PIXI_PROJECT_ROOT%\\.pixi\\ci-tools\\npm\\node_modules\\.bin;%PATH%"
