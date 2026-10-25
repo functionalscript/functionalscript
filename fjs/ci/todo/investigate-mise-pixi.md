@@ -1,7 +1,7 @@
 ## Investigate mise and Pixi as Nix alternatives
 
 **Priority:** P3
-**Status:** wip — mise development-environment trial
+**Status:** wip — mise CI migration stacked on #3259
 
 ### Problem
 
@@ -33,6 +33,16 @@ manager across all supported platforms.
 
 These PRs are independent opt-in alternatives for Stage 1 feedback. Neither
 selects the production manager or completes the six-platform investigation.
+
+### Stacked CI alternatives
+
+At the owner's request, the development trials now have separate CI migration
+PRs stacked on them. This branch selects mise for the repository's generated
+CI on all six native platforms. It preserves the current checks and cached-check
+contracts; it does not select the final manager for adoption or establish
+six-host runtime success or setup-speed results. The generic `fjs ci` API keeps
+its existing standalone environment, and local Nix entry points remain optional.
+See [mise CI trial notes](../../../doc/mise-trial/CI.md).
 
 ### Trial version policy
 

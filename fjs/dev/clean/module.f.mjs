@@ -36,7 +36,8 @@ export const isGenerated = name => name.startsWith('gen.')
  * @type {(path: string, entry: Dirent) => 'take' | 'descend' | 'skip'}
  */
 const classify = (path, { name, isDirectory }) =>
-    path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
+    path === 'gen.nix/flake.lock' ? 'skip'
+    : path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
     : isDirectory && (name === '.github' || !isThirdParty(name)) ? 'descend'
     : 'skip'
 

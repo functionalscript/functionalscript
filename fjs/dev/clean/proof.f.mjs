@@ -9,6 +9,7 @@ import { clean, generatedFiles, isGenerated, main } from './module.f.mjs'
 /** @type {Dir} */
 const root = {
     'gen.matrix.md': [],
+    'gen.nix': { 'flake.lock': [] },
     'matrix.md': [],
     'generate': { 'module.f.mjs': [] },
     'regen.md': [],
@@ -52,6 +53,7 @@ export const proof = {
         assertEq(result[0], 'ok')
         assertStructurallySame(state.root, {
             'matrix.md': [],
+            'gen.nix': { 'flake.lock': [] },
             'generate': { 'module.f.mjs': [] },
             'regen.md': [],
             'src': { 'main.rs': [], 'gen.fixtures': { 'deep': {} } },

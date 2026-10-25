@@ -10,6 +10,7 @@ import { actions, bun, deno, functionalscript, images, jobTimeout, node, spiderm
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { installNode, major, packageJobId } from './node/module.f.mjs'
 import { devNixJob } from './dev/module.f.mjs'
+import { miseDevelop } from './mise/module.f.mjs'
 import { flakePath, flakeText, nixDevelop } from './nix/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from './package/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
@@ -776,7 +777,8 @@ export const proof = {
             /** @type {(f: (step: Step) => boolean) => number} */
             const at = f => job.steps.findIndex(f)
             const made = at(step => step.run === `mkdir ${consumerDirectory}`)
-            const packed = at(step => step.run === nixDevelop(`npm pack --pack-destination ${consumerDirectory}`))
+            const wrapper = job.steps.some(step => step.uses?.startsWith('jdx/mise-action@')) ? miseDevelop : nixDevelop
+            const packed = at(step => step.run === wrapper(`npm pack --pack-destination ${consumerDirectory}`))
             const drift = at(step => step.run === 'git add -A && git diff --cached --exit-code')
             // Smart CI also installs a bootstrap Node before cache lookup.
             const setup = job.steps.findLastIndex(step => step.uses === `actions/setup-node@${actions['actions/setup-node']}`)

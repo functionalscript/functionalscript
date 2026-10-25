@@ -5,6 +5,9 @@ bin_path = "."
 # Publisher checksums are resolved into mise.spidermonkey.lock by `mise lock`.
 checksum_url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/SHA256SUMS"
 
+# Mozilla lists paths relative to the release root, not archive basenames.
+checksum_expr = '"sha256:" + split(trim(filter(split(body, "\n"), { trim(#) endsWith (" jsshell/" + filename) })[0]), " " )[0]'
+
 [tools."http:spidermonkey".platforms]
 linux-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/jsshell/jsshell-linux-x86_64.zip" }
 linux-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.14.0esr/jsshell/jsshell-linux-aarch64.zip" }

@@ -38,52 +38,79 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run cargo test\"},{\"run\":\"sh ./gen.nix/run cargo test --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu\"},{\"run\":\"sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run node --test\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target i686-unknown-linux-gnu\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target i686-unknown-linux-gnu --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target i686-unknown-linux-gnu -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm ci\",\"shell\":\"bash\"},{\"run\":\"mise exec -- node --test\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"x64\"}"
           }
         },
         {
-          "uses": "cachix/install-nix-action@v31.11.2",
+          "uses": "jdx/mise-action@v3",
+          "with": {
+            "version": "2026.10.19",
+            "install_args": "--locked",
+            "cache": "true",
+            "env": "false",
+            "add_shims_to_path": "false"
+          },
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm ci",
+          "run": "mise exec -- npm ci",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test",
+          "run": "mise exec -- cargo test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --release",
+          "run": "mise exec -- cargo test --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings",
+          "run": "mise exec -- cargo clippy -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu",
+          "run": "mise exec -- cargo test --target i686-unknown-linux-gnu",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target i686-unknown-linux-gnu --release",
+          "run": "mise exec -- cargo test --target i686-unknown-linux-gnu --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu -- -D warnings",
+          "run": "mise exec -- cargo clippy --target i686-unknown-linux-gnu -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
@@ -96,7 +123,8 @@
           "continue-on-error": true
         },
         {
-          "run": "sh ./gen.nix/run node --test",
+          "run": "mise exec -- node --test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
@@ -150,140 +178,194 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run wasmtime --version)\\\" = \\\"wasmtime 45.0.2\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run wasmer --version)\\\" = \\\"wasmer 7.1.0\\\"\"},{\"run\":\"sh ./gen.nix/run cargo fmt -- --check\"},{\"run\":\"sh ./gen.nix/run cargo test\"},{\"run\":\"sh ./gen.nix/run cargo test --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1 --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip1 -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip1 --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip2\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip2 --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip2 -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip2 --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-unknown-unknown\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads --release -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml\"},{\"run\":\"sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run node --test\"}]},{\"id\":\"spidermonkey-compile\",\"rung\":\"fjs\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run js --version)\\\" = \\\"JavaScript-C140.14.0\\\"\"},{\"run\":\"sh ./gen.nix/run npm run sm c\"}]},{\"id\":\"spidermonkey-suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run js --version)\\\" = \\\"JavaScript-C140.14.0\\\"\"},{\"run\":\"sh ./gen.nix/run npm run sm t\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- wasmtime --version | cut -d' ' -f1,2)\\\" = \\\"wasmtime 45.0.2\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- wasmer --version)\\\" = \\\"wasmer 7.1.0\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo fmt -- --check\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip1\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip1 --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target wasm32-wasip1 -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target wasm32-wasip1 --release -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip2\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip2 --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target wasm32-wasip2 -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target wasm32-wasip2 --release -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-unknown-unknown\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-unknown-unknown --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target wasm32-unknown-unknown -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target wasm32-unknown-unknown --release -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target wasm32-wasip1-threads -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target wasm32-wasip1-threads --release -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm ci\",\"shell\":\"bash\"},{\"run\":\"mise exec -- node --test\",\"shell\":\"bash\"}]},{\"id\":\"spidermonkey-compile\",\"rung\":\"fjs\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"mise -E spidermonkey lock http:spidermonkey --platform linux-arm64\",\"shell\":\"bash\"},{\"run\":\"mise -E spidermonkey install --locked http:spidermonkey\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise -E spidermonkey exec -- js --version)\\\" = \\\"JavaScript-C140.14.0\\\"\",\"shell\":\"bash\"},{\"run\":\"mise -E spidermonkey exec -- npm run sm c\",\"shell\":\"bash\"}]},{\"id\":\"spidermonkey-suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"mise -E spidermonkey lock http:spidermonkey --platform linux-arm64\",\"shell\":\"bash\"},{\"run\":\"mise -E spidermonkey install --locked http:spidermonkey\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise -E spidermonkey exec -- js --version)\\\" = \\\"JavaScript-C140.14.0\\\"\",\"shell\":\"bash\"},{\"run\":\"mise -E spidermonkey exec -- npm run sm t\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"arm64\"}"
           }
         },
         {
-          "uses": "cachix/install-nix-action@v31.11.2",
+          "uses": "jdx/mise-action@v3",
+          "with": {
+            "version": "2026.10.19",
+            "install_args": "--locked",
+            "cache": "true",
+            "env": "false",
+            "add_shims_to_path": "false"
+          },
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\"",
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run wasmtime --version)\" = \"wasmtime 45.0.2\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run wasmer --version)\" = \"wasmer 7.1.0\"",
-          "if": "steps.init.outputs.hit-rust != 'true'"
-        },
-        {
-          "run": "test \"$(sh ./gen.nix/run js --version)\" = \"JavaScript-C140.14.0\"",
+          "run": "mise -E spidermonkey lock http:spidermonkey --platform linux-arm64",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm ci",
+          "run": "mise -E spidermonkey install --locked http:spidermonkey",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- wasmtime --version | cut -d' ' -f1,2)\" = \"wasmtime 45.0.2\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- wasmer --version)\" = \"wasmer 7.1.0\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "test \"$(mise -E spidermonkey exec -- js --version)\" = \"JavaScript-C140.14.0\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
+        },
+        {
+          "run": "mise exec -- npm ci",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo fmt -- --check",
+          "run": "mise exec -- cargo fmt -- --check",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test",
+          "run": "mise exec -- cargo test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --release",
+          "run": "mise exec -- cargo test --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings",
+          "run": "mise exec -- cargo clippy -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1",
+          "run": "mise exec -- cargo test --target wasm32-wasip1",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --release",
+          "run": "mise exec -- cargo test --target wasm32-wasip1 --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 -- -D warnings",
+          "run": "mise exec -- cargo clippy --target wasm32-wasip1 -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1 --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --target wasm32-wasip1 --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml",
+          "run": "mise exec -- cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release",
+          "run": "mise exec -- cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2",
+          "run": "mise exec -- cargo test --target wasm32-wasip2",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --release",
+          "run": "mise exec -- cargo test --target wasm32-wasip2 --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 -- -D warnings",
+          "run": "mise exec -- cargo clippy --target wasm32-wasip2 -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip2 --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --target wasm32-wasip2 --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml",
+          "run": "mise exec -- cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release",
+          "run": "mise exec -- cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown",
+          "run": "mise exec -- cargo test --target wasm32-unknown-unknown",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --release",
+          "run": "mise exec -- cargo test --target wasm32-unknown-unknown --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown -- -D warnings",
+          "run": "mise exec -- cargo clippy --target wasm32-unknown-unknown -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-unknown-unknown --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --target wasm32-unknown-unknown --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml",
+          "run": "mise exec -- cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release",
+          "run": "mise exec -- cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads -- -D warnings",
+          "run": "mise exec -- cargo clippy --target wasm32-wasip1-threads -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --target wasm32-wasip1-threads --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --target wasm32-wasip1-threads --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml",
+          "run": "mise exec -- cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release",
+          "run": "mise exec -- cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
@@ -296,7 +378,8 @@
           "continue-on-error": true
         },
         {
-          "run": "sh ./gen.nix/run node --test",
+          "run": "mise exec -- node --test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
@@ -309,7 +392,8 @@
           "continue-on-error": true
         },
         {
-          "run": "sh ./gen.nix/run npm run sm c",
+          "run": "mise -E spidermonkey exec -- npm run sm c",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true'"
         },
         {
@@ -322,7 +406,8 @@
           "continue-on-error": true
         },
         {
-          "run": "sh ./gen.nix/run npm run sm t",
+          "run": "mise -E spidermonkey exec -- npm run sm t",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
         {
@@ -376,39 +461,54 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"dtolnay/rust-toolchain@1.99.1\",\"with\":{\"components\":\"rustfmt,clippy\"}},{\"run\":\"test \\\"\\u0024(node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"cargo test\"},{\"run\":\"cargo test --release\"},{\"run\":\"cargo clippy -- -D warnings\"},{\"run\":\"cargo clippy --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"run\":\"test \\\"\\u0024(node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"npm ci\"},{\"run\":\"node --test\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm ci\",\"shell\":\"bash\"},{\"run\":\"mise exec -- node --test\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"macos\",\"version\":\"26\",\"architecture\":\"x64\"}"
           }
         },
         {
-          "uses": "dtolnay/rust-toolchain@1.99.1",
+          "uses": "jdx/mise-action@v3",
           "with": {
-            "components": "rustfmt,clippy"
+            "version": "2026.10.19",
+            "install_args": "--locked",
+            "cache": "true",
+            "env": "false",
+            "add_shims_to_path": "false"
           },
-          "if": "steps.init.outputs.hit-rust != 'true'"
-        },
-        {
-          "run": "test \"$(node --version)\" = \"v26.12.1\"",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "npm ci",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "mise exec -- npm ci",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "cargo test",
+          "run": "mise exec -- cargo test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo test --release",
+          "run": "mise exec -- cargo test --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo clippy -- -D warnings",
+          "run": "mise exec -- cargo clippy -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo clippy --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
@@ -421,7 +521,8 @@
           "continue-on-error": true
         },
         {
-          "run": "node --test",
+          "run": "mise exec -- node --test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
@@ -475,36 +576,54 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run cargo test\"},{\"run\":\"sh ./gen.nix/run cargo test --release\"},{\"run\":\"sh ./gen.nix/run cargo clippy -- -D warnings\"},{\"run\":\"sh ./gen.nix/run cargo clippy --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run node --test\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm ci\",\"shell\":\"bash\"},{\"run\":\"mise exec -- node --test\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"macos\",\"version\":\"26\",\"architecture\":\"arm64\"}"
           }
         },
         {
-          "uses": "cachix/install-nix-action@v31.11.2",
+          "uses": "jdx/mise-action@v3",
+          "with": {
+            "version": "2026.10.19",
+            "install_args": "--locked",
+            "cache": "true",
+            "env": "false",
+            "add_shims_to_path": "false"
+          },
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm ci",
+          "run": "mise exec -- npm ci",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test",
+          "run": "mise exec -- cargo test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo test --release",
+          "run": "mise exec -- cargo test --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy -- -D warnings",
+          "run": "mise exec -- cargo clippy -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run cargo clippy --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
@@ -517,7 +636,8 @@
           "continue-on-error": true
         },
         {
-          "run": "sh ./gen.nix/run node --test",
+          "run": "mise exec -- node --test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
@@ -571,52 +691,74 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"dtolnay/rust-toolchain@1.99.1\",\"with\":{\"components\":\"rustfmt,clippy\",\"targets\":\"i686-pc-windows-msvc\"}},{\"run\":\"cargo test\"},{\"run\":\"cargo test --release\"},{\"run\":\"cargo clippy -- -D warnings\"},{\"run\":\"cargo clippy --release -- -D warnings\"},{\"run\":\"cargo test --target i686-pc-windows-msvc\"},{\"run\":\"cargo test --target i686-pc-windows-msvc --release\"},{\"run\":\"cargo clippy --target i686-pc-windows-msvc -- -D warnings\"},{\"run\":\"cargo clippy --target i686-pc-windows-msvc --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"run\":\"npm install -g functionalscript@0.56.0\"},{\"run\":\"fjs test\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target i686-pc-windows-msvc\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target i686-pc-windows-msvc --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target i686-pc-windows-msvc -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target i686-pc-windows-msvc --release -- -D warnings\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm install -g functionalscript@0.56.0\",\"shell\":\"bash\"},{\"run\":\"mise exec -- fjs test\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"windows\",\"version\":\"2025\",\"architecture\":\"x64\"}"
           }
         },
         {
-          "uses": "dtolnay/rust-toolchain@1.99.1",
+          "uses": "jdx/mise-action@v3",
           "with": {
-            "components": "rustfmt,clippy",
-            "targets": "i686-pc-windows-msvc"
+            "version": "2026.10.19",
+            "install_args": "--locked",
+            "cache": "true",
+            "env": "false",
+            "add_shims_to_path": "false"
           },
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "npm install -g functionalscript@0.56.0",
+          "run": "mise exec -- npm install -g functionalscript@0.56.0",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "cargo test",
+          "run": "mise exec -- cargo test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo test --release",
+          "run": "mise exec -- cargo test --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo clippy -- -D warnings",
+          "run": "mise exec -- cargo clippy -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo clippy --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo test --target i686-pc-windows-msvc",
+          "run": "mise exec -- cargo test --target i686-pc-windows-msvc",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo test --target i686-pc-windows-msvc --release",
+          "run": "mise exec -- cargo test --target i686-pc-windows-msvc --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo clippy --target i686-pc-windows-msvc -- -D warnings",
+          "run": "mise exec -- cargo clippy --target i686-pc-windows-msvc -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo clippy --target i686-pc-windows-msvc --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --target i686-pc-windows-msvc --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
@@ -629,7 +771,8 @@
           "continue-on-error": true
         },
         {
-          "run": "fjs test",
+          "run": "mise exec -- fjs test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
@@ -683,35 +826,54 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"dtolnay/rust-toolchain@1.99.1\",\"with\":{\"components\":\"rustfmt,clippy\"}},{\"run\":\"cargo test\"},{\"run\":\"cargo test --release\"},{\"run\":\"cargo clippy -- -D warnings\"},{\"run\":\"cargo clippy --release -- -D warnings\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"run\":\"npm install -g functionalscript@0.56.0\"},{\"run\":\"fjs test\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm install -g functionalscript@0.56.0\",\"shell\":\"bash\"},{\"run\":\"mise exec -- fjs test\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"windows\",\"version\":\"11\",\"architecture\":\"arm64\"}"
           }
         },
         {
-          "uses": "dtolnay/rust-toolchain@1.99.1",
+          "uses": "jdx/mise-action@v3",
           "with": {
-            "components": "rustfmt,clippy"
+            "version": "2026.10.19",
+            "install_args": "--locked",
+            "cache": "true",
+            "env": "false",
+            "add_shims_to_path": "false"
           },
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+        },
+        {
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "npm install -g functionalscript@0.56.0",
+          "run": "mise exec -- npm install -g functionalscript@0.56.0",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "cargo test",
+          "run": "mise exec -- cargo test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo test --release",
+          "run": "mise exec -- cargo test --release",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo clippy -- -D warnings",
+          "run": "mise exec -- cargo clippy -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "cargo clippy --release -- -D warnings",
+          "run": "mise exec -- cargo clippy --release -- -D warnings",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
@@ -724,7 +886,8 @@
           "continue-on-error": true
         },
         {
-          "run": "fjs test",
+          "run": "mise exec -- fjs test",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
@@ -778,24 +941,34 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run deno eval 'console.log(Deno.version.deno)')\\\" = \\\"2.8.3\\\"\"},{\"run\":\"sh ./gen.nix/run deno install --frozen\"},{\"run\":\"sh ./gen.nix/run deno task cov\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- deno eval 'console.log(Deno.version.deno)')\\\" = \\\"2.8.3\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- deno install --frozen\",\"shell\":\"bash\"},{\"run\":\"mise exec -- deno task cov\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"arm64\"}"
           }
         },
         {
-          "uses": "cachix/install-nix-action@v31.11.2",
+          "uses": "jdx/mise-action@v3",
+          "with": {
+            "version": "2026.10.19",
+            "install_args": "--locked",
+            "cache": "true",
+            "env": "false",
+            "add_shims_to_path": "false"
+          },
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run deno eval 'console.log(Deno.version.deno)')\" = \"2.8.3\"",
+          "run": "test \"$(mise exec -- deno eval 'console.log(Deno.version.deno)')\" = \"2.8.3\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run deno install --frozen",
+          "run": "mise exec -- deno install --frozen",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run deno task cov",
+          "run": "mise exec -- deno task cov",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
@@ -849,24 +1022,34 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run bun --version)\\\" = \\\"1.4.4\\\"\"},{\"run\":\"sh ./gen.nix/run bun install --frozen-lockfile\"},{\"run\":\"sh ./gen.nix/run bun test --coverage\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- bun --version)\\\" = \\\"1.4.4\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- bun install --frozen-lockfile\",\"shell\":\"bash\"},{\"run\":\"mise exec -- bun test --coverage\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"arm64\"}"
           }
         },
         {
-          "uses": "cachix/install-nix-action@v31.11.2",
+          "uses": "jdx/mise-action@v3",
+          "with": {
+            "version": "2026.10.19",
+            "install_args": "--locked",
+            "cache": "true",
+            "env": "false",
+            "add_shims_to_path": "false"
+          },
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run bun --version)\" = \"1.4.4\"",
+          "run": "test \"$(mise exec -- bun --version)\" = \"1.4.4\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run bun install --frozen-lockfile",
+          "run": "mise exec -- bun install --frozen-lockfile",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run bun test --coverage",
+          "run": "mise exec -- bun test --coverage",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
@@ -920,26 +1103,37 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"tsc\",\"rung\":\"ts\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run tsc --version)\\\" = \\\"Version 7.0.2\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run tsc\"}]},{\"id\":\"compile\",\"rung\":\"fjs\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run npm start compile\"}]},{\"id\":\"coverage\",\"rung\":\"js\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"sh ./gen.nix/run npm run cov\"}]},{\"id\":\"package\",\"rung\":\"ts\",\"steps\":[{\"uses\":\"cachix/install-nix-action@v31.11.2\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run node --version)\\\" = \\\"v26.12.1\\\"\"},{\"run\":\"test \\\"\\u0024(sh ./gen.nix/run tsc --version)\\\" = \\\"Version 7.0.2\\\"\"},{\"run\":\"sh ./gen.nix/run npm ci\"},{\"run\":\"mkdir \\\"\\u0024RUNNER_TEMP/consumer\\\"\"},{\"run\":\"sh ./gen.nix/run npm pack --pack-destination \\\"\\u0024RUNNER_TEMP/consumer\\\"\"},{\"uses\":\"actions/setup-node@v7.1.0\",\"with\":{\"package-manager-cache\":\"false\",\"node-version\":\"26.12.1\"}},{\"run\":\"npm init -y > /dev/null\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npm install \\\"packed@file:\\u0024(echo *.tgz)\\\"\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npm install \\\"typescript@7.0.2\\\"\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"echo '{\\\"include\\\":[\\\"node_modules/packed/**/*\\\",\\\"node_modules/packed/**/.*\\\",\\\"node_modules/packed/**/.*/**/*\\\"],\\\"exclude\\\":[],\\\"compilerOptions\\\":{\\\"module\\\":\\\"nodenext\\\",\\\"target\\\":\\\"esnext\\\",\\\"strict\\\":true,\\\"noEmit\\\":true,\\\"skipLibCheck\\\":false}}' > tsconfig.json\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npx tsc\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"echo 'import { prototypeNames } from \\\"packed/fjs/js/prototype/module.f.js\\\";\\nimport type { PrototypeName } from \\\"packed/fjs/js/prototype/types.js\\\";\\nconst accepted: PrototypeName = \\\"map\\\";\\nif (prototypeNames === undefined) { throw new Error(\\\"prototypeNames did not load\\\"); }' > good.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"echo 'import type { PrototypeName } from \\\"packed/fjs/js/prototype/types.js\\\";\\nconst refused: PrototypeName = \\\"stone\\\";' > bad.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext good.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"node good.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"! npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext bad.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"tsc\",\"rung\":\"ts\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- tsc --version)\\\" = \\\"Version 7.0.2\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm ci\",\"shell\":\"bash\"},{\"run\":\"mise exec -- tsc\",\"shell\":\"bash\"}]},{\"id\":\"compile\",\"rung\":\"fjs\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm ci\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm start compile\",\"shell\":\"bash\"}]},{\"id\":\"coverage\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm ci\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm run cov\",\"shell\":\"bash\"}]},{\"id\":\"package\",\"rung\":\"ts\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- tsc --version)\\\" = \\\"Version 7.0.2\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm ci\",\"shell\":\"bash\"},{\"run\":\"mkdir \\\"\\u0024RUNNER_TEMP/consumer\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm pack --pack-destination \\\"\\u0024RUNNER_TEMP/consumer\\\"\",\"shell\":\"bash\"},{\"uses\":\"actions/setup-node@v7.1.0\",\"with\":{\"package-manager-cache\":\"false\",\"node-version\":\"26.12.1\"}},{\"run\":\"npm init -y > /dev/null\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npm install \\\"packed@file:\\u0024(echo *.tgz)\\\"\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npm install \\\"typescript@7.0.2\\\"\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"echo '{\\\"include\\\":[\\\"node_modules/packed/**/*\\\",\\\"node_modules/packed/**/.*\\\",\\\"node_modules/packed/**/.*/**/*\\\"],\\\"exclude\\\":[],\\\"compilerOptions\\\":{\\\"module\\\":\\\"nodenext\\\",\\\"target\\\":\\\"esnext\\\",\\\"strict\\\":true,\\\"noEmit\\\":true,\\\"skipLibCheck\\\":false}}' > tsconfig.json\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npx tsc\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"echo 'import { prototypeNames } from \\\"packed/fjs/js/prototype/module.f.js\\\";\\nimport type { PrototypeName } from \\\"packed/fjs/js/prototype/types.js\\\";\\nconst accepted: PrototypeName = \\\"map\\\";\\nif (prototypeNames === undefined) { throw new Error(\\\"prototypeNames did not load\\\"); }' > good.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"echo 'import type { PrototypeName } from \\\"packed/fjs/js/prototype/types.js\\\";\\nconst refused: PrototypeName = \\\"stone\\\";' > bad.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext good.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"node good.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"},{\"run\":\"! npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext bad.mts\",\"working-directory\":\"\\u0024{{ runner.temp }}/consumer\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"ubuntu\",\"version\":\"26.04\",\"architecture\":\"arm64\"}"
           }
         },
         {
-          "uses": "cachix/install-nix-action@v31.11.2"
+          "uses": "jdx/mise-action@v3",
+          "with": {
+            "version": "2026.10.19",
+            "install_args": "--locked",
+            "cache": "true",
+            "env": "false",
+            "add_shims_to_path": "false"
+          }
         },
         {
-          "run": "test \"$(sh ./gen.nix/run node --version)\" = \"v26.12.1\""
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "shell": "bash"
         },
         {
-          "run": "test \"$(sh ./gen.nix/run tsc --version)\" = \"Version 7.0.2\"",
+          "run": "test \"$(mise exec -- tsc --version)\" = \"Version 7.0.2\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-package != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm ci",
+          "run": "mise exec -- npm ci",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-coverage != 'true' || steps.init.outputs.hit-package != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run tsc",
+          "run": "mise exec -- tsc",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-tsc != 'true'"
         },
         {
@@ -952,7 +1146,8 @@
           "continue-on-error": true
         },
         {
-          "run": "sh ./gen.nix/run npm start compile",
+          "run": "mise exec -- npm start compile",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-compile != 'true'"
         },
         {
@@ -965,7 +1160,8 @@
           "continue-on-error": true
         },
         {
-          "run": "sh ./gen.nix/run npm run cov",
+          "run": "mise exec -- npm run cov",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-coverage != 'true'"
         },
         {
@@ -979,17 +1175,21 @@
         },
         {
           "run": "mkdir \"$RUNNER_TEMP/consumer\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm pack --pack-destination \"$RUNNER_TEMP/consumer\"",
+          "run": "mise exec -- npm pack --pack-destination \"$RUNNER_TEMP/consumer\"",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
-          "run": "sh ./gen.nix/run npm run gen"
+          "run": "mise exec -- npm run gen",
+          "shell": "bash"
         },
         {
-          "run": "git add -A && git diff --cached --exit-code"
+          "run": "git add -A && git diff --cached --exit-code",
+          "shell": "bash"
         },
         {
           "uses": "actions/setup-node@v7.1.0",
