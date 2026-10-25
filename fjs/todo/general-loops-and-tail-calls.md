@@ -118,8 +118,8 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       and initializer lifetimes through nested normal-exit helpers and owning
       source-function returns and outer-loop transfers. Direct plain value
       regions, eager unary/binary operands, conditional tests, plain calls,
-      non-spread arrays, comma sequences and value-region result packing can
-      lift owning returns; the remaining operand boundaries stay open.
+      non-spread arrays/objects, comma sequences and value-region result packing
+      can lift owning returns; the remaining operand boundaries stay open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

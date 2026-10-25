@@ -180,12 +180,19 @@ array allocates after its operands; a comma keeps its last operand's value and
 callee provenance while requiring every preceding evaluation. Zero/many normal
 yield values at admitted value-region roots sequence and pack into one array;
 ordinary statement-result regions keep their original multiple-binding arity.
-Complex array/comma memo fixtures settle their required/comma anchor order
+Complex array/comma/object memo fixtures settle their required/comma anchor order
 after three round trips from the initial graph, with state order, sharing,
 metadata and execution preserved through every intermediate. Further round
 trips retain that fixed graph.
+Non-spread object entries use required `String(key)` snapshots before each
+property value and later entries. The operation calls the same conversion as
+the object kernel, so key-coercion failures cannot disappear behind a later
+successful return. A key's own return skips conversion and all remaining work.
+Only normal completion builds the object from established string keys and
+values, retaining duplicate-key and enumeration rules, `__proto__` as data and
+value identities. No-return inputs retain their original object syntax.
 Plain-call admission retains member/native callee provenance through wrappers
-and comma results. Objects, `instanceof`, ordinary multiple-binding yield
+and comma results. `instanceof`, ordinary multiple-binding yield
 operands, lazy initializers, captures, member/native calls, optional forms and
 spreads remain separate boundaries. A loop transfer cannot escape the operand's
 locally owned loop chain.
@@ -424,6 +431,8 @@ their documented normalization. Repeated conversions must stabilize.
       tests and plain call callees/arguments, retaining required prefixes.
 - [x] Lift owning returns through non-spread array elements, comma sequences
       and multiple normal-yield values in admitted value regions.
+- [x] Lift owning returns through non-spread object keys and values, performing
+      key conversion before each property value and preserving object identity.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their

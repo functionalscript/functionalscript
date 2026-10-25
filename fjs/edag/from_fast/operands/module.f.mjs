@@ -1,7 +1,7 @@
 /**
  * Expose owning function returns at direct value-consumer boundaries. Eager
  * operands and tests become statement regions only when a return must cross
- * them. Member, optional, object and spread boundaries retain their evaluation.
+ * them. Member, optional and spread boundaries retain their evaluation.
  *
  * @module
  * @import { BindingId, Block, Exit, FunctionTarget, Operator, Statement, Value } from '../../../js/ast/types.ts'
@@ -31,9 +31,10 @@ const plain = (source, callee = !(source instanceof Array) || source[0] === 'ref
     || source[0] === 'array' || source[0] === 'object' || source[0] === 'instanceof') =>
     ({ statement: null, value: source, normal: true, callee })
 
-/** Snapshot eager operands in source order before exposing any later return. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget) => Task<_Value>} */
+/** Snapshot eager operands in source order; object keys convert before their values. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget) => Task<_Value>} */
 const eagerTask = (source, destination, owner) => {
-    const input = operatorOperands(source)
+    const input = operatorOperands(source).map((value, index) => source[0] === 'object' && index % 2 === 0
+        ? /** @type {Value} */ (['String', value]) : value)
     /** @type {(statements: List<Statement>, exit: Exit, normal: boolean, callee: boolean) => Task<_Value>} */
     const finish = (statements, exit, normal, callee) => done({
         statement: ['block', [destination], { statements: toArray(statements).toReversed(), exit }],
@@ -60,8 +61,8 @@ const eagerTask = (source, destination, owner) => {
 }
 
 /**
- * Eager unary/binary operations, comma sequences, spread-free arrays and bare
- * calls sequence their operands. Instanceof metadata, objects, chains, lazy
+ * Eager unary/binary operations, comma sequences, spread-free collections and
+ * bare calls sequence their operands. Instanceof metadata, chains, lazy
  * initializers and ordinary functions/captures remain opaque.
  * @type {(source: Value, destination: BindingId, owner: FunctionTarget) => Task<_Value>}
  */
@@ -74,6 +75,7 @@ const valueTask = (source, destination, owner) => call(() => {
     }
     if (isUnary(source) || eagerBinary(source) || source[0] === '+' && source.length === 2
         || source[0] === ',' && source[1].length !== 0
+        || source[0] === 'object' && !source[1].some(entry => entry[0] === '...')
         || (source[0] === '()' || source[0] === 'array')
             && !(source[0] === 'array' ? source[1] : source[2]).some(item => item instanceof Array && item[0] === '...')) {
         return eagerTask(/** @type {Operator<Value>} */ (source), destination, owner)
