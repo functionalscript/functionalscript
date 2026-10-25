@@ -27,6 +27,7 @@ import type {
     exps,
     frame,
     instanceOf,
+    memberPresent,
     items,
     numberCast,
     object,
@@ -70,6 +71,7 @@ export type Exp =
     | Op1
     | Op0
     | InstanceOf
+    | MemberPresent
     | Function
     | Arg
     | Frame
@@ -305,6 +307,9 @@ export type ConstructorId = 'Array'
 
 export type InstanceOf = readonly['instanceof', Exp, ConstructorId]
 
+/** Internal member-call presence query; the key uses existing index conversion. */
+export type MemberPresent = readonly ['memberPresent', Exp, Index]
+
 /** The operator ids at every arity: the tag of an operator node. */
 export type OpId = Op1Id | Op2Id | Op12Id | Op3Id | InstanceOf[0]
 
@@ -343,6 +348,7 @@ type _MinusIsOp12 = Assert<Equal<TagMap['-'], Op12>>
 type _ConditionalIsOp3 = Assert<Equal<TagMap['?:'], Op3>>
 type _InstanceofIsInstanceOf = Assert<Equal<TagMap['instanceof'], InstanceOf>>
 type _InstanceofIsOpId = Assert<Equal<Extract<OpId, 'instanceof'>, 'instanceof'>>
+type _MemberPresentTag = Assert<Equal<TagMap['memberPresent'], MemberPresent>>
 type _BracketsIsArray = Assert<Equal<TagMap['[]'], Array>>
 type _CallIsCall = Assert<Equal<TagMap['()'], Call>>
 type _DotIsDot = Assert<Equal<TagMap['.'], Dot>>
@@ -427,6 +433,8 @@ type _OverFrame = Assert<Equal<Over<Frame, 0>, readonly ['frame', number]>>
 type _OverInstanceOf = Assert<Equal<Over<InstanceOf, 0>, readonly ['instanceof', 0, 'Array']>>
 type _ConstructorId = Assert<Check<ConstructorId, typeof constructorId>>
 type _InstanceOf = Assert<Check<InstanceOf, typeof instanceOf>>
+type _MemberPresent = Assert<Check<MemberPresent, typeof memberPresent>>
+type _OverMemberPresent = Assert<Equal<Over<MemberPresent, 0, 1>, readonly ['memberPresent', 0, 1]>>
 type _Primitive = Assert<Check<Primitive, typeof primitive>>
 type _Exps = Assert<Check<Exps, typeof exps>>
 type _Spread = Assert<Check<Spread, typeof spread>>

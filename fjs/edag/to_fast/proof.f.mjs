@@ -29,6 +29,8 @@ export const proof = {
             ['!', 1], ['~', 2], ['-', ['[]', []]], ['+', ['[]', []]], ['typeof', 1], ['Number', '3'], ['String', 2],
             ['+', 1, 2], ['-', 2, 1], ['*', 2, 3], ['instanceof', ['[]', []], 'Array'],
             ['.', ['{}', [[':', 'x', 1]]], 'x'], ['.', ['[]', [8]], ['Number', '0']],
+            ['memberPresent', ['[]', [8]], 'length'], ['memberPresent', ['[]', [8]], 0],
+            ['memberPresent', ['[]', [8]], ['Number', '0']],
             ['()', ['=>', 0, [], 2], []], ['?.()', ['undefined'], []],
             ['?.', null, ['Number', 1]], ['?.', null, 'x', ['|.', 'y']],
             ['.', ['rest'], 'at', ['|()', [1]]],
@@ -45,6 +47,28 @@ export const proof = {
         roundTrip(['?.', null, 'x', ['|?.()', [1]]])
         roundTrip(['?.()', ['undefined'], [1], ['|.', 'x', ['|()', [2]]]])
         roundTrip(['.', ['{}', []], 'x', ['|?.()', [1]]])
+    },
+    memberPresentSharing: () => {
+        const receiver = /** @type {const} */ (['[]', [9]])
+        const key = /** @type {const} */ (['Number', ['+', 0, 0]])
+        const query = /** @type {const} */ (['memberPresent', receiver, key])
+        const graph = /** @type {Exp} */ (['[]', [receiver, query, query, ['.', receiver, key]]])
+        const flat = (/** @type {Exp} */ value) => {
+            const { root, nodes, scope, shared } = assertOk(identityAnalysis(value))
+            return { root, nodes, scope, shared }
+        }
+        let restored = fromFast(assertOk(toFast(graph)))
+        const stable = flat(restored)
+        for (let i = 0; i < 4; ++i) {
+            restored = fromFast(assertOk(toFast(restored)))
+            assertStructurallySame(flat(restored), stable)
+        }
+        const table = assertOk(identityAnalysis(restored))
+        const queries = table.nodes.flatMap((node, index) => node[0] === 'memberPresent' ? [index] : [])
+        assertEq(queries.length, 1)
+        assert(table.shared.includes(queries[0]))
+        assertEq(table.nodes.filter(node => node[0] === '.').length, 1)
+        roundTrip(['=>', 1, [receiver], ['memberPresent', ['frame', 0], ['Number', ['arg', 0]]]])
     },
     identities: () => {
         const shared = /** @type {const} */ (['[]', []])

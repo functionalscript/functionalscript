@@ -19,6 +19,7 @@ import { next, reverse, toArray } from '../../../types/list/module.f.mjs'
 import { chunkText, tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { _name as symbol, _binding as declaration, _resolve as resolve } from '../../../compiler/serializer/names/module.f.mjs'
 import { _entryChunks, _hasEntryChunks, _intrinsicChunks } from './intrinsic/module.f.mjs'
+import { _memberPresentChunks } from './member_present/module.f.mjs'
 import { isIntrinsic } from '../../../edag/module.f.mjs'
 
 const keyword = tagged('keyword')
@@ -241,6 +242,12 @@ const operatorText = (context, operator) => {
         case 'object': { return `{${operator[1].map(entry => entry[0] === '...'
             ? `...${expression(context, entry[1])}`
             : `${typeof entry[1] === 'string' && entry[1] !== '__proto__' ? primitive(entry[1]) : `[${expression(context, entry[1])}]`}:${expression(context, entry[2])}`).join(',')}}` }
+        case 'memberPresent': {
+            const helper = taggedChunks(_memberPresentChunks(`helper${context.values.indexOf(operator)}`))
+            const key = operator[2]
+            const converted = key instanceof Array ? `Number(${expression(context, key[1])})` : primitive(key)
+            return `${helper}(${expression(context, operator[1])},${converted})`
+        }
         case '.': case '?.': {
             const base = operator[1]
             const text = expression(context, base, 15)

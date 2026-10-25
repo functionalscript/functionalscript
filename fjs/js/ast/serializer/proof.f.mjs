@@ -60,6 +60,7 @@ export const proof = {
             ['array', [1, ['...', ['array', [2, 3]]]]],
             ['object', [[':', 'x', 1], [':', '__proto__', 2], [':', ['+', 'x', 'y'], 3], ['...', ['object', [[':', 'z', 4]]]]]],
             ['.', ['array', [2]], 0], ['.', ['object', [[':', 'a-b', 2]]], 'a-b'],
+            ['memberPresent', ['array', [2]], 'map'], ['memberPresent', ['array', [2]], ['Number', '0']],
             ['?.', null, 'key'], ['?.', null, 0], ['?.', null, ['Number', 'x']],
             ['.', ['object', [[':', 'NaN', 3]]], ['Number', 'x']],
             ['()', ['entry'], [['object', [[':', 'x', 3]]], 'x']],

@@ -39,6 +39,14 @@ lazy operand does not establish its runtime value. `CoreBinaryTag` excludes
 logical and nullish source operators; source sugar expresses them with
 immutable bindings and conditional result regions.
 
+`['memberPresent', receiver, key]` is an internal Boolean query using the same
+`Key<V>` vocabulary as property access. Its operands are the receiver followed
+by the value inside a computed `['Number', value]` key; literal keys remain
+metadata. It resolves the member without evaluating call arguments or checking
+callability. The graph conversion and runtime writers support this form;
+source admission has no spelling for it. Completion lifting at member-call
+boundaries is a separate construction step.
+
 `analyzeBindings(scope)` consumes the resolved, pattern-expanded binding stage,
 before assignment normalization or graph construction. Each scope declares the
 same binding identities for locals and parameters. Its events distinguish

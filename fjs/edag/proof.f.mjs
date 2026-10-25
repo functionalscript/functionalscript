@@ -771,6 +771,23 @@ export const proof = {
             assertNoMatch(v(['xyz', 1, 2]))
         },
     },
+    memberPresent: {
+        keys: () => {
+            for (const key of ['length', 0, -0, NaN, Infinity, ['Number', ['+', 1, 2]]]) {
+                assertOk(v(['memberPresent', ['[]', []], key]))
+            }
+            assertOk(v(['memberPresent', ['memberPresent', null, 'x'], 'value']))
+        },
+        closedShape: () => {
+            for (const value of [
+                ['memberPresent'], ['memberPresent', null], ['memberPresent', null, 'x', 1],
+                ['memberPresent', null, ['ref', 0]], ['memberPresent', null, ['+', 1, 2]],
+                ['memberPresent', null, null], ['memberPresent', null, true],
+                ['memberPresent', null, ['Number']], ['memberPresent', null, ['Number', 0, 1]],
+                ['member-present', null, 'x'],
+            ]) { assertNoMatch(v(value)) }
+        },
+    },
     // One operand and a constructor *name*: the name is a member of a
     // closed list, not an expression, so a string outside the list is
     // refused where a string operand would be a literal.

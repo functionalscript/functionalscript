@@ -94,6 +94,7 @@ const graphOperator = (a, node) => {
     switch (node[0]) {
         case '[]': { return ['array', node[1]] }
         case '{}': { return ['object', node[1]] }
+        case 'memberPresent': { return ['memberPresent', node[1], graphKey(a, node[2])] }
         case '.': case '?.': {
             const key = graphKey(a, node[2])
             return node.length === 3 ? [node[0], node[1], key] : [node[0], node[1], key, graphStep(a, node[3])]
