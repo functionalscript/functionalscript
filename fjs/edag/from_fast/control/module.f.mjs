@@ -24,8 +24,8 @@ const valueTasks = (values, context) => values.map(value => ({ kind: 'value', va
 /** @type {(block: Block, context: Context) => Task} */
 const blockTask = (block, context) => ({ kind: 'block', block, bound: context.bound })
 
-/** @type {(exit: Exit) => readonly Value[]} */
-const exitValues = exit => exit[0] === 'yield' ? exit[1]
+/** Values evaluated by a region's explicit exit. @type {(exit: Exit) => readonly Value[]} */
+export const exitValues = exit => exit[0] === 'yield' ? exit[1]
     : exit[0] === 'break' || exit[0] === 'continue' ? exit[2]
     : exit[0] === 'throw' ? [exit[1]] : [exit[2]]
 

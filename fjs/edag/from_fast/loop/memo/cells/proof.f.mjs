@@ -4,11 +4,12 @@
  * slice.
  *
  * @import { BindingId, Block, Definition, Exit, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
- * @import { MemoPlan } from './types.ts'
+ * @import { MemoPlan, RecipePlan } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../../../asserts/module.f.js'
-import { memoCells } from './module.f.mjs'
+import { freeBindings } from '../../../control/module.f.mjs'
+import { memoCells, recipeCells } from './module.f.mjs'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 0 })
@@ -43,6 +44,13 @@ const definitionsOf = block => block.statements.flatMap(statement => statement[0
 
 /** @type {(block: Block) => readonly Loop[]} */
 const loopsOf = block => block.statements.flatMap(statement => statement[0] === 'loop' ? [statement[1]] : [])
+
+/** @type {(plan: RecipePlan) => Block} */
+const recipeBlock = plan => {
+    const { value } = plan
+    assert(value instanceof Array && value[0] === 'block')
+    return value[1]
+}
 
 export const proof = /** @type {const} */ ({
     noCrossing: () => {
@@ -677,6 +685,212 @@ export const proof = /** @type {const} */ ({
         assertEq(plan.loops.size, 1)
         assertEq([...plan.loops][0].target, loop.target)
         assert([...plan.loops][0] !== loop)
+    },
+    recipe: {
+        unchanged: () => {
+            const outer = planned(containing(reading(a)))
+            const sources = /** @type {readonly Value[]} */ ([
+                null, undefined, 0, ['ref', a], ['entry'], ['array', [['ref', a]]],
+                ['block', body([
+                    ['define', known, 1, 'lazy'], ['define', alias, ['ref', a], 'lazy'],
+                    ['define', b, ['array', []], 'lazy'],
+                ], ['yield', [['ref', b]]])],
+                ['block', body([
+                    ['define', known, 1, 'lazy'], ['define', b, ['ref', known], 'lazy'],
+                ], ['yield', [['ref', b]]])],
+            ])
+            for (const value of sources) {
+                const plan = recipeCells(value, outer, new Map([[a, 0]]))
+                assertEq(plan.value, value)
+                assertEq(plan.localCount, 0)
+                assertEq(plan.layout.cells, outer.cells)
+                assertEq(plan.layout.definitions.size, 0)
+                assertEq(plan.layout.loops.size, 0)
+            }
+            const independent = /** @type {Value} */ (['block', body([['define', b, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', b]]])])
+            assertEq(recipeCells(independent, outer, new Map()).value, independent)
+        },
+        dependencyClosure: () => {
+            const outer = planned(containing(reading(b), [
+                ['define', a, ['array', []], 'lazy'], ['define', b, ['array', [['ref', a]]], 'lazy'],
+            ]))
+            const local = /** @type {const} */ ({ index: 0 })
+            const dependent = /** @type {const} */ ({ index: 0 })
+            const localAlias = /** @type {const} */ ({ index: 0 })
+            const unused = /** @type {const} */ ({ index: 0 })
+            const value = /** @type {Value} */ (['block', body([
+                ['define', alias, ['ref', a], 'lazy'],
+                ['define', local, ['array', []], 'lazy'],
+                ['define', dependent, ['array', [['ref', alias], ['ref', local]]], 'lazy'],
+                ['define', localAlias, ['ref', dependent], 'lazy'],
+                ['define', unused, ['array', []], 'lazy'],
+            ], ['yield', [['ref', localAlias]]])])
+            const plan = recipeCells(value, outer, new Map([[a, 0], [known, 0], [b, 1]]))
+            const definitions = definitionsOf(recipeBlock(plan))
+            assertEq(plan.localCount, 2)
+            assertEq(plan.layout.cells.length, 4)
+            assertEq(plan.layout.cells[0], outer.cells[0])
+            assertEq(plan.layout.cells[1], outer.cells[1])
+            assertEq(plan.layout.cells[2].binding, local)
+            assertEq(plan.layout.cells[3].binding, dependent)
+            assertEq(plan.layout.cells[2].iterationLocal, false)
+            assertEq(plan.layout.cells[3].iterationLocal, false)
+            assertEq(plan.layout.definitions.get(definitions[0]), 0)
+            assertEq(plan.layout.definitions.get(definitions[1]), 2)
+            assertEq(plan.layout.definitions.get(definitions[2]), 3)
+            assertEq(plan.layout.definitions.get(definitions[3]), 3)
+            assertEq(plan.layout.definitions.has(definitions[4]), false)
+            assertEq(plan.layout.definitions.has(outer.cells[0].definition), false)
+            assertEq(plan.layout.loops.size, 0)
+        },
+        lexicalOccurrences: () => {
+            const outer = planned(containing(reading(a)))
+            const shared = /** @type {Definition} */ (['define', b, ['array', [['ref', a], ['ref', known]]], 'lazy'])
+            const value = /** @type {Value} */ (['block', body([
+                ['define', known, 1, 'required'], shared, ['define', alias, ['ref', b], 'lazy'],
+                ['define', known, 2, 'required'], shared,
+            ], ['yield', [['ref', b]]])])
+            const plan = recipeCells(value, outer, new Map([[a, 0]]))
+            const definitions = definitionsOf(recipeBlock(plan))
+            assertEq(plan.localCount, 2)
+            assert(definitions[1] !== definitions[4])
+            assertEq(plan.layout.definitions.get(definitions[1]), 1)
+            assertEq(plan.layout.definitions.get(definitions[2]), 1)
+            assertEq(plan.layout.definitions.get(definitions[4]), 2)
+            assertEq(plan.layout.cells[1].initializer, shared[2])
+            assertEq(plan.layout.cells[2].initializer, shared[2])
+            assertEq(plan.layout.definitions.has(shared), false)
+            const shadowed = /** @type {Value} */ (['block', body([
+                ['define', a, 7, 'required'], ['define', b, ['array', [['ref', a]]], 'lazy'],
+            ], ['yield', [['ref', b]]])])
+            assertEq(recipeCells(shadowed, outer, new Map([[a, 0]])).localCount, 0)
+            const rebound = /** @type {Value} */ (['block', body([
+                ['define', a, ['array', [['ref', a]]], 'lazy'], ['define', b, ['array', [['ref', a]]], 'lazy'],
+            ], ['yield', [['ref', b]]])])
+            const reboundPlan = recipeCells(rebound, outer, new Map([[a, 0]]))
+            assertEq(reboundPlan.localCount, 2)
+            assertEq(reboundPlan.layout.cells[1].binding, a)
+            assertEq(reboundPlan.layout.cells[2].binding, b)
+        },
+        eagerRegionsAndOpaqueBodies: () => {
+            const outer = planned(containing(reading(a)))
+            const local = /** @type {const} */ ({ index: 0 })
+            const captured = /** @type {const} */ ({ index: 0 })
+            const entered = /** @type {const} */ ({ index: 0 })
+            const hidden = /** @type {const} */ ({ index: 0 })
+            const fnBody = body([['define', hidden, ['array', [['ref', a]]], 'lazy']], ['return', functionTarget, ['ref', hidden]])
+            const loopBody = body([['define', hidden, ['array', [['ref', a]]], 'lazy']], ['break', target, [['ref', hidden]]])
+            const value = /** @type {Value} */ (['block', body([
+                ['define', known, ['array', [
+                    ['block', body([['define', local, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', local]]])],
+                    ['function', { target: functionTarget, parameters: [], rest: null, self: null,
+                        captures: [{ binding: a, value: ['block', body([['define', captured, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', captured]]])] }], body: fnBody }],
+                    ['block', body([['loop', { target, parameters: [a], results: [result], body: loopBody,
+                        initial: [['block', body([['define', entered, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', entered]]])]] }]], ['yield', [['ref', result]]])],
+                ]], 'required'],
+            ], ['yield', [['ref', known]]])])
+            const plan = recipeCells(value, outer, new Map([[a, 0]]))
+            assertEq(plan.localCount, 3)
+            assertEq(plan.layout.cells[1].binding, local)
+            assertEq(plan.layout.cells[2].binding, captured)
+            assertEq(plan.layout.cells[3].binding, entered)
+            const array = definitionsOf(recipeBlock(plan))[0][2]
+            assert(array instanceof Array && array[0] === 'array')
+            const fn = array[1][1]
+            const region = array[1][2]
+            assert(fn instanceof Array && fn[0] === 'function')
+            assert(region instanceof Array && region[0] === 'block')
+            assertEq(fn[1].body, fnBody)
+            assertEq(loopsOf(region[1])[0].body, loopBody)
+            assertEq(plan.layout.loops.size, 0)
+        },
+        conditionalsAndStatementResults: () => {
+            const outer = planned(containing(reading(a)))
+            const left = /** @type {const} */ ({ index: 0 })
+            const right = /** @type {const} */ ({ index: 0 })
+            const arm = /** @type {Block} */ (body([['define', b, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', b]]]))
+            for (const value of /** @type {readonly Value[]} */ ([
+                ['if', false, arm, arm], ['?:', false, ['block', arm], ['block', arm]],
+            ])) {
+                const plan = recipeCells(value, outer, new Map([[a, 0]]))
+                assertEq(plan.localCount, 2)
+                assert(plan.layout.cells[1].definition !== plan.layout.cells[2].definition)
+            }
+            const source = /** @type {Value} */ (['block', body([
+                ['block', [left], arm],
+                ['if', [right], true, arm, body([], ['yield', [0]])],
+                ['define', known, ['array', [['ref', left], ['ref', right]]], 'lazy'],
+            ], ['yield', [['ref', known]]])])
+            const plan = recipeCells(source, outer, new Map([[a, 0], [left, 0], [right, 0]]))
+            assertEq(plan.localCount, 2)
+            assertEq(plan.layout.definitions.has(definitionsOf(recipeBlock(plan))[0]), false)
+        },
+        nestedGetterBoundary: () => {
+            const outer = planned(containing(reading(a)))
+            const local = /** @type {const} */ ({ index: 0 })
+            const initializer = /** @type {Value} */ (['block', body([
+                ['define', local, ['array', [['ref', a]]], 'lazy'],
+            ], ['yield', [['ref', local]]])])
+            const value = /** @type {Value} */ (['block', body([['define', b, initializer, 'lazy']], ['yield', [['ref', b]]])])
+            const plan = recipeCells(value, outer, new Map([[a, 0]]))
+            assertEq(plan.localCount, 1)
+            assertEq(plan.layout.cells[1].binding, b)
+            assertEq(plan.layout.cells[1].initializer, initializer)
+            const nested = recipeCells(initializer, plan.layout, new Map([[a, 0]]))
+            assertEq(nested.localCount, 1)
+            assertEq(nested.layout.cells[0], outer.cells[0])
+            assertEq(nested.layout.cells[1], plan.layout.cells[1])
+            assertEq(nested.layout.cells[2].binding, local)
+            assertEq(nested.layout.cells[2].iterationLocal, false)
+            assertEq(nested.layout.definitions.has(plan.layout.cells[1].definition), false)
+        },
+        prunedWithoutLocals: () => {
+            const outer = planned(containing(reading(a)))
+            const terminals = /** @type {readonly Statement[]} */ ([
+                ['block', [], body([], ['throw', 'stopped'])],
+                ['if', [], false, body([], ['throw', 'first']), body([], ['throw', 'second'])],
+            ])
+            for (const terminal of terminals) {
+                const value = /** @type {Value} */ (['block', body([
+                    terminal, ['define', b, ['array', [['ref', a]]], 'lazy'],
+                ], ['yield', [['ref', a]]])])
+                const plan = recipeCells(value, outer, new Map([[a, 0]]))
+                assert(plan.value !== value)
+                assertEq(plan.localCount, 0)
+                assertEq(plan.layout.cells, outer.cells)
+                assertEq(recipeBlock(plan).statements.length, 1)
+                assertStructurallySame(recipeBlock(plan).exit, ['yield', []])
+                assertEq(freeBindings(recipeBlock(plan)).length, 0)
+            }
+            const alreadyEmpty = /** @type {Value} */ (['block', body([terminals[0]])])
+            assertEq(recipeCells(alreadyEmpty, outer, new Map([[a, 0]])).value, alreadyEmpty)
+            const mixed = /** @type {Value} */ (['block', body([
+                ['if', [], false, body(), body([], ['throw', 'stopped'])], ['define', b, ['array', [['ref', a]]], 'lazy'],
+            ], ['yield', [['ref', b]]])])
+            assertEq(recipeCells(mixed, outer, new Map([[a, 0]])).localCount, 1)
+        },
+        exitOperands: () => {
+            const outer = planned(containing(reading(a)))
+            const value = /** @type {Value} */ (['block', body([['define', b, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', b]]])])
+            const exits = /** @type {readonly Exit[]} */ ([
+                ['yield', [value]], ['throw', value], ['return', functionTarget, value],
+                ['break', target, [value]], ['continue', target, [value]],
+            ])
+            for (const exit of exits) {
+                const plan = recipeCells(['block', body([], exit)], outer, new Map([[a, 0]]))
+                assertEq(plan.localCount, 1)
+                const prepared = recipeBlock(plan).exit
+                assertEq(prepared[0], exit[0])
+                assert(prepared !== exit)
+            }
+        },
+        deepOwnedRegions: () => {
+            const outer = planned(containing(reading(a)))
+            /** @type {Value} */
+            let value = ['block', body([['define', b, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', b]]])]
+            for (let depth = 0; depth < 20_000; ++depth) { value = ['!', value] }
+            assertEq(recipeCells(value, outer, new Map([[a, 0]])).localCount, 1)
+        },
     },
     throw: {
         reachableForeignAfterMixedConditional: () => memoCells(containing(loopOf(body([

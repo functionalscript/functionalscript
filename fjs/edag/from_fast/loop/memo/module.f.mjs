@@ -8,15 +8,15 @@
  *
  * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { List } from '../../../../types/list/types.ts'
- * @import { MemoPlan } from './cells/types.ts'
- * @import { _Block, _Context, _Exit, _Value, _Values } from './private.ts'
+ * @import { MemoLayout } from './cells/types.ts'
+ * @import { _Block, _Context, _Exit, _Recipe, _Value, _Values } from './private.ts'
  * @import { Task } from '../../task/types.ts'
  */
 
 import { concat, toArray } from '../../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
-import { freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
-import { memoCells } from './cells/module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
+import { memoCells, recipeCells } from './cells/module.f.mjs'
 import { bind, call, done, run } from '../../task/module.f.mjs'
 
 /** @type {(index?: number) => BindingId} */
@@ -26,7 +26,7 @@ const ref = id => ['ref', id]
 /** A source binder shadows only this region's active aliases. @type {(aliases: ReadonlyMap<BindingId, number>, bindings: readonly BindingId[]) => ReadonlyMap<BindingId, number>} */
 const withoutAliases = (aliases, bindings) => new Map([...aliases].filter(([id]) => !bindings.includes(id)))
 
-/** Replace one private cell, retaining every other lifetime's latest state. @type {(plan: MemoPlan, memo: BindingId, index: number, cell: Value) => Value} */
+/** Replace one private cell, retaining every other lifetime's latest state. @type {(plan: MemoLayout, memo: BindingId, index: number, cell: Value) => Value} */
 const withCell = (plan, memo, index, cell) => ['array', plan.cells.map((_, slot) => slot === index ? cell : ['.', ref(memo), slot])]
 /** @type {(value: Value, context: _Context) => _Value} */
 const plain = (value, context) => ({ statements: null, value, memo: context.memo, usesMemo: false })
@@ -66,19 +66,31 @@ const valuesTask = (input, context) => {
 }
 
 /**
- * Snapshot established prerequisites at the original lazy declaration. The
- * explicit memo input and pair result leave the source recipe deferred.
+ * Snapshot established prerequisites at the original lazy declaration. Fresh
+ * getter-local cells extend only this invocation; the pair result trims them
+ * while retaining updates to the parent layout.
  * @type {(index: number, context: _Context) => Task<FastFunction>}
  */
 const recipeFunction = (index, context) => call(() => {
     const source = context.plan.cells[index]
+    const owned = recipeCells(source.initializer, context.plan, context.aliases)
     const memo = binding(source.binding.index)
+    const localMemo = owned.localCount === 0 ? memo : binding()
     const initialized = binding(source.binding.index)
     const target = /** @type {const} */ ({ kind: 'function', index: source.binding.index })
-    return bind(valueTask(source.initializer, { ...context, memo, loop: null, operand: false }), recipe => {
+    const width = context.plan.cells.length
+    const locals = owned.layout.cells.slice(width)
+    /** @type {readonly _Recipe[]} */
+    const recipes = [...context.recipes, ...locals.map(cell => ({ binding: binding(cell.binding.index), width: owned.layout.cells.length }))]
+    /** @type {readonly Statement[]} */
+    const prefix = owned.localCount === 0 ? [] : [['define', localMemo, ['array', [
+        ...context.plan.cells.map((_, slot) => /** @type {Value} */ (['.', ref(memo), slot])),
+        ...locals.map(() => /** @type {Value} */ (['array', [false, undefined]])),
+    ]], 'required']]
+    return bind(valueTask(owned.value, { ...context, plan: owned.layout, recipes, memo: localMemo, loop: null, operand: false }), recipe => {
         const updated = withCell(context.plan, recipe.memo, index, ['array', [true, ref(initialized)]])
         const body = /** @type {Block} */ ({
-            statements: toArray(concat(recipe.statements)([['define', initialized, recipe.value, 'required']])),
+            statements: [...prefix, ...toArray(concat(recipe.statements)([['define', initialized, recipe.value, 'required']]))],
             exit: ['return', target, ['array', [ref(initialized), updated]]],
         })
         return done({ target, parameters: [memo], rest: null, self: null,
@@ -86,17 +98,28 @@ const recipeFunction = (index, context) => call(() => {
     })
 })
 
-/** One first demand invokes the declaration's recipe; hits reuse its payload. @type {(index: number, context: _Context) => _Value} */
+/**
+ * First demand invokes the declaration's recipe; hits reuse its payload.
+ * A narrower getter receives only its prefix and cannot replace caller-local
+ * state. Its returned prefix rejoins the caller's original suffix.
+ * @type {(index: number, context: _Context) => _Value}
+ */
 const demand = (index, context) => {
     const value = binding()
     const memo = binding()
     const initialized = binding()
     const cell = /** @type {Value} */ (['.', ref(context.memo), index])
+    const recipe = context.recipes[index]
+    const sameWidth = recipe.width === context.plan.cells.length
+    const input = /** @type {Value} */ (sameWidth ? ref(context.memo)
+        : ['array', context.plan.cells.slice(0, recipe.width).map((_, slot) => ['.', ref(context.memo), slot])])
+    const updated = /** @type {Value} */ (sameWidth ? ['.', ref(initialized), 1]
+        : ['array', context.plan.cells.map((_, slot) => ['.', slot < recipe.width ? ['.', ref(initialized), 1] : ref(context.memo), slot])])
     return {
         statements: [['if', [value, memo], ['.', cell, 0],
             { statements: [], exit: ['yield', [['.', cell, 1], ref(context.memo)]] },
-            { statements: [['define', initialized, ['()', ref(context.recipes[index]), [ref(context.memo)]], 'required']],
-                exit: ['yield', [['.', ref(initialized), 0], ['.', ref(initialized), 1]]] },
+            { statements: [['define', initialized, ['()', ref(recipe.binding), [input]], 'required']],
+                exit: ['yield', [['.', ref(initialized), 0], updated]] },
         ]],
         value: ref(value), memo, usesMemo: true,
     }
@@ -162,9 +185,6 @@ const valueTask = (source, context) => call(() => {
         return done({ statements: values.statements, value: unchanged ? source : mapOperator((_, index) => values.values[index])(source), memo: values.memo, usesMemo: values.usesMemo })
     })
 })
-
-/** @type {(exit: Exit) => readonly Value[]} */
-const exitValues = exit => exit[0] === 'yield' ? exit[1] : exit[0] === 'break' || exit[0] === 'continue' ? exit[2] : [exit[0] === 'throw' ? exit[1] : exit[2]]
 
 /** @type {(exit: Exit, context: _Context) => Task<_Exit>} */
 const exitTask = (exit, context) => call(() => {
@@ -244,7 +264,7 @@ const blockTask = (block, context) => {
                         /** @type {readonly Statement[]} */
                         const reset = local ? [['define', nextMemo, withCell(context.plan, memo, selected, ['array', [false, undefined]]), 'required']] : []
                         return bind(recipeFunction(selected, current), fn => resume(
-                            [...reset, ['define', context.recipes[selected], ['function', fn], 'required']], nextMemo, true, local, true, active))
+                            [...reset, ['define', context.recipes[selected].binding, ['function', fn], 'required']], nextMemo, true, local, true, active))
                     }
                     return resume(null, memo, true, false, true, active)
                 }
@@ -302,7 +322,7 @@ export const normalizeMemo = (root, externalLazyIds = []) => {
     const plan = memoCells(root, externalLazyIds)
     if (plan === null) { return root }
     const memo = binding()
-    const recipes = plan.cells.map(cell => binding(cell.binding.index))
+    const recipes = plan.cells.map(cell => ({ binding: binding(cell.binding.index), width: plan.cells.length }))
     const context = /** @type {_Context} */ ({ plan, aliases: new Map(), recipes, memo, loop: null, operand: false })
     const result = run(blockTask(plan.block, context))
     const initializer = /** @type {Value} */ (['array', plan.cells.map(() => ['array', [false, undefined]])])

@@ -144,8 +144,12 @@ The reset preserves caller and enclosing-iteration cells; aliases share their
 root without resetting it. Selected helper ancestors transport the vector even
 when a local declaration hides the dependency from their free-binding set.
 
-Recipe-local computed lazy dependents and escaping completions remain following
-increments.
+Recipe-local computed lazy bindings extend their owning getter's memo layout.
+Each initializer call appends fresh local cells, with getters created at their
+reached declarations. Narrower dependency calls receive only their prefix and
+merge returned updates with the caller's local suffix. A getter returns its
+parent width, retaining dependency updates and any returned payload identities.
+Escaping memo completions remain a following increment.
 Stateful member-call/optional/spread operands retain explicit refusals until their
 evaluation boundary is owned below. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
@@ -382,8 +386,10 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Give lazy cells declared inside loop iterations fresh declaration
       lifetimes. Share reached values with nested helpers and same-iteration
       reads while retaining caller-owned state.
-- [ ] Extend shared demand state to recipe-local computed dependents
-      and escaping completions.
+- [x] Give computed lazy bindings inside initializers recipe-owned cells.
+      Preserve local sharing, skipped demands and fresh local lifetimes when
+      an owning initializer is evaluated again.
+- [ ] Carry shared demand state through escaping completions.
       Preserve fresh iteration lifetimes and selected updates through every completion.
 - [ ] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.

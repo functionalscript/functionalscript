@@ -46,6 +46,21 @@ const evaluate = block => assertOk(toData(assertOk(memo(assertOk(identityAnalysi
 const recipesIn = block => block.statements.flatMap(statement => statement[0] === 'define'
     && statement[2] instanceof Array && statement[2][0] === 'function' ? [/** @type {const} */ ([statement[1], statement[2][1]])] : [])
 
+/** @type {(fn: FastFunction) => readonly Value[]} */
+const readyCells = fn => {
+    const exit = fn.body.exit
+    assert(exit[0] === 'return')
+    const packet = exit[2]
+    assert(packet instanceof Array && packet[0] === 'array')
+    const vector = packet[1][1]
+    assert(vector instanceof Array && vector[0] === 'array')
+    return vector[1].map(cell => {
+        assert(!(cell instanceof Array) || cell[0] !== '...')
+        // TypeScript does not exclude the readonly spread tuple after this guard.
+        return /** @type {Value} */ (cell)
+    })
+}
+
 export const proof = /** @type {const} */ ({
     unchanged: () => {
         const empty = yielded(1)
@@ -214,6 +229,234 @@ export const proof = /** @type {const} */ ({
         assertEq(result[0], result[1])
         assertEq(result[0][0], result[2])
         assertStructurallySame(result[0][1], [7])
+    },
+    recipeLocalLayout: () => {
+        const owner = id(0), local = id(0), localAlias = id(0)
+        const initializer = /** @type {Value} */ (['block', yielded(['array', [ref(localAlias), ref(local)]], [
+            ['define', local, ['array', [ref(lazy)]], 'lazy'], ['define', localAlias, ref(local), 'lazy'],
+        ])])
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', [4]], 'lazy'], ['define', owner, initializer, 'lazy'], ['loop', counting(ref(owner))],
+        ])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const initial = normalized.statements[0]
+        assert(initial[0] === 'define')
+        assertStructurallySame(initial[2], ['array', [['array', [false, undefined]], ['array', [false, undefined]]]])
+        const roots = recipesIn(normalized)
+        assertEq(roots.length, 2)
+        const recipe = roots[1][1]
+        const extension = recipe.body.statements[0]
+        assert(extension[0] === 'define')
+        assertEq(extension[3], 'required')
+        const extended = extension[2]
+        assert(extended instanceof Array && extended[0] === 'array')
+        assertEq(extended[1].length, 3)
+        assertStructurallySame(extended[1][2], ['array', [false, undefined]])
+        for (const slot of /** @type {const} */ ([0, 1])) {
+            const retained = extended[1][slot]
+            assert(retained instanceof Array && retained[0] === '.')
+            assertEq(retained[2], slot)
+            const memo = retained[1]
+            assert(memo instanceof Array && memo[0] === 'ref')
+            assertEq(memo[1], recipe.parameters[0])
+        }
+        const region = recipe.body.statements[1]
+        assert(region[0] === 'block')
+        const locals = recipesIn(region[2])
+        assertEq(locals.length, 1)
+        const definition = region[2].statements[0]
+        assert(definition[0] === 'define')
+        assertEq(definition[1], locals[0][0])
+        assertEq(readyCells(locals[0][1]).length, 3)
+        const demand = region[2].statements[1]
+        assert(demand[0] === 'if')
+        const ready = demand[2]
+        assert(ready instanceof Array && ready[0] === '.')
+        const cell = ready[1]
+        assert(cell instanceof Array && cell[0] === '.')
+        assertEq(cell[2], 2)
+        const memo = cell[1]
+        assert(memo instanceof Array && memo[0] === 'ref')
+        assertEq(memo[1], extension[1])
+        const invocation = demand[4].statements[0]
+        assert(invocation[0] === 'define')
+        const call = invocation[2]
+        assert(call instanceof Array && call[0] === '()')
+        const callee = call[1]
+        assert(callee instanceof Array && callee[0] === 'ref')
+        assertEq(callee[1], locals[0][0])
+        const argument = call[2][0]
+        assert(argument instanceof Array && argument[0] === 'ref')
+        assertEq(argument[1], extension[1])
+        const returned = readyCells(recipe)
+        assertEq(returned.length, 2)
+        const retained = returned[0]
+        assert(retained instanceof Array && retained[0] === '.')
+        const latest = retained[1]
+        assert(latest instanceof Array && latest[0] === 'ref')
+        assertEq(latest[1], region[1][1])
+    },
+    recipeLocalOuterMissRetainsTail: () => {
+        const outer = id(0), owner = id(0), outerLocal = id(0), sibling = id(0), saved = id(0), observed = id(0)
+        const outerInitializer = /** @type {Value} */ (['block', yielded(ref(outerLocal), [
+            ['define', outerLocal, ['array', [ref(lazy)]], 'lazy'],
+        ])])
+        const initializer = /** @type {Value} */ (['block', yielded(['array', [ref(saved), ref(sibling), ref(outer)]], [
+            ['define', sibling, ['array', [ref(lazy)]], 'lazy'],
+            ['define', saved, ref(sibling), 'required'], ['define', observed, ref(outer), 'required'],
+        ])])
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', [1]], 'lazy'], ['define', outer, outerInitializer, 'lazy'],
+            ['define', owner, initializer, 'lazy'], ['loop', counting(ref(owner))],
+        ])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const roots = recipesIn(normalized)
+        assertEq(roots.length, 3)
+        assertEq(readyCells(roots[1][1]).length, 3)
+        assertEq(readyCells(roots[2][1]).length, 3)
+        const outerExtension = roots[1][1].body.statements[0]
+        const ownerExtension = roots[2][1].body.statements[0]
+        assert(outerExtension[0] === 'define' && ownerExtension[0] === 'define')
+        const outerVector = outerExtension[2]
+        const ownerVector = ownerExtension[2]
+        assert(outerVector instanceof Array && outerVector[0] === 'array')
+        assert(ownerVector instanceof Array && ownerVector[0] === 'array')
+        assertEq(outerVector[1].length, 4)
+        assertEq(ownerVector[1].length, 4)
+        assertStructurallySame(outerVector[1][3], ['array', [false, undefined]])
+        assertStructurallySame(ownerVector[1][3], ['array', [false, undefined]])
+        const region = roots[2][1].body.statements[1]
+        assert(region[0] === 'block')
+        const firstDemand = region[2].statements[1]
+        const outerDemand = region[2].statements[3]
+        assert(firstDemand[0] === 'if' && outerDemand[0] === 'if')
+        const invocation = outerDemand[4].statements[0]
+        assert(invocation[0] === 'define')
+        const call = invocation[2]
+        assert(call instanceof Array && call[0] === '()')
+        const callee = call[1]
+        assert(callee instanceof Array && callee[0] === 'ref')
+        assertEq(callee[1], roots[1][0])
+        const prefix = call[2][0]
+        assert(prefix instanceof Array && prefix[0] === 'array')
+        assertEq(prefix[1].length, 3)
+        for (const slot of /** @type {const} */ ([0, 1, 2])) {
+            const retained = prefix[1][slot]
+            assert(retained instanceof Array && retained[0] === '.')
+            assertEq(retained[2], slot)
+            const memo = retained[1]
+            assert(memo instanceof Array && memo[0] === 'ref')
+            assertEq(memo[1], firstDemand[1][1])
+        }
+        const miss = outerDemand[4].exit
+        assert(miss[0] === 'yield')
+        const merged = miss[1][1]
+        assert(merged instanceof Array && merged[0] === 'array')
+        assertEq(merged[1].length, 4)
+        for (const slot of /** @type {const} */ ([0, 1, 2])) {
+            const retained = merged[1][slot]
+            assert(retained instanceof Array && retained[0] === '.')
+            assertEq(retained[2], slot)
+            const returned = retained[1]
+            assert(returned instanceof Array && returned[0] === '.')
+            assertEq(returned[2], 1)
+            const packet = returned[1]
+            assert(packet instanceof Array && packet[0] === 'ref')
+            assertEq(packet[1], invocation[1])
+        }
+        const tail = merged[1][3]
+        assert(tail instanceof Array && tail[0] === '.')
+        assertEq(tail[2], 3)
+        const incoming = tail[1]
+        assert(incoming instanceof Array && incoming[0] === 'ref')
+        assertEq(incoming[1], firstDemand[1][1])
+        const reused = region[2].statements[6]
+        assert(reused[0] === 'if')
+        const ready = reused[2]
+        assert(ready instanceof Array && ready[0] === '.')
+        const cell = ready[1]
+        assert(cell instanceof Array && cell[0] === '.')
+        assertEq(cell[2], 3)
+        const memo = cell[1]
+        assert(memo instanceof Array && memo[0] === 'ref')
+        assertEq(memo[1], outerDemand[1][1])
+    },
+    nestedRecipeLocalWidths: () => {
+        const owner = id(0), local = id(0), nested = id(0)
+        const nestedInitializer = /** @type {Value} */ (['block', yielded(ref(nested), [
+            ['define', nested, ['array', [ref(lazy)]], 'lazy'],
+        ])])
+        const initializer = /** @type {Value} */ (['block', yielded(ref(local), [
+            ['define', local, nestedInitializer, 'lazy'],
+        ])])
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', [1]], 'lazy'], ['define', owner, initializer, 'lazy'], ['loop', counting(ref(owner))],
+        ])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const roots = recipesIn(normalized)
+        assertEq(roots.length, 2)
+        const ownerRecipe = roots[1][1]
+        const extension = ownerRecipe.body.statements[0]
+        assert(extension[0] === 'define')
+        const vector = extension[2]
+        assert(vector instanceof Array && vector[0] === 'array')
+        assertEq(vector[1].length, 3)
+        const region = ownerRecipe.body.statements[1]
+        assert(region[0] === 'block')
+        const locals = recipesIn(region[2])
+        assertEq(locals.length, 1)
+        const localRecipe = locals[0][1]
+        const localExtension = localRecipe.body.statements[0]
+        assert(localExtension[0] === 'define')
+        const localVector = localExtension[2]
+        assert(localVector instanceof Array && localVector[0] === 'array')
+        assertEq(localVector[1].length, 4)
+        assertStructurallySame(localVector[1][3], ['array', [false, undefined]])
+        const localRegion = localRecipe.body.statements[1]
+        assert(localRegion[0] === 'block')
+        const nestedRecipes = recipesIn(localRegion[2])
+        assertEq(nestedRecipes.length, 1)
+        assertEq(readyCells(ownerRecipe).length, 2)
+        assertEq(readyCells(localRecipe).length, 3)
+        assertEq(readyCells(nestedRecipes[0][1]).length, 4)
+        assertEq(nestedRecipes[0][1].body.statements[0][0], 'if')
+    },
+    deepOwnedRecipeLocal: () => {
+        const owner = id(0), local = id(0)
+        /** @type {Value} */
+        let initializer = ['block', yielded(ref(local), [['define', local, ['array', [ref(lazy)]], 'lazy']])]
+        for (let depth = 0; depth < 20_000; ++depth) { initializer = ['block', yielded(initializer)] }
+        const source = yielded(ref(output), [
+            ['define', lazy, ['array', []], 'lazy'], ['define', owner, initializer, 'lazy'], ['loop', counting(ref(owner))],
+        ])
+        const normalized = normalizeMemo(source)
+        assertEq(normalizeMemo(normalized), normalized)
+        const roots = recipesIn(normalized)
+        assertEq(roots.length, 2)
+        const recipe = roots[1][1]
+        const extension = recipe.body.statements[0]
+        assert(extension[0] === 'define')
+        const vector = extension[2]
+        assert(vector instanceof Array && vector[0] === 'array')
+        assertEq(vector[1].length, 3)
+        const outer = recipe.body.statements[1]
+        assert(outer[0] === 'block')
+        let current = outer[2]
+        for (let depth = 0; depth < 20_000; ++depth) {
+            const region = current.statements[0]
+            assert(region[0] === 'block')
+            assertEq(region[1].length, 2)
+            current = region[2]
+        }
+        const locals = recipesIn(current)
+        assertEq(locals.length, 1)
+        assertEq(readyCells(locals[0][1]).length, 3)
+        const demand = current.statements[1]
+        assert(demand[0] === 'if')
+        assertStructurallySame(demand[2], ['.', ['.', ref(extension[1]), 2], 0])
     },
     deepRecipeDependency: () => {
         const dependent = id(0)
@@ -1265,13 +1508,6 @@ export const proof = /** @type {const} */ ({
         },
         operandComputedLazyDependent: () => {
             normalizeMemo(crossing(['block', body(['yield', [ref(alias)]], [['define', alias, ['array', [ref(lazy)]], 'lazy']])]))
-        },
-        recipeLocalComputedLazyDependent: () => {
-            const dependent = id(0), local = id(0)
-            const initializer = /** @type {Value} */ (['block', yielded(ref(local), [['define', local, ['array', [ref(lazy)]], 'lazy']])])
-            normalizeMemo(yielded(ref(output), [
-                ['define', lazy, ['array', []], 'lazy'], ['define', dependent, initializer, 'lazy'], ['loop', counting(ref(dependent))],
-            ]))
         },
         operandReturn: () => { normalizeMemo(crossing(['block', body(['return', functionTarget, ref(lazy)])])) },
         escapedReturn: () => {

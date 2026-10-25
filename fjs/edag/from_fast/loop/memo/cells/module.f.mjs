@@ -7,16 +7,17 @@
  *
  * @module
  *
- * @import { BindingId, Block, Definition, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Exit, Loop, Statement, Value } from '../../../../../js/ast/types.ts'
  * @import { List } from '../../../../../types/list/types.ts'
  * @import { Link } from '../../../private.ts'
  * @import { Task } from '../../../task/types.ts'
- * @import { MemoPlan } from './types.ts'
- * @import { _LoopInfo, _Occurrence, _Root, _Scope, _TransferVisit, _Visit } from './private.ts'
+ * @import { MemoLayout, MemoPlan, RecipePlan } from './types.ts'
+ * @import { _LoopInfo, _Occurrence, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _TransferVisit, _Visit } from './private.ts'
  */
 
-import { freeBindings, freeLoopBindings } from '../../../control/module.f.mjs'
-import { toArray } from '../../../../../types/list/module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings } from '../../../control/module.f.mjs'
+import { concat, toArray } from '../../../../../types/list/module.f.mjs'
+import { mapOperator, operatorOperands } from '../../../../../js/ast/module.f.mjs'
 import { bind, call, done, run } from '../../../task/module.f.mjs'
 
 /**
@@ -187,5 +188,156 @@ export const memoCells = (block, externalLazyIds = []) => {
             return index === -1 ? [] : [/** @type {const} */ ([definition, index])]
         })),
         loops,
+    }
+}
+
+const emptyOwned = /** @type {_Owned} */ ({ roots: null, definitions: null, pruned: false })
+
+/** Retain source order across eager subregions. @type {(first: _Owned, second: _Owned) => _Owned} */
+const mergeOwned = (first, second) => ({
+    roots: concat(first.roots)(second.roots),
+    definitions: concat(first.definitions)(second.definitions),
+    pruned: first.pruned || second.pruned,
+})
+
+/** @type {(exit: Exit, values: readonly Value[]) => Exit} */
+const mappedExit = (exit, values) => values.every((value, index) => value === exitValues(exit)[index]) ? exit
+    : exit[0] === 'yield' ? ['yield', values]
+        : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values]
+            : exit[0] === 'throw' ? ['throw', values[0]] : ['return', exit[1], values[0]]
+
+/** @type {(values: readonly Value[], scope: _Scope) => Task<_OwnedValues>} */
+const ownedValues = (values, scope) => {
+    /** @type {(index: number, prepared: List<Value>, owned: _Owned) => Task<_OwnedValues>} */
+    const each = (index, prepared, owned) => call(() => index === values.length
+        ? done({ values: toArray(prepared).toReversed(), owned })
+        : bind(ownedValue(values[index], scope), result => each(index + 1, { first: result.value, tail: prepared }, mergeOwned(owned, result.owned))))
+    return each(0, null, emptyOwned)
+}
+
+/**
+ * Prepare the current initializer's eager regions. A lazy definition owns a
+ * later recipe, and loop/function bodies own separate execution boundaries.
+ * @type {(source: Value, scope: _Scope) => Task<_OwnedValue>}
+ */
+const ownedValue = (source, scope) => call(() => {
+    if (source === null || typeof source !== 'object' || source[0] === 'ref') { return done(/** @type {_OwnedValue} */ ({ value: source, owned: emptyOwned })) }
+    if (source[0] === 'block') {
+        return bind(ownedBlock(source[1], scope), result => done({ value: ['block', result.block], owned: result.owned }))
+    }
+    if (source[0] === 'if') {
+        return bind(ownedValue(source[1], scope), test =>
+            bind(ownedBlock(source[2], scope), then =>
+                bind(ownedBlock(source[3], scope), otherwise => done({
+                    value: ['if', test.value, then.block, otherwise.block],
+                    owned: mergeOwned(test.owned, mergeOwned(then.owned, otherwise.owned)),
+                }))))
+    }
+    if (source[0] === 'function') {
+        return bind(ownedValues(source[1].captures.map(capture => capture.value), scope), captures => done({
+            value: ['function', { ...source[1], captures: source[1].captures.map((capture, index) => ({ binding: capture.binding, value: captures.values[index] })) }],
+            owned: captures.owned,
+        }))
+    }
+    return bind(ownedValues(operatorOperands(source), scope), operands => done({
+        value: mapOperator((_, index) => operands.values[index])(source), owned: operands.owned,
+    }))
+})
+
+/** @type {(source: Block, initialScope: _Scope) => Task<_OwnedBlock>} */
+const ownedBlock = (source, initialScope) => {
+    /** @type {(index: number, scope: _Scope, statements: List<Statement>, owned: _Owned) => Task<_OwnedBlock>} */
+    const each = (index, scope, statements, owned) => call(() => {
+        if (index === source.statements.length) {
+            return bind(ownedValues(exitValues(source.exit), scope), values => done({
+                block: { statements: toArray(statements).toReversed(), exit: mappedExit(source.exit, values.values) },
+                normal: source.exit[0] === 'yield', owned: mergeOwned(owned, values.owned),
+            }))
+        }
+        const statement = source.statements[index]
+        /** @type {(statement: Statement, nextScope: _Scope, added: _Owned, normal?: boolean) => Task<_OwnedBlock>} */
+        const append = (statement, nextScope, added, normal = true) => {
+            const next = /** @type {List<Statement>} */ ({ first: statement, tail: statements })
+            const collected = mergeOwned(owned, added)
+            if (normal) { return each(index + 1, nextScope, next, collected) }
+            const pruned = index + 1 < source.statements.length || source.exit[0] !== 'yield' || source.exit[1].length !== 0
+            return done({ block: { statements: toArray(next).toReversed(), exit: ['yield', []] }, normal: false,
+                owned: { ...collected, pruned: collected.pruned || pruned } })
+        }
+        if (statement[0] === 'define') {
+            const [, binding, initializer, mode] = statement
+            if (mode === 'required') {
+                return bind(ownedValue(initializer, scope), value => append(['define', binding, value.value, mode], established(scope, [binding]), value.owned))
+            }
+            const definition = /** @type {Definition} */ (['define', binding, initializer, mode])
+            /** @type {_Root | null} */
+            let root = null
+            /** @type {List<_Root>} */
+            let roots = null
+            if (initializer !== null && typeof initializer === 'object') {
+                if (initializer[0] === 'ref') { root = scope.get(initializer[1]) ?? null }
+                else {
+                    root = { binding, source: { definition, insideLoop: false }, dependencies: dependencies(initializer, scope) }
+                    roots = [root]
+                }
+            }
+            const added = /** @type {_Owned} */ ({
+                roots, definitions: root === null ? null : [[definition, root]], pruned: false,
+            })
+            return append(definition, new Map([...scope, [binding, root]]), added)
+        }
+        if (statement[0] === 'loop') {
+            return bind(ownedValues(statement[1].initial, scope), initial => append(
+                ['loop', { ...statement[1], initial: initial.values }], established(scope, statement[1].results), initial.owned))
+        }
+        if (statement[0] === 'block') {
+            return bind(ownedBlock(statement[2], scope), result => append(
+                ['block', statement[1], result.block], established(scope, statement[1]), result.owned, result.normal))
+        }
+        return bind(ownedValue(statement[2], scope), test =>
+            bind(ownedBlock(statement[3], scope), then =>
+                bind(ownedBlock(statement[4], scope), otherwise => append(
+                    ['if', statement[1], test.value, then.block, otherwise.block], established(scope, statement[1]),
+                    mergeOwned(test.owned, mergeOwned(then.owned, otherwise.owned)), then.normal || otherwise.normal))))
+    })
+    return each(0, initialScope, null, emptyOwned)
+}
+
+/**
+ * Append only this getter's connected local recipes. The caller's cells keep
+ * their slots; a getter invocation supplies fresh slots for its owned locals.
+ * @type {(value: Value, outer: MemoLayout, aliases: ReadonlyMap<BindingId, number>) => RecipePlan}
+ */
+export const recipeCells = (value, outer, aliases) => {
+    const indices = [...new Set(aliases.values())]
+    const borrowed = indices.map(index => {
+        const cell = outer.cells[index]
+        return /** @type {_Root} */ ({ binding: cell.binding, source: { definition: cell.definition, insideLoop: cell.iterationLocal }, dependencies: [] })
+    })
+    const byIndex = new Map(indices.map((index, position) => [index, borrowed[position]]))
+    const scope = new Map([...aliases].map(([binding, index]) => /** @type {const} */ ([binding, /** @type {_Root} */ (byIndex.get(index))])))
+    const prepared = run(ownedValue(value, scope))
+    const localRoots = toArray(prepared.owned.roots)
+    const selected = dependencyClosure([...borrowed, ...localRoots], borrowed)
+    const locals = localRoots.filter(root => selected.includes(root))
+    const slots = new Map([
+        ...borrowed.map((root, position) => /** @type {const} */ ([root, indices[position]])),
+        ...locals.map((root, index) => /** @type {const} */ ([root, outer.cells.length + index])),
+    ])
+    const cells = locals.map(root => {
+        const definition = /** @type {NonNullable<_Root['source']>} */ (root.source).definition
+        return { binding: root.binding, initializer: definition[2], definition, iterationLocal: false }
+    })
+    return {
+        value: locals.length === 0 && !prepared.owned.pruned ? value : prepared.value,
+        layout: {
+            cells: locals.length === 0 ? outer.cells : [...outer.cells, ...cells],
+            definitions: new Map(locals.length === 0 ? [] : toArray(prepared.owned.definitions).flatMap(([definition, root]) => {
+                const index = slots.get(root)
+                return index === undefined ? [] : [/** @type {const} */ ([definition, index])]
+            })),
+            loops: new Set(),
+        },
+        localCount: locals.length,
     }
 }

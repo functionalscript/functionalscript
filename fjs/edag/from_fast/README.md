@@ -134,8 +134,15 @@ helpers and later reads in that iteration share the payload; direct lazy aliases
 reuse its cell without resetting it. An enclosing helper carries this vector
 even when its only memo dependency is declared inside its own body.
 
-Recipe-local computed lazy dependents,
-escaping helper completions and stateful member-call/optional/spread
+Computed lazy bindings inside an initializer use a private extension of its
+visible memo layout. Each actual initializer invocation starts with fresh local
+cells; declarations create their getters only when reached. Nested initializers
+extend that layout again. Calls to narrower outer getters merge the returned
+prefix with the caller's unchanged local suffix, so ready siblings survive an
+outer dependency's first demand. Returning trims the local extension while
+retaining parent updates and the identities of returned or captured payloads.
+
+Escaping helper completions and stateful member-call/optional/spread
 operands retain explicit refusals. Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
 External lazy environments without an AST recipe retain the existing refusal.

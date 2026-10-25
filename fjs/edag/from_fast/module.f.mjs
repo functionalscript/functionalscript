@@ -18,7 +18,7 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { iterable, toArray } from '../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
-import { freeLoopBindings } from './control/module.f.mjs'
+import { exitValues, freeLoopBindings } from './control/module.f.mjs'
 import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
@@ -91,11 +91,6 @@ const isLazyOperand = (operator, index) => {
     if (operator[0] === '.') { return index >= (operator[2] instanceof Array ? 2 : 1) }
     return false
 }
-
-/** @type {(exit: Exit) => readonly Value[]} */
-const exitValues = exit => exit[0] === 'yield' ? exit[1]
-    : exit[0] === 'break' || exit[0] === 'continue' ? exit[2]
-        : [exit[0] === 'throw' ? exit[1] : exit[2]]
 
 /** @type {(node: Node) => readonly Node[]} */
 const children = node => {
