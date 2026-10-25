@@ -8,6 +8,7 @@
  *
  * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { List } from '../../../../types/list/types.ts'
+ * @import { MemoPlan } from './cells/types.ts'
  * @import { _Block, _Context, _Exit, _Value, _Values } from './private.ts'
  * @import { Task } from '../../task/types.ts'
  */
@@ -24,6 +25,9 @@ const binding = (index = 0) => ({ index })
 const ref = id => ['ref', id]
 /** A source binder shadows only this region's active aliases. @type {(aliases: ReadonlyMap<BindingId, number>, bindings: readonly BindingId[]) => ReadonlyMap<BindingId, number>} */
 const withoutAliases = (aliases, bindings) => new Map([...aliases].filter(([id]) => !bindings.includes(id)))
+
+/** Replace one private cell, retaining every other lifetime's latest state. @type {(plan: MemoPlan, memo: BindingId, index: number, cell: Value) => Value} */
+const withCell = (plan, memo, index, cell) => ['array', plan.cells.map((_, slot) => slot === index ? cell : ['.', ref(memo), slot])]
 /** @type {(value: Value, context: _Context) => _Value} */
 const plain = (value, context) => ({ statements: null, value, memo: context.memo, usesMemo: false })
 
@@ -72,8 +76,7 @@ const recipeFunction = (index, context) => call(() => {
     const initialized = binding(source.binding.index)
     const target = /** @type {const} */ ({ kind: 'function', index: source.binding.index })
     return bind(valueTask(source.initializer, { ...context, memo, loop: null, operand: false }), recipe => {
-        const updated = /** @type {Value} */ (['array', context.plan.cells.map((_, slot) => slot === index
-            ? ['array', [true, ref(initialized)]] : ['.', ref(recipe.memo), slot])])
+        const updated = withCell(context.plan, recipe.memo, index, ['array', [true, ref(initialized)]])
         const body = /** @type {Block} */ ({
             statements: toArray(concat(recipe.statements)([['define', initialized, recipe.value, 'required']])),
             exit: ['return', target, ['array', [ref(initialized), updated]]],
@@ -236,8 +239,12 @@ const blockTask = (block, context) => {
                 if (selected !== undefined) {
                     const active = new Map([...shadowed, [statement[1], selected]])
                     if (context.plan.cells[selected].definition === statement) {
+                        const local = context.plan.cells[selected].iterationLocal
+                        const nextMemo = local ? binding() : memo
+                        /** @type {readonly Statement[]} */
+                        const reset = local ? [['define', nextMemo, withCell(context.plan, memo, selected, ['array', [false, undefined]]), 'required']] : []
                         return bind(recipeFunction(selected, current), fn => resume(
-                            [['define', context.recipes[selected], ['function', fn], 'required']], memo, true, false, true, active))
+                            [...reset, ['define', context.recipes[selected], ['function', fn], 'required']], nextMemo, true, local, true, active))
                     }
                     return resume(null, memo, true, false, true, active)
                 }

@@ -59,7 +59,7 @@ previous lazy slot reads; the state/result order and existing scalar exact-graph
 cases remain unchanged. General helper round trips preserve their documented
 sharing normalization and repeated conversions stabilize.
 
-[`loop/memo`](./loop/memo/module.f.mjs) preserves caller-owned lazy identity
+[`loop/memo`](./loop/memo/module.f.mjs) preserves lazy identity
 across normal-exit helpers. Its lexical inventory selects deferred recipes used
 free by a statement loop; direct lazy reference aliases share the original
 cell. Cells follow definition order, independently of debug indices or demand
@@ -126,7 +126,15 @@ or following caller demands. Later inner entries reuse those owning cells;
 skipped inner or outer loops leave recipes deferred. Inner entry expressions
 use the current outer vector even when the inner body needs no memo state.
 
-Recipe-local computed lazy dependents, iteration-local cells,
+Selected lazy declarations inside iterations start a fresh unready cell whenever
+their declaration is reached. The reset replaces only that cell in the latest
+vector, retaining caller and enclosing-iteration state. Its recipe function
+captures the current established iteration values at the declaration. Inner
+helpers and later reads in that iteration share the payload; direct lazy aliases
+reuse its cell without resetting it. An enclosing helper carries this vector
+even when its only memo dependency is declared inside its own body.
+
+Recipe-local computed lazy dependents,
 escaping helper completions and stateful member-call/optional/spread
 operands retain explicit refusals. Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
