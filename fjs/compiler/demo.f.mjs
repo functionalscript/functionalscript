@@ -40,7 +40,7 @@
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
  * @import { Catch } from '../effects/common/types.ts'
  * @import { Effect } from '../effects/types.ts'
- * @import { _DemoState } from './private.ts'
+ * @import { DemoState } from './types.ts'
  * @import { Element } from '../media/html/types.ts'
  */
 
@@ -138,7 +138,7 @@ const pane = (text, file) => resultMapStep(catch_(() => compiled(text)(file)), r
     return ok(kind === 'ok' ? /** @type {Result<Marked, string>} */ (value) : error(`Could not compile this output: ${String(value)}`))
 })
 
-/** @type {Demo<_DemoState, DemoEvent, Catch>} */
+/** @type {Demo<DemoState, DemoEvent, Catch>} */
 export const demo = {
     // Only the fixed initial example is compiled on load. Edited source is
     // always evaluated through `catch`, never by `view`.
@@ -146,7 +146,7 @@ export const demo = {
     update: state => event => {
         if (event.kind !== 'input') { return pureOk(state) }
         const text = sourceDemo.update(state.text)(event)
-        const panes = historyStep(history(text), text => foldStep(pureOk(outputs), /** @type {_DemoState['panes']} */ ([]),
+        const panes = historyStep(history(text), text => foldStep(pureOk(outputs), /** @type {DemoState['panes']} */ ([]),
             ([, file]) => panes => mapStep(pane(text, file), result => [...panes, result])))
         return mapStep(panes, ([panes, text]) => ({ text, panes }))
     },

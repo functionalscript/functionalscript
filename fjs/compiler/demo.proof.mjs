@@ -15,17 +15,19 @@ import { textOfResult } from '../text/marked/module.f.mjs'
 const run = asyncRun(commonOperationMap)
 
 export const proof = {
-    ackermannRecovery: async () => {
+    stackOverflowRecovery: async () => {
         const source = examples.find(([name]) => name === 'Recursion: Ackermann')?.[1]
         assert(source !== undefined)
-        const edited = source.replace('ack(2, 3)', 'ack(2, 333)')
+        // Ackermann(2, 333) can finish on engines with a larger stack, making
+        // it an expensive arithmetic test instead of an overflow test. This
+        // non-tail call grows the host stack linearly on every engine.
+        const edited = 'const recurse = n => 1 + recurse(n + 1);\nexport default recurse(0);'
         const state = assertOk(await run(demo.update(demo.init)({ kind: 'input', name: 'compiler', value: edited })))
         assertEq(state.text, edited)
-        // Engines have different stack depths. If evaluation fits, its answer
-        // must be correct; otherwise its host exception stays inside the pane.
         for (const result of state.panes.slice(0, 2)) {
             const text = textOfResult(result)
-            assert(result[0] === 'ok' ? text.includes('669') : text.startsWith('Could not compile this output:'), text)
+            assertEq(result[0], 'error')
+            assert(text.startsWith('Could not compile this output:'), text)
         }
         assertEq(state.panes.slice(2).map(([tag]) => tag).join(), 'ok,ok,ok')
         const shown = htmlToString(demo.view(state))
