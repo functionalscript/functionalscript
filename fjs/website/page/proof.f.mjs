@@ -324,7 +324,8 @@ export const proof = {
             // Folded: the suite is asked for, not what a reader came for.
             assert(html.startsWith('<body><details data-section=""><summary>'), html)
             // The title carries a slot the runner fills with the run's counts.
-            assert(html.includes('<summary><h2>Emergent Testing</h2><span data-test-counts=""></span></summary>'), html)
+            assert(html.includes('data-copy-fragment="emergent-testing"'), html)
+            assert(html.includes('<span data-test-counts=""></span></summary>'), html)
             // A runnable entry names its source, so a run can mark it if it
             // reports no tests.
             assert(html.includes('<li data-source="./proof.f.mjs">./proof.f.mjs</li>'), html)
@@ -370,7 +371,7 @@ export const proof = {
         noRunWhereNothingLinks: () => {
             const html = concat(element(['body', ...testSection(
                 { ...empty, proofs: [{ name: './a.f.mjs', blockers: ['node:fs'] }] })([])]))
-            assert(html.includes('<summary><h2>Emergent Testing</h2></summary>'), html)
+            assert(html.includes('<summary><h2 id="emergent-testing">Emergent Testing</h2><span data-permalink="">'), html)
             assert(html.includes('./a.f.mjs — not linkable in a browser: node:fs'), html)
             assert(!html.includes('data-test-run'), html)
             assert(!html.includes('data-test-results'), html)
@@ -396,7 +397,7 @@ export const proof = {
         // than letting the runtime guess a filename.
         namesTheModuleAndStartsIt: () => {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: null })]))
-            assert(html.includes('<summary><h2>Demo</h2></summary>'), html)
+            assert(html.includes('<summary><h2 id="demo">Demo</h2><span data-permalink="">'), html)
             assert(html.includes('<div data-demo="/a/demo.f.mjs"></div>'), html)
             assert(html.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), html)
         },
@@ -489,7 +490,7 @@ export const proof = {
             const html = pageHtml({ ...empty, path: 'a', files: ['demo.f.mjs'], demo: { path: '/a/demo.f.mjs', view: null } })
             assert(html.includes('data-demo="/a/demo.f.mjs"'), html)
             assert(html.indexOf('<h2>Contents</h2>') < html.indexOf('</aside>'), html)
-            assert(html.indexOf('<h2>Demo</h2>') > html.indexOf('<main'), html)
+            assert(html.indexOf('<h2 id="demo">Demo</h2>') > html.indexOf('<main'), html)
         },
         // A crate's page links its API reference under its heading, and a
         // directory without one says nothing about it.
