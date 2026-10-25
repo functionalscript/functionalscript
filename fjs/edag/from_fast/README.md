@@ -158,12 +158,16 @@ The lift runs before memo and loop-completion normalization, so reached lazy
 demands and normal-path updates use the same state transport. No-return input
 retains its existing graph path and syntax identity.
 
-Eager unary/binary operands and plain spread-free call callees/arguments can
-expose the same owning returns. Required snapshots establish earlier operands
-before a later region can return; the operation or call runs only on normal
-completion. Callable validation stays after arguments, so a returning argument
-can bypass a noncallable callee. Value and statement conditional tests can lift
-before selecting an arm; a terminal test skips both arms.
+Eager unary/binary operands, `instanceof` values and plain spread-free call
+callees/arguments can expose the same owning returns. Required snapshots
+establish earlier operands before a later region can return; the operation or
+call runs only on normal completion. Callable validation stays after arguments,
+so a returning argument can bypass a noncallable callee. Value and statement
+conditional tests can lift before selecting an arm; a terminal test skips both
+arms.
+`instanceof` evaluates only its value operand and retains the literal `Array`
+constructor metadata. A returning operand skips the check; normal completion
+retains its Boolean result.
 Source logical tags stay outside eager lifting; their producer expands them
 to canonical conditionals before normalized FAST construction.
 
@@ -190,9 +194,9 @@ retains every reached key conversion and property value. Normal completion
 constructs the object from established string keys and values, preserving
 duplicate keys, enumeration order, `__proto__` as data and value identity.
 
-`instanceof`, ordinary multiple-binding yield operands, lazy
-initializers, captures, member/native callees, optional forms and spreads retain
-their evaluation boundaries. Plain-call admission preserves callee provenance
+Ordinary multiple-binding yield operands, lazy initializers, captures,
+member/native callees, optional forms and spreads retain their evaluation
+boundaries. Plain-call admission preserves callee provenance
 through wrapper regions and comma results.
 Loop transfers cannot escape a lifted operand's own loop scope. Ordinary
 nested functions are normalized at their own function entry.

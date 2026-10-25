@@ -28,7 +28,7 @@ const operandContext = owner => ({ owner, operand: true, loops: null })
 
 /** A reference is already a bare callee; member lookup syntax must stay intact. @type {(source: Value, callee?: boolean) => _Value} */
 const plain = (source, callee = !(source instanceof Array) || source[0] === 'ref' || source[0] === 'function'
-    || source[0] === 'array' || source[0] === 'object' || source[0] === 'instanceof') =>
+    || source[0] === 'array' || source[0] === 'object') =>
     ({ statement: null, value: source, normal: true, callee })
 
 /** Snapshot eager operands in source order; object keys convert before their values. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget) => Task<_Value>} */
@@ -61,9 +61,9 @@ const eagerTask = (source, destination, owner) => {
 }
 
 /**
- * Eager unary/binary operations, comma sequences, spread-free collections and
- * bare calls sequence their operands. Instanceof metadata, chains, lazy
- * initializers and ordinary functions/captures remain opaque.
+ * Eager operations, constructor checks, comma sequences, spread-free collections
+ * and bare calls sequence their value operands. Constructor metadata, chains,
+ * lazy initializers and ordinary functions/captures remain opaque.
  * @type {(source: Value, destination: BindingId, owner: FunctionTarget) => Task<_Value>}
  */
 const valueTask = (source, destination, owner) => call(() => {
@@ -73,7 +73,7 @@ const valueTask = (source, destination, owner) => call(() => {
             ? { statement: ['block', [destination], result.block], value: ref(destination), normal: result.normal, callee: result.callee }
             : plain(source, result.callee)))
     }
-    if (isUnary(source) || eagerBinary(source) || source[0] === '+' && source.length === 2
+    if (isUnary(source) || eagerBinary(source) || source[0] === 'instanceof' || source[0] === '+' && source.length === 2
         || source[0] === ',' && source[1].length !== 0
         || source[0] === 'object' && !source[1].some(entry => entry[0] === '...')
         || (source[0] === '()' || source[0] === 'array')

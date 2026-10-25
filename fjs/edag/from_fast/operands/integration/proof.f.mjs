@@ -53,6 +53,165 @@ const sequenceValue = (kind, values) => kind === 'yield' ? ['block', body(['yiel
 const keyMethods = (toString, valueOf) => ['object', [[':', 'toString', toString], [':', 'valueOf', valueOf]]]
 
 export const proof = /** @type {const} */ ({
+    instanceofPreviouslyRefusedReturn: () => {
+        assertStructurallySame(evaluate(calledFunction(requiredFunction(['instanceof', escape(['array', []]), 'Array']))), [])
+    },
+    instanceofNormalAndMixedResults: () => {
+        const stop = id(0)
+        const cases = /** @type {readonly (readonly [Value, boolean])[]} */ ([
+            [['array', []], true], [['array', [4]], true], [['object', []], false],
+            [null, false], [1, false], [undefined, false], [simpleFunction([], 0), false],
+        ])
+        for (const [value, expected] of cases) {
+            const fn = requiredFunction(['instanceof', returningValue('if', ref(stop), [value]), 'Array'], [stop])
+            assertEq(evaluate(calledFunction(fn, [false])), expected)
+            assertEq(evaluate(calledFunction(fn, [true])), 7)
+        }
+    },
+    instanceofReturnIdentityAndRequiredWork: () => {
+        const original = id(0), captured = id(0), returned = id(0), output = id(0), dead = id(0), prefix = id(0)
+        const consumer = simpleFunction([], failed('skipped instanceof consumer'))
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [{ binding: captured, value: ref(original) }],
+            body: body(['return', target, 9], [
+                ['define', output, ['()', consumer, [['instanceof', escape(ref(captured)), 'Array']]], 'required'],
+                ['define', dead, failed('skipped instanceof suffix'), 'required'],
+            ]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(returned), ref(original)]], [
+            ['define', original, ['array', [4]], 'required'], ['define', returned, ['()', ['function', fn], []], 'required'],
+        ])))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[4], [4]])
+        assertEq(value[0], value[1])
+        const lhs = /** @type {Value} */ (['block', body(['return', target, 7], [['define', prefix, failed('instanceof prefix'), 'required']])])
+        const graph = calledFunction(requiredFunction(['instanceof', lhs, 'Array']))
+        assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 'instanceof prefix')
+    },
+    instanceofConditionalAndCalleePaths: () => {
+        const stop = id(0), choice = id(0)
+        const normal = /** @type {Value} */ (['if', ref(choice), result(['array', []]), result(['object', []])])
+        const lhs = returningValue('if', ref(stop), [normal], ['array', ['lhs return']])
+        const fn = requiredFunction(['?:', ['instanceof', lhs, 'Array'], 'array', 'other'], [stop, choice])
+        assertEq(evaluate(calledFunction(fn, [false, true])), 'array')
+        assertEq(evaluate(calledFunction(fn, [false, false])), 'other')
+        assertStructurallySame(evaluate(calledFunction(fn, [true, false])), ['lhs return'])
+        for (const value of /** @type {readonly Value[]} */ ([['array', []], ['object', []]])) {
+            const callee = /** @type {Value} */ (['instanceof', value, 'Array'])
+            assertEq(evaluate(calledFunction(requiredFunction(['()', callee, [escape()]]))), 7)
+            const graph = calledFunction(requiredFunction(['()', callee, [2]]))
+            assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] }))
+        }
+        assertEq(evaluate(calledFunction(requiredFunction(['()', ['instanceof', escape(), 'Array'], [failed('skipped instanceof argument')]]))), 7)
+    },
+    instanceofMemoAndIterationLifetimes: () => {
+        const stop = id(0), caller = id(0), selected = id(0), recipeLocal = id(0), observed = id(0), initialized = id(0)
+        for (const reached of /** @type {const} */ ([0, 1])) {
+            const witness = collectingMemo(ref(selected), reached)
+            const earlier = reached === 0 ? null : collectedMemo(ref(witness.results[0]))
+            const lhs = /** @type {Value} */ (['block', result(returningValue('if', ref(stop), [ref(observed)],
+                ['array', [ref(observed), ref(selected), ref(caller)]]), [['define', observed, ref(selected), 'required']])])
+            const fn = /** @type {FastFunction} */ ({
+                target, parameters: [stop], rest: null, self: null, captures: [],
+                body: body(['return', target, ['array', [ref(initialized), earlier, ref(selected), ref(caller)]]], [
+                    ['define', caller, ['array', [4]], 'lazy'],
+                    ['define', selected, ['block', result(['array', [ref(recipeLocal), ref(recipeLocal)]], [
+                        ['define', recipeLocal, ['array', [ref(caller)]], 'lazy'],
+                    ])], 'lazy'], ['loop', witness], ['define', initialized, ['instanceof', lhs, 'Array'], 'required'],
+                ]),
+            })
+            const normalValue = evaluate(calledFunction(fn, [false]))
+            assert(normalValue instanceof Array && normalValue[2] instanceof Array && normalValue[2][0] instanceof Array)
+            assertEq(normalValue[0], true)
+            assertEq(normalValue[1], reached === 0 ? null : normalValue[2])
+            assertEq(normalValue[2][0], normalValue[2][1])
+            assertEq(normalValue[2][0][0], normalValue[3])
+            const returned = evaluate(calledFunction(fn, [true]))
+            assert(returned instanceof Array && returned[0] instanceof Array && returned[0][0] instanceof Array)
+            assertEq(returned[0], returned[1])
+            assertEq(returned[0][0], returned[0][1])
+            assertEq(returned[0][0][0], returned[2])
+        }
+        const local = id(0), localRecipe = id(0), nested = id(0), captured = id(0), count = id(0), output = id(0), made = id(0)
+        const factoryBinding = id(0), firstFn = id(0), secondFn = id(0), first = id(0), second = id(0)
+        const getterTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const getter = /** @type {Value} */ (['function', {
+            target: getterTarget, parameters: [], rest: null, self: null, captures: [{ binding: captured, value: ref(localRecipe) }],
+            body: body(['return', getterTarget, ['array', [ref(captured), ref(captured)]]]),
+        }])
+        const inner = collectingMemo(ref(localRecipe), 2)
+        const lhs = /** @type {Value} */ (['block', body(['yield', [ref(localRecipe)]], [
+            ['loop', inner], ['if', [], ['===', ref(count), 1], body(['return', target, getter]), body(['yield', []])],
+        ])])
+        const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const outer = /** @type {Loop} */ ({
+            target: outerTarget, parameters: [count], initial: [0], results: [output],
+            body: body(['break', outerTarget, [null]], [
+                ['if', [], ['<', ref(count), 2], body(['continue', outerTarget, [['+', ref(count), 1]]], [
+                    ['define', local, ['array', [ref(count)]], 'lazy'],
+                    ['define', localRecipe, ['block', result(['array', [ref(nested), ref(nested)]], [
+                        ['define', nested, ['array', [ref(local)]], 'lazy'],
+                    ])], 'lazy'], ['define', made, ['instanceof', lhs, 'Array'], 'required'],
+                ]), body(['yield', []])],
+            ]),
+        })
+        const factory = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [], body: body(['return', target, null], [['loop', outer]]),
+        })
+        const value = evaluate(fromFast(result(['array', [ref(first), ref(second)]], [
+            ['define', factoryBinding, ['function', factory], 'required'],
+            ['define', firstFn, ['()', ref(factoryBinding), []], 'required'], ['define', secondFn, ['()', ref(factoryBinding), []], 'required'],
+            ['define', first, ['()', ref(firstFn), []], 'required'], ['define', second, ['()', ref(secondFn), []], 'required'],
+        ])))
+        assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array)
+        assertEq(value[0][0], value[0][1])
+        assertEq(value[1][0], value[1][1])
+        const left = value[0][0], right = value[1][0]
+        assert(left instanceof Array && right instanceof Array && left[0] instanceof Array && right[0] instanceof Array)
+        assertEq(left[0], left[1])
+        assertEq(right[0], right[1])
+        assertStructurallySame(left[0][0], [1])
+        assertStructurallySame(right[0][0], [1])
+        assert(left !== right && left[0] !== right[0] && left[0][0] !== right[0][0])
+    },
+    instanceofMetadataAndRoundTrip: () => {
+        const count = id(0), argument = id(0), rest = id(0), captured = id(0), self = id(0), payload = id(0), output = id(0)
+        const lhs = returningValue('block', ['>', ref(count), 0], [ref(payload)],
+            ['()', ref(self), [['-', ref(count), 1], ['+', ref(argument), 1], 99]])
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [count, argument], rest, self, captures: [{ binding: captured, value: ['array', [4]] }],
+            body: body(['return', target, ['array', [ref(output), ref(payload), ref(payload), ref(captured), ref(rest)]]], [
+                ['define', payload, ['array', [ref(captured), ref(argument), ref(rest)]], 'required'],
+                ['define', output, ['instanceof', lhs, 'Array'], 'required'],
+            ]),
+        })
+        const graph = fromFast(result(['function', fn]))
+        const second = fromFast(assertOk(toFast(graph)))
+        const third = fromFast(assertOk(toFast(second)))
+        const fourth = fromFast(assertOk(toFast(third)))
+        const fifth = fromFast(assertOk(toFast(fourth)))
+        const before = assertOk(identityAnalysis(fourth)), after = assertOk(identityAnalysis(fifth))
+        assertStructurallySame(
+            { root: before.root, nodes: before.nodes, scope: before.scope, shared: before.shared },
+            { root: after.root, nodes: after.nodes, scope: after.scope, shared: after.shared },
+        )
+        for (const current of /** @type {readonly Exp[]} */ ([graph, second, third, fourth, fifth])) {
+            assert(current instanceof Array && current[0] === '=>')
+            assertEq(current[1], 2)
+            assertEq(current[2].length, 1)
+            assert(assertOk(identityAnalysis(current)).nodes.some(node => node[0] === 'self'))
+            for (const depth of /** @type {const} */ ([0, 1])) {
+                const call = /** @type {Exp} */ (['()', current, depth === 0 ? [0, 5, 7, 8] : [1, 5]])
+                const value = evaluate(call)
+                assert(value instanceof Array && value[1] instanceof Array)
+                assertEq(value[0], true)
+                assertEq(value[1], value[2])
+                assertEq(value[1][0], value[3])
+                assertEq(value[1][2], value[4])
+                assertStructurallySame(value[1], depth === 0 ? [[4], 5, [7, 8]] : [[4], 6, [99]])
+            }
+        }
+    },
     objectPreviouslyRefusedReturns: () => {
         assertEq(evaluate(calledFunction(requiredFunction(['object', [[':', escape(), 1]]]))), 7)
         assertEq(evaluate(calledFunction(requiredFunction(['object', [[':', 'x', escape()]]]))), 7)
@@ -964,7 +1123,8 @@ export const proof = /** @type {const} */ ({
             ['...', ['object', [[':', 'x', 1]]]], [':', escape(), 2],
         ]])),
         objectSpreadOperandReturn: () => calledFunction(requiredFunction(['object', [['...', escape(['object', []])]]])),
-        instanceofOperandReturn: () => calledFunction(requiredFunction(['instanceof', escape(['array', []]), 'Array'])),
+        instanceofMemberOperandReturn: () => calledFunction(requiredFunction(['instanceof', ['.', ['object', [[':', 'x', 1]]], ['Number', escape()]], 'Array'])),
+        instanceofSpreadOperandReturn: () => calledFunction(requiredFunction(['instanceof', ['array', [['...', ['array', [1]]], escape()]], 'Array'])),
         memberCallArgumentReturn: () => calledFunction(requiredFunction(['()', ['.', ['object', [[':', 'f', constantFunction]]], 'f'], [escape()]])),
         wrappedMemberCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['.', ['object', [[':', 'f', constantFunction]]], 'f'])], [escape()]])),
         wrappedOptionalCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['?.', null, 'f'])], [escape()]])),
