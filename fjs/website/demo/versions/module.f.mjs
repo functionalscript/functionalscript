@@ -43,9 +43,9 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
-import { refusal } from '../module.f.mjs'
+import { button, refusal } from '../module.f.mjs'
 import { graphSvg } from '../graph/module.f.mjs'
-import { examplePicker, name as exampleName } from '../examples/module.f.js'
+import { examplePicker, name as exampleName } from '../examples/module.f.mjs'
 import { errorMessage, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { randomInt } from '../../../effects/common/module.f.mjs'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
@@ -329,15 +329,15 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
                     ['label', { for: keyId }, `${label} `],
                     ['input', { type: 'text', id: keyId, name: 'key', value: key, size: '10' }],
                     ' ',
-                    ['button', { type: 'button', name: 'insert' }, 'Insert'],
+                    button('insert', 'Insert'),
                     ' ',
-                    ['button', { type: 'button', name: 'remove' }, 'Remove'],
+                    button('remove', 'Remove'),
                 ],
                 ...(random === undefined ? [] : [/** @type {Element} */ (['p',
                     ['label', { for: countId }, 'Random keys '],
                     ['input', { type: 'text', id: countId, name: 'count', value: keyCount, size: '4' }],
                     ' ',
-                    ['button', { type: 'button', name: 'generate' }, 'Generate'],
+                    button('generate', 'Generate'),
                 ])]),
                 ...(error === null ? [] : [refusal(error)]),
                 ['p', statusLine(status)(versions)],
