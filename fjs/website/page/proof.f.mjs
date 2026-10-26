@@ -400,6 +400,10 @@ export const proof = {
             assert(html.includes('<summary><h2 id="demo">Demo</h2><span data-permalink="">'), html)
             assert(html.includes('<div data-demo="/a/demo.f.mjs" data-demo-scope="/a/demo.f.mjs"></div>'), html)
             assert(html.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), html)
+            const summary = html.slice(html.indexOf('<summary>'), html.indexOf('</summary>'))
+            assert(summary.includes('data-copy-demo=""'), html)
+            assert(summary.includes('data-demo-link-status=""'), html)
+            assertEq(html.split('data-copy-demo=""').length - 1, 1)
         },
         scopedControlsBeforeScripts: () => {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['p',

@@ -10,7 +10,7 @@
  * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
  * @import { Binding, Context, ExitOwner, Link, Node, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
- * @import { Task } from './task/types.ts'
+ * @import { Task } from '../../js/ast/task/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
@@ -23,8 +23,8 @@ import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
 import { normalizeMemo } from './loop/memo/module.f.mjs'
-import { liftReturns } from './operands/module.f.mjs'
-import { bind, call, done, run } from './task/module.f.mjs'
+import { liftReturns } from '../../js/ast/returns/module.f.mjs'
+import { bind, call, done, run } from '../../js/ast/task/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 

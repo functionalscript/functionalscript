@@ -5,9 +5,17 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { analyzeBindings, mapOperator, operatorOperands } from './module.f.mjs'
+import { analyzeBindings, isSpread, mapOperator, operatorOperands } from './module.f.mjs'
 
 export const proof = {
+    spreadItems: () => {
+        const spread = /** @type {typeof isSpread<Value>} */ (isSpread)
+        const operand = /** @type {Value} */ (['array', [1]])
+        assertEq(spread(['...', operand]), true)
+        assertEq(spread(operand), false)
+        assertEq(spread(3), false)
+        assertEq(spread('...'), false)
+    },
     bindings: {
         empty: () => {
             assertStructurallySame(analyzeBindings({ target: { kind: 'function', index: 0 }, bindings: [], events: [] }), [])
@@ -98,6 +106,9 @@ export const proof = {
             [[',', [1, 2]], [',', [11, 12]], [1, 2]],
             [['()', 1, [2, ['...', 3]]], ['()', 11, [12, ['...', 13]]], [1, 2, 3]],
             [['.', 1, 'x'], ['.', 11, 'x'], [1]],
+            [['memberPresent', 1, 'x'], ['memberPresent', 11, 'x'], [1]],
+            [['memberPresent', 1, 2], ['memberPresent', 11, 2], [1]],
+            [['memberPresent', 1, ['Number', 2]], ['memberPresent', 11, ['Number', 12]], [1, 2]],
             [['?.', 1, ['Number', 2]], ['?.', 11, ['Number', 12]], [1, 2]],
             [['.', 1, 'x', ['|.', ['Number', 2], ['|()', [3], ['|?.()', [['...', 4]], ['|!()', [5]]]]]],
                 ['.', 11, 'x', ['|.', ['Number', 12], ['|()', [13], ['|?.()', [['...', 14]], ['|!()', [15]]]]]], [1, 2, 3, 4, 5]],

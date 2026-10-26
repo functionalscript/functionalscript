@@ -116,6 +116,17 @@ const html = state => htmlToString(demo.view(state))
 const update = event => state => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
 
 export const proof = {
+    sharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        const inputs = sharing.read(demo.init)
+        assertEq(inputs.example, 'three')
+        const restored = sharing.restore({ ...inputs, key: '1111' })
+        assertEq(restored.key, '1111')
+        assertEq(sharing.read(restored).example, 'three')
+        const custom = sharing.restore({ ...inputs, example: '' })
+        assertEq(sharing.read(custom).example, '')
+        assertEq(custom.versions.after, null)
+    },
     // The default keys: any safe integer, spelled as `String` spells it.
     decimal: () => {
         assertEq(decimal.parse('-12'), -12)

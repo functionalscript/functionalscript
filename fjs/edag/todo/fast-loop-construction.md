@@ -3,7 +3,11 @@
 **Priority:** P2
 **Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers,
 statement-level transfers and normal-exit caller memo transport are implemented;
-operand completions and broader memo lifetimes remain in E
+the end-to-end `memberPresent` query is implemented;
+member/optional-call completion lifting is implemented;
+array/call spread return lifting is implemented;
+object-spread return lifting is implemented;
+remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
 ### Problem
@@ -202,9 +206,10 @@ Only normal completion builds the object from established string keys and
 values, retaining duplicate-key and enumeration rules, `__proto__` as data and
 value identities. No-return inputs retain their original object syntax.
 Plain-call admission retains member/native callee provenance through wrappers
-and comma results. Lazy initializers, captures, member/native calls, optional
-forms and spreads remain separate boundaries. A loop transfer cannot escape
-the operand's locally owned loop chain.
+and comma results. Member and optional-call operands use the shared FAST return
+normalizer and the member-resolution protocol below. Lazy initializers,
+captures and native bare callees remain separate boundaries. A loop
+transfer cannot escape the operand's locally owned loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
 `[userValuesArray, memoVector]` transfer payload as owning exits. Lexical source
@@ -217,8 +222,8 @@ Payload evaluation supplies the latest vector before every transfer. Continued
 iterations retain caller and enclosing-iteration cells and reset their own local
 lifetimes at reached declarations. Foreign targets and operand escapes remain
 refused.
-Stateful member-call/optional/spread operands retain explicit refusals until their
-evaluation boundary is owned below. External lazy environments have no AST
+Demand-only guarded operands that are not exposed by return lifting retain their
+existing refusals. External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
 
 ### Enclosing-function returns
@@ -380,8 +385,9 @@ guard for native methods: it may yield undefined where a member call exists.
 Choose the minimal internal query `['memberPresent', receiver, key]` for E.
 It returns the existing optional-member-call guard's Boolean result or the
 lookup failure. A true result permits argument evaluation; callable validation
-belongs to the subsequent call. This design increment records the choice;
-the tag is still absent from the implemented schema and lowering.
+belongs to the subsequent call. The internal query is implemented across
+schema, graph conversion, evaluation and target output. The shared FAST return
+pass uses it to lift owning returns through member and optional-call operands.
 
 The alternative is a first-class resolved-member value plus an invocation
 form. It could retain one resolution across argument control, but would add a
@@ -456,6 +462,15 @@ construction/preparation owns this control flow; target writers spell the
 prepared query and call. Retain required prefixes, exact transfer owners,
 selected memo updates and captured value identities through every path.
 
+The shared `js/ast/returns` pass runs before graph memo/completion lowering and
+at physical preparation's member boundary. A terminal forced call joins outside
+optional guards so its arguments are sequenced once. A live member carries its
+receiver and established key through ordinary block results alongside a live
+flag; a skipped member carries placeholders that the false flag leaves unread.
+This is internal control transport, not a resolved-member runtime value.
+Prefix blocks nest without copying the remaining suffix. No-return inputs
+retain their original syntax identities.
+
 #### Accepted lookup cost
 
 Repeated resolution is valid under the existing pure runtime contract. In the
@@ -474,24 +489,23 @@ they describe cost, not semantic counters programs or proofs may observe.
 
 #### Backend reconciliation
 
-The chosen query contract above comes from the JavaScript operation kernel;
-existing backend helpers are reuse points, not evidence of full agreement.
-Current NaNVM [`Member::body`](../../../nanvm/lib/src/vm/lambda/member.rs)
-treats a runtime null answer as absent, whereas JavaScript's `hasMethod` treats
-every answer other than represented undefined as present. The canonical runtime
-normally answers a function or undefined; custom-runtime fixtures must pin the
-chosen behavior too. NaNVM's ordinary
-[`PropertyLambda::end_call`](../../../nanvm/lib/src/vm/lambda/mod.rs) evaluates
-arguments before the runtime body lookup, while the JavaScript kernel resolves
-the runtime callee before arguments.
-NaNVM's missing-own-property guard also consults the runtime before its native
-table, whereas the JavaScript kernel consults it only for admitted method names.
+The chosen query contract above comes from the JavaScript operation kernel.
+NaNVM's [`Member::body`](../../../nanvm/lib/src/vm/lambda/member.rs) now
+consults the runtime only for admitted names and treats every runtime answer
+other than undefined as present, including null and noncallable values.
+Stored own null or undefined still shadows fallback and is absent.
+Its ordinary [`PropertyLambda::end_call`](../../../nanvm/lib/src/vm/lambda/mod.rs)
+and continued member-call paths resolve before evaluating arguments, while
+optional paths use their guard's resolution. The query reuses that machinery.
+Runtime-only admission metadata is generated from the shared method inventory;
+it does not add another handwritten name list.
 
-Reuse the existing member machinery while reconciling admitted-name filtering,
-runtime presence and failure timing for the new query and retained call path.
-Verify the absent-runtime/native-fallback cases each executor supports.
-Cross-backend fixtures must pass before admitting the query or lifting member arguments;
-using the current Rust nullish helper unchanged is insufficient evidence.
+The native JavaScript writer has no configurable represented-runtime argument.
+It uses the host implementations of the existing member inventory, with own
+field/index/length handling and no exposure of unsupported prototype values.
+Absent/custom-runtime fixtures apply to the represented and NaNVM executors;
+canonical-runtime fixtures also compare native JavaScript. Cross-backend
+fixtures pin presence, skips and failures before enabling member lifting.
 
 #### Implementation and evidence gates
 
@@ -534,6 +548,44 @@ transfer. Snapshotting only the spread operand does not preserve a failing
 expansion before a successful transfer. This boundary belongs to common
 preparation and construction, alongside member resolution; target writers do
 not independently infer it.
+
+The shared FAST return sequencer establishes each reached spread operand, then
+requires an ordinary array construction containing that one spread. Later
+operands run only after this materialization succeeds. The final array or call
+retains the original item tags around references to the expanded arrays, so
+replaying a spread cannot expose a deferred expansion failure. An owning return
+inside the original operand skips its expansion and all later work.
+
+Member lookup remains before argument expansion, and optional guards enclose
+their spread operands and materializations. A forced suffix expands its items
+once after the optional region joins. Array elements retain their identities;
+strings use the existing Unicode code-point iteration, including lone
+surrogates. No new node or iterable protocol is introduced. Logical no-return
+inputs retain their original syntax identities.
+
+Physical preparation retains its existing outward-control and bare-callee
+domain, including standalone regions without a recorded function owner. Its
+operand sequencer uses the same expansion constructor when snapshotting an
+earlier spread before a later statement prelude. Both target writers consume
+that common prepared plan.
+
+Object literals sequence their entries rather than inferring key positions
+from operand parity. A property contributes a required `String(key)` followed
+by its value; a spread contributes one operand and a required ordinary object
+materialization. Returning operands skip their own conversion/copy and the
+remaining entries. Normal completion rebuilds the original entry tags around
+established string keys, values and copied objects.
+
+The existing own-property kernel supplies duplicate-key replacement, integer-key
+enumeration, ordinary insertion order and `__proto__` as data. Strings contribute
+UTF-16 code-unit properties; arrays contribute indices; nullish values and other
+non-object primitives contribute none. Copied property values retain their
+identities. This introduces no getter or foreign-object protocol.
+
+Physical object snapshots use entry metadata too: keys convert before any
+hoisted value prelude, and earlier object spreads copy before later outward
+control. No-prelude objects retain their ordinary spelling; standalone regions
+retain the existing physical ownership domain.
 
 ### Identity and evidence
 
@@ -580,10 +632,14 @@ their documented normalization. Repeated conversions must stabilize.
       preserving result binding identities, arity and evaluation order.
 - [x] Record the member-resolution guard choice and its evaluation contract,
       receiver preservation, lookup cost and implementation evidence gates.
-- [ ] Add `memberPresent` end to end using the shared member resolver and
+- [x] Add `memberPresent` end to end using the shared member resolver and
       existing index vocabulary before enabling member-argument lifting.
-- [ ] Lift owning returns through member and optional-call operands using the
+- [x] Lift owning returns through member and optional-call operands using the
       query, retained receivers and existing chain-region boundaries.
+- [x] Lift owning returns through spread-bearing arrays and calls, expanding
+      each reached spread before later control while preserving optional skips.
+- [x] Lift owning returns through spread-bearing object literals, preserving
+      key conversion, own-property copying, enumeration and value identities.
 - [ ] Extend completion handling to other value operands, preserving their
       lookup, spread and evaluation boundaries below.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their

@@ -39,6 +39,25 @@ lazy operand does not establish its runtime value. `CoreBinaryTag` excludes
 logical and nullish source operators; source sugar expresses them with
 immutable bindings and conditional result regions.
 
+`['memberPresent', receiver, key]` is an internal Boolean query using the same
+`Key<V>` vocabulary as property access. Its operands are the receiver followed
+by the value inside a computed `['Number', value]` key; literal keys remain
+metadata. It resolves the member without evaluating call arguments or checking
+callability. The graph conversion and runtime writers support this form;
+source admission has no spelling for it. The shared
+[`returns`](./returns/module.f.mjs) pass lifts owning returns through member and
+optional-call operands before graph construction or physical preparation. It
+retains required lookup, receiver binding and optional-region boundaries;
+target writers consume the resulting explicit control flow.
+
+Spread-bearing arrays and calls use the same sequencer. Each reached spread
+materializes into an internal array before a later operand can return; normal
+output spreads that established array. Member lookup and optional guards stay
+outside or around the selected argument expansions as their contracts require.
+Object entries use entry-aware operand positions: keys convert before values,
+and spread operands materialize through the ordinary own-property kernel.
+Normal results retain enumeration, duplicate keys and value identities.
+
 `analyzeBindings(scope)` consumes the resolved, pattern-expanded binding stage,
 before assignment normalization or graph construction. Each scope declares the
 same binding identities for locals and parameters. Its events distinguish

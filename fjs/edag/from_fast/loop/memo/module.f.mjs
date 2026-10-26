@@ -10,14 +10,14 @@
  * @import { List } from '../../../../types/list/types.ts'
  * @import { MemoLayout } from './cells/types.ts'
  * @import { _Block, _Context, _Exit, _Recipe, _Value, _Values } from './private.ts'
- * @import { Task } from '../../task/types.ts'
+ * @import { Task } from '../../../../js/ast/task/types.ts'
  */
 
 import { concat, toArray } from '../../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { exitValues, freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
 import { memoCells, recipeCells } from './cells/module.f.mjs'
-import { bind, call, done, run } from '../../task/module.f.mjs'
+import { bind, call, done, run } from '../../../../js/ast/task/module.f.mjs'
 
 /** @type {(index?: number) => BindingId} */
 const binding = (index = 0) => ({ index })

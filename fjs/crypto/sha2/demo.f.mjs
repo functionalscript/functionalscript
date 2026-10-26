@@ -17,6 +17,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
+import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { sha256 } from './module.f.mjs'
 import { selectField, textField, fieldUpdate } from '../../website/demo/module.f.mjs'
 import { digestOf, hashOutput, sha2Algorithms, algorithmOf, algorithmOption } from '../../website/demo/hash/module.f.mjs'
@@ -33,7 +34,7 @@ const selectedAlgorithm = algorithmOf(algorithms)
 export const digest = digestOf(sha256)
 
 /** @type {Demo<{ readonly algorithm: string, readonly text: string }, DemoEvent>} */
-export const demo = {
+const definition = {
     init: { algorithm: 'SHA-256', text: '' },
     update: fieldUpdate,
     view: state => {
@@ -46,3 +47,5 @@ export const demo = {
         ]
     },
 }
+
+export const demo = withInputs(definition, ['algorithm', 'text'], { algorithm: algorithms.map(a => a.name) })

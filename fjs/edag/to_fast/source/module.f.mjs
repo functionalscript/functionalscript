@@ -73,6 +73,7 @@ const graphReason = (a, module) => {
         }
         const node = a.nodes[index]
         if (node[0] === 'args') { return 'a args node' }
+        if (node[0] === 'memberPresent') { return 'an internal member-presence query' }
         if (node[0] === '+' && node.length === 2) { return 'a unary + node' }
         if (node[0] === ',') {
             if (!current.region && !current.module) { return 'a comma outside a scope' }

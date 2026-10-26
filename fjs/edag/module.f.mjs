@@ -56,6 +56,7 @@ import {
  *  typeof op1,
  *  typeof op0,
  *  typeof instanceOf,
+ *  typeof memberPresent,
  *  typeof func,
  *  typeof arg,
  *  typeof frame,
@@ -76,6 +77,7 @@ export const _exp = () => (['or',
     op1,
     op0,
     instanceOf,
+    memberPresent,
     func,
     arg,
     frame,
@@ -270,6 +272,15 @@ export const numberCast = /** @type {const} */ (['Number', exp])
  * `../rtti/todo/excluded-string-values.md`.
  */
 export const index = or(numberCast, string, number)
+
+/**
+ * Internal preargument member resolution. Evaluate the receiver and key, then
+ * perform the full property read and existing optional-member-call guard.
+ * The Boolean records presence, including native methods; it does not check
+ * callability or invoke the member. The receiver and key remain available for
+ * the subsequent member call. This operation has no source-language spelling.
+ */
+export const memberPresent = /** @type {const} */ (['memberPresent', exp, index])
 
 // Chain lambdas
 

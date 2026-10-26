@@ -10,6 +10,7 @@
  * @import { HashDemoAlgorithm } from '../../website/demo/hash/types.ts'
  */
 
+import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { hmac } from './module.f.mjs'
 import { hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from '../../website/demo/hash/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
@@ -34,7 +35,7 @@ const selectedAlgorithm = algorithmOf(algorithms)
 export const digest = (algorithm, key, text) => selectedAlgorithm(algorithm).digest(key, text)
 
 /** @type {Demo<{ readonly algorithm: string, readonly key: string, readonly text: string }, DemoEvent>} */
-export const demo = {
+const definition = {
     init: { algorithm: 'SHA-256', key: '', text: '' },
     update: fieldUpdate,
     view: state => {
@@ -51,3 +52,5 @@ export const demo = {
         ]
     },
 }
+
+export const demo = withInputs(definition, ['algorithm', 'key', 'text'], { algorithm: algorithms.map(a => a.name) })

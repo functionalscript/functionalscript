@@ -170,9 +170,34 @@ const returned = (exit, environment) => {
     return lowerValue(exit[2], environment)
 }
 
-export { id as _id, ref as _ref, result as _result, target as _target, afterLoop as _afterLoop, body as _body, summing as _summing, calledFunction as _calledFunction, counting as _counting, evaluate as _evaluate, collectingMemo as _collectingMemo, collectedMemo as _collectedMemo }
+export const _id = id
+export const _ref = ref
+export const _result = result
+export const _target = target
+export const _afterLoop = afterLoop
+export const _body = body
+export const _summing = summing
+export const _calledFunction = calledFunction
+export const _counting = counting
+export const _evaluate = evaluate
+export const _collectingMemo = collectingMemo
+export const _collectedMemo = collectedMemo
 
 export const proof = {
+    memberPresent: () => {
+        const receiver = id(0), key = id(0)
+        const graph = /** @type {Exp} */ (['[]', [4]])
+        assertStructurallySame(lowerValue(['memberPresent', ref(receiver), 'length'], [[receiver, graph]]), {
+            exp: ['memberPresent', graph, 'length'], anchors: [],
+        })
+        assertStructurallySame(lowerValue(['memberPresent', ref(receiver), ['Number', ref(key)]], [[receiver, graph], [key, '0']]), {
+            exp: ['memberPresent', graph, ['Number', '0']], anchors: [],
+        })
+        const local = id(1)
+        const region = /** @type {Value} */ (['block', result(ref(local), [['define', local, 0, 'required']])])
+        assertStructurallySame(fromFast(result(['memberPresent', ['array', [4]], ['Number', region]])),
+            ['memberPresent', graph, ['Number', 0]])
+    },
     deepRegions: () => {
         /** @type {Value} */
         let left = 1
