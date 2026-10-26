@@ -128,6 +128,13 @@ Callers own operand evaluation order, key resolution and source-name
 admission. Memo connects these reads to chains and to the helper's calls;
 [`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
 represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
+The internal `memberPresent` query shares the call resolver: it reads the
+property first, retains own-field shadowing and then asks whether the resolved
+member is present. Presence does not imply callable: an own `0` is present,
+while own null or undefined is absent. For an admitted built-in name with no
+own field, the runtime's answer is present unless it is undefined, with native
+fallback where the executor supplies one. Resolution failures propagate before
+any subsequent argument work. The query itself invokes no argument-stage body.
 [`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
 objects, arrays and functions, using the shared function-text renderer in both
 interpreters; a static function, the built-in and not its body, answers the
@@ -344,6 +351,7 @@ vocabularies.
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |
 | `['.', exp, index]`, `['.', exp, index, propertyLambda]` | property access `exp0[exp1]`, owning whatever its receiver is used for |
+| `['memberPresent', exp, index]` | internal member-resolution query: establish the receiver, then the existing string/number index or explicit `Number` conversion, then answer the member-call presence guard or propagate lookup failure; retain the receiver/key for a subsequent member call |
 | `['?.', exp, index]`, `['?.', exp, index, optionPropertyLambda]` | optional property access `exp0?.[exp1]`, owning the rest of its optional region |
 | `['?.()', exp, items[]]`, `['?.()', exp, items[], optionLambda]` | optional call `exp?.(…)`, likewise |
 | `['\|()', items[], k?]`, `['\|.', index, k?]`, `['\|?.()', items[], k?]`, `['\|!()', items[]]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |

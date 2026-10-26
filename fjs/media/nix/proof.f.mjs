@@ -250,6 +250,9 @@ export const proof = {
     // offending identifier or the conflicting paths, so a caller generating a
     // large expression learns which part of it broke.
     invalid: {
+        expression: () => assertEq(
+            reason(/** @type {never} */ (['bogus'])),
+            'not an expression: "bogus"'),
         reference: () => assertEq(
             reason(['ref', 'not valid']),
             'reference root is not an identifier: "not valid"'),

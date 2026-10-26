@@ -1,9 +1,18 @@
 use crate::vm::{
-    Any, IVm,
+    Any, IVm, ToAny,
     lambda::{Member, OptionPropertyLambda, PropertyLambda, Region},
 };
 
 impl<A: IVm> Any<A> {
+    /// The internal member-presence query. Both operands are established
+    /// before lookup; this performs the optional member-call guard without
+    /// evaluating call arguments or checking that the answer is callable.
+    pub fn member_present(self, key: Self, runtime: &Self) -> Result<Self, Self> {
+        Member::new(self, key)?
+            .is_nullish(runtime)
+            .map(|absent| (!absent).to_any())
+    }
+
     /// The EDAG's `.` node, `['.', receiver, key]` or with a continuation,
     /// `['.', receiver, key, k]`: the property step, as a chain a
     /// continuation may follow (`fjs/edag/README.md`, Chains).

@@ -119,10 +119,10 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       source-function returns and outer-loop transfers. Direct plain value
       regions, eager unary/binary and `instanceof` operands, conditional tests,
       plain calls, non-spread arrays/objects, comma sequences, statement result
-      lists and value-region result packing can lift owning returns; the
-      remaining operand boundaries stay open. The member-resolution design
-      selects a shared `memberPresent` guard; its end-to-end implementation
-      precedes lifting member and optional-call operands.
+      lists, value-region result packing and member/optional-call operands can
+      lift owning returns. The shared `memberPresent` query retains lookup and
+      receiver semantics; optional skips and forced-call continuations preserve
+      selected memo state. Spreads and the remaining operand boundaries stay open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

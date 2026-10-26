@@ -314,6 +314,11 @@ const handlers = {
         const [t, x] = walk(scope)(state, a)
         return [t, [tag, x, c]]
     },
+    memberPresent: scope => (state, [tag, receiver, key]) => {
+        const [t, base] = walk(scope)(state, receiver)
+        const [u, name] = index(scope)(t, key)
+        return [u, [tag, base, name]]
+    },
     // The slots are walked in the enclosing scope; the body is the scope
     // this node opens, so its entries name this node as their scope and
     // come before it, as operands come before the node that holds them.

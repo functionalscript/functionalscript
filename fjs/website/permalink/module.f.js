@@ -15,14 +15,21 @@ const linkIcon = ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentC
 ]
 
 /** A native anchor without JavaScript; a copy control once the runtime binds.
- * @type {(id: string, label: string) => Element}
+ * @type {(id: string, label: string, demo?: boolean) => Element}
  */
-export const permalink = (id, label) => ['span', { 'data-permalink': '' },
+export const permalink = (id, label, demo = false) => ['span', { 'data-permalink': '' },
     ['a', { href: `#${id}`, 'aria-label': `Link to ${label}` }, linkIcon],
-    ['button', { type: 'button', hidden: '', 'data-copy-fragment': id, 'aria-label': `Copy link to ${label}`, title: 'Copy link' },
+    ['button', { type: 'button', hidden: '',
+        ...(demo ? { 'data-copy-demo-section': id, 'aria-label': 'Copy section link', title: 'Copy section link' }
+            : { 'data-copy-fragment': id, 'aria-label': `Copy link to ${label}`, title: 'Copy link' }) },
         linkIcon,
         ['span', { 'data-copy-status': '', 'aria-live': 'polite' }],
     ],
+    ...(demo ? [/** @type {Element} */ (['button', { type: 'button', hidden: '', 'data-copy-demo': '', 'aria-label': 'Copy with inputs', title: 'Copy link with inputs' },
+        linkIcon,
+        ['span', { 'data-input-link-label': '' }, 'Copy with inputs'],
+        ['span', { 'data-copy-status': '', 'aria-live': 'polite' }],
+    ])] : []),
 ]
 
 /** Keep the controls beside the heading, outside its accessible name.

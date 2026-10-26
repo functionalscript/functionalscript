@@ -1,11 +1,11 @@
 /**
  * Return lifting preserves eager operand order and direct value continuations.
- * @import { BindingId, Block, Exit, Loop, Statement, Value } from '../../../js/ast/types.ts'
+ * @import { BindingId, Block, Exit, Loop, Statement, Value } from '../types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { binaryTags, unaryTags } from '../../../compiler/ast/module.f.js'
-import { liftReturns } from './module.f.mjs'
+import { liftReturns, liftValueReturns } from './module.f.mjs'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const other = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -25,6 +25,21 @@ const blockOf = statement => {
     return statement[2]
 }
 
+/** All statement regions, without recursively walking the host stack. @type {(root: Block) => readonly Block[]} */
+const regions = root => {
+    /** @type {readonly Block[]} */
+    let pending = [root]
+    /** @type {readonly Block[]} */
+    let result = []
+    while (pending.length !== 0) {
+        const [block, ...rest] = pending
+        result = [...result, block]
+        pending = [...block.statements.flatMap(statement => statement[0] === 'block' ? [statement[2]]
+            : statement[0] === 'if' ? [statement[3], statement[4]] : statement[0] === 'loop' ? [statement[1].body] : []), ...rest]
+    }
+    return result
+}
+
 export const proof = /** @type {const} */ ({
     unchanged: () => {
         const value = id()
@@ -40,8 +55,14 @@ export const proof = /** @type {const} */ ({
             ['object', [[':', ['block', returned(3)], 1], ['...', ['object', []]]]],
             ['array', [['...', ['array', []]], ['block', returned(3)]]],
             ['array', [['...', ['block', returned(3)]]]],
-            ['.', ['block', returned(3)], 'x'], ['?.', ['block', returned(3)], 'x'],
-            ['?.()', ref(value), [['block', returned(3)]]], ['()', ref(value), [['...', ['block', returned(3)]]]],
+            ['.', ref(value), 'x'], ['?.', ref(value), 'x'], ['?.()', ref(value), [1]],
+            ['.', ref(value), ['Number', 0], ['|()', [1]]],
+            ['?.', ref(value), 'x', ['|.', 'y', ['|!()', [1]]]],
+            ['?.()', ref(value), [1], ['|()', [2]]],
+            ['?.()', ref(value), [], ['|!()', [1]]],
+            ['?.()', ref(value), [['...', ['block', returned(3)]]]],
+            ['.', ref(value), 'x', ['|()', [['...', ['block', returned(3)]]]]],
+            ['()', ref(value), [['...', ['block', returned(3)]]]],
             ['function', { target: owner, parameters: [], rest: null, self: null, captures: [], body: returned(['block', returned(3)]) }],
         ])
         for (const source of ordinary) {
@@ -552,8 +573,7 @@ export const proof = /** @type {const} */ ({
         const receiver = id(), fn = id()
         const member = /** @type {Value} */ (['.', ref(receiver), 'at'])
         const callees = /** @type {readonly Value[]} */ ([
-            member, ['?.', ref(receiver), 'at'], ['.', ref(receiver), 'at', ['|()', []]],
-            ['?.()', ref(fn), []], ['Object.is'], ['slice'], [',', []],
+            ['?.', ref(receiver), 'at'], ['Object.is'], ['slice'], [',', []],
             ['block', yielded([member])], ['if', true, yielded([member]), yielded([ref(fn)])],
             ['if', true, yielded([ref(fn)]), yielded([member])], ['?:', true, ['block', yielded([member])], ref(fn)],
         ])
@@ -566,6 +586,107 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(result.exit, ['yield', []])
         const opaque = returned(['()', ref(fn), [['...', ['block', returned(7)]]]])
         assertEq(liftReturns(opaque, owner), opaque)
+        for (const callee of /** @type {readonly Value[]} */ ([member, ['.', ref(receiver), 'at', ['|()', []]], ['?.()', ref(fn), []]])) {
+            const source = returned(['()', callee, [['block', returned(7)]]])
+            const mapped = liftReturns(source, owner)
+            assert(mapped !== source)
+            assertEq(liftReturns(mapped, owner), mapped)
+        }
+        const completed = /** @type {Value} */ (['()', member, []])
+        const nested = returned(['()', completed, [['block', returned(7)]]])
+        assert(liftReturns(nested, owner) !== nested)
+        const unchanged = returned(completed)
+        assertEq(liftReturns(unchanged, owner), unchanged)
+    },
+    memberOperands: () => {
+        const receiver = id(), condition = id(), destination = id()
+        const terminal = /** @type {Value} */ (['block', returned(7)])
+        const selected = /** @type {Value} */ (['if', ref(condition), returned(7), yielded([0])])
+        const cases = /** @type {readonly Value[]} */ ([
+            ['.', terminal, 'x'], ['?.', terminal, 'x'], ['?.()', terminal, []],
+            ['.', ref(receiver), ['Number', terminal]], ['?.', ref(receiver), ['Number', terminal]],
+            ['.', ref(receiver), 'x', ['|()', [1, terminal]]],
+            ['.', ref(receiver), ['Number', selected], ['|()', [selected]]],
+            ['.', ref(receiver), 'x', ['|?.()', [terminal]]],
+            ['?.', ref(receiver), 'x', ['|()', [selected], ['|.', ['Number', selected]]]],
+            ['?.', ref(receiver), 'x', ['|.', ['Number', selected], ['|?.()', [selected], ['|()', [selected]]]]],
+            ['?.()', ref(receiver), [selected], ['|.', 'x', ['|()', [selected]]]],
+            ['?.()', ref(receiver), [selected], ['|?.()', [selected]]],
+            ['?.', ref(receiver), 'x', ['|!()', [terminal]]],
+            ['?.', ref(receiver), ['Number', selected], ['|!()', [selected]]],
+            ['?.', ref(receiver), 'x', ['|()', [selected], ['|.', 'y', ['|!()', [selected]]]]],
+            ['?.()', ref(receiver), [selected], ['|!()', [selected]]],
+            ['?.()', ref(receiver), [], ['|!()', [selected]]],
+            ['?.', terminal, 'x', ['|!()', [terminal]]],
+            ['.', terminal, 'x', ['|!()', [terminal]]],
+        ])
+        for (const value of cases) {
+            const source = returned(value)
+            const mapped = liftReturns(source, owner)
+            assert(mapped !== source)
+            assertEq(liftReturns(mapped, owner), mapped)
+            const one = liftValueReturns(value, destination, owner)
+            assert(one.statement !== null)
+            assertStructurallySame(one.value, ref(destination))
+        }
+        assertEq(liftValueReturns(1, destination, owner).statement, null)
+        const query = returned(['.', ref(receiver), 'x', ['|()', [terminal]]])
+        const mapped = liftReturns(query, owner)
+        const definitions = regions(mapped).flatMap(block => block.statements.filter(statement => statement[0] === 'define'))
+        assert(definitions.some(statement => statement[2] instanceof Array && statement[2][0] === 'memberPresent' && statement[3] === 'required'))
+        const optional = liftReturns(returned(['?.', ref(receiver), 'x', ['|?.()', [selected]]]), owner)
+        assert(regions(optional).some(block => block.statements.some(statement => statement[0] === 'if')))
+    },
+    forcedSuffixSharing: () => {
+        const receiver = id(), condition = id(), unique = id()
+        const selected = /** @type {Value} */ (['if', ref(condition), returned(7), yielded([0])])
+        const argument = /** @type {Value} */ (['block', yielded([selected], [['define', unique, 4, 'required']])])
+        const source = returned(['?.', ref(receiver), 'x', ['|?.()', [], ['|.', 'y', ['|?.()', [], ['|.', ['Number', 0], ['|!()', [argument]]]]]]])
+        const mapped = liftReturns(source, owner)
+        const declarations = regions(mapped).flatMap(block => block.statements.filter(statement => statement[0] === 'define' && statement[1] === unique))
+        assertEq(declarations.length, 1)
+        assertEq(liftReturns(mapped, owner), mapped)
+        const plain = returned(['?.()', ref(receiver), [selected], ['|!()', [3]]])
+        assert(liftReturns(plain, owner) !== plain)
+        const unchanged = returned(['?.', ref(receiver), 'x', ['|?.()', [], ['|.', 'y', ['|!()', [3]]]]])
+        assertEq(liftReturns(unchanged, owner), unchanged)
+    },
+    deepMemberChain: () => {
+        const receiver = id()
+        /** @type {import('../types.ts').Step<Value>} */
+        let step = ['|.', ['Number', ['block', returned(7)]]]
+        for (let depth = 0; depth < 20_000; ++depth) { step = ['|.', 'x', step] }
+        const source = returned(['?.', ref(receiver), 'x', step])
+        const mapped = liftReturns(source, owner)
+        assert(mapped !== source)
+        assertEq(liftReturns(mapped, owner), mapped)
+    },
+    permittedPhysicalLoops: () => {
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const receiver = id(), condition = id(), destination = id()
+        for (const kind of /** @type {const} */ (['break', 'continue'])) {
+            const transfer = /** @type {Value} */ (['block', body([kind, target, []])])
+            for (const functionOwner of [owner, null]) {
+                const expression = /** @type {Value} */ (['.', ref(receiver), 'x', ['|()', [transfer]]])
+                const lifted = liftValueReturns(expression, destination, functionOwner, [target])
+                assert(lifted.statement !== null)
+                assertEq(lifted.normal, false)
+                const all = regions(blockOf(lifted.statement))
+                assert(all.some(block => block.exit[0] === kind && block.exit[1] === target))
+                assert(all.some(block => block.statements.some(statement => statement[0] === 'define'
+                    && statement[2] instanceof Array && statement[2][0] === 'memberPresent')))
+            }
+        }
+        const mixed = /** @type {Value} */ (['()', ['.', ['if', ref(condition), body(['continue', target, []]), yielded([ref(receiver)])], 'x'], [
+            ['if', ref(condition), returned(7), yielded([0])],
+        ]])
+        const lifted = liftValueReturns(mixed, destination, owner, [target])
+        assert(lifted.statement !== null)
+        assertEq(lifted.normal, true)
+        const local = /** @type {Value} */ (['block', yielded([ref(receiver)], [['loop', {
+            target, parameters: [], initial: [], results: [], body: body(['break', target, []]),
+        }]])])
+        assertEq(liftValueReturns(local, destination, owner).statement, null)
     },
     terminalPrefix: () => {
         const value = id(), dead = id()
@@ -676,6 +797,15 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(blockOf(current.statements[0]).exit, ['return', owner, 7])
     },
     throw: {
+        permittedLoopRequiresExactTarget: () => {
+            const active = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const foreign = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            return liftValueReturns(['block', body(['continue', foreign, []])], id(), null, [active])
+        },
+        permittedLoopCannotInventFunctionOwner: () => {
+            const active = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            return liftValueReturns(['block', returned(7)], id(), null, [active])
+        },
         statementResultForeignReturn: () => liftReturns(body(['return', owner, 9], [
             ['block', [id()], yielded([['block', body(['return', other, 7])]])],
         ]), owner),

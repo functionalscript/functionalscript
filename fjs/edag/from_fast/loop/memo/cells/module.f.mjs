@@ -10,7 +10,7 @@
  * @import { BindingId, Block, Definition, Exit, FunctionTarget, Loop, LoopTarget, Statement, Value } from '../../../../../js/ast/types.ts'
  * @import { List } from '../../../../../types/list/types.ts'
  * @import { Link } from '../../../private.ts'
- * @import { Task } from '../../../task/types.ts'
+ * @import { Task } from '../../../../../js/ast/task/types.ts'
  * @import { MemoLayout, MemoPlan, RecipePlan } from './types.ts'
  * @import { _LoopInfo, _Occurrence, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _Transfer, _Visit } from './private.ts'
  */
@@ -18,7 +18,7 @@
 import { exitValues, freeBindings, freeLoopBindings } from '../../../control/module.f.mjs'
 import { concat, toArray } from '../../../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../../js/ast/module.f.mjs'
-import { bind, call, done, run } from '../../../task/module.f.mjs'
+import { bind, call, done, run } from '../../../../../js/ast/task/module.f.mjs'
 
 /**
  * A shared syntax container still has one declaration per reached occurrence.

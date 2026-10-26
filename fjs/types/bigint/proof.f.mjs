@@ -549,6 +549,21 @@ export const proof = {
          * there being no `try` in FunctionalScript and no regular expressions
          * in this repository.
          */
+        // Restoring a long input leaves the benchmark idle; an explicit Run
+        // still checks every candidate beyond Number's exponent range.
+        restoredLongInputRunsOnDemand: () => {
+            const sharing = assertNotNullish(demo.sharing)
+            const restored = sharing.restore({ size: '4096' })
+            assertEq(sharing.read(restored).size, '4096')
+            assertEq(restored.kind, 'idle')
+            assertStructurallySame(restored.rows, [])
+            assertEq(unwrap(assertNotNullish(runPure(demo.update(restored)({ kind: 'start' }))[0])), restored)
+            const timed = run(/** @type {MemOperationMap<Sandbox, null>} */ ({
+                sandbox: f => state => [state, ok({ result: ok(f()), duration: 7 })],
+            }))
+            const [, result] = timed(null)(demo.update(restored)({ kind: 'click', name: 'run' }))
+            assertStructurallySame(unwrap(result).rows.map(({ name, outcome }) => [name, outcome]), candidateNames.map(name => [name, 7]))
+        },
         parseSize: () => {
             assertEq(parseSize('20000'), 20_000n)
             assertEq(parseSize('1'), 1n)

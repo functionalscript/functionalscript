@@ -1,6 +1,6 @@
 use super::method::method;
 use crate::vm::{
-    Any, Array, IVm, ToAny, ToArray, Unpacked,
+    Any, Array, Function, IVm, ToArray, Unpacked,
     member_access::{non_nullish_receiver, undefined_if_absent},
 };
 
@@ -16,14 +16,35 @@ use crate::vm::{
 ///
 /// The receiver is never nullish: [`Member::new`] throws for one, before
 /// the arguments of any step, and a live chain is one that got past it.
-/// Deferring the read is unobservable after that — a read of a non-nullish
-/// value throws for no key and nothing here mutates.
+/// A call resolves the member before arguments, then resolves it again at
+/// invocation. Resolution is pure; its failure must precede argument control.
 pub(crate) struct Member<A: IVm> {
     receiver: Any<A>,
     key: Any<A>,
 }
 
 impl<A: IVm> Member<A> {
+    /// Native entries admit their own names. Runtime-only methods come
+    /// from the shared interpreter inventory, paired with their receiver
+    /// type's prototype by the existing methods generator.
+    fn admits(&self) -> bool {
+        if method(&self.receiver, &self.key).is_some() {
+            return true;
+        }
+        let type_name = match Unpacked::from(self.receiver.clone()) {
+            Unpacked::Array(_) => "Array",
+            Unpacked::String(_) => "String",
+            Unpacked::Number(_) => "Number",
+            Unpacked::Boolean(_) => "Boolean",
+            Unpacked::BigInt(_) => "BigInt",
+            Unpacked::Function(_) => "Function",
+            _ => "Object",
+        };
+        super::methods_table::RUNTIME_ONLY
+            .iter()
+            .any(|(type_, name)| *type_ == type_name && self.key.is_str(name))
+    }
+
     /// The `.` node's own step: a nullish receiver throws
     /// (`member_access::non_nullish_receiver`) — real JS's `[]` runs the
     /// same `ToObject` failure ahead of any key handling — and any other
@@ -80,17 +101,21 @@ impl<A: IVm> Member<A> {
     /// body, which DESIGN.md §13 allows a VM, is a measured change to this
     /// order, not an entry in the table.
     fn body(&self, runtime: &Any<A>) -> Result<Option<Any<A>>, Any<A>> {
-        let dot = runtime.clone().dot("dot".into()).end()?;
-        let callee = dot.call(
-            [self.receiver.clone(), self.key.clone()]
-                .to_array()
-                .to_any(),
-        )?;
-        Ok(if callee.is_nullish() {
-            None
-        } else {
-            Some(callee)
-        })
+        // Runtime overrides do not add names to a receiver's prototype.
+        if !self.admits() {
+            return Ok(None);
+        }
+        let Unpacked::Object(object) = Unpacked::from(runtime.clone()) else {
+            return Ok(None);
+        };
+        let Some(dot) = object.member_access("dot".into()) else {
+            return Ok(None);
+        };
+        let Ok(dot) = Function::try_from(dot) else {
+            return Ok(None);
+        };
+        let callee = dot.call([self.receiver.clone(), self.key.clone()].to_array())?;
+        Ok(callee.defined())
     }
 
     /// The guard of `|?.()`: whether the callee the call would find is
@@ -166,6 +191,202 @@ mod tests {
     /// A function answering `7`, whatever it is called with.
     fn seven() -> Any<A> {
         A::static_function(|_, _| Ok(7.0.to_any()), 0, [].to_array(), None).to_any()
+    }
+
+    /// A lookup provider that returns a captured value without calling it.
+    fn answering(value: Any<A>) -> Any<A> {
+        [(
+            "dot".into(),
+            A::static_function(
+                |self_, _| Ok(A::frame(self_)[0].clone()),
+                2,
+                [value].to_array(),
+                None,
+            )
+            .to_any(),
+        )]
+        .to_object()
+        .to_any()
+    }
+
+    fn throwing() -> Any<A> {
+        [(
+            "dot".into(),
+            A::static_function(|_, _| Err("lookup".into()), 2, [].to_array(), None).to_any(),
+        )]
+        .to_object()
+        .to_any()
+    }
+
+    /// The public query performs the complete guard: stored nullish values
+    /// shadow native names, and nonnullish values are present before any
+    /// callable check. Native methods need not exist as readable properties.
+    #[test]
+    fn member_presence() {
+        let one: Any<A> = [1.0.to_any()].to_array().to_any();
+        for runtime in [Any::undefined(), [].to_object().to_any(), rt()] {
+            assert_eq!(
+                one.clone().member_present("at".into(), &runtime),
+                Ok(true.to_any())
+            );
+            assert_eq!(
+                one.clone().member_present(0.0.to_any(), &runtime),
+                Ok(true.to_any())
+            );
+            assert_eq!(
+                one.clone().member_present("length".into(), &runtime),
+                Ok(true.to_any())
+            );
+            assert_eq!(
+                one.clone().member_present("missing".into(), &runtime),
+                Ok(false.to_any())
+            );
+        }
+        for value in [
+            Any::undefined(),
+            Nullish::Null.to_any(),
+            0.0.to_any(),
+            false.to_any(),
+            "".into(),
+            seven(),
+        ] {
+            let expected = !value.is_nullish();
+            let object = [("toString".into(), value)].to_object().to_any();
+            assert_eq!(
+                object.member_present("toString".into(), &throwing()),
+                Ok(expected.to_any())
+            );
+        }
+        assert_eq!(
+            seven().member_present("length".into(), &throwing()),
+            Ok(true.to_any())
+        );
+        assert_eq!(
+            Any::undefined().member_present("a".into(), &rt()),
+            Err(error::nullish_to_object())
+        );
+        assert_eq!(
+            Nullish::Null
+                .to_any::<A>()
+                .member_present("a".into(), &rt()),
+            Err(error::nullish_to_object())
+        );
+    }
+
+    /// Runtime presence is an undefined-only check, unlike own-property
+    /// nullishness. No argument-stage callable is invoked by the query.
+    #[test]
+    fn runtime_presence_and_admission() {
+        let one: Any<A> = [1.0.to_any()].to_array().to_any();
+        let failing =
+            A::static_function(|_, _| Err("callee".into()), 0, [].to_array(), None).to_any();
+        for value in [
+            Nullish::Null.to_any(),
+            0.0.to_any(),
+            false.to_any(),
+            "".into(),
+            [].to_object().to_any(),
+            failing,
+        ] {
+            let runtime = answering(value);
+            assert_eq!(
+                one.clone().member_present("at".into(), &runtime),
+                Ok(true.to_any())
+            );
+        }
+        let noncallable = [("dot".into(), Nullish::Null.to_any())]
+            .to_object()
+            .to_any();
+        assert_eq!(
+            one.clone().member_present("at".into(), &noncallable),
+            Ok(true.to_any())
+        );
+        assert_eq!(
+            one.clone()
+                .member_present("at".into(), &answering(Any::undefined())),
+            Ok(true.to_any())
+        );
+        assert_eq!(
+            one.clone().member_present("at".into(), &throwing()),
+            Err("lookup".into())
+        );
+        // The provider cannot invent an unadmitted name or add a native
+        // method to a type whose prototype has no such member.
+        assert_eq!(
+            one.member_present("unknown".into(), &throwing()),
+            Ok(false.to_any())
+        );
+        let object = [].to_object().to_any::<A>();
+        assert_eq!(
+            object.member_present("at".into(), &answering(seven())),
+            Ok(false.to_any())
+        );
+        for (_, name) in super::super::methods_table::RUNTIME_ONLY {
+            let text: Any<A> = "abc".into();
+            assert_eq!(
+                text.clone()
+                    .member_present((*name).into(), &Any::undefined()),
+                Ok(false.to_any())
+            );
+            assert_eq!(
+                text.clone().member_present((*name).into(), &rt()),
+                Ok(true.to_any())
+            );
+            assert_eq!(
+                text.clone()
+                    .member_present((*name).into(), &answering(Nullish::Null.to_any())),
+                Ok(true.to_any())
+            );
+            assert_eq!(
+                text.clone().member_present((*name).into(), &throwing()),
+                Err("lookup".into())
+            );
+            assert_eq!(
+                text.clone()
+                    .dot((*name).into())
+                    .option_call(&Any::undefined(), || panic!(
+                        "missing runtime skips arguments"
+                    ))
+                    .end(),
+                Ok(Any::undefined())
+            );
+            assert_eq!(
+                text.dot((*name).into())
+                    .end_call(&answering(seven()), no_args),
+                Ok(7.0.to_any())
+            );
+            assert_eq!(
+                1.0.to_any::<A>()
+                    .member_present((*name).into(), &throwing()),
+                Ok(false.to_any())
+            );
+        }
+    }
+
+    /// The host thunk API schedules member resolution before arguments.
+    /// A panic sentinel pins whether that thunk is forced; it does not
+    /// choose between two FunctionalScript failure diagnostics.
+    #[test]
+    fn ordinary_lookup_precedes_arguments() {
+        let one: Any<A> = [1.0.to_any()].to_array().to_any();
+        assert_eq!(
+            one.clone()
+                .dot("at".into())
+                .end_call(&throwing(), || panic!("lookup must fail first")),
+            Err("lookup".into())
+        );
+        assert_eq!(
+            one.clone()
+                .option_dot(|| Ok("at".into()))
+                .call(&throwing(), || panic!("lookup must fail first"))
+                .end(),
+            Err("lookup".into())
+        );
+        assert_eq!(
+            one.option_dot(|| Ok("at".into()))
+                .end_call(&throwing(), || panic!("lookup must fail first")),
+            Err("lookup".into())
+        );
     }
 
     /// An own property shadows the built-in of the same name, and an own

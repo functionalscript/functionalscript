@@ -10,13 +10,13 @@
  * @import { Block, Exit, Function as FastFunction, Loop, Statement } from '../../../../js/ast/types.ts'
  * @import { List } from '../../../../types/list/types.ts'
  * @import { _Owner, _Result } from './private.ts'
- * @import { Task } from '../../task/types.ts'
+ * @import { Task } from '../../../../js/ast/task/types.ts'
  */
 
 import { toArray } from '../../../../types/list/module.f.mjs'
 import { maxLength } from '../../../../types/function/length/module.f.mjs'
 import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
-import { bind, call, done, run } from '../../task/module.f.mjs'
+import { bind, call, done, run } from '../../../../js/ast/task/module.f.mjs'
 
 /**
  * A fixed invocation layout with its whole public result returned directly.

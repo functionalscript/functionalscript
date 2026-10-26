@@ -421,7 +421,8 @@ const build = (ruleSet, empty, entry, mappers) => {
                         : ok(emit(top.name, done))]
                 }
                 case 'variant': { return [pos, ok(emit(top.name, [top.tag, ast]))] }
-                case 'repeat': {
+                // `'repeat'`, the one kind left: every frame is built above
+                default: {
                     return round({ ...top, rounds: concat(top.rounds)([ast]), count: top.count + 1 }, pos)
                 }
             }

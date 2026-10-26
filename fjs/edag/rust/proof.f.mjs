@@ -1017,6 +1017,8 @@ export const proof = {
          * function's body counts: its closure holds the value in its frame.
          */
         needsRuntime: () => {
+            assertEq(needsRuntime(['memberPresent', ['[]', []], 'at']), true)
+            assertEq(needsRuntime(['=>', 0, [], ['memberPresent', ['[]', []], 'at']]), true)
             assertEq(needsRuntime(['Object.is']), true)
             assertEq(needsRuntime(['[]', [1, ['Number.isNaN']]]), true)
             assertEq(needsRuntime(['=>', 0, [], ['Object.is']]), true)

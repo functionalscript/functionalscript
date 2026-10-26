@@ -538,7 +538,96 @@ export const demo = {
 }
 `)
 
+/** Generated heading controls and a controllable hashchange source for the
+ * actual demo controller, using the same DOM stand-in as the other proofs.
+ * @type {(d: ReturnType<typeof dom>, hash?: string) => { status: { textContent: string }, navigate: (hash: string) => void }}
+ */
+const shared = (d, hash = '#documentation') => {
+    /** @type {(() => void)[]} */
+    const listeners = []
+    const doc = d.root.ownerDocument
+    const view = doc.defaultView
+    view.location = new URL(hash, 'https://example.com/demo/')
+    view.addEventListener = (/** @type {string} */ name, /** @type {() => void} */ listener) => { if (name === 'popstate') { listeners.push(listener) } }
+    view.requestAnimationFrame = (/** @type {() => void} */ callback) => callback()
+    doc.getElementById = () => null
+    const status = { textContent: '' }
+    const button = { hidden: true, addEventListener() {} }
+    d.root.parentElement = {
+        querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? d.root
+            : selector.includes('button[data-copy-demo]') || selector.includes('button[data-copy-demo-section]') ? button : status,
+    }
+    return { status, navigate: next => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; listeners.forEach(f => f()) } }
+}
+
+const sharedModule = moduleUrl(`
+const init = { left: 'A', right: 'B', tick: 0, running: true }
+export const demo = {
+    init,
+    sharing: {
+        fields: { left: { default: 'A' }, right: { default: 'B' } }, examples: [],
+        read: s => ({ left: s.left, right: s.right }),
+        restore: v => ({ ...init, ...v, running: false }),
+    },
+    nextEvent: s => s.running && s.tick < 2 ? { kind: 'click', name: 'tick' } : null,
+    nextDelay: () => 60,
+    update: s => e => () => ['ok', e.kind === 'input' ? { ...s, [e.name]: e.value }
+        : e.kind === 'click' ? { ...s, tick: s.tick + 1 } : s],
+    view: s => ['div', ['input', { name: 'left', value: s.left }], ['input', { name: 'right', value: s.right }], ['pre', s.left + '|' + s.right + '|' + s.tick]],
+}
+`)
+/** @type {(inputs: Record<string, string>) => string} */
+const sharedHash = inputs => '?' + new URLSearchParams(inputs).toString() + '#demo'
+
 export const proof = {
+    atomicSharing: async () => {
+        const d = dom(sharedModule)
+        const links = shared(d, sharedHash({ left: 'X', right: 'Y' }))
+        await startDemo(d.root)
+        await settle()
+        assert(d.root.innerHTML.includes('X|Y|0'))
+        assert(!d.rendered.some((/** @type {string} */ html) => html.includes('X|B|') || html.includes('A|Y|')))
+        links.navigate(sharedHash({ left: 'bad', unknown: 'refused' }))
+        await settle()
+        assert(d.root.innerHTML.includes('X|Y|0'))
+        assert(links.status.textContent.includes('Unknown input'))
+    },
+    canceledSharingResumesWork: async () => {
+        const d = dom(sharedModule)
+        const links = shared(d)
+        await startDemo(d.root)
+        await settle()
+        links.navigate(sharedHash({ left: 'X', right: 'Y' }))
+        links.navigate(sharedHash({ left: 'X', right: 'Y' }).replace('#demo', '#documentation'))
+        for (let i = 0; i < 50 && !d.root.innerHTML.includes('A|B|2'); i++) { await new Promise(resolve => setTimeout(resolve, 10)) }
+        assert(d.root.innerHTML.includes('A|B|2'), d.root.innerHTML)
+        assert(!d.rendered.some((/** @type {string} */ html) => html.includes('X|Y|')))
+    },
+    sharingEditBeforeTargetHandler: async () => {
+        const d = dom(sharedModule)
+        const links = shared(d)
+        await startDemo(d.root)
+        await settle()
+        links.navigate(sharedHash({ left: 'X', right: 'Y' }))
+        // Document capture runs before the target's runtime input handler.
+        d.root.setAttribute('data-demo-input-edited', '1')
+        d.named('left').enterText('reader')
+        for (let i = 0; i < 5; i++) { await Promise.resolve() }
+        assertEq(d.named('left').value, 'reader')
+        d.input('left', 'reader')
+        await settle()
+        assert(d.root.innerHTML.includes('reader|B|'))
+        assert(links.status.textContent.includes('edits were preserved'))
+    },
+    earlySharingEditMarker: async () => {
+        const d = dom(sharedModule)
+        const links = shared(d, sharedHash({ left: 'X', right: 'Y' }))
+        d.root.setAttribute('data-demo-input-edited', '')
+        await startDemo(d.root)
+        await settle()
+        assert(d.root.innerHTML.includes('A|B|'))
+        assert(links.status.textContent.includes('edits were preserved'))
+    },
     scopedRadioEvents: async () => {
         const d = dom(moduleUrl(`
 export const demo = {

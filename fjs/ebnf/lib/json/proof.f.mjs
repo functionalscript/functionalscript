@@ -292,6 +292,12 @@ export const proof = {
         cjRejectsOne: () => cj('(', 'x'),
         cjRejectsThree: () => cj('([)', 'x'),
         cjRejectsEmpty: () => cj('', 'x'),
+        // A node outside the grammar's branches is refused, not answered
+        // with `undefined`.
+        valueCasesRejectsUnknown: () => {
+            const unused = () => { throw 'unused' }
+            return valueCases({ array: unused, object: unused, string: unused, number: unused, word: unused })(/** @type {never} */ (['bogus']))
+        },
     },
     /**
      * The grammar is a `Rule`, which is the whole point of a front end: a

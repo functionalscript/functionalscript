@@ -60,6 +60,7 @@ export const proof = {
             ['array', [1, ['...', ['array', [2, 3]]]]],
             ['object', [[':', 'x', 1], [':', '__proto__', 2], [':', ['+', 'x', 'y'], 3], ['...', ['object', [[':', 'z', 4]]]]]],
             ['.', ['array', [2]], 0], ['.', ['object', [[':', 'a-b', 2]]], 'a-b'],
+            ['memberPresent', ['array', [2]], 'map'], ['memberPresent', ['array', [2]], ['Number', '0']],
             ['?.', null, 'key'], ['?.', null, 0], ['?.', null, ['Number', 'x']],
             ['.', ['object', [[':', 'NaN', 3]]], ['Number', 'x']],
             ['()', ['entry'], [['object', [[':', 'x', 3]]], 'x']],
@@ -184,5 +185,11 @@ export const proof = {
         assert(text.includes('while('))
         assert(text.includes('while(false){$5=$5;}'), text)
         assertEq(untagged(render(block, 'expression')), text)
+    },
+    // A statement or an exit no case names is refused, not written as
+    // `undefined`.
+    throw: {
+        unknownStatement: () => render({ statements: [/** @type {never} */ (['bogus'])], exit: ['yield', []] }),
+        unknownExit: () => render({ statements: [], exit: /** @type {never} */ (['bogus']) }),
     },
 }

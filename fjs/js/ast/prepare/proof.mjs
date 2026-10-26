@@ -8,7 +8,7 @@
 
 import { throws } from 'node:assert/strict'
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { prepareFunction } from './module.f.mjs'
+import { prepare, prepareFunction } from './module.f.mjs'
 import { functionStringify } from '../serializer/module.f.mjs'
 
 /** @type {(index: number) => BindingId} */
@@ -18,6 +18,139 @@ const id = index => ({ index })
 const compile = fn => Function(`"use strict";return (${functionStringify(prepareFunction(fn))});`)()
 
 export const proof = {
+    memberReturnOperands: () => {
+        const target = { kind: /** @type {const} */ ('function'), index: 0 }
+        const selected = id(100)
+        const result = id(101)
+        /** @type {(value?: FastValue) => FastValue} */
+        const escape = (value = 7) => ['block', { statements: [], exit: ['return', target, value] }]
+        /** @type {(normal: FastValue) => FastValue} */
+        const choice = normal => ['if', ['ref', selected], { statements: [], exit: ['return', target, 7] }, { statements: [], exit: ['yield', [normal]] }]
+        /** @type {(value: FastValue) => (...args: readonly unknown[]) => any} */
+        const valueFunction = value => compile({
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: { statements: [['define', result, value, 'required']], exit: ['return', target, ['ref', result]] },
+        })
+
+        throws(() => valueFunction(['.', null, 'x', ['|()', [escape()]]])(), TypeError)
+        for (const receiver of /** @type {readonly FastValue[]} */ ([['object', []], ['object', [[':', 'x', 0]]]])) {
+            const fn = valueFunction(['.', receiver, 'x', ['|()', [choice(1)]]])
+            assertEq(fn(true), 7)
+            throws(() => fn(false), TypeError)
+        }
+        const native = valueFunction(['.', 'abc', 'slice', ['|()', [choice(1)]]])
+        assertEq(native(true), 7)
+        assertEq(native(false), 'bc')
+        const directNative = valueFunction(['()', ['.', 'abc', 'slice'], [choice(1)]])
+        assertEq(directNative(true), 7)
+        assertEq(directNative(false), 'bc')
+        assertEq(valueFunction(['()', ['.', 'abc', 'slice'], [1]])(), 'bc')
+        const directReceiver = valueFunction(['()', ['.', choice('abc'), 'slice'], [1]])
+        assertEq(directReceiver(true), 7)
+        assertEq(directReceiver(false), 'bc')
+        const directKey = valueFunction(['()', ['.', null, ['Number', choice(0)]], []])
+        assertEq(directKey(true), 7)
+        throws(() => directKey(false), TypeError)
+        throws(() => valueFunction(['()', ['.', null, 'x'], [escape()]])(), TypeError)
+        const directNoncallable = valueFunction(['()', ['.', ['object', [[':', 'x', 0]]], 'x'], [choice(1)]])
+        assertEq(directNoncallable(true), 7)
+        throws(() => directNoncallable(false), TypeError)
+        assertEq(valueFunction(['.', null, ['Number', escape()]])(), 7)
+
+        const skippedKey = valueFunction(['?.', null, ['Number', choice(0)]])
+        assertEq(skippedKey(true), undefined)
+        const reachedKey = valueFunction(['?.', ['object', [[':', '0', 5]]], ['Number', choice(0)]])
+        assertEq(reachedKey(true), 7)
+        assertEq(reachedKey(false), 5)
+        for (const value of [null, undefined]) {
+            assertEq(valueFunction(['.', ['object', [[':', 'x', value]]], 'x', ['|?.()', [escape()]]])(), undefined)
+        }
+        const present = valueFunction(['.', ['object', [[':', 'x', 0]]], 'x', ['|?.()', [choice(1)]]])
+        assertEq(present(true), 7)
+        throws(() => present(false), TypeError)
+        assertEq(valueFunction(['?.()', undefined, [escape()]])(), undefined)
+        assertEq(valueFunction(['?.()', 0, [escape()]])(), 7)
+        assertEq(valueFunction(['?.', null, 'x', ['|()', [escape()]]])(), undefined)
+        assertEq(valueFunction(['?.', null, 'x', ['|!()', [escape()]]])(), 7)
+        assertEq(valueFunction(['.', ['object', [[':', 'x', null]]], 'x', ['|?.()', [], ['|!()', [escape()]]]])(), 7)
+
+        const payload = /** @type {readonly unknown[]} */ ([])
+        assertEq(valueFunction(['.', ['object', [[':', 'x', 0]]], 'x', ['|()', [escape(['ref', selected])]]])(payload), payload)
+        const receiver = id(102)
+        const memo = compile({
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: { statements: [
+                ['define', receiver, ['array', [1, 2]], 'lazy'],
+                ['define', result, ['.', ['ref', receiver], 'slice', ['|()', [choice(1)]]], 'required'],
+            ], exit: ['return', target, ['ref', result]] },
+        })
+        assertEq(memo(true), 7)
+        assertStructurallySame(memo(false), [2])
+
+        const childTarget = { kind: /** @type {const} */ ('function'), index: 0 }
+        const child = valueFunction(['function', {
+            target: childTarget, parameters: [], rest: null, self: null, captures: [],
+            body: { statements: [], exit: ['return', childTarget, ['.', ['object', [[':', 'x', 0]]], 'x', ['|()', [
+                ['block', { statements: [], exit: ['return', childTarget, 9] }],
+            ]]]] },
+        }])()
+        assertEq(child(), 9)
+        const capture = id(103)
+        assertEq(valueFunction(['function', {
+            target: childTarget, parameters: [], rest: null, self: null,
+            captures: [{ binding: capture, value: ['.', ['object', [[':', 'x', 0]]], 'x', ['|()', [escape()]]] }],
+            body: { statements: [], exit: ['return', childTarget, ['ref', capture]] },
+        }])(), 7)
+    },
+    directMemberLoopTransfers: () => {
+        const target = { kind: /** @type {const} */ ('function'), index: 0 }
+        const loop = { kind: /** @type {const} */ ('loop'), index: 0 }
+        const selected = id(0)
+        const count = id(1)
+        const value = id(2)
+        const result = id(3)
+        /** @type {(callee: FastValue, argument: FastValue) => FastFunction} */
+        const fn = (callee, argument) => ({
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: {
+                statements: [['loop', {
+                    target: loop, parameters: [count], initial: [0], results: [result],
+                    body: {
+                        statements: [['define', value, ['()', callee, [argument]], 'required']],
+                        exit: ['break', loop, [['ref', value]]],
+                    },
+                }]],
+                exit: ['return', target, ['ref', result]],
+            },
+        })
+        /** @type {FastValue} */
+        const leave = ['block', { statements: [], exit: ['break', loop, [9]] }]
+        /** @type {FastValue} */
+        const choice = ['if', ['ref', selected], { statements: [], exit: ['break', loop, [9]] }, { statements: [], exit: ['yield', [1]] }]
+        /** @type {(source: FastFunction) => (...args: readonly unknown[]) => any} */
+        const standalone = source => Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
+        for (const render of [compile, standalone]) {
+            // A former bare-call path must retain lookup before a successful
+            // outer break, and preserve the receiver on a normal argument.
+            throws(() => render(fn(['.', null, 'x'], leave))(), TypeError)
+            assertEq(render(fn(['.', ['object', [[':', 'x', 0]]], 'x'], leave))(), 9)
+            const native = render(fn(['.', 'abc', 'slice'], choice))
+            assertEq(native(true), 9)
+            assertEq(native(false), 'bc')
+        }
+        /** @type {FastValue} */
+        const receiver = ['if', ['===', ['ref', count], 0],
+            { statements: [], exit: ['continue', loop, [1]] },
+            { statements: [], exit: ['yield', ['abc']] },
+        ]
+        const argument = /** @type {FastValue} */ (['if', ['ref', selected],
+            { statements: [], exit: ['return', target, 7] },
+            { statements: [], exit: ['yield', [1]] },
+        ])
+        const mixed = compile(fn(['.', receiver, 'slice'], argument))
+        assertEq(mixed(true), 7)
+        assertEq(mixed(false), 'bc')
+    },
     returnThroughValue: () => {
         const target = { kind: /** @type {const} */ ('function'), index: 0 }
         const condition = id(0)

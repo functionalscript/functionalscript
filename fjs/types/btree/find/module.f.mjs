@@ -26,18 +26,21 @@ export const find = c => {
             case 2: { return done([i5(node), node]) }
             case 3: {
                 const i = i3(node[1])
+                // `index3` asserts `i` is 0, 1 or 2
                 switch (i) {
                     case 0: case 2: { return append([i, node])(node[i]) }
-                    case 1: { return done([i, node]) }
+                    default: { return done([i, node]) }
                 }
             }
             case 5: {
                 const i = i5([node[1], node[3]])
+                // `index5` asserts `i` is 0 to 4
                 switch (i) {
                     case 0: case 2: case 4: { return append([i, node])(node[i]) }
-                    case 1: case 3: { return done([i, node]) }
+                    default: { return done([i, node]) }
                 }
             }
+            default: { throw ['not a B-tree node', node] }
         }
     }
     return f(null)

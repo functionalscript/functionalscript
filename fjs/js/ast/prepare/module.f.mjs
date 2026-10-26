@@ -10,59 +10,23 @@
  * The pass trusts normalized producer invariants. It performs neither source
  * admission nor graph analysis, and it introduces no function boundaries for
  * result blocks. Expression-valued conditionals remain expression-valued.
- * The baseline output domain has no nonlocal transfer in a chain operand.
- * Such a transfer is refused explicitly until physical receiver/chain
- * continuations are added; moving it outside the chain would make it eager.
+ * Owning returns in member and optional-chain operands use the same logical
+ * return normalizer as graph construction. Physical lowering preserves its
+ * receiver snapshots and selected regions. Other outward chain transfers
+ * retain an explicit refusal.
  *
  * @module
- * @import { BindingId, Block as NormalBlock, Exit as NormalExit, Function as NormalFunction, LoopTarget, Statement as NormalStatement, Value as NormalValue } from '../types.ts'
+ * @import { BindingId, Block as NormalBlock, Exit as NormalExit, Function as NormalFunction, LoopTarget, Operator, Statement as NormalStatement, Value as NormalValue } from '../types.ts'
  * @import { Block, Exit, Function as PreparedFunction, Statement, Value } from './types.ts'
  * @import { _Block, _Context, _Facts, _Flow, _Flows, _Link, _Node, _Prepared, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
  */
 
 import { mapOperator, operatorOperands } from '../module.f.mjs'
 import { scalarLoopOf } from '../loop/module.f.js'
+import { liftValueReturns } from '../returns/module.f.mjs'
+import { bind, call, done, run } from '../task/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { iterable, toArray } from '../../../types/list/module.f.mjs'
-
-/** @type {<T>(value: T) => _Task<T>} */
-const done = value => ({ tag: 'done', value })
-
-/** @type {<T>(run: () => _Task<T>) => _Task<T>} */
-const call = run => ({ tag: 'call', run })
-
-/**
- * @template T, U
- * @param {_Task<T>} first
- * @param {(value: T) => _Task<U>} next
- * @returns {_Task<U>}
- */
-const bind = (first, next) => ({ tag: 'bind', first, next: value => next(/** @type {T} */ (value)) })
-
-/**
- * @template T
- * @param {_Task<T>} input
- * @returns {T}
- */
-const run = input => {
-    /** @type {_Task<unknown>} */
-    let task = input
-    /** @type {_Link<(value: unknown) => _Task<unknown>> | null} */
-    let stack = null
-    while (true) {
-        if (task.tag === 'call') { task = task.run(); continue }
-        if (task.tag === 'bind') {
-            stack = { first: task.next, tail: stack }
-            task = task.first
-            continue
-        }
-        if (stack === null) { return /** @type {T} */ (task.value) }
-        /** @type {_Link<(value: unknown) => _Task<unknown>>} */
-        const frame = stack
-        stack = frame.tail
-        task = frame.first(task.value)
-    }
-}
 
 /** @type {<T>(items: readonly T[], tail: _Link<T> | null) => _Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -98,9 +62,11 @@ const facts = node => {
                 case 'block': { return { ...empty, ids: statement[1], children: [['block', statement[2]]] } }
                 case 'if': { return { ...empty, ids: statement[1], children: [['value', statement[2]], ['block', statement[3]], ['block', statement[4]]] } }
                 case 'loop': { return { ...empty, children: [['loop', statement[1]]] } }
+                default: { throw ['not a statement', statement] }
             }
         }
-        case 'exit': {
+        // `'exit'`, the one tag left: every `_Node` is built in this function
+        default: {
             const exit = node[1]
             return exit[0] === 'yield' ? { ...empty, children: exit[1].map(value => ['value', value]) }
                 : exit[0] === 'break' || exit[0] === 'continue' ? { ...empty, loops: [exit[1]], children: exit[2].map(value => ['value', value]) }
@@ -222,7 +188,7 @@ const values = (input, context) => {
 /** @type {(value: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
 const functionValue = (value, context) => call(() => bind(values(value.captures.map(capture => capture.value), context), prepared => {
     const captures = value.captures.map((capture, index) => ({ binding: capture.binding, value: prepared.value[index] }))
-    return bind(prepareBlock(value.body, { ...context, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body =>
+    return bind(prepareBlock(value.body, { ...context, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body =>
         done({ value: { ...value, captures, body: body.value }, statements: prepared.statements, next: body.next }))
 }))
 
@@ -258,12 +224,26 @@ const prepareValue = (value, context) => call(() => {
         }
         case '?:': { return prepareValue(['if', value[1], { statements: [], exit: ['yield', [value[2]]] }, { statements: [], exit: ['yield', [value[3]]] }], context) }
         default: {
-            const input = operatorOperands(value)
-            if ((value[0] === '?.' || value[0] === '?.()' || (value[0] === '.' && value.length === 4))
-                && input.slice(1).some(child => nonlocalValue(child, context))) {
+            const memberCall = value[0] === '()' && value[1] instanceof Array && value[1][0] === '.' && value[1].length === 3
+            // A direct property callee retains its receiver, just as graph
+            // construction combines that shape into a member-call step.
+            const operation = memberCall ? /** @type {Operator<NormalValue>} */ (['.', value[1][1], value[1][2], ['|()', value[2]]]) : value
+            const input = operatorOperands(operation)
+            if ((memberCall || value[0] === '?.' || value[0] === '?.()' || (value[0] === '.' && value.length === 4))
+                && (memberCall ? input : input.slice(1)).some(child => nonlocalValue(child, context))) {
+                if (context.owner !== null || memberCall) {
+                    const [destination] = fresh(context.next, 1)
+                    const lifted = liftValueReturns(operation, destination, context.owner, memberCall ? context.loops.map(loop => loop.target) : [])
+                    if (lifted.statement !== null) {
+                        const summary = new Map([...context.flows, ...flows(['statement', lifted.statement], context.flows)])
+                        return bind(statementValue(lifted.statement, {
+                            ...context, flows: summary, next: Math.max(context.next + 1, assertNotNullish(summary.get(lifted.statement)).next),
+                        }), prepared => done({ value: ['ref', destination], statements: prepared.value, next: prepared.next }))
+                    }
+                }
                 throw ['unsupported FAST preparation', 'a nonlocal transfer in a chain operand']
             }
-            return bind(values(input, context), prepared => done({ value: mapOperator((_, index) => prepared.value[index])(value), statements: prepared.statements, next: prepared.next }))
+            return bind(values(input, context), prepared => done({ value: mapOperator((_, index) => prepared.value[index])(operation), statements: prepared.statements, next: prepared.next }))
         }
     }
 })
@@ -280,7 +260,9 @@ const transfer = (input, slots, context) => call(() => bind(values(input, contex
         value: [
             ...prepared.statements,
             ...prepared.value.map((value, index) => /** @type {Statement} */ (['define', temporaries[index], value])),
-            ...slots.map((slot, index) => /** @type {Statement} */ (['write', slot, ['ref', temporaries[index]]])),
+            // An abrupt-only normalized region can retain an unreachable
+            // empty yield. There are no normal values to distribute there.
+            ...slots.slice(0, temporaries.length).map((slot, index) => /** @type {Statement} */ (['write', slot, ['ref', temporaries[index]]])),
         ],
         next: prepared.next + temporaries.length,
     })
@@ -414,7 +396,7 @@ const prepareBlock = (block, context) => {
 /** Prepare one normalized region, retaining its ordinary result signature. @type {(block: NormalBlock) => Block} */
 export const prepare = block => {
     const summary = flows(['block', block])
-    return run(prepareBlock(block, { flows: summary, next: assertNotNullish(summary.get(block)).next, memos: [], loops: [], yields: null, reads: [] })).value
+    return run(prepareBlock(block, { flows: summary, owner: null, next: assertNotNullish(summary.get(block)).next, memos: [], loops: [], yields: null, reads: [] })).value
 }
 
 /**
@@ -425,5 +407,5 @@ export const prepare = block => {
  */
 export const prepareFunction = value => {
     const summary = flows(['function', value])
-    return run(functionValue(value, { flows: summary, next: assertNotNullish(summary.get(value)).next, memos: [], loops: [], yields: null, reads: [] })).value
+    return run(functionValue(value, { flows: summary, owner: null, next: assertNotNullish(summary.get(value)).next, memos: [], loops: [], yields: null, reads: [] })).value
 }
