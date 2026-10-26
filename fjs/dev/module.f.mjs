@@ -45,8 +45,7 @@ import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 export const shouldLoad = s =>
     s.endsWith('.f.ts')    || s.endsWith('.f.mts')   ||
     s.endsWith('.f.js')    || s.endsWith('.f.mjs')   ||
-    s.endsWith('proof.ts') || s.endsWith('proof.mts')||
-    s.endsWith('proof.js') || s.endsWith('proof.mjs')
+    isHostProof(s)
 
 /**
  * Authored FunctionalScript source, `.f.mjs` or `.f.js`
@@ -57,6 +56,16 @@ export const shouldLoad = s =>
  * @type {(path: string) => boolean}
  */
 export const isAuthored = path => path.endsWith('.f.mjs') || path.endsWith('.f.js')
+
+/**
+ * Opt-in host proofs, including the existing JavaScript/TypeScript spellings.
+ * Ordinary host modules and legacy FunctionalScript files are excluded.
+ *
+ * @type {(path: string) => boolean}
+ */
+export const isHostProof = path =>
+    path.endsWith('proof.ts') || path.endsWith('proof.mts') ||
+    path.endsWith('proof.js') || path.endsWith('proof.mjs')
 
 /**
  * Which files proof discovery loads on `engine`.
@@ -164,7 +173,8 @@ export const sourceRoot = env => {
  * under {@link sourceRoot}, imports them, and returns a map from relative
  * path to module exports.
  *
- * The predicate is applied during the walk by {@link allFiles}, so a file it
+ * `select` further restricts the engine-supported files. Both predicates are
+ * applied during the walk by {@link allFiles}, so a file either one
  * rejects is excluded before any `import()` is attempted — no wasted I/O.
  *
  * The result is sorted by path key using `string.cmp` so the order is
@@ -182,9 +192,10 @@ export const sourceRoot = env => {
  * neighbours, rather than this ending the walk without saying which file it
  * was.
  *
- * @type {(options: Pick<NodeProgramOptions, 'env' | 'engine'>) => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
+ * @type {(options: Pick<NodeProgramOptions, 'env' | 'engine'>, select?: (path: string) => boolean) => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
  */
-export const loadModuleMap = ({ env, engine }) => {
+export const loadModuleMap = ({ env, engine }, select = shouldLoad) => {
+    const supported = shouldLoadOn(engine)
     const s = sourceRoot(env)
     const prefix = s === '.' ? '' : s
     // TODO: there are multiple `all` effects here,
@@ -192,7 +203,7 @@ export const loadModuleMap = ({ env, engine }) => {
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
     const loaded = step(
-        allFiles(s, shouldLoadOn(engine)),
+        allFiles(s, path => supported(path) && select(path)),
         files => allOk(...files.map(loadFile)))
     return mapStep(
         loaded,
@@ -205,6 +216,26 @@ export const loadModuleMap = ({ env, engine }) => {
 }
 
 export const proof = {
+    selectiveDiscovery: () => {
+        const files = ['a.f.mjs', 'b.f.js', 'old.f.ts', 'old.f.mts',
+            'proof.mjs', 'proof.js', 'proof.ts', 'proof.mts', 'ordinary.mjs']
+        for (const select of [isAuthored, isHostProof]) {
+            /** @type {Dir} */
+            const root = fromEntries(files.map(path => [path, () => {
+                assert(select(path), path)
+                return {}
+            }]))
+            const [, result] = virtualAt(root)(loadModuleMap({ env: {}, engine: 'node' }, select))
+            const map = unwrap(result)
+            assertEq(Object.keys(map).join(','), files.filter(select).map(p => './' + p).toSorted().join(','))
+            for (const loaded of Object.values(map)) assert(loaded !== undefined && loaded[0] === 'ok', loaded)
+        }
+        const [, result] = virtualAt({ 'proof.mjs': [] })(loadModuleMap({
+            env: {}, engine: 'spidermonkey',
+        }, isHostProof))
+        assertEq(Object.keys(unwrap(result)).length, 0)
+        return undefined
+    },
     allFilesFindsFunctionalScript: () => {
         // Every FunctionalScript extension is discovered, so a module migrated
         // from `.f.ts` to `.f.mjs` keeps its proofs. An ordinary `.mjs` is

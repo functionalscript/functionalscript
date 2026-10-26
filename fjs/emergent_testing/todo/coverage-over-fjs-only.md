@@ -29,7 +29,7 @@ the key. `deno task cov` has the same shape: every test, `module.f.m?js` measure
 Under coverage, load FunctionalScript proofs from `.f.mjs` and `.f.js` files
 only. `isAuthored` in `fjs/dev` already selects those files. The Node coverage
 run uses the FJS-only native entry from
-[the runner split](./split-fjs-and-js-runners.md), in place of the combined
+[the implemented runner split](../README.md#selecting-fjs-or-host-js-with-a-native-runner), in place of the combined
 entry that uses `shouldLoad`.
 
 The [six-job CI plan](../../ci/todo/six-ci-jobs.md) requires coverage on Node
@@ -71,7 +71,7 @@ other modules' proofs.
 
 ### Related
 
-- [Split FJS and JS runners](./split-fjs-and-js-runners.md)
+- [Selective runner entries](../README.md#selecting-fjs-or-host-js-with-a-native-runner)
 - [Six CI jobs](../../ci/todo/six-ci-jobs.md)
 - [Prove each module's coverage by its own proof](./per-module-coverage.md)
 - [Cache successful builds by their inputs](../../ci/cache/README.md)
