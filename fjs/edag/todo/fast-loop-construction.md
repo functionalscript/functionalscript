@@ -8,6 +8,7 @@ member/optional-call completion lifting is implemented;
 array/call spread return lifting is implemented;
 object-spread return lifting is implemented;
 closure-capture return lifting is implemented;
+loop-transfer payload return lifting is implemented;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -215,7 +216,14 @@ remaining captures, function construction and suffix. Normal completion retains
 the original capture bindings and function metadata. The nested body remains
 untouched by that lift and normalizes at its own function entry. Selected memo
 updates and captured identities follow the same construction region.
-Lazy initializers, loop entry/transfer operands and native bare callees remain
+`break` and `continue` payloads use the same ordered snapshots in the statement
+region. A return preserves reached payload evaluations and skips the remaining
+payloads and transfer. Normal completion retains the exact target and ordered
+zero/one/many signature; all continue values establish before simultaneous state
+transfer. The existing memo and completion passes carry selected updates and
+payload identities through nested and outer-loop transfers. No-return inputs
+retain their syntax identity.
+Lazy initializers, loop entry operands and native bare callees remain
 separate boundaries. A loop transfer cannot escape the operand's locally owned
 loop chain.
 
@@ -650,7 +658,9 @@ their documented normalization. Repeated conversions must stabilize.
       key conversion, own-property copying, enumeration and value identities.
 - [x] Lift owning returns through closure capture expressions, preserving
       construction order, enclosing ownership, memo state and captured identities.
-- [ ] Extend completion handling to lazy initializers, loop entry/transfer
+- [x] Lift owning returns through `break` and `continue` payloads, preserving
+      evaluation order, exact targets, signatures, memo state and simultaneous updates.
+- [ ] Extend completion handling to lazy initializers, loop entry
       operands and remaining native/wrapped callee forms, preserving their
       evaluation boundaries.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their

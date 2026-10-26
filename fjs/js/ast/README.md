@@ -35,6 +35,12 @@ such a return skips the remaining captures and closure construction. Normal
 completion constructs the function from the established capture values. Its
 body retains its own function target and normalization boundary.
 
+`break` and `continue` payload expressions can return to the enclosing function.
+Return lifting establishes earlier payloads in order; a return skips the
+remaining payloads and the transfer. Normal completion retains the exact loop
+target and ordered result or next-state list. A continue establishes every next
+value before transferring, preserving simultaneous state updates.
+
 `Operator<V>` retains the existing operation vocabulary while parameterizing
 its value operands. `mapOperator(map)(operator)` maps those operands, including
 computed keys, spreads and optional-chain continuations, without interpreting

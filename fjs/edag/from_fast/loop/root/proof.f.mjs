@@ -58,6 +58,14 @@ const evaluate = (fn, args) => {
 }
 
 export const proof = {
+    transferPayloadReturn: () => {
+        const loop = loopOf(body(['break', loopTarget, [['block', body(['return', target, 4])]]]))
+        const fn = root(loop)
+        const value = graph(fn)
+        assert(value instanceof Array && value[0] === '=>')
+        assertEq(value[1], 2)
+        assertEq(assertOk(evaluate(fn, [1, 2])), 4)
+    },
     layout: () => {
         const loop = loopOf(body(['break', loopTarget, [ref(x)]]))
         const fn = root(loop)
@@ -404,6 +412,5 @@ export const proof = {
         regionArity: () => { const loop = loopOf(body(['break', loopTarget, [0]], [['block', [alias], body(['yield', []], [['if', [], true, body(['return', target, 0]), body(['yield', []])]])]])); directInvocationRoot(root(loop), loop) },
         returnOwner: () => { const loop = loopOf(body(['return', { ...target }, 0])); directInvocationRoot(root(loop), loop) },
         loopOwner: () => { const loop = loopOf(body(['continue', { ...loopTarget }, [0, 0]])); directInvocationRoot(root(loop), loop) },
-        nonlocalValue: () => { const loop = loopOf(body(['break', loopTarget, [['block', body(['return', target, 4])]]])); graph(root(loop)) },
     },
 }

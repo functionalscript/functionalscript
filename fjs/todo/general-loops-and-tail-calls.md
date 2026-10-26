@@ -125,7 +125,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       selected memo state. Array/call and object spreads materialize before
       later control; object keys convert before values. Closure capture
       expressions retain construction order and the enclosing return owner,
-      while nested bodies keep their own function boundary. The remaining operand
+      while nested bodies keep their own function boundary. Break and continue
+      payloads retain evaluation order, exact targets and simultaneous state
+      updates while exposing owning returns. The remaining operand
       boundaries stay open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
