@@ -1627,6 +1627,19 @@ export const proof = {
         const wrapped = fromFast(result(['function', { ...fn, body: { ...fn.body, statements: [['define', setup, ['array', []], 'required'], ...fn.body.statements] } }]))
         assertStructurallySame(wrapped, ['=>', 1, [], [',', [['[]', []], ['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 3], ['()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [['arg', 0]]]]]])
     },
+    loopMemoMemberArgumentDemand: () => {
+        const lazy = id(0)
+        const loop = collectingMemo(['.', null, 'x', ['|()', [ref(lazy)]]])
+        const graph = fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
+        assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] }))
+    },
+    loopMemoOptionalArgumentDemand: () => {
+        for (const initializer of /** @type {readonly Value[]} */ ([['array', [4]], ['.', null, 'x']])) {
+            const lazy = id(0)
+            const loop = collectingMemo(['?.()', null, [ref(lazy)]])
+            assertEq(evaluate(fromFast(result(7, [['define', lazy, initializer, 'lazy'], ['loop', loop]]))), 7)
+        }
+    },
     throw: {
         unbound: () => { fromFast(result(ref(id(0)))) },
         distinctBindingIdentity: () => { fromFast(result(ref(id(0))), [[id(0), 1]]) },
@@ -1710,16 +1723,6 @@ export const proof = {
                 body: body(['return', target, 9], [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]),
             })
             calledFunction(fn)
-        },
-        loopMemoMemberArgumentDemand: () => {
-            const lazy = id(0)
-            const loop = collectingMemo(['.', null, 'x', ['|()', [ref(lazy)]]])
-            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
-        },
-        loopMemoOptionalArgumentDemand: () => {
-            const lazy = id(0)
-            const loop = collectingMemo(['?.()', null, [ref(lazy)]])
-            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
         },
         loopMemoSpreadDemand: () => {
             const lazy = id(0)
