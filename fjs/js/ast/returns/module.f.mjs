@@ -4,7 +4,7 @@
  * must cross them. Lookup, optional skips and receiver binding stay explicit.
  *
  * @module
- * @import { BindingId, Block, Exit, FunctionTarget, Item, Key, LoopTarget, Operator, Statement, Step, Value } from '../types.ts'
+ * @import { BindingId, Block, Exit, Function as FastFunction, FunctionTarget, Item, Key, LoopTarget, Operator, Statement, Step, Value } from '../types.ts'
  * @import { List } from '../../../types/list/types.ts'
  * @import { Task } from '../task/types.ts'
  * @import { _ChainEnd, _ChainRegion, _ChainSource, _Context, _Expansion, _Region, _ResultMode, _Sequence, _Value } from './private.ts'
@@ -83,6 +83,20 @@ const eagerTask = (source, destination, owner, permitted) => {
             statement: ['block', [destination], { statements: result.statements, exit: result.normal
                 ? ['yield', [mapOperator((_, index) => result.values[index])(source)]] : ['yield', []] }],
             value: ref(destination), normal: result.normal, callee: !result.normal || callee,
+        })
+    })
+}
+
+/** Captures evaluate in the constructing scope; the nested body keeps its own owner. @type {(source: readonly ['function', FastFunction], destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>} */
+const captureTask = (source, destination, owner, permitted) => {
+    const fn = source[1]
+    return bind(sequenceTask(fn.captures.map(capture => capture.value), owner, false, permitted), result => {
+        if (!result.lifted) { return done(plain(source)) }
+        return done({
+            statement: ['block', [destination], { statements: result.statements, exit: result.normal
+                ? ['yield', [['function', { ...fn, captures: fn.captures.map((capture, index) => ({ ...capture, value: result.values[index] })) }]]]
+                : ['yield', []] }],
+            value: ref(destination), normal: result.normal, callee: true,
         })
     })
 }
@@ -238,11 +252,13 @@ const chainTask = (source, destination, owner, permitted) => {
 /**
  * Eager operations, constructor checks, comma sequences, array/call items
  * and object entries sequence their value operands. Member chains preserve their
- * own lookup/skip regions. Lazy initializers and function captures stay opaque.
+ * own lookup/skip regions. Captures sequence in their constructing scope;
+ * nested function bodies and lazy initializers stay opaque.
  * @type {(source: Value, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>}
  */
 const valueTask = (source, destination, owner, permitted) => call(() => {
     if (!(source instanceof Array)) { return done(plain(source)) }
+    if (source[0] === 'function') { return captureTask(source, destination, owner, permitted) }
     if (source[0] === '.' || source[0] === '?.' || source[0] === '?.()') { return chainTask(source, destination, owner, permitted) }
     if (source[0] === '()' && source[1] instanceof Array && source[1][0] === '.' && source[1].length === 3) {
         const member = source[1]

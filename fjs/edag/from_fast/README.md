@@ -202,8 +202,15 @@ retains every reached key conversion and property value. Normal completion
 constructs the object from established string keys and values, preserving
 duplicate keys, enumeration order, `__proto__` as data and value identity.
 
-Lazy initializers, captures and wrapped member/native callees retain
-their evaluation boundaries. Plain-call admission preserves callee
+Closure capture expressions use ordered required snapshots in the enclosing
+function's return context. A returning capture skips later captures, closure
+construction and following work. Normal completion retains capture bindings,
+value identities and function metadata; the nested body is normalized separately
+under its own target. Reached capture demands share the selected memo vector
+before closure construction. No-return inputs retain their syntax identity.
+
+Lazy initializers, loop entry/transfer operands and wrapped member/native
+callees retain their evaluation boundaries. Plain-call admission preserves callee
 provenance through wrapper regions and comma results.
 Loop transfers cannot escape a lifted operand's own loop scope. Ordinary
 nested functions are normalized at their own function entry.

@@ -29,6 +29,11 @@ statement variants support several results. Function parameters, rest, self,
 captures and local definitions all use the same immutable reference form.
 Captures pair an inner binding identity with the value established at function
 construction. No closure captures a mutable implementation slot.
+Capture expressions evaluate in order in the enclosing function. Return lifting
+establishes earlier captures before a later expression can return to that owner;
+such a return skips the remaining captures and closure construction. Normal
+completion constructs the function from the established capture values. Its
+body retains its own function target and normalization boundary.
 
 `Operator<V>` retains the existing operation vocabulary while parameterizing
 its value operands. `mapOperator(map)(operator)` maps those operands, including

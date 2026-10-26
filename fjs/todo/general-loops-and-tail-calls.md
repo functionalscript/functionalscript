@@ -123,7 +123,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       lift owning returns. The shared `memberPresent` query retains lookup and
       receiver semantics; optional skips and forced-call continuations preserve
       selected memo state. Array/call and object spreads materialize before
-      later control; object keys convert before values. The remaining operand
+      later control; object keys convert before values. Closure capture
+      expressions retain construction order and the enclosing return owner,
+      while nested bodies keep their own function boundary. The remaining operand
       boundaries stay open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the

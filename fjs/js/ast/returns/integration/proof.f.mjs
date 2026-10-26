@@ -1322,14 +1322,6 @@ export const proof = /** @type {const} */ ({
         wrappedOptionalCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['?.', null, 'f'])], [escape()]])),
         nativeCalleeReturn: () => calledFunction(requiredFunction(['()', ['Number.isInteger'], [escape()]])),
         wrappedNativeCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['Number.isInteger'])], [escape()]])),
-        functionCaptureReturn: () => {
-            const captured = id(0)
-            const nestedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
-            calledFunction(requiredFunction(['function', {
-                target: nestedTarget, parameters: [], rest: null, self: null, captures: [{ binding: captured, value: escape() }],
-                body: body(['return', nestedTarget, ref(captured)]),
-            }]))
-        },
         nestedFunctionForeignOwner: () => {
             const output = id(0)
             const nestedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
