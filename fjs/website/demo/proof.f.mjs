@@ -10,6 +10,7 @@ import { runPure } from '../../effects/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.mjs'
+import { decodeQuery, encodeQuery, restoreInputs } from './sharing/module.f.mjs'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */
 const plain = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])
@@ -22,6 +23,19 @@ const next = demo => state => event => unwrap(assertNotNullish(
     'expected the demo to reach a value without asking for an operation'))
 
 export const proof = {
+    greetingSharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        assertEq(unwrap(encodeQuery(sharing, sharing.read(demo.init))), '#demo')
+        for (const greeting of ['Hello', 'Hi', 'Welcome']) {
+            const link = unwrap(encodeQuery(sharing, sharing.read(greeting)))
+            const query = unwrap(decodeQuery(link === '#demo' ? '' : link.slice(0, -5)))
+            const restored = sharing.restore(unwrap(restoreInputs(sharing, query)))
+            assertEq(restored, greeting)
+            assert(htmlToString(demo.view(restored)).includes(`<option value="${greeting}" selected="">${greeting}</option>`))
+        }
+        assertEq(restoreInputs(sharing, unwrap(decodeQuery('?greeting=Goodbye')))[0], 'error')
+        assertEq(unwrap(encodeQuery(sharing, sharing.read('Hi'))), '?greeting=Hi#demo')
+    },
     widgetsDemo: () => {
         const initial = htmlToString(demo.view(demo.init))
         assert(initial.includes('<option value="Hello" selected="">Hello</option>'))

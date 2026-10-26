@@ -4,10 +4,11 @@
  * @module
  * @import { InputFieldOptions } from '../types.ts'
  * @import { Element } from '../../../media/html/types.ts'
+ * @import { StringMap } from '../../../types/object/types.ts'
  */
 
 /** One choice, selected only when it is the current value.
- * @type {(value: string, text: string, selected: boolean) => readonly ['option', { readonly [key: string]: string }, string]}
+ * @type {(value: string, text: string, selected: boolean) => readonly ['option', StringMap<string>, string]}
  */
 export const option = (value, text, selected) =>
     ['option', { value, ...(selected ? { selected: '' } : {}) }, text]

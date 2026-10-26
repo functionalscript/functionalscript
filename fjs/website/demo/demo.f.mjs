@@ -7,10 +7,15 @@
 
 import { button, caption, option, selectField } from './module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
+import { textSharing } from './sharing/module.f.mjs'
 
 /** @type {Demo<string, DemoEvent>} */
 export const demo = {
     init: 'Hello',
+    sharing: {
+        ...textSharing('greeting', 'Hello'),
+        fields: { greeting: { default: 'Hello', choices: ['Hello', 'Hi', 'Welcome'] } },
+    },
     update: state => event => pureOk(
         event.kind === 'input' && event.name === 'greeting' ? event.value
         : event.kind === 'click' && event.name === 'reset' ? 'Hello'
