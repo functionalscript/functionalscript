@@ -10,6 +10,7 @@ import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { normalizeLazyReturns, normalizeMemo } from './module.f.mjs'
 import { proof as deferredReturns } from '../../../edag/from_fast/lazy_returns/proof.f.mjs'
+import { proof as initializerLoops } from '../../../edag/from_fast/initializer_loop_cells/proof.f.mjs'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -39,6 +40,26 @@ const counting = value => ({
 const crossing = (value = ref(lazy), recipe = ['array', []]) => yielded(['array', [ref(output), ref(lazy)]], [
     ['define', lazy, recipe, 'lazy'], ['loop', counting(value)],
 ])
+
+/** A value-owned helper can transfer only within that operand. @type {(escape: boolean) => Block} */
+const initializerOperandTransfer = escape => {
+    const selected = id(0), local = id(0), innerResult = id(0), operand = id(0), outerResult = id(0)
+    const outer = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    const inner = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    /** @type {Value} */
+    const initializer = ['block', yielded(ref(outerResult), [['loop', {
+        target: outer, parameters: [], initial: [], results: [outerResult], body: body(['break', outer, [ref(operand)]], [
+            ['define', local, ['array', [ref(lazy)]], 'lazy'],
+            ['define', operand, ['block', yielded(ref(innerResult), [['loop', {
+                target: inner, parameters: [], initial: [], results: [innerResult],
+                body: body(['break', escape ? outer : inner, [ref(local)]]),
+            }]])], 'required'],
+        ]),
+    }]])]
+    return yielded(['array', [ref(output), ref(selected)]], [
+        ['define', lazy, ['array', [4]], 'lazy'], ['define', selected, initializer, 'lazy'], ['loop', counting(ref(selected))],
+    ])
+}
 
 /** @type {(block: Block) => unknown} */
 const evaluate = block => assertOk(toData(assertOk(memo(assertOk(identityAnalysis(fromFast(normalizeMemo(block)))))({ args: [] }))))
@@ -83,6 +104,13 @@ const loopPacket = (exit, kind, target, values, memo) => {
 
 export const proof = /** @type {const} */ ({
     deferredReturns,
+    initializerLoops,
+    initializerValueOwnedLoopKeepsItsLocalTransfer: () => {
+        const result = evaluate(initializerOperandTransfer(false))
+        assertStructurallySame(result, [[[4]], [[4]]])
+        assert(result instanceof Array)
+        assertEq(result[0], result[1])
+    },
     completionOnlyEntryKeepsOrdinaryMemoIdentity: () => {
         const ordinary = crossing()
         assertEq(normalizeLazyReturns(ordinary, functionTarget), ordinary)
@@ -1801,6 +1829,7 @@ export const proof = /** @type {const} */ ({
         assertEq(current.exit[0], 'yield')
     },
     throw: {
+        initializerOperandCannotTransferToContainingLoop: () => evaluate(initializerOperandTransfer(true)),
         deferredSpreadCalleeBoundary: () => normalizeLazyReturns(body(['return', functionTarget,
             ['()', [',', []], [['...', ref(lazy)]]],
         ], [['define', lazy, ['block', body(['return', functionTarget, 7])], 'lazy']]), functionTarget),

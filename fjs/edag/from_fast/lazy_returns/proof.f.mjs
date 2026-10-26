@@ -14,7 +14,7 @@ import { escape, failed, mixed, evaluate, failure, flat } from '../member_return
 import { staticRuntime } from '../native_returns/proof.f.mjs'
 
 /** @type {(initializer: Value, consume: (binding: BindingId) => Block, parameters?: readonly BindingId[]) => FastFunction} */
-const deferred = (initializer, consume, parameters = []) => {
+export const deferred = (initializer, consume, parameters = []) => {
     const lazy = id(0)
     const consumed = consume(lazy)
     return { target, parameters, rest: null, self: null, captures: [],
@@ -65,6 +65,15 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(normal, [[4], [4]])
         assertEq(normal[0], normal[1])
         assertEq(evaluate(calledFunction(fn, [true])), 7)
+    },
+    initializerOwnedLoopLocalCell: () => {
+        const inner = id(0), output = id(0)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loop = /** @type {Loop} */ ({ target: loopTarget, parameters: [], initial: [], results: [output],
+            body: body(['break', loopTarget, [ref(inner)]], [['define', inner, escape(), 'lazy']]),
+        })
+        assertEq(evaluate(calledFunction(deferred(['block', result(ref(output), [['loop', loop]])],
+            outer => body(['return', target, ref(outer)])))), 7)
     },
     undemandedInitializerRemainsDeferred: () => {
         for (const initializer of /** @type {readonly Value[]} */ ([escape(), failed('undemanded initializer')])) {
@@ -336,15 +345,6 @@ export const proof = /** @type {const} */ ({
         assertEq(liftReturns(source, target), source)
     },
     throw: {
-        initializerOwnedLoopLocalCellBoundary: () => {
-            const inner = id(0), output = id(0)
-            const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
-            const loop = /** @type {Loop} */ ({ target: loopTarget, parameters: [], initial: [], results: [output],
-                body: body(['break', loopTarget, [ref(inner)]], [['define', inner, escape(), 'lazy']]),
-            })
-            calledFunction(deferred(['block', result(ref(output), [['loop', loop]])],
-                outer => body(['return', target, ref(outer)])))
-        },
         demandedForeignReturnOwner: () => {
             const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })
             calledFunction(deferred(['block', body(['return', foreign, 7])], lazy => body(['return', target, ref(lazy)])))

@@ -42,6 +42,12 @@ installs the shared value. Getter construction keeps lazy prerequisites
 deferred, including dependencies mentioned only in an unselected arm. The
 logical demand pass preserves caller, iteration and recipe-local lifetimes
 before graph construction or physical getter lowering.
+This includes cells declared in loops inside an initializer: each reached
+declaration starts a fresh cell, while repeated demands and nested loops share
+that iteration's value. Escaping closures retain the established value.
+Initializer-loop entries use the enclosing cells; narrower prerequisite calls
+preserve the current local suffix. Returns propagate to the source function,
+and loop transfers stay within the operand's locally owned loop chain.
 [`memo`](./memo/module.f.mjs) owns this shared normalization and cell planning;
 [`control`](./control/module.f.mjs) supplies lexical dependency facts. The former
 graph-owner module paths retain compatibility exports.

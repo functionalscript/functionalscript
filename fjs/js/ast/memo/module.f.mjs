@@ -182,7 +182,7 @@ const valueTask = (source, context) => call(() => {
         })
     }
     if (source[0] === 'block') {
-        return bind(blockTask(source[1], { ...context, operand: true }), result => {
+        return bind(blockTask(source[1], { ...context, operand: true, owners: null }), result => {
             if (result.normal && result.memo !== context.memo) {
                 const value = binding()
                 const memo = binding()
@@ -195,8 +195,8 @@ const valueTask = (source, context) => call(() => {
         const then = source[0] === 'if' ? source[2] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[2]]] })
         const otherwise = source[0] === 'if' ? source[3] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[3]]] })
         return bind(valueTask(source[1], context), test =>
-            bind(blockTask(then, { ...context, memo: test.memo, operand: true }), a =>
-                bind(blockTask(otherwise, { ...context, memo: test.memo, operand: true }), b => {
+            bind(blockTask(then, { ...context, memo: test.memo, operand: true, owners: null }), a =>
+                bind(blockTask(otherwise, { ...context, memo: test.memo, operand: true, owners: null }), b => {
                     const original = test.value === source[1] && a.block === then && b.block === otherwise ? source : /** @type {Value} */ (['if', test.value, a.block, b.block])
                     return done(conditionalValue(test, a, b, original))
                 })))

@@ -933,7 +933,7 @@ export const proof = /** @type {const} */ ({
             assertEq(reboundPlan.layout.cells[1].binding, a)
             assertEq(reboundPlan.layout.cells[2].binding, b)
         },
-        eagerRegionsAndOpaqueBodies: () => {
+        eagerRegionsAndOpaqueFunctions: () => {
             const outer = planned(containing(reading(a)))
             const local = /** @type {const} */ ({ index: 0 })
             const captured = /** @type {const} */ ({ index: 0 })
@@ -962,8 +962,40 @@ export const proof = /** @type {const} */ ({
             assert(fn instanceof Array && fn[0] === 'function')
             assert(region instanceof Array && region[0] === 'block')
             assertEq(fn[1].body, fnBody)
-            assertEq(loopsOf(region[1])[0].body, loopBody)
+            assertStructurallySame(loopsOf(region[1])[0].body, loopBody)
             assertEq(plan.layout.loops.size, 0)
+        },
+        loopOccurrencesKeepFreshDeclarationCells: () => {
+            const outer = planned(containing(reading(a)))
+            const definition = /** @type {Definition} */ (['define', b, ['array', [['ref', a]]], 'lazy'])
+            const loop = loopOf(body([definition], ['break', target, [['ref', b]]]))
+            const value = /** @type {Value} */ (['block', body([['loop', loop], ['loop', loop]], ['yield', [['ref', result]]])])
+            const plan = recipeCells(value, outer, new Map([[a, 0]]))
+            const [first, second] = loopsOf(recipeBlock(plan))
+            assertEq(plan.localCount, 2)
+            assertEq(plan.layout.cells[0], outer.cells[0])
+            assertEq(plan.layout.cells[1].iterationLocal, true)
+            assertEq(plan.layout.cells[2].iterationLocal, true)
+            assert(first !== second && first !== loop && second !== loop)
+            assertEq(first.target, loop.target)
+            assertEq(second.target, loop.target)
+            assertEq(first.parameters, loop.parameters)
+            assertEq(second.results, loop.results)
+            assertEq(plan.layout.loops.has(first), true)
+            assertEq(plan.layout.loops.has(second), true)
+            const firstDefinition = definitionsOf(first.body)[0], secondDefinition = definitionsOf(second.body)[0]
+            assertEq(plan.layout.definitions.get(firstDefinition), 1)
+            assertEq(plan.layout.definitions.get(secondDefinition), 2)
+            assertEq(plan.layout.cells[1].definition, firstDefinition)
+            assertEq(plan.layout.cells[2].definition, secondDefinition)
+            assert(plan.layout.cells[1].definition !== plan.layout.cells[2].definition)
+            const independent = /** @type {Value} */ (['block', body([['loop', loopOf(body([
+                ['define', b, ['array', []], 'lazy'],
+            ], ['break', target, [['ref', b]]]))]], ['yield', [['ref', result]]])])
+            const unchanged = recipeCells(independent, outer, new Map([[a, 0]]))
+            assertEq(unchanged.localCount, 0)
+            assertEq(unchanged.layout.loops.size, 0)
+            assertEq(unchanged.value, independent)
         },
         conditionalsAndStatementResults: () => {
             const outer = planned(containing(reading(a)))
