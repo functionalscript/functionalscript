@@ -10,9 +10,9 @@ import { fromFast } from '../module.f.mjs'
 import { toFast } from '../../to_fast/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.mjs'
 import { requiredFunction, failed, escape, mixed, evaluate, failure, flat } from '../member_returns/proof.f.mjs'
-import { acrossLoop } from '../normal_memo_members/proof.f.mjs'
-import { collector } from '../spread_returns/proof.f.mjs'
-import { deferred } from '../lazy_returns/proof.f.mjs'
+import { _acrossLoop as acrossLoop } from '../normal_memo_members/proof.f.mjs'
+import { _collector as collector } from '../spread_returns/proof.f.mjs'
+import { _deferred as deferred } from '../lazy_returns/proof.f.mjs'
 
 /** The selected declaration is wholly inside this value's loop region. @type {(initializer: Value) => Value} */
 export const _ownedLoopValue = initializer => {
