@@ -105,6 +105,26 @@ const loopPacket = (exit, kind, target, values, memo) => {
 export const proof = /** @type {const} */ ({
     deferredReturns,
     initializerLoops,
+    optionalDemand: () => {
+        assertStructurallySame(evaluate(crossing(['?.', ref(lazy), 'length'])), [0, []])
+    },
+    optionalCallDemand: () => {
+        const callable = /** @type {Value} */ (['function', { target: functionTarget, parameters: [], rest: null, self: null,
+            captures: [], body: body(['return', functionTarget, 4]) }])
+        const source = crossing(['?.()', ref(lazy), []], callable)
+        assertStructurallySame(evaluate({ ...source, exit: ['yield', [['array', [ref(output), ['===', ref(lazy), ref(lazy)]]]]] }), [4, true])
+        const normalized = normalizeMemo(source)
+        assertEq(readyCells(recipesIn(normalized)[0][1]).length, 1)
+    },
+    continuedMemberDemand: () => {
+        const callable = /** @type {Value} */ (['function', { target: functionTarget, parameters: [], rest: null, self: null,
+            captures: [], body: body(['return', functionTarget, 9]) }])
+        const source = crossing(['.', ref(lazy), 'method', ['|()', []]], ['object', [[':', 'method', callable]]])
+        assertStructurallySame(evaluate({ ...source, exit: ['yield', [['array', [ref(output), ['===', ref(lazy), ref(lazy)]]]]] }), [9, true])
+    },
+    immediateMemberDemand: () => {
+        assertStructurallySame(evaluate(crossing(['()', ['.', ['array', [4]], 'at'], [ref(lazy)]], ['+', 0, 0])), [4, 0])
+    },
     initializerValueOwnedLoopKeepsItsLocalTransfer: () => {
         const result = evaluate(initializerOperandTransfer(false))
         assertStructurallySame(result, [[[4]], [[4]]])
@@ -1833,10 +1853,6 @@ export const proof = /** @type {const} */ ({
         deferredSpreadCalleeBoundary: () => normalizeLazyReturns(body(['return', functionTarget,
             ['()', [',', []], [['...', ref(lazy)]]],
         ], [['define', lazy, ['block', body(['return', functionTarget, 7])], 'lazy']]), functionTarget),
-        optionalDemand: () => { normalizeMemo(crossing(['?.', ref(lazy), 'length'])) },
-        optionalCallDemand: () => { normalizeMemo(crossing(['?.()', ref(lazy), []])) },
-        continuedMemberDemand: () => { normalizeMemo(crossing(['.', ref(lazy), 'method', ['|()', []]])) },
-        immediateMemberDemand: () => { normalizeMemo(crossing(['()', ['.', ['array', [4]], 'at'], [ref(lazy)]], ['+', 0, 0])) },
         spreadDemand: () => { normalizeMemo(crossing(['array', [['...', ref(lazy)]]])) },
         objectSpreadDemand: () => { normalizeMemo(crossing(['object', [['...', ref(lazy)]]])) },
         callSpreadDemand: () => {
