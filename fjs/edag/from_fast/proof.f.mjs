@@ -1640,6 +1640,16 @@ export const proof = {
             assertEq(evaluate(fromFast(result(7, [['define', lazy, initializer, 'lazy'], ['loop', loop]]))), 7)
         }
     },
+    loopMemoSpreadDemand: () => {
+        const lazy = id(0)
+        const loop = collectingMemo(['array', [['...', ref(lazy)]]])
+        const statements = /** @type {readonly Statement[]} */ ([['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]])
+        assertEq(evaluate(fromFast(result(7, statements))), 7)
+        const value = evaluate(fromFast(result(['array', [collectedMemo(ref(loop.results[0])), ref(lazy)]], statements)))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[4], [4]])
+        assert(value[0] !== value[1])
+    },
     throw: {
         unbound: () => { fromFast(result(ref(id(0)))) },
         distinctBindingIdentity: () => { fromFast(result(ref(id(0))), [[id(0), 1]]) },
@@ -1723,11 +1733,6 @@ export const proof = {
                 body: body(['return', target, 9], [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]),
             })
             calledFunction(fn)
-        },
-        loopMemoSpreadDemand: () => {
-            const lazy = id(0)
-            const loop = collectingMemo(['array', [['...', ref(lazy)]]])
-            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
         },
         loopReturnForeignOwner: () => {
             const loop = returningLoop(true, 7, [], { ...target })

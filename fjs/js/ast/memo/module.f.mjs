@@ -151,10 +151,9 @@ const demand = (index, context) => {
 /** @type {(operator: Operator<Value>) => boolean} */
 const guarded = operator => operator[0] === '?.' || operator[0] === '?.()' || operator[0] === '.' && operator.length === 4
     || operator[0] === '()' && operator[1] instanceof Array && operator[1][0] === '.'
-/** @type {(operator: Operator<Value>) => boolean} */
-const spreads = operator => operator[0] === 'array' ? operator[1].some(item => item instanceof Array && item[0] === '...')
-    : operator[0] === 'object' ? operator[1].some(entry => entry[0] === '...')
-        : operator[0] === '()' && operator[2].some(item => item instanceof Array && item[0] === '...')
+/** Objects sequence every entry; array and plain-call items need expansion. @type {(operator: Operator<Value>) => boolean} */
+const itemSpreads = operator => operator[0] === 'array' ? operator[1].some(item => item instanceof Array && item[0] === '...')
+    : operator[0] === '()' && operator[2].some(item => item instanceof Array && item[0] === '...')
 
 /** @type {(test: _Value, then: _Block, otherwise: _Block, source: Value) => _Value} */
 const conditionalValue = (test, then, otherwise, source) => {
@@ -201,7 +200,7 @@ const valueTask = (source, context) => call(() => {
                     return done(conditionalValue(test, a, b, original))
                 })))
     }
-    if ((guarded(source) || context.completions && (source[0] === 'object' || spreads(source)))
+    if ((guarded(source) || source[0] === 'object' || itemSpreads(source))
         && freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => context.aliases.has(id))) {
         const value = _exposeOperands(source, binding(), context.sourceOwner)
         if (value.statement === null) { throw 'deferred completion requires an admitted operand region' }
@@ -209,7 +208,7 @@ const valueTask = (source, context) => call(() => {
     }
     const operands = operatorOperands(source)
     return bind(valuesTask(operands, context), values => {
-        if (values.usesMemo && (guarded(source) || spreads(source))) { throw 'memo demands across optional, member-call or spread operands are not supported yet' }
+        if (values.usesMemo && (source[0] === 'object' || guarded(source) || itemSpreads(source))) { throw 'locally owned memo demand operands are not supported yet' }
         const unchanged = values.values.every((value, i) => value === operands[i])
         return done({ statements: values.statements, value: unchanged ? source : mapOperator((_, index) => values.values[index])(source), memo: values.memo, usesMemo: values.usesMemo })
     })
