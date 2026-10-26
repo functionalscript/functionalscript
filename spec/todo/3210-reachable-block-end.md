@@ -83,8 +83,11 @@ continuation; it is not copied into both arms, which would double the code at
 every `if` in a sequence.
 
 **A `switch`:** [3230](./3230-switch.md)'s follow-ups. A `switch` with no
-`default` is the function-body shape once more, rewritten the same way: a
-`default` in place of the last `case`, or a terminator after the `switch`.
+`default` is the function-body shape once more, rewritten the same way: the
+cases stay as they are and a terminator follows the `switch` — `return
+undefined`, the result an unmatched value reaches in JavaScript, or a `throw`
+where no other value can arrive. Turning the last `case` into the `default`
+would not do: it gives an unmatched value that case's result instead.
 
 ### Benefits and drawbacks of the `if` extension
 
@@ -104,7 +107,8 @@ of repeating that code in the arm.
 ### Tasks
 
 - [ ] Rewrite the function bodies with no terminator, `return undefined` or a
-      `throw`, and the `switch`es with no `default`; no approval needed.
+      `throw`, and a terminator after each `switch` with no `default`; no
+      approval needed.
 - [ ] Settle the `if` form and record formal language-design approval, with a
       link, under [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
 - [ ] An `if` block whose end is reachable, and `else`, over the branch result
