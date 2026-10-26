@@ -11,7 +11,7 @@
  */
 
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
-import { mapOperator, operatorOperands } from '../module.f.mjs'
+import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 
@@ -86,9 +86,6 @@ const eagerTask = (source, destination, owner, permitted) => {
         })
     })
 }
-
-/** @type {(item: Item<Value>) => item is readonly ['...', Value]} */
-const isSpread = item => item instanceof Array && item[0] === '...'
 
 /** @type {(item: Item<Value>) => _Expansion} */
 const itemExpansion = item => isSpread(item) ? 'array' : undefined
