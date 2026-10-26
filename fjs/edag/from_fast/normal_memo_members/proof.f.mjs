@@ -12,7 +12,7 @@ import { _id as id, _ref as ref, _result as result, _target as target, _body as 
 import { requiredFunction, failed, evaluate, failure, flat, throwingRuntime } from '../member_returns/proof.f.mjs'
 
 /** Demand one normal recipe through repeated loop operands. @type {(initializer: Value, use: (lazy: BindingId) => Value, observe?: (lazy: BindingId, loop: Loop) => Value, limit?: Value, selected?: Value) => Exp} */
-const acrossLoop = (initializer, use, observe = (_, loop) => collectedMemo(ref(loop.results[0])), limit = 2, selected = true) => {
+export const acrossLoop = (initializer, use, observe = (_, loop) => collectedMemo(ref(loop.results[0])), limit = 2, selected = true) => {
     const lazy = id(0), loop = collectingMemo(use(lazy), limit, selected)
     return fromFast(result(observe(lazy, loop), [['define', lazy, initializer, 'lazy'], ['loop', loop]]))
 }

@@ -139,6 +139,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       loops, retain captured values, and propagate source-owned returns.
       Normal-only memo plans also sequence member and optional calls, preserving
       optional skips, lookup order, receivers and shared cell lifetimes.
+      Standalone array/call/object spreads and object entries retain reached
+      expansion, copying and key-conversion order. Selection of demands owned
+      entirely inside operand regions remains open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

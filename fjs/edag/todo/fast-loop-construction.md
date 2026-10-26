@@ -15,6 +15,7 @@ wrapped-member callee return lifting is implemented;
 lazy-initializer return handling and initializer-loop cells are implemented for
 selected demand regions;
 normal-only member and optional-call demands are implemented;
+normal-only standalone spread and object-entry demands are implemented;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -275,7 +276,10 @@ regions. Optional skips leave keys, arguments and their cells undemanded;
 reached lookup precedes arguments, direct calls keep their receiver, and wrapped
 property values retain detached invocation. The member sequencer expands its
 call's spreads in order before later arguments. Standalone array, plain-call
-and object spread-only demands remain open.
+and object spreads also expose their reached expansions or own-property copies
+before later operands. Object entries convert each key before its value with
+or without spreads. Normal plans retain their value/state pairs and shared
+caller, iteration and recipe cells.
 Initializer-owned loops share selected local demand cells. Each reached
 declaration resets its iteration's cell, retaining caller, prerequisite and
 enclosing-iteration cells. Nested loops and repeated demands share the current
@@ -299,7 +303,11 @@ Payload evaluation supplies the latest vector before every transfer. Continued
 iterations retain caller and enclosing-iteration cells and reset their own local
 lifetimes at reached declarations. Foreign targets and operand escapes remain
 refused.
-Demand-only standalone spread operands retain their existing refusals.
+Demands selected wholly inside operand-owned declarations and loops can be
+absent from an operation's free aliases. Unexposed guarded, spread and object
+regions with such updates remain explicitly refused;
+[operand-owned demand regions](../../js/ast/memo/todo/operand-owned-demand-regions.md)
+records the skipped optional-argument case and remaining selection work.
 External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
 
@@ -734,6 +742,11 @@ their documented normalization. Repeated conversions must stabilize.
       prerequisite identities and source-owned returns.
 - [x] Share normal-only lazy demands through member and optional calls,
       preserving skipped operands, lookup order, receivers and cell lifetimes.
+- [x] Share normal-only lazy demands through standalone array/call/object spreads
+      and object entries, preserving reached expansion and key-conversion order.
+- [ ] Account for selected demands owned entirely inside operand regions before
+      hoisting updates; preserve skips and intermediate expansion/conversion order.
+      See [operand-owned demand regions](../../js/ast/memo/todo/operand-owned-demand-regions.md).
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.

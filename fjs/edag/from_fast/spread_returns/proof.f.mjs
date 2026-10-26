@@ -20,7 +20,7 @@ const simpleFunction = (parameters, value, rest = null) => {
 }
 
 /** @type {() => Value} */
-const collector = () => {
+export const collector = () => {
     const rest = id(0)
     return simpleFunction([], ref(rest), rest)
 }
