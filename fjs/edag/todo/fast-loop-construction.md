@@ -12,6 +12,7 @@ loop-transfer payload return lifting is implemented;
 loop-entry initializer return lifting is implemented;
 native-callee return lifting is implemented;
 wrapped-member callee return lifting is implemented;
+lazy-initializer return handling is claimed for the next stacked PR;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
