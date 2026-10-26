@@ -266,7 +266,7 @@ export const runPure = e =>
  */
 export const match = map =>
     _matchWith(/** @type {(command: O[0]) => R} */ (command => {
-        assert(false, command)
+        throw command
     }))(map)
 
 /**
