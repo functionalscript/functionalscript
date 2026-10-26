@@ -1,0 +1,356 @@
+/**
+ * Expose owning function returns at direct value-consumer boundaries. Eager
+ * operands, tests and member chains become statement regions only when a return
+ * must cross them. Lookup, optional skips and receiver binding stay explicit.
+ *
+ * @module
+ * @import { BindingId, Block, Exit, FunctionTarget, Item, Key, LoopTarget, Operator, Statement, Step, Value } from '../types.ts'
+ * @import { List } from '../../../types/list/types.ts'
+ * @import { Task } from '../task/types.ts'
+ * @import { _ChainEnd, _ChainRegion, _ChainSource, _Context, _Region, _ResultMode, _Sequence, _Value } from './private.ts'
+ */
+
+import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
+import { mapOperator, operatorOperands } from '../module.f.mjs'
+import { toArray } from '../../../types/list/module.f.mjs'
+import { bind, call, done, run } from '../task/module.f.mjs'
+
+/** @type {() => BindingId} */
+const binding = () => ({ index: 0 })
+/** @type {(id: BindingId) => Value} */
+const ref = id => ['ref', id]
+
+/** Source logical tags must first become FAST conditional regions. @type {(node: readonly unknown[]) => boolean} */
+const eagerBinary = node => isBinary(node) && !lazyLayers.some(layer => Object.values(layer).some(tag => tag === node[0]))
+
+/** Graph inputs allow only value-owned loops; physical callers may retain exact active targets. @type {(owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => _Context} */
+const operandContext = (owner, permitted) => ({ owner, operand: true, loops: permitted, permitted })
+
+/** A reference is already a bare callee; member lookup syntax must stay intact. @type {(source: Value, callee?: boolean) => _Value} */
+const plain = (source, callee = !(source instanceof Array) || source[0] === 'ref' || source[0] === 'function'
+    || source[0] === 'array' || source[0] === 'object') =>
+    ({ statement: null, value: source, normal: true, callee })
+
+/** Establish ordered operands, retaining their independent result identities. @type {(input: readonly Value[], owner: FunctionTarget | null, plainCall: boolean, permitted: readonly LoopTarget[]) => Task<_Sequence>} */
+const sequenceTask = (input, owner, plainCall, permitted) => {
+    /** @type {(statements: List<Statement>, values: List<Value>, normal: boolean, lifted: boolean, callee: boolean, admitted?: boolean) => Task<_Sequence>} */
+    const finish = (statements, values, normal, lifted, callee, admitted = true) => done({
+        statements: toArray(statements).toReversed(), values: toArray(values).toReversed(), normal, lifted, callee, admitted,
+    })
+    /** @type {(index: number, statements: List<Statement>, values: List<Value>, lifted: boolean, lastCallee: boolean) => Task<_Sequence>} */
+    const each = (index, statements, values, lifted, lastCallee) => call(() => {
+        if (index === input.length) { return finish(statements, values, true, lifted, lastCallee) }
+        const id = binding()
+        return bind(valueTask(input[index], id, owner, permitted), result => {
+            if (plainCall && index === 0 && !result.callee) { return finish(null, null, true, false, false, false) }
+            const statement = result.statement ?? /** @type {Statement} */ (['define', id, result.value, 'required'])
+            const next = /** @type {List<Statement>} */ ({ first: statement, tail: statements })
+            if (!result.normal) { return finish(next, values, false, true, true) }
+            return each(index + 1, next, { first: ref(id), tail: values }, lifted || result.statement !== null, result.callee)
+        })
+    })
+    return each(0, null, null, false, false)
+}
+
+/** Snapshot eager operands in source order; object keys convert before their values. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>} */
+const eagerTask = (source, destination, owner, permitted) => {
+    const input = operatorOperands(source).map((value, index) => source[0] === 'object' && index % 2 === 0
+        ? /** @type {Value} */ (['String', value]) : value)
+    return bind(sequenceTask(input, owner, source[0] === '()', permitted), result => {
+        if (!result.admitted) { return done(plain(source, false)) }
+        const callee = source[0] !== ',' || result.callee
+        if (!result.lifted) { return done(plain(source, callee)) }
+        return done({
+            statement: ['block', [destination], { statements: result.statements, exit: result.normal
+                ? ['yield', [mapOperator((_, index) => result.values[index])(source)]] : ['yield', []] }],
+            value: ref(destination), normal: result.normal, callee: !result.normal || callee,
+        })
+    })
+}
+
+/** A spread's expansion boundary remains outside this increment. @type {(items: readonly Item<Value>[]) => boolean} */
+const hasSpread = items => items.some(item => item instanceof Array && item[0] === '...')
+
+/** Find the one forced suffix without duplicating it beneath optional guards. @type {(source: _ChainSource) => _ChainEnd | null} */
+const chainEnd = source => {
+    if (source[0] === '?.()' && hasSpread(source[2])) { return null }
+    let member = source[0] !== '?.()'
+    /** @type {Key<Value> | null} */
+    let key = source[0] === '?.()' ? null : source[2]
+    /** @type {Step<Value> | undefined} */
+    let step = source[3]
+    while (step !== undefined) {
+        if (step[0] === '|.') {
+            member = true
+            key = step[1]
+        } else {
+            if (hasSpread(step[1])) { return null }
+            if (step[0] === '|!()') { return { args: step[1], member, key } }
+            member = false
+            key = null
+        }
+        step = step[2]
+    }
+    return { args: null, member: false, key: null }
+}
+
+/** @type {(values: readonly Value[], callee?: boolean) => _ChainRegion} */
+const chainYield = (values, callee = true) => ({ block: { statements: [], exit: ['yield', values] }, normal: true, lifted: false, callee })
+
+/** Skipping an open region retains only the transport needed by its forced suffix. @type {(end: _ChainEnd) => _ChainRegion} */
+const chainSkip = end => chainYield(end.args !== null && end.member ? [false, undefined, 0] : [undefined])
+
+/** Prefix nesting is linear in chain length; no suffix statement array is copied. @type {(statements: readonly Statement[], next: _ChainRegion, lifted: boolean, end: _ChainEnd) => _ChainRegion} */
+const chainPrefix = (statements, next, lifted, end) => {
+    const ids = Array.from({ length: end.args !== null && end.member ? 3 : 1 }, binding)
+    return {
+        ...next, lifted: lifted || next.lifted,
+        block: { statements: [...statements, ['block', ids, next.block]], exit: next.normal ? ['yield', ids.map(ref)] : ['yield', []] },
+    }
+}
+
+/** Establish one original operand before the next chain operation. @type {(source: Value, owner: FunctionTarget | null, end: _ChainEnd, next: (value: Value) => Task<_ChainRegion>, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
+const chainOperand = (source, owner, end, next, permitted) => {
+    const id = binding()
+    return bind(valueTask(source, id, owner, permitted), result => {
+        const statement = result.statement ?? /** @type {Statement} */ (['define', id, result.value, 'required'])
+        if (!result.normal) { return done({ block: { statements: [statement], exit: ['yield', []] }, normal: false, lifted: true, callee: true }) }
+        return bind(next(ref(id)), tail => done(chainPrefix([statement], tail, result.statement !== null, end)))
+    })
+}
+
+/** A nullish receiver/callee test reads an already established value. @type {(value: Value) => Value} */
+const present = value => ['?:', ['===', value, null], false, ['!==', value, undefined]]
+
+/** Optional regions join before a forced suffix, retaining receiver and key separately. @type {(test: Value, reached: _ChainRegion, end: _ChainEnd) => _ChainRegion} */
+const chainGuard = (test, reached, end) => {
+    const ids = Array.from({ length: end.args !== null && end.member ? 3 : 1 }, binding)
+    return {
+        block: { statements: [['if', ids, test, reached.block, chainSkip(end).block]], exit: ['yield', ids.map(ref)] },
+        normal: true, lifted: reached.lifted, callee: reached.callee,
+    }
+}
+
+/** The value after a call no longer carries a receiver. @type {(value: Value, step: Step<Value> | undefined, owner: FunctionTarget | null, end: _ChainEnd, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
+const chainValue = (value, step, owner, end, permitted) => call(() => {
+    if (step === undefined || step[0] === '|!()') { return done(chainYield([value])) }
+    return step[0] === '|.' ? chainProperty(value, step[1], step[2], owner, end, permitted)
+        : chainCall(value, step[1], step[2], step[0] === '|?.()', owner, end, permitted)
+})
+
+/** Original argument values are established in their selected region before replay. @type {(args: readonly Item<Value>[], invoke: (args: readonly Value[]) => Value, step: Step<Value> | undefined, owner: FunctionTarget | null, end: _ChainEnd, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
+const chainArguments = (args, invoke, step, owner, end, permitted) =>
+    bind(sequenceTask(/** @type {readonly Value[]} */ (args), owner, false, permitted), result => {
+        if (!result.normal) { return done({ block: { statements: result.statements, exit: ['yield', []] }, normal: false, lifted: true, callee: true }) }
+        const value = invoke(result.values)
+        if (step === undefined) { return done({ block: { statements: result.statements, exit: ['yield', [value]] }, normal: true, lifted: result.lifted, callee: true }) }
+        const id = binding()
+        return bind(chainValue(ref(id), step, owner, end, permitted), tail => done(chainPrefix([
+            ...result.statements, ['define', id, value, 'required'],
+        ], tail, result.lifted, end)))
+    })
+
+/** Bare calls use callee nullishness; their arguments never acquire a receiver. @type {(value: Value, args: readonly Item<Value>[], step: Step<Value> | undefined, optional: boolean, owner: FunctionTarget | null, end: _ChainEnd, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
+const chainCall = (value, args, step, optional, owner, end, permitted) =>
+    bind(chainArguments(args, args => ['()', value, args], step, owner, end, permitted), reached => done(optional ? chainGuard(present(value), reached, end) : reached))
+
+/** Property state survives until the call consumes its receiver. @type {(receiver: Value, key: Key<Value>, step: Step<Value> | undefined, owner: FunctionTarget | null, end: _ChainEnd, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
+const chainMember = (receiver, key, step, owner, end, permitted) => call(() => {
+    if (step === undefined) { return done(chainYield([['.', receiver, key]], false)) }
+    if (step[0] === '|.') {
+        const id = binding()
+        return bind(chainProperty(ref(id), step[1], step[2], owner, end, permitted), tail => done(chainPrefix([
+            ['define', id, ['.', receiver, key], 'required'],
+        ], tail, false, end)))
+    }
+    const guard = binding()
+    const query = /** @type {Statement} */ (['define', guard, ['memberPresent', receiver, key], 'required'])
+    if (step[0] === '|!()') {
+        return done(chainPrefix([query], chainYield([true, receiver, key instanceof Array ? key[1] : key]), false, end))
+    }
+    return bind(chainArguments(step[1], args => ['.', receiver, key, ['|()', args]], step[2], owner, end, permitted), reached =>
+        done(chainPrefix([query], step[0] === '|?.()' ? chainGuard(ref(guard), reached, end) : reached, false, end)))
+})
+
+/** Numeric conversion is required before lookup and reused by query and call. @type {(receiver: Value, key: Key<Value>, step: Step<Value> | undefined, owner: FunctionTarget | null, end: _ChainEnd, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
+const chainProperty = (receiver, key, step, owner, end, permitted) => key instanceof Array
+    ? chainOperand(['Number', key[1]], owner, end, number => chainMember(receiver, ['Number', number], step, owner, end, permitted), permitted)
+    : chainMember(receiver, key, step, owner, end, permitted)
+
+/** Replay the single forced suffix after the optional region has joined. @type {(_region: _ChainRegion, end: _ChainEnd, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
+const forcedChain = (region, end, owner, permitted) => {
+    if (end.args === null || !region.normal) { return done(region) }
+    const ids = Array.from({ length: end.member ? 3 : 1 }, binding)
+    return bind(sequenceTask(/** @type {readonly Value[]} */ (end.args), owner, false, permitted), /** @returns {Task<_ChainRegion>} */ args => {
+        const prefix = /** @type {readonly Statement[]} */ ([['block', ids, region.block], ...args.statements])
+        if (!args.normal) { return done({ block: { statements: prefix, exit: ['yield', []] }, normal: false, lifted: true, callee: true }) }
+        const plainCall = /** @type {Value} */ (['()', end.member ? undefined : ref(ids[0]), args.values])
+        if (!end.member) { return done({ block: { statements: prefix, exit: ['yield', [plainCall]] }, normal: true, lifted: region.lifted || args.lifted, callee: true }) }
+        const key = /** @type {Key<Value>} */ (end.key instanceof Array ? ['Number', ref(ids[2])] : end.key)
+        const result = binding()
+        return done({
+            block: { statements: [...prefix, ['if', [result], ref(ids[0]),
+                { statements: [], exit: ['yield', [['.', ref(ids[1]), key, ['|()', args.values]]]] },
+                { statements: [], exit: ['yield', [plainCall]] },
+            ]], exit: ['yield', [ref(result)]] },
+            normal: true, lifted: region.lifted || args.lifted, callee: true,
+        })
+    })
+}
+
+/** Only a reached owning return publishes the chain's explicit control regions. @type {(source: _ChainSource, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>} */
+const chainTask = (source, destination, owner, permitted) => {
+    const end = chainEnd(source)
+    if (end === null) { return done(plain(source, false)) }
+    return bind(chainOperand(source[1], owner, end, base => {
+        const reached = source[0] === '?.()' ? chainCall(base, source[2], source[3], true, owner, end, permitted)
+            : chainProperty(base, source[2], source[3], owner, end, permitted)
+        return source[0] === '?.' ? bind(reached, result => done(chainGuard(present(base), result, end))) : reached
+    }, permitted), region => bind(forcedChain(region, end, owner, permitted), result => done(result.lifted ? {
+        statement: ['block', [destination], result.block], value: ref(destination), normal: result.normal, callee: result.callee,
+    } : plain(source, result.callee))))
+}
+
+/**
+ * Eager operations, constructor checks, comma sequences, spread-free collections
+ * and bare calls sequence their value operands. Member chains preserve their
+ * own lookup/skip regions. Lazy initializers and function captures stay opaque.
+ * @type {(source: Value, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>}
+ */
+const valueTask = (source, destination, owner, permitted) => call(() => {
+    if (!(source instanceof Array)) { return done(plain(source)) }
+    if (source[0] === '.' || source[0] === '?.' || source[0] === '?.()') { return chainTask(source, destination, owner, permitted) }
+    if (source[0] === '()' && source[1] instanceof Array && source[1][0] === '.' && source[1].length === 3) {
+        const member = source[1]
+        return bind(chainTask(['.', member[1], member[2], ['|()', source[2]]], destination, owner, permitted), result =>
+            done(result.statement === null ? plain(source, result.callee) : result))
+    }
+    if (source[0] === 'block') {
+        return bind(blockTask(source[1], operandContext(owner, permitted), 'value'), result => done(result.returns
+            ? { statement: ['block', [destination], result.block], value: ref(destination), normal: result.normal, callee: result.callee }
+            : plain(source, result.callee)))
+    }
+    if (isUnary(source) || eagerBinary(source) || source[0] === 'instanceof' || source[0] === '+' && source.length === 2
+        || source[0] === ',' && source[1].length !== 0
+        || source[0] === 'object' && !source[1].some(entry => entry[0] === '...')
+        || (source[0] === '()' || source[0] === 'array')
+            && !(source[0] === 'array' ? source[1] : source[2]).some(item => item instanceof Array && item[0] === '...')) {
+        return eagerTask(/** @type {Operator<Value>} */ (source), destination, owner, permitted)
+    }
+    if (source[0] !== 'if' && source[0] !== '?:') { return done(plain(source)) }
+    const then = source[0] === 'if' ? source[2] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[2]]] })
+    const otherwise = source[0] === 'if' ? source[3] : /** @type {Block} */ ({ statements: [], exit: ['yield', [source[3]]] })
+    return bind(valueTask(source[1], binding(), owner, permitted), test => {
+        if (!test.normal) { return done({
+            statement: ['block', [destination], { statements: [/** @type {Statement} */ (test.statement)], exit: ['yield', []] }],
+            value: ref(destination), normal: false, callee: true,
+        }) }
+        return bind(blockTask(then, operandContext(owner, permitted), 'value'), a =>
+            bind(blockTask(otherwise, operandContext(owner, permitted), 'value'), b => {
+                const callee = a.callee && b.callee
+                if (test.statement === null && !a.returns && !b.returns) { return done(plain(source, callee)) }
+                const result = test.statement === null ? destination : binding()
+                const conditional = /** @type {Statement} */ (['if', [result], test.value, a.block, b.block])
+                return done({
+                    statement: test.statement === null ? conditional : ['block', [destination], {
+                        statements: [test.statement, conditional], exit: ['yield', [ref(result)]],
+                    }],
+                    value: ref(destination), normal: a.normal || b.normal, callee,
+                })
+            }))
+    })
+})
+
+/** @type {(source: Block, context: _Context, mode: _ResultMode) => Task<_Region>} */
+const blockTask = (source, context, mode) => {
+    /** @type {(statements: List<Statement>, exit: Exit, normal: boolean, returns: boolean, lifted: boolean, changed: boolean, callee?: boolean) => Task<_Region>} */
+    const finish = (statements, exit, normal, returns, lifted, changed, callee = false) => done({
+        block: changed ? { statements: toArray(statements).toReversed(), exit } : source, normal, returns, lifted, callee: !normal || callee,
+    })
+    /** @type {(index: number, statements: List<Statement>, returns: boolean, lifted: boolean, changed: boolean) => Task<_Region>} */
+    const each = (index, statements, returns, lifted, changed) => call(() => {
+        if (index === source.statements.length) {
+            const exit = source.exit
+            if (context.operand && (exit[0] === 'return' && exit[1] !== context.owner
+                || (exit[0] === 'break' || exit[0] === 'continue') && !toArray(context.loops).includes(exit[1]))) {
+                throw 'a value region may return only to its owning function or transfer within its own loops'
+            }
+            const ownReturn = context.owner !== null && exit[0] === 'return' && exit[1] === context.owner
+            const permittedTransfer = (exit[0] === 'break' || exit[0] === 'continue') && context.permitted.includes(exit[1])
+            /** @type {(mapped: Exit, next: List<Statement>, added: boolean, callee?: boolean) => Task<_Region>} */
+            const complete = (mapped, next, added, callee = false) => {
+                const normal = mapped[0] === 'yield'
+                const packed = /** @type {Exit} */ (mode === 'value' && normal && mapped[1].length !== 1
+                    ? ['yield', [['array', mapped[1]]]] : mapped)
+                return finish(next, packed, normal, returns || ownReturn || permittedTransfer || added, lifted || added,
+                    changed || packed !== source.exit || added, callee || normal && mapped[0] === 'yield' && mapped[1].length !== 1)
+            }
+            if (mode === 'statement' && exit[0] === 'yield') {
+                return bind(sequenceTask(exit[1], context.owner, false, context.permitted), result => {
+                    if (!result.lifted) { return complete(exit, statements, false) }
+                    const next = result.statements.reduce((tail, first) => /** @type {List<Statement>} */ ({ first, tail }), statements)
+                    if (!result.normal) { return finish(next, ['yield', []], false, true, true, true) }
+                    return complete(['yield', result.values], next, true, result.callee)
+                })
+            }
+            if (ownReturn || context.operand && exit[0] === 'yield' && (exit[1].length === 1 || mode === 'value')) {
+                const values = /** @type {Extract<Exit, readonly ['yield', ...unknown[]]>} */ (exit)[1]
+                const value = ownReturn ? /** @type {Extract<Exit, readonly ['return', ...unknown[]]>} */ (exit)[2]
+                    : values.length === 1 ? values[0] : /** @type {Value} */ (['array', values])
+                return bind(valueTask(value, binding(), context.owner, context.permitted), result => {
+                    if (result.statement === null) { return complete(exit, statements, false, result.callee) }
+                    const next = /** @type {List<Statement>} */ ({ first: result.statement, tail: statements })
+                    if (!result.normal) { return finish(next, ['yield', []], false, true, true, true) }
+                    return complete(ownReturn ? ['return', /** @type {FunctionTarget} */ (context.owner), result.value] : ['yield', [result.value]], next, true, result.callee)
+                })
+            }
+            return complete(exit, statements, false)
+        }
+        const statement = source.statements[index]
+        /** @type {(mapped: Statement, normal: boolean, addedReturns: boolean, addedLifted: boolean, leading?: Statement | null) => Task<_Region>} */
+        const append = (mapped, normal, addedReturns, addedLifted, leading = null) => {
+            const next = /** @type {List<Statement>} */ ({ first: mapped, tail: leading === null ? statements : { first: leading, tail: statements } })
+            const different = changed || mapped !== statement || leading !== null
+            if (normal) { return each(index + 1, next, returns || addedReturns, lifted || addedLifted, different) }
+            const pruned = index + 1 !== source.statements.length || source.exit[0] !== 'yield' || source.exit[1].length !== 0
+            return finish(next, ['yield', []], false, returns || addedReturns, lifted || addedLifted, different || pruned)
+        }
+        if (statement[0] === 'define') {
+            if (statement[3] === 'lazy') { return append(statement, true, false, false) }
+            return bind(valueTask(statement[2], statement[1], context.owner, context.permitted), result => append(
+                result.statement ?? statement, result.normal, result.statement !== null, result.statement !== null))
+        }
+        if (statement[0] === 'loop') {
+            return bind(blockTask(statement[1].body, { ...context, loops: { first: statement[1].target, tail: context.loops } }, 'none'), result => append(
+                result.block === statement[1].body ? statement : ['loop', { ...statement[1], body: result.block }],
+                true, result.returns, result.lifted))
+        }
+        if (statement[0] === 'block') {
+            return bind(blockTask(statement[2], context, 'statement'), result => append(
+                result.block === statement[2] ? statement : ['block', statement[1], result.block], result.normal, result.returns, result.lifted))
+        }
+        return bind(valueTask(statement[2], binding(), context.owner, context.permitted), test => {
+            if (!test.normal) { return append(/** @type {Statement} */ (test.statement), false, true, true) }
+            return bind(blockTask(statement[3], context, 'statement'), then =>
+                bind(blockTask(statement[4], context, 'statement'), otherwise => append(
+                    test.statement === null && then.block === statement[3] && otherwise.block === statement[4] ? statement
+                        : ['if', statement[1], test.value, then.block, otherwise.block],
+                    then.normal || otherwise.normal, then.returns || otherwise.returns || test.statement !== null,
+                    then.lifted || otherwise.lifted || test.statement !== null, test.statement)))
+        })
+    })
+    return each(0, null, false, false, false)
+}
+
+/**
+ * Normalize direct required initializers, return payloads and statement results.
+ * No owning return to expose means no change to the input block identity.
+ * @type {(block: Block, owner: FunctionTarget) => Block}
+ */
+export const liftReturns = (block, owner) => {
+    const result = run(blockTask(block, { owner, operand: false, loops: null, permitted: [] }, 'none'))
+    return result.lifted ? result.block : block
+}
+
+/** Normalize one value with its exact function owner and any retained physical loop targets. @type {(value: Value, destination: BindingId, owner: FunctionTarget | null, permitted?: readonly LoopTarget[]) => { readonly statement: Statement | null, readonly value: Value, readonly normal: boolean, readonly callee: boolean }} */
+export const liftValueReturns = (value, destination, owner, permitted = []) => run(valueTask(value, destination, owner, permitted))

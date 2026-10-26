@@ -315,6 +315,15 @@ export const proof = {
         deferredOptionalKey: () => prepare(yielding(['?.', null, ['Number', ['block', { statements: [], exit: ['return', { kind: 'function', index: 0 }, 3] }]]])),
         deferredOptionalCall: () => prepare(yielding(['?.()', undefined, [['block', { statements: [], exit: ['return', { kind: 'function', index: 0 }, 3] }]]])),
         deferredMemberCall: () => prepare(yielding(['.', ['object', []], 'x', ['|()', [['block', { statements: [], exit: ['return', { kind: 'function', index: 0 }, 3] }]]]])),
+        deferredMemberSpread: () => {
+            const target = { kind: /** @type {const} */ ('function'), index: 0 }
+            return prepareFunction({
+                target, parameters: [], rest: null, self: null, captures: [],
+                body: { statements: [], exit: ['return', target, ['.', ['object', []], 'x', ['|()', [
+                    ['block', { statements: [], exit: ['return', target, 3] }], ['...', ['array', []]],
+                ]]]] },
+            })
+        },
         nonlocalLazyDefinition: () => prepare({ statements: [['define', id(0), ['block', { statements: [], exit: ['return', { kind: 'function', index: 0 }, 3] }], 'lazy']], exit: ['yield', [0]] }),
     },
 }

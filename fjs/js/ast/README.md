@@ -44,8 +44,11 @@ immutable bindings and conditional result regions.
 by the value inside a computed `['Number', value]` key; literal keys remain
 metadata. It resolves the member without evaluating call arguments or checking
 callability. The graph conversion and runtime writers support this form;
-source admission has no spelling for it. Completion lifting at member-call
-boundaries is a separate construction step.
+source admission has no spelling for it. The shared
+[`returns`](./returns/module.f.mjs) pass lifts owning returns through member and
+optional-call operands before graph construction or physical preparation. It
+retains required lookup, receiver binding and optional-region boundaries;
+target writers consume the resulting explicit control flow.
 
 `analyzeBindings(scope)` consumes the resolved, pattern-expanded binding stage,
 before assignment normalization or graph construction. Each scope declares the

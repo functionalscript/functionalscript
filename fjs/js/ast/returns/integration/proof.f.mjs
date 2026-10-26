@@ -1,15 +1,15 @@
 /**
- * @import { BindingId, Block, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
- * @import { Exp } from '../../../types.ts'
+ * @import { BindingId, Block, Function as FastFunction, Loop, Statement, Value } from '../../types.ts'
+ * @import { Exp } from '../../../../edag/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { logicalValue } from '../../../../js/ast/sugar/logical/module.f.js'
-import { fromFast } from '../../module.f.mjs'
-import { identityAnalysis } from '../../../analysis/module.f.mjs'
-import { memo } from '../../../memo/module.f.mjs'
-import { toFast } from '../../../to_fast/module.f.mjs'
-import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../proof.f.mjs'
+import { logicalValue } from '../../sugar/logical/module.f.js'
+import { fromFast } from '../../../../edag/from_fast/module.f.mjs'
+import { identityAnalysis } from '../../../../edag/analysis/module.f.mjs'
+import { memo } from '../../../../edag/memo/module.f.mjs'
+import { toFast } from '../../../../edag/to_fast/module.f.mjs'
+import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../../edag/from_fast/proof.f.mjs'
 
 /** @type {(value: Value, parameters?: readonly BindingId[]) => FastFunction} */
 const requiredFunction = (value, parameters = []) => {
@@ -53,6 +53,17 @@ const sequenceValue = (kind, values) => kind === 'yield' ? ['block', body(['yiel
 const keyMethods = (toString, valueOf) => ['object', [[':', 'toString', toString], [':', 'valueOf', valueOf]]]
 
 export const proof = /** @type {const} */ ({
+    memberReturnsPreviouslyRefused: () => {
+        for (const value of /** @type {readonly Value[]} */ ([
+            ['instanceof', ['.', ['object', [[':', 'x', 1]]], ['Number', escape()]], 'Array'],
+            ['.', ['object', [[':', 'x', 1]]], ['Number', escape()]],
+            ['?.()', constantFunction, [escape()]],
+            ['()', ['.', ['object', [[':', 'f', constantFunction]]], 'f'], [escape()]],
+            ['()', ['()', ['.', ['object', [[':', 'f', constantFunction]]], 'f'], []], [escape()]],
+            ['()', ['.', ['object', [[':', 'f', constantFunction]]], 'f', ['|()', []]], [escape()]],
+        ])) { assertEq(evaluate(calledFunction(requiredFunction(value))), 7) }
+        assertEq(evaluate(calledFunction(requiredFunction(['?.', null, ['Number', escape()]]))), undefined)
+    },
     statementYieldPreviouslyRefusedReturn: () => {
         const first = id(0), second = id(0)
         const fn = /** @type {FastFunction} */ ({
@@ -1302,18 +1313,12 @@ export const proof = /** @type {const} */ ({
             ['...', ['object', [[':', 'x', 1]]]], [':', escape(), 2],
         ]])),
         objectSpreadOperandReturn: () => calledFunction(requiredFunction(['object', [['...', escape(['object', []])]]])),
-        instanceofMemberOperandReturn: () => calledFunction(requiredFunction(['instanceof', ['.', ['object', [[':', 'x', 1]]], ['Number', escape()]], 'Array'])),
         instanceofSpreadOperandReturn: () => calledFunction(requiredFunction(['instanceof', ['array', [['...', ['array', [1]]], escape()]], 'Array'])),
-        memberCallArgumentReturn: () => calledFunction(requiredFunction(['()', ['.', ['object', [[':', 'f', constantFunction]]], 'f'], [escape()]])),
         wrappedMemberCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['.', ['object', [[':', 'f', constantFunction]]], 'f'])], [escape()]])),
         wrappedOptionalCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['?.', null, 'f'])], [escape()]])),
         nativeCalleeReturn: () => calledFunction(requiredFunction(['()', ['Number.isInteger'], [escape()]])),
         wrappedNativeCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['Number.isInteger'])], [escape()]])),
-        continuedCalleeReturn: () => calledFunction(requiredFunction(['()', ['.', ['object', [[':', 'f', constantFunction]]], 'f', ['|()', []]], [escape()]])),
         callSpreadReturn: () => calledFunction(requiredFunction(['()', constantFunction, [['...', ['array', [1, 2]]], escape()]])),
-        memberOperandReturn: () => calledFunction(requiredFunction(['.', ['object', [[':', 'x', 1]]], ['Number', escape()]])),
-        optionalMemberReturn: () => calledFunction(requiredFunction(['?.', null, ['Number', escape()]])),
-        optionalCallReturn: () => calledFunction(requiredFunction(['?.()', constantFunction, [escape()]])),
         spreadOperandReturn: () => calledFunction(requiredFunction(['array', [['...', escape(['array', [7]])]]])),
         functionCaptureReturn: () => {
             const captured = id(0)
