@@ -75,6 +75,7 @@ export const depthOf = tree => {
     switch (tree.length) {
         case 1: case 2: { return 1 }
         case 3: case 5: { return 1 + depthOf(tree[0]) }
+        default: { throw ['not a B-tree node', tree] }
     }
 }
 
@@ -85,6 +86,7 @@ export const nodeCount = tree => {
         case 1: case 2: { return 1 }
         case 3: { return 1 + nodeCount(tree[0]) + nodeCount(tree[2]) }
         case 5: { return 1 + nodeCount(tree[0]) + nodeCount(tree[2]) + nodeCount(tree[4]) }
+        default: { throw ['not a B-tree node', tree] }
     }
 }
 

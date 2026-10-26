@@ -83,6 +83,11 @@ export const proof = {
         const five = structure.insert(10)(structure.insert(20)(structure.insert(30)(structure.insert(40)(structure.insert(50)(null)))))
         assertEq(JSON.stringify([depthOf(five), nodeCount(five)]), '[2,4]')
     },
+    throw: {
+        // A node of no B-tree width is refused, not measured as `undefined`.
+        depthOfRejectsWidth: () => depthOf(/** @type {never} */ ([1, 2, 3, 4])),
+        nodeCountRejectsWidth: () => nodeCount(/** @type {never} */ ([1, 2, 3, 4])),
+    },
     start: {
         // One `randomInt` per key, and a tree of the level's keys, as both
         // versions, drawn still, with no moves made.
