@@ -3,6 +3,7 @@
  *
  * @import { BindingId, Function as FastFunction, Loop, Value } from '../../../js/ast/types.ts'
  * @import { Exp } from '../../types.ts'
+ * @import { StringMap } from '../../../types/object/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -147,7 +148,7 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(evaluate(calledFunction(fn, [true])), [9])
         const normal = evaluate(calledFunction(fn, [false]))
         assert(normal instanceof Array && normal[0] !== null && typeof normal[0] === 'object' && normal[4] instanceof Array)
-        const object = /** @type {Readonly<Record<string, unknown>>} */ (normal[0])
+        const object = /** @type {StringMap<unknown>} */ (normal[0])
         assertEq(normal[0], normal[1])
         assertEq(object.a, normal[2])
         assertEq(object.b, normal[3])
@@ -211,8 +212,8 @@ export const proof = /** @type {const} */ ({
         })
         const normal = evaluate(calledFunction(fn, [false]))
         assert(normal instanceof Array && normal[0] !== null && typeof normal[0] === 'object' && normal[1] !== null && typeof normal[1] === 'object')
-        const object = /** @type {Readonly<Record<string, unknown>>} */ (normal[0])
-        const source = /** @type {Readonly<Record<string, unknown>>} */ (normal[1])
+        const object = /** @type {StringMap<unknown>} */ (normal[0])
+        const source = /** @type {StringMap<unknown>} */ (normal[1])
         assertEq(object.shared, object.alias)
         assertEq(object.shared, source.shared)
         assertEq(source.shared, source.alias)
@@ -222,7 +223,7 @@ export const proof = /** @type {const} */ ({
         const returned = evaluate(calledFunction(fn, [true]))
         assert(returned instanceof Array && returned[0] !== null && typeof returned[0] === 'object')
         assertEq(returned[0], returned[1])
-        const returnedSource = /** @type {Readonly<Record<string, unknown>>} */ (returned[0])
+        const returnedSource = /** @type {StringMap<unknown>} */ (returned[0])
         assertEq(returnedSource.shared, returnedSource.alias)
         assert(returnedSource.shared instanceof Array)
         assertEq(returnedSource.shared[0], returned[2])
@@ -290,7 +291,7 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(returned, [[4], [4], [8, 9]])
             const normal = evaluate(['()', current, [false, 1, 8, 9]])
             assert(normal instanceof Array && normal[0] !== null && typeof normal[0] === 'object')
-            const object = /** @type {Readonly<Record<string, unknown>>} */ (normal[0])
+            const object = /** @type {StringMap<unknown>} */ (normal[0])
             assertEq(object.capture, normal[1])
             assertEq(object.args, normal[2])
             assertEq(normal[3], true)
