@@ -1,8 +1,9 @@
 ## A block whose end is reachable
 
 **Priority:** P2
-**Status:** open — a problem statement; admitting any form below is a
-language change that needs formal language-design approval first
+**Status:** open — a function body that runs off its end stays refused by
+design, and its modules take a source rewrite; an `if` block that runs off
+its end is a language change that needs formal language-design approval first
 ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions))
 
 ### Problem
@@ -22,8 +23,9 @@ them among the modules the self-hosting loader depends on
 ([where self-hosting stands](../../nanvm/lib/todo/mvp-roadmap.md#where-self-hosting-stands)),
 in three shapes:
 
-- **A body with no terminator.** A function whose statements are only calls
-  or `const`s, which JavaScript answers with `undefined`:
+- **A function body with no terminator**, 14 modules, 5 of the loader's: a
+  body whose statements are only calls or `const`s, which JavaScript answers
+  with `undefined`.
 
   ```js
   // fjs/effects: the strict reading of an operation map
@@ -32,11 +34,11 @@ in three shapes:
   casMcpServer: () => { casMcpServer('/') },
   ```
 
-  Proof bodies and visitor callbacks in `fjs/dev`, `fjs/ebnf/data` and
-  `fjs/ebnf/ll1` have the same shape. The `fjs/effects` site alone is the
-  first refusal of eleven modules, ten of them through an import.
-- **An `if` block with no terminator**, `else` included: the statements after
-  the `if` run on both paths.
+  Visitor callbacks in `fjs/dev`, `fjs/ebnf/data` and `fjs/ebnf/ll1` have the
+  same shape. The `fjs/effects` site alone is the first refusal of ten
+  modules, nine of them through an import.
+- **An `if` block with no terminator**, `else` included, 5 modules, 2 of the
+  loader's: the statements after the `if` run on both paths.
 
   ```js
   // fjs/compiler/edag `_moduleExports`
@@ -49,62 +51,74 @@ in three shapes:
 
   `fjs/cli`, `fjs/edag/value/object` and `fjs/ebnf/byte` (its `} else if`)
   are the others.
-- **A `switch` that can finish without terminating:** no `default` although
-  every case returns (`fjs/types/btree` and its playground), or a `break`
-  (`fjs/emergent_testing`). That `break`, with the brace-less case, is
-  [3230](./3230-switch.md)'s open follow-up; it is listed here for the count,
-  and for the fall-through after a `switch` with no `default`, which is the
-  first shape again.
+- **A `switch` that can finish without terminating**, 7 modules, 4 of the
+  loader's: no `default` although every case returns (`fjs/types/btree` and
+  its playground), or a `break` (`fjs/emergent_testing`). That `break`, with
+  the brace-less case, is [3230](./3230-switch.md)'s open follow-up; it is
+  listed here for the count.
 
-### Proposal (sketch)
+### Proposal
 
-Both forms keep JavaScript's meaning and add no EDAG node:
+The three shapes take three different answers.
 
-- A body whose end is reachable ends in `return undefined`, the value
-  JavaScript gives it. The terminator rule then states where a body *may*
-  end without one rather than forbidding it.
-- An `if` block whose end is reachable continues with what follows the `if`,
-  with or without an `else`. Bindings assigned in either arm are the branch
-  result [3220](./3220-let.md#general-bindings) already specifies for general bindings:
-  the current values of the outer mutable bindings, an unchanged arm
-  supplying the value before it. What follows the `if` is one shared
-  continuation; it is not copied into both arms, which would double the code
-  at every `if` in a sequence.
+**A function body: keep the refusal, rewrite the source.**
+[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+names this very restriction as one that earns its place: "discourage falling
+through the end of a function block without an explicit `return`: making the
+intended result explicit helps expose accidental omissions." The terminator
+rule is that guarantee, so the language keeps it and the modules state their
+result: `return undefined` where `undefined` is what the body means, or a
+`throw` where the body exists to fail, as the `fjs/effects` one does. Both
+compile today. A body of calls then reads as one whose result was chosen,
+not forgotten.
 
-The `switch` shape follows from the two: a `switch` with no `default` falls
-through to what follows it, and `break` ends its case there.
+**An `if` block: a language extension.** An `if` block whose end is reachable
+continues with what follows the `if`, with or without an `else`, and adds no
+EDAG node. The function still ends in its own terminator, so §12's guarantee
+is untouched. Bindings assigned in either arm are the branch result
+[3220](./3220-let.md#general-bindings) already specifies for general
+bindings: the current values of the outer mutable bindings, an unchanged arm
+supplying the value before it. What follows the `if` is one shared
+continuation; it is not copied into both arms, which would double the code at
+every `if` in a sequence.
 
-### Benefits and drawbacks
+**A `switch`:** [3230](./3230-switch.md)'s follow-ups. A `switch` with no
+`default` is the function-body shape once more, rewritten the same way: a
+`default` in place of the last `case`, or a terminator after the `switch`.
 
-Benefits: the forms are ordinary JavaScript, and refusing them protects
-nothing a reader relies on; 26 modules stop at one today; a body of
-assertions and calls, the usual shape of a proof or a callback, reads as it
-does in JavaScript.
+### Benefits and drawbacks of the `if` extension
 
-Drawbacks: a forgotten `return` becomes a function that answers `undefined`
-instead of a compilation error — the same trade JavaScript makes, which
-TypeScript's return-type checking covers for the modules that are typed; and
-a non-terminating `if` needs the branch-result lowering and a shared
-continuation where the guard needed neither.
+Benefits: an `if` that only sometimes acts — an assertion, a lookup that falls
+back to the code after it — is ordinary JavaScript, and five modules stop at
+one; unlike a body that runs off its end, it hides no result, because the
+function's own terminator still states it.
 
-A source rewrite stays an alternative for single sites, `throw` in place of
-`assert(false, …)` and a `default` in place of the last `case`, but not for
-the shape: a body of calls has no terminator to add.
+Drawbacks: the branch-result lowering and a shared continuation, where the
+guard needed neither; and a reader of a guard can no longer assume that the
+code after it runs only when the condition is false.
+
+The alternative that needs no approval is a rewrite here too: a guard's block
+can end in the `return` or `throw` the code after it would reach, at the cost
+of repeating that code in the arm.
 
 ### Tasks
 
-- [ ] Settle the forms and record formal language-design approval, with a
+- [ ] Rewrite the function bodies with no terminator, `return undefined` or a
+      `throw`, and the `switch`es with no `default`; no approval needed.
+- [ ] Settle the `if` form and record formal language-design approval, with a
       link, under [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
-- [ ] A body whose end is reachable, through every output; the guard page and
-      [refused constructs](./refused-constructs.md) updated.
 - [ ] An `if` block whose end is reachable, and `else`, over the branch result
-      of [3220](./3220-let.md#general-bindings) and a shared continuation.
+      of [3220](./3220-let.md#general-bindings) and a shared continuation,
+      through every output; the guard page and
+      [refused constructs](./refused-constructs.md) updated.
 - [ ] Recount the modules this unblocks and rename those that then compile.
 
 ### Related
 
 - [bodies and guards](../control-flow/guards/README.md) — the terminator rule
   and the guard's follow-ups.
+- [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+  — why a function body keeps its explicit result.
 - [3230 switch](./3230-switch.md) — `break` and the brace-less case.
 - [3220 let](./3220-let.md) — general bindings and their branch results.
 - [MVP roadmap](../../nanvm/lib/todo/mvp-roadmap.md#where-self-hosting-stands)
