@@ -219,8 +219,10 @@ iteration resets only those lifetimes. No helper invokes an enclosing helper.
 
 Stateful member-call/optional/spread operands retain explicit refusals.
 The [member-resolution decision](../todo/fast-loop-construction.md#member-resolution-decision)
-specifies a shared `memberPresent` guard; its end-to-end implementation and
-completion lifting remain separate tasks.
+specifies the shared `memberPresent` guard. The internal query is supported
+through schema, graph conversion, represented evaluation, common preparation
+and JavaScript/Rust output. Completion lifting through member and optional-call
+operands remains the next construction step.
 Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
 External lazy environments without an AST recipe retain the existing refusal.

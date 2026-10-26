@@ -120,9 +120,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       regions, eager unary/binary and `instanceof` operands, conditional tests,
       plain calls, non-spread arrays/objects, comma sequences, statement result
       lists and value-region result packing can lift owning returns; the
-      remaining operand boundaries stay open. The member-resolution design
-      selects a shared `memberPresent` guard; its end-to-end implementation
-      precedes lifting member and optional-call operands.
+      remaining operand boundaries stay open. The shared `memberPresent`
+      query is implemented end to end; lifting member and optional-call
+      operands remains the next construction step.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

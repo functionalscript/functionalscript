@@ -81,6 +81,7 @@ export const proof = {
         assertStructurallySame(prepare(yielding(['block', yielding(3)])), yielding(['block', yielding(3)]))
         assertStructurallySame(prepare(yielding(['if', true, yielding(1), yielding(2)])), yielding(['if', true, yielding(1), yielding(2)]))
         assertStructurallySame(prepare(yielding(['?:', false, 1, 2])), yielding(['if', false, yielding(1), yielding(2)]))
+        assertStructurallySame(prepare(yielding(['memberPresent', ['ref', binding], ['Number', ['+', 1, 2]]])), yielding(['memberPresent', ['ref', binding], ['Number', ['+', 1, 2]]]))
         assertStructurallySame(prepare({ statements: [], exit: ['throw', 9] }), { statements: [], exit: ['throw', 9] })
     },
     memoLifetime: () => {

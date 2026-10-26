@@ -43,6 +43,8 @@ export const proof = {
     sourceShapes: () => {
         assertEq(reason(1), null)
         assertEq(reason(['args']), 'a args node')
+        assertEq(reason(['memberPresent', null, 'x']), 'an internal member-presence query')
+        assertEq(reason(['memberPresent', ['[]', []], ['Number', 0]], true), 'an internal member-presence query')
         assertEq(reason(['()', ['=>', 0, [], 1], [['args']]]), 'a args node')
         assertEq(reason(['+', 1, 2]), null)
         assertEq(reason(['+', 1]), 'a unary + node')

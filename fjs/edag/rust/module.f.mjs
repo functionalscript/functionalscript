@@ -142,6 +142,7 @@ export const needsRuntime = root => visit(withBodies)([])(root).some(([node]) =>
     if (isStatic(node)) { return true }
     const operation = /** @type {ExpOp} */ (node)
     switch (operation[0]) {
+        case 'memberPresent': { return true }
         case '.': case '?.': { return memberCall(operation[3], true) }
         case '?.()': { return memberCall(operation[3], false) }
         default: { return false }

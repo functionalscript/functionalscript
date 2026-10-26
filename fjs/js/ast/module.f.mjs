@@ -148,6 +148,7 @@ export const mapOperator = map => operator => {
         }
         case ',': { return [',', operator[1].map(map)] }
         case '()': { return ['()', map(operator[1], 0), operator[2].map(mapItem(map, 1))] }
+        case 'memberPresent': { return ['memberPresent', map(operator[1], 0), mapKey(map, 1)(operator[2])] }
         case '.':
         case '?.': {
             const base = map(operator[1], 0)
@@ -216,6 +217,7 @@ export const operatorOperands = operator => {
         case 'object': { return operator[1].flatMap(entry => entry[0] === '...' ? [entry[1]] : [entry[1], entry[2]]) }
         case ',': { return operator[1] }
         case '()': { return [operator[1], ...operator[2].map(operand)] }
+        case 'memberPresent': { return [operator[1], ...keyOperands(operator[2])] }
         case '.':
         case '?.': { return [operator[1], ...keyOperands(operator[2]), ...(operator.length === 4 ? continuation(operator[3]) : [])] }
         case '?.()': { return [operator[1], ...operator[2].map(operand), ...(operator.length === 4 ? continuation(operator[3]) : [])] }

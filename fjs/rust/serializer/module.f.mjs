@@ -495,6 +495,10 @@ const operation = (s, n, result) => {
         case 'array': { return array(s, n[1], result) }
         case 'object': { return map1(pure(result))(object(s, n[1])) }
         case '()': { return map1(fallible(result))(map2((fn, args) => `Any::call(${fn}, ${args})`)(expression(s, n[1], false), array(s, n[2]))) }
+        case 'memberPresent': {
+            if (s.runtime === null) { return error(['a member presence query with no runtime in scope; the core may not use what it defines', n]) }
+            return map1(fallible(result))(map2((v, k) => `Any::member_present(${v}, ${k}, &${s.runtime})`)(expression(s, n[1], false), key(s, n[2])))
+        }
         case '.': case '?.': case '?.()': {
             const open = tag === '.' ? map2((v, k) => `Any::dot(${v}, ${k})`)(expression(s, n[1], false), key(s, /** @type {Key<Value>} */ (n[2])))
                 : tag === '?.' ? map2((v, k) => `Any::option_dot(${v}, ${k})`)(expression(s, n[1], false), keyThunk(s, /** @type {Key<Value>} */ (n[2])))
@@ -625,6 +629,7 @@ const operationTasks = (context, n, result) => {
         case 'array': { return itemTasks(context, n[1]) }
         case 'object': { return n[1].flatMap(e => e[0] === '...' ? [valueTask(context, e[1])] : [...(typeof e[1] === 'string' ? [] : [valueTask(context, e[1])]), valueTask(context, e[2])]) }
         case '()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2])] }
+        case 'memberPresent': { return [valueTask(context, n[1]), ...keyTasks(context, n[2])] }
         case '.': case '?.': { return [valueTask(context, n[1]), ...keyTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), n[0] === '.', true)] }
         case '?.()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), false, false)] }
         case 'instanceof': { return [valueTask(context, n[1])] }

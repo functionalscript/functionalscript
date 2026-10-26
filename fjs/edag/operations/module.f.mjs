@@ -17,6 +17,8 @@
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Body, Invoke, Outcome } from '../value/call/types.ts'
  * @import { Context, Evaluation, Evaluator, Tail } from './types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { _ResolvedMember } from './private.ts'
  */
 
 import { isArray } from '../../types/array/module.f.mjs'
@@ -193,17 +195,30 @@ export const operation = evaluator => {
             : continued(callValue(value, arg, state), continuation)
     }
 
-    /** Resolve a receiver and key before any call arguments. @type {(receiver: EdagValue, key: EdagValue, step: StepOver<E> | undefined, state: S) => Tail<S>} */
-    const property = (receiver, key, step, state) => {
+    /** Read first, retaining own-field shadowing and built-in dispatch. @type {(receiver: EdagValue, key: EdagValue) => Result<_ResolvedMember, EdagValue>} */
+    const resolveMember = (receiver, key) => {
         // EDAG indices are string/number literals or an explicit Number
         // operand. Its evaluation has already performed any conversion.
         const name = String(/** @type {string | number} */ (key))
-        const value = read(ok(receiver), name, runtime, invoke)
-        if (step === undefined) { return [state, value] }
-        const [tag, arg, continuation] = step
-        if (tag === '|.') { return then([state, value], (v, next) => continueValue(v, step, next)) }
+        const result = read(ok(receiver), name, runtime, invoke)
+        if (result[0] === 'error') { return result }
         const own = isArray(receiver) && receiver[0] === '{}' && findProperty(receiver, name) !== undefined
-        const builtin = !own && admits(receiver, name)
+        return ok({ name, value: result[1], builtin: !own && admits(receiver, name) })
+    }
+
+    /** Presence is checked before arguments; callable validation belongs to the call. @type {(receiver: EdagValue, member: _ResolvedMember) => Result<boolean, EdagValue>} */
+    const memberPresent = (receiver, { name, value, builtin }) =>
+        builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!isNullish(value))
+
+    /** Resolve a receiver and key before any call arguments. @type {(receiver: EdagValue, key: EdagValue, step: StepOver<E> | undefined, state: S) => Tail<S>} */
+    const property = (receiver, key, step, state) => {
+        const resolved = resolveMember(receiver, key)
+        if (resolved[0] === 'error') { return [state, resolved] }
+        const member = resolved[1]
+        const { name, value, builtin } = member
+        if (step === undefined) { return [state, ok(value)] }
+        const [tag, arg, continuation] = step
+        if (tag === '|.') { return continueValue(value, step, state) }
         /** The call, after its arguments. @type {(callee: EdagValue, state: S) => Tail<S>} */
         const proceed = (callee, next) => then(items(arg, next), (args, afterArgs) => {
             const values = /** @type {ValueArray} */ (args)[1]
@@ -213,22 +228,19 @@ export const operation = evaluator => {
                 : prepare(ok(callee), values.map(v => () => ok(v)))
             return continued([afterArgs, result], continuation)
         })
-        return then([state, value], (own, next) => {
-            if (tag !== '|?.()') {
-                // the callee is read before the arguments, as `a.f` is
-                // before `x` in `a.f(x)`: a built-in's is what the runtime's
-                // `dot` answers, which may throw, and is asked again by the
-                // call, a body being pure
-                const resolved = builtin ? okThen(() => ok(own))(callee(runtime, name, receiver, invoke)) : ok(own)
-                return then([next, resolved], (_, after) => proceed(own, after))
-            }
-            // the guard, before the arguments: an own property that is
-            // nullish skips, and so does a built-in no implementation is
-            // bound for, which the runtime's body decides for its receiver
-            // and may throw deciding
-            const guard = builtin ? hasMethod(receiver, name, runtime, invoke) : ok(!isNullish(own))
-            return then([next, guard], (has, after) => has ? proceed(own, after) : skip(continuation, after))
-        })
+        if (tag !== '|?.()') {
+            // the callee is read before the arguments, as `a.f` is
+            // before `x` in `a.f(x)`: a built-in's is what the runtime's
+            // `dot` answers, which may throw, and is asked again by the
+            // call, a body being pure
+            const resolved = builtin ? okThen(() => ok(value))(callee(runtime, name, receiver, invoke)) : ok(value)
+            return then([state, resolved], (_, after) => proceed(value, after))
+        }
+        // the guard, before the arguments: an own property that is
+        // nullish skips, and so does a built-in no implementation is
+        // bound for, which the runtime's body decides for its receiver
+        // and may throw deciding
+        return then([state, memberPresent(receiver, member)], (has, after) => has ? proceed(value, after) : skip(continuation, after))
     }
 
     /** @type {(entries: Over<import('../types.ts').Object, E>[1], state: S) => Evaluation<S>} */
@@ -306,6 +318,9 @@ export const operation = evaluator => {
             case '.': case '?.': { return then(operand(node[1], state), (receiver, next) =>
                 node[0] === '?.' && isNullish(receiver) ? skip(node[3], next)
                     : then(operand(node[2], next), (key, after) => property(receiver, key, node[3], after))) }
+            case 'memberPresent': { return then(operand(node[1], state), (receiver, next) =>
+                then(operand(node[2], next), (key, after) =>
+                    [after, okThen(member => memberPresent(receiver, member))(resolveMember(receiver, key))])) }
             case ',': {
                 const [, parts] = node
                 const last = parts.at(-1)

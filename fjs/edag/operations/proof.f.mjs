@@ -4,7 +4,7 @@
  * demand so evaluation order and failure propagation remain observable.
  *
  * @import { Exp, ExpOp } from '../types.ts'
- * @import { Closure, EdagValue } from '../value/types.ts'
+ * @import { Closure, EdagValue, Runtime } from '../value/types.ts'
  * @import { Outcome } from '../value/call/types.ts'
  * @import { Context, Evaluator } from './types.ts'
  */
@@ -140,6 +140,100 @@ export const proof = {
         eq(['()', ['charCodeAt'], ['abc', 2]], 0x63)
         failure(['()', ['charCodeAt'], [null, 0]])
         failure(['.', null, 'a', ['|()', []]])
+    },
+    memberPresent: () => {
+        for (const value of [null, ['undefined']]) {
+            for (const name of ['field', 'toString']) {
+                eq(['memberPresent', ['{}', [[':', name, /** @type {Exp} */ (value)]]], name], false)
+            }
+        }
+        for (const value of [0, false, '', identity]) {
+            eq(['memberPresent', ['{}', [[':', 'field', /** @type {Exp} */ (value)]]], 'field'], true)
+        }
+        eq(['memberPresent', ['{}', []], 'missing'], false)
+        eq(['memberPresent', ['{}', []], 'toString'], true)
+        eq(['memberPresent', ['[]', []], 'length'], true)
+        eq(['memberPresent', ['[]', [0]], 0], true)
+        eq(['memberPresent', ['[]', [null]], ['Number', '0']], false)
+        eq(['memberPresent', ['[]', [['undefined']]], 0], false)
+        eq(['memberPresent', ['[]', []], 0], false)
+        eq(['memberPresent', '', 'length'], true)
+        eq(['memberPresent', 'abc', ['Number', '1']], true)
+        eq(['memberPresent', 'abc', 3], false)
+        eq(['memberPresent', identity, 'length'], true)
+        eq(['memberPresent', ['entry'], 'length'], true)
+        eq(['memberPresent', ['Object.entries'], 'length'], true)
+        eq(['memberPresent', 'abc', 'slice'], true)
+        eq(['memberPresent', 'abc', 'startsWith'], false)
+        eq(['memberPresent', 'abc', 'codePointAt'], false)
+        failure(['memberPresent', null, 'field'])
+        failure(['memberPresent', ['undefined'], 'field'])
+        // A false answer does not stop an ordinary call's argument region;
+        // a selected optional region can use it to skip that region.
+        eq([',', [['memberPresent', ['{}', []], 'missing'], 7]], 7)
+        eq(['?:', ['memberPresent', ['{}', []], 'missing'], ['throw', 'skipped'], 7], 7)
+        failure([',', [['memberPresent', null, 'missing'], 7]])
+    },
+    memberRuntime: () => {
+        /** @type {(answer: Exp) => Runtime} */
+        const runtime = answer => ['{}', [[':', 'dot', ['=>', 2, [], answer]]]]
+        /** @type {(runtime: Runtime, node: Exp, expected: EdagValue) => void} */
+        const check = (runtime, node, expected) => {
+            assertStructurallySame(vm({ ...context, runtime })(node), ['ok', expected])
+        }
+        /** @type {(runtime: Runtime, node: Exp, expected: EdagValue) => void} */
+        const refuses = (runtime, node, expected) => {
+            assertStructurallySame(vm({ ...context, runtime })(node), ['error', expected])
+        }
+        for (const answer of [null, 0, false, '', ['{}', []], ['=>', 0, [], ['throw', 'argument-stage']]]) {
+            // Runtime answers have the existing undefined-only presence
+            // test; a null answer is present, unlike a stored own null.
+            check(runtime(/** @type {Exp} */ (answer)), ['memberPresent', 'abc', 'startsWith'], true)
+        }
+        const absent = runtime(['undefined'])
+        check(absent, ['memberPresent', 'abc', 'startsWith'], false)
+        check(absent, ['memberPresent', 'abc', 'slice'], true)
+        for (const missing of [/** @type {Runtime} */ (['{}', []]), /** @type {Runtime} */ (['{}', [[':', 'dot', 0]]])]) {
+            check(missing, ['memberPresent', 'abc', 'startsWith'], false)
+            check(missing, ['memberPresent', 'abc', 'slice'], true)
+        }
+        const throwing = runtime(['throw', 'lookup'])
+        refuses(throwing, ['memberPresent', 'abc', 'startsWith'], 'lookup')
+        refuses(throwing, ['memberPresent', 'abc', 'slice'], 'lookup')
+        refuses(throwing, [',', [['memberPresent', 'abc', 'startsWith'], 7]], 'lookup')
+        check(throwing, ['memberPresent', 'abc', 'length'], true)
+        check(throwing, ['memberPresent', 'abc', 'missing'], false)
+        for (const value of [null, ['undefined'], 0]) {
+            check(throwing, ['memberPresent', ['{}', [[':', 'toString', /** @type {Exp} */ (value)]]], 'toString'], value === 0)
+        }
+        const receiverDependent = runtime(['?:', ['===', ['arg', 0], 'abc'], ['=>', 0, [], ['throw', 'argument-stage']], ['undefined']])
+        check(receiverDependent, ['memberPresent', 'abc', 'startsWith'], true)
+        check(receiverDependent, ['memberPresent', 'other', 'startsWith'], false)
+        // A provider may execute the receiver-stage body, but the query
+        // never invokes the argument-stage callable that body returns.
+        refuses(runtime(['()', ['=>', 1, [], ['throw', 'receiver-stage']], [['arg', 0]]]), ['memberPresent', 'abc', 'startsWith'], 'receiver-stage')
+        check(runtime(['=>', 0, [], ['throw', 'argument-stage']]), ['memberPresent', 'abc', 'startsWith'], true)
+    },
+    memberStaticRead: () => {
+        // A pre-established static receiver still needs its runtime body
+        // when its length is read; the query performs that read first.
+        /** @type {(runtime: Runtime | undefined) => import('../value/control/types.ts').ValueResult} */
+        const query = runtime => vm({ frame: [['Object.is']], args: [], runtime })(['memberPresent', ['frame', 0], 'length'])
+        assertStructurallySame(query(undefined), ['error', noStatic('Object.is')])
+        assertStructurallySame(query(['{}', []]), ['error', noStatic('Object.is')])
+        assertStructurallySame(query(['{}', [[':', 'static', ['=>', 1, [], ['throw', 'static-read']]]]]), ['error', 'static-read'])
+        assertStructurallySame(query(['{}', [[':', 'static', ['=>', 1, [], ['=>', 0, [], 0]]]]]), ['ok', true])
+    },
+    memberEvaluationOrder: () => {
+        const stop = /** @type {const} */ (['throw', 'receiver'])
+        const key = /** @type {const} */ (['Number', 0])
+        assertStructurallySame(run(['memberPresent', stop, key], [])[0], [stop])
+        assertStructurallySame(run(['memberPresent', null, key], [])[0], [null, key])
+        const conversion = /** @type {const} */ (['Number', ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'key']]]]]])
+        assertStructurallySame(run(['memberPresent', null, conversion], []), [[null, conversion], ['error', 'key']])
+        // The optional receiver guard belongs outside the query and its
+        // computed key, so neither is reached on the skipped path.
+        assertStructurallySame(run(['?:', false, ['memberPresent', null, conversion], 7], [])[0], [false, 7])
     },
     // A static function is a value whether called or not, the node, one
     // function by its name; the body the runtime's `static` answers for its id

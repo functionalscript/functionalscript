@@ -85,6 +85,7 @@ export const proof = {
             [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
             // the constructor name is metadata, never an operand
             [['instanceof', a, 'Array'], [a]], [['instanceof', 'Array', 'Array'], ['Array']],
+            [['memberPresent', a, b], [a, b]], [['memberPresent', a, 'length'], [a, 'length']],
             [['?:', false, a, false], [false, a, false]], [['?:', true, true, b], [true, true, b]],
             [['?:', null, a, null], [null, a, null]], [['?:', true, a, b], [true, a, b]],
             [['[]', []], []], [['{}', []], []], [[',', []], []],
@@ -124,6 +125,27 @@ export const proof = {
         const a = an(first)
         assertEq(assertOk(checked(a)), a)
         assertEq(assertError(checked(an(['frame', 0]))), 'invalid frame slot index or scope')
+    },
+    memberPresent: () => {
+        const key = /** @type {const} */ (['Number', ['+', 1, 2]])
+        table(['memberPresent', empty, key], {
+            root: ['#', 3],
+            nodes: [['[]', []], ['+', 1, 2], ['Number', ['#', 1]], ['memberPresent', ['#', 0], ['#', 2]]],
+            scope: [-1, -1, -1, -1], shared: [],
+        })
+        assertStructurallySame(nodesOf(['memberPresent', null, 'length']), [['memberPresent', null, 'length']])
+        // Pure queries merge by content, while identity admission preserves
+        // separately allocated queries and the receiver they share.
+        const first = /** @type {const} */ (['memberPresent', empty, 'length'])
+        const second = /** @type {const} */ (['memberPresent', empty, 'length'])
+        const merged = an(['[]', [first, second]])
+        assertEq(merged.nodes.length, 3)
+        assertStructurallySame(merged.exps[1], first)
+        const distinct = identity(['[]', [first, second, first]])
+        assertEq(distinct.nodes.length, 4)
+        assertEq(distinct.exps[1], first)
+        assertEq(distinct.exps[2], second)
+        assertStructurallySame(distinct.shared, [0, 1])
     },
     constructorMetadata: () => {
         // The constructor name survives graph numbering without becoming a
