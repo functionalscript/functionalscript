@@ -226,6 +226,18 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(normal, [[[4], [6, 7], 1, [8, 9], true], [4], [6, 7], true])
         }
     },
+    directBreakCaptureReturn: () => {
+        const stop = id(0), local = id(0), output = id(0)
+        const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loop = /** @type {Loop} */ ({ target: loopTarget, parameters: [], initial: [], results: [output],
+            body: body(['break', loopTarget, [capturing([ref(local), mixed(ref(stop), 1)])]], [
+                ['define', local, ['array', [4]], 'lazy'],
+            ]) })
+        const fn = /** @type {FastFunction} */ ({ target, parameters: [stop], rest: null, self: null, captures: [],
+            body: body(['return', target, ref(output)], [['loop', loop]]) })
+        assertStructurallySame(evaluate(fromFast(result(['()', ['()', ['function', fn], [false]], []]))), [[4], 1])
+        assertEq(evaluate(calledFunction(fn, [true])), 7)
+    },
     noReturnIdentityAndIdempotence: () => {
         for (const value of [capturing([]), capturing([1, ['array', [2]], ['object', [[':', 'x', 3]]]])]) {
             const source = requiredFunction(value).body
@@ -253,16 +265,6 @@ export const proof = /** @type {const} */ ({
             const output = id(0)
             calledFunction({ target, parameters: [], rest: null, self: null, captures: [],
                 body: body(['return', target, ref(output)], [['define', output, capturing([escape()]), 'lazy']]) })
-        },
-        directBreakCaptureReturn: () => {
-            const local = id(0), output = id(0)
-            const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
-            const loop = /** @type {Loop} */ ({ target: loopTarget, parameters: [], initial: [], results: [output],
-                body: body(['break', loopTarget, [capturing([ref(local), mixed(false, 1)])]], [
-                    ['define', local, ['array', [4]], 'lazy'],
-                ]) })
-            calledFunction({ target, parameters: [], rest: null, self: null, captures: [],
-                body: body(['return', target, ref(output)], [['loop', loop]]) })
         },
     },
 })

@@ -321,12 +321,13 @@ const blockTask = (source, context, mode) => {
                 return finish(next, packed, normal, returns || ownReturn || permittedTransfer || added, lifted || added,
                     changed || packed !== source.exit || added, callee || normal && mapped[0] === 'yield' && mapped[1].length !== 1)
             }
-            if (mode === 'statement' && exit[0] === 'yield') {
-                return bind(sequenceTask(exit[1], context.owner, false, context.permitted), result => {
+            if (mode === 'statement' && exit[0] === 'yield' || exit[0] === 'break' || exit[0] === 'continue') {
+                const values = exit[0] === 'yield' ? exit[1] : exit[2]
+                return bind(sequenceTask(values, context.owner, false, context.permitted), result => {
                     if (!result.lifted) { return complete(exit, statements, false) }
                     const next = result.statements.reduce((tail, first) => /** @type {List<Statement>} */ ({ first, tail }), statements)
                     if (!result.normal) { return finish(next, ['yield', []], false, true, true, true) }
-                    return complete(['yield', result.values], next, true, result.callee)
+                    return complete(exit[0] === 'yield' ? ['yield', result.values] : [exit[0], exit[1], result.values], next, true, result.callee)
                 })
             }
             if (ownReturn || context.operand && exit[0] === 'yield' && (exit[1].length === 1 || mode === 'value')) {
@@ -379,7 +380,7 @@ const blockTask = (source, context, mode) => {
 }
 
 /**
- * Normalize direct required initializers, return payloads and statement results.
+ * Normalize direct required initializers, return/transfer payloads and statement results.
  * No owning return to expose means no change to the input block identity.
  * @type {(block: Block, owner: FunctionTarget) => Block}
  */

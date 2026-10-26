@@ -154,6 +154,66 @@ export const proof = /** @type {const} */ ({
         assert(physical.statement !== null)
         assertStructurallySame(blockOf(blockOf(physical.statement).statements[0]).exit, ['continue', active, []])
     },
+    transferPayloadSnapshots: () => {
+        const condition = id(), before = id(), after = id()
+        for (const kind of /** @type {const} */ (['break', 'continue'])) {
+            const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const slots = /** @type {const} */ ([id(), id(), id()])
+            const input = /** @type {readonly Value[]} */ ([ref(before), ['if', ref(condition), returned(7), yielded([3])], ref(after)])
+            const loop = /** @type {Loop} */ ({ target, parameters: kind === 'continue' ? slots : [], initial: kind === 'continue' ? [0, 0, 0] : [],
+                results: kind === 'break' ? slots : [], body: body([kind, target, input]) })
+            const source = body(['return', owner, 9], [['loop', loop]])
+            const result = liftReturns(source, owner)
+            const statement = result.statements[0]
+            assert(statement[0] === 'loop')
+            assertEq(statement[1].target, target)
+            assertEq(statement[1].parameters, loop.parameters)
+            assertEq(statement[1].results, loop.results)
+            assertEq(statement[1].initial, loop.initial)
+            const [first, selected, last] = statement[1].body.statements
+            assert(first[0] === 'define' && selected[0] === 'if' && last[0] === 'define')
+            assertStructurallySame(first[2], ref(before))
+            assertStructurallySame(last[2], ref(after))
+            assertStructurallySame(statement[1].body.exit, [kind, target, [ref(first[1]), ref(selected[1][0]), ref(last[1])]])
+            assertEq(liftReturns(result, owner), result)
+        }
+    },
+    terminalTransferPayloadSkipsRemainingValues: () => {
+        const before = id()
+        for (const kind of /** @type {const} */ (['break', 'continue'])) {
+            const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            const slots = /** @type {const} */ ([id(), id(), id()])
+            const input = /** @type {readonly Value[]} */ ([ref(before), ['block', returned(7)], ['block', body(['return', other, 8])]])
+            const source = body(['return', owner, 9], [['loop', {
+                target, parameters: kind === 'continue' ? slots : [], initial: kind === 'continue' ? [0, 0, 0] : [],
+                results: kind === 'break' ? slots : [], body: body([kind, target, input]),
+            }]])
+            const result = liftReturns(source, owner)
+            const statement = result.statements[0]
+            assert(statement[0] === 'loop')
+            assertEq(statement[1].body.statements.length, 2)
+            assertStructurallySame(statement[1].body.exit, ['yield', []])
+            assertStructurallySame(blockOf(statement[1].body.statements[1]).exit, ['return', owner, 7])
+        }
+    },
+    unchangedTransferPayloads: () => {
+        for (const kind of /** @type {const} */ (['break', 'continue'])) {
+            for (const values of /** @type {readonly (readonly Value[])[]} */ ([[], [1], [2, 3, ['block', yielded([4])]]])) {
+                const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+                const slots = values.map(id)
+                const source = body(['return', owner, 9], [['loop', {
+                    target, parameters: kind === 'continue' ? slots : [], initial: kind === 'continue' ? values.map(() => 0) : [],
+                    results: kind === 'break' ? slots : [], body: body([kind, target, values]),
+                }]])
+                assertEq(liftReturns(source, owner), source)
+            }
+        }
+        const active = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const result = liftValueReturns(['block', body(['break', active, [['block', body(['continue', active, []])]]])], id(), null, [active])
+        assert(result.statement !== null)
+        assertEq(result.normal, false)
+        assertStructurallySame(blockOf(blockOf(result.statement).statements[0]).exit, ['continue', active, []])
+    },
     requiredBlock: () => {
         const value = id(), selected = id(), before = id(), after = id()
         const initializer = yielded([7], [
@@ -964,7 +1024,34 @@ export const proof = /** @type {const} */ ({
         for (let depth = 0; depth < 20_001; ++depth) { current = blockOf(current.statements[0]) }
         assertStructurallySame(current.exit, ['return', owner, 7])
     },
+    deepTransferPayload: () => {
+        /** @type {Value} */
+        let value = ['block', returned(7)]
+        for (let depth = 0; depth < 20_000; ++depth) { value = ['block', yielded([value])] }
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const source = body(['return', owner, 9], [['loop', {
+            target, parameters: [], initial: [], results: [id()], body: body(['break', target, [value]]),
+        }]])
+        const result = liftReturns(source, owner)
+        const statement = result.statements[0]
+        assert(statement[0] === 'loop')
+        let current = statement[1].body
+        for (let depth = 0; depth < 20_001; ++depth) { current = blockOf(current.statements[0]) }
+        assertStructurallySame(current.exit, ['return', owner, 7])
+    },
     throw: {
+        transferPayloadForeignReturn: () => {
+            const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            return liftReturns(body(['return', owner, 9], [['loop', {
+                target, parameters: [], initial: [], results: [id()], body: body(['break', target, [['block', body(['return', other, 7])]]]),
+            }]]), owner)
+        },
+        transferPayloadCannotEscapeToContainingLoop: () => {
+            const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+            return liftReturns(body(['return', owner, 9], [['loop', {
+                target, parameters: [id()], initial: [0], results: [], body: body(['continue', target, [['block', body(['continue', target, [3]])]]]),
+            }]]), owner)
+        },
         captureForeignReturn: () => liftValueReturns(['function', {
             target: other, parameters: [], rest: null, self: null,
             captures: [{ binding: id(), value: ['block', body(['return', other, 3])] }], body: body(['return', other, 9]),
