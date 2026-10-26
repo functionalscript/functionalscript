@@ -2,7 +2,7 @@
 
 import { powResultMarker, stylesheet } from '../../website/style/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
-import { empty, uint } from '../../types/bit_vec/module.f.mjs'
+import { empty, maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.mjs'
 import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
@@ -43,6 +43,40 @@ const expectNull = nBits => {
 
 export const proof = {
     demo: {
+        oversized: () => {
+            /** @type {(state: typeof demo.init, name: string) => typeof demo.init} */
+            const click = (state, name) => unwrap(assertNotNullish(runPure(demo.update(state)({ kind: 'click', name }))[0]))
+            const schedule = assertNotNullish(demo.nextEvent)
+            // At 99 the appended nonce fits exactly; at 100 it is a byte too long.
+            const boundary = { ...demo.init, text: 'a'.repeat(Number(maxLengthBytes) - 2), nonce: '99', nBits: '0x01010000' }
+            const running = click(boundary, 'auto-run')
+            assertEq(running.search?.running, true)
+            assertEq(running.search?.hash, 0xee4b_7eb7_eeab_4091_5dae_2c57_298e_b9d4_f939_0cf2_ba06_f065_5281_f448_cb3a_1f6bn)
+            assert(htmlToString(demo.view(running)).includes('Copy hash'))
+            const stopped = click(running, 'auto-next')
+            assertEq(stopped.nonce, '100')
+            assertEq(stopped.search, null)
+            assertEq(schedule(stopped), null)
+            assertEq(click(stopped, 'auto-next'), stopped)
+            // Starting after an already successful nonce takes the same refusal path.
+            const found = { ...boundary, text: 'b'.repeat(Number(maxLengthBytes) - 2), nBits: '0x207fffff' }
+            const advanced = click(found, 'auto-run')
+            assertEq(advanced.nonce, '100')
+            assertEq(advanced.search, null)
+            assertEq(schedule(advanced), null)
+            const oversized = { ...demo.init, text: 'é'.repeat(Number(maxLengthBytes) / 2 - 1) + 'a' }
+            for (const state of [stopped, advanced, oversized, click(oversized, 'auto-run')]) {
+                const html = htmlToString(demo.view(state))
+                assert(html.includes('Refused:'))
+                assert(html.includes(`Input including nonce too long: more than ${maxLengthBytes} UTF-8 bytes.`))
+                assert(html.includes('name="text"'))
+                assert(html.includes('name="auto-run"'))
+                assert(!html.includes('Copy hash'))
+                assertEq(schedule(state), null)
+            }
+            const recovered = unwrap(assertNotNullish(runPure(demo.update(stopped)({ kind: 'input', name: 'text', value: 'short' }))[0]))
+            assert(htmlToString(demo.view(recovered)).includes('Copy hash'))
+        },
         parseNonce: () => {
             assertEq(parseNonce('0'), 0n)
             assertEq(parseNonce('00042'), 42n)

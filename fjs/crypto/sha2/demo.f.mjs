@@ -26,9 +26,9 @@ const selectedAlgorithm = algorithmOf(algorithms)
 
 /**
  * The SHA-256 hex digest of a string's UTF-8 bytes. Kept as the exported
- * reader used by this module's proof.
+ * reader used by this module's proof; null when the input is too long.
  *
- * @type {(text: string) => string}
+ * @type {(text: string) => string | null}
  */
 export const digest = digestOf(sha256)
 
