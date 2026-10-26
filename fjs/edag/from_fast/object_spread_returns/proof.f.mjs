@@ -281,6 +281,15 @@ export const proof = /** @type {const} */ ({
         assert(lifted !== source)
         assertEq(liftReturns(lifted, target), lifted)
     },
+    captureObjectSpreadReturn: () => {
+        const captured = id(0)
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        assertEq(evaluate(calledFunction(requiredFunction(['function', {
+            target: owner, parameters: [], rest: null, self: null,
+            captures: [{ binding: captured, value: ['object', [['...', escape()]]] }],
+            body: body(['return', owner, ref(captured)]),
+        }]))), 7)
+    },
     throw: {
         foreignSpreadReturn: () => {
             const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -293,15 +302,6 @@ export const proof = /** @type {const} */ ({
                 target, parameters: [], rest: null, self: null, captures: [],
                 body: body(['return', target, ref(output)], [['define', output, ['object', [['...', escape()]]], 'lazy']]),
             }]))
-        },
-        captureBoundary: () => {
-            const captured = id(0)
-            const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
-            fromFast(result(['function', requiredFunction(['function', {
-                target: owner, parameters: [], rest: null, self: null,
-                captures: [{ binding: captured, value: ['object', [['...', escape()]]] }],
-                body: body(['return', owner, ref(captured)]),
-            }])]))
         },
     },
 })

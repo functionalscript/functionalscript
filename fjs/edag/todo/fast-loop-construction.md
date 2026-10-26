@@ -7,6 +7,7 @@ the end-to-end `memberPresent` query is implemented;
 member/optional-call completion lifting is implemented;
 array/call spread return lifting is implemented;
 object-spread return lifting is implemented;
+closure-capture return lifting is implemented;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -207,9 +208,16 @@ values, retaining duplicate-key and enumeration rules, `__proto__` as data and
 value identities. No-return inputs retain their original object syntax.
 Plain-call admission retains member/native callee provenance through wrappers
 and comma results. Member and optional-call operands use the shared FAST return
-normalizer and the member-resolution protocol below. Lazy initializers,
-captures and native bare callees remain separate boundaries. A loop
-transfer cannot escape the operand's locally owned loop chain.
+normalizer and the member-resolution protocol below. Closure captures sequence
+their construction-time expressions using the enclosing function owner. Earlier
+captures remain required before a later capture can return; a return skips the
+remaining captures, function construction and suffix. Normal completion retains
+the original capture bindings and function metadata. The nested body remains
+untouched by that lift and normalizes at its own function entry. Selected memo
+updates and captured identities follow the same construction region.
+Lazy initializers, loop entry/transfer operands and native bare callees remain
+separate boundaries. A loop transfer cannot escape the operand's locally owned
+loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
 `[userValuesArray, memoVector]` transfer payload as owning exits. Lexical source
@@ -640,8 +648,11 @@ their documented normalization. Repeated conversions must stabilize.
       each reached spread before later control while preserving optional skips.
 - [x] Lift owning returns through spread-bearing object literals, preserving
       key conversion, own-property copying, enumeration and value identities.
-- [ ] Extend completion handling to other value operands, preserving their
-      lookup, spread and evaluation boundaries below.
+- [x] Lift owning returns through closure capture expressions, preserving
+      construction order, enclosing ownership, memo state and captured identities.
+- [ ] Extend completion handling to lazy initializers, loop entry/transfer
+      operands and remaining native/wrapped callee forms, preserving their
+      evaluation boundaries.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.

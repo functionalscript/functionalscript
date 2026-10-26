@@ -1,6 +1,6 @@
 /**
  * Return lifting preserves eager operand order and direct value continuations.
- * @import { BindingId, Block, Exit, Loop, Statement, Value } from '../types.ts'
+ * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -81,6 +81,78 @@ export const proof = /** @type {const} */ ({
         assertEq(liftReturns(lazy, owner), lazy)
         const statementYield = yielded([['block', returned(3)]])
         assertEq(liftReturns(statementYield, owner), statementYield)
+    },
+    captureSnapshotsAndBodyOwnership: () => {
+        const destination = id(), parameter = id(), rest = id(), self = id(), first = id(), second = id(), third = id()
+        const before = id(), after = id(), condition = id()
+        const fn = /** @type {FastFunction} */ ({
+            target: other, parameters: [parameter], rest, self,
+            captures: [
+                { binding: first, value: ref(before) },
+                { binding: second, value: ['if', ref(condition), returned(7), yielded([3])] },
+                { binding: third, value: ref(after) },
+            ],
+            body: body(['return', other, ['block', body(['return', other, 9])]]),
+        })
+        const source = /** @type {const} */ (['function', fn])
+        const result = liftValueReturns(source, destination, owner)
+        assert(result.statement !== null)
+        const region = blockOf(result.statement)
+        assertEq(result.normal, true)
+        assertEq(result.callee, true)
+        assertStructurallySame(result.value, ref(destination))
+        assertEq(region.statements.length, 3)
+        const [a, b, c] = region.statements
+        assert(a[0] === 'define' && b[0] === 'if' && c[0] === 'define')
+        assertStructurallySame(a[2], ref(before))
+        assertStructurallySame(c[2], ref(after))
+        assert(region.exit[0] === 'yield')
+        const constructed = region.exit[1][0]
+        assert(constructed instanceof Array && constructed[0] === 'function')
+        const mapped = constructed[1]
+        assertEq(mapped.target, fn.target)
+        assertEq(mapped.parameters, fn.parameters)
+        assertEq(mapped.rest, fn.rest)
+        assertEq(mapped.self, fn.self)
+        assertEq(mapped.body, fn.body)
+        assertStructurallySame(mapped.captures, [
+            { binding: first, value: ref(a[1]) },
+            { binding: second, value: ref(b[1][0]) },
+            { binding: third, value: ref(c[1]) },
+        ])
+        assertEq(fn.captures[1].value instanceof Array && fn.captures[1].value[0], 'if')
+        const ordinary = /** @type {Value} */ (['function', { ...fn, captures: [
+            { binding: first, value: ['block', yielded([1, 2])] }, { binding: second, value: ref(before) },
+        ] }])
+        const unchanged = liftValueReturns(ordinary, destination, owner)
+        assertEq(unchanged.statement, null)
+        assertEq(unchanged.value, ordinary)
+        assertEq(unchanged.callee, true)
+    },
+    terminalCaptureSkipsRemainingConstruction: () => {
+        const destination = id(), first = id(), second = id(), third = id(), before = id()
+        const source = /** @type {readonly ['function', FastFunction]} */ (['function', {
+            target: other, parameters: [], rest: null, self: null, captures: [
+                { binding: first, value: ref(before) },
+                { binding: second, value: ['block', returned(7)] },
+                { binding: third, value: ['block', body(['return', other, 8])] },
+            ], body: body(['return', other, 9]),
+        }])
+        const result = liftValueReturns(source, destination, owner)
+        assert(result.statement !== null)
+        assertEq(result.normal, false)
+        assertEq(result.callee, true)
+        const region = blockOf(result.statement)
+        assertEq(region.statements.length, 2)
+        assertStructurallySame(region.exit, ['yield', []])
+        assertStructurallySame(blockOf(region.statements[1]).exit, ['return', owner, 7])
+        const active = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const physical = liftValueReturns(['function', {
+            ...source[1], captures: [{ binding: first, value: ['block', body(['continue', active, []])] }],
+        }], destination, null, [active])
+        assertEq(physical.normal, false)
+        assert(physical.statement !== null)
+        assertStructurallySame(blockOf(blockOf(physical.statement).statements[0]).exit, ['continue', active, []])
     },
     requiredBlock: () => {
         const value = id(), selected = id(), before = id(), after = id()
@@ -879,7 +951,28 @@ export const proof = /** @type {const} */ ({
         }
         assertStructurallySame(blockOf(current.statements[0]).exit, ['return', owner, 7])
     },
+    deepCaptureChain: () => {
+        /** @type {Value} */
+        let value = ['block', returned(7)]
+        for (let depth = 0; depth < 20_000; ++depth) {
+            const captured = id()
+            const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+            value = ['function', { target, parameters: [], rest: null, self: null,
+                captures: [{ binding: captured, value }], body: body(['return', target, ref(captured)]) }]
+        }
+        let current = liftReturns(returned(value), owner)
+        for (let depth = 0; depth < 20_001; ++depth) { current = blockOf(current.statements[0]) }
+        assertStructurallySame(current.exit, ['return', owner, 7])
+    },
     throw: {
+        captureForeignReturn: () => liftValueReturns(['function', {
+            target: other, parameters: [], rest: null, self: null,
+            captures: [{ binding: id(), value: ['block', body(['return', other, 3])] }], body: body(['return', other, 9]),
+        }], id(), owner),
+        captureWithoutOwner: () => liftValueReturns(['function', {
+            target: other, parameters: [], rest: null, self: null,
+            captures: [{ binding: id(), value: ['block', returned(3)] }], body: body(['return', other, 9]),
+        }], id(), null),
         permittedLoopRequiresExactTarget: () => {
             const active = /** @type {const} */ ({ kind: 'loop', index: 0 })
             const foreign = /** @type {const} */ ({ kind: 'loop', index: 0 })
