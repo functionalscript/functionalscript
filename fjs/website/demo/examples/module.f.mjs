@@ -25,6 +25,8 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
+import { option, selectField } from '../controls/module.f.mjs'
+
 /** The `name` of the drop-down, and of the `input` events a pick sends.
  * @type {string}
  */
@@ -76,14 +78,11 @@ export const examplePicker = list => {
         view: text => {
             /** @type {readonly Element[]} */
             const options = list.map(([n, source, id]) =>
-                ['option', { value: n, ...(source === text ? { selected: '' } : {}), 'data-example-id': id }, n])
+                ['option', { ...option(n, n, source === text)[1], 'data-example-id': id }, n])
             const custom = list.some(example => example[1] === text)
                 ? []
                 : [/** @type {Element} */ (['option', { selected: '', disabled: '' }, 'Custom'])]
-            return ['p',
-                ['label', { for: name }, 'Example '],
-                ['select', { id: name, name }, ...custom, ...options],
-            ]
+            return selectField({ name, label: 'Example' }, [...custom, ...options])
         },
         pick: value => {
             const found = list.find(example => example[0] === value)
