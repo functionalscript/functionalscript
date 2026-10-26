@@ -170,15 +170,17 @@ export const proof = /** @type {const} */ ({
         const shared = id(0), unused = id(0), callee = id(0)
         const ordinary = deferred(failed('uninvoked body'), local => body(['return', target, loopValue(ref(local))]))
         const source = /** @type {Block} */ (result(9, [
-            ['define', shared, failed('unreached caller'), 'lazy'], ['define', unused, loopValue(ref(shared)), 'lazy'],
+            ['define', shared, failed('unreached caller'), 'lazy'], ['define', unused, ownedLoopValue(failed('unused owned recipe')), 'lazy'],
             ['define', callee, ['function', ordinary], 'required'],
         ]))
         assertEq(normalizeMemo(source), source)
-        const runnable = /** @type {Block} */ (result(9, [
-            ['define', unused, ownedLoopValue(failed('unused owned recipe')), 'lazy'], ['define', callee, ['function', ordinary], 'required'],
-        ]))
-        assertEq(normalizeMemo(runnable), runnable)
-        assertEq(evaluate(fromFast(runnable)), 9)
+        assertEq(evaluate(fromFast(source)), 9)
+    },
+    unreadDeferredLoopOwnerDoesNotEvaluateItsCallerPrerequisite: () => {
+        const shared = id(0), unused = id(0)
+        assertEq(evaluate(fromFast(result(9, [
+            ['define', shared, failed('unread caller prerequisite'), 'lazy'], ['define', unused, loopValue(ref(shared)), 'lazy'],
+        ]))), 9)
     },
     callerMetadataAndOperandSharingSurviveSevenGraphs: () => {
         const argument = id(0), rest = id(0), self = id(0), captured = id(0), shared = id(0)

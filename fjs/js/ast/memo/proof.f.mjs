@@ -13,6 +13,7 @@ import { proof as deferredReturns } from '../../../edag/from_fast/lazy_returns/p
 import { proof as initializerLoops } from '../../../edag/from_fast/initializer_loop_cells/proof.f.mjs'
 import { _ownedLoopValue as ownedLoopValue, proof as ownedOperands } from '../../../edag/from_fast/operand_owned_demands/proof.f.mjs'
 import { proof as eagerOperands } from '../../../edag/from_fast/eager_operand_memo/proof.f.mjs'
+import { proof as deferredLoops } from '../../../edag/from_fast/deferred_loop_cells/proof.f.mjs'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -115,6 +116,7 @@ export const proof = /** @type {const} */ ({
     initializerLoops,
     ownedOperands,
     eagerOperands,
+    deferredLoops,
     optionalDemand: () => {
         assertStructurallySame(evaluate(crossing(['?.', ref(lazy), 'length'])), [0, []])
     },

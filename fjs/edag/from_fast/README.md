@@ -61,8 +61,12 @@ sharing normalization and repeated conversions stabilize.
 
 [`loop/memo`](./loop/memo/module.f.mjs) preserves lazy identity
 across normal-exit helpers. Its lexical inventory selects deferred recipes used
-free by a statement loop; direct lazy reference aliases share the original
-cell. Cells follow definition order, independently of debug indices or demand
+free by loops throughout the owner's eager statement and value regions; direct
+lazy reference aliases share the original cell. Selection also inspects deferred
+initializers: a helper crossing there selects its owning recipe and connected
+caller cells even without an eager caller loop. This analysis uses declaration
+scope without evaluating either initializer, and ordinary function bodies stay
+opaque. Cells follow definition order, independently of debug indices or demand
 order. Primitive definitions and reads of established bindings keep their
 existing classification.
 
@@ -84,8 +88,9 @@ statement results establish their own bindings, and child aliases do not leak
 into the parent scope. Planning gives each statement-region occurrence its own
 declaration and loop objects while preserving binding and target identities.
 Reusing an immutable declaration, block or loop at two lexical positions thus
-keeps their cells separate. Values and ordinary function bodies retain their
-own normalization boundary. Blocks without memo crossings return unchanged.
+keeps their cells separate. Eager values share their owner's inventory;
+ordinary function bodies and deferred initializers normalize separately.
+Blocks without memo crossings return unchanged.
 
 Occurrence preparation stops after a statement region with no normal path.
 Its unreachable suffix and exit do not contribute memo dependencies or transfer
@@ -248,12 +253,11 @@ skip it. Spread-bearing objects use entry-aware snapshots: each property key
 converts before its value, while each reached spread copies own properties
 before later control. Normal results preserve duplicate-key/enumeration rules,
 `__proto__` as data, UTF-16 string properties and shared value identities.
-Broader demand-only guarded forms retain their existing refusals.
 Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
 External lazy environments without an AST recipe retain the existing refusal.
-Value-owned loops normalize their own local recipes; a recipe outside that
-operand still requires later transport across the operand boundary. Memo-bearing
+Value-owned loops share selected caller cells and retain their local recipe
+lifetimes. Memo-bearing
 standalone/operand blocks require default transfer semantics; custom transfer
 callbacks retain their existing no-memo behavior.
 Blocks without a crossing deferred binding retain their identity and previous
@@ -303,9 +307,10 @@ belongs to milestone F. Throws and failures use the existing failure channel.
 The graph join replaces the former continuation expansion for helper callers
 and canonical invocation roots. The root resolver preserves statement regions
 and rewrites only its owning transfers before ordinary graph construction.
-Joins operate only in an owning function's statement regions. Operand regions
-reset that owner and continue to refuse nonlocal exits; standalone blocks do not
-invent a source function. Normal-only regions keep their established lowering.
+After admitted operand returns are lifted, joins operate only in an owning
+function's statement regions. Remaining operand regions reset that owner and
+refuse nonlocal exits; standalone blocks do not invent a source function.
+Normal-only regions keep their established lowering.
 
 Statement summaries track whether a normal path reaches the next statement.
 Dependencies from an unreachable suffix or final exit do not justify dropping

@@ -18,8 +18,8 @@ normal-only member and optional-call demands are implemented;
 normal-only standalone spread and object-entry demands are implemented;
 selected demands owned entirely inside operand regions are implemented;
 caller-level eager operand loops and computed lazy locals are planned together;
-remaining operand boundaries and broader memo lifetimes remain in E
-**Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
+deferred-initializer helper crossings select their caller-owned cells;
+E construction is implemented; shared-emission stack-safety integration remains in F
 
 ### Problem
 
@@ -155,6 +155,16 @@ still normalizing each operand's control completions. Ordinary functions and
 deferred initializers start fresh planning scopes. Scope maps retain only
 deferred roots, so established values do not accumulate in deeply nested eager
 regions.
+
+Cell selection also inspects deferred initializers for helper crossings without
+evaluating their values. When an initializer's loop needs a caller-owned lazy
+root, select its owning declaration and the connected prerequisite/dependent
+closure before recipe construction, even if the caller has no eager loop.
+Resolve aliases and shadows in the declaration's lexical scope. Nested recipes
+propagate their crossing requirements to that owner; ordinary function bodies
+remain opaque. A loop that does not cross a caller dependency does not itself
+justify selecting a later read outside the loop. Runtime evaluation still
+starts at first reached demand, preserving skipped and unused initializers.
 
 Caller-owned dependent recipes join the same cell vector through transitive
 prerequisite/dependent closure, in source definition order. Their conditional
@@ -374,7 +384,8 @@ for statement regions and reset at operand boundaries. Canonical invocation-root
 reconstruction preserves those regions while rewriting its owning transfers.
 Ordinary nested function bodies and value operands are not traversed by this
 normalization. Payload computations remain ordinary evaluations; their broader
-tail-call eligibility belongs to F. Value-operand completions remain open.
+tail-call eligibility belongs to F. The shared return lift exposes admitted
+value-operand completions before this statement-level pass.
 
 Loop IDs follow lexical introduction order within each normalization scope,
 independently of debug indices. Dispatch uses original target result/parameter
@@ -406,7 +417,8 @@ sixteen fixed parameters, no rest binding and one opaque public result, while
 keeping the established scalar shape first. Its contract lives in
 [`from_fast/loop/root`](../from_fast/loop/root/README.md). This is part of E;
 normal-exit general helpers, including nested helpers, are also implemented.
-Operand control and rest transitions remain open below.
+Operand completion lifting is implemented. Broader invocation transitions,
+including rest/default/spread setup, belong to F's shared tail-call preparation.
 
 The former fixed-input root constructor copied the following suffix into each
 normal exit of a region with nonlocal exits. For example, both arms below can
@@ -771,6 +783,9 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Plan caller-level cells and loops throughout eager operand regions,
       including computed local dependents and loops that are the only crossing.
       Preserve lexical scope, declaration lifetimes and operand ownership barriers.
+- [x] Select caller-owned cells needed only by helper crossings inside deferred
+      initializers, including nested recipes and aliases, without evaluating
+      their values before first reached demand.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.
@@ -796,14 +811,20 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Carry shared demand state through outer-loop breaks and continues.
       Preserve fresh iteration lifetimes and selected updates through every completion.
       Track exact ancestor targets and control-only intermediate helpers.
-- [ ] Implement the root-loop rule with exact fixtures, including rejection of
+- [x] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
+      The [root contract](../from_fast/loop/root/README.md) and its `layout`,
+      `aliasFrameAndWideInvocation`, `retainedEntryParameters` and exact-graph
+      proofs pin the fixed-input domain and helper fallback.
 - [x] Share normal continuations in noncanonical helper callers at graph
       construction, retaining direct terminal values and selected required work.
 - [x] Extend the graph join to canonical invocation-root reconstruction and
       close the measured mixed-region suffix-growth case above.
-- [ ] Keep the existing scalar shape; pin deterministic general state/capture
+- [x] Keep the existing scalar shape; pin deterministic general state/capture
       ordering and stable repeated conversions.
+      Aggregate-helper proofs pin parameter/result order and first-use capture
+      order; semantic conversion proofs retain scalar graphs and reach stable
+      graphs while preserving identities and function metadata.
 - [ ] **F integration:** With shared emission, run repeated nested loops without
       recursive helper cycles or stack growth proportional to iterations.
 

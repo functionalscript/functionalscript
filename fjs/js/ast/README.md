@@ -48,6 +48,13 @@ cells and prerequisites; local getters start at reached declarations. Cell
 lifetimes follow enclosing iterations through operands, while loop-transfer
 ownership remains local to the operand's statement regions. Ordinary function
 bodies and deferred initializers retain separate planning boundaries.
+Selection also inspects deferred initializers for helper crossings that need
+caller-owned cells. Such a crossing selects the initializer's owner and its
+connected lazy prerequisites and dependents before constructing recipes; it
+does not evaluate an initializer. Declaration-time aliases and shadows govern
+the lookup. Nested recipes propagate that need to their owning declaration,
+while ordinary function bodies remain opaque. An unrelated local loop does
+not select a caller dependency read only outside that loop.
 Graph lowering plans each owner's eager regions once, then starts fresh at
 ordinary function and deferred-initializer boundaries.
 This includes cells declared in loops inside an initializer: each reached
