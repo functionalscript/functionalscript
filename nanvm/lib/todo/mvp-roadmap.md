@@ -297,10 +297,11 @@ tracked in [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#tasks)
       [loops](../../../spec/control-flow/loops/README.md)); the terminating
       `switch` ([switch](../../../spec/control-flow/switch/README.md)).
       Remaining: general loops — `break`, `continue` and `return` inside a
-      loop, nested and sequential loops — milestones E, F and H of
-      [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md);
+      loop, nested and sequential loops — milestone H of
+      [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md),
+      which waits on E and F and on G's capture migration;
       and `for`, which [3220](../../../spec/todo/3220-let.md#general-loops)
-      leaves a separate extension with no proposal yet.
+      leaves a separate extension, [3270](../../../spec/todo/3270-for.md).
 - [ ] **`Any` serialization (CBOR)** — generic serialization of `Any`
       values, which covers code as data; includes the deterministic profile
       needed for CAVM hashing (see open questions).
@@ -338,32 +339,34 @@ coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
 
 #### Where self-hosting stands
 
-Measured on `55d1204`. The loader is `interpret` in
+Measured on `442ea8f`. The loader is `interpret` in
 [`compiler/transpiler`](../../../fjs/compiler/transpiler/module.f.mjs); with its
-runtime dependencies it is 115 modules, the imports Node resolves when it loads
-the transpiler. 22 are `.f.js`, which the compiler accepts. The other 93 are
+runtime dependencies it is 120 modules, the imports Node resolves when it loads
+the transpiler. 22 are `.f.js`, which the compiler accepts. The other 98 are
 `.f.mjs`, and the compiler refuses every one. Their first refusals, counted as
 [the whole repository's table](../../../todo/fjs-nanvm-integration.md#the-whole-repository)
 counts them, a refusal met in an import under the import's construct:
 
 | Modules | First refusal | Owner |
 | ---: | --- | --- |
-| 18 | `for`, `for…of` | none: no proposal, [3220](../../../spec/todo/3220-let.md#general-loops) |
-| 17 | a general loop: an `if` with `return`, `break` or `continue` inside a `while` | H of [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md) |
-| 11 | a block whose end is reachable: an `if` with no terminator, a body of calls with no `return`, a `switch` with no `default` | none |
-| 10 | a global name: `Object`, `Array`, `String`, `JSON`, `Boolean`, `parseFloat` | [2360](../../../spec/todo/2360-built-in.md), [2365](../../../spec/todo/2365-global-names.md) |
-| 8 | `new Map`, `new Set` | the container migration above |
-| 8 | a computed member, `a[i]` | [computed-property-key](../../../fjs/compiler/todo/computed-property-key.md), [2330](../../../spec/todo/2330-property-accessor.md) |
+| 19 | a general loop: an `if` with `return`, `break` or `continue` inside a `while` | H of [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md) |
+| 18 | `for`, `for…of` | [3270](../../../spec/todo/3270-for.md) |
+| 11 | a block whose end is reachable: a body of calls with no `return`, an `if` with no terminator, a `switch` with no `default` | [3210](../../../spec/todo/3210-reachable-block-end.md), [3230](../../../spec/todo/3230-switch.md) |
+| 11 | a global name: `Object`, `Array`, `String`, `JSON`, `Boolean`, `parseFloat` | [2360](../../../spec/todo/2360-built-in.md), [2365](../../../spec/todo/2365-global-names.md) |
+| 9 | `new Map`, `new Set` | the container migration above |
+| 9 | a computed member, `a[i]` | [computed-property-key](../../../fjs/compiler/todo/computed-property-key.md), [2330](../../../spec/todo/2330-property-accessor.md) |
 | 6 | a later `const` | [3140](../../../spec/todo/3140-forward-references.md), or reordering |
 | 5 | `export { … }`, with and without `from` | [export-lists](../../../spec/todo/export-lists.md), or `export const` |
 | 3 | `in` | a rewrite: [2346](../../../spec/todo/2346-in-operator.md) proposes keeping it out |
 | 3 | an escape the tokenizer refuses, `'\0'` | [2460](../../../spec/todo/2460-js-string-literals.md) |
 | 4 | one each: a name a prototype owns, a numeric key, a rest element, an `if` body without braces | |
 
-Loops lead: 35 of the 93 stop at one. A module moves to `.f.js` only once every
+Loops lead: 37 of the 98 stop at one. A module moves to `.f.js` only once every
 refusal behind its first has cleared too, so the table orders the work and does
-not size it: `new Map` and `new Set` are written in 13 and 15 of these modules,
-not only the 8 that stop at them first.
+not size it: `new Map` and `new Set` are written in 15 and 17 of these modules,
+not only the 9 that stop at them first. The count grew from 93 at `55d1204`
+with the five modules the general-loops work added to `edag/from_fast`, each
+refused as written.
 
 ### Open questions
 

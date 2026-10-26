@@ -36,6 +36,7 @@
  * @import { Sandbox } from '../../effects/common/types.ts'
  */
 
+import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { resultMarker } from '../../website/style/module.f.js'
 import { p, sloth } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
@@ -202,7 +203,7 @@ const buttonLabel = ({ run }) =>
             : 'Resume'
 
 /** @type {Demo<DemoState, DemoEvent, Sandbox>} */
-export const demo = {
+const definition = {
     init: { text: 'Hello, FunctionalScript!', steps: '1000', claimed: '', run: null, verdict: null, verificationDuration: null, note: null },
     nextEvent: state => state.run?.running ? { kind: 'click', name: 'evaluate-next' } : null,
     wait: waitNote,
@@ -243,3 +244,5 @@ export const demo = {
         ...(state.note === null ? [] : [refusal(state.note)]),
     ],
 }
+
+export const demo = withInputs(definition, ['text', 'steps', 'claimed'], {})

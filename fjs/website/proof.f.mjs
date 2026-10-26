@@ -1050,7 +1050,7 @@ export const proof = {
             const { root } = generate({ a: { 'module.f.mjs': file('export const x = 1') } })
             const page = pageAt(root, ['a'])
             assert(!page.includes('<summary><h2>Demo</h2></summary>'), page)
-            assert(!page.includes('data-demo'), page)
+            assert(!page.includes('<div data-demo='), page)
         },
         /**
          * **Two demos in one directory is refused, not resolved.** A page has
@@ -1064,7 +1064,7 @@ export const proof = {
                     'module.f.mjs': file('export const demo = {}'),
                 },
             })
-            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(!pageAt(root, ['a']).includes('<div data-demo='), pageAt(root, ['a']))
             assert(output.includes(
                 'skipped the demo in a: 2 modules export one (a/demo.f.mjs, a/module.f.mjs)'), output)
         },
@@ -1082,7 +1082,7 @@ export const proof = {
                     'other.f.mjs': file('export const demo = {}'),
                 },
             })
-            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(!pageAt(root, ['a']).includes('<div data-demo='), pageAt(root, ['a']))
             assert(output.includes('skipped the demo in a: 3 modules export one'), output)
         },
         /**
@@ -1098,7 +1098,7 @@ export const proof = {
                     'module.f.mjs': file('export const demo = {}'),
                 },
             })
-            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(!pageAt(root, ['a']).includes('<div data-demo='), pageAt(root, ['a']))
             assert(output.includes('skipped the demo in a: 2 modules export one'), output)
         },
         /**
@@ -1111,7 +1111,7 @@ export const proof = {
             const { root, output } = generate({
                 a: { 'demo.f.mjs': file("import 'node:fs'\nexport const demo = {}") },
             })
-            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(!pageAt(root, ['a']).includes('<div data-demo='), pageAt(root, ['a']))
             assert(output.includes('skipped a/demo.f.mjs: a demo must link in a browser (node:fs)'), output)
         },
         // A specifier the resolver refuses stops a demo as it stops a proof.
@@ -1119,7 +1119,7 @@ export const proof = {
             const { root, output } = generate({
                 a: { 'demo.f.mjs': file("import './bad%'\nexport const demo = {}") },
             })
-            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(!pageAt(root, ['a']).includes('<div data-demo='), pageAt(root, ['a']))
             assert(output.includes('skipped a/demo.f.mjs: a demo must link in a browser (./bad%)'), output)
         },
         /**
