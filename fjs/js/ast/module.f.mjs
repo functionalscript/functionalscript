@@ -81,7 +81,7 @@ export const analyzeBindings = root => {
  * @param {Item<T>} item
  * @returns {item is readonly ['...', T]}
  */
-const isSpread = item => item instanceof Array && item[0] === '...'
+export const isSpread = item => item instanceof Array && item[0] === '...'
 
 /** @type {<T, U>(map: (value: T, index: number) => U, offset: number) => (item: Item<T>, index: number) => Item<U>} */
 const mapItem = (map, offset) => (item, index) => isSpread(item) ? ['...', map(item[1], offset + index)] : map(item, offset + index)
