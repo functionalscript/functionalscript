@@ -14,13 +14,14 @@ import { textOfResult } from '../text/marked/module.f.mjs'
 
 const run = asyncRun(commonOperationMap)
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     stackOverflowRecovery: async () => {
         const source = examples.find(([name]) => name === 'Recursion: Ackermann')?.[1]
         assert(source !== undefined)
         // Ackermann(2, 333) can finish on engines with a larger stack, making
         // it an expensive arithmetic test instead of an overflow test. This
         // non-tail call grows the host stack linearly on every engine.
+        /** @type {string} */
         const edited = 'const recurse = n => 1 + recurse(n + 1);\nexport default recurse(0);'
         const state = assertOk(await run(demo.update(demo.init)({ kind: 'input', name: 'compiler', value: edited })))
         assertEq(state.text, edited)
@@ -38,4 +39,4 @@ export const proof = {
         assertEq(textOfResult(recovered.panes[0]), '9')
         assertEq(recovered.panes.map(([tag]) => tag).join(), 'ok,ok,ok,ok,ok')
     },
-}
+})
