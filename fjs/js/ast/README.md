@@ -52,8 +52,11 @@ Selected normal-only memo plans also sequence member and optional calls.
 Optional skips keep keys, arguments and their cells undemanded. Reached member
 lookup precedes arguments, direct method calls retain their receiver, and
 wrapped property values keep detached invocation. Member-call argument spreads
-use the same reached expansion order. Standalone spread-only demands retain
-their existing boundary.
+use the same reached expansion order. Normal plans also sequence standalone
+array/call spreads and object entries. Each reached spread expands or copies
+before later operands; object keys convert before their values, with or without
+spreads. Selected demands owned entirely inside operands retain the explicit
+[operand-owned region boundary](./memo/todo/operand-owned-demand-regions.md).
 [`memo`](./memo/module.f.mjs) owns this shared normalization and cell planning;
 [`control`](./control/module.f.mjs) supplies lexical dependency facts. The former
 graph-owner module paths retain compatibility exports.
