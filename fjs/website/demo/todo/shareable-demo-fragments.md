@@ -124,7 +124,7 @@ stable-ID step does not enable fragment input restoration by itself.
 
 - [Section links](../../README.md#section-links)
   — supplies the Demo target and navigation behavior.
-- [`examplePicker`](../examples/module.f.js) — derives example selection
+- [`examplePicker`](../examples/module.f.mjs) — derives example selection
   from source text rather than storing a second selection value.
 - [`textDemo`](../module.f.mjs) — shared text demo controls and update flow.
 - [`demo-runtime.mjs`](../../demo-runtime.mjs) — browser event and effect

@@ -4,11 +4,12 @@
 
 import { codeMarker, resultMarker, stylesheet } from '../style/module.f.js'
 import { textDemo, textField, inputField, fieldUpdate, caption, refusal, radios, dragAxis, dragAxisAttributes, dragValue } from './module.f.mjs'
-import { name as exampleName } from './examples/module.f.js'
+import { name as exampleName } from './examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
+import { demo } from './demo.f.mjs'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */
 const plain = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])
@@ -21,6 +22,21 @@ const next = demo => state => event => unwrap(assertNotNullish(
     'expected the demo to reach a value without asking for an operation'))
 
 export const proof = {
+    widgetsDemo: () => {
+        const initial = htmlToString(demo.view(demo.init))
+        assert(initial.includes('<option value="Hello" selected="">Hello</option>'))
+        assert(initial.includes('name="reset" disabled=""'))
+        const greeting = unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'input', name: 'greeting', value: 'Hi' }))[0]))
+        assertEq(greeting, 'Hi')
+        const changed = htmlToString(demo.view(greeting))
+        assert(changed.includes('<option value="Hi" selected="">Hi</option>'))
+        assert(changed.includes('<button type="button" name="reset">Reset</button>'))
+        assert(changed.includes('<p>Hi!</p>'))
+        assertEq(unwrap(assertNotNullish(runPure(demo.update(greeting)({ kind: 'click', name: 'reset' }))[0])), 'Hello')
+        for (const event of /** @type {readonly DemoEvent[]} */ ([{ kind: 'start' }, { kind: 'input', name: 'other', value: 'Welcome' }, { kind: 'click', name: 'other' }])) {
+            assertEq(unwrap(assertNotNullish(runPure(demo.update(greeting)(event))[0])), greeting)
+        }
+    },
     markers: () => {
         assertEq(codeMarker, 'data-code')
         assertEq(resultMarker, 'data-result')

@@ -1,7 +1,7 @@
 ## A `select` and a `button` beside `inputField` and `radios`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -41,9 +41,12 @@ not add a second widget-specific prefix or change semantic event names.
 
 ### Tasks
 
-- [ ] The three widgets, with proof and a case in the demo's own demo page.
+- [x] The three widgets, with proof and a case in the demo's own demo page.
 - [ ] The nine demos over them; check each in the browser and link the
       previews in the PR.
+
+The demos use the shared widgets. Browser verification and preview links
+remain before this draft is ready for review.
 
 ### Related
 

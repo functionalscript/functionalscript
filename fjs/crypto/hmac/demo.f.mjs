@@ -13,7 +13,7 @@
 import { hmac } from './module.f.mjs'
 import { hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from '../../website/demo/hash/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { textField, inputField, fieldUpdate, caption } from '../../website/demo/module.f.mjs'
+import { selectField, textField, inputField, fieldUpdate, caption } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 
 /** Bind the hash and its formatter once for each HMAC choice.
@@ -41,11 +41,7 @@ export const demo = {
         const algorithm = selectedAlgorithm(state.algorithm)
         return ['div',
             ['p', 'HMAC uses a key to compute an authentication code for a message. Both inputs are encoded as UTF-8; the result is shown in hexadecimal.'],
-            ['p',
-                ['label', { for: 'algorithm' }, 'Algorithm '],
-                ['select', { id: 'algorithm', name: 'algorithm' },
-                    ...algorithms.map(a => algorithmOption(a, algorithm))],
-            ],
+            selectField({ name: 'algorithm', label: 'Algorithm' }, algorithms.map(a => algorithmOption(a, algorithm))),
             inputField({ name: 'key', label: 'Key (UTF-8)' }, state.key),
             textField({ name: 'text', label: 'Message (UTF-8)' }, state.text),
             caption(`HMAC-${algorithm.name}, hex:`),

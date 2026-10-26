@@ -402,7 +402,7 @@ const drawn = module => {
 export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast).edag))))
 
 /**
- * The drop-down is [the compiler's shared list](../examples/module.f.js), one
+ * The drop-down is [the compiler's shared list](../examples/module.f.mjs), one
  * program followed down the pipeline: a program picked here is found under
  * the same name on the tokenizer's, parser's, serializer's, Rust and
  * side-by-side pages. What this drawing makes of the ones written for it:

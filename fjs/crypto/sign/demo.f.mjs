@@ -19,7 +19,7 @@
 import { secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeK, fromCurve, sign, verify } from './module.f.mjs'
 import { algorithmOf, algorithmOption, opensslVerification, sha2Algorithms } from '../../website/demo/hash/module.f.mjs'
-import { caption, inputField, refusal, textField } from '../../website/demo/module.f.mjs'
+import { button, selectField, caption, inputField, refusal, textField } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import {
     resultMarker,
@@ -223,14 +223,8 @@ const update = state => event => {
 }
 
 /** @type {(name: string, label: string, options: readonly { readonly name: string }[], picked: string) => Element} */
-const select = (name, label, options, picked) => ['p',
-    ['label', { for: name }, label],
-    ' ',
-    ['select', { id: name, name }, ...options.map(o => algorithmOption(o, { name: picked }))],
-]
-
-/** @type {(name: string, label: string, disabled: boolean) => Element} */
-const button = (name, label, disabled) => ['button', { type: 'button', name, ...(disabled ? { disabled: '' } : {}) }, label]
+const select = (name, label, options, picked) =>
+    selectField({ name, label }, options.map(o => algorithmOption(o, { name: picked })))
 
 /** @type {(text: string) => Element} */
 const paragraph = text => ['p', text]

@@ -12,16 +12,13 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
-import { inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.mjs'
+import { option, selectField, button, inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.mjs'
 
 /** @type {(name: string, label: string, options: readonly string[], value: string) => Element} */
-const select = (name, label, options, value) => ['p', ['label', { for: `secp-${name}` }, `${label} `],
-    ['select', { id: `secp-${name}`, name }, ...options.map(/** @returns {Element} */ o => ['option', { value: o, ...(o === value ? { selected: '' } : {}) }, o])]]
-
-/** @type {(name: string, label: string, disabled?: boolean) => Element} */
-const button = (name, label, disabled = false) => ['button', { type: 'button', name, ...(disabled ? { disabled: '' } : {}) }, label]
+const select = (name, label, options, value) =>
+    selectField({ name, label }, options.map(o => option(o, o, o === value)))
 
 /** @type {(p: Point2D) => string} */
 const pointValue = p => `${p[0]},${p[1]}`
@@ -34,8 +31,8 @@ const paragraph = text => ['p', text]
 const pre = text => ['pre', text]
 
 /** @type {(name: string, label: string, value: string) => Element} */
-const pointSelect = (name, label, value) => ['p', ['label', { for: `secp-${name}` }, `${label} `],
-    ['select', { id: `secp-${name}`, name }, ...pointOptions.map(/** @returns {Element} */ o => ['option', { value: o, ...(value === o ? { selected: '' } : {}) }, pointText(pointOf(o) ?? null)])]]
+const pointSelect = (name, label, value) =>
+    selectField({ name, label }, pointOptions.map(o => option(o, pointText(pointOf(o) ?? null), o === value)))
 
 /** @type {(value: string) => Element} */
 const scalarRange = value => ['p',

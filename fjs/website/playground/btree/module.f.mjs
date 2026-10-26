@@ -50,7 +50,7 @@
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
 import { decimal, graphOf, sameShape, shuffled } from '../../demo/versions/module.f.mjs'
 import { graphSvg } from '../../demo/graph/module.f.mjs'
-import { refusal } from '../../demo/module.f.mjs'
+import { button, option, selectField, refusal } from '../../demo/module.f.mjs'
 import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.mjs'
 import { contains, empty as emptySet, set as setAdd } from '../../../types/string_set/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
@@ -412,13 +412,10 @@ export const demo = {
     },
     view: game => ['div',
         ['p', 'Make the tree perfect: every node full, two keys each. Your one move: click a key, and it is removed and inserted again. A new tree is its keys inserted in random order.'],
+        selectField({ name: 'level', label: 'Level' },
+            depths.map(d => option(String(d), `Depth ${d}: ${keyCount(d)} keys`, d === game.depth))),
         ['p',
-            ['label', { for: 'level' }, 'Level '],
-            ['select', { id: 'level', name: 'level' }, ...depths.map(d => /** @type {Element} */ (['option',
-                d === game.depth ? { value: String(d), selected: '' } : { value: String(d) },
-                `Depth ${d}: ${keyCount(d)} keys`]))],
-            ' ',
-            ['button', { type: 'button', name: 'new' }, 'New tree'],
+            button('new', 'New tree'),
             ' ',
             ['label',
                 ['input', { type: 'checkbox', name: 'animate', ...(game.animate ? { checked: '' } : {}) }],
