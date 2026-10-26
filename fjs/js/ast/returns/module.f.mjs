@@ -11,7 +11,7 @@
  */
 
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
-import { mapOperator, operatorOperands } from '../module.f.mjs'
+import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 
@@ -78,9 +78,6 @@ const eagerTask = (source, destination, owner, permitted) => {
         })
     })
 }
-
-/** @type {(item: Item<Value>) => item is readonly ['...', Value]} */
-const isSpread = item => item instanceof Array && item[0] === '...'
 
 /** Original item metadata survives snapshots of the expanded values. @type {(items: readonly Item<Value>[], values: readonly Value[]) => readonly Item<Value>[]} */
 const mappedItems = (items, values) => items.map((item, index) => isSpread(item) ? ['...', values[index]] : values[index])
