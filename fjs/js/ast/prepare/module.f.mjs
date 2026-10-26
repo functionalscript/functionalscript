@@ -21,7 +21,7 @@
  * @import { _Block, _Context, _Facts, _Flow, _Flows, _Link, _Node, _Prepared, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
  */
 
-import { mapOperator, operatorOperands } from '../module.f.mjs'
+import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { scalarLoopOf } from '../loop/module.f.js'
 import { _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
@@ -228,7 +228,7 @@ const prepareValue = (value, context) => call(() => {
             const operation = memberCall ? /** @type {Operator<NormalValue>} */ (['.', value[1][1], value[1][2], ['|()', value[2]]]) : value
             const input = operatorOperands(operation)
             const spreadItems = operation[0] === 'array' ? operation[1] : operation[0] === '()' ? operation[2] : []
-            const flags = spreadItems.map(item => item instanceof Array && item[0] === '...')
+            const flags = spreadItems.map(isSpread)
             const spreadFlags = operation[0] === '()' ? [false, ...flags] : flags
             if ((memberCall || value[0] === '?.' || value[0] === '?.()' || (value[0] === '.' && value.length === 4))
                 && (memberCall ? input : input.slice(1)).some(child => nonlocalValue(child, context))) {
