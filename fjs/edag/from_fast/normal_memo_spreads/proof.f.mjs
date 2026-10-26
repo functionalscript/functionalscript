@@ -11,8 +11,8 @@ import { fromFast } from '../module.f.mjs'
 import { toFast } from '../../to_fast/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.mjs'
 import { requiredFunction, failed, evaluate, failure, flat } from '../member_returns/proof.f.mjs'
-import { acrossLoop } from '../normal_memo_members/proof.f.mjs'
-import { collector } from '../spread_returns/proof.f.mjs'
+import { _acrossLoop as acrossLoop } from '../normal_memo_members/proof.f.mjs'
+import { _collector as collector } from '../spread_returns/proof.f.mjs'
 import { staticRuntime } from '../native_returns/proof.f.mjs'
 
 export const proof = /** @type {const} */ ({

@@ -12,14 +12,14 @@ import { _id as id, _ref as ref, _result as result, _target as target, _body as 
 import { requiredFunction, failed, evaluate, failure, flat, throwingRuntime } from '../member_returns/proof.f.mjs'
 
 /** Demand one normal recipe through repeated loop operands. @type {(initializer: Value, use: (lazy: BindingId) => Value, observe?: (lazy: BindingId, loop: Loop) => Value, limit?: Value, selected?: Value) => Exp} */
-export const acrossLoop = (initializer, use, observe = (_, loop) => collectedMemo(ref(loop.results[0])), limit = 2, selected = true) => {
+export const _acrossLoop = (initializer, use, observe = (_, loop) => collectedMemo(ref(loop.results[0])), limit = 2, selected = true) => {
     const lazy = id(0), loop = collectingMemo(use(lazy), limit, selected)
     return fromFast(result(observe(lazy, loop), [['define', lazy, initializer, 'lazy'], ['loop', loop]]))
 }
 
 export const proof = /** @type {const} */ ({
     optionalReceiverSharesItsEstablishedProperty: () => {
-        const value = evaluate(acrossLoop(['array', [['array', [4]]]], lazy => ['?.', ref(lazy), 0], (lazy, loop) => ['array', [
+        const value = evaluate(_acrossLoop(['array', [['array', [4]]]], lazy => ['?.', ref(lazy), 0], (lazy, loop) => ['array', [
             collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ['.', ref(lazy), 0],
         ]]))
         assert(value instanceof Array)
@@ -28,25 +28,25 @@ export const proof = /** @type {const} */ ({
         assertEq(value[0], value[2])
     },
     optionalComputedKeyRetainsNormalDemandState: () => {
-        const value = evaluate(acrossLoop(['+', 0, 0], lazy => ['?.', ['array', [7]], ['Number', ref(lazy)]], (lazy, loop) => ['array', [
+        const value = evaluate(_acrossLoop(['+', 0, 0], lazy => ['?.', ['array', [7]], ['Number', ref(lazy)]], (lazy, loop) => ['array', [
             collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ref(lazy),
         ]]))
         assertStructurallySame(value, [7, 7, 0])
     },
     nullishOptionalRegionsSkipFailingKeyAndArguments: () => {
         for (const receiver of /** @type {readonly Value[]} */ ([null, undefined])) {
-            assertEq(evaluate(acrossLoop(failed('skipped key'), lazy => ['?.', receiver, ['Number', ref(lazy)], ['|()', [ref(lazy)]]])), undefined)
-            assertEq(evaluate(acrossLoop(failed('skipped bare argument'), lazy => ['?.()', receiver, [ref(lazy)]])), undefined)
-            assertEq(evaluate(acrossLoop(failed('skipped member argument'), lazy => ['.', ['object', [[':', 'method', receiver]]], 'method', ['|?.()', [ref(lazy)]]])), undefined)
+            assertEq(evaluate(_acrossLoop(failed('skipped key'), lazy => ['?.', receiver, ['Number', ref(lazy)], ['|()', [ref(lazy)]]])), undefined)
+            assertEq(evaluate(_acrossLoop(failed('skipped bare argument'), lazy => ['?.()', receiver, [ref(lazy)]])), undefined)
+            assertEq(evaluate(_acrossLoop(failed('skipped member argument'), lazy => ['.', ['object', [[':', 'method', receiver]]], 'method', ['|?.()', [ref(lazy)]]])), undefined)
         }
     },
     optionalCallableAndArgumentsShareTheirNormalCells: () => {
         const argument = id(0)
         const callable = /** @type {Value} */ (['function', requiredFunction(ref(argument), [argument])])
-        assertStructurallySame(evaluate(acrossLoop(callable, lazy => ['?.()', ref(lazy), [9]], (lazy, loop) => ['array', [
+        assertStructurallySame(evaluate(_acrossLoop(callable, lazy => ['?.()', ref(lazy), [9]], (lazy, loop) => ['array', [
             collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ['===', ref(lazy), ref(lazy)],
         ]])), [9, 9, true])
-        const shared = evaluate(acrossLoop(['array', [4]], lazy => ['?.()', callable, [ref(lazy)]], (lazy, loop) => ['array', [
+        const shared = evaluate(_acrossLoop(['array', [4]], lazy => ['?.()', callable, [ref(lazy)]], (lazy, loop) => ['array', [
             collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ref(lazy),
         ]]))
         assert(shared instanceof Array)
@@ -56,10 +56,10 @@ export const proof = /** @type {const} */ ({
     },
     directAndContinuedMembersRetainTheirReceiver: () => {
         for (const optional of /** @type {const} */ ([false, true])) {
-            assertEq(evaluate(acrossLoop(['+', 0, 1], lazy => ['.', 'abcd', 'slice', [optional ? '|?.()' : '|()', [ref(lazy)]]])), 'bcd')
+            assertEq(evaluate(_acrossLoop(['+', 0, 1], lazy => ['.', 'abcd', 'slice', [optional ? '|?.()' : '|()', [ref(lazy)]]])), 'bcd')
         }
-        assertEq(evaluate(acrossLoop(['+', 0, 1], lazy => ['()', ['.', 'abcd', 'slice'], [ref(lazy)]])), 'bcd')
-        assertEq(evaluate(acrossLoop(['+', 0, 1], lazy => ['?.', 'abcd', 'slice', ['|()', [ref(lazy)]]])), 'bcd')
+        assertEq(evaluate(_acrossLoop(['+', 0, 1], lazy => ['()', ['.', 'abcd', 'slice'], [ref(lazy)]])), 'bcd')
+        assertEq(evaluate(_acrossLoop(['+', 0, 1], lazy => ['?.', 'abcd', 'slice', ['|()', [ref(lazy)]]])), 'bcd')
     },
     ownMemberAndWrappedNormalCalleeKeepArgumentSharing: () => {
         const argument = id(0)
@@ -70,7 +70,7 @@ export const proof = /** @type {const} */ ({
             lazy => ['()', ['block', result(['.', object, 'method'])], [ref(lazy)]],
         ])
         for (const use of values) {
-            const value = evaluate(acrossLoop(['array', [4]], use, (lazy, loop) => ['array', [
+            const value = evaluate(_acrossLoop(['array', [4]], use, (lazy, loop) => ['array', [
                 collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ref(lazy),
             ]]))
             assert(value instanceof Array)
@@ -85,35 +85,35 @@ export const proof = /** @type {const} */ ({
         const badKey = /** @type {Value} */ (['object', [[':', 'valueOf', ['function', {
             ...requiredFunction(0), body: body(['throw', 'key conversion']),
         }]]]])
-        assertEq(failure(acrossLoop(['array', [4]], lazy => ['.', failed('receiver prefix'), 'method', ['|()', [ref(lazy)]]])), 'receiver prefix')
-        assertEq(failure(acrossLoop(['array', [4]], lazy => ['.', ['array', [callable]], ['Number', badKey], ['|()', [ref(lazy)]]])), 'key conversion')
-        assertEq(failure(acrossLoop(['array', [4]], lazy => ['.', 'abcd', 'slice', ['|()', [ref(lazy)]]]), throwingRuntime), 'lookup')
+        assertEq(failure(_acrossLoop(['array', [4]], lazy => ['.', failed('receiver prefix'), 'method', ['|()', [ref(lazy)]]])), 'receiver prefix')
+        assertEq(failure(_acrossLoop(['array', [4]], lazy => ['.', ['array', [callable]], ['Number', badKey], ['|()', [ref(lazy)]]])), 'key conversion')
+        assertEq(failure(_acrossLoop(['array', [4]], lazy => ['.', 'abcd', 'slice', ['|()', [ref(lazy)]]]), throwingRuntime), 'lookup')
     },
     onlyNullishCallablesSkipNormalDemandArguments: () => {
         const argument = id(0), callable = /** @type {Value} */ (['function', requiredFunction(ref(argument), [argument])])
-        assertEq(failure(acrossLoop(failed('reached argument'), lazy => ['?.()', callable, [ref(lazy)]])), 'reached argument')
+        assertEq(failure(_acrossLoop(failed('reached argument'), lazy => ['?.()', callable, [ref(lazy)]])), 'reached argument')
         for (const value of /** @type {readonly Value[]} */ ([0, false, ''])) {
-            failure(acrossLoop(['array', [4]], lazy => ['?.()', value, [ref(lazy)]]))
-            failure(acrossLoop(['array', [4]], lazy => ['.', ['object', [[':', 'method', value]]], 'method', ['|?.()', [ref(lazy)]]]))
+            failure(_acrossLoop(['array', [4]], lazy => ['?.()', value, [ref(lazy)]]))
+            failure(_acrossLoop(['array', [4]], lazy => ['.', ['object', [[':', 'method', value]]], 'method', ['|?.()', [ref(lazy)]]]))
         }
     },
     optionalMemberSpreadsSkipOrExpandAtTheirReachedPosition: () => {
         const rest = id(0)
         const callable = /** @type {Value} */ (['function', { ...requiredFunction(ref(rest)), rest }])
         const receiver = /** @type {Value} */ (['object', [[':', 'method', callable]]])
-        const value = evaluate(acrossLoop(['array', [['array', [4]]]], lazy => ['.', receiver, 'method', ['|?.()', [0, ['...', ref(lazy)], 9]]], (lazy, loop) => ['array', [
+        const value = evaluate(_acrossLoop(['array', [['array', [4]]]], lazy => ['.', receiver, 'method', ['|?.()', [0, ['...', ref(lazy)], 9]]], (lazy, loop) => ['array', [
             collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ['.', ref(lazy), 0],
         ]]))
         assert(value instanceof Array && value[0] instanceof Array && value[1] instanceof Array)
         assertStructurallySame(value, [[0, [4], 9], [0, [4], 9], [4]])
         assertEq(value[0][1], value[1][1])
         assertEq(value[0][1], value[2])
-        assertEq(evaluate(acrossLoop(failed('skipped spread'), lazy => ['.', ['object', [[':', 'method', null]]], 'method', ['|?.()', [['...', ref(lazy)]]]])), undefined)
-        assertEq(failure(acrossLoop(failed('reached spread'), lazy => ['.', receiver, 'method', ['|()', [0, ['...', ref(lazy)], 9]]])), 'reached spread')
+        assertEq(evaluate(_acrossLoop(failed('skipped spread'), lazy => ['.', ['object', [[':', 'method', null]]], 'method', ['|?.()', [['...', ref(lazy)]]]])), undefined)
+        assertEq(failure(_acrossLoop(failed('reached spread'), lazy => ['.', receiver, 'method', ['|()', [0, ['...', ref(lazy)], 9]]])), 'reached spread')
     },
     zeroAndUnselectedIterationsKeepDemandDeferred: () => {
-        assertEq(evaluate(acrossLoop(failed('zero iterations'), lazy => ['?.', ref(lazy), 'length'], (_, loop) => ref(loop.results[0]), 0)), null)
-        assertStructurallySame(evaluate(acrossLoop(failed('unselected demand'), lazy => ['?.', ref(lazy), 'length'], (_, loop) => ref(loop.results[0]), 2, false)), [[null, null], null])
+        assertEq(evaluate(_acrossLoop(failed('zero iterations'), lazy => ['?.', ref(lazy), 'length'], (_, loop) => ref(loop.results[0]), 0)), null)
+        assertStructurallySame(evaluate(_acrossLoop(failed('unselected demand'), lazy => ['?.', ref(lazy), 'length'], (_, loop) => ref(loop.results[0]), 2, false)), [[null, null], null])
     },
     sequentialHelpersAndCallerShareTheMemberValue: () => {
         const lazy = id(0)
