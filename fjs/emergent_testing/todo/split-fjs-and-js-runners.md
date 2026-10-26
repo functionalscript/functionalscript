@@ -1,7 +1,7 @@
 ## Split FJS and JS runners
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
