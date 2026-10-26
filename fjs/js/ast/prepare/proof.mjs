@@ -17,6 +17,9 @@ const id = index => ({ index })
 /** @type {(fn: FastFunction) => (...args: readonly unknown[]) => any} */
 const compile = fn => Function(`"use strict";return (${functionStringify(prepareFunction(fn))});`)()
 
+/** @type {(source: FastFunction) => (...args: readonly unknown[]) => any} */
+const standalone = source => Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
+
 export const proof = {
     objectSpreadReturnOperands: () => {
         const target = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -30,10 +33,7 @@ export const proof = {
         const sourceFunction = value => ({ target, parameters: [selected, payload], rest: null, self: null, captures: [],
             body: { statements: [['define', result, value, 'required']], exit: ['return', target, ['ref', result]] } })
         /** @type {(value: FastValue) => (...args: readonly unknown[]) => any} */
-        const standalone = value => {
-            const source = sourceFunction(value)
-            return Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
-        }
+        const standaloneValue = value => standalone(sourceFunction(value))
         /** @type {FastValue} */
         const failingKey = ['object', [[':', 'toString', ['function', { target: child, parameters: [], rest: null, self: null, captures: [],
             body: { statements: [], exit: ['throw', 'key'] } }]]]]
@@ -41,7 +41,7 @@ export const proof = {
         const captureReturn = ['function', { target: child, parameters: [], rest: null, self: null,
             captures: [{ binding: capture, value: escape() }], body: { statements: [], exit: ['return', child, ['ref', capture]] } }]
         /** @type {readonly ((value: FastValue) => (...args: readonly unknown[]) => any)[]} */
-        const renders = [value => compile(sourceFunction(value)), standalone]
+        const renders = [value => compile(sourceFunction(value)), standaloneValue]
         for (const render of renders) {
             for (const value of /** @type {readonly FastValue[]} */ ([null, undefined, 0, false, 0n, '', ['entry']])) {
                 const fn = render(['object', [['...', value], [':', 'x', choice(5)]]])
@@ -102,8 +102,6 @@ export const proof = {
                 statements: [['define', value, expression, 'required']], exit: ['break', loop, [['ref', value]]],
             } }]], exit: ['return', target, ['ref', result]],
         } })
-        /** @type {(source: FastFunction) => (...args: readonly unknown[]) => any} */
-        const standalone = source => Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
         for (const render of [compile, standalone]) {
             assertEq(render(fn(['object', [['...', null], [':', 'x', leave]]]))(), 9)
             assertEq(render(fn(['object', [['...', leave], [':', failingKey, 0]]]))(), 9)
@@ -123,10 +121,7 @@ export const proof = {
         /** @type {(value: FastValue) => (...args: readonly unknown[]) => any} */
         const valueFunction = value => compile(sourceFunction(value))
         /** @type {(value: FastValue) => (...args: readonly unknown[]) => any} */
-        const standalone = value => {
-            const source = sourceFunction(value)
-            return Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
-        }
+        const standaloneValue = value => standalone(sourceFunction(value))
         const child = /** @type {const} */ ({ kind: 'function', index: 0 })
         const collect = /** @type {FastValue} */ (['function', { target: child, parameters: [], rest, self: null, captures: [],
             body: { statements: [], exit: ['return', child, ['ref', rest]] } }])
@@ -153,7 +148,7 @@ export const proof = {
         const captured = id(104)
         const captureReturn = /** @type {FastValue} */ (['function', { target: child, parameters: [], rest: null, self: null,
             captures: [{ binding: captured, value: escape() }], body: { statements: [], exit: ['return', child, ['ref', captured]] } }])
-        for (const render of [valueFunction, standalone]) {
+        for (const render of [valueFunction, standaloneValue]) {
             throws(() => render(['array', [['...', 0], escape()]])(), TypeError)
             throws(() => render(['()', collect, [['...', 0], escape()]])(), TypeError)
             assertEq(render(['array', [['...', ['array', []]], escape()]])(), 7)
@@ -202,8 +197,6 @@ export const proof = {
                 statements: [['define', value, expression, 'required']], exit: ['break', loop, [['ref', value]]],
             } }]], exit: ['return', target, ['ref', result]],
         } })
-        /** @type {(source: FastFunction) => (...args: readonly unknown[]) => any} */
-        const standalone = source => Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
         for (const render of [compile, standalone]) {
             throws(() => render(fn(['array', [['...', 0], leave]]))(), TypeError)
             throws(() => render(fn(['()', collect, [['...', 0], leave]]))(), TypeError)
@@ -321,8 +314,6 @@ export const proof = {
         const leave = ['block', { statements: [], exit: ['break', loop, [9]] }]
         /** @type {FastValue} */
         const choice = ['if', ['ref', selected], { statements: [], exit: ['break', loop, [9]] }, { statements: [], exit: ['yield', [1]] }]
-        /** @type {(source: FastFunction) => (...args: readonly unknown[]) => any} */
-        const standalone = source => Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
         for (const render of [compile, standalone]) {
             // A former bare-call path must retain lookup before a successful
             // outer break, and preserve the receiver on a normal argument.
