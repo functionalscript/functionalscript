@@ -5,7 +5,7 @@
  * from a copy of another page.
  *
  * - {@link stageDemo} is the page around the stage: a `Source` field,
- *   highlighted, over [the compiler's shared examples](../examples/module.f.js),
+ *   highlighted, over [the compiler's shared examples](../examples/module.f.mjs),
  *   opening on the first.
  * - {@link parsed} is the step every stage after the tokenizer begins with:
  *   the front end over the text, its refusal as the parser's message.
