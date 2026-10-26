@@ -10,7 +10,7 @@ object-spread return lifting is implemented;
 closure-capture return lifting is implemented;
 loop-transfer payload return lifting is implemented;
 loop-entry initializer return lifting is implemented;
-native-callee return lifting is claimed for the next stacked PR;
+native-callee return lifting is implemented;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -209,8 +209,16 @@ successful return. A key's own return skips conversion and all remaining work.
 Only normal completion builds the object from established string keys and
 values, retaining duplicate-key and enumeration rules, `__proto__` as data and
 value identities. No-return inputs retain their original object syntax.
-Plain-call admission retains member/native callee provenance through wrappers
-and comma results. Member and optional-call operands use the shared FAST return
+Plain-call admission retains callee provenance through wrappers and comma
+results. Established static and intrinsic callable leaves and the `entry` and
+`hasEntry` helpers admit argument return lifting through the same sequencer.
+Required callee snapshots precede arguments: a missing or failing static
+provider still fails at the read before a later argument can return. A returning
+argument skips invocation and the remaining arguments or spreads; normal paths
+retain ordinary invocation behavior. Value blocks, conditionals and comma
+results carry that existing callee provenance. Wrapped member references keep
+their separate receiver/provenance boundary.
+Member and optional-call operands use the shared FAST return
 normalizer and the member-resolution protocol below. Closure captures sequence
 their construction-time expressions using the enclosing function owner. Earlier
 captures remain required before a later capture can return; a return skips the
@@ -234,7 +242,7 @@ enclosing-iteration memo cells keep their existing lifetimes; each reached inner
 entry remains fresh. One-time entry setup keeps the existing helper fallback
 when it prevents canonical invocation-root reuse. No-return inputs retain their
 syntax identity.
-Lazy initializers and native bare callees remain
+Lazy initializers and remaining wrapped member callees remain
 separate boundaries. A loop transfer cannot escape the operand's locally owned
 loop chain.
 
@@ -673,8 +681,10 @@ their documented normalization. Repeated conversions must stabilize.
       evaluation order, exact targets, signatures, memo state and simultaneous updates.
 - [x] Lift owning returns through loop-entry initializers in enclosing scope,
       preserving evaluation order, exact targets, state signatures and memo lifetimes.
-- [ ] Extend completion handling to lazy initializers and remaining
-      native/wrapped callee forms, preserving their evaluation boundaries.
+- [x] Lift owning returns through arguments to established native callees and
+      their wrappers, preserving callee reads before arguments and normal invocation.
+- [ ] Extend completion handling to lazy initializers and remaining wrapped
+      member callee forms, preserving their evaluation boundaries.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.
