@@ -30,7 +30,7 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { assertExampleIds } from '../../website/demo/examples/module.f.js'
+import { assertExampleIds } from '../../website/demo/examples/module.f.mjs'
 import { captionMarker, codeMarker, resultMarker, verdictMarker } from '../../website/style/module.f.js'
 import { unknown } from '../module.f.mjs'
 import { structSchemaEntries, tupleSchemaEntries } from '../common/module.f.mjs'
@@ -47,7 +47,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { concat } from '../../types/string/module.f.mjs'
 import { dropWhile, first, flat, intersperse, map, stateScan, takeWhile, toArray } from '../../types/list/module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { caption, textField } from '../../website/demo/module.f.mjs'
+import { option, selectField, caption, textField } from '../../website/demo/module.f.mjs'
 import { highlight, render } from '../../website/demo/highlight/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { pageHref } from '../../website/page/module.f.mjs'
@@ -392,7 +392,7 @@ const outputsView = s => {
 
 /** @type {(key: string, compare: string, label: string) => Element} */
 const compareOption = (key, compare, label) =>
-    ['option', key === compare ? { value: key, selected: '' } : { value: key }, label]
+    option(key, label, key === compare)
 
 /**
  * The value box and, under it, what the two readers make of the value
@@ -439,7 +439,7 @@ const partnerOf = (e, shown) => e.schemas.length === 2 ? schemaKey(e, shown === 
 
 /** @type {(e: DemoExample, picked: DemoExample) => Element} */
 const exampleOption = (e, picked) =>
-    ['option', { value: e.name, ...(e === picked ? { selected: '' } : {}), 'data-example-id': e.id }, e.name]
+    ['option', { ...option(e.name, e.name, e === picked)[1], 'data-example-id': e.id }, e.name]
 
 /**
  * The state on picking `e`: its first schema, compared with its pair's other
@@ -497,13 +497,9 @@ export const schemaDemo = groups => {
      * @type {(picked: DemoExample) => readonly Element[]}
      */
     const pickerView = picked => examples.length < 2 ? [] : [
-        ['p',
-            ['label', { for: 'example' }, 'Example '],
-            ['select', { id: 'example', name: 'example' },
-                ...groups.map(([label, g]) =>
-                    /** @type {Element} */(['optgroup', { label }, ...g.map(x => exampleOption(x, picked))])),
-            ],
-        ],
+        selectField({ name: 'example', label: 'Example' },
+            groups.map(([label, g]) =>
+                ['optgroup', { label }, ...g.map(x => exampleOption(x, picked))])),
     ]
 
     /**
@@ -521,13 +517,10 @@ export const schemaDemo = groups => {
             .map(([k, e, x]) => compareOption(k, compare, e.schemas.length === 1 ? e.name : `${e.name}: ${x.source}`))
         const c = compare === '' ? undefined : _compare(s.schema, schemaOf(compare).schema)
         return [
-            ['p',
-                ['label', { for: 'compare' }, 'Compare with '],
-                ['select', { id: 'compare', name: 'compare' },
-                    compareOption('', compare, 'nothing'),
-                    ...groups.map(([label, g]) => /** @type {Element} */(['optgroup', { label }, ...options(g)])),
-                ],
-            ],
+            selectField({ name: 'compare', label: 'Compare with' }, [
+                compareOption('', compare, 'nothing'),
+                ...groups.map(([label, g]) => /** @type {Element} */(['optgroup', { label }, ...options(g)])),
+            ]),
             ...(c === undefined ? [] : /** @type {readonly Element[]} */ ([
                 ['p', c.verdict],
                 ['pre', { [codeMarker]: '' }, c.calls],

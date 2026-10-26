@@ -2,7 +2,7 @@
  * @import { Examples } from './types.ts'
  */
 
-import { examplePicker, name } from './module.f.js'
+import { examplePicker, name } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { occurrences } from '../../../types/string/module.f.mjs'

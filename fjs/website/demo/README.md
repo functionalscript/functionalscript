@@ -139,9 +139,20 @@ empty initial input is right only when empty is itself the point.
 
 ## Examples
 
+`option(value, text, selected)`, `selectField({ name, label }, options)` and
+`button(name, label, disabled?)` are exported by the shared demo module.
+A select accepts both options and option groups. Its label and ID use the
+local name; the control-ID boundary scopes their references when rendered.
+Buttons use `type="button"` and keep their semantic event names.
+
+The implementations live in `controls/`, below both the examples picker and
+the shared demo module, so reusing them does not introduce an import cycle.
+The picker is `.f.mjs` because the compiler currently refuses the `name`
+property read in `selectField`'s options destructuring.
+
 **Offer an examples drop-down when the module has several behaviours one
 input cannot show** — the compiler's language features, DataJS's kinds of
-sharing. Use [`examples`](./examples/module.f.js), through
+sharing. Use [`examples`](./examples/module.f.mjs), through
 `textDemo`'s `examples` option where the state is a text.
 
 - The first example is the initial state.
