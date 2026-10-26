@@ -11,7 +11,7 @@ import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { normalizeLazyReturns, normalizeMemo } from './module.f.mjs'
 import { proof as deferredReturns } from '../../../edag/from_fast/lazy_returns/proof.f.mjs'
 import { proof as initializerLoops } from '../../../edag/from_fast/initializer_loop_cells/proof.f.mjs'
-import { ownedLoopValue, proof as ownedOperands } from '../../../edag/from_fast/operand_owned_demands/proof.f.mjs'
+import { _ownedLoopValue as ownedLoopValue, proof as ownedOperands } from '../../../edag/from_fast/operand_owned_demands/proof.f.mjs'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })

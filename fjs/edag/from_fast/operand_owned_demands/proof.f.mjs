@@ -15,7 +15,7 @@ import { collector } from '../spread_returns/proof.f.mjs'
 import { deferred } from '../lazy_returns/proof.f.mjs'
 
 /** The selected declaration is wholly inside this value's loop region. @type {(initializer: Value) => Value} */
-export const ownedLoopValue = initializer => {
+export const _ownedLoopValue = initializer => {
     const local = id(0), innerOutput = id(0), outerOutput = id(0)
     const outer = /** @type {const} */ ({ kind: 'loop', index: 0 })
     const inner = /** @type {const} */ ({ kind: 'loop', index: 0 })
@@ -37,31 +37,31 @@ export const proof = /** @type {const} */ ({
     optionalCallSkipsWhollyOwnedNormalAndReturningCells: () => {
         for (const completion of /** @type {const} */ ([false, true])) {
             const initializer = completion ? mixed(false, failed('hidden optional demand')) : failed('hidden optional demand')
-            assertEq(evaluate(calledRecipe(['?.()', null, [ownedLoopValue(initializer)]])), undefined)
-            assertEq(evaluate(calledRecipe(['?.()', undefined, [ownedLoopValue(initializer)]])), undefined)
+            assertEq(evaluate(calledRecipe(['?.()', null, [_ownedLoopValue(initializer)]])), undefined)
+            assertEq(evaluate(calledRecipe(['?.()', undefined, [_ownedLoopValue(initializer)]])), undefined)
         }
     },
     reachedOptionalArgumentSharesItsWhollyOwnedCell: () => {
         const argument = id(0)
         const identity = /** @type {Value} */ (['function', requiredFunction(ref(argument), [argument])])
-        const value = evaluate(acrossLoop(['?.()', identity, [ownedLoopValue(['array', [4]])]], lazy => ref(lazy), (lazy, loop) => ['array', [
+        const value = evaluate(acrossLoop(['?.()', identity, [_ownedLoopValue(['array', [4]])]], lazy => ref(lazy), (lazy, loop) => ['array', [
             collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ref(lazy),
         ]]))
         assert(value instanceof Array)
         assertStructurallySame(value, [[4], [4], [4]])
         assertEq(value[0], value[1])
         assertEq(value[0], value[2])
-        assertStructurallySame(evaluate(calledRecipe(['?.()', identity, [ownedLoopValue(mixed(false, ['array', [4]]))]])), [4])
+        assertStructurallySame(evaluate(calledRecipe(['?.()', identity, [_ownedLoopValue(mixed(false, ['array', [4]]))]])), [4])
     },
     reachedOwnedReturnSkipsInvocationAndRemainingArguments: () => {
         const callee = /** @type {Value} */ (['function', { ...requiredFunction(0), body: body(['throw', 'skipped invocation']) }])
-        assertEq(evaluate(calledRecipe(['?.()', callee, [ownedLoopValue(escape(7)), failed('skipped argument suffix')]])), 7)
-        assertEq(evaluate(calledRecipe(['()', callee, [ownedLoopValue(escape(8)), failed('skipped argument suffix')]])), 8)
+        assertEq(evaluate(calledRecipe(['?.()', callee, [_ownedLoopValue(escape(7)), failed('skipped argument suffix')]])), 7)
+        assertEq(evaluate(calledRecipe(['()', callee, [_ownedLoopValue(escape(8)), failed('skipped argument suffix')]])), 8)
     },
     arrayCallObjectSpreadsAndEntriesExposeOwnedNormalCells: () => {
         for (const completion of /** @type {const} */ ([false, true])) {
-            const array = ownedLoopValue(completion ? mixed(false, ['array', [4, 5]]) : ['array', [4, 5]])
-            const object = ownedLoopValue(completion ? mixed(false, ['object', [[':', 'key', 4]]]) : ['object', [[':', 'key', 4]]])
+            const array = _ownedLoopValue(completion ? mixed(false, ['array', [4, 5]]) : ['array', [4, 5]])
+            const object = _ownedLoopValue(completion ? mixed(false, ['object', [[':', 'key', 4]]]) : ['object', [[':', 'key', 4]]])
             assertStructurallySame(evaluate(calledRecipe(['array', [0, ['...', array], 9]])), [0, 4, 5, 9])
             assertStructurallySame(evaluate(calledRecipe(['()', collector(), [0, ['...', array], 9]])), [0, 4, 5, 9])
             assertStructurallySame(evaluate(calledRecipe(['object', [[':', 'before', 1], ['...', object], [':', 'after', 9]]])), { before: 1, key: 4, after: 9 })
@@ -69,7 +69,7 @@ export const proof = /** @type {const} */ ({
         }
     },
     earlierExpansionsAndArgumentsPrecedeLaterOwnedReturns: () => {
-        const returning = ownedLoopValue(escape(7))
+        const returning = _ownedLoopValue(escape(7))
         failure(calledRecipe(['array', [['...', 0], returning]]))
         failure(calledRecipe(['()', collector(), [['...', 0], returning]]))
         assertEq(failure(calledRecipe(['()', collector(), [failed('earlier argument'), returning]])), 'earlier argument')
@@ -82,14 +82,14 @@ export const proof = /** @type {const} */ ({
         }]]]])
         for (const inert of /** @type {const} */ ([false, true])) {
             for (const returning of /** @type {const} */ ([false, true])) {
-                const value = ownedLoopValue(returning ? escape(7) : ['array', [4]])
+                const value = _ownedLoopValue(returning ? escape(7) : ['array', [4]])
                 assertEq(failure(calledRecipe(['object', [
                     ...inert ? [/** @type {const} */ (['...', ['object', []]])] : [], [':', key, value],
                 ]])), 'key conversion')
             }
             const selected = evaluate(acrossLoop(['object', [
                 ...inert ? [/** @type {const} */ (['...', ['object', []]])] : [],
-                [':', ['object', [[':', 'toString', ['function', requiredFunction('converted')]]]], ownedLoopValue(['array', [4]])],
+                [':', ['object', [[':', 'toString', ['function', requiredFunction('converted')]]]], _ownedLoopValue(['array', [4]])],
             ]], lazy => ['.', ref(lazy), 'converted'], (lazy, loop) => ['array', [
                 collectedMemo(ref(loop.results[0])), ['.', ref(lazy), 'converted'],
             ]]))
@@ -132,11 +132,11 @@ export const proof = /** @type {const} */ ({
         const argument = id(0), captured = id(0)
         const identity = /** @type {Value} */ (['function', requiredFunction(ref(argument), [argument])])
         const skipped = /** @type {Value} */ (['function', { ...requiredFunction(ref(captured)),
-            captures: [{ binding: captured, value: ownedLoopValue(failed('skipped capture')) }],
+            captures: [{ binding: captured, value: _ownedLoopValue(failed('skipped capture')) }],
         }])
         assertEq(evaluate(calledRecipe(['?.()', null, [skipped]])), undefined)
         const reached = /** @type {Value} */ (['function', { ...requiredFunction(ref(captured)),
-            captures: [{ binding: captured, value: ownedLoopValue(['array', [4]]) }],
+            captures: [{ binding: captured, value: _ownedLoopValue(['array', [4]]) }],
         }])
         const value = evaluate(acrossLoop(['?.()', identity, [reached]], lazy => ['()', ref(lazy), []], (lazy, loop) => ['array', [
             collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ['()', ref(lazy), []],
@@ -147,20 +147,20 @@ export const proof = /** @type {const} */ ({
         assertEq(value[0], value[2])
     },
     ordinaryFunctionBodiesKeepTheirOwnEvaluationBoundary: () => {
-        const ordinary = /** @type {Value} */ (['function', requiredFunction(ownedLoopValue(failed('uninvoked body')))])
+        const ordinary = /** @type {Value} */ (['function', requiredFunction(_ownedLoopValue(failed('uninvoked body')))])
         assertEq(evaluate(calledRecipe(['?.()', null, [ordinary]])), undefined)
         assertEq(evaluate(calledRecipe(['?.', ordinary, 'length'])), 0)
     },
     unusedRecipesAndUnselectedBranchesKeepOwnedCellsDeferred: () => {
         const unused = id(0)
-        const argument = /** @type {Value} */ (['block', result(9, [['define', unused, ownedLoopValue(failed('unused recipe')), 'lazy']])])
+        const argument = /** @type {Value} */ (['block', result(9, [['define', unused, _ownedLoopValue(failed('unused recipe')), 'lazy']])])
         const parameter = id(0), identity = /** @type {Value} */ (['function', requiredFunction(ref(parameter), [parameter])])
         assertEq(evaluate(calledRecipe(['?.()', identity, [argument]])), 9)
         assertStructurallySame(evaluate(calledRecipe(['array', [['...', ['?:', false,
-            ownedLoopValue(failed('unselected normal branch')), ['array', [9]],
+            _ownedLoopValue(failed('unselected normal branch')), ['array', [9]],
         ]]]])), [9])
         assertStructurallySame(evaluate(calledRecipe(['array', [['...', ['?:', false,
-            ownedLoopValue(escape(7)), ['array', [9]],
+            _ownedLoopValue(escape(7)), ['array', [9]],
         ]]]])), [9])
     },
     selectedDirectDeclarationsExposeWithoutAFreeAliasOrLoop: () => {
@@ -173,9 +173,9 @@ export const proof = /** @type {const} */ ({
     },
     nestedEagerRegionsFindTheirExactOwnedOccurrences: () => {
         const bound = id(0), state = id(0), output = id(0), parameter = id(0)
-        const selected = ownedLoopValue(['array', [4]])
+        const selected = _ownedLoopValue(['array', [4]])
         const identity = /** @type {Value} */ (['function', requiredFunction(ref(parameter), [parameter])])
-        const test = ownedLoopValue(['block', result(true)])
+        const test = _ownedLoopValue(['block', result(true)])
         const entered = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const unrelated = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const wrappers = /** @type {readonly Value[]} */ ([
@@ -199,7 +199,7 @@ export const proof = /** @type {const} */ ({
     sharedOperandSyntaxKeepsDistinctReachedDeclarationOccurrences: () => {
         const left = id(0), right = id(0)
         const pair = /** @type {Value} */ (['function', requiredFunction(['array', [ref(left), ref(right)]], [left, right])])
-        const shared = ownedLoopValue(['array', [4]])
+        const shared = _ownedLoopValue(['array', [4]])
         const value = evaluate(acrossLoop(['?.()', pair, [shared, shared]], lazy => ref(lazy), (lazy, loop) => ['array', [
             collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ref(lazy),
         ]]))
@@ -212,7 +212,7 @@ export const proof = /** @type {const} */ ({
     owningFunctionMetadataAndSharingSurviveSevenGraphs: () => {
         const argument = id(0), rest = id(0), self = id(0), captured = id(0), lazy = id(0), parameter = id(0)
         const identity = /** @type {Value} */ (['function', requiredFunction(ref(parameter), [parameter])])
-        const initializer = /** @type {Value} */ (['?.()', identity, [ownedLoopValue(['array', [ref(argument), ref(captured), ref(rest), ['===', ref(self), ref(self)]]])]])
+        const initializer = /** @type {Value} */ (['?.()', identity, [_ownedLoopValue(['array', [ref(argument), ref(captured), ref(rest), ['===', ref(self), ref(self)]]])]])
         const loop = collectingMemo(ref(lazy), 2)
         const fn = /** @type {FastFunction} */ ({ target, parameters: [argument], rest, self,
             captures: [{ binding: captured, value: ['array', [4]] }],
