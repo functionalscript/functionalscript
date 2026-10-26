@@ -19,7 +19,7 @@ const compile = fn => Function(`"use strict";return (${functionStringify(prepare
 
 export const proof = {
     spreadReturnOperands: () => {
-        const target = { kind: /** @type {const} */ ('function'), index: 0 }
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
         const selected = id(100), result = id(101), rest = id(102)
         /** @type {(value?: FastValue) => FastValue} */
         const escape = (value = 7) => ['block', { statements: [], exit: ['return', target, value] }]
@@ -35,7 +35,7 @@ export const proof = {
             const source = sourceFunction(value)
             return Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
         }
-        const child = { kind: /** @type {const} */ ('function'), index: 0 }
+        const child = /** @type {const} */ ({ kind: 'function', index: 0 })
         const collect = /** @type {FastValue} */ (['function', { target: child, parameters: [], rest, self: null, captures: [],
             body: { statements: [], exit: ['return', child, ['ref', rest]] } }])
         for (const value of /** @type {readonly FastValue[]} */ ([0, null, undefined, ['object', []]])) {
@@ -97,10 +97,10 @@ export const proof = {
         assertStructurallySame(remembered(false), [1, 2, 3])
     },
     spreadLoopTransfers: () => {
-        const target = { kind: /** @type {const} */ ('function'), index: 0 }
-        const loop = { kind: /** @type {const} */ ('loop'), index: 0 }
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const loop = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const value = id(0), result = id(1), rest = id(2)
-        const child = { kind: /** @type {const} */ ('function'), index: 0 }
+        const child = /** @type {const} */ ({ kind: 'function', index: 0 })
         const collect = /** @type {FastValue} */ (['function', { target: child, parameters: [], rest, self: null, captures: [],
             body: { statements: [], exit: ['return', child, ['ref', rest]] } }])
         const leave = /** @type {FastValue} */ (['block', { statements: [], exit: ['break', loop, [9]] }])
