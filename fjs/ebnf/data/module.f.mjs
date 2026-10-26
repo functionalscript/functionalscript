@@ -206,6 +206,7 @@ const validateVisitor = (name, ref, nullable) => ({
         assert(isRangeSet(s) && s.length !== 0, ['not a set of symbols', name, s])
         assert(s.every(isSafeInteger), ['a boundary is not a safe integer', name, s])
         assert(s[0] >= 0 || structurallySame(s, eofSet), ['a set holds ordinary symbols only, or is EOF', name, s])
+        return undefined
     },
     sequence: items => items.forEach(ref),
     // Every own entry, so a tag written with no rule under it is refused
@@ -215,6 +216,7 @@ const validateVisitor = (name, ref, nullable) => ({
         assert(isRepeatBounds(min, max), ['repeat bounds outside their domain', name, min, max])
         ref(item)
         assert(max !== Infinity || !nullable(item), ['a nullable item under an unbounded repeat', name, item])
+        return undefined
     },
 })
 
@@ -240,6 +242,7 @@ export const validate = (ruleSet, entry) => {
     defined(ruleSet)(entry)(entry)
     const rule = validateRule(ruleSet, emptyTagMap(ruleSet))
     entries(ruleSet).forEach(([name, r]) => rule(name)(r))
+    return undefined
 }
 
 //

@@ -224,5 +224,8 @@ export const proof = {
     // normalizeMantissa guards against zero mantissa to prevent an infinite loop;
     // this path is unreachable through decToBin (which returns early for 0n),
     // so we exercise it here where the private helper is in scope.
-    normalizeMantissaZero: () => { increaseMantissa([0n, 5])(1n) }
+    normalizeMantissaZero: () => {
+        increaseMantissa([0n, 5])(1n)
+        return undefined
+    },
 }

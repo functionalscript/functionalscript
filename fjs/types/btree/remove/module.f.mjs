@@ -147,11 +147,7 @@ export const proof = {
         // width is refused there. The `[0]` keeps `_RemovePath`, a private
         // type, out of the exported `proof`'s declaration.
         pathRejectsWidth: () => path(null)(/** @type {never} */ ([1, 2, 3, 4]))[0],
-        reduceValueDefaultBranch: () => {
-            reduceValue(left)([['leaf']])([['x'], 's', ['y']])
-        },
-        initValueDefaultBranch: () => {
-            initValue(right)(null)([[['a'], 'b', ['c']], 'd', ['e']])
-        },
+        reduceValueDefaultBranch: () => reduceValue(left)([['leaf']])([['x'], 's', ['y']]),
+        initValueDefaultBranch: () => initValue(right)(null)([[['a'], 'b', ['c']], 'd', ['e']]),
     },
 }
