@@ -297,8 +297,9 @@ tracked in [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#tasks)
       [loops](../../../spec/control-flow/loops/README.md)); the terminating
       `switch` ([switch](../../../spec/control-flow/switch/README.md)).
       Remaining: general loops — `break`, `continue` and `return` inside a
-      loop, nested and sequential loops — milestones E, F and H of
-      [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md);
+      loop, nested and sequential loops — milestone H of
+      [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md),
+      which waits on E and F and on G's capture migration;
       and `for`, which [3220](../../../spec/todo/3220-let.md#general-loops)
       leaves a separate extension with no proposal yet.
 - [ ] **`Any` serialization (CBOR)** — generic serialization of `Any`
