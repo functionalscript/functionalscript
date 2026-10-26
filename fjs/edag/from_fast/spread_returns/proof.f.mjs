@@ -87,8 +87,8 @@ export const proof = /** @type {const} */ ({
         assertEq(evaluate(calledFunction(requiredFunction(['()', collector(), [escape(12), ['...', failed('unreached argument spread')]]]))), 12)
     },
     normalUnicodeAndSeveralSpreads: () => {
-        const text = '\ud800A😀\udfff'
-        const expected = [0, '\ud800', 'A', '😀', '\udfff', 1, 2, 3]
+        const text = /** @type {const} */ ('\ud800A😀\udfff')
+        const expected = /** @type {const} */ ([0, '\ud800', 'A', '😀', '\udfff', 1, 2, 3])
         const items = /** @type {const} */ ([0, ['...', text], ['...', ['array', [1, 2]]], ['...', ''], mixed(false, 3)])
         assertStructurallySame(evaluate(calledFunction(requiredFunction(['array', items]))), expected)
         assertStructurallySame(evaluate(calledFunction(requiredFunction(['()', collector(), items]))), expected)
