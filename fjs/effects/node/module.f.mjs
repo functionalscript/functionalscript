@@ -34,11 +34,15 @@ import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
-import { commandsOf, do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
+import {
+    commandsOf, do_, errorMessage as effectsErrorMessage, ioError as effectsIoError, toIoError as effectsToIoError,
+} from '../module.f.mjs'
 import { min } from '../../types/number/min/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import {
-    all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write,
+    all as commonAll, allOk as commonAllOk, both as commonBoth, catch_ as commonCatch_, error as commonError,
+    errorExit as commonErrorExit, import_ as commonImport_, log as commonLog, randomInt as commonRandomInt,
+    read as commonRead, readLine as commonReadLine, sandbox as commonSandbox, write as commonWrite,
 } from '../common/module.f.mjs'
 import {
     catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
@@ -59,7 +63,9 @@ import { parent } from '../../path/module.f.mjs'
  * ever reports. Being about a *host failure* does not make a thing
  * host-agnostic — being about no host in particular does.
  */
-export { errorMessage, ioError, toIoError }
+export const errorMessage = effectsErrorMessage
+export const ioError = effectsIoError
+export const toIoError = effectsToIoError
 
 // `../common`'s, kept visible here because `NodeOp` unions them and dozens of
 // call sites name them through this module — a live coupling, not a shim. An
@@ -67,7 +73,19 @@ export { errorMessage, ioError, toIoError }
 // dispatches `sandbox`, `catch`, `import` and `randomInt`, and the rest are there because
 // nothing about them is Node's. `../common/types.ts` keeps the count,
 // and says how it counts.
-export { all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write }
+export const all = commonAll
+export const allOk = commonAllOk
+export const both = commonBoth
+export const catch_ = commonCatch_
+export const error = commonError
+export const errorExit = commonErrorExit
+export const import_ = commonImport_
+export const log = commonLog
+export const randomInt = commonRandomInt
+export const read = commonRead
+export const readLine = commonReadLine
+export const sandbox = commonSandbox
+export const write = commonWrite
 
 /**
  * The host a {@link Listen} refuses.

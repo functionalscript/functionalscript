@@ -24,10 +24,10 @@ import { toData, toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
 import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
-import { _fileError, _jsonModule, _program } from '../source/module.f.mjs'
+import { _fileError, _jsonModule, _program, parse as sourceParse } from '../source/module.f.mjs'
 import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 
-export { parse } from '../source/module.f.mjs'
+export const parse = sourceParse
 
 /**
  * What the interpreter makes of a module under `runtime`: its complete export
