@@ -1,7 +1,7 @@
 ## Sequence demands owned entirely inside operands
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
