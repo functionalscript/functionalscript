@@ -1,7 +1,7 @@
 ## Share cells declared inside initializer-owned loops
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
