@@ -9,6 +9,9 @@ export type _Link<T> = { readonly first: T; readonly tail: _Link<T> | null }
 /** Suspended immutable computations keep syntax depth off the host stack. */
 export type _Task<T> = Task<T>
 
+/** Evaluation that a required operand snapshot must complete before later control. */
+export type _Snapshot = 'array' | 'object' | 'key' | null
+
 export type _Node =
     | readonly ['value', NormalValue]
     | readonly ['block', NormalBlock]

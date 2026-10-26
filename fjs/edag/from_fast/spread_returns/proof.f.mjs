@@ -235,7 +235,6 @@ export const proof = /** @type {const} */ ({
         }
     },
     throw: {
-        objectSpreadStillSeparate: () => fromFast(result(['function', requiredFunction(['object', [['...', ['object', []]], [':', 'x', escape()]]])])),
         foreignSpreadReturn: () => {
             const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })
             const wrong = /** @type {Value} */ (['block', body(['return', foreign, 7])])

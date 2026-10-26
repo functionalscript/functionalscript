@@ -21,6 +21,93 @@ const compile = fn => Function(`"use strict";return (${functionStringify(prepare
 const standalone = source => Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
 
 export const proof = {
+    objectSpreadReturnOperands: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const child = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const selected = id(100), result = id(101), payload = id(102), capture = id(103)
+        /** @type {(value?: FastValue) => FastValue} */
+        const escape = (value = 7) => ['block', { statements: [], exit: ['return', target, value] }]
+        /** @type {(normal: FastValue) => FastValue} */
+        const choice = normal => ['if', ['ref', selected], { statements: [], exit: ['return', target, 7] }, { statements: [], exit: ['yield', [normal]] }]
+        /** @type {(value: FastValue) => FastFunction} */
+        const sourceFunction = value => ({ target, parameters: [selected, payload], rest: null, self: null, captures: [],
+            body: { statements: [['define', result, value, 'required']], exit: ['return', target, ['ref', result]] } })
+        /** @type {(value: FastValue) => (...args: readonly unknown[]) => any} */
+        const standaloneValue = value => standalone(sourceFunction(value))
+        /** @type {FastValue} */
+        const failingKey = ['object', [[':', 'toString', ['function', { target: child, parameters: [], rest: null, self: null, captures: [],
+            body: { statements: [], exit: ['throw', 'key'] } }]]]]
+        /** @type {FastValue} */
+        const captureReturn = ['function', { target: child, parameters: [], rest: null, self: null,
+            captures: [{ binding: capture, value: escape() }], body: { statements: [], exit: ['return', child, ['ref', capture]] } }]
+        /** @type {readonly ((value: FastValue) => (...args: readonly unknown[]) => any)[]} */
+        const renders = [value => compile(sourceFunction(value)), standaloneValue]
+        for (const render of renders) {
+            for (const value of /** @type {readonly FastValue[]} */ ([null, undefined, 0, false, 0n, '', ['entry']])) {
+                const fn = render(['object', [['...', value], [':', 'x', choice(5)]]])
+                assertEq(fn(true), 7)
+                assertStructurallySame(fn(false), { x: 5 })
+            }
+            const contributed = render(['object', [['...', choice(['object', [[':', 'x', 1]]])], [':', 'y', 2]]])
+            assertEq(contributed(true), 7)
+            assertStructurallySame(contributed(false), { x: 1, y: 2 })
+            const unicode = render(['object', [['...', 'A😀\ud800B'], [':', 'x', choice(5)]]])
+            assertEq(unicode(true), 7)
+            assertStructurallySame(unicode(false), { 0: 'A', 1: '\ud83d', 2: '\ude00', 3: '\ud800', 4: 'B', x: 5 })
+            const mixed = render(['object', [
+                [':', 'a', 1], ['...', ['object', [[':', 'b', 2], [':', 'a', 3]]]],
+                [':', 'a', 4], ['...', ['array', ['u', 'v']]], [':', '__proto__', ['ref', payload]],
+                [':', '2', 'two'], ['...', 'x'], [':', 'z', choice(9)],
+            ]])
+            assertEq(mixed(true, {}), 7)
+            const data = /** @type {const} */ ({ held: [] })
+            const object = mixed(false, data)
+            assertStructurallySame(Object.keys(object), ['0', '1', '2', 'a', 'b', '__proto__', 'z'])
+            assertStructurallySame([object[0], object[1], object[2], object.a, object.b, object.z], ['x', 'v', 'two', 4, 2, 9])
+            assertEq(Object.getOwnPropertyDescriptor(object, '__proto__')?.value, data)
+            assertEq(Object.getPrototypeOf(object), Object.prototype)
+            const shared = render(['object', [['...', ['ref', payload]], [':', 'z', choice(9)]]])(false, data)
+            assertEq(shared.held, data.held)
+            assertEq(shared === data, false)
+            assertEq(render(['object', [[':', 'before', 1], ['...', escape(['ref', payload])], [':', failingKey, 0]]])(false, data), data)
+            assertEq(render(['object', [['...', null], [':', escape(['ref', payload]), failingKey]]])(false, data), data)
+            throws(() => render(['object', [['...', null], [':', failingKey, escape()]]])(), value => value === 'key')
+            throws(() => render(['object', [[':', failingKey, 1], ['...', escape()]]])(), value => value === 'key')
+            throws(() => render(['object', [['...', null], [':', 'x', ['block', { statements: [], exit: ['throw', 'value'] }]], ['...', escape()]]])(), value => value === 'value')
+            assertEq(render(['object', [['...', null], [':', 'f', captureReturn]]])(), 7)
+        }
+        /** @type {(value: FastValue) => (...args: readonly unknown[]) => any} */
+        const native = value => compile(sourceFunction(value))
+        assertEq(native(['.', ['object', []], 'x', ['|()', [['object', [['...', escape()]]]]]])(), 7)
+        throws(() => native(['.', null, 'x', ['|()', [['object', [['...', escape()]]]]]])(), TypeError)
+        assertEq(native(['?.', null, 'x', ['|()', [['object', [['...', escape()]]]]]])(), undefined)
+        assertEq(native(['?.', null, 'x', ['|!()', [['object', [['...', escape()]]]]]])(), 7)
+        // Object construction with no lifted prelude retains its ordinary
+        // source-key conversion and own-property copy semantics.
+        assertStructurallySame(compile(sourceFunction(['object', [['...', 'ab'], [':', 'x', 3]]]))(), { 0: 'a', 1: 'b', x: 3 })
+    },
+    objectSpreadLoopTransfers: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const loop = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const child = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const value = id(0), result = id(1)
+        /** @type {FastValue} */
+        const leave = ['block', { statements: [], exit: ['break', loop, [9]] }]
+        /** @type {FastValue} */
+        const failingKey = ['object', [[':', 'toString', ['function', { target: child, parameters: [], rest: null, self: null, captures: [],
+            body: { statements: [], exit: ['throw', 'key'] } }]]]]
+        /** @type {(expression: FastValue) => FastFunction} */
+        const fn = expression => ({ target, parameters: [], rest: null, self: null, captures: [], body: {
+            statements: [['loop', { target: loop, parameters: [], initial: [], results: [result], body: {
+                statements: [['define', value, expression, 'required']], exit: ['break', loop, [['ref', value]]],
+            } }]], exit: ['return', target, ['ref', result]],
+        } })
+        for (const render of [compile, standalone]) {
+            assertEq(render(fn(['object', [['...', null], [':', 'x', leave]]]))(), 9)
+            assertEq(render(fn(['object', [['...', leave], [':', failingKey, 0]]]))(), 9)
+            throws(() => render(fn(['object', [['...', null], [':', failingKey, leave]]]))(), value => value === 'key')
+        }
+    },
     spreadReturnOperands: () => {
         const target = /** @type {const} */ ({ kind: 'function', index: 0 })
         const selected = id(100), result = id(101), rest = id(102)

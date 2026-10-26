@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { binaryTags, unaryTags } from '../../../compiler/ast/module.f.js'
-import { _expandSpread, liftReturns, liftValueReturns } from './module.f.mjs'
+import { _expandObjectSpread, _expandSpread, liftReturns, liftValueReturns } from './module.f.mjs'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const other = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -44,6 +44,7 @@ export const proof = /** @type {const} */ ({
     expansion: () => {
         const value = id()
         assertStructurallySame(_expandSpread(ref(value)), ['array', [['...', ref(value)]]])
+        assertStructurallySame(_expandObjectSpread(ref(value)), ['object', [['...', ref(value)]]])
     },
     unchanged: () => {
         const value = id()
@@ -55,8 +56,8 @@ export const proof = /** @type {const} */ ({
             ['+', 1], ['+', 1, 2], ['()', ref(value), []],
             ['instanceof', ref(value), 'Array'],
             ['object', []], ['object', [[':', 'x', ref(value)]]],
-            ['object', [['...', ['object', []]], [':', 'x', ['block', returned(3)]]]],
-            ['object', [[':', ['block', returned(3)], 1], ['...', ['object', []]]]],
+            ['object', [['...', ['object', []]], [':', 'x', ref(value)]]],
+            ['object', [[':', 'x', 1], ['...', null], ['...', 'a😀b']]],
             ['array', [['...', ['array', [1]]], 2]],
             ['array', [['...', 'a😀b']]],
             ['.', ref(value), 'x'], ['?.', ref(value), 'x'], ['?.()', ref(value), [1]],
@@ -343,6 +344,46 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(string.exit, ['yield', []])
         assertStructurallySame(object.exit, ['yield', []])
         assertStructurallySame(terminal.exit, ['yield', []])
+    },
+    objectSpreadSnapshots: () => {
+        const source = id(), key = id(), value = id(), condition = id(), destination = id()
+        const selected = /** @type {Value} */ (['if', ref(condition), returned(7), yielded([3])])
+        const input = returned(['object', [
+            ['...', ref(source)], [':', ref(key), selected], ['...', 'a😀b'],
+            [':', '__proto__', ref(value)], ['...', ['object', []]],
+        ]])
+        const mapped = liftReturns(input, owner)
+        const region = blockOf(mapped.statements[0])
+        assertEq(region.statements.length, 10)
+        const a = region.statements[0], b = region.statements[1], c = region.statements[2]
+        const d = region.statements[3], e = region.statements[4], f = region.statements[5]
+        const g = region.statements[6], h = region.statements[7], i = region.statements[8], j = region.statements[9]
+        assert(a[0] === 'define' && b[0] === 'define' && c[0] === 'define' && d[0] === 'if')
+        assert(e[0] === 'define' && f[0] === 'define' && g[0] === 'define')
+        assert(h[0] === 'define' && i[0] === 'define' && j[0] === 'define')
+        assertStructurallySame(a[2], ref(source))
+        assertStructurallySame(b[2], _expandObjectSpread(ref(a[1])))
+        assertStructurallySame(c[2], ['String', ref(key)])
+        assertEq(e[2], 'a😀b')
+        assertStructurallySame(f[2], _expandObjectSpread(ref(e[1])))
+        assertStructurallySame(g[2], ['String', '__proto__'])
+        assertStructurallySame(j[2], _expandObjectSpread(ref(i[1])))
+        assertStructurallySame(region.exit, ['yield', [['object', [
+            ['...', ref(b[1])], [':', ref(c[1]), ref(d[1][0])], ['...', ref(f[1])],
+            [':', ref(g[1]), ref(h[1])], ['...', ref(j[1])],
+        ]]]])
+        assertEq(liftReturns(mapped, owner), mapped)
+        const terminal = liftValueReturns(['object', [
+            ['...', ['block', returned(7)]], [':', ['block', body(['return', other, 9])], 2],
+        ]], destination, owner)
+        assert(terminal.statement !== null)
+        assertEq(terminal.normal, false)
+        const definitions = regions(blockOf(terminal.statement)).flatMap(block => block.statements.filter(statement => statement[0] === 'define'))
+        assertEq(definitions.some(statement => statement[2] instanceof Array && statement[2][0] === 'object'), false)
+        const keyReturn = liftReturns(returned(['object', [
+            ['...', ref(source)], [':', ['block', returned(7)], ['block', body(['return', other, 9])]],
+        ]]), owner)
+        assertEq(blockOf(keyReturn.statements[0]).statements.length, 3)
     },
     objectIdentityAndCallee: () => {
         const key = id(), condition = id()

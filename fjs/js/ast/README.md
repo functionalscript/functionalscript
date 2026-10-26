@@ -54,7 +54,9 @@ Spread-bearing arrays and calls use the same sequencer. Each reached spread
 materializes into an internal array before a later operand can return; normal
 output spreads that established array. Member lookup and optional guards stay
 outside or around the selected argument expansions as their contracts require.
-Object spreads retain their existing admission boundary.
+Object entries use entry-aware operand positions: keys convert before values,
+and spread operands materialize through the ordinary own-property kernel.
+Normal results retain enumeration, duplicate keys and value identities.
 
 `analyzeBindings(scope)` consumes the resolved, pattern-expanded binding stage,
 before assignment normalization or graph construction. Each scope declares the

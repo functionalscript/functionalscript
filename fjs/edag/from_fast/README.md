@@ -202,7 +202,7 @@ retains every reached key conversion and property value. Normal completion
 constructs the object from established string keys and values, preserving
 duplicate keys, enumeration order, `__proto__` as data and value identity.
 
-Lazy initializers, captures, wrapped member/native callees and object spreads retain
+Lazy initializers, captures and wrapped member/native callees retain
 their evaluation boundaries. Plain-call admission preserves callee
 provenance through wrapper regions and comma results.
 Loop transfers cannot escape a lifted operand's own loop scope. Ordinary
@@ -229,8 +229,11 @@ Array and call spreads materialize in source order before a later owning return.
 Returning spread operands skip their expansion; normal completion retains item
 order, argument/rest arity, Unicode string iteration and element identity.
 Member lookup still precedes argument expansion, and skipped optional regions
-skip it. Object spreads and broader demand-only guarded forms retain their
-existing refusals.
+skip it. Spread-bearing objects use entry-aware snapshots: each property key
+converts before its value, while each reached spread copies own properties
+before later control. Normal results preserve duplicate-key/enumeration rules,
+`__proto__` as data, UTF-16 string properties and shared value identities.
+Broader demand-only guarded forms retain their existing refusals.
 Ordinary nested functions keep their own
 bodies; their explicit capture values are evaluated at function creation.
 External lazy environments without an AST recipe retain the existing refusal.
