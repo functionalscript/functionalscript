@@ -8,13 +8,13 @@
  * @module
  *
  * @import { BindingId, Block, Exit, Function as FastFunction, FunctionTarget, Loop, Operator, Statement, Value } from '../types.ts'
- * @import { List } from '../../../types/list/types.ts'
+ * @import { List, Result as ListResult } from '../../../types/list/types.ts'
  * @import { MemoLayout } from './cells/types.ts'
  * @import { _Block, _Context, _Exit, _Loop, _Recipe, _Value, _Values } from './private.ts'
  * @import { Task } from '../task/types.ts'
  */
 
-import { concat, toArray } from '../../../types/list/module.f.mjs'
+import { concat, next, toArray } from '../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
 import { exitValues, freeBindings, freeLoopBindings } from '../control/module.f.mjs'
 import { _hasReturn, memoCells, recipeCells } from './cells/module.f.mjs'
@@ -155,6 +155,36 @@ const guarded = operator => operator[0] === '?.' || operator[0] === '?.()' || op
 const itemSpreads = operator => operator[0] === 'array' ? operator[1].some(item => item instanceof Array && item[0] === '...')
     : operator[0] === '()' && operator[2].some(item => item instanceof Array && item[0] === '...')
 
+/** Selected declaration/loop occurrences can be bound entirely inside an operand. @type {(source: Value, plan: MemoLayout) => boolean} */
+const ownsMemo = (source, plan) => {
+    /** @type {List<Value | Block>} */
+    let pending = [source]
+    while (true) {
+        /** @type {ListResult<Value | Block>} */
+        const item = next(pending)
+        if (item === null) { return false }
+        pending = item.tail
+        const value = item.first
+        if (value === null || typeof value !== 'object') { continue }
+        if (!(value instanceof Array)) {
+            if (value.statements.some(statement => statement[0] === 'define' && plan.definitions.has(statement)
+                || statement[0] === 'loop' && plan.loops.has(statement[1]))) { return true }
+            /** @type {readonly (Value | Block)[]} */
+            const children = [...value.statements.flatMap(statement => statement[0] === 'define'
+                ? statement[3] === 'required' ? [statement[2]] : []
+                : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
+                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(value.exit)]
+            pending = concat(children)(pending)
+            continue
+        }
+        /** @type {readonly (Value | Block)[]} */
+        const children = value[0] === 'function' ? value[1].captures.map(capture => capture.value)
+            : value[0] === 'block' ? [value[1]] : value[0] === 'if' ? [value[1], value[2], value[3]]
+                : value[0] === 'ref' ? [] : operatorOperands(value)
+        pending = concat(children)(pending)
+    }
+}
+
 /** @type {(test: _Value, then: _Block, otherwise: _Block, source: Value) => _Value} */
 const conditionalValue = (test, then, otherwise, source) => {
     const usesMemo = test.usesMemo || then.usesMemo || otherwise.usesMemo
@@ -201,14 +231,13 @@ const valueTask = (source, context) => call(() => {
                 })))
     }
     if ((guarded(source) || source[0] === 'object' || itemSpreads(source))
-        && freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => context.aliases.has(id))) {
+        && (freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => context.aliases.has(id)) || ownsMemo(source, context.plan))) {
         const value = _exposeOperands(source, binding(), context.sourceOwner)
         if (value.statement === null) { throw 'deferred completion requires an admitted operand region' }
         return valueTask(['block', { statements: [value.statement], exit: ['yield', [value.value]] }], context)
     }
     const operands = operatorOperands(source)
     return bind(valuesTask(operands, context), values => {
-        if (values.usesMemo && (source[0] === 'object' || guarded(source) || itemSpreads(source))) { throw 'locally owned memo demand operands are not supported yet' }
         const unchanged = values.values.every((value, i) => value === operands[i])
         return done({ statements: values.statements, value: unchanged ? source : mapOperator((_, index) => values.values[index])(source), memo: values.memo, usesMemo: values.usesMemo })
     })
