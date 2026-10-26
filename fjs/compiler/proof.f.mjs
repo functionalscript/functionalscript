@@ -37,6 +37,18 @@ import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
 
+/** Execute successful catch operations with the real compiler, without host exceptions.
+ * @type {(state: typeof demo.init, event: import('../website/demo/types.ts').DemoEvent) => typeof demo.init}
+ */
+const nextDemo = (state, event) => {
+    let effect = demo.update(state)(event)
+    while (typeof effect !== 'function') {
+        const { payload: [f], continuation } = effect
+        effect = continuation(['ok', ['ok', f()]])
+    }
+    return unwrap(effect())
+}
+
 /**
  * The package's runtime at its path, beside a root's files, for the compiles
  * of a data output: `fjs compile` interprets the module under it, and the
@@ -1381,12 +1393,39 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assert(shown.includes('<div data-code="" data-code-block=""><pre>'), shown)
             assert(shown.includes('callable materialization requires a target compile/load boundary</pre>'), shown)
             assert(!shown.includes(' - error:'), shown)
-            const refused = htmlToString(demo.view('export default {bad'))
+            const refused = htmlToString(demo.view(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'export default {bad' })))
             assert(refused.includes('Refused:</p><pre data-result="error">unexpected end</pre>'), refused)
             assert(!refused.includes(' - error:'), refused)
-            const unsupported = htmlToString(demo.view('export default undefined;'))
+            const unsupported = htmlToString(demo.view(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'export default undefined;' })))
             assert(unsupported.includes('Refused:</p><pre data-result="error">no JSON spelling for undefined</pre>'), unsupported)
             assert(!unsupported.includes(' - error:'), unsupported)
+        },
+        caughtFailures: () => {
+            let effect = demo.update(demo.init)({ kind: 'input', name: 'compiler', value: 'export default 1;' })
+            let index = 0
+            while (typeof effect !== 'function') {
+                const { payload: [f], continuation } = effect
+                effect = continuation(index === 0 ? ['ok', ['error', 'host failure']]
+                    : index === 1 ? ['error', ['notImplemented', 'catch']]
+                        : ['ok', ['ok', f()]])
+                index += 1
+            }
+            assertEq(index, outputs.length)
+            const state = unwrap(effect())
+            assertEq(state.text, 'export default 1;')
+            assertEq(textOfResult(state.panes[0]), 'Could not compile this output: host failure')
+            assertEq(textOfResult(state.panes[1]), 'operation not implemented: catch')
+            assertEq(state.panes.slice(2).map(([tag]) => tag).join(), 'ok,ok,ok')
+            const shown = htmlToString(demo.view(state))
+            assert(shown.includes('host failure'), shown)
+            assert(shown.includes('Copy .rs output'), shown)
+            const recovered = nextDemo(state, { kind: 'input', name: 'compiler', value: 'export default 2;' })
+            assertEq(textOfResult(recovered.panes[0]), '2')
+            assertEq(recovered.panes.map(([tag]) => tag).join(), 'ok,ok,ok,ok,ok')
+            const started = nextDemo(demo.init, { kind: 'start' })
+            assertEq(started.text, demo.init.text)
+            const picked = nextDemo(state, { kind: 'input', name: 'example', value: 'Recursion: Ackermann' })
+            assertEq(textOfResult(picked.panes[0]), '9')
         },
     },
 }

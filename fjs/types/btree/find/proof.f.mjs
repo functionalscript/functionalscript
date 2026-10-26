@@ -127,4 +127,8 @@ export const proof = {
         assert(contains(cmp('4'))(_map), '4')
         assert(!contains(cmp('5'))(_map), '5')
     },
+    throw: {
+        // A node of no B-tree width is refused, not searched into `undefined`.
+        findRejectsWidth: () => btreeFind(cmp('1'))(/** @type {never} */ (['1', '2', '3', '4'])),
+    },
 }

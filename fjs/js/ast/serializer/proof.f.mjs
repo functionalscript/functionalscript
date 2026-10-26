@@ -206,4 +206,10 @@ export const proof = {
         assert(text.includes('while(false){$5=$5;}'), text)
         assertEq(untagged(render(block, 'expression')), text)
     },
+    // A statement or an exit no case names is refused, not written as
+    // `undefined`.
+    throw: {
+        unknownStatement: () => render({ statements: [/** @type {never} */ (['bogus'])], exit: ['yield', []] }),
+        unknownExit: () => render({ statements: [], exit: /** @type {never} */ (['bogus']) }),
+    },
 }

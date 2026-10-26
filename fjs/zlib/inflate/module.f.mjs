@@ -231,7 +231,8 @@ const step = state => {
                 ? taken({ ...state, phase: 'done', input: [], after: rest.length - 4, bit: 0, window: emptyWindow })
                 : null
         }
-        case 'done': { return more }
+        // `'done'`, the one phase left: every state is built in this module
+        default: { return more }
     }
 }
 
