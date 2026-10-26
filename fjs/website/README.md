@@ -37,8 +37,9 @@ the two are separate, and this one is not quietly migrated into the other.
 
 ## Shareable demo links
 
-Every demo uses the copy-link icon beside its Demo heading to copy its inputs.
-Default inputs copy `#demo`. Example links
+Two controls beside Demo distinguish **Copy section link** (plain chain) from
+**Copy with inputs** (chain with a visible text label). The section link always
+copies `#demo` without a query; input links use `#demo` for defaults. Example links
 such as `/fjs/compiler/?example=hex-escape#demo` restore a stable example;
 custom inputs use individual query parameters such as `?compiler=source#demo`.
 Restore validates all inputs before replacing state and never presses action

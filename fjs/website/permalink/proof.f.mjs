@@ -15,9 +15,14 @@ export const proof = /** @type {const} */ ({
     },
     demoControl: () => {
         const html = htmlToString(permalink('demo', 'Demo', true))
-        assert(html.includes('data-copy-fragment="demo" data-copy-demo=""'))
-        assertEq(html.split('<svg ').length - 1, 2)
-        assert(html.includes('aria-label="Copy link to Demo"'))
+        assert(html.includes('data-copy-demo-section="demo"'))
+        assert(html.includes('data-copy-demo=""'))
+        assertEq(html.split('<svg ').length - 1, 3)
+        assert(html.includes('<span data-input-link-label="">Copy with inputs</span>'))
+        assert(!html.includes('data-input-link-dot'))
+        assert(html.includes('aria-label="Copy section link" title="Copy section link"'))
+        assert(html.includes('aria-label="Copy with inputs" title="Copy link with inputs"'))
+        assert(!html.includes('data-copy-fragment='))
     },
     heading: () => {
         const html = htmlToString(linkedHeading(3, 'a-b', 'A & B', ['A & ', ['code', 'B']]))

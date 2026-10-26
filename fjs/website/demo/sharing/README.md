@@ -48,6 +48,16 @@ Syntax independently. Changing only the heading fragment preserves current
 edits. Browser back/forward restores changed queries, and removing a query
 restores defaults.
 
+## Copy controls
+
+The plain chain beside Demo, **Copy section link**, copies the section target
+without input parameters, including while inputs update or exceed the sharing
+limit. The chain labeled **Copy with inputs** copies the current inputs using
+the query contract above. Its accessible name matches the visible label, and
+this action is disabled for demos without inputs. Each button has its own
+clipboard feedback, visible even with Demo folded. Without JavaScript, the
+native section anchor remains available.
+
 ## Authoring
 
 Every new demo with editable inputs must declare `sharing`. Omission means
