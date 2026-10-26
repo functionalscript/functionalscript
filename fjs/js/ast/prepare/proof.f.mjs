@@ -35,6 +35,26 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
 export const proof = {
+    deferredReturnKeepsItsFunctionOwner: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const deferred = id(0)
+        /** @type {NormalFunction} */
+        const source = { target, parameters: [], rest: null, self: null, captures: [], body: {
+            statements: [['define', deferred, ['block', { statements: [], exit: ['return', target, 7] }], 'lazy']],
+            exit: ['return', target, ['ref', deferred]],
+        } }
+        const prepared = prepareFunction(source)
+        assertEq(prepared.target, target)
+        assertEq(prepared.parameters, source.parameters)
+        assertEq(prepared.body.exit[0], 'return')
+        const recipes = prepared.body.statements.flatMap(statement => statement[0] === 'define'
+            && statement[2] instanceof Array && statement[2][0] === 'function' ? [statement[2][1]] : [])
+        assertEq(recipes.length, 1)
+        assert(recipes[0].target !== target)
+        assertEq(recipes[0].body.exit[0], 'return')
+        assert(recipes[0].body.exit[0] === 'return' && recipes[0].body.exit[1] === recipes[0].target)
+        assert(prepared.body.statements.some(statement => statement[0] === 'if'))
+    },
     deepSyntax: () => {
         for (const tag of /** @type {const} */ (['!', '+', '.'])) {
             /** @type {NormalValue} */

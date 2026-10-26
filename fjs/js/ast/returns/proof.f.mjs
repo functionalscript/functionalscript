@@ -1,12 +1,12 @@
 /**
  * Return lifting preserves eager operand order and direct value continuations.
- * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../types.ts'
+ * @import { BindingId, Block, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { binaryTags, unaryTags } from '../../../compiler/ast/module.f.js'
 import { intrinsicIds, staticIds } from '../../../edag/module.f.mjs'
-import { _expandObjectSpread, _expandSpread, liftReturns, liftValueReturns } from './module.f.mjs'
+import { _expandObjectSpread, _expandSpread, _exposeOperands, liftReturns, liftValueReturns } from './module.f.mjs'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const other = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -46,6 +46,27 @@ export const proof = /** @type {const} */ ({
         const value = id()
         assertStructurallySame(_expandSpread(ref(value)), ['array', [['...', ref(value)]]])
         assertStructurallySame(_expandObjectSpread(ref(value)), ['object', [['...', ref(value)]]])
+    },
+    deferredDemandOperandRegions: () => {
+        const receiver = id(), destination = id()
+        /** @type {readonly Operator<Value>[]} */
+        const values = [
+            ['array', [['...', ref(receiver)]]], ['object', [['...', ref(receiver)]]],
+            ['()', ref(receiver), [['...', ref(receiver)]]], ['.', ref(receiver), 'at'],
+            ['?.', ref(receiver), 'at'], ['?.()', ref(receiver), [1]],
+            ['()', ['.', ref(receiver), 'at'], [1]],
+        ]
+        for (const value of values) {
+            const ordinary = liftValueReturns(value, destination, owner)
+            assertEq(ordinary.statement, null)
+            const result = _exposeOperands(value, destination, owner)
+            assert(result.statement !== null)
+            assertEq(result.normal, true)
+            assertStructurallySame(result.value, ref(destination))
+        }
+        const boundary = _exposeOperands(['()', [',', []], [1]], destination, owner)
+        assertEq(boundary.statement, null)
+        assertEq(boundary.callee, false)
     },
     unchanged: () => {
         const value = id()

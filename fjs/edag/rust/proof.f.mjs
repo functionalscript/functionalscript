@@ -1295,11 +1295,11 @@ export const proof = {
         sharing: () => {
             /** @type {Exp} */
             const one = ['[]', [1]]
-            assertStructurallySame(scoped(['?.()', ['undefined'], [one, one]]), ["let _b2 = std::cell::RefCell::new(None::<Any<A>>);","let _b1 = || -> Result<Any<A>, Any<A>> {","    if let Some(value) = _b2.borrow().as_ref() { return Ok(value.clone()); }","    let value: Any<A> = { [f64_any(0x3ff0000000000000)].to_array().to_any() };","    *_b2.borrow_mut() = Some(value.clone());","    Ok(value)","};","Any::option_call(Nullish::Undefined.to_any(), || Ok([(_b1())?, (_b1())?].to_array().to_any())).end()"])
+            assertStructurallySame(scoped(['?.()', ['undefined'], [one, one]]), ["let _b2 = std::cell::RefCell::new(None::<Any<A>>);","let _b1: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {","    if let Some(value) = _b2.borrow().as_ref() { return Ok(value.clone()); }","    let value: Any<A> = { [f64_any(0x3ff0000000000000)].to_array().to_any() };","    *_b2.borrow_mut() = Some(value.clone());","    Ok(value)","};","Any::option_call(Nullish::Undefined.to_any(), || Ok([(_b1())?, (_b1())?].to_array().to_any())).end()"])
             assert(scoped(['[]', [['?.()', ['undefined'], [one]], ['?.()', ['undefined'], [one]]]]).some(line => line.includes('RefCell')))
             /** @type {Exp} */
             const c = ['[]', []]
-            assertStructurallySame(scoped(['?.()', ['undefined'], [c, c]]), ["let _b2 = std::cell::RefCell::new(None::<Any<A>>);","let _b1 = || -> Result<Any<A>, Any<A>> {","    if let Some(value) = _b2.borrow().as_ref() { return Ok(value.clone()); }","    let value: Any<A> = { Array::default().to_any() };","    *_b2.borrow_mut() = Some(value.clone());","    Ok(value)","};","Any::option_call(Nullish::Undefined.to_any(), || Ok([(_b1())?, (_b1())?].to_array().to_any())).end()"])
+            assertStructurallySame(scoped(['?.()', ['undefined'], [c, c]]), ["let _b2 = std::cell::RefCell::new(None::<Any<A>>);","let _b1: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {","    if let Some(value) = _b2.borrow().as_ref() { return Ok(value.clone()); }","    let value: Any<A> = { Array::default().to_any() };","    *_b2.borrow_mut() = Some(value.clone());","    Ok(value)","};","Any::option_call(Nullish::Undefined.to_any(), || Ok([(_b1())?, (_b1())?].to_array().to_any())).end()"])
             assertStructurallySame(
                 scoped(['[]', [c, ['?.()', ['undefined'], [c]]]]),
                 ["let _b0: Any<A> = Array::default().to_any();","Ok([_b0.clone(), (Any::option_call(Nullish::Undefined.to_any(), || Ok([_b0.clone()].to_array().to_any())).end())?].to_array().to_any())"])

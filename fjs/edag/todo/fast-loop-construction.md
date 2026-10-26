@@ -12,7 +12,7 @@ loop-transfer payload return lifting is implemented;
 loop-entry initializer return lifting is implemented;
 native-callee return lifting is implemented;
 wrapped-member callee return lifting is implemented;
-lazy-initializer return handling is claimed for the next stacked PR;
+lazy-initializer return handling is implemented for selected demand regions;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -253,7 +253,25 @@ enclosing-iteration memo cells keep their existing lifetimes; each reached inner
 entry remains fresh. One-time entry setup keeps the existing helper fallback
 when it prevents canonical invocation-root reuse. No-return inputs retain their
 syntax identity.
-Lazy initializers retain their separate demand/completion boundary.
+Lazy initializer returns belong to first reached demand. Selecting such a
+recipe also selects its connected lazy prerequisites and dependents, even when
+no loop helper is involved. Creating a getter preserves deferred dependencies;
+it cannot demand a lazy prerequisite captured only by an unselected arm.
+Private getter outcomes distinguish normal values from owning returns. Only
+normal completion installs a ready cell. A return bypasses installation and
+propagates through enclosing recipe getters to the exact source owner at the
+demand site, skipping that consumer and following work. Undemanded initializers
+stay unevaluated. Existing caller, iteration and recipe-local cell lifetimes
+and dependency identities remain intact. Graph construction and physical
+preparation consume the same logical demand normalization before introducing
+their own helper or getter boundaries.
+Completion-bearing plans expose guarded member, optional-call and spread
+regions through the shared operand sequencer before threading selected demands.
+Their connected prerequisites use that same protocol. Demand-only plans keep
+the existing guarded/operand boundaries.
+Initializer-owned loops that introduce local demand cells retain their explicit
+refusal; [initializer-loop cells](../../js/ast/memo/todo/initializer-loop-cells.md)
+records the concrete nested lazy-return case and remaining lifetime work.
 A loop transfer cannot escape the operand's locally owned
 loop chain.
 
@@ -696,8 +714,9 @@ their documented normalization. Repeated conversions must stabilize.
       their wrappers, preserving callee reads before arguments and normal invocation.
 - [x] Lift owning returns through arguments to wrapped member callees,
       preserving selected property reads before arguments and detached invocation.
-- [ ] Extend completion handling to lazy initializers, preserving first-demand
+- [x] Extend completion handling to lazy initializers, preserving first-demand
       evaluation and memo lifetimes.
+- [ ] Extend shared demand state to cells declared inside initializer-owned loops.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.

@@ -524,10 +524,10 @@ const operation = (s, n, result) => {
     }
 }
 
-/** A prepared memo's storage and demand callable. @type {(s: _Context, m: Memo) => Result<Printed<readonly string[]>, readonly unknown[]>} */
+/** Borrowed trait objects keep memo dependency diamonds out of closure types. @type {(s: _Context, m: Memo) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const memo = (s, m) => map1((/** @type {readonly string[]} */ body) => [
     `${kw('let')} ${binding(s, m.valueSlot)} = std::cell::RefCell::new(None::<Any<A>>);`,
-    `${kw('let')} ${binding(s, m.binding)} = || -> Result<Any<A>, Any<A>> ${braced([
+    `${kw('let')} ${binding(s, m.binding)}: &${kw('dyn')} Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> ${braced([
         `${kw('if')} ${kw('let')} Some(value) = ${binding(s, m.valueSlot)}.borrow().as_ref() { ${kw('return')} Ok(value.clone()); }`,
         `${kw('let')} value: Any<A> = ${braced(body)};`,
         `*${binding(s, m.valueSlot)}.borrow_mut() = Some(value.clone());`,

@@ -132,8 +132,10 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       ordered one-time setup and caller/iteration memo lifetimes. Native callees
       and their wrappers admit argument returns while retaining callee reads
       before arguments. Wrapped member callees retain selected property reads
-      before arguments and detached invocation. Lazy initializer completion
-      handling remains open.
+      before arguments and detached invocation. Lazy initializer returns
+      propagate at selected first demands through shared recipe completions,
+      preserving memo lifetimes. Initializer-owned loop-local demand cells
+      remain open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

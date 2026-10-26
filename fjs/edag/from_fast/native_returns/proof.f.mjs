@@ -15,7 +15,7 @@ import { _id as id, _ref as ref, _result as result, _target as target, _body as 
 import { requiredFunction, escape, failed, mixed, evaluate, failure, flat } from '../member_returns/proof.f.mjs'
 
 /** A represented provider; its answer establishes the read without invoking it. @type {(answer: Exp) => Runtime} */
-const staticRuntime = answer => ['{}', [[':', 'static', ['=>', 1, [], answer]]]]
+export const staticRuntime = answer => ['{}', [[':', 'static', ['=>', 1, [], answer]]]]
 
 /** @type {Runtime} */
 const throwingCall = staticRuntime(['=>', 0, [], ['throw', 'native invocation']])
@@ -25,6 +25,11 @@ export const wrappers = value => [value, ['block', result(value)], [',', [0, val
     ['if', true, result(value), result(value)], ['?:', false, value, value]]
 
 export const proof = /** @type {const} */ ({
+    lazyInitializerReturnsAtDemand: () => {
+        const lazy = id(0)
+        assertEq(evaluate(calledFunction({ target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, ref(lazy)], [['define', lazy, ['()', ['slice'], [escape()]], 'lazy']]) })), 7)
+    },
     staticArgumentsReturnBeforeInvocation: () => {
         for (const name of staticIds) {
             for (const callee of wrappers([name])) {
@@ -184,11 +189,6 @@ export const proof = /** @type {const} */ ({
         foreignReturnOwner: () => {
             const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })
             calledFunction(requiredFunction(['()', ['slice'], [['block', body(['return', foreign, 7])]]]))
-        },
-        lazyInitializerStillHasItsDemandBoundary: () => {
-            const lazy = id(0)
-            calledFunction({ target, parameters: [], rest: null, self: null, captures: [],
-                body: body(['return', target, ref(lazy)], [['define', lazy, ['()', ['slice'], [escape()]], 'lazy']]) })
         },
     },
 })

@@ -24,6 +24,11 @@ const capturing = values => {
 }
 
 export const proof = /** @type {const} */ ({
+    lazyInitializerReturnsAtDemand: () => {
+        const output = id(0)
+        assertEq(evaluate(calledFunction({ target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, ref(output)], [['define', output, capturing([escape()]), 'lazy']]) })), 7)
+    },
     capturePositionsAndSkippedTail: () => {
         for (const index of /** @type {const} */ ([0, 1, 2])) {
             const values = Array.from({ length: 3 }, (_, position) => position < index ? position
@@ -230,11 +235,6 @@ export const proof = /** @type {const} */ ({
                 captures: [{ binding: captured, value: mixed(false, 1) }],
                 body: body(['return', owner, ref(captured)], [['define', output, escape(), 'required']]),
             }]))
-        },
-        lazyInitializerRemainsDeferred: () => {
-            const output = id(0)
-            calledFunction({ target, parameters: [], rest: null, self: null, captures: [],
-                body: body(['return', target, ref(output)], [['define', output, capturing([escape()]), 'lazy']]) })
         },
     },
 })
