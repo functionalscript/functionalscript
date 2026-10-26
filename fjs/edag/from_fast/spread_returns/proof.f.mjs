@@ -20,7 +20,7 @@ const simpleFunction = (parameters, value, rest = null) => {
 }
 
 /** @type {() => Value} */
-export const collector = () => {
+export const _collector = () => {
     const rest = id(0)
     return simpleFunction([], ref(rest), rest)
 }
@@ -29,11 +29,11 @@ export const proof = /** @type {const} */ ({
     expansionBeforeLaterSuccessfulReturn: () => {
         for (const source of /** @type {readonly Value[]} */ ([null, undefined, false, 0, ['object', []], simpleFunction([], 1)])) {
             failure(calledFunction(requiredFunction(['array', [['...', source], escape()]])))
-            failure(calledFunction(requiredFunction(['()', collector(), [['...', source], escape()]])))
+            failure(calledFunction(requiredFunction(['()', _collector(), [['...', source], escape()]])))
             failure(calledFunction(requiredFunction(['.', 'abc', 'slice', ['|()', [['...', source], escape()]]])))
         }
         assertEq(failure(calledFunction(requiredFunction(['array', [['...', failed('spread operand')], escape()]]))), 'spread operand')
-        assertEq(failure(calledFunction(requiredFunction(['()', collector(), [['...', ['array', [1]]], failed('later argument'), escape()]]))), 'later argument')
+        assertEq(failure(calledFunction(requiredFunction(['()', _collector(), [['...', ['array', [1]]], failed('later argument'), escape()]]))), 'later argument')
         assertEq(failure(calledFunction(requiredFunction(['array', [failed('earlier value'), ['...', escape()]]]))), 'earlier value')
     },
     returningSpreadSkipsExpansionAndTail: () => {
@@ -48,14 +48,14 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(evaluate(calledFunction(requiredFunction(optional))), evaluate(calledFunction(requiredFunction(payload))))
         }
         assertEq(evaluate(calledFunction(requiredFunction(['array', [escape(11), ['...', failed('unreached spread')]]]))), 11)
-        assertEq(evaluate(calledFunction(requiredFunction(['()', collector(), [escape(12), ['...', failed('unreached argument spread')]]]))), 12)
+        assertEq(evaluate(calledFunction(requiredFunction(['()', _collector(), [escape(12), ['...', failed('unreached argument spread')]]]))), 12)
     },
     normalUnicodeAndSeveralSpreads: () => {
         const text = /** @type {const} */ ('\ud800A😀\udfff')
         const expected = /** @type {const} */ ([0, '\ud800', 'A', '😀', '\udfff', 1, 2, 3])
         const items = /** @type {const} */ ([0, ['...', text], ['...', ['array', [1, 2]]], ['...', ''], mixed(false, 3)])
         assertStructurallySame(evaluate(calledFunction(requiredFunction(['array', items]))), expected)
-        assertStructurallySame(evaluate(calledFunction(requiredFunction(['()', collector(), items]))), expected)
+        assertStructurallySame(evaluate(calledFunction(requiredFunction(['()', _collector(), items]))), expected)
         const first = id(0), second = id(0), rest = id(0)
         const fn = simpleFunction([first, second], ['array', [ref(first), ref(second), ref(rest)]], rest)
         assertStructurallySame(evaluate(calledFunction(requiredFunction(['()', fn, [['...', ['array', [4]]], 5, ['...', '😀x'], mixed(false, 6)]]))), [4, 5, ['😀', 'x', 6]])
@@ -90,7 +90,7 @@ export const proof = /** @type {const} */ ({
             assertEq(evaluate(calledFunction(fn, [false])), 'b')
             assertEq(evaluate(calledFunction(fn, [true])), 7)
         }
-        const own = /** @type {Value} */ (['object', [[':', 'x', collector()]]])
+        const own = /** @type {Value} */ (['object', [[':', 'x', _collector()]]])
         assertStructurallySame(evaluate(calledFunction(requiredFunction(['.', own, 'x', ['|()', [['...', '😀x'], mixed(false, 3)]]]))), ['😀', 'x', 3])
     },
     optionalSkipsAndForcedExpansion: () => {
@@ -127,7 +127,7 @@ export const proof = /** @type {const} */ ({
         const stop = id(0), caller = id(0), selected = id(0), recipeLocal = id(0), output = id(0)
         for (const asCall of /** @type {const} */ ([false, true])) {
             const items = /** @type {const} */ ([['...', ref(selected)], mixed(ref(stop), 0, ['array', [ref(selected), ref(selected), ref(caller)]])])
-            const value = /** @type {Value} */ (asCall ? ['()', collector(), items] : ['array', items])
+            const value = /** @type {Value} */ (asCall ? ['()', _collector(), items] : ['array', items])
             const fn = /** @type {FastFunction} */ ({
                 target, parameters: [stop], rest: null, self: null, captures: [],
                 body: body(['return', target, ['array', [ref(output), ref(selected), ref(caller)]]], [
@@ -178,7 +178,7 @@ export const proof = /** @type {const} */ ({
             body: body(['break', loopTarget, [null]], [
                 ['if', [], ['<', ref(count), 2], body(['continue', loopTarget, [['+', ref(count), 1]]], [
                     ['define', local, ['array', [ref(count)]], 'lazy'], ['loop', witness],
-                    ['define', made, ['()', collector(), [['...', ['array', [ref(local)]]], mixed(['===', ref(count), 1], 0, getter)]], 'required'],
+                    ['define', made, ['()', _collector(), [['...', ['array', [ref(local)]]], mixed(['===', ref(count), 1], 0, getter)]], 'required'],
                 ]), body(['yield', []])],
             ]),
         })
@@ -226,7 +226,7 @@ export const proof = /** @type {const} */ ({
     },
     noReturnIdentity: () => {
         for (const value of /** @type {readonly Value[]} */ ([
-            ['array', [['...', '😀x'], 1]], ['()', collector(), [['...', ['array', [1]]]]],
+            ['array', [['...', '😀x'], 1]], ['()', _collector(), [['...', ['array', [1]]]]],
             ['.', 'abc', 'slice', ['|()', [['...', ['array', [1]]]]]],
             ['?.', null, 'x', ['|()', [['...', 0]]]], ['?.()', undefined, [['...', 0]]],
         ])) {
