@@ -22,6 +22,50 @@ const deferred = (initializer, consume, parameters = []) => {
 }
 
 export const proof = /** @type {const} */ ({
+    computedObjectKeyConversionPrecedesLazyValueDemand: () => {
+        const stop = id(0)
+        const keyOwner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const key = /** @type {Value} */ (['object', [[':', 'toString', ['function', {
+            target: keyOwner, parameters: [], rest: null, self: null, captures: [], body: body(['throw', 'key conversion']),
+        }]]]])
+        for (const prerequisite of /** @type {const} */ ([false, true])) {
+            const dependent = id(0)
+            for (const spread of /** @type {const} */ ([false, true])) {
+                const fn = deferred(mixed(ref(stop), 9), lazy => body(['return', target, ['object', [
+                    ...spread ? [/** @type {const} */ (['...', ['object', []]])] : [], [':', key, ref(prerequisite ? dependent : lazy)],
+                ]]], prerequisite ? [['define', dependent, ['array', [ref(lazy)]], 'lazy']] : []), [stop])
+                for (const returning of /** @type {const} */ ([false, true])) {
+                    assertEq(failure(calledFunction(fn, [returning])), 'key conversion')
+                }
+            }
+        }
+    },
+    returningObjectKeyDemandSkipsItsValueAndLaterEntries: () => {
+        const stop = id(0)
+        const suffix = failed('after key demand')
+        for (const atValue of /** @type {const} */ ([false, true])) {
+            const fn = deferred(mixed(ref(stop), 'normal'), lazy => body(['return', target, ['object', [
+                [':', 'before', 1], [':', ref(lazy), atValue ? suffix : 9], [':', 'after', atValue ? 9 : suffix],
+            ]]]), [stop])
+            assertEq(evaluate(calledFunction(fn, [true])), 7)
+            assertEq(failure(calledFunction(fn, [false])), 'after key demand')
+        }
+    },
+    convertedObjectKeyRetainsSharedNormalPayload: () => {
+        const stop = id(0), output = id(0)
+        const keyOwner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const key = /** @type {Value} */ (['object', [[':', 'toString', ['function', {
+            target: keyOwner, parameters: [], rest: null, self: null, captures: [], body: body(['return', keyOwner, 'converted']),
+        }]]]])
+        const fn = deferred(mixed(ref(stop), ['array', [4]]), lazy => body(['return', target, ['array', [
+            ['.', ref(output), 'converted'], ref(lazy),
+        ]]], [['define', output, ['object', [[':', key, ref(lazy)]]], 'required']]), [stop])
+        const normal = evaluate(calledFunction(fn, [false]))
+        assert(normal instanceof Array)
+        assertStructurallySame(normal, [[4], [4]])
+        assertEq(normal[0], normal[1])
+        assertEq(evaluate(calledFunction(fn, [true])), 7)
+    },
     undemandedInitializerRemainsDeferred: () => {
         for (const initializer of /** @type {readonly Value[]} */ ([escape(), failed('undemanded initializer')])) {
             assertEq(evaluate(calledFunction(deferred(initializer, () => body(['return', target, 9])))), 9)

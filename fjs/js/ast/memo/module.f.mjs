@@ -201,7 +201,7 @@ const valueTask = (source, context) => call(() => {
                     return done(conditionalValue(test, a, b, original))
                 })))
     }
-    if (context.completions && (guarded(source) || spreads(source))
+    if (context.completions && (source[0] === 'object' || guarded(source) || spreads(source))
         && freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => context.aliases.has(id))) {
         const value = _exposeOperands(source, binding(), context.sourceOwner)
         if (value.statement === null) { throw 'deferred completion requires an admitted operand region' }
