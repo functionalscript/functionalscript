@@ -14,7 +14,7 @@ import { uint } from '../../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { codeBlock } from '../code/module.f.js'
 import { tryShellQuote } from '../../../text/shell/module.f.js'
-import { caption } from '../module.f.mjs'
+import { caption, option } from '../module.f.mjs'
 import { encodeScalar } from '../../../basen/base16/module.f.mjs'
 
 /** Format a hash's bits as hex, preserving its complete width.
@@ -92,4 +92,4 @@ export const algorithmOf = list => name => {
  * @type {(a: { readonly name: string }, picked: { readonly name: string }) => Element}
  */
 export const algorithmOption = (a, picked) =>
-    ['option', a.name === picked.name ? { value: a.name, selected: '' } : { value: a.name }, a.name]
+    option(a.name, a.name, a.name === picked.name)
