@@ -287,6 +287,7 @@ const primitiveExpr = v => {
         case 'number': { return ok(numberExpr(v)) }
         case 'string': { return ok(stringCall('string_any')(v)) }
         case 'bigint': { return ok(bigintExpr(v)) }
+        default: { throw ['not a primitive', v] }
     }
 }
 
@@ -546,7 +547,8 @@ const statementReady = (s, st) => {
         case 'block': { return map1(parts => [braced(parts)])(block(s, st[1], false)) }
         case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)} ${kw('else')} ${braced(no)}`])(expression(s, st[1], false), block(s, st[2], false), block(s, st[3], false)) }
         case 'loop': { return map1(parts => [`'${loopLabel(s, st[1])}: ${kw('loop')} ${braced(parts)}`])(block(s, st[2], false)) }
-        case 'while': {
+        // `'while'`, the one statement left: `children` refuses any other
+        default: {
             const w = st[1]
             return map3((initial, condition, body) => [
                 `${kw('let')} ${w.mutable ? `${kw('mut')} ` : ''}${binding(s, w.slot)}: Any<A> = ${initial};`,
@@ -676,9 +678,11 @@ const children = task => {
                 case 'if': { return [valueTask(s, st[1]), blockTask(s, st[2]), blockTask(s, st[3])] }
                 case 'loop': { return [blockTask(s, st[2])] }
                 case 'while': { return [valueTask(s, st[1].initial), valueTask(s, st[1].condition), blockTask(s, st[1].body)] }
+                default: { throw ['not a statement', st] }
             }
         }
-        case 'steps': {
+        // `'steps'`, the one kind left: every task is built in this module
+        default: {
             const step = task.step
             if (step === undefined) { return [] }
             if (step[0] === '|.') { return [...keyTasks(s, step[1]), stepTask(s, step[2], false, true)] }
@@ -705,7 +709,8 @@ const completed = (task, dependencies, values) => {
         case 'value': { return expressionReady(s, task.value, task.result) }
         case 'block': { return blockReady(s, task.block, task.result, task.functionBody, task.valueBlock) }
         case 'statement': { return statementReady(s, task.statement) }
-        case 'steps': { return stepsReady(s, task.step, task.property, task.member) }
+        // `'steps'`, the one kind left: every task is built in this module
+        default: { return stepsReady(s, task.step, task.property, task.member) }
     }
 }
 

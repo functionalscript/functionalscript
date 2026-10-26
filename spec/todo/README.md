@@ -159,12 +159,13 @@ information — see [serialization](../design/serialization.md) and
 1. [x] `if` — the terminating guard, `if (c) { … return v; }` or a `throw`,
    before the body's own terminator; surface syntax over `?:`, no new EDAG
    node ([functions](../functions/README.md)). The bare consequent, a
-   non-terminating branch with `else`, and the module-level guard are
+   non-terminating branch with `else` ([3210](./3210-reachable-block-end.md),
+   with a body that runs off its end), and the module-level guard are
    follow-ups.
 2. [x] [let](./3220-let.md) — the one-variable loop, `let x = init;` and
    its `while`, is in the language ([loops](../control-flow/loops/README.md)); several
-   variables, `break`, `continue`, `for` and a `let` outside a loop are
-   open in the record
+   variables, `break`, `continue` and a `let` outside a loop are open in
+   the record, `for` in [3270](./3270-for.md)
 3. [x] `while` — with `let` above; `while` over several variables, and
    `break` and `continue` in its block, are open there
 4. [x] [switch](./3230-switch.md) — the terminating `switch`, every case a
@@ -179,6 +180,8 @@ information — see [serialization](../design/serialization.md) and
    level ([functions](../functions/README.md),
    [module structure](../modules/README.md)); with `if` it is what
    `assert` needs.
+7. [ ] [for](./3270-for.md) — `for…of`, the counting loop and `for (;;)`,
+   over the general `while`; the kinds `for…of` admits are open.
 
 ### 3.3. Priority 3
 

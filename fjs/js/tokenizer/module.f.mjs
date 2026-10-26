@@ -363,7 +363,8 @@ const templateDecodeStep = cp => decode => {
                 ? { ...decode, state: { kind: 'normal' }, value: concat(decode.value)([fixedHexValue(digits)]), previous: cp }
                 : { ...decode, state: { ...state, digits }, previous: cp }
         }
-        case 'codePoint': {
+        // `'codePoint'`, the one state left: every state is built in this module
+        default: {
             if (cp === one('}')) {
                 return {
                     ...decode,
