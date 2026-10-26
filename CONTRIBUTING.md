@@ -82,8 +82,9 @@ mise install --locked
 ./dev.sh npm ci
 ```
 
-`./dev.sh <command>` uses mise; without arguments it opens a shell. On Windows,
-run `mise exec -- <command>` directly. The six native CI hosts use the same manager.
+`./dev.sh <command>` uses mise; without arguments it opens a shell. On Windows
+PowerShell, use `.\dev.ps1 <command>` or `.\dev.ps1` for an interactive shell.
+The six native CI hosts use the same manager.
 The devcontainer installs it and initializes the workspace on creation.
 
 Host prerequisites remain necessary: Linux needs a C compiler, Linux x64 also

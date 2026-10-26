@@ -14,7 +14,21 @@ mise install --locked
 ```
 
 `./dev.sh` opens a shell; arguments run one command in the selected environment.
-On Windows PowerShell, use `mise exec -- <command>`.
+On Windows PowerShell, use `dev.ps1`:
+
+```powershell
+mise trust
+mise install --locked
+.\dev.ps1 node --version
+.\dev.ps1 npm ci
+.\dev.ps1 tsc
+.\dev.ps1 npm start test
+```
+
+`.\dev.ps1` without arguments opens an interactive shell using the current
+PowerShell executable (PowerShell 7 or Windows PowerShell 5.1). Run `exit` to
+leave it. With arguments, it runs one command and returns that command's exit
+code. Both scripts are thin wrappers around `mise exec -- <command>`.
 
 ## Host prerequisites
 
