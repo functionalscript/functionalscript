@@ -41,13 +41,15 @@ const expectNull = nBits => {
     assertEq(targetFromNBits(nBits), null, nBits)
 }
 
+/** @type {(state: typeof demo.init, name: string) => typeof demo.init} */
+const click = (state, name) => unwrap(assertNotNullish(runPure(demo.update(state)({ kind: 'click', name }))[0]))
+
 export const proof = {
     demo: {
         oversized: () => {
-            /** @type {(state: typeof demo.init, name: string) => typeof demo.init} */
-            const click = (state, name) => unwrap(assertNotNullish(runPure(demo.update(state)({ kind: 'click', name }))[0]))
             const schedule = assertNotNullish(demo.nextEvent)
             // At 99 the appended nonce fits exactly; at 100 it is a byte too long.
+            /** @type {typeof demo.init} */
             const boundary = { ...demo.init, text: 'a'.repeat(Number(maxLengthBytes) - 2), nonce: '99', nBits: '0x01010000' }
             const running = click(boundary, 'auto-run')
             assertEq(running.search?.running, true)
@@ -59,11 +61,13 @@ export const proof = {
             assertEq(schedule(stopped), null)
             assertEq(click(stopped, 'auto-next'), stopped)
             // Starting after an already successful nonce takes the same refusal path.
+            /** @type {typeof demo.init} */
             const found = { ...boundary, text: 'b'.repeat(Number(maxLengthBytes) - 2), nBits: '0x207fffff' }
             const advanced = click(found, 'auto-run')
             assertEq(advanced.nonce, '100')
             assertEq(advanced.search, null)
             assertEq(schedule(advanced), null)
+            /** @type {typeof demo.init} */
             const oversized = { ...demo.init, text: 'é'.repeat(Number(maxLengthBytes) / 2 - 1) + 'a' }
             for (const state of [stopped, advanced, oversized, click(oversized, 'auto-run')]) {
                 const html = htmlToString(demo.view(state))
@@ -146,8 +150,6 @@ export const proof = {
             assert(quoted.includes("<pre>m' $HOME `whoami`42</pre>"), quoted)
         },
         autoRun: () => {
-            /** @type {(state: typeof demo.init, name: string) => typeof demo.init} */
-            const click = (state, name) => unwrap(assertNotNullish(runPure(demo.update(state)({ kind: 'click', name }))[0]))
             const schedule = assertNotNullish(demo.nextEvent)
             assertEq(schedule(demo.init), null)
             let state = click(demo.init, 'auto-run')
