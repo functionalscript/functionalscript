@@ -132,6 +132,7 @@ const measure = d => {
             const s = measure(separator)
             return { width: max(i.width, s.width) + 4 * arc, up: i.up, down: drop(i, s) + s.down }
         }
+        default: { throw ['not a diagram', d] }
     }
 }
 
@@ -220,7 +221,8 @@ const draw = backward => d => (x, y) => {
                 }),
             ]
         }
-        case 'loop': {
+        // `'loop'`, the one kind left: `measure` refuses any other first
+        default: {
             const [, item, separator] = d
             const i = measure(item)
             const s = measure(separator)

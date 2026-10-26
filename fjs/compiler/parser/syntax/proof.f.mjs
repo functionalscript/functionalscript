@@ -4,7 +4,7 @@
  * @import { Node, ParameterList } from './types.ts'
  */
 
-import { parseSyntax } from './module.f.mjs'
+import { _baseOf, _primitiveOf, _toMember, parseSyntax } from './module.f.mjs'
 import { tokenizeString } from '../proof.f.mjs'
 import { _valueKinds } from '../grammar/module.f.mjs'
 import { fromEntries } from '../../../types/object/module.f.mjs'
@@ -380,4 +380,11 @@ export const proof = {
             assertEq(value.metadata?.column, 11)
         },
     ],
+    // A node whose tag no grammar branch produces is refused, not folded to
+    // `undefined`.
+    throw: {
+        primitiveOf: () => _primitiveOf(/** @type {never} */ (['bogus', { meta: { token: {} } }])),
+        baseOf: () => _baseOf(/** @type {never} */ (['bogus', []])),
+        toMember: () => _toMember(/** @type {never} */ (['bogus', []])),
+    },
 }
