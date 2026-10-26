@@ -5,23 +5,12 @@
  * @import { Exp } from '../../types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.mjs'
 import { liftReturns } from '../../../js/ast/returns/module.f.mjs'
-import { identityAnalysis } from '../../analysis/module.f.mjs'
-import { memo } from '../../memo/module.f.mjs'
 import { toFast } from '../../to_fast/module.f.mjs'
-import { toData } from '../../value/to_unknown/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _collectingMemo as collectingMemo } from '../proof.f.mjs'
-
-/** @type {(value?: Value) => Value} */
-const escape = (value = 7) => ['block', body(['return', target, value])]
-
-/** @type {(message: string) => Value} */
-const failed = message => ['block', body(['throw', message])]
-
-/** @type {(condition: Value, normal: Value, returned?: Value) => Value} */
-const mixed = (condition, normal, returned = 7) => ['if', condition, body(['return', target, returned]), result(normal)]
+import { escape, failed, mixed, evaluate, failure, flat } from '../member_returns/proof.f.mjs'
 
 /** Terminal fixtures never execute a normal continue. @type {(kind: 'break' | 'continue', values: readonly Value[]) => FastFunction} */
 const terminalTransfer = (kind, values) => {
@@ -32,18 +21,6 @@ const terminalTransfer = (kind, values) => {
         body: body([kind, loopTarget, values]) })
     return { target, parameters: [], rest: null, self: null, captures: [],
         body: body(['return', target, failed('transfer suffix')], [['loop', loop]]) }
-}
-
-/** @type {(graph: Exp) => unknown} */
-const evaluate = graph => assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [] }))))
-
-/** @type {(graph: Exp) => unknown} */
-const failure = graph => assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] }))
-
-/** Compare shared graph tables without expanding their DAGs. @type {(graph: Exp) => unknown} */
-const flat = graph => {
-    const { root, nodes, scope, shared } = assertOk(identityAnalysis(graph))
-    return { root, nodes, scope, shared }
 }
 
 export const proof = /** @type {const} */ ({

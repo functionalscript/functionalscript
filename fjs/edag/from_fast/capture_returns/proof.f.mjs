@@ -1,34 +1,16 @@
 /**
  * Closure-construction completion integration over normalized FAST.
  *
- * @import { BindingId, Function as FastFunction, Loop, Value } from '../../../js/ast/types.ts'
+ * @import { Function as FastFunction, Loop, Value } from '../../../js/ast/types.ts'
  * @import { Exp } from '../../types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.mjs'
 import { liftReturns } from '../../../js/ast/returns/module.f.mjs'
-import { identityAnalysis } from '../../analysis/module.f.mjs'
-import { memo } from '../../memo/module.f.mjs'
 import { toFast } from '../../to_fast/module.f.mjs'
-import { toData } from '../../value/to_unknown/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _collectingMemo as collectingMemo } from '../proof.f.mjs'
-
-/** @type {(value: Value, parameters?: readonly BindingId[]) => FastFunction} */
-const requiredFunction = (value, parameters = []) => {
-    const output = id(0)
-    return { target, parameters, rest: null, self: null, captures: [],
-        body: body(['return', target, ref(output)], [['define', output, value, 'required']]) }
-}
-
-/** @type {(value?: Value) => Value} */
-const escape = (value = 7) => ['block', body(['return', target, value])]
-
-/** @type {(message: string) => Value} */
-const failed = message => ['block', body(['throw', message])]
-
-/** @type {(condition: Value, normal: Value, returned?: Value) => Value} */
-const mixed = (condition, normal, returned = 7) => ['if', condition, body(['return', target, returned]), result(normal)]
+import { requiredFunction, escape, failed, mixed, evaluate, failure, flat } from '../member_returns/proof.f.mjs'
 
 /** Each capture is observed in declaration order through its distinct inner binding. @type {(values: readonly Value[]) => Value} */
 const capturing = values => {
@@ -39,18 +21,6 @@ const capturing = values => {
         captures: values.map((value, index) => ({ binding: bindings[index], value })),
         body: body(['return', owner, ['array', bindings.map(ref)]]),
     }]
-}
-
-/** @type {(graph: Exp) => unknown} */
-const evaluate = graph => assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [] }))))
-
-/** @type {(graph: Exp) => unknown} */
-const failure = graph => assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] }))
-
-/** Flat tables retain graph sharing without recursively expanding the DAG. @type {(graph: Exp) => unknown} */
-const flat = graph => {
-    const { root, nodes, scope, shared } = assertOk(identityAnalysis(graph))
-    return { root, nodes, scope, shared }
 }
 
 export const proof = /** @type {const} */ ({

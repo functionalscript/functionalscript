@@ -6,30 +6,12 @@
  * @import { Runtime } from '../../value/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.mjs'
 import { liftReturns } from '../../../js/ast/returns/module.f.mjs'
-import { identityAnalysis } from '../../analysis/module.f.mjs'
-import { memo } from '../../memo/module.f.mjs'
 import { toFast } from '../../to_fast/module.f.mjs'
-import { toData } from '../../value/to_unknown/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _collectingMemo as collectingMemo } from '../proof.f.mjs'
-
-/** @type {(value: Value, parameters?: readonly BindingId[]) => FastFunction} */
-const requiredFunction = (value, parameters = []) => {
-    const output = id(0)
-    return { target, parameters, rest: null, self: null, captures: [],
-        body: body(['return', target, ref(output)], [['define', output, value, 'required']]) }
-}
-
-/** @type {(value?: Value) => Value} */
-const escape = (value = 7) => ['block', body(['return', target, value])]
-
-/** @type {(message: string) => Value} */
-const failed = message => ['block', body(['throw', message])]
-
-/** @type {(condition: Value, normal: Value, returned?: Value) => Value} */
-const mixed = (condition, normal, returned = 7) => ['if', condition, body(['return', target, returned]), result(normal)]
+import { requiredFunction, escape, failed, mixed, evaluate, failure, runtimeReturning, throwingRuntime, flat } from '../member_returns/proof.f.mjs'
 
 /** @type {(parameters: readonly BindingId[], value: Value, rest?: BindingId | null) => Value} */
 const simpleFunction = (parameters, value, rest = null) => {
@@ -41,24 +23,6 @@ const simpleFunction = (parameters, value, rest = null) => {
 const collector = () => {
     const rest = id(0)
     return simpleFunction([], ref(rest), rest)
-}
-
-/** @type {(graph: Exp, runtime?: Runtime) => unknown} */
-const evaluate = (graph, runtime) => assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [], runtime }))))
-
-/** @type {(graph: Exp, runtime?: Runtime) => unknown} */
-const failure = (graph, runtime) => assertError(memo(assertOk(identityAnalysis(graph)))({ args: [], runtime }))
-
-/** @type {(value: Exp) => Runtime} */
-const runtimeReturning = value => ['{}', [[':', 'dot', ['=>', 2, [], value]]]]
-
-/** @type {Runtime} */
-const throwingRuntime = ['{}', [[':', 'dot', ['=>', 2, [], ['throw', 'lookup']]]]]
-
-/** Flat tables preserve sharing without comparing redundant expanded DAGs. @type {(graph: Exp) => unknown} */
-const flat = graph => {
-    const { root, nodes, scope, shared } = assertOk(identityAnalysis(graph))
-    return { root, nodes, scope, shared }
 }
 
 export const proof = /** @type {const} */ ({
