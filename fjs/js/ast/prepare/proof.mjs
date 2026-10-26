@@ -17,7 +17,107 @@ const id = index => ({ index })
 /** @type {(fn: FastFunction) => (...args: readonly unknown[]) => any} */
 const compile = fn => Function(`"use strict";return (${functionStringify(prepareFunction(fn))});`)()
 
+/** @type {(source: FastFunction) => (...args: readonly unknown[]) => any} */
+const standalone = source => Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
+
 export const proof = {
+    spreadReturnOperands: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const selected = id(100), result = id(101), rest = id(102)
+        /** @type {(value?: FastValue) => FastValue} */
+        const escape = (value = 7) => ['block', { statements: [], exit: ['return', target, value] }]
+        /** @type {(normal: FastValue) => FastValue} */
+        const choice = normal => ['if', ['ref', selected], { statements: [], exit: ['return', target, 7] }, { statements: [], exit: ['yield', [normal]] }]
+        /** @type {(value: FastValue) => FastFunction} */
+        const sourceFunction = value => ({ target, parameters: [selected], rest: null, self: null, captures: [],
+            body: { statements: [['define', result, value, 'required']], exit: ['return', target, ['ref', result]] } })
+        /** @type {(value: FastValue) => (...args: readonly unknown[]) => any} */
+        const valueFunction = value => compile(sourceFunction(value))
+        /** @type {(value: FastValue) => (...args: readonly unknown[]) => any} */
+        const standaloneValue = value => standalone(sourceFunction(value))
+        const child = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const collect = /** @type {FastValue} */ (['function', { target: child, parameters: [], rest, self: null, captures: [],
+            body: { statements: [], exit: ['return', child, ['ref', rest]] } }])
+        for (const value of /** @type {readonly FastValue[]} */ ([0, null, undefined, ['object', []]])) {
+            throws(() => valueFunction(['array', [['...', value], escape()]])(), TypeError)
+            throws(() => valueFunction(['()', collect, [['...', value], escape()]])(), TypeError)
+        }
+        assertEq(valueFunction(['array', [escape(), ['...', 0]]])(), 7)
+        assertEq(valueFunction(['array', [['...', ['array', []]], escape()]])(), 7)
+        const expanded = valueFunction(['array', [['...', choice('A😀B')], 5]])
+        assertEq(expanded(true), 7)
+        assertStructurallySame(expanded(false), ['A', '😀', 'B', 5])
+        const collected = valueFunction(['()', collect, [['...', 'A😀B'], choice(5)]])
+        assertEq(collected(true), 7)
+        assertStructurallySame(collected(false), ['A', '😀', 'B', 5])
+        assertEq(valueFunction(['()', 0, [['...', ['array', []]], escape()]])(), 7)
+        throws(() => valueFunction(['()', 0, [['...', 0], escape()]])(), TypeError)
+        assertEq(valueFunction(['()', ['block', { statements: [], exit: ['return', target, 7] }], [['...', ['array', []]]]])(), 7)
+        assertEq(valueFunction(['()', escape(), [['...', 0]]])(), 7)
+        const callee = valueFunction(['()', choice(collect), [['...', ['array', [1, 2]]]]])
+        assertEq(callee(true), 7)
+        assertStructurallySame(callee(false), [1, 2])
+        assertEq(valueFunction(['()', ['Number.isInteger'], [['...', ['array', []]], escape()]])(), 7)
+        const captured = id(104)
+        const captureReturn = /** @type {FastValue} */ (['function', { target: child, parameters: [], rest: null, self: null,
+            captures: [{ binding: captured, value: escape() }], body: { statements: [], exit: ['return', child, ['ref', captured]] } }])
+        for (const render of [valueFunction, standaloneValue]) {
+            throws(() => render(['array', [['...', 0], escape()]])(), TypeError)
+            throws(() => render(['()', collect, [['...', 0], escape()]])(), TypeError)
+            assertEq(render(['array', [['...', ['array', []]], escape()]])(), 7)
+            assertEq(render(['()', collect, [['...', ['array', []]], escape()]])(), 7)
+            assertEq(render(['array', [['...', escape()], 0]])(), 7)
+            for (const control of /** @type {readonly FastValue[]} */ ([['object', [['...', escape()]]], captureReturn])) {
+                assertEq(render(['()', collect, [['...', ['array', []]], control]])(), 7)
+                throws(() => render(['()', collect, [['...', 0], control]])(), TypeError)
+            }
+        }
+        const native = valueFunction(['.', 'abc', 'slice', ['|()', [['...', ['array', [1]]], choice(2)]]])
+        assertEq(native(true), 7)
+        assertEq(native(false), 'b')
+        const direct = valueFunction(['()', ['.', 'abc', 'slice'], [['...', ['array', [1]]], choice(2)]])
+        assertEq(direct(true), 7)
+        assertEq(direct(false), 'b')
+        throws(() => valueFunction(['.', null, 'x', ['|()', [['...', ['array', []]], escape()]]])(), TypeError)
+        assertEq(valueFunction(['.', ['object', []], 'x', ['|()', [['...', ['array', []]], escape()]]])(), 7)
+        assertEq(valueFunction(['?.', null, 'x', ['|()', [['...', 0], escape()]]])(), undefined)
+        assertEq(valueFunction(['.', ['object', [[':', 'x', null]]], 'x', ['|?.()', [['...', 0], escape()]]])(), undefined)
+        assertEq(valueFunction(['?.()', undefined, [['...', 0], escape()]])(), undefined)
+        assertEq(valueFunction(['?.', null, 'x', ['|!()', [['...', ['array', []]], escape()]]])(), 7)
+        throws(() => valueFunction(['?.', null, 'x', ['|!()', [['...', 0], escape()]]])(), TypeError)
+        const payload = /** @type {readonly unknown[]} */ ([])
+        assertEq(valueFunction(['array', [['...', ['array', [1]]], escape(['ref', selected])]])(payload), payload)
+        const memo = id(103)
+        const remembered = compile({ target, parameters: [selected], rest: null, self: null, captures: [],
+            body: { statements: [
+                ['define', memo, ['array', [1, 2]], 'lazy'],
+                ['define', result, ['array', [['...', ['ref', memo]], choice(3)]], 'required'],
+            ], exit: ['return', target, ['ref', result]] } })
+        assertEq(remembered(true), 7)
+        assertStructurallySame(remembered(false), [1, 2, 3])
+    },
+    spreadLoopTransfers: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const loop = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const value = id(0), result = id(1), rest = id(2)
+        const child = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const collect = /** @type {FastValue} */ (['function', { target: child, parameters: [], rest, self: null, captures: [],
+            body: { statements: [], exit: ['return', child, ['ref', rest]] } }])
+        const leave = /** @type {FastValue} */ (['block', { statements: [], exit: ['break', loop, [9]] }])
+        /** @type {(expression: FastValue) => FastFunction} */
+        const fn = expression => ({ target, parameters: [], rest: null, self: null, captures: [], body: {
+            statements: [['loop', { target: loop, parameters: [], initial: [], results: [result], body: {
+                statements: [['define', value, expression, 'required']], exit: ['break', loop, [['ref', value]]],
+            } }]], exit: ['return', target, ['ref', result]],
+        } })
+        for (const render of [compile, standalone]) {
+            throws(() => render(fn(['array', [['...', 0], leave]]))(), TypeError)
+            throws(() => render(fn(['()', collect, [['...', 0], leave]]))(), TypeError)
+            assertEq(render(fn(['array', [['...', ['array', []]], leave]]))(), 9)
+            assertEq(render(fn(['()', collect, [['...', ['array', []]], leave]]))(), 9)
+            assertEq(render(fn(['array', [['...', leave], 0]]))(), 9)
+        }
+    },
     memberReturnOperands: () => {
         const target = { kind: /** @type {const} */ ('function'), index: 0 }
         const selected = id(100)
@@ -127,8 +227,6 @@ export const proof = {
         const leave = ['block', { statements: [], exit: ['break', loop, [9]] }]
         /** @type {FastValue} */
         const choice = ['if', ['ref', selected], { statements: [], exit: ['break', loop, [9]] }, { statements: [], exit: ['yield', [1]] }]
-        /** @type {(source: FastFunction) => (...args: readonly unknown[]) => any} */
-        const standalone = source => Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
         for (const render of [compile, standalone]) {
             // A former bare-call path must retain lookup before a successful
             // outer break, and preserve the receiver on a normal argument.

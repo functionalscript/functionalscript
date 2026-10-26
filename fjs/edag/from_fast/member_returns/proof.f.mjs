@@ -16,20 +16,20 @@ import { toData } from '../../value/to_unknown/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.mjs'
 
 /** @type {(value: Value, parameters?: readonly BindingId[]) => FastFunction} */
-const requiredFunction = (value, parameters = []) => {
+export const requiredFunction = (value, parameters = []) => {
     const output = id(0)
     return { target, parameters, rest: null, self: null, captures: [],
         body: body(['return', target, ref(output)], [['define', output, value, 'required']]) }
 }
 
 /** @type {(value?: Value) => Value} */
-const escape = (value = 7) => ['block', body(['return', target, value])]
+export const escape = (value = 7) => ['block', body(['return', target, value])]
 
 /** @type {(message: string) => Value} */
-const failed = message => ['block', body(['throw', message])]
+export const failed = message => ['block', body(['throw', message])]
 
 /** @type {(condition: Value, normal: Value, returned?: Value) => Value} */
-const mixed = (condition, normal, returned = 7) => ['if', condition, body(['return', target, returned]), result(normal)]
+export const mixed = (condition, normal, returned = 7) => ['if', condition, body(['return', target, returned]), result(normal)]
 
 /** @type {(parameters: readonly BindingId[], value: Value) => Value} */
 const simpleFunction = (parameters, value) => {
@@ -38,19 +38,19 @@ const simpleFunction = (parameters, value) => {
 }
 
 /** @type {(graph: Exp, runtime?: Runtime) => unknown} */
-const evaluate = (graph, runtime) => assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [], runtime }))))
+export const evaluate = (graph, runtime) => assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [], runtime }))))
 
 /** @type {(graph: Exp, runtime?: Runtime) => unknown} */
-const failure = (graph, runtime) => assertError(memo(assertOk(identityAnalysis(graph)))({ args: [], runtime }))
+export const failure = (graph, runtime) => assertError(memo(assertOk(identityAnalysis(graph)))({ args: [], runtime }))
 
 /** A pure represented lookup provider, with no argument-stage call. @type {(value: Exp) => Runtime} */
-const runtimeReturning = value => ['{}', [[':', 'dot', ['=>', 2, [], value]]]]
+export const runtimeReturning = value => ['{}', [[':', 'dot', ['=>', 2, [], value]]]]
 
 /** @type {Runtime} */
-const throwingRuntime = ['{}', [[':', 'dot', ['=>', 2, [], ['throw', 'lookup']]]]]
+export const throwingRuntime = ['{}', [[':', 'dot', ['=>', 2, [], ['throw', 'lookup']]]]]
 
 /** Flat analysis avoids recursively comparing redundant expanded DAGs. @type {(graph: Exp) => unknown} */
-const flat = graph => {
+export const flat = graph => {
     const { root, nodes, scope, shared } = assertOk(identityAnalysis(graph))
     return { root, nodes, scope, shared }
 }
@@ -311,9 +311,6 @@ export const proof = /** @type {const} */ ({
             const wrong = /** @type {Value} */ (['block', body(['return', foreign, 7])])
             const argument = id(0)
             fromFast(result(['function', requiredFunction(['?.()', ref(argument), [wrong]], [argument])]))
-        },
-        spreadMemberArgument: () => {
-            fromFast(result(['function', requiredFunction(['.', 'abc', 'slice', ['|()', [['...', escape()]]]])]))
         },
     },
 })
