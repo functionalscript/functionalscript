@@ -56,6 +56,9 @@ stable source order. Neither helper changes evaluation regions; traversing a
 lazy operand does not establish its runtime value. `CoreBinaryTag` excludes
 logical and nullish source operators; source sugar expresses them with
 immutable bindings and conditional result regions.
+Member chains retain the [EDAG chain states](../../edag/types.ts): plain property
+paths nest accesses, and property continuations stay inside an open optional
+region. The shared `Step<V>` shape does not replace those producer invariants.
 
 `['memberPresent', receiver, key]` is an internal Boolean query using the same
 `Key<V>` vocabulary as property access. Its operands are the receiver followed
@@ -81,8 +84,16 @@ helpers retain bare-callee provenance through value blocks, conditionals and
 comma results. Argument return lifting snapshots the callee before arguments,
 preserving static lookup failures before a later argument can return. Only
 normal argument completion invokes the established callee; a return skips the
-remaining arguments and spreads. Wrapped member references retain their
-separate receiver/provenance boundary.
+remaining arguments and spreads.
+
+Property-ending chains supply values with the same callee tracking. Ordinary
+calls through value blocks, comma results and conditionals establish the
+selected property read before arguments and retain detached invocation. Prefix,
+receiver, key-conversion and read failures precede later argument returns;
+unselected callee arms stay unevaluated. Direct syntactic member calls and
+in-chain optional calls retain their receiver and query protocol.
+JavaScript rendering keeps ordinary property callees detached after erasing
+trivial result blocks or rendering singleton comma expressions as parentheses.
 
 `analyzeBindings(scope)` consumes the resolved, pattern-expanded binding stage,
 before assignment normalization or graph construction. Each scope declares the

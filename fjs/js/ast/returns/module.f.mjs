@@ -190,9 +190,9 @@ const chainArguments = (args, invoke, step, owner, end, permitted) =>
 const chainCall = (value, args, step, optional, owner, end, permitted) =>
     bind(chainArguments(args, args => ['()', value, args], step, owner, end, permitted), reached => done(optional ? chainGuard(present(value), reached, end) : reached))
 
-/** Property state survives until the call consumes its receiver. @type {(receiver: Value, key: Key<Value>, step: Step<Value> | undefined, owner: FunctionTarget | null, end: _ChainEnd, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
+/** A final property is a detached value; call continuations retain their receiver. @type {(receiver: Value, key: Key<Value>, step: Step<Value> | undefined, owner: FunctionTarget | null, end: _ChainEnd, permitted: readonly LoopTarget[]) => Task<_ChainRegion>} */
 const chainMember = (receiver, key, step, owner, end, permitted) => call(() => {
-    if (step === undefined) { return done(chainYield([['.', receiver, key]], false)) }
+    if (step === undefined) { return done(chainYield([['.', receiver, key]])) }
     if (step[0] === '|.') {
         const id = binding()
         return bind(chainProperty(ref(id), step[1], step[2], owner, end, permitted), tail => done(chainPrefix([

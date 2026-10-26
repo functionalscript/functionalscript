@@ -95,6 +95,26 @@ export const proof = {
         assertEq(expression(['()', -1, []]), '(-1)()')
         assertEq(expression(['?.()', -1n, []]), '(-1n)?.()')
     },
+    detachedWrappedCallees: () => {
+        const member = /** @type {Value} */ (['.', 'abc', 'slice'])
+        const optional = /** @type {Value} */ (['?.', null, 'slice'])
+        for (const value of /** @type {readonly Value[]} */ ([member, optional])) {
+            const syntax = expression(value)
+            const block = /** @type {Value} */ (['block', yielding(value)])
+            const nested = /** @type {Value} */ (['block', yielding(['block', yielding(value)])])
+            for (const callee of /** @type {readonly Value[]} */ ([value, block, nested])) {
+                assertEq(expression(['()', callee, [1]]), `(0,${syntax})(1)`)
+            }
+            assertEq(expression(['()', [',', [value]], [1]]), `(0,(${syntax}))(1)`)
+            assertEq(expression(['()', ['block', yielding([',', [['block', yielding(value)]]])], [1]]), `(0,(${syntax}))(1)`)
+            assertEq(expression(['()', [',', [0, value]], [1]]), `(0,${syntax})(1)`)
+            assertEq(expression(['()', choice(true, value, value), [1]]), `(true?${syntax}:${syntax})(1)`)
+        }
+        assertEq(expression(['()', [',', [3]], [1]]), '(3)(1)')
+        assertEq(expression(['()', [',', []], [1]]), '(undefined)(1)')
+        assertEq(expression(['.', 'abc', 'slice', ['|()', [1]]]), '"abc".slice(1)')
+        assertEq(expression(['?.', null, 'slice', ['|()', [1]]]), 'null?.slice(1)')
+    },
     exportsAndModes: () => {
         const binding = id(0)
         const block = { statements: [], exit: /** @type {const} */ (['yield', [3]]) }

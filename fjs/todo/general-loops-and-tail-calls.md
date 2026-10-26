@@ -131,7 +131,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       owning returns in enclosing scope before the loop starts, preserving
       ordered one-time setup and caller/iteration memo lifetimes. Native callees
       and their wrappers admit argument returns while retaining callee reads
-      before arguments. The remaining operand boundaries stay open.
+      before arguments. Wrapped member callees retain selected property reads
+      before arguments and detached invocation. Lazy initializer completion
+      handling remains open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

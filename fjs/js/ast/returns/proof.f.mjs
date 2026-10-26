@@ -606,7 +606,10 @@ export const proof = /** @type {const} */ ({
     commaCalleeFacts: () => {
         const fn = id(), receiver = id(), condition = id()
         const selected = /** @type {Value} */ (['block', yielded([3], [['if', [], ref(condition), returned(9), yielded([])]])])
-        for (const last of /** @type {readonly Value[]} */ ([ref(fn), ['array', []], ['object', []], ['instanceof', 1, 'Array'], ['Object.is'], ['slice']])) {
+        for (const last of /** @type {readonly Value[]} */ ([
+            ref(fn), ['array', []], ['object', []], ['instanceof', 1, 'Array'], ['Object.is'], ['slice'],
+            ['.', ref(receiver), 'at'], ['?.', ref(receiver), 'at'],
+        ])) {
             for (const prefix of /** @type {readonly Value[]} */ ([1, selected])) {
                 const callee = /** @type {Value} */ ([',', [prefix, last]])
                 const source = returned(['()', callee, [['block', returned(7)]]])
@@ -615,7 +618,7 @@ export const proof = /** @type {const} */ ({
                 assertEq(liftReturns(result, owner), result)
             }
         }
-        for (const last of /** @type {readonly Value[]} */ ([['.', ref(receiver), 'at'], ['?.', ref(receiver), 'at']])) {
+        for (const last of /** @type {readonly Value[]} */ ([[',', []]])) {
             for (const prefix of /** @type {readonly Value[]} */ ([1, selected])) {
                 const comma = /** @type {Value} */ ([',', [prefix, last]])
                 for (const callee of /** @type {readonly Value[]} */ ([comma, ['block', yielded([comma])], ['?:', true, comma, ref(fn)]])) {
@@ -867,16 +870,32 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
-    memberCalleeBoundaries: () => {
+    memberCalleeValuesAndDirectCalls: () => {
         const receiver = id(), fn = id()
         const member = /** @type {Value} */ (['.', ref(receiver), 'at'])
         const callees = /** @type {readonly Value[]} */ ([
-            ['?.', ref(receiver), 'at'], [',', []],
+            ['?.', ref(receiver), 'at'],
             ['block', yielded([member])], ['if', true, yielded([member]), yielded([ref(fn)])],
             ['if', true, yielded([ref(fn)]), yielded([member])], ['?:', true, ['block', yielded([member])], ref(fn)],
             ['if', true, yielded([['Object.is']]), yielded([member])], ['?:', true, member, ['slice']],
         ])
         for (const callee of callees) {
+            const ordinary = returned(['()', callee, [1]])
+            assertEq(liftReturns(ordinary, owner), ordinary)
+            const source = returned(['()', callee, [['block', returned(7)]]])
+            const result = liftReturns(source, owner)
+            const region = blockOf(result.statements[0])
+            const established = region.statements[0]
+            assert(established[0] === 'define')
+            assertEq(established[2], callee)
+            assertStructurallySame(result.exit, ['yield', []])
+            assertEq(liftReturns(result, owner), result)
+        }
+        const empty = /** @type {Value} */ ([',', []])
+        for (const callee of /** @type {readonly Value[]} */ ([
+            empty, ['block', yielded([empty])], ['if', true, yielded([empty]), yielded([ref(fn)])],
+            ['if', true, yielded([ref(fn)]), yielded([empty])], ['?:', true, empty, ref(fn)],
+        ])) {
             const source = returned(['()', callee, [['block', returned(7)]]])
             assertEq(liftReturns(source, owner), source)
         }
@@ -896,6 +915,47 @@ export const proof = /** @type {const} */ ({
         assert(liftReturns(nested, owner) !== nested)
         const unchanged = returned(completed)
         assertEq(liftReturns(unchanged, owner), unchanged)
+    },
+    wrappedMemberCalleeKeepsBareCall: () => {
+        const receiver = id(), condition = id(), destination = id()
+        /** @type {Value} */
+        const member = ['.', ref(receiver), ['Number', 0]]
+        const selected = /** @type {Value} */ (['if', ref(condition), returned(7), yielded([3])])
+        for (const callee of /** @type {readonly Value[]} */ ([
+            ['block', yielded([member])], [',', [1, member]], ['?:', ref(condition), member, ['Object.is']],
+            ['if', ref(condition), yielded([['slice']]), yielded([member])],
+            ['block', yielded([['.', ['.', ref(receiver), 'nested'], 'at']])],
+            ['?.', ref(receiver), 'nested', ['|.', 'at']],
+        ])) {
+            const fact = liftValueReturns(callee, destination, owner)
+            assertEq(fact.statement, null)
+            assertEq(fact.value, callee)
+            assertEq(fact.callee, true)
+            const source = returned(['()', callee, [selected]])
+            const result = liftReturns(source, owner)
+            const region = blockOf(result.statements[0])
+            assertEq(region.statements.length, 2)
+            const [established, argument] = region.statements
+            assert(established[0] === 'define' && argument[0] === 'if')
+            assertEq(established[2], callee)
+            assertStructurallySame(region.exit, ['yield', [['()', ref(established[1]), [ref(argument[1][0])]]]])
+            assertEq(liftReturns(result, owner), result)
+        }
+        for (const callee of /** @type {readonly Value[]} */ ([
+            ['.', ref(receiver), 'at', ['|()', [['block', returned(7)]]]],
+            ['?.', ref(receiver), 'at', ['|?.()', [['block', returned(7)]]]],
+        ])) {
+            const result = liftReturns(returned(callee), owner)
+            const definitions = regions(result).flatMap(block => block.statements.filter(statement => statement[0] === 'define'))
+            assert(definitions.some(statement => statement[2] instanceof Array && statement[2][0] === 'memberPresent'))
+            assertEq(result.exit[0], callee instanceof Array && callee[0] === '?.' ? 'return' : 'yield')
+        }
+        const terminalKey = returned(['()', ['block', yielded([
+            ['.', ref(receiver), ['Number', ['block', returned(7)]]],
+        ])], [['block', body(['return', other, 9])]]])
+        const result = liftReturns(terminalKey, owner)
+        assertStructurallySame(result.exit, ['yield', []])
+        assertStructurallySame(regions(result).filter(block => block.exit[0] === 'return').map(block => block.exit), [['return', owner, 7]])
     },
     memberOperands: () => {
         const receiver = id(), condition = id(), destination = id()
@@ -997,6 +1057,20 @@ export const proof = /** @type {const} */ ({
         const mapped = liftReturns(source, owner)
         assert(mapped !== source)
         assertEq(liftReturns(mapped, owner), mapped)
+    },
+    deepWrappedMemberCallee: () => {
+        const receiver = id()
+        /** @type {Value} */
+        let callee = ['.', ref(receiver), 'at']
+        for (let depth = 0; depth < 20_000; ++depth) { callee = ['block', yielded([callee])] }
+        const ordinary = returned(['()', callee, [1]])
+        assertEq(liftReturns(ordinary, owner), ordinary)
+        const result = liftReturns(returned(['()', callee, [['block', returned(7)]]]), owner)
+        const established = blockOf(result.statements[0]).statements[0]
+        assert(established[0] === 'define')
+        assertEq(established[2], callee)
+        assertStructurallySame(result.exit, ['yield', []])
+        assertEq(liftReturns(result, owner), result)
     },
     permittedPhysicalLoops: () => {
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
