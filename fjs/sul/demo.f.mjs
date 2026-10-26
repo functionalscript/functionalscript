@@ -50,6 +50,7 @@
  * @import { _DemoState, _DemoStripes, _DemoUnit, EncodeState } from './types.ts'
  */
 
+import { withInputs } from '../website/demo/sharing/module.f.mjs'
 import { encode, emptyEncodeState } from './module.f.mjs'
 import { levels } from './level/literal/module.f.mjs'
 import { isHash, isHashLength, isRaw } from './id/module.f.mjs'
@@ -242,7 +243,7 @@ export const examples = [
 const picker = examplePicker(examples)
 
 /** @type {Demo<_DemoState, DemoEvent>} */
-export const demo = {
+const definition = {
     init: { input: 'text', text: picker.pick('Overview'), bits: '0100100001101001' },
     // A pick is a text: it fills the text field and shows it.
     update: state => event => event.kind === 'input' && event.name === exampleName
@@ -262,3 +263,5 @@ export const demo = {
         ]
     },
 }
+
+export const demo = withInputs(definition, ['input', 'text', 'bits'], { input: ['text', 'bits'] }, examples.map(([, text, id]) => ({ id, inputs: { input: 'text', text } })))

@@ -123,6 +123,8 @@ export const proof = {
             ])
         },
         throw: {
+            // A diagram of no kind is refused, not measured as `undefined`.
+            notADiagram: () => railroadSvg(/** @type {never} */ (['bogus'])),
             // A rule the grammar never reaches has no name to draw.
             missingRule: () => grammarDemo({
                 grammar: number, alphabet: codePoints, description: '', guide: codePointGuide,

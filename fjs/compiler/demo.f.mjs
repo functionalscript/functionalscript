@@ -25,8 +25,10 @@
  * system holds the one input and the compiler reports the file it cannot
  * find.
  *
- * **It needs no operations.** The in-memory run is a pure function of the
- * text, so `update` declares `never` and returns through `pureOk`.
+ * **A host failure belongs to its output pane too.** Each output is compiled
+ * through the `catch` effect during update, so an interpreter stack overflow
+ * in a data output leaves the source outputs visible and copyable. The view
+ * reads the completed panes without running the edited program again.
  *
  * **The output is copyable**: it is a document or generated source a reader
  * can save and use elsewhere. Copy keeps the original output text.
@@ -35,6 +37,11 @@
  *
  * @import { Result } from '../types/result/types.ts'
  * @import { Marked } from '../text/marked/types.ts'
+ * @import { Demo, DemoEvent } from '../website/demo/types.ts'
+ * @import { Catch } from '../effects/common/types.ts'
+ * @import { Effect } from '../effects/types.ts'
+ * @import { DemoState } from './types.ts'
+ * @import { Element } from '../media/html/types.ts'
  */
 
 import { toText } from '../text/marked/module.f.mjs'
@@ -50,7 +57,9 @@ import { stageDemo } from './stage_demo/module.f.mjs'
 import { _outputMarked, compileFile } from './module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'
-import { errorMessage, pureOk } from '../effects/module.f.mjs'
+import { errorMessage, foldStep, history, historyStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.mjs'
+import { catch_ } from '../effects/common/module.f.mjs'
+import { assert } from '../asserts/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.data.js'
 
 /**
@@ -108,16 +117,41 @@ export const compiled = text => outputFileName => {
 export const _written = text => outputFileName => {
     const [state, result] = virtualAt({ 'input.f.js': [utf8(text)] })(
         compileFile(runtime)('input.f.js', outputFileName))
+    if (result[0] === 'error') { return error(errorMessage(result[1])) }
     const file = state.root[outputFileName]
-    return result[0] === 'ok' && Array.isArray(file) && file.length > 0
-        ? ok(utf8ToString(file[0]))
-        : error(result[0] === 'error' ? errorMessage(result[1]) : '')
+    assert(file instanceof Array && file.length > 0, 'successful compilation wrote no output')
+    return ok(utf8ToString(file[0]))
 }
 
-export const demo = stageDemo({
+const sourceDemo = stageDemo({
     intro: 'Compiles a FunctionalScript module into JSON, DataJS, JavaScript, an expression graph and Rust, with each output under its file extension. Compare the output with fjs compile for a module without imports.',
     name: 'compiler',
-})(text => outputs.map(([label, outputFileName]) => {
-    const [kind, value] = compiled(text)(outputFileName)
-    return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]
-}))
+})(() => [])
+
+/** Compile one pane, absorbing both host failures and an unavailable catch operation.
+ * @type {(text: string, file: string) => Effect<Catch, Result<Marked, string>, never>}
+ */
+const pane = (text, file) => resultMapStep(catch_(() => compiled(text)(file)), result => {
+    if (result[0] === 'error') { return ok(error(errorMessage(result[1]))) }
+    const [kind, value] = result[1]
+    // The catch operation erases its thunk's return type through `do_`.
+    return ok(kind === 'ok' ? /** @type {Result<Marked, string>} */ (value) : error(`Could not compile this output: ${String(value)}`))
+})
+
+/** @type {Demo<DemoState, DemoEvent, Catch>} */
+export const demo = {
+    // Only the fixed initial example is compiled on load. Edited source is
+    // always evaluated through `catch`, never by `view`.
+    init: { text: sourceDemo.init, panes: outputs.map(([, file]) => compiled(sourceDemo.init)(file)) },
+    update: state => event => {
+        if (event.kind !== 'input') { return pureOk(state) }
+        const text = sourceDemo.update(state.text)(event)
+        const panes = historyStep(history(text), text => foldStep(pureOk(outputs), /** @type {DemoState['panes']} */ ([]),
+            ([, file]) => panes => mapStep(pane(text, file), result => [...panes, result])))
+        return mapStep(panes, ([panes, text]) => ({ text, panes }))
+    },
+    view: ({ text, panes }) => ['div', sourceDemo.view(text), ...panes.map(/** @returns {Element} */ ([kind, value], index) => {
+        const [label] = outputs[index]
+        return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]
+    })],
+}
