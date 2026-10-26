@@ -373,6 +373,7 @@ const statementText = (context, statement) => {
             const unchanged = loop.mutable ? '' : `${name(context, loop.slot)}=${name(context, loop.slot)};`
             return `${keyword('let')} ${declared(context, loop.slot)}=${expression(context, loop.initial)};${keyword('while')}(${expression(context, loop.condition)}){${blockText(context, loop.body, 'none')}${unchanged}}`
         }
+        default: { throw ['not a statement', statement] }
     }
 }
 
@@ -387,6 +388,7 @@ const blockText = (outer, input, normal) => {
         case 'return': { return `${before}${keyword('return')} ${expression(context, exit[2])};` }
         case 'throw': { return `${before}${keyword('throw')} ${expression(context, exit[1])};` }
         case 'break': case 'continue': { return `${before}${keyword(exit[0])} L${context.loops.indexOf(exit[1])};` }
+        default: { throw ['not an exit', exit] }
     }
 }
 

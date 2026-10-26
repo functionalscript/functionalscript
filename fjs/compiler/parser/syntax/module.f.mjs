@@ -340,7 +340,7 @@ export const textOf = ({ token }) => {
  *
  * @type {(node: Children<typeof primitive, ModuleTokenWithMetadata, Out>) => Primitive}
  */
-const primitiveOf = ([tag, leaf]) => {
+export const _primitiveOf = ([tag, leaf]) => {
     const { token } = tokenAt(leaf)
     switch (tag) {
         case 'null': { return null }
@@ -361,6 +361,7 @@ const primitiveOf = ([tag, leaf]) => {
             assert(token.kind === 'bigint')
             return token.value
         }
+        default: { throw ['not a primitive', tag] }
     }
 }
 
@@ -877,12 +878,12 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  *
  * @type {(node: Exclude<Children<Unary, ModuleTokenWithMetadata, Out> | Children<UnaryOperand, ModuleTokenWithMetadata, Out> | Children<Value, ModuleTokenWithMetadata, Out> | Children<Body, ModuleTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'not' | 'typeof' | 'name', unknown]>) => Node}
  */
-const baseOf = ([tag, branch]) => {
+export const _baseOf = ([tag, branch]) => {
     switch (tag) {
         case 'primitive': {
             const x = unmapped(branch)[0]
             const p = unmapped(x)[0]
-            return ['primitive', primitiveOf(unmapped(p))]
+            return ['primitive', _primitiveOf(unmapped(p))]
         }
         case 'template': {
             const x = unmapped(branch)[0]
@@ -903,6 +904,7 @@ const baseOf = ([tag, branch]) => {
             const o = unmapped(x)[0]
             return ['object', toArray(entryItems(unmapped(o)[1]))]
         }
+        default: { throw ['not a value base', tag] }
     }
 }
 
@@ -1082,7 +1084,7 @@ const toNode = node => {
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
     const [, powTail, ...tailLists] = unmapped(node[1])
-    const made = applyTail(withPow(steps(baseOf(node), unmapped(accesses), false), powTail), tailLists)
+    const made = applyTail(withPow(steps(_baseOf(node), unmapped(accesses), false), powTail), tailLists)
     const first = baseFirst(node[0], base)
     // an array or an object literal is a pattern where nothing follows it
     // — a step, a power or an operator makes it the value those make, and
@@ -1101,7 +1103,7 @@ const toNode = node => {
  * further prefix, recursing through this same reader by way of
  * {@link nodeAt}, {@link unaryOperand} mapped here exactly as {@link
  * unary} is by `toNode`; a group, whose own steps apply with no power past
- * the `)`; or the base itself, through {@link baseOf}, with only the
+ * the `)`; or the base itself, through {@link _baseOf}, with only the
  * accesses after it applied.
  *
  * @type {(node: Children<UnaryOperand, ModuleTokenWithMetadata, Out>) => Meta<Out>}
@@ -1122,7 +1124,7 @@ const operandToNode = node => {
     const [base, accesses] = unmapped(x)
     const first = baseFirst(node[0], base)
     // a prefix's operand stands in no binding position, so it is no target
-    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses), false), first, target: invalid(first) })
+    return symbol({ id: 'value', node: steps(_baseOf(node), unmapped(accesses), false), first, target: invalid(first) })
 }
 
 /**
@@ -1324,7 +1326,7 @@ const memberOf = (member, target) => symbol({ id: 'member', member, target })
  *
  * @type {(node: Children<MemberRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toMember = ([tag, branch]) => {
+export const _toMember = ([tag, branch]) => {
     switch (tag) {
         case 'plain': {
             const [id, rest] = unmapped(branch)
@@ -1346,6 +1348,7 @@ const toMember = ([tag, branch]) => {
             const first = firstAt(k)
             return memberOf({ key: first, spelling: 'computed', node: nodeAt(k), value: nodeAt(v) }, { key: bracketKey(k), target: valueTargetAt(v) })
         }
+        default: { throw ['not a member', tag] }
     }
 }
 
@@ -1637,7 +1640,7 @@ export const mappings = [
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both
     map(callArguments, toValues),
-    map(member, toMember),
+    map(member, _toMember),
     map(entry, toEntry),
     map(entries, toEntries),
     // the parameters after a named list's first, a list of its own so that

@@ -98,9 +98,11 @@ const facts = node => {
                 case 'block': { return { ...empty, ids: statement[1], children: [['block', statement[2]]] } }
                 case 'if': { return { ...empty, ids: statement[1], children: [['value', statement[2]], ['block', statement[3]], ['block', statement[4]]] } }
                 case 'loop': { return { ...empty, children: [['loop', statement[1]]] } }
+                default: { throw ['not a statement', statement] }
             }
         }
-        case 'exit': {
+        // `'exit'`, the one tag left: every `_Node` is built in this function
+        default: {
             const exit = node[1]
             return exit[0] === 'yield' ? { ...empty, children: exit[1].map(value => ['value', value]) }
                 : exit[0] === 'break' || exit[0] === 'continue' ? { ...empty, loops: [exit[1]], children: exit[2].map(value => ['value', value]) }

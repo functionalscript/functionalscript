@@ -218,6 +218,10 @@ export const proof = {
         assertEq(text(regions), text(1))
     },
     throw: {
+        // A value or a statement no case names is refused, not spelled as
+        // `undefined`.
+        unknownPrimitive: () => valueTagged(/** @type {never} */ ({}), options),
+        unknownStatement: () => scope({ statements: [/** @type {never} */ (['bogus'])], exit: ['yield', []] }, options),
         unsupportedStaticWithoutRuntime: () => unwrap(valueTagged(['Object.is'], { ...options, runtime: null })),
         memberWithoutRuntime: () => unwrap(valueTagged(['.', ['array', []], 'slice', ['|()', []]], { ...options, runtime: null })),
     },

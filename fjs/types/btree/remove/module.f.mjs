@@ -22,6 +22,7 @@ const path = tail => n => {
         case 2: { return [n[0], { first: [n[1]], tail }] }
         case 3: { return path({ first: [0, n], tail })(n[0]) }
         case 5: { return path({ first: [0, n], tail })(n[0]) }
+        default: { throw 'invalid node' }
     }
 }
 
@@ -79,10 +80,11 @@ const reduceX = ms => ([i, n]) => a => {
         const ra = m(a)
         return n.length === 3 ? ra(n) : [...ra([n[0], n[1], n[2]]), n[3], n[4]]
     }
+    // `i` is 0, 2 or 4: `find`'s asserted indices and the 2 and 4 `nodeRemove` builds
     switch (i) {
         case 0: { return f(m0) }
         case 2: { return f(m2) }
-        case 4: { return [n[0], n[1], ...m2(a)([n[2], n[3], n[4]])] }
+        default: { return [n[0], n[1], ...m2(a)([n[2], n[3], n[4]])] }
     }
 }
 
@@ -102,19 +104,21 @@ export const nodeRemove = c => node => {
             return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
         }
         const [i, n] = first
+        // `find` refuses any other node width, so `n` is one of the widths
+        // each case names; its last is the `default`.
         switch (i) {
             case 1: {
                 switch (n.length) {
                     case 1: { return { first: null, tail } }
                     case 2: { return { first: [n[1]], tail } }
                     case 3: { return branch(n[2])(v => [2, [n[0], v, n[2]]]) }
-                    case 5: { return branch(n[2])(v => [2, [n[0], v, n[2], n[3], n[4]]]) }
+                    default: { return branch(n[2])(v => [2, [n[0], v, n[2], n[3], n[4]]]) }
                 }
             }
             case 3: {
                 switch (n.length) {
                     case 2: { return { first: [n[0]], tail } }
-                    case 5: { return branch(n[4])(v => [4, [n[0], n[1], n[2], v, n[4]]]) }
+                    default: { return branch(n[4])(v => [4, [n[0], n[1], n[2], v, n[4]]]) }
                 }
             }
             default: { return null }
@@ -139,6 +143,9 @@ export const remove = c => map(nodeRemove(c))
 // the invariant guard itself stays covered.
 export const proof = {
     throw: {
+        // `path` walks a subtree `find` never checked: a node of no B-tree
+        // width is refused there.
+        pathRejectsWidth: () => path(null)(/** @type {never} */ ([1, 2, 3, 4])),
         reduceValueDefaultBranch: () => {
             reduceValue(left)([['leaf']])([['x'], 's', ['y']])
         },
