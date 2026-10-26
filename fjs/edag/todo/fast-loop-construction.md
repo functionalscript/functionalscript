@@ -17,6 +17,7 @@ selected demand regions;
 normal-only member and optional-call demands are implemented;
 normal-only standalone spread and object-entry demands are implemented;
 selected demands owned entirely inside operand regions are implemented;
+caller-level eager operand loops and computed lazy locals are planned together;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -134,9 +135,26 @@ definitions and region/loop binders establish their own values. This adds one
 private recipe function per cell to the memo-bearing normalization while
 retaining the no-memo exact graph domain. External lazy provenance follows
 aliases and is refused before a recipe helper could capture it eagerly.
-Statement-region occurrences have distinct planning identities even when the
-input reuses an immutable declaration, block or loop object; source bindings
-and targets retain their identities.
+Each reached declaration, block and loop occurrence has a distinct planning
+identity, including eager operand regions that reuse immutable input containers.
+Source bindings and targets retain their identities.
+
+Caller and initializer planning share one eager lexical inventory. Operand-owned
+loops can be the only crossing that selects a caller's cell; computed lazy
+locals join the same dependency closure instead of capturing that cell as an
+external value. Required initializers, tests, loop entries/bodies/exits and
+capture expressions participate, while function bodies and deferred initializers
+retain their own planning boundaries. Required values and parameter/result
+binders shadow deferred entries. Lifetime ancestry crosses eager value regions
+so reached local declarations reset with their enclosing iteration; transfer
+ownership stops at the value boundary and never permits an operand to break or
+continue an enclosing statement loop. With no selected cells the original root
+identity is retained.
+Graph construction carries that prepared state through eager descendants while
+still normalizing each operand's control completions. Ordinary functions and
+deferred initializers start fresh planning scopes. Scope maps retain only
+deferred roots, so established values do not accumulate in deeply nested eager
+regions.
 
 Caller-owned dependent recipes join the same cell vector through transitive
 prerequisite/dependent closure, in source definition order. Their conditional
@@ -750,6 +768,9 @@ their documented normalization. Repeated conversions must stabilize.
       and object entries, preserving reached expansion and key-conversion order.
 - [x] Account for selected demands owned entirely inside operand regions before
       hoisting updates; preserve skips and intermediate expansion/conversion order.
+- [x] Plan caller-level cells and loops throughout eager operand regions,
+      including computed local dependents and loops that are the only crossing.
+      Preserve lexical scope, declaration lifetimes and operand ownership barriers.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.

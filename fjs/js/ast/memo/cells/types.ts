@@ -11,7 +11,7 @@ export type MemoCell = {
 }
 
 export type MemoPlan = {
-    /** Statement occurrences have distinct identities; value operands are opaque. */
+    /** Eager statement/value occurrences have distinct planning identities. */
     readonly block: Block
     /** Dependency closure, ordered by source definitions. */
     readonly cells: readonly MemoCell[]

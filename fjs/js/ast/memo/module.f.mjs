@@ -16,7 +16,7 @@
 
 import { concat, next, toArray } from '../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
-import { exitValues, freeBindings, freeLoopBindings } from '../control/module.f.mjs'
+import { exitValues, freeBindings } from '../control/module.f.mjs'
 import { _hasReturn, memoCells, recipeCells } from './cells/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 import { _exposeOperands, liftReturns } from '../returns/module.f.mjs'
@@ -266,7 +266,6 @@ const exitTask = (exit, context) => call(() => {
 /** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context) => Task<_Loop>} */
 const loopTask = (loop, context) => call(() => {
     if (!context.plan.loops.has(loop)) {
-        if (freeLoopBindings(loop).some(id => context.aliases.has(id))) { throw 'memo demands in operand-owned loop helpers are not supported yet' }
         return bind(valuesTask(loop.initial, context), initial => {
             /** @type {(body: Block) => Task<_Loop>} */
             const finish = body => done({
@@ -337,9 +336,6 @@ const blockTask = (block, context) => {
                 const initializer = statement[2]
                 const root = initializer instanceof Array && initializer[0] === 'ref' ? aliases.get(initializer[1]) : undefined
                 if (root !== undefined) { return resume(null, memo, true, false, true, new Map([...shadowed, [statement[1], root]])) }
-                if (freeBindings({ statements: [], exit: ['yield', [initializer]] }).some(id => aliases.has(id))) {
-                    throw 'computed lazy memo dependencies require their own demand cells'
-                }
                 return resume([statement], memo, false, false, true, shadowed)
             }
             return bind(valueTask(statement[2], current), value => resume(concat(value.statements)([

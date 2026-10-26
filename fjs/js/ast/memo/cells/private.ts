@@ -15,29 +15,22 @@ export type _Root = {
     readonly dependencies: readonly _Root[]
 }
 
-export type _Scope = ReadonlyMap<BindingId, _Root | null>
-
-export type _Occurrence = { readonly block: Block; readonly normal: boolean }
-
-export type _Visit = {
-    readonly block: Block
-    readonly index: number
-    readonly scope: _Scope
-    readonly ancestors: Link<Loop> | null
-}
+export type _Scope = ReadonlyMap<BindingId, _Root>
 
 export type _LoopInfo = {
     /** Stable occurrence identity while its body is prepared. */
     readonly source: Loop
     readonly loop: Loop
     readonly roots: readonly _Root[]
+    /** Lifetime transport crosses eager operands; targeted transfers do not. */
     readonly ancestors: Link<Loop> | null
+    readonly owners: Link<Loop> | null
     readonly transfers: readonly _Transfer[]
 }
 
 export type _Transfer = Extract<Exit, readonly ['return' | 'break' | 'continue', ...unknown[]]>
 
-/** Only the current recipe's owned definitions; lazy initializers stay opaque. */
+/** Definitions owned by the current caller or recipe; lazy initializers stay opaque. */
 export type _Owned = {
     readonly roots: List<_Root>
     readonly definitions: List<readonly [Definition, _Root]>
