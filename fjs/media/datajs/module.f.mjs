@@ -60,5 +60,18 @@
  * @module
  */
 
-export { tryParse, tryParseBytes } from './parser/module.f.mjs'
-export { tryJsonMarked, tryJsonSerialize, tryJsonStringify, tryMarked, trySerialize, tryStringify } from './serializer/module.f.mjs'
+import { tryParse as parserTryParse, tryParseBytes as parserTryParseBytes } from './parser/module.f.mjs'
+import {
+    tryJsonMarked as serializerTryJsonMarked, tryJsonSerialize as serializerTryJsonSerialize,
+    tryJsonStringify as serializerTryJsonStringify, tryMarked as serializerTryMarked,
+    trySerialize as serializerTrySerialize, tryStringify as serializerTryStringify,
+} from './serializer/module.f.mjs'
+
+export const tryParse = parserTryParse
+export const tryParseBytes = parserTryParseBytes
+export const tryJsonMarked = serializerTryJsonMarked
+export const tryJsonSerialize = serializerTryJsonSerialize
+export const tryJsonStringify = serializerTryJsonStringify
+export const tryMarked = serializerTryMarked
+export const trySerialize = serializerTrySerialize
+export const tryStringify = serializerTryStringify
