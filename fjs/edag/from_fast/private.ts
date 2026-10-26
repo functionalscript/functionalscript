@@ -41,6 +41,8 @@ export type Context = {
     readonly transfer: ExitOwner
     readonly summaries: Summaries
     readonly functionTarget: FunctionTarget | null
+    /** Eager descendants have already been planned by this region's owner. */
+    readonly memoPrepared: boolean
 }
 
 /** Region control keeps normal joins separate from terminal evaluations. */

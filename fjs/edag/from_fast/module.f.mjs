@@ -273,7 +273,7 @@ const functionValue = (source, context) => call(() => {
             ])),
         ]
         /** @type {Context} */
-        const local = { ...context, summaries: fn === source ? context.summaries : new Map([...context.summaries, ...summaries(['block', fn.body], context.summaries)]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target }
+        const local = { ...context, summaries: fn === source ? context.summaries : new Map([...context.summaries, ...summaries(['block', fn.body], context.summaries)]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target, memoPrepared: true }
         const root = rootLoopOf(fn)
         return bind(root === null ? blockTask(fn.body, local) : scalarRoot(fn, root, local), body =>
             done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: floated(captures) }))
@@ -353,14 +353,15 @@ const conditional = (condition, then, otherwise, context, normalize = false) => 
     bind(regionTask(then, context, normalize), a => bind(regionTask(otherwise, context, normalize), b =>
         done({ exp: ['?:', test.exp, anchored(a), anchored(b)], anchors: test.anchors })))))
 
-/** Operand regions normalize local memo state and loops; statement regions are already complete. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
+/** Operand owners retain completion boundaries; eager memo planning runs once. @type {(block: Block, context: Context, normalize?: boolean) => Task<Lowered>} */
 const regionTask = (block, context, normalize = false) => call(() => {
     if (block.exit[0] !== 'yield' && block.exit[0] !== 'throw') { throw 'nonlocal transfers in value regions require structured completion lowering' }
-    const memoized = normalize ? normalizeMemo(block, lazyBindings(context.scope)) : block
+    const memoized = normalize && !context.memoPrepared ? normalizeMemo(block, lazyBindings(context.scope)) : block
     if (memoized !== block && context.transfer.kind !== 'default') { throw 'memo normalization requires the default transfer owner' }
     const normalized = normalize ? completeBlockTransfers(memoized) : block
     const local = normalize ? { ...context,
         functionTarget: null,
+        memoPrepared: true,
         summaries: normalized === block ? context.summaries : new Map([...context.summaries, ...summaries(['block', normalized], context.summaries)]),
     } : context
     return blockTask(normalized, local)
@@ -389,8 +390,8 @@ const transferTask = (exit, context) => call(() => {
 /** Bind ordered results without changing their established identity. @type {(bindings: readonly BindingId[], exp: Exp) => Environment} */
 const resultBindings = (bindings, exp) => bindings.map((binding, i) => [binding, bindings.length === 1 ? exp : ['.', exp, i]])
 
-/** Shared definition establishment; control paths anchor initializers outside their eager entry dependencies. @type {(statement: Definition, context: Context, required: readonly BindingId[], eager?: boolean) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>} */
-const definitionTask = (statement, context, required, eager = false) => bind(valueTask(statement[2], context), value => {
+/** Deferred initializers plan their own regions; control paths anchor required work. @type {(statement: Definition, context: Context, required: readonly BindingId[], eager?: boolean) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>} */
+const definitionTask = (statement, context, required, eager = false) => bind(valueTask(statement[2], statement[3] === 'lazy' ? { ...context, memoPrepared: false } : context), value => {
     const initializer = statement[2]
     const deferred = statement[3] === 'lazy' && initializer !== null && typeof initializer === 'object'
         && (initializer[0] !== 'ref' || lazyBinding(context.scope, initializer[1]))
@@ -518,12 +519,13 @@ const blockTask = (block, context) => call(() => {
     return each(0, context.scope, null)
 })
 
-/** @type {(node: Node, environment: Environment, transfer?: Transfer) => Context} */
-const contextFor = (node, environment, transfer) => ({
+/** @type {(node: Node, environment: Environment, transfer?: Transfer, memoPrepared?: boolean) => Context} */
+const contextFor = (node, environment, transfer, memoPrepared = false) => ({
     scope: scopeOf(environment),
     transfer: transfer === undefined ? { kind: 'default' } : { kind: 'custom', transfer },
     summaries: summaries(node),
     functionTarget: null,
+    memoPrepared,
 })
 
 /**
@@ -541,7 +543,7 @@ export const lowerBlock = (block, environment = [], transfer) => {
     const memoized = normalizeMemo(block, lazyBindings(scopeOf(environment)))
     if (memoized !== block && transfer !== undefined) { throw 'memo normalization requires the default transfer owner' }
     const normalized = completeBlockTransfers(memoized)
-    return run(blockTask(normalized, contextFor(['block', normalized], environment, transfer)))
+    return run(blockTask(normalized, contextFor(['block', normalized], environment, transfer, true)))
 }
 
 /** The graph at a normalized FAST block's result boundary. @type {(block: Block, environment?: Environment) => Exp} */

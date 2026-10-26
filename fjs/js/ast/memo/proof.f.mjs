@@ -12,6 +12,7 @@ import { normalizeLazyReturns, normalizeMemo } from './module.f.mjs'
 import { proof as deferredReturns } from '../../../edag/from_fast/lazy_returns/proof.f.mjs'
 import { proof as initializerLoops } from '../../../edag/from_fast/initializer_loop_cells/proof.f.mjs'
 import { _ownedLoopValue as ownedLoopValue, proof as ownedOperands } from '../../../edag/from_fast/operand_owned_demands/proof.f.mjs'
+import { proof as eagerOperands } from '../../../edag/from_fast/eager_operand_memo/proof.f.mjs'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -113,6 +114,7 @@ export const proof = /** @type {const} */ ({
     deferredReturns,
     initializerLoops,
     ownedOperands,
+    eagerOperands,
     optionalDemand: () => {
         assertStructurallySame(evaluate(crossing(['?.', ref(lazy), 'length'])), [0, []])
     },
@@ -132,6 +134,40 @@ export const proof = /** @type {const} */ ({
     },
     immediateMemberDemand: () => {
         assertStructurallySame(evaluate(crossing(['()', ['.', ['array', [4]], 'at'], [ref(lazy)]], ['+', 0, 0])), [4, 0])
+    },
+    operandOwnedLoop: () => {
+        const innerOutput = id(0)
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [innerOutput], body: body(['break', innerTarget, [ref(lazy)]]),
+        })
+        const operand = /** @type {Value} */ (['block', yielded(ref(innerOutput), [['loop', inner]])])
+        const source = yielded(['array', [operand, ref(lazy), ref(output)]], [
+            ['define', lazy, ['array', []], 'lazy'], ['loop', counting(ref(lazy))],
+        ])
+        const value = evaluate(source)
+        assertStructurallySame(value, [[], [], []])
+        assert(value instanceof Array)
+        assertEq(value[0], value[1])
+        assertEq(value[0], value[2])
+    },
+    operandComputedLazyDependent: () => {
+        const value = evaluate(crossing(['block', body(['yield', [ref(alias)]], [['define', alias, ['array', [ref(lazy)]], 'lazy']])]))
+        assertStructurallySame(value, [[[]], []])
+        assert(value instanceof Array && value[0] instanceof Array)
+        assertEq(value[0][0], value[1])
+    },
+    borrowedOnlyRecipeAliasesKeepTheirCallerCell: () => {
+        const owner = id(0)
+        const value = evaluate(yielded(['array', [ref(output), ref(owner), ref(lazy)]], [
+            ['define', lazy, ['array', [4]], 'lazy'],
+            ['define', owner, ['block', yielded(ref(alias), [['define', alias, ref(lazy), 'lazy']])], 'lazy'],
+            ['loop', counting(ref(owner))],
+        ]))
+        assertStructurallySame(value, [[4], [4], [4]])
+        assert(value instanceof Array)
+        assertEq(value[0], value[1])
+        assertEq(value[0], value[2])
     },
     spreadDemand: () => {
         const value = evaluate(crossing(['array', [['...', ref(lazy)]]]))
@@ -1907,20 +1943,6 @@ export const proof = /** @type {const} */ ({
         deferredSpreadCalleeBoundary: () => normalizeLazyReturns(body(['return', functionTarget,
             ['()', [',', []], [['...', ref(lazy)]]],
         ], [['define', lazy, ['block', body(['return', functionTarget, 7])], 'lazy']]), functionTarget),
-        operandOwnedLoop: () => {
-            const innerOutput = id(0)
-            const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
-            const inner = /** @type {Loop} */ ({
-                target: innerTarget, parameters: [], initial: [], results: [innerOutput], body: body(['break', innerTarget, [ref(lazy)]]),
-            })
-            const source = yielded(['block', yielded(ref(innerOutput), [['loop', inner]])], [
-                ['define', lazy, ['array', []], 'lazy'], ['loop', counting(ref(lazy))],
-            ])
-            normalizeMemo(source)
-        },
-        operandComputedLazyDependent: () => {
-            normalizeMemo(crossing(['block', body(['yield', [ref(alias)]], [['define', alias, ['array', [ref(lazy)]], 'lazy']])]))
-        },
         operandReturn: () => { normalizeMemo(crossing(['block', body(['return', functionTarget, ref(lazy)])])) },
         ownedOperandReturn: () => { normalizeMemo(crossing(['block', body(['return', functionTarget, ref(lazy)])]), [], functionTarget) },
         ownedForeignReturn: () => {

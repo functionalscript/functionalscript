@@ -143,6 +143,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       expansion, copying and key-conversion order. Prepared declaration and loop
       occurrences expose cells owned entirely inside operands while preserving
       function and deferred-initializer boundaries.
+      Caller and initializer planning also share an eager lexical inventory for
+      operand loops and computed lazy locals, retaining caller sharing, fresh
+      local lifetimes and separate transfer ownership.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

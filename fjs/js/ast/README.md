@@ -42,6 +42,14 @@ installs the shared value. Getter construction keeps lazy prerequisites
 deferred, including dependencies mentioned only in an unselected arm. The
 logical demand pass preserves caller, iteration and recipe-local lifetimes
 before graph construction or physical getter lowering.
+Caller and initializer planning share an eager lexical inventory of operand
+blocks, loops and computed lazy locals. Operands reuse the caller's selected
+cells and prerequisites; local getters start at reached declarations. Cell
+lifetimes follow enclosing iterations through operands, while loop-transfer
+ownership remains local to the operand's statement regions. Ordinary function
+bodies and deferred initializers retain separate planning boundaries.
+Graph lowering plans each owner's eager regions once, then starts fresh at
+ordinary function and deferred-initializer boundaries.
 This includes cells declared in loops inside an initializer: each reached
 declaration starts a fresh cell, while repeated demands and nested loops share
 that iteration's value. Escaping closures retain the established value.

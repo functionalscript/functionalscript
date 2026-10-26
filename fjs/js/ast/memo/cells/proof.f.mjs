@@ -316,13 +316,19 @@ export const proof = /** @type {const} */ ({
         const plan = planned(body([['define', known, value, 'required'], shared, ['loop', loop]]))
         const definitions = definitionsOf(plan.block)
         const loops = loopsOf(plan.block)
-        assertEq(definitions[0][2], value)
-        assertEq(plan.cells.length, 1)
-        assertEq(plan.cells[0].definition, definitions[1])
+        const operand = definitions[0][2]
+        assert(operand instanceof Array && operand[0] === 'block')
+        assert(operand !== value)
+        const innerDefinition = definitionsOf(operand[1])[0]
+        assertEq(plan.cells.length, 2)
+        assertEq(plan.cells[0].definition, innerDefinition)
+        assertEq(plan.cells[1].definition, definitions[1])
         assertEq(plan.definitions.has(shared), false)
-        assertEq(plan.definitions.get(definitions[1]), 0)
-        assertEq(plan.loops.size, 1)
+        assertEq(plan.definitions.get(innerDefinition), 0)
+        assertEq(plan.definitions.get(definitions[1]), 1)
+        assertEq(plan.loops.size, 2)
         assertEq(plan.loops.has(loop), false)
+        assertEq(plan.loops.has(loopsOf(operand[1])[0]), true)
         assertEq(plan.loops.has(loops[0]), true)
     },
     orderedRecipesAndAliases: () => {
@@ -666,17 +672,21 @@ export const proof = /** @type {const} */ ({
         assertEq([...plan.loops][0].target, first.target)
         assertEq([...plan.loops][1].target, second.target)
     },
-    opaqueValueOwners: () => {
+    eagerValueOwnersAndOpaqueFunctions: () => {
         const hidden = containing(reading(a))
         const fn = /** @type {Value} */ (['function', {
             target: functionTarget, parameters: [], rest: null, self: null, captures: [],
             body: { ...hidden, exit: ['return', functionTarget, 1] },
         }])
-        assertEq(memoCells(body([
+        const plan = planned(body([
             ['define', known, ['block', hidden], 'required'],
             ['define', b, ['if', true, hidden, hidden], 'required'],
             ['define', alias, fn, 'required'],
-        ])), null)
+        ]))
+        assertEq(plan.cells.length, 3)
+        assertEq(plan.loops.size, 3)
+        assertEq(definitionsOf(plan.block)[2][2], fn)
+        assertEq(memoCells(body([['define', alias, fn, 'required']])), null)
     },
     owningFunctionReturn: () => {
         const sourceLoop = loopOf(body([], ['return', functionTarget, ['ref', a]]))
