@@ -144,8 +144,9 @@ export const remove = c => map(nodeRemove(c))
 export const proof = {
     throw: {
         // `path` walks a subtree `find` never checked: a node of no B-tree
-        // width is refused there.
-        pathRejectsWidth: () => path(null)(/** @type {never} */ ([1, 2, 3, 4])),
+        // width is refused there. The `[0]` keeps `_RemovePath`, a private
+        // type, out of the exported `proof`'s declaration.
+        pathRejectsWidth: () => path(null)(/** @type {never} */ ([1, 2, 3, 4]))[0],
         reduceValueDefaultBranch: () => {
             reduceValue(left)([['leaf']])([['x'], 's', ['y']])
         },
