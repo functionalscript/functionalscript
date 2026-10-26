@@ -10,6 +10,14 @@ import type { All, Mkdir, ReadWhole, Readdir, ResolveFileModule, Rm, Write, Writ
 import type { Effect } from '../effects/types.ts'
 import type { Runtime } from '../edag/value/types.ts'
 import type { SourceError } from './transpiler/types.ts'
+import type { Marked } from '../text/marked/types.ts'
+import type { Result } from '../types/result/types.ts'
+
+/** The compiler demo's source and independently computed output panes. */
+export type DemoState = {
+    readonly text: string
+    readonly panes: readonly Result<Marked, string>[]
+}
 
 /**
  * How a data output gets the runtime it interprets the module under: an

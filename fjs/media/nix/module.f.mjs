@@ -252,6 +252,7 @@ const check = expression => {
         case 'lambda': return checkLambda(expression)
         case 'let': return checkLet(expression)
         case 'indented-string': return checkIndentedString(expression)
+        default: return `not an expression: ${quoted(`${expression[0]}`)}`
     }
 }
 
@@ -390,7 +391,8 @@ const serialize = level => expression => {
         case 'apply': return serializeApplication(level)(expression)
         case 'lambda': return serializeLambda(level)(expression)
         case 'let': return serializeLet(level)(expression)
-        case 'indented-string': return serializeIndentedString(level)(expression)
+        // `'indented-string'`, the one tag left: `check` refuses any other
+        default: return serializeIndentedString(level)(expression)
     }
 }
 

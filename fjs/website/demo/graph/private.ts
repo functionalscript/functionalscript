@@ -113,20 +113,18 @@ export type _Lane = {
     readonly right: number
 }
 
-/** A back edge's source/target ranks and source height. */
+/** A back edge's source/target ranks and destination identity. */
 export type _BackEdge = {
     readonly index: number
     readonly from: number
     readonly to: number
-    readonly y: number
+    readonly target: number
 }
 
 /**
- * Where a back edge runs: `lane`, its place below the graph, nearest first,
- * and `out` and `into`, its place in its source and target gaps.
+ * A return's shared descent and ascent positions in its column gaps.
  */
 export type _BackLane = {
-    readonly lane: number
     readonly out: number
     readonly into: number
 }
@@ -142,6 +140,10 @@ export type _Placed = {
     readonly lanes: readonly _Lane[]
     readonly ends: readonly number[]
     readonly backs: ReadonlyMap<number, _BackLane>
+    /** Local return baseline by destination identity. */
+    readonly bottoms: ReadonlyMap<number, number>
+    /** Vertical bend x by original edge index and route segment index. */
+    readonly bends: ReadonlyMap<string, number>
 }
 
 /** A point of an edge's route. */
@@ -190,3 +192,12 @@ export type _Frame<V> = {
 
 /** The frames `graphOf` is inside, innermost first: its own stack in place of recursion. */
 export type _Stack<V> = readonly [_Frame<V>, _Stack<V>] | undefined
+
+/** A shared orthogonal return segment, with all original connection identities. */
+export type _ReturnSegment = {
+    readonly key: string
+    readonly points: readonly _Point[]
+    readonly members: readonly number[]
+    readonly arrow: boolean
+    readonly kind: string | undefined
+}

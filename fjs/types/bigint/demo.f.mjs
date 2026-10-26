@@ -25,6 +25,7 @@
  * @import { DemoRow, DemoState } from './types.ts'
  */
 
+import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { codeMarker } from '../../website/style/module.f.js'
 import { log2 } from './module.f.mjs'
 import { sandbox } from '../../effects/common/module.f.mjs'
@@ -427,7 +428,7 @@ const onRun = state => {
 }
 
 /** @type {Demo<DemoState, DemoEvent, Sandbox>} */
-export const demo = {
+const definition = {
     init: { kind: 'idle', size: defaultSize, rows: [], note: null },
     // **The page no longer refuses a large exponent, so it has to warn about
     // one.** The old bound turned a long wait into a refusal, which was a way
@@ -493,3 +494,5 @@ export const demo = {
                 : [/** @type {const} */ (['pre', { [codeMarker]: '' }, state.rows.map(rowText).join('\n')])]),
     ],
 }
+
+export const demo = withInputs(definition, ['size'], {})

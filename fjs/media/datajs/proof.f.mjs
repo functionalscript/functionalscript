@@ -226,12 +226,14 @@ export const proof = {
             // A tree draws each container centred beside the ones it holds:
             // the object under "d", 40px tall, sits halfway down the span
             // of its two arrays, 132 to 206, at (132 + 206 - 40) / 2 = 149.
+            // Check vertical alignment independently of column gaps, which
+            // widen when steep arrows need separate vertical lanes.
             nestedTree: () => {
                 const source = assertNotNullish(examples.find(([name]) => name === 'Nested tree'))[1]
                 const html = htmlToString(demo.view(source))
-                assert(html.includes('<rect x="358" y="132" width="81" height="40" rx="4" data-graph-node=""'), html)
-                assert(html.includes('<rect x="358" y="186" width="81" height="20" rx="4" data-graph-node=""'), html)
-                assert(html.includes('<rect x="237" y="149" width="66" height="40" rx="4" data-graph-node=""'), html)
+                assert(html.includes(' y="132" width="81" height="40" rx="4" data-graph-node=""'), html)
+                assert(html.includes(' y="186" width="81" height="20" rx="4" data-graph-node=""'), html)
+                assert(html.includes(' y="149" width="66" height="40" rx="4" data-graph-node=""'), html)
             },
             // Every example's view agrees with the graph API. The malformed
             // source is checked separately above, without depending on labels.
