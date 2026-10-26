@@ -7,6 +7,7 @@ the end-to-end `memberPresent` query is implemented;
 member/optional-call completion lifting is implemented;
 array/call spread return lifting is implemented;
 object-spread return lifting is implemented;
+closure-capture return lifting is in progress;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
