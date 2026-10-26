@@ -1,7 +1,7 @@
 /**
- * Expose owning function returns at direct value-consumer boundaries. Eager
- * operands, tests and member chains become statement regions only when a return
- * must cross them. Lookup, optional skips and receiver binding stay explicit.
+ * Lift owning function returns at direct value-consumer boundaries. The shared
+ * operand sequencer also exposes regions before threading lazy demands.
+ * Lookup, optional skips and receiver binding stay explicit.
  *
  * @module
  * @import { BindingId, Block, Exit, Function as FastFunction, FunctionTarget, Item, Key, LoopTarget, Operator, Statement, Step, Value } from '../types.ts'
@@ -404,8 +404,8 @@ export const liftReturns = (block, owner) => {
 export const liftValueReturns = (value, destination, owner, permitted = []) => run(valueTask(value, destination, owner, permitted))
 
 /**
- * Make one operation's evaluation regions explicit before a deferred demand
- * reveals its return. Nested operands retain their normal lifting boundary.
+ * Make one operation's evaluation regions explicit before threading normal or
+ * returning deferred demands. Nested operands retain their lifting boundary.
  * @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget | null) => { readonly statement: Statement | null, readonly value: Value, readonly normal: boolean, readonly callee: boolean }}
  */
 export const _exposeOperands = (source, destination, owner) => {

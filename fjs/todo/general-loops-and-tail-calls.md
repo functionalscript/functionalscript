@@ -137,6 +137,8 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       preserving memo lifetimes. Cells declared in initializer-owned loops
       reset at reached declarations, share within their iteration and nested
       loops, retain captured values, and propagate source-owned returns.
+      Normal-only memo plans also sequence member and optional calls, preserving
+      optional skips, lookup order, receivers and shared cell lifetimes.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

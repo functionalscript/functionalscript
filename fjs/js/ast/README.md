@@ -48,6 +48,12 @@ that iteration's value. Escaping closures retain the established value.
 Initializer-loop entries use the enclosing cells; narrower prerequisite calls
 preserve the current local suffix. Returns propagate to the source function,
 and loop transfers stay within the operand's locally owned loop chain.
+Selected normal-only memo plans also sequence member and optional calls.
+Optional skips keep keys, arguments and their cells undemanded. Reached member
+lookup precedes arguments, direct method calls retain their receiver, and
+wrapped property values keep detached invocation. Member-call argument spreads
+use the same reached expansion order. Standalone spread-only demands retain
+their existing boundary.
 [`memo`](./memo/module.f.mjs) owns this shared normalization and cell planning;
 [`control`](./control/module.f.mjs) supplies lexical dependency facts. The former
 graph-owner module paths retain compatibility exports.
